@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Users, PlusCircle, FileText, DollarSign, LogOut, Send, TrendingUp, Music, Disc, Radio, Receipt } from 'lucide-react';
+import { Calendar, Users, PlusCircle, FileText, DollarSign, LogOut, Send, TrendingUp, Music, Radio, Receipt, Headphones, Mic, Globe } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import InviteArtistDialog from '@/components/InviteArtistDialog';
 import NotificationBell from '@/components/NotificationBell';
@@ -400,23 +400,23 @@ export default function ManagementDashboard() {
                 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Conciertos</CardTitle>
+                    <CardTitle className="text-sm font-medium">Live Performance</CardTitle>
                     <Music className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">€0</div>
-                    <p className="text-xs text-muted-foreground">Presupuestos activos</p>
+                    <p className="text-xs text-muted-foreground">Conciertos y shows</p>
                   </CardContent>
                 </Card>
                 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Ventas Digitales</CardTitle>
-                    <Disc className="h-4 w-4 text-muted-foreground" />
+                    <CardTitle className="text-sm font-medium">Royalties</CardTitle>
+                    <Headphones className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">€0</div>
-                    <p className="text-xs text-muted-foreground">Streaming + downloads</p>
+                    <p className="text-xs text-muted-foreground">Streaming + mechanical</p>
                   </CardContent>
                 </Card>
                 
@@ -434,117 +434,132 @@ export default function ManagementDashboard() {
 
               {/* Categorías financieras */}
               <div className="grid gap-6 md:grid-cols-2">
-                {/* Presupuestos de Conciertos */}
+                {/* Live Performance */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Music className="w-5 h-5" />
-                      Presupuestos de Conciertos
+                      Live Performance
                     </CardTitle>
-                    <CardDescription>Gestiona cachés y gastos de actuaciones</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Button className="w-full" variant="outline">
-                      <PlusCircle className="w-4 h-4 mr-2" />
-                      Nuevo Presupuesto
-                    </Button>
-                    <div className="text-center text-sm text-muted-foreground">
-                      No hay presupuestos registrados
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Ventas Digitales */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Disc className="w-5 h-5" />
-                      Ventas Digitales
-                    </CardTitle>
-                    <CardDescription>Streaming, downloads y plataformas digitales</CardDescription>
+                    <CardDescription>Conciertos, giras y actuaciones en directo</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span>Spotify</span>
+                        <span>Gira principal</span>
                         <span className="font-medium">€0</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span>Apple Music</span>
+                        <span>Festivales</span>
                         <span className="font-medium">€0</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span>YouTube Music</span>
+                        <span>Conciertos únicos</span>
                         <span className="font-medium">€0</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span>Otros</span>
+                        <span>Eventos privados</span>
                         <span className="font-medium">€0</span>
                       </div>
                     </div>
                     <Button className="w-full" variant="outline">
                       <PlusCircle className="w-4 h-4 mr-2" />
-                      Registrar Venta
+                      Nuevo Show
                     </Button>
                   </CardContent>
                 </Card>
 
-                {/* Ventas Físicas */}
+                {/* Performance Royalties */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Receipt className="w-5 h-5" />
-                      Ventas Físicas
+                      <Headphones className="w-5 h-5" />
+                      Performance Royalties
                     </CardTitle>
-                    <CardDescription>Merchandising, vinilos, CDs y productos físicos</CardDescription>
+                    <CardDescription>Streaming, radio, TV y ejecución pública</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span>Merchandising</span>
+                        <span>Spotify (PRO)</span>
                         <span className="font-medium">€0</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span>Vinilos</span>
+                        <span>Radio/TV</span>
                         <span className="font-medium">€0</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span>CDs</span>
+                        <span>Venues públicos</span>
                         <span className="font-medium">€0</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span>Otros productos</span>
+                        <span>Streaming internacional</span>
                         <span className="font-medium">€0</span>
                       </div>
                     </div>
                     <Button className="w-full" variant="outline">
                       <PlusCircle className="w-4 h-4 mr-2" />
-                      Registrar Venta
+                      Registrar Royalty
                     </Button>
                   </CardContent>
                 </Card>
 
-                {/* Sincronización */}
+                {/* Mechanical Royalties */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Globe className="w-5 h-5" />
+                      Mechanical Royalties
+                    </CardTitle>
+                    <CardDescription>Downloads, streams y reproducciones físicas</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Streaming mechanicals</span>
+                        <span className="font-medium">€0</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Digital downloads</span>
+                        <span className="font-medium">€0</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Ventas físicas</span>
+                        <span className="font-medium">€0</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Covers/samples</span>
+                        <span className="font-medium">€0</span>
+                      </div>
+                    </div>
+                    <Button className="w-full" variant="outline">
+                      <PlusCircle className="w-4 h-4 mr-2" />
+                      Registrar Mechanical
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Sync Licensing */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Radio className="w-5 h-5" />
-                      Sincronización
+                      Sync Licensing
                     </CardTitle>
-                    <CardDescription>TV, cine, publicidad y uso comercial</CardDescription>
+                    <CardDescription>Sincronización en medios audiovisuales</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span>Televisión</span>
+                        <span>TV/Series</span>
                         <span className="font-medium">€0</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span>Cine</span>
+                        <span>Cine/Documentales</span>
                         <span className="font-medium">€0</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span>Publicidad</span>
+                        <span>Publicidad/Brands</span>
                         <span className="font-medium">€0</span>
                       </div>
                       <div className="flex justify-between text-sm">
@@ -554,7 +569,77 @@ export default function ManagementDashboard() {
                     </div>
                     <Button className="w-full" variant="outline">
                       <PlusCircle className="w-4 h-4 mr-2" />
-                      Nuevo Contrato
+                      Nuevo Sync
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Merchandising */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Receipt className="w-5 h-5" />
+                      Merchandising
+                    </CardTitle>
+                    <CardDescription>Productos físicos y digitales del artista</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Ropa/Accesorios</span>
+                        <span className="font-medium">€0</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Vinilos/CDs</span>
+                        <span className="font-medium">€0</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Productos digitales</span>
+                        <span className="font-medium">€0</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Ediciones limitadas</span>
+                        <span className="font-medium">€0</span>
+                      </div>
+                    </div>
+                    <Button className="w-full" variant="outline">
+                      <PlusCircle className="w-4 h-4 mr-2" />
+                      Registrar Venta
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Brand Partnerships */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Mic className="w-5 h-5" />
+                      Brand Partnerships
+                    </CardTitle>
+                    <CardDescription>Patrocinios, endorsements y colaboraciones</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Endorsements</span>
+                        <span className="font-medium">€0</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Patrocinios</span>
+                        <span className="font-medium">€0</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Colaboraciones</span>
+                        <span className="font-medium">€0</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Ambassadorships</span>
+                        <span className="font-medium">€0</span>
+                      </div>
+                    </div>
+                    <Button className="w-full" variant="outline">
+                      <PlusCircle className="w-4 h-4 mr-2" />
+                      Nuevo Partnership
                     </Button>
                   </CardContent>
                 </Card>
@@ -567,13 +652,17 @@ export default function ManagementDashboard() {
                     <DollarSign className="w-5 h-5" />
                     Otros Ingresos
                   </CardTitle>
-                  <CardDescription>Colaboraciones, masterclasses, derechos de autor y otros</CardDescription>
+                  <CardDescription>Masterclasses, sesiones de estudio, features y otros</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-3">
+                  <div className="grid gap-4 md:grid-cols-4">
                     <div className="text-center">
                       <div className="text-lg font-bold">€0</div>
-                      <div className="text-sm text-muted-foreground">Colaboraciones</div>
+                      <div className="text-sm text-muted-foreground">Features/Collabs</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold">€0</div>
+                      <div className="text-sm text-muted-foreground">Sesiones estudio</div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-bold">€0</div>
@@ -581,7 +670,7 @@ export default function ManagementDashboard() {
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-bold">€0</div>
-                      <div className="text-sm text-muted-foreground">Derechos de autor</div>
+                      <div className="text-sm text-muted-foreground">Fan subscriptions</div>
                     </div>
                   </div>
                   <Button className="w-full" variant="outline">
