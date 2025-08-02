@@ -11,6 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Users, PlusCircle, FileText, DollarSign, LogOut, Send } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import InviteArtistDialog from '@/components/InviteArtistDialog';
+import NotificationBell from '@/components/NotificationBell';
 
 interface Artist {
   id: string;
@@ -165,10 +167,13 @@ export default function ManagementDashboard() {
               <h1 className="text-2xl font-bold text-foreground">Dashboard - Management</h1>
               <p className="text-muted-foreground">Bienvenido, {profile?.full_name}</p>
             </div>
-            <Button variant="outline" onClick={handleSignOut}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Cerrar Sesión
-            </Button>
+            <div className="flex items-center gap-4">
+              <NotificationBell />
+              <Button variant="outline" onClick={handleSignOut}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Cerrar Sesión
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -329,11 +334,19 @@ export default function ManagementDashboard() {
 
           <TabsContent value="artists">
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Lista de Artistas</h2>
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold">Lista de Artistas</h2>
+                <InviteArtistDialog onArtistInvited={fetchData} />
+              </div>
+              
               {artists.length === 0 ? (
                 <Card>
                   <CardContent className="text-center py-8">
-                    <p className="text-muted-foreground">No hay artistas registrados en el sistema.</p>
+                    <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground mb-4">No hay artistas registrados en el sistema.</p>
+                    <p className="text-sm text-muted-foreground">
+                      Invita artistas para empezar a gestionar solicitudes y eventos.
+                    </p>
                   </CardContent>
                 </Card>
               ) : (

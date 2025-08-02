@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Bell, MessageCircle, FileText, DollarSign, LogOut } from 'lucide-react';
+import { Calendar, Bell, MessageCircle, FileText, DollarSign, LogOut, Check, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import NotificationBell from '@/components/NotificationBell';
 
 interface Request {
   id: string;
@@ -105,6 +106,30 @@ export default function ArtistDashboard() {
     }
   };
 
+  const handleUpdateRequestStatus = async (requestId: string, status: 'approved' | 'rejected') => {
+    try {
+      const { error } = await supabase
+        .from('requests')
+        .update({ status })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Solicitud actualizada",
+        description: `La solicitud ha sido ${status === 'approved' ? 'aprobada' : 'rechazada'}.`,
+      });
+
+      fetchData();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la solicitud.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     toast({
@@ -127,10 +152,13 @@ export default function ArtistDashboard() {
               <h1 className="text-2xl font-bold text-foreground">Dashboard - Artista</h1>
               <p className="text-muted-foreground">Bienvenido, {profile?.full_name}</p>
             </div>
-            <Button variant="outline" onClick={handleSignOut}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Cerrar Sesión
-            </Button>
+            <div className="flex items-center gap-4">
+              <NotificationBell />
+              <Button variant="outline" onClick={handleSignOut}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Cerrar Sesión
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -184,11 +212,32 @@ export default function ArtistDashboard() {
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-muted-foreground mb-2">{request.description}</p>
+                        <p className="text-sm text-muted-foreground mb-4">{request.description}</p>
                         {request.due_date && (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-muted-foreground mb-4">
                             Fecha límite: {new Date(request.due_date).toLocaleDateString()}
                           </p>
+                        )}
+                        
+                        {request.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleUpdateRequestStatus(request.id, 'approved')}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <Check className="w-4 h-4 mr-1" />
+                              Aprobar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleUpdateRequestStatus(request.id, 'rejected')}
+                            >
+                              <X className="w-4 h-4 mr-1" />
+                              Rechazar
+                            </Button>
+                          </div>
                         )}
                       </CardContent>
                     </Card>
