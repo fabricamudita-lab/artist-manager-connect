@@ -32,42 +32,83 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     console.log('Auth hook - Setting up auth state listener');
+    let mounted = true;
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return;
+        
         console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          console.log('Fetching profile for user:', session.user.id);
-          // Fetch user profile
-          const { data: profileData, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .single();
-          
-          console.log('Profile data:', profileData, 'Error:', error);
-          setProfile(profileData);
+          try {
+            console.log('Fetching profile for user:', session.user.id);
+            const { data: profileData, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no profile exists
+            
+            console.log('Profile data:', profileData, 'Error:', error);
+            
+            if (error) {
+              console.error('Profile fetch error:', error);
+              // If profile doesn't exist, create one
+              if (error.code === 'PGRST116') {
+                console.log('No profile found, creating one...');
+                const { data: newProfile, error: createError } = await supabase
+                  .from('profiles')
+                  .insert({
+                    user_id: session.user.id,
+                    email: session.user.email || '',
+                    full_name: session.user.user_metadata?.full_name || '',
+                    role: session.user.user_metadata?.role || 'artist'
+                  })
+                  .select()
+                  .single();
+                
+                if (createError) {
+                  console.error('Failed to create profile:', createError);
+                } else {
+                  console.log('Created new profile:', newProfile);
+                  setProfile(newProfile);
+                }
+              }
+            } else {
+              setProfile(profileData);
+            }
+          } catch (err) {
+            console.error('Unexpected error fetching profile:', err);
+          }
         } else {
           setProfile(null);
         }
         
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     );
 
     // Get initial session
     console.log('Auth hook - Getting initial session');
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
       console.log('Initial session:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
+      if (!session) {
+        setLoading(false);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
