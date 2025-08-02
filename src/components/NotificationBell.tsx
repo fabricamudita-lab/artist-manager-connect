@@ -5,12 +5,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Bell, Check, CheckCheck } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 
 export default function NotificationBell() {
+  console.log('NotificationBell component rendering...');
   const [open, setOpen] = useState(false);
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+
+  console.log('NotificationBell - Notifications:', notifications.length, 'Unread:', unreadCount);
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -88,7 +89,7 @@ export default function NotificationBell() {
                           {notification.message}
                         </p>
                         <p className="text-xs text-muted-foreground mt-2">
-                          {format(new Date(notification.created_at), 'PPp', { locale: es })}
+                          {new Date(notification.created_at).toLocaleString()}
                         </p>
                       </div>
                     </div>

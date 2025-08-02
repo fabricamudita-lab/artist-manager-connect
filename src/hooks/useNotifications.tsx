@@ -19,12 +19,15 @@ export function useNotifications() {
   const { profile } = useAuth();
 
   useEffect(() => {
+    console.log('Notifications hook - Profile:', profile);
     if (!profile) return;
 
     // Fetch existing notifications (simulated for now)
     fetchNotifications();
 
-    // Set up real-time subscription for new requests
+    // Simplified real-time setup (commenting out complex subscription for now)
+    // We'll add this back once basic functionality works
+    /*
     const channel = supabase
       .channel('requests_notifications')
       .on(
@@ -36,25 +39,11 @@ export function useNotifications() {
           filter: `artist_id=eq.${profile.id}`,
         },
         (payload) => {
-          // Show toast notification for new request
+          console.log('New notification received:', payload);
           toast({
             title: "Nueva solicitud recibida",
             description: `Tienes una nueva solicitud: ${payload.new.title}`,
           });
-
-          // Add to notifications list
-          const newNotification: Notification = {
-            id: `notif_${payload.new.id}`,
-            title: "Nueva Solicitud",
-            message: `${payload.new.title} - ${payload.new.type}`,
-            type: 'request',
-            read: false,
-            created_at: payload.new.created_at,
-            related_id: payload.new.id,
-          };
-
-          setNotifications(prev => [newNotification, ...prev]);
-          setUnreadCount(prev => prev + 1);
         }
       )
       .subscribe();
@@ -62,10 +51,11 @@ export function useNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
+    */
   }, [profile]);
 
   const fetchNotifications = async () => {
-    // Simulated notifications - in a real app, these would come from a notifications table
+    console.log('Fetching notifications...');
     const mockNotifications: Notification[] = [
       {
         id: '1',

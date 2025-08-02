@@ -31,20 +31,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('Auth hook - Setting up auth state listener');
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          console.log('Fetching profile for user:', session.user.id);
           // Fetch user profile
-          const { data: profileData } = await supabase
+          const { data: profileData, error } = await supabase
             .from('profiles')
             .select('*')
             .eq('user_id', session.user.id)
             .single();
           
+          console.log('Profile data:', profileData, 'Error:', error);
           setProfile(profileData);
         } else {
           setProfile(null);
@@ -55,7 +59,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     // Get initial session
+    console.log('Auth hook - Getting initial session');
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
