@@ -43,7 +43,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import { LocationMap } from './LocationMap';
 
 const eventTypes = [
@@ -94,6 +94,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { profile } = useAuth();
+  const { toast } = useToast();
 
   console.log('CreateEventDialog - Rendering, profile:', profile);
 
@@ -114,13 +115,19 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
 
   const onSubmit = async (data: FormData) => {
     if (!profile) {
-      toast.error('Error: No se pudo obtener el perfil de usuario');
+      toast({
+        title: "Error",
+        description: "No se pudo obtener el perfil de usuario",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsSubmitting(true);
     
     try {
+      console.log('Creating event with data:', data);
+      
       // Combinar fecha y hora para crear timestamps completos
       const startDateTime = new Date(data.start_date);
       const [startHour, startMinute] = data.start_time.split(':').map(Number);
@@ -130,29 +137,41 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       const [endHour, endMinute] = data.end_time.split(':').map(Number);
       endDateTime.setHours(endHour, endMinute);
 
+      console.log('DateTime objects:', { startDateTime, endDateTime });
+
       // Crear el evento principal
+      const eventPayload = {
+        title: data.title,
+        description: data.description || null,
+        start_date: startDateTime.toISOString(),
+        end_date: endDateTime.toISOString(),
+        event_type: data.event_type,
+        location: data.location || null,
+        latitude: data.latitude || null,
+        longitude: data.longitude || null,
+        artist_id: profile.id,
+        created_by: profile.user_id,
+      };
+
+      console.log('Event payload:', eventPayload);
+
       const { data: eventData, error: eventError } = await supabase
         .from('events')
-        .insert({
-          title: data.title,
-          description: data.description || null,
-          start_date: startDateTime.toISOString(),
-          end_date: endDateTime.toISOString(),
-          event_type: data.event_type,
-          location: data.location,
-          latitude: data.latitude || null,
-          longitude: data.longitude || null,
-          artist_id: profile.id, // Mantenemos esto para compatibilidad
-          created_by: profile.user_id,
-        })
+        .insert(eventPayload)
         .select()
         .single();
 
       if (eventError) {
         console.error('Error creating event:', eventError);
-        toast.error('Error al crear el evento');
+        toast({
+          title: "Error",
+          description: "Error al crear el evento: " + (eventError.message || eventError.code || 'Error desconocido'),
+          variant: "destructive",
+        });
         return;
       }
+
+      console.log('Event created successfully:', eventData);
 
       // Crear las relaciones con múltiples artistas
       if (eventData) {
@@ -171,13 +190,20 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         }
       }
 
-      toast.success(`Evento creado exitosamente para ${data.artist_names.length} artista(s)`);
+      toast({
+        title: "Éxito",
+        description: `Evento creado exitosamente para ${data.artist_names.length} artista(s)`,
+      });
       form.reset();
       setOpen(false);
       onEventCreated();
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Error inesperado al crear el evento');
+      toast({
+        title: "Error",
+        description: "Error inesperado al crear el evento",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
