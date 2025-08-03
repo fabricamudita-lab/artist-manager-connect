@@ -137,18 +137,14 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       const [endHour, endMinute] = data.end_time.split(':').map(Number);
       endDateTime.setHours(endHour, endMinute);
 
-      console.log('DateTime objects:', { startDateTime, endDateTime });
-
-      // Crear el evento principal
+      // Crear el evento principal con datos mínimos
       const eventPayload = {
         title: data.title,
-        description: data.description || null,
+        description: data.description || '',
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
         event_type: data.event_type,
-        location: data.location || null,
-        latitude: data.latitude || null,
-        longitude: data.longitude || null,
+        location: data.location || '',
         artist_id: profile.id,
         created_by: profile.user_id,
       };
@@ -163,9 +159,10 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
 
       if (eventError) {
         console.error('Error creating event:', eventError);
+        console.error('Error details:', JSON.stringify(eventError, null, 2));
         toast({
-          title: "Error",
-          description: "Error al crear el evento: " + (eventError.message || eventError.code || 'Error desconocido'),
+          title: "Error en Base de Datos",
+          description: `${eventError.message || eventError.code || 'Error desconocido'}`,
           variant: "destructive",
         });
         return;
@@ -173,26 +170,9 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
 
       console.log('Event created successfully:', eventData);
 
-      // Crear las relaciones con múltiples artistas
-      if (eventData) {
-        const artistRelations = data.artist_names.map(artistName => ({
-          event_id: eventData.id,
-          artist_id: profile.id, // Por ahora usamos el mismo profile.id para todos
-        }));
-
-        const { error: artistError } = await supabase
-          .from('event_artists')
-          .insert(artistRelations);
-
-        if (artistError) {
-          console.error('Error creating artist relations:', artistError);
-          // Continuamos aunque haya error en las relaciones
-        }
-      }
-
       toast({
-        title: "Éxito",
-        description: `Evento creado exitosamente para ${data.artist_names.length} artista(s)`,
+        title: "¡Éxito!",
+        description: `Evento "${data.title}" creado exitosamente`,
       });
       form.reset();
       setOpen(false);
