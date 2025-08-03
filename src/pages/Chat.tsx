@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle, Send, User, Filter, Users, Search, Phone, Video } from 'lucide-react';
+import { MessageCircle, Send, User, Filter, Users, Search, Phone, Video, Plus, Mail, MessageSquare } from 'lucide-react';
 import { ArtistSelector } from '@/components/ArtistSelector';
 import { useToast } from '@/hooks/use-toast';
 
@@ -18,6 +18,7 @@ interface Profile {
   avatar_url: string | null;
   email: string;
   role: 'artist' | 'management';
+  phone?: string | null;
 }
 
 interface Message {
@@ -179,6 +180,29 @@ export default function Chat() {
     }
   };
 
+  const startWhatsAppChat = (contact: Profile) => {
+    // Format phone number for WhatsApp (remove spaces, dashes, etc.)
+    const phone = contact.phone?.replace(/[^\d+]/g, '') || '';
+    const message = encodeURIComponent(`Hola ${contact.full_name}, te escribo desde la plataforma de gestión artística.`);
+    
+    if (phone) {
+      window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+    } else {
+      toast({
+        title: "Error",
+        description: "Este contacto no tiene número de teléfono configurado",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const startEmailChat = (contact: Profile) => {
+    const subject = encodeURIComponent('Comunicación desde plataforma de gestión artística');
+    const body = encodeURIComponent(`Hola ${contact.full_name},\n\nTe escribo desde nuestra plataforma de gestión artística.\n\nSaludos cordiales.`);
+    
+    window.open(`mailto:${contact.email}?subject=${subject}&body=${body}`, '_blank');
+  };
+
   const filteredConversations = conversations.filter(conv =>
     conv.profile.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     conv.profile.email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -213,6 +237,74 @@ export default function Chat() {
             placeholder="Seleccionar artistas para mostrar conversaciones..."
             showSelfOption={false}
           />
+        </CardContent>
+      </Card>
+
+      {/* New Chat Options */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5" />
+            Iniciar Nuevo Chat
+          </CardTitle>
+          <CardDescription>
+            Inicia una conversación por chat interno, WhatsApp o Gmail
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-3">
+            <Button 
+              variant="outline" 
+              className="w-full h-auto p-4 flex flex-col gap-2"
+              onClick={() => {
+                toast({
+                  title: "Chat Interno",
+                  description: "Selecciona un artista de la lista para chatear internamente",
+                });
+              }}
+            >
+              <MessageCircle className="h-5 w-5" />
+              <span className="text-sm">Chat Interno</span>
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="w-full h-auto p-4 flex flex-col gap-2 text-green-600 border-green-200 hover:bg-green-50"
+              onClick={() => {
+                if (selectedConversation) {
+                  startWhatsAppChat(selectedConversation);
+                } else {
+                  toast({
+                    title: "WhatsApp",
+                    description: "Selecciona un contacto primero para abrir WhatsApp",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            >
+              <MessageSquare className="h-5 w-5" />
+              <span className="text-sm">WhatsApp</span>
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="w-full h-auto p-4 flex flex-col gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+              onClick={() => {
+                if (selectedConversation) {
+                  startEmailChat(selectedConversation);
+                } else {
+                  toast({
+                    title: "Gmail",
+                    description: "Selecciona un contacto primero para abrir Gmail",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            >
+              <Mail className="h-5 w-5" />
+              <span className="text-sm">Gmail</span>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -305,10 +397,28 @@ export default function Chat() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => startWhatsAppChat(selectedConversation)}
+                      className="text-green-600 border-green-200 hover:bg-green-50"
+                      title="Abrir en WhatsApp"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => startEmailChat(selectedConversation)}
+                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                      title="Abrir en Gmail"
+                    >
+                      <Mail className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" title="Llamada">
                       <Phone className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" title="Videollamada">
                       <Video className="h-4 w-4" />
                     </Button>
                   </div>
