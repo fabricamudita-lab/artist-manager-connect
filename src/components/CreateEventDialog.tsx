@@ -47,13 +47,14 @@ import { useToast } from '@/hooks/use-toast';
 import { LocationMap } from './LocationMap';
 
 const eventTypes = [
-  'Ensayo',
-  'Entrevista', 
-  'Compromiso',
-  'Concierto',
-  'Transfer',
-  'Otros'
+  { value: 'concert', label: 'Concierto' },
+  { value: 'recording', label: 'Ensayo' },
+  { value: 'meeting', label: 'Entrevista' },
+  { value: 'deadline', label: 'Compromiso' },
+  { value: 'other', label: 'Otros' }
 ] as const;
+
+const eventTypeValues = ['concert', 'recording', 'meeting', 'deadline', 'other'] as const;
 
 const availableArtists = [
   'Ejemplo 1',
@@ -67,7 +68,7 @@ const availableArtists = [
 const formSchema = z.object({
   artist_names: z.array(z.string()).min(1, 'Selecciona al menos un artista'),
   title: z.string().min(1, 'El título es requerido'),
-  event_type: z.enum(eventTypes, {
+  event_type: z.enum(eventTypeValues, {
     required_error: 'Selecciona un tipo de evento',
   }),
   start_date: z.date({
@@ -302,8 +303,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
                     </FormControl>
                     <SelectContent>
                       {eventTypes.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
