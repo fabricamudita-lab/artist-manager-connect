@@ -146,7 +146,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         end_date: endDateTime.toISOString(),
         event_type: data.event_type,
         location: data.location || '',
-        artist_id: profile.user_id, // Usar user_id que es la referencia a auth.users
+        artist_id: profile.id, // Usar profile.id que es la clave primaria de profiles
         created_by: profile.user_id, // Usar user_id que es la referencia a auth.users
       };
 
