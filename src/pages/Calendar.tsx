@@ -3,6 +3,7 @@ import { usePageTitle } from '@/hooks/useCommon';
 import { useState, useEffect } from 'react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { format, isSameDay } from 'date-fns';
@@ -80,6 +81,8 @@ export default function Calendar() {
     );
   }
 
+  console.log('Calendar - Rendering calendar, profile:', profile);
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -87,7 +90,16 @@ export default function Calendar() {
           <CalendarIcon className="h-6 w-6" />
           <h1 className="text-2xl font-bold">Calendario Profesional</h1>
         </div>
-        <CreateEventDialog onEventCreated={fetchEvents} />
+        <div className="flex gap-2">
+          <CreateEventDialog onEventCreated={fetchEvents} />
+          <Button variant="outline" onClick={() => console.log('Test button clicked')}>
+            Test Button
+          </Button>
+        </div>
+      </div>
+      
+      <div className="bg-green-100 p-2 rounded mb-4">
+        <p>Debug: Profile exists: {!!profile}, Events count: {events.length}</p>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

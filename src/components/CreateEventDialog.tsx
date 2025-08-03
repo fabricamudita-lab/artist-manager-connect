@@ -82,6 +82,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { profile } = useAuth();
 
+  console.log('CreateEventDialog - Rendering, profile:', profile);
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
