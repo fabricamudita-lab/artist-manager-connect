@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { format, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Clock, MapPin } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, Plus } from 'lucide-react';
+import { CreateEventDialog } from '@/components/CreateEventDialog';
 
 interface Event {
   id: string;
@@ -81,9 +82,12 @@ export default function Calendar() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-2">
-        <CalendarIcon className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Calendario</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <CalendarIcon className="h-6 w-6" />
+          <h1 className="text-2xl font-bold">Calendario Profesional</h1>
+        </div>
+        <CreateEventDialog onEventCreated={fetchEvents} />
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
