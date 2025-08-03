@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { format, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Clock, MapPin, Plus, Filter } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, Plus, Filter, Calendar as CalendarWeekIcon, ExternalLink } from 'lucide-react';
 import { CreateEventDialog } from '@/components/CreateEventDialog';
 import { ArtistSelector } from '@/components/ArtistSelector';
 
@@ -27,6 +27,7 @@ export default function Calendar() {
   usePageTitle('Calendario');
   const { profile, loading } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [viewMode, setViewMode] = useState<'day' | 'week'>('day');
   const [events, setEvents] = useState<Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
@@ -96,7 +97,20 @@ export default function Calendar() {
     );
   };
 
-  const selectedDateEvents = selectedDate ? getEventsForDate(selectedDate) : [];
+  const getEventsForWeek = (date: Date) => {
+    const startOfWeek = new Date(date);
+    startOfWeek.setDate(date.getDate() - date.getDay());
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    
+    return events.filter(event => {
+      const eventDate = new Date(event.start_date);
+      return eventDate >= startOfWeek && eventDate <= endOfWeek;
+    });
+  };
+
+  const selectedDateEvents = selectedDate ? 
+    (viewMode === 'day' ? getEventsForDate(selectedDate) : getEventsForWeek(selectedDate)) : [];
 
   const eventDates = events.map(event => new Date(event.start_date));
 
@@ -126,26 +140,52 @@ export default function Calendar() {
         <CreateEventDialog onEventCreated={fetchEvents} />
       </div>
 
-      {/* Artist Selector */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filtrar por Artistas
-          </CardTitle>
-          <CardDescription>
-            Selecciona los artistas cuyos eventos quieres ver
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ArtistSelector
-            selectedArtists={selectedArtists}
-            onSelectionChange={setSelectedArtists}
-            placeholder="Seleccionar artistas para mostrar sus eventos..."
-            showSelfOption={true}
-          />
-        </CardContent>
-      </Card>
+      {/* Controls */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Artist Selector */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filtrar por Artistas
+            </CardTitle>
+            <CardDescription>
+              Selecciona los artistas cuyos eventos quieres ver
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ArtistSelector
+              selectedArtists={selectedArtists}
+              onSelectionChange={setSelectedArtists}
+              placeholder="Seleccionar artistas para mostrar sus eventos..."
+              showSelfOption={true}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Drive Links */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ExternalLink className="h-5 w-5" />
+              Material de Artistas
+            </CardTitle>
+            <CardDescription>
+              Accede a las carpetas de Drive de cada artista
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => window.open('https://drive.google.com', '_blank')}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Abrir Carpetas de Drive
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
@@ -167,25 +207,54 @@ export default function Calendar() {
 
         <Card>
           <CardHeader>
-            <CardTitle>
-              Eventos para {selectedDate ? format(selectedDate, 'PPPP', { locale: es }) : 'hoy'}
-            </CardTitle>
-            <CardDescription>
-              {eventsLoading ? 'Cargando eventos...' : `${selectedDateEvents.length} evento(s) programado(s)`}
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>
+                  Eventos para {selectedDate ? format(selectedDate, viewMode === 'day' ? 'PPPP' : "'semana del' PPP", { locale: es }) : 'hoy'}
+                </CardTitle>
+                <CardDescription>
+                  {eventsLoading ? 'Cargando eventos...' : `${selectedDateEvents.length} evento(s) programado(s)`}
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={viewMode === 'day' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('day')}
+                >
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  Día
+                </Button>
+                <Button
+                  variant={viewMode === 'week' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('week')}
+                >
+                  <CalendarWeekIcon className="h-4 w-4 mr-2" />
+                  Semana
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {eventsLoading ? (
               <div className="text-center py-4">Cargando eventos...</div>
             ) : selectedDateEvents.length === 0 ? (
               <div className="text-center py-4 text-muted-foreground">
-                No hay eventos programados para esta fecha
+                No hay eventos programados para este {viewMode === 'day' ? 'día' : 'período'}
               </div>
             ) : (
               selectedDateEvents.map((event) => (
                 <div key={event.id} className="border rounded-lg p-4 space-y-2">
                   <div className="flex items-start justify-between">
-                    <h3 className="font-semibold">{event.title}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold">{event.title}</h3>
+                      {viewMode === 'week' && (
+                        <Badge variant="secondary" className="text-xs">
+                          {format(new Date(event.start_date), 'EEE dd', { locale: es })}
+                        </Badge>
+                      )}
+                    </div>
                     <Badge variant="outline">{event.event_type}</Badge>
                   </div>
                   

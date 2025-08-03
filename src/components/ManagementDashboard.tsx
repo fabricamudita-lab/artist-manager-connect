@@ -143,6 +143,7 @@ export default function ManagementDashboard() {
       case 'booking': return '🎤';
       case 'interview': return '🎙️';
       case 'consultation': return '💬';
+      case 'information': return 'ℹ️';
       default: return '📄';
     }
   };
@@ -234,6 +235,7 @@ export default function ManagementDashboard() {
                             <SelectItem value="booking">Booking</SelectItem>
                             <SelectItem value="interview">Entrevista</SelectItem>
                             <SelectItem value="consultation">Consulta</SelectItem>
+                            <SelectItem value="information">Información</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
