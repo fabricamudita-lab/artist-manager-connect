@@ -1,15 +1,24 @@
 import { useState, useEffect, useRef } from 'react';
-import { usePageTitle } from '@/hooks/useCommon';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/useCommon';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, Send, Users, Search, Phone, Video } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { MessageCircle, Send, User, Filter, Users, Search, Phone, Video } from 'lucide-react';
+import { ArtistSelector } from '@/components/ArtistSelector';
+import { useToast } from '@/hooks/use-toast';
+
+interface Profile {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+  email: string;
+  role: 'artist' | 'management';
+}
 
 interface Message {
   id: string;
@@ -18,14 +27,6 @@ interface Message {
   recipient_id: string;
   created_at: string;
   read_at: string | null;
-}
-
-interface Profile {
-  id: string;
-  full_name: string;
-  email: string;
-  role: string;
-  avatar_url: string | null;
 }
 
 interface Conversation {
@@ -37,24 +38,32 @@ interface Conversation {
 export default function Chat() {
   usePageTitle('Chat');
   const { profile } = useAuth();
+  const { toast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Profile | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (profile) {
-      fetchConversations();
+      // Initialize with current user selected
+      setSelectedArtists([profile.id]);
     }
   }, [profile]);
 
   useEffect(() => {
+    if (profile && selectedArtists.length > 0) {
+      fetchConversations();
+    }
+  }, [profile, selectedArtists]);
+
+  useEffect(() => {
     if (selectedConversation) {
       fetchMessages(selectedConversation.id);
-      markMessagesAsRead(selectedConversation.id);
     }
   }, [selectedConversation]);
 
@@ -64,10 +73,11 @@ export default function Chat() {
 
   const fetchConversations = async () => {
     try {
-      // Get all profiles except current user
+      // Get profiles filtered by selected artists
       const { data: profiles } = await supabase
         .from('profiles')
         .select('*')
+        .in('id', selectedArtists)
         .neq('id', profile?.id);
 
       const conversationsData: Conversation[] = [];
@@ -96,7 +106,7 @@ export default function Chat() {
         });
       }
 
-      // Sort by last message time
+      // Sort by last message date
       conversationsData.sort((a, b) => {
         if (!a.lastMessage && !b.lastMessage) return 0;
         if (!a.lastMessage) return 1;
@@ -106,9 +116,10 @@ export default function Chat() {
 
       setConversations(conversationsData);
     } catch (error) {
+      console.error('Error fetching conversations:', error);
       toast({
         title: "Error",
-        description: "No se pudieron cargar las conversaciones.",
+        description: "No se pudieron cargar las conversaciones",
         variant: "destructive",
       });
     } finally {
@@ -118,77 +129,53 @@ export default function Chat() {
 
   const fetchMessages = async (userId: string) => {
     try {
-      const { data: messagesData } = await supabase
+      const { data } = await supabase
         .from('chat_messages')
         .select('*')
         .or(`and(sender_id.eq.${profile?.id},recipient_id.eq.${userId}),and(sender_id.eq.${userId},recipient_id.eq.${profile?.id})`)
         .order('created_at', { ascending: true });
 
-      setMessages(messagesData || []);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los mensajes.",
-        variant: "destructive",
-      });
-    }
-  };
+      setMessages(data || []);
 
-  const markMessagesAsRead = async (senderId: string) => {
-    try {
+      // Mark messages as read
       await supabase
         .from('chat_messages')
         .update({ read_at: new Date().toISOString() })
-        .eq('sender_id', senderId)
+        .eq('sender_id', userId)
         .eq('recipient_id', profile?.id)
         .is('read_at', null);
+
+      // Refresh conversations to update unread count
+      fetchConversations();
     } catch (error) {
-      console.error('Error marking messages as read:', error);
+      console.error('Error fetching messages:', error);
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!newMessage.trim() || !selectedConversation) return;
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation || !profile) return;
 
     try {
       const { error } = await supabase
         .from('chat_messages')
         .insert({
           message: newMessage.trim(),
-          sender_id: profile?.id,
+          sender_id: profile.id,
           recipient_id: selectedConversation.id,
         });
 
       if (error) throw error;
 
       setNewMessage('');
-      await fetchMessages(selectedConversation.id);
-      await fetchConversations();
+      fetchMessages(selectedConversation.id);
+      fetchConversations();
     } catch (error) {
+      console.error('Error sending message:', error);
       toast({
         title: "Error",
-        description: "No se pudo enviar el mensaje.",
+        description: "No se pudo enviar el mensaje",
         variant: "destructive",
       });
-    }
-  };
-
-  const formatMessageTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (days === 0) {
-      return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-    } else if (days === 1) {
-      return 'Ayer';
-    } else if (days < 7) {
-      return date.toLocaleDateString('es-ES', { weekday: 'short' });
-    } else {
-      return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
     }
   };
 
@@ -198,67 +185,81 @@ export default function Chat() {
   );
 
   if (loading) {
-    return <div className="p-6">Cargando chat...</div>;
+    return <div className="p-6">Cargando conversaciones...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex h-screen">
-        {/* Conversations Sidebar */}
-        <div className="w-80 border-r bg-card">
-          <div className="p-4 border-b">
-            <div className="flex items-center gap-2 mb-4">
-              <MessageCircle className="w-6 h-6" />
-              <h1 className="text-xl font-bold">Chat</h1>
-            </div>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center gap-2">
+        <MessageCircle className="h-6 w-6" />
+        <h1 className="text-2xl font-bold">Chat Profesional</h1>
+      </div>
+
+      {/* Artist Selector */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filtrar Conversaciones
+          </CardTitle>
+          <CardDescription>
+            Selecciona con qué artistas quieres chatear
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ArtistSelector
+            selectedArtists={selectedArtists}
+            onSelectionChange={setSelectedArtists}
+            placeholder="Seleccionar artistas para mostrar conversaciones..."
+            showSelfOption={false}
+          />
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
+        {/* Conversations List */}
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Conversaciones
+            </CardTitle>
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar conversaciones..."
+                placeholder="Buscar contactos..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
               />
             </div>
-          </div>
-          
-          <ScrollArea className="h-[calc(100vh-140px)]">
-            <div className="p-2">
+          </CardHeader>
+          <CardContent className="p-0">
+            <ScrollArea className="h-[400px]">
               {filteredConversations.length === 0 ? (
-                <div className="text-center py-8">
-                  <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">No hay conversaciones</p>
+                <div className="p-4 text-center text-muted-foreground">
+                  No hay conversaciones disponibles
                 </div>
               ) : (
                 filteredConversations.map((conversation) => (
                   <div
                     key={conversation.profile.id}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors mb-2 ${
-                      selectedConversation?.id === conversation.profile.id
-                        ? 'bg-primary/10'
-                        : 'hover:bg-muted'
+                    className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
+                      selectedConversation?.id === conversation.profile.id ? 'bg-muted' : ''
                     }`}
                     onClick={() => setSelectedConversation(conversation.profile)}
                   >
                     <div className="flex items-center gap-3">
-                      <Avatar className="w-10 h-10">
+                      <Avatar>
                         <AvatarImage src={conversation.profile.avatar_url || ''} />
                         <AvatarFallback>
-                          {conversation.profile.full_name.charAt(0).toUpperCase()}
+                          <User className="h-4 w-4" />
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <p className="font-medium truncate">{conversation.profile.full_name}</p>
-                          {conversation.lastMessage && (
-                            <span className="text-xs text-muted-foreground">
-                              {formatMessageTime(conversation.lastMessage.created_at)}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm text-muted-foreground truncate">
-                            {conversation.lastMessage?.message || 'No hay mensajes'}
+                          <p className="font-medium truncate">
+                            {conversation.profile.full_name}
                           </p>
                           {conversation.unreadCount > 0 && (
                             <Badge variant="destructive" className="text-xs">
@@ -266,105 +267,119 @@ export default function Chat() {
                             </Badge>
                           )}
                         </div>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {conversation.lastMessage?.message || 'Sin mensajes'}
+                        </p>
                         <Badge variant="outline" className="text-xs mt-1">
-                          {conversation.profile.role === 'artist' ? 'Artista' : 'Management'}
+                          {conversation.profile.role}
                         </Badge>
                       </div>
                     </div>
                   </div>
                 ))
               )}
-            </div>
-          </ScrollArea>
-        </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
 
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col">
+        {/* Messages Area */}
+        <Card className="lg:col-span-2">
           {selectedConversation ? (
             <>
-              {/* Chat Header */}
-              <div className="p-4 border-b bg-card">
+              <CardHeader className="border-b">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Avatar className="w-10 h-10">
+                    <Avatar>
                       <AvatarImage src={selectedConversation.avatar_url || ''} />
                       <AvatarFallback>
-                        {selectedConversation.full_name.charAt(0).toUpperCase()}
+                        <User className="h-4 w-4" />
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h2 className="font-semibold">{selectedConversation.full_name}</h2>
+                      <CardTitle className="text-lg">
+                        {selectedConversation.full_name}
+                      </CardTitle>
                       <p className="text-sm text-muted-foreground">
-                        {selectedConversation.role === 'artist' ? 'Artista' : 'Management'}
+                        {selectedConversation.email}
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm">
-                      <Phone className="w-4 h-4" />
+                      <Phone className="h-4 w-4" />
                     </Button>
                     <Button variant="outline" size="sm">
-                      <Video className="w-4 h-4" />
+                      <Video className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-              </div>
-
-              {/* Messages */}
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${
-                        message.sender_id === profile?.id ? 'justify-end' : 'justify-start'
-                      }`}
-                    >
-                      <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                          message.sender_id === profile?.id
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted'
-                        }`}
-                      >
-                        <p className="text-sm">{message.message}</p>
-                        <p className="text-xs opacity-70 mt-1">
-                          {formatMessageTime(message.created_at)}
-                        </p>
-                      </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ScrollArea className="h-[400px] p-4">
+                  {messages.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8">
+                      No hay mensajes aún. ¡Envía el primero!
                     </div>
-                  ))}
-                  <div ref={messagesEndRef} />
+                  ) : (
+                    <div className="space-y-4">
+                      {messages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`flex ${
+                            message.sender_id === profile?.id ? 'justify-end' : 'justify-start'
+                          }`}
+                        >
+                          <div
+                            className={`max-w-[70%] p-3 rounded-lg ${
+                              message.sender_id === profile?.id
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted'
+                            }`}
+                          >
+                            <p className="text-sm">{message.message}</p>
+                            <p className="text-xs opacity-70 mt-1">
+                              {new Date(message.created_at).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      <div ref={messagesEndRef} />
+                    </div>
+                  )}
+                </ScrollArea>
+                <div className="border-t p-4">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Escribe tu mensaje..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                      className="flex-1"
+                    />
+                    <Button onClick={sendMessage} disabled={!newMessage.trim()}>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </ScrollArea>
-
-              {/* Message Input */}
-              <div className="p-4 border-t bg-card">
-                <form onSubmit={handleSendMessage} className="flex gap-2">
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Escribe un mensaje..."
-                    className="flex-1"
-                  />
-                  <Button type="submit" disabled={!newMessage.trim()}>
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </form>
-              </div>
+              </CardContent>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <MessageCircle className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">Selecciona una conversación</h3>
+                <MessageCircle className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">
+                  Selecciona una conversación
+                </h3>
                 <p className="text-muted-foreground">
                   Elige una conversación para empezar a chatear
                 </p>
               </div>
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

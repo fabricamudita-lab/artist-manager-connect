@@ -8,8 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { format, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Clock, MapPin, Plus } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, Plus, Filter } from 'lucide-react';
 import { CreateEventDialog } from '@/components/CreateEventDialog';
+import { ArtistSelector } from '@/components/ArtistSelector';
 
 interface Event {
   id: string;
@@ -28,37 +29,52 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [events, setEvents] = useState<Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
+  const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
 
   useEffect(() => {
     if (profile) {
-      fetchEvents();
+      // Initialize with current user selected
+      setSelectedArtists([profile.id]);
     }
   }, [profile]);
+
+  useEffect(() => {
+    if (profile && selectedArtists.length > 0) {
+      fetchEvents();
+    }
+  }, [profile, selectedArtists]);
 
   const fetchEvents = async () => {
     try {
       if (profile?.role === 'management') {
-        // Management users see all events they created
+        // Management users see events for selected artists (created by them or associated with selected artists)
         const { data, error } = await supabase
           .from('events')
           .select('*')
-          .eq('created_by', profile.id)
+          .or(`created_by.eq.${profile.id},artist_id.in.(${selectedArtists.join(',')})`)
           .order('start_date', { ascending: true });
 
         if (error) {
           console.error('Error fetching events:', error);
         } else {
-          setEvents(data || []);
+          // Filter events to only show those related to selected artists
+          const filteredEvents = data?.filter(event => 
+            selectedArtists.includes(event.artist_id) || 
+            event.created_by === profile.id
+          ) || [];
+          setEvents(filteredEvents);
         }
       } else {
-        // Artists see events they are associated with via event_artists table
+        // Artists see events they are associated with (filtered by selection if they can see others)
+        const artistFilter = selectedArtists.length > 0 ? selectedArtists : [profile.id];
+        
         const { data, error } = await supabase
           .from('events')
           .select(`
             *,
             event_artists!inner(artist_id)
           `)
-          .eq('event_artists.artist_id', profile?.id)
+          .in('event_artists.artist_id', artistFilter)
           .order('start_date', { ascending: true });
 
         if (error) {
@@ -109,6 +125,27 @@ export default function Calendar() {
         </div>
         <CreateEventDialog onEventCreated={fetchEvents} />
       </div>
+
+      {/* Artist Selector */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filtrar por Artistas
+          </CardTitle>
+          <CardDescription>
+            Selecciona los artistas cuyos eventos quieres ver
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ArtistSelector
+            selectedArtists={selectedArtists}
+            onSelectionChange={setSelectedArtists}
+            placeholder="Seleccionar artistas para mostrar sus eventos..."
+            showSelfOption={true}
+          />
+        </CardContent>
+      </Card>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
