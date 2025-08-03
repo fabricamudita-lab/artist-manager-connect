@@ -78,7 +78,7 @@ const formSchema = z.object({
     required_error: 'La fecha de fin es requerida',
   }),
   end_time: z.string().min(1, 'La hora de fin es requerida'),
-  location: z.string().min(1, 'La ubicación es requerida'),
+  location: z.string().optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   description: z.string().optional(),
@@ -195,10 +195,12 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     form.setValue('artist_names', current.filter(name => name !== artistName));
   };
 
-  const handleLocationSelect = (location: string, lat: number, lng: number) => {
+  const handleLocationSelect = (location: string, lat?: number, lng?: number) => {
     form.setValue('location', location);
-    form.setValue('latitude', lat);
-    form.setValue('longitude', lng);
+    if (lat && lng) {
+      form.setValue('latitude', lat);
+      form.setValue('longitude', lng);
+    }
   };
 
   return (
