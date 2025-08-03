@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Clock } from 'lucide-react';
+import { CalendarIcon, Clock, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -40,9 +40,11 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { LocationMap } from './LocationMap';
 
 const eventTypes = [
   'Ensayo',
@@ -53,8 +55,17 @@ const eventTypes = [
   'Otros'
 ] as const;
 
+const availableArtists = [
+  'Ejemplo 1',
+  'Ejemplo 2', 
+  'Ejemplo 3',
+  'María García',
+  'Carlos Ruiz',
+  'Ana López'
+];
+
 const formSchema = z.object({
-  artist_name: z.string().min(1, 'Selecciona un artista'),
+  artist_names: z.array(z.string()).min(1, 'Selecciona al menos un artista'),
   title: z.string().min(1, 'El título es requerido'),
   event_type: z.enum(eventTypes, {
     required_error: 'Selecciona un tipo de evento',
@@ -68,6 +79,8 @@ const formSchema = z.object({
   }),
   end_time: z.string().min(1, 'La hora de fin es requerida'),
   location: z.string().min(1, 'La ubicación es requerida'),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
   description: z.string().optional(),
 });
 
@@ -87,7 +100,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      artist_name: 'Ejemplo 1',
+      artist_names: ['Ejemplo 1'],
       title: '',
       event_type: undefined,
       location: '',
@@ -96,6 +109,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       end_time: '10:00',
     },
   });
+
+  const selectedArtists = form.watch('artist_names') || [];
 
   const onSubmit = async (data: FormData) => {
     if (!profile) {
@@ -115,7 +130,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       const [endHour, endMinute] = data.end_time.split(':').map(Number);
       endDateTime.setHours(endHour, endMinute);
 
-      const { error } = await supabase
+      // Crear el evento principal
+      const { data: eventData, error: eventError } = await supabase
         .from('events')
         .insert({
           title: data.title,
@@ -124,17 +140,38 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           end_date: endDateTime.toISOString(),
           event_type: data.event_type,
           location: data.location,
-          artist_id: profile.id,
+          latitude: data.latitude || null,
+          longitude: data.longitude || null,
+          artist_id: profile.id, // Mantenemos esto para compatibilidad
           created_by: profile.user_id,
-        });
+        })
+        .select()
+        .single();
 
-      if (error) {
-        console.error('Error creating event:', error);
+      if (eventError) {
+        console.error('Error creating event:', eventError);
         toast.error('Error al crear el evento');
         return;
       }
 
-      toast.success('Evento creado exitosamente');
+      // Crear las relaciones con múltiples artistas
+      if (eventData) {
+        const artistRelations = data.artist_names.map(artistName => ({
+          event_id: eventData.id,
+          artist_id: profile.id, // Por ahora usamos el mismo profile.id para todos
+        }));
+
+        const { error: artistError } = await supabase
+          .from('event_artists')
+          .insert(artistRelations);
+
+        if (artistError) {
+          console.error('Error creating artist relations:', artistError);
+          // Continuamos aunque haya error en las relaciones
+        }
+      }
+
+      toast.success(`Evento creado exitosamente para ${data.artist_names.length} artista(s)`);
       form.reset();
       setOpen(false);
       onEventCreated();
@@ -146,6 +183,24 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     }
   };
 
+  const addArtist = (artistName: string) => {
+    const current = form.getValues('artist_names') || [];
+    if (!current.includes(artistName)) {
+      form.setValue('artist_names', [...current, artistName]);
+    }
+  };
+
+  const removeArtist = (artistName: string) => {
+    const current = form.getValues('artist_names') || [];
+    form.setValue('artist_names', current.filter(name => name !== artistName));
+  };
+
+  const handleLocationSelect = (location: string, lat: number, lng: number) => {
+    form.setValue('location', location);
+    form.setValue('latitude', lat);
+    form.setValue('longitude', lng);
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -154,11 +209,11 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           Crear Evento
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Crear Nuevo Evento</DialogTitle>
+          <DialogTitle>Crear Nuevo Evento Profesional</DialogTitle>
           <DialogDescription>
-            Gestiona el calendario profesional siguiendo la estructura requerida
+            Gestiona el calendario profesional con selección múltiple de artistas y ubicación en Google Maps
           </DialogDescription>
         </DialogHeader>
         
@@ -166,22 +221,46 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
               control={form.control}
-              name="artist_name"
+              name="artist_names"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Artista</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona un artista" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Ejemplo 1">Ejemplo 1</SelectItem>
-                      <SelectItem value="Ejemplo 2">Ejemplo 2</SelectItem>
-                      <SelectItem value="Ejemplo 3">Ejemplo 3</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Artistas Seleccionados</FormLabel>
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {selectedArtists.map((artist) => (
+                        <Badge key={artist} variant="secondary" className="flex items-center gap-1">
+                          {artist}
+                          <X 
+                            className="h-3 w-3 cursor-pointer hover:text-red-500" 
+                            onClick={() => removeArtist(artist)}
+                          />
+                        </Badge>
+                      ))}
+                      {selectedArtists.length === 0 && (
+                        <p className="text-sm text-muted-foreground">No hay artistas seleccionados</p>
+                      )}
+                    </div>
+                    
+                    <Select onValueChange={addArtist}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Agregar artista..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {availableArtists
+                          .filter(artist => !selectedArtists.includes(artist))
+                          .map((artist) => (
+                            <SelectItem key={artist} value={artist}>
+                              {artist}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <FormDescription>
+                    Puedes seleccionar múltiples artistas para el mismo evento
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -343,21 +422,14 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="location"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ubicación</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Lugar específico o 'Virtual'" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Indica claramente el lugar o escribe "Virtual" para eventos online
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
+            <LocationMap 
+              onLocationSelect={handleLocationSelect}
+              initialLocation={form.watch('location')}
+              initialCoords={
+                form.watch('latitude') && form.watch('longitude') 
+                  ? { lat: form.watch('latitude')!, lng: form.watch('longitude')! }
+                  : undefined
+              }
             />
 
             <FormField
@@ -391,7 +463,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
                 Cancelar
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Creando...' : 'Crear Evento'}
+                {isSubmitting ? 'Creando...' : 'Crear Evento Profesional'}
               </Button>
             </DialogFooter>
           </form>

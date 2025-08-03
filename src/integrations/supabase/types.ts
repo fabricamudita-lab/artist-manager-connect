@@ -110,6 +110,27 @@ export type Database = {
           },
         ]
       }
+      event_artists: {
+        Row: {
+          artist_id: string
+          created_at: string | null
+          event_id: string
+          id: string
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string | null
+          event_id: string
+          id?: string
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string | null
+          event_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           artist_id: string
@@ -119,7 +140,9 @@ export type Database = {
           end_date: string
           event_type: string
           id: string
+          latitude: number | null
           location: string | null
+          longitude: number | null
           start_date: string
           title: string
           updated_at: string
@@ -132,7 +155,9 @@ export type Database = {
           end_date: string
           event_type: string
           id?: string
+          latitude?: number | null
           location?: string | null
+          longitude?: number | null
           start_date: string
           title: string
           updated_at?: string
@@ -145,7 +170,9 @@ export type Database = {
           end_date?: string
           event_type?: string
           id?: string
+          latitude?: number | null
           location?: string | null
+          longitude?: number | null
           start_date?: string
           title?: string
           updated_at?: string
