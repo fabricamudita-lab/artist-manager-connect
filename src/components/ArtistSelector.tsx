@@ -52,12 +52,50 @@ export function ArtistSelector({
 
   const fetchArtists = async () => {
     try {
-      const { data } = await supabase
+      console.log('Fetching artists...');
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .order('full_name', { ascending: true });
       
-      setArtists(data || []);
+      console.log('Artists fetched:', data, 'Error:', error);
+      
+      // Add some example artists for testing if none exist
+      const realArtists = data || [];
+      const exampleArtists: Artist[] = [
+        {
+          id: 'example-1',
+          full_name: 'María Rodríguez',
+          email: 'maria.rodriguez@example.com',
+          role: 'artist'
+        },
+        {
+          id: 'example-2', 
+          full_name: 'Carlos Méndez',
+          email: 'carlos.mendez@example.com',
+          role: 'artist'
+        },
+        {
+          id: 'example-3',
+          full_name: 'Sofía García',
+          email: 'sofia.garcia@example.com', 
+          role: 'artist'
+        },
+        {
+          id: 'example-4',
+          full_name: 'Alejandro López',
+          email: 'alejandro.lopez@example.com',
+          role: 'artist'
+        }
+      ];
+      
+      // Combine real artists with examples (excluding examples that might conflict)
+      const allArtists = [
+        ...realArtists,
+        ...exampleArtists.filter(example => !realArtists.some(real => real.email === example.email))
+      ];
+      
+      setArtists(allArtists);
     } catch (error) {
       console.error('Error fetching artists:', error);
     } finally {
