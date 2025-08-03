@@ -139,14 +139,14 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       const endDateTime = new Date();
       endDateTime.setHours(11, 0, 0, 0); // 11:00 AM hoy
 
-      // Payload súper simple para test
+      // Payload súper simple para test con placeholder para created_by
       const eventPayload = {
         title: data.title || 'Test Event',
         event_type: data.event_type || 'other',
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
         artist_id: profile.id,
-        created_by: profile.user_id,
+        created_by: profile.user_id || profile.id, // Usar uno de los dos IDs disponibles
       };
 
       console.log('=== SENDING TO DATABASE ===');
