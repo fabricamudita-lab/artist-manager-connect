@@ -140,52 +140,26 @@ export default function Calendar() {
         <CreateEventDialog onEventCreated={fetchEvents} />
       </div>
 
-      {/* Controls */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Artist Selector */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Filtrar por Artistas
-            </CardTitle>
-            <CardDescription>
-              Selecciona los artistas cuyos eventos quieres ver
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ArtistSelector
-              selectedArtists={selectedArtists}
-              onSelectionChange={setSelectedArtists}
-              placeholder="Seleccionar artistas para mostrar sus eventos..."
-              showSelfOption={true}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Drive Links */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ExternalLink className="h-5 w-5" />
-              Material de Artistas
-            </CardTitle>
-            <CardDescription>
-              Accede a las carpetas de Drive de cada artista
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => window.open('https://drive.google.com', '_blank')}
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Abrir Carpetas de Drive
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Artist Selector */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filtrar por Artistas
+          </CardTitle>
+          <CardDescription>
+            Selecciona los artistas cuyos eventos quieres ver
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ArtistSelector
+            selectedArtists={selectedArtists}
+            onSelectionChange={setSelectedArtists}
+            placeholder="Seleccionar artistas para mostrar sus eventos..."
+            showSelfOption={true}
+          />
+        </CardContent>
+      </Card>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>

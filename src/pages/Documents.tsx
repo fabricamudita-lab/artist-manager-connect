@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { FileText, Upload, Download, Eye, Filter, File, Image, Music, Video } from 'lucide-react';
+import { FileText, Upload, Download, Eye, Filter, File, Image, Music, Video, ExternalLink, FolderOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -214,26 +214,54 @@ export default function Documents() {
         </div>
       </div>
 
-      {/* Artist Selector */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filtrar por Artistas
-          </CardTitle>
-          <CardDescription>
-            Selecciona los artistas cuyos documentos quieres ver
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ArtistSelector
-            selectedArtists={selectedArtists}
-            onSelectionChange={setSelectedArtists}
-            placeholder="Seleccionar artistas para mostrar sus documentos..."
-            showSelfOption={true}
-          />
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Artist Selector */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filtrar por Artistas
+            </CardTitle>
+            <CardDescription>
+              Selecciona los artistas cuyos documentos quieres ver
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ArtistSelector
+              selectedArtists={selectedArtists}
+              onSelectionChange={setSelectedArtists}
+              placeholder="Seleccionar artistas para mostrar sus documentos..."
+              showSelfOption={true}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Material de Artistas - Drive Access */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FolderOpen className="h-5 w-5" />
+              Material de Artistas
+            </CardTitle>
+            <CardDescription>
+              Accede a las carpetas de Drive donde cada artista tiene su material profesional
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              Cada artista tiene una carpeta dedicada con fotos, videos, biografías, logos y material promocional.
+            </div>
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => window.open('https://drive.google.com', '_blank')}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Acceder a Carpetas de Drive
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Upload Section */}
       <Card>
