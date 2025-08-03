@@ -33,7 +33,7 @@ export default function Dashboard() {
   console.log('Dashboard - Rendering dashboard for role:', profile.role);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="p-6">
       {profile.role === 'artist' ? (
         <ArtistDashboard />
       ) : (
