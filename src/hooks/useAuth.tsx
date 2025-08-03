@@ -32,46 +32,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   console.log('AuthProvider - Current state:', { user: user?.email, profile: profile?.full_name, loading });
 
-  // Separate function to fetch user profile (called via setTimeout to avoid blocking auth callback)
-  const fetchUserProfile = async (userId: string) => {
+  // Separate function to fetch user profile
+  const fetchUserProfile = async (session: Session) => {
     try {
-      console.log('Fetching profile for user:', userId);
+      console.log('Fetching profile for user:', session.user.id);
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', session.user.id)
         .maybeSingle();
       
       console.log('Profile data:', profileData, 'Error:', error);
       
       if (error) {
         console.error('Profile fetch error:', error);
-        // If profile doesn't exist, create one
-        if (error.code === 'PGRST116') {
-          console.log('No profile found, creating one...');
-          const { data: newProfile, error: createError } = await supabase
-            .from('profiles')
-            .insert({
-              user_id: userId,
-              email: user?.email || '',
-              full_name: user?.user_metadata?.full_name || '',
-              role: user?.user_metadata?.role || 'artist'
-            })
-            .select()
-            .single();
-          
-          if (createError) {
-            console.error('Failed to create profile:', createError);
-          } else {
-            console.log('Created new profile:', newProfile);
-            setProfile(newProfile);
-          }
+        setProfile(null);
+      } else if (!profileData) {
+        console.log('No profile found, creating one...');
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: session.user.id,
+            email: session.user.email || '',
+            full_name: session.user.user_metadata?.full_name || '',
+            role: session.user.user_metadata?.role || 'artist'
+          })
+          .select()
+          .single();
+        
+        if (createError) {
+          console.error('Failed to create profile:', createError);
+          setProfile(null);
+        } else {
+          console.log('Created new profile:', newProfile);
+          setProfile(newProfile);
         }
       } else {
         setProfile(profileData);
       }
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);
+      setProfile(null);
     } finally {
       setLoading(false);
     }
@@ -93,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Defer profile fetching to avoid blocking the auth callback
         if (session?.user) {
           setTimeout(() => {
-            fetchUserProfile(session.user!.id);
+            fetchUserProfile(session);
           }, 0);
         } else {
           setProfile(null);
