@@ -18,14 +18,19 @@ const queryClient = new QueryClient();
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   
+  console.log('ProtectedRoute - user:', user?.email, 'loading:', loading);
+  
   if (loading) {
+    console.log('ProtectedRoute - Still loading...');
     return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
   }
   
   if (!user) {
+    console.log('ProtectedRoute - No user, redirecting to auth');
     return <Navigate to="/auth" replace />;
   }
   
+  console.log('ProtectedRoute - User authenticated, rendering children');
   return <>{children}</>;
 }
 

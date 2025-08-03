@@ -30,6 +30,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  console.log('AuthProvider - Current state:', { user: user?.email, profile: profile?.full_name, loading });
+
   // Separate function to fetch user profile (called via setTimeout to avoid blocking auth callback)
   const fetchUserProfile = async (userId: string) => {
     try {
