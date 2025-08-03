@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { usePageTitle } from '@/hooks/useCommon';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +31,7 @@ interface Artist {
 }
 
 export default function Documents() {
+  usePageTitle('Documentos');
   const { profile } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
@@ -44,8 +46,10 @@ export default function Documents() {
   });
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (profile) {
+      fetchData();
+    }
+  }, [profile]);
 
   const fetchData = async () => {
     try {

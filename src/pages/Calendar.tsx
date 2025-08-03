@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { usePageTitle } from '@/hooks/useCommon';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +32,7 @@ interface Artist {
 }
 
 export default function Calendar() {
+  usePageTitle('Calendario');
   const { profile } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
@@ -47,8 +49,10 @@ export default function Calendar() {
   });
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (profile) {
+      fetchData();
+    }
+  }, [profile]);
 
   const fetchData = async () => {
     try {
@@ -91,19 +95,31 @@ export default function Calendar() {
       return;
     }
 
+    // For management users, artist_id is required
+    if (profile?.role === 'management' && !newEvent.artist_id) {
+      toast({
+        title: "Error",
+        description: "Por favor selecciona un artista.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
+      const eventData = {
+        title: newEvent.title,
+        description: newEvent.description,
+        event_type: newEvent.event_type,
+        start_date: newEvent.start_date,
+        end_date: newEvent.end_date || newEvent.start_date,
+        location: newEvent.location,
+        artist_id: profile?.role === 'management' ? newEvent.artist_id : profile?.id,
+        created_by: profile?.id,
+      };
+
       const { error } = await supabase
         .from('events')
-        .insert({
-          title: newEvent.title,
-          description: newEvent.description,
-          event_type: newEvent.event_type,
-          start_date: newEvent.start_date,
-          end_date: newEvent.end_date || newEvent.start_date,
-          location: newEvent.location,
-          artist_id: profile?.role === 'management' ? newEvent.artist_id : profile?.id,
-          created_by: profile?.id,
-        });
+        .insert(eventData);
 
       if (error) throw error;
 
@@ -124,6 +140,7 @@ export default function Calendar() {
       setShowNewEventForm(false);
       fetchData();
     } catch (error) {
+      console.error('Error creating event:', error);
       toast({
         title: "Error",
         description: "No se pudo crear el evento.",

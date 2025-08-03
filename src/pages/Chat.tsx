@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { usePageTitle } from '@/hooks/useCommon';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +35,7 @@ interface Conversation {
 }
 
 export default function Chat() {
+  usePageTitle('Chat');
   const { profile } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Profile | null>(null);
@@ -44,8 +46,10 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchConversations();
-  }, []);
+    if (profile) {
+      fetchConversations();
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (selectedConversation) {
