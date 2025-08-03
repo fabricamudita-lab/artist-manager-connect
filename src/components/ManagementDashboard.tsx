@@ -46,8 +46,10 @@ export default function ManagementDashboard() {
   });
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (profile) {
+      fetchData();
+    }
+  }, [profile]);
 
   const fetchData = async () => {
     try {

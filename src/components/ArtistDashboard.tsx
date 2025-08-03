@@ -47,8 +47,10 @@ export default function ArtistDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (profile?.id) {
+      fetchData();
+    }
+  }, [profile]);
 
   const fetchData = async () => {
     try {
@@ -130,41 +132,25 @@ export default function ArtistDashboard() {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    toast({
-      title: "Sesión cerrada",
-      description: "Has cerrado sesión correctamente.",
-    });
-  };
 
   if (loading) {
     return <div className="p-6">Cargando...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="space-y-6">
       {/* Header */}
-      <header className="bg-card shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Dashboard - Artista</h1>
-              <p className="text-muted-foreground">Bienvenido, {profile?.full_name}</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <NotificationBell />
-              <Button variant="outline" onClick={handleSignOut}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Cerrar Sesión
-              </Button>
-            </div>
-          </div>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard - Artista</h1>
+          <p className="text-muted-foreground">Bienvenido, {profile?.full_name}</p>
         </div>
-      </header>
+        <div className="flex items-center gap-4">
+          <NotificationBell />
+        </div>
+      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="requests" className="space-y-6">
+      <Tabs defaultValue="requests" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="requests" className="flex items-center gap-2">
               <Bell className="w-4 h-4" />
@@ -333,7 +319,6 @@ export default function ArtistDashboard() {
             </div>
           </TabsContent>
         </Tabs>
-      </div>
     </div>
   );
 }

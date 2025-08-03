@@ -1,9 +1,11 @@
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/useCommon';
 import ArtistDashboard from '@/components/ArtistDashboard';
 import ManagementDashboard from '@/components/ManagementDashboard';
 import { Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
+  usePageTitle('Dashboard');
   const { profile, loading } = useAuth();
 
   console.log('Dashboard - Profile:', profile, 'Loading:', loading);
