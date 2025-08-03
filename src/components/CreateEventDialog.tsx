@@ -127,30 +127,30 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     setIsSubmitting(true);
     
     try {
-      console.log('Creating event with data:', data);
+      console.log('=== DEBUGGING EVENT CREATION ===');
+      console.log('Profile:', profile);
+      console.log('Form data:', data);
       
-      // Combinar fecha y hora para crear timestamps completos
-      const startDateTime = new Date(data.start_date);
-      const [startHour, startMinute] = data.start_time.split(':').map(Number);
-      startDateTime.setHours(startHour, startMinute);
+      // Crear fechas simplificadas
+      const now = new Date();
+      const startDateTime = new Date();
+      startDateTime.setHours(10, 0, 0, 0); // 10:00 AM hoy
+      
+      const endDateTime = new Date();
+      endDateTime.setHours(11, 0, 0, 0); // 11:00 AM hoy
 
-      const endDateTime = new Date(data.end_date);
-      const [endHour, endMinute] = data.end_time.split(':').map(Number);
-      endDateTime.setHours(endHour, endMinute);
-
-      // Crear el evento principal con datos mínimos
+      // Payload súper simple para test
       const eventPayload = {
-        title: data.title,
-        description: data.description || '',
+        title: data.title || 'Test Event',
+        event_type: data.event_type || 'other',
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
-        event_type: data.event_type,
-        location: data.location || '',
-        artist_id: profile.id, // Usar profile.id que es la clave primaria de profiles
-        created_by: profile.user_id, // Usar user_id que es la referencia a auth.users
+        artist_id: profile.id,
+        created_by: profile.user_id,
       };
 
-      console.log('Event payload:', eventPayload);
+      console.log('=== SENDING TO DATABASE ===');
+      console.log('Event payload:', JSON.stringify(eventPayload, null, 2));
 
       const { data: eventData, error: eventError } = await supabase
         .from('events')
@@ -158,19 +158,22 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         .select()
         .single();
 
+      console.log('=== DATABASE RESPONSE ===');
+      console.log('Event data:', eventData);
+      console.log('Error:', eventError);
+
       if (eventError) {
-        console.error('Error creating event:', eventError);
-        console.error('Error details:', JSON.stringify(eventError, null, 2));
+        console.error('=== DETAILED ERROR ===');
+        console.error('Error object:', JSON.stringify(eventError, null, 2));
         toast({
-          title: "Error en Base de Datos",
+          title: "Error Detallado",
           description: `${eventError.message || eventError.code || 'Error desconocido'}`,
           variant: "destructive",
         });
         return;
       }
 
-      console.log('Event created successfully:', eventData);
-
+      console.log('=== SUCCESS ===');
       toast({
         title: "¡Éxito!",
         description: `Evento "${data.title}" creado exitosamente`,
