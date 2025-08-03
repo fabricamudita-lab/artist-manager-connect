@@ -30,65 +30,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Separate function to fetch user profile (called via setTimeout to avoid blocking auth callback)
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      console.log('Fetching profile for user:', userId);
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      console.log('Profile data:', profileData, 'Error:', error);
+      
+      if (error) {
+        console.error('Profile fetch error:', error);
+        // If profile doesn't exist, create one
+        if (error.code === 'PGRST116') {
+          console.log('No profile found, creating one...');
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert({
+              user_id: userId,
+              email: user?.email || '',
+              full_name: user?.user_metadata?.full_name || '',
+              role: user?.user_metadata?.role || 'artist'
+            })
+            .select()
+            .single();
+          
+          if (createError) {
+            console.error('Failed to create profile:', createError);
+          } else {
+            console.log('Created new profile:', newProfile);
+            setProfile(newProfile);
+          }
+        }
+      } else {
+        setProfile(profileData);
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching profile:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     console.log('Auth hook - Setting up auth state listener');
     let mounted = true;
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (!mounted) return;
         
         console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         
+        // Defer profile fetching to avoid blocking the auth callback
         if (session?.user) {
-          try {
-            console.log('Fetching profile for user:', session.user.id);
-            const { data: profileData, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no profile exists
-            
-            console.log('Profile data:', profileData, 'Error:', error);
-            
-            if (error) {
-              console.error('Profile fetch error:', error);
-              // If profile doesn't exist, create one
-              if (error.code === 'PGRST116') {
-                console.log('No profile found, creating one...');
-                const { data: newProfile, error: createError } = await supabase
-                  .from('profiles')
-                  .insert({
-                    user_id: session.user.id,
-                    email: session.user.email || '',
-                    full_name: session.user.user_metadata?.full_name || '',
-                    role: session.user.user_metadata?.role || 'artist'
-                  })
-                  .select()
-                  .single();
-                
-                if (createError) {
-                  console.error('Failed to create profile:', createError);
-                } else {
-                  console.log('Created new profile:', newProfile);
-                  setProfile(newProfile);
-                }
-              }
-            } else {
-              setProfile(profileData);
-            }
-          } catch (err) {
-            console.error('Unexpected error fetching profile:', err);
-          }
+          setTimeout(() => {
+            fetchUserProfile(session.user!.id);
+          }, 0);
         } else {
           setProfile(null);
-        }
-        
-        if (mounted) {
-          setLoading(false);
+          if (mounted) {
+            setLoading(false);
+          }
         }
       }
     );
