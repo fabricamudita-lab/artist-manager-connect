@@ -146,8 +146,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         end_date: endDateTime.toISOString(),
         event_type: data.event_type,
         location: data.location || '',
-        artist_id: profile.id,
-        created_by: profile.user_id,
+        artist_id: profile.user_id, // Usar user_id que es la referencia a auth.users
+        created_by: profile.user_id, // Usar user_id que es la referencia a auth.users
       };
 
       console.log('Event payload:', eventPayload);
