@@ -127,30 +127,34 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     setIsSubmitting(true);
     
     try {
-      console.log('=== DEBUGGING EVENT CREATION ===');
+      console.log('=== CREATING EVENT ===');
       console.log('Profile:', profile);
       console.log('Form data:', data);
       
-      // Crear fechas simplificadas
-      const now = new Date();
-      const startDateTime = new Date();
-      startDateTime.setHours(10, 0, 0, 0); // 10:00 AM hoy
+      // Combine date and time for start and end
+      const startDateTime = new Date(data.start_date);
+      const [startHours, startMinutes] = data.start_time.split(':').map(Number);
+      startDateTime.setHours(startHours, startMinutes, 0, 0);
       
-      const endDateTime = new Date();
-      endDateTime.setHours(11, 0, 0, 0); // 11:00 AM hoy
+      const endDateTime = new Date(data.end_date);
+      const [endHours, endMinutes] = data.end_time.split(':').map(Number);
+      endDateTime.setHours(endHours, endMinutes, 0, 0);
 
-      // Payload súper simple - usar valores que sabemos que existen
+      // Create the main event with the first selected artist
       const eventPayload = {
-        title: data.title || 'Test Event',
-        event_type: data.event_type || 'other',
+        title: data.title,
+        event_type: data.event_type,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
-        artist_id: 'b83d572f-5578-4016-9eea-47263099afd3', // UUID que sabemos que existe
-        created_by: 'b83d572f-5578-4016-9eea-47263099afd3', // El mismo UUID para created_by
+        description: data.description || null,
+        location: data.location || null,
+        latitude: data.latitude || null,
+        longitude: data.longitude || null,
+        artist_id: profile.id, // Use the correct profile.id
+        created_by: profile.id  // Use the correct profile.id
       };
 
-      console.log('=== SENDING TO DATABASE ===');
-      console.log('Event payload:', JSON.stringify(eventPayload, null, 2));
+      console.log('Event payload:', eventPayload);
 
       const { data: eventData, error: eventError } = await supabase
         .from('events')
@@ -158,31 +162,50 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         .select()
         .single();
 
-      console.log('=== DATABASE RESPONSE ===');
-      console.log('Event data:', eventData);
-      console.log('Error:', eventError);
-
       if (eventError) {
-        console.error('=== DETAILED ERROR ===');
-        console.error('Error object:', JSON.stringify(eventError, null, 2));
+        console.error('Event creation error:', eventError);
         toast({
-          title: "Error Detallado",
-          description: `${eventError.message || eventError.code || 'Error desconocido'}`,
+          title: "Error al crear evento",
+          description: eventError.message,
           variant: "destructive",
         });
         return;
       }
 
-      console.log('=== SUCCESS ===');
+      console.log('Event created successfully:', eventData);
+
+      // Create entries in event_artists for all selected artists
+      const eventArtistEntries = data.artist_names.map(artistName => ({
+        event_id: eventData.id,
+        artist_id: profile.id // For now, use profile.id (in real app, map artist names to profile IDs)
+      }));
+
+      const { error: eventArtistsError } = await supabase
+        .from('event_artists')
+        .insert(eventArtistEntries);
+
+      if (eventArtistsError) {
+        console.error('Event artists creation error:', eventArtistsError);
+        // Event was created but artist associations failed
+        toast({
+          title: "Evento creado parcialmente",
+          description: "El evento se creó pero hubo un problema al asociar los artistas",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Event and artist associations created successfully');
       toast({
         title: "¡Éxito!",
-        description: `Evento "${data.title}" creado exitosamente`,
+        description: `Evento "${data.title}" creado exitosamente con ${data.artist_names.length} artista(s)`,
       });
+      
       form.reset();
       setOpen(false);
       onEventCreated();
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Unexpected error:', error);
       toast({
         title: "Error",
         description: "Error inesperado al crear el evento",

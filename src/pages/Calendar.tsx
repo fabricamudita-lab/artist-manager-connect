@@ -37,16 +37,35 @@ export default function Calendar() {
 
   const fetchEvents = async () => {
     try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('artist_id', profile?.id)
-        .order('start_date', { ascending: true });
+      if (profile?.role === 'management') {
+        // Management users see all events they created
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('created_by', profile.id)
+          .order('start_date', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching events:', error);
+        if (error) {
+          console.error('Error fetching events:', error);
+        } else {
+          setEvents(data || []);
+        }
       } else {
-        setEvents(data || []);
+        // Artists see events they are associated with via event_artists table
+        const { data, error } = await supabase
+          .from('events')
+          .select(`
+            *,
+            event_artists!inner(artist_id)
+          `)
+          .eq('event_artists.artist_id', profile?.id)
+          .order('start_date', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching events:', error);
+        } else {
+          setEvents(data || []);
+        }
       }
     } catch (error) {
       console.error('Error fetching events:', error);
