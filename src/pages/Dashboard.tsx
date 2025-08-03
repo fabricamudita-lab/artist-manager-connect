@@ -9,6 +9,8 @@ export default function Dashboard() {
   const { profile, loading } = useAuth();
 
   console.log('Dashboard - Profile:', profile, 'Loading:', loading);
+  console.log('Dashboard - Profile role:', profile?.role);
+  console.log('Dashboard - Should render:', !loading && profile);
 
   if (loading) {
     console.log('Dashboard - Still loading...');
@@ -36,6 +38,11 @@ export default function Dashboard() {
 
   return (
     <div className="p-6">
+      <div className="bg-card rounded-lg p-4 mb-4">
+        <h2 className="text-xl font-bold">Dashboard Funcionando</h2>
+        <p>Perfil: {profile.full_name}</p>
+        <p>Rol: {profile.role}</p>
+      </div>
       {profile.role === 'artist' ? (
         <ArtistDashboard />
       ) : (
