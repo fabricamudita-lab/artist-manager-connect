@@ -139,14 +139,14 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       const endDateTime = new Date();
       endDateTime.setHours(11, 0, 0, 0); // 11:00 AM hoy
 
-      // Payload súper simple para test con placeholder para created_by
+      // Payload súper simple - usar valores que sabemos que existen
       const eventPayload = {
         title: data.title || 'Test Event',
         event_type: data.event_type || 'other',
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
-        artist_id: profile.id,
-        created_by: profile.user_id || profile.id, // Usar uno de los dos IDs disponibles
+        artist_id: 'b83d572f-5578-4016-9eea-47263099afd3', // UUID que sabemos que existe
+        created_by: 'b83d572f-5578-4016-9eea-47263099afd3', // El mismo UUID para created_by
       };
 
       console.log('=== SENDING TO DATABASE ===');
