@@ -9,10 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Users, PlusCircle, FileText, DollarSign, LogOut, Send, TrendingUp, Music, Radio, Receipt, Headphones, Mic, Globe, Clock, MapPin, Archive, MessageCircle, Edit, Filter, Search, MoreHorizontal, CalendarPlus, AlertTriangle, CheckCircle, XCircle, Package } from 'lucide-react';
+import { Calendar, Users, PlusCircle, FileText, DollarSign, LogOut, Send, TrendingUp, Music, Radio, Receipt, Headphones, Mic, Globe, Clock, MapPin, Archive, MessageCircle, Edit, Filter, Search, MoreHorizontal, CalendarPlus, AlertTriangle, CheckCircle, XCircle, Package, User, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import InviteArtistDialog from '@/components/InviteArtistDialog';
 import NotificationBell from '@/components/NotificationBell';
+import { EditRequestDialog } from '@/components/EditRequestDialog';
+import { AddToCalendarDialog } from '@/components/AddToCalendarDialog';
+import { ArtistInfoDialog } from '@/components/ArtistInfoDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,6 +69,20 @@ export default function ManagementDashboard() {
     title: '',
     description: '',
     due_date: '',
+  });
+  
+  // Dialog states
+  const [editRequestDialog, setEditRequestDialog] = useState<{ open: boolean; request: Request | null }>({
+    open: false,
+    request: null,
+  });
+  const [addToCalendarDialog, setAddToCalendarDialog] = useState<{ open: boolean; request: Request | null }>({
+    open: false,
+    request: null,
+  });
+  const [artistInfoDialog, setArtistInfoDialog] = useState<{ open: boolean; artistId: string | null }>({
+    open: false,
+    artistId: null,
   });
 
   useEffect(() => {
@@ -251,34 +268,37 @@ export default function ManagementDashboard() {
     navigate(`/chat?artist=${artistId}&subject=${encodeURIComponent(requestTitle)}`);
   };
 
-  const addToCalendar = async (request: Request) => {
+  const openArtistInfo = (artistId: string) => {
+    setArtistInfoDialog({ open: true, artistId });
+  };
+
+  const openAddToCalendar = (request: Request) => {
+    setAddToCalendarDialog({ open: true, request });
+  };
+
+  const openEditRequest = (request: Request) => {
+    setEditRequestDialog({ open: true, request });
+  };
+
+  const deleteRequest = async (requestId: string) => {
     try {
-      const artist = artists.find(a => a.id === request.artist_id);
       const { error } = await supabase
-        .from('events')
-        .insert({
-          title: request.title,
-          description: request.description,
-          start_date: request.due_date || new Date().toISOString(),
-          end_date: request.due_date || new Date().toISOString(),
-          event_type: request.type,
-          artist_id: request.artist_id,
-          created_by: profile?.id,
-          location: 'Por definir'
-        });
+        .from('requests')
+        .delete()
+        .eq('id', requestId);
 
       if (error) throw error;
 
       toast({
         title: "Éxito",
-        description: "Evento añadido al calendario correctamente.",
+        description: "Solicitud eliminada correctamente.",
       });
 
       fetchData();
     } catch (error) {
       toast({
         title: "Error",
-        description: "No se pudo añadir el evento al calendario.",
+        description: "No se pudo eliminar la solicitud.",
         variant: "destructive",
       });
     }
@@ -505,77 +525,118 @@ export default function ManagementDashboard() {
             ) : (
               <div className="grid gap-4">
                 {getFilteredRequests().map((request) => {
-                  const statusBadge = getStatusBadge(request.status);
                   const artist = artists.find(a => a.id === request.artist_id);
-                  const overdue = isOverdue(request.due_date, request.status);
                   
                   return (
-                    <Card key={request.id} className={overdue ? 'border-red-500 border-2' : ''}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-2xl">{getTypeIcon(request.type)}</span>
-                            <div>
-                              <CardTitle className="text-lg">{request.title}</CardTitle>
-                              <CardDescription>
-                                {request.type} - Artista: {artist?.full_name}
-                              </CardDescription>
+                    <div 
+                      key={request.id}
+                      className={`border rounded-lg p-4 space-y-3 ${
+                        isOverdue(request.due_date, request.status) 
+                          ? 'border-red-200 bg-red-50' 
+                          : 'border-border'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-lg">{getTypeIcon(request.type)}</span>
+                            <h3 className="font-semibold">{request.title}</h3>
+                            <div className={getStatusBadge(request.status).className}>
+                              {getStatusBadge(request.status).icon}
+                              <span>{getStatusBadge(request.status).text}</span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <div className={statusBadge.className}>
-                              {statusBadge.icon}
-                              {statusBadge.text}
-                            </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <MoreHorizontal className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {request.status === 'approved' && (
-                                  <DropdownMenuItem onClick={() => addToCalendar(request)}>
-                                    <CalendarPlus className="w-4 h-4 mr-2" />
-                                    Añadir al Calendario
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem onClick={() => openChat(request.artist_id, request.title)}>
-                                  <MessageCircle className="w-4 h-4 mr-2" />
-                                  Abrir Chat
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  Editar
-                                </DropdownMenuItem>
-                                {request.status !== 'archived' && (
-                                  <DropdownMenuItem onClick={() => updateRequestStatus(request.id, 'archived')}>
-                                    <Archive className="w-4 h-4 mr-2" />
-                                    Archivar
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                          
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm text-muted-foreground">Artista:</span>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="p-0 h-auto text-sm font-medium"
+                              onClick={() => openArtistInfo(request.artist_id)}
+                            >
+                              <User className="w-3 h-3 mr-1" />
+                              {artist?.full_name || 'No asignado'}
+                            </Button>
+                          </div>
+                          
+                          {request.description && (
+                            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                              {request.description}
+                            </p>
+                          )}
+                          
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <span>Creado: {new Date(request.created_at).toLocaleDateString()}</span>
+                            {request.due_date && (
+                              <span className={isOverdue(request.due_date, request.status) ? 'text-red-600 font-medium' : ''}>
+                                Vence: {new Date(request.due_date).toLocaleDateString()}
+                              </span>
+                            )}
                           </div>
                         </div>
-                        {overdue && (
-                          <div className="bg-red-50 border border-red-200 rounded-md p-2 mt-2">
-                            <p className="text-sm text-red-800 flex items-center gap-1">
-                              <AlertTriangle className="w-4 h-4" />
-                              ¡Fecha vencida! Esta solicitud requiere atención inmediata.
-                            </p>
+                        
+                        <div className="flex items-center gap-1">
+                          {/* Acciones directas */}
+                          {request.status === 'approved' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openAddToCalendar(request)}
+                              title="Añadir al Calendario"
+                            >
+                              <CalendarPlus className="w-4 h-4" />
+                            </Button>
+                          )}
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => updateRequestStatus(request.id, 'archived')}
+                            title="Archivar"
+                          >
+                            <Archive className="w-4 h-4" />
+                          </Button>
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openChat(request.artist_id, request.title)}
+                            title="Abrir Chat"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                          </Button>
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditRequest(request)}
+                            title="Editar"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteRequest(request.id)}
+                            title="Eliminar"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {isOverdue(request.due_date, request.status) && (
+                        <div className="bg-red-100 border border-red-200 rounded-md p-2">
+                          <div className="flex items-center gap-2 text-red-700 text-sm">
+                            <AlertTriangle className="w-4 h-4" />
+                            <span>¡Fecha vencida!</span>
                           </div>
-                        )}
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground mb-2">{request.description}</p>
-                        {request.due_date && (
-                          <p className={`text-xs ${overdue ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
-                            Fecha límite: {new Date(request.due_date).toLocaleDateString()}
-                          </p>
-                        )}
-                      </CardContent>
-                    </Card>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -1016,6 +1077,31 @@ export default function ManagementDashboard() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Dialogs */}
+      <EditRequestDialog
+        request={editRequestDialog.request}
+        open={editRequestDialog.open}
+        onOpenChange={(open) => setEditRequestDialog({ open, request: null })}
+        onRequestUpdated={fetchData}
+      />
+
+      <AddToCalendarDialog
+        request={addToCalendarDialog.request}
+        open={addToCalendarDialog.open}
+        onOpenChange={(open) => setAddToCalendarDialog({ open, request: null })}
+        onEventCreated={fetchData}
+      />
+
+      <ArtistInfoDialog
+        artistId={artistInfoDialog.artistId}
+        open={artistInfoDialog.open}
+        onOpenChange={(open) => setArtistInfoDialog({ open, artistId: null })}
+        onChatOpen={(artistId) => {
+          setArtistInfoDialog({ open: false, artistId: null });
+          navigate(`/chat?artist=${artistId}`);
+        }}
+      />
     </div>
   );
 }

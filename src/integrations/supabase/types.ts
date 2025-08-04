@@ -518,37 +518,49 @@ export type Database = {
       profiles: {
         Row: {
           active_role: Database["public"]["Enums"]["user_role"]
+          address: string | null
           avatar_url: string | null
           created_at: string
           email: string
+          emergency_contact: string | null
           full_name: string
           id: string
+          internal_notes: string | null
           phone: string | null
           roles: Database["public"]["Enums"]["user_role"][]
+          team_contacts: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           active_role?: Database["public"]["Enums"]["user_role"]
+          address?: string | null
           avatar_url?: string | null
           created_at?: string
           email: string
+          emergency_contact?: string | null
           full_name: string
           id?: string
+          internal_notes?: string | null
           phone?: string | null
           roles?: Database["public"]["Enums"]["user_role"][]
+          team_contacts?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           active_role?: Database["public"]["Enums"]["user_role"]
+          address?: string | null
           avatar_url?: string | null
           created_at?: string
           email?: string
+          emergency_contact?: string | null
           full_name?: string
           id?: string
+          internal_notes?: string | null
           phone?: string | null
           roles?: Database["public"]["Enums"]["user_role"][]
+          team_contacts?: string | null
           updated_at?: string
           user_id?: string
         }
