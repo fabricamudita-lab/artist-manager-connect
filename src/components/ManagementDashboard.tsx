@@ -9,10 +9,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Users, PlusCircle, FileText, DollarSign, LogOut, Send, TrendingUp, Music, Radio, Receipt, Headphones, Mic, Globe, Clock, MapPin } from 'lucide-react';
+import { Calendar, Users, PlusCircle, FileText, DollarSign, LogOut, Send, TrendingUp, Music, Radio, Receipt, Headphones, Mic, Globe, Clock, MapPin, Archive, MessageCircle, Edit, Filter, Search, MoreHorizontal, CalendarPlus, AlertTriangle, CheckCircle, XCircle, Package } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import InviteArtistDialog from '@/components/InviteArtistDialog';
 import NotificationBell from '@/components/NotificationBell';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useNavigate } from 'react-router-dom';
 
 interface Artist {
   id: string;
@@ -44,12 +51,15 @@ interface Event {
 
 export default function ManagementDashboard() {
   const { profile, signOut } = useAuth();
+  const navigate = useNavigate();
   const [artists, setArtists] = useState<Artist[]>([]);
   const [requests, setRequests] = useState<Request[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewRequestForm, setShowNewRequestForm] = useState(false);
   const [eventTimeframe, setEventTimeframe] = useState<'day' | 'week' | 'month'>('week');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [newRequest, setNewRequest] = useState({
     artist_id: '',
     type: '',
@@ -149,13 +159,46 @@ export default function ManagementDashboard() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
+    const baseClass = "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold";
+    
     switch (status) {
-      case 'pending': return 'bg-yellow-500';
-      case 'approved': return 'bg-green-500';
-      case 'rejected': return 'bg-red-500';
-      case 'completed': return 'bg-blue-500';
-      default: return 'bg-gray-500';
+      case 'pending':
+        return {
+          className: `${baseClass} bg-gray-100 text-gray-800`,
+          icon: <Clock className="w-3 h-3" />,
+          text: 'Pendiente'
+        };
+      case 'approved':
+        return {
+          className: `${baseClass} bg-green-100 text-green-800`,
+          icon: <CheckCircle className="w-3 h-3" />,
+          text: 'Aprobada'
+        };
+      case 'rejected':
+        return {
+          className: `${baseClass} bg-red-100 text-red-800`,
+          icon: <XCircle className="w-3 h-3" />,
+          text: 'Rechazada'
+        };
+      case 'urgent':
+        return {
+          className: `${baseClass} bg-yellow-100 text-yellow-800`,
+          icon: <AlertTriangle className="w-3 h-3" />,
+          text: 'Urgente'
+        };
+      case 'archived':
+        return {
+          className: `${baseClass} bg-blue-100 text-blue-800`,
+          icon: <Package className="w-3 h-3" />,
+          text: 'Archivada'
+        };
+      default:
+        return {
+          className: `${baseClass} bg-gray-100 text-gray-800`,
+          icon: <Clock className="w-3 h-3" />,
+          text: status
+        };
     }
   };
 
@@ -178,6 +221,92 @@ export default function ManagementDashboard() {
       case 'meeting': return '🤝';
       default: return '📅';
     }
+  };
+
+  const updateRequestStatus = async (requestId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('requests')
+        .update({ status: newStatus })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Éxito",
+        description: `Solicitud ${newStatus === 'archived' ? 'archivada' : 'actualizada'} correctamente.`,
+      });
+
+      fetchData();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la solicitud.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openChat = (artistId: string, requestTitle: string) => {
+    navigate(`/chat?artist=${artistId}&subject=${encodeURIComponent(requestTitle)}`);
+  };
+
+  const addToCalendar = async (request: Request) => {
+    try {
+      const artist = artists.find(a => a.id === request.artist_id);
+      const { error } = await supabase
+        .from('events')
+        .insert({
+          title: request.title,
+          description: request.description,
+          start_date: request.due_date || new Date().toISOString(),
+          end_date: request.due_date || new Date().toISOString(),
+          event_type: request.type,
+          artist_id: request.artist_id,
+          created_by: profile?.id,
+          location: 'Por definir'
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Éxito",
+        description: "Evento añadido al calendario correctamente.",
+      });
+
+      fetchData();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo añadir el evento al calendario.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const isOverdue = (dueDate: string, status: string) => {
+    if (!dueDate) return false;
+    const now = new Date();
+    const due = new Date(dueDate);
+    return due < now && (status === 'pending' || status === 'urgent');
+  };
+
+  const getFilteredRequests = () => {
+    return requests.filter(request => {
+      const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
+      const matchesSearch = searchTerm === '' || 
+        request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        request.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        artists.find(a => a.id === request.artist_id)?.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        request.type.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Si el filtro no es 'archived', no mostrar las solicitudes archivadas
+      if (statusFilter !== 'archived' && request.status === 'archived') {
+        return false;
+      }
+      
+      return matchesStatus && matchesSearch;
+    });
   };
 
   const getFilteredEvents = () => {
@@ -248,6 +377,35 @@ export default function ManagementDashboard() {
                 <PlusCircle className="w-4 h-4 mr-2" />
                 Nueva Solicitud
               </Button>
+            </div>
+
+            {/* Filtros y búsqueda */}
+            <div className="flex gap-4 items-center">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Buscar por artista, título, tipo..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-48">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Filtrar por estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estados</SelectItem>
+                  <SelectItem value="pending">Pendientes</SelectItem>
+                  <SelectItem value="approved">Aprobadas</SelectItem>
+                  <SelectItem value="rejected">Rechazadas</SelectItem>
+                  <SelectItem value="urgent">Urgentes</SelectItem>
+                  <SelectItem value="archived">Archivadas</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {showNewRequestForm && (
@@ -333,42 +491,93 @@ export default function ManagementDashboard() {
               </Card>
             )}
 
-            {requests.length === 0 ? (
+            {getFilteredRequests().length === 0 ? (
               <Card>
                 <CardContent className="text-center py-8">
-                  <p className="text-muted-foreground">No has creado solicitudes aún.</p>
+                  <p className="text-muted-foreground">
+                    {requests.length === 0 
+                      ? "No has creado solicitudes aún." 
+                      : "No se encontraron solicitudes con los filtros actuales."
+                    }
+                  </p>
                 </CardContent>
               </Card>
             ) : (
               <div className="grid gap-4">
-                {requests.map((request) => (
-                  <Card key={request.id}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl">{getTypeIcon(request.type)}</span>
-                          <div>
-                            <CardTitle className="text-lg">{request.title}</CardTitle>
-                            <CardDescription>
-                              {request.type} - Artista: {artists.find(a => a.id === request.artist_id)?.full_name}
-                            </CardDescription>
+                {getFilteredRequests().map((request) => {
+                  const statusBadge = getStatusBadge(request.status);
+                  const artist = artists.find(a => a.id === request.artist_id);
+                  const overdue = isOverdue(request.due_date, request.status);
+                  
+                  return (
+                    <Card key={request.id} className={overdue ? 'border-red-500 border-2' : ''}>
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl">{getTypeIcon(request.type)}</span>
+                            <div>
+                              <CardTitle className="text-lg">{request.title}</CardTitle>
+                              <CardDescription>
+                                {request.type} - Artista: {artist?.full_name}
+                              </CardDescription>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className={statusBadge.className}>
+                              {statusBadge.icon}
+                              {statusBadge.text}
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {request.status === 'approved' && (
+                                  <DropdownMenuItem onClick={() => addToCalendar(request)}>
+                                    <CalendarPlus className="w-4 h-4 mr-2" />
+                                    Añadir al Calendario
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem onClick={() => openChat(request.artist_id, request.title)}>
+                                  <MessageCircle className="w-4 h-4 mr-2" />
+                                  Abrir Chat
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
+                                {request.status !== 'archived' && (
+                                  <DropdownMenuItem onClick={() => updateRequestStatus(request.id, 'archived')}>
+                                    <Archive className="w-4 h-4 mr-2" />
+                                    Archivar
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
-                        <Badge className={getStatusColor(request.status)}>
-                          {request.status}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground mb-2">{request.description}</p>
-                      {request.due_date && (
-                        <p className="text-xs text-muted-foreground">
-                          Fecha límite: {new Date(request.due_date).toLocaleDateString()}
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+                        {overdue && (
+                          <div className="bg-red-50 border border-red-200 rounded-md p-2 mt-2">
+                            <p className="text-sm text-red-800 flex items-center gap-1">
+                              <AlertTriangle className="w-4 h-4" />
+                              ¡Fecha vencida! Esta solicitud requiere atención inmediata.
+                            </p>
+                          </div>
+                        )}
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground mb-2">{request.description}</p>
+                        {request.due_date && (
+                          <p className={`text-xs ${overdue ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
+                            Fecha límite: {new Date(request.due_date).toLocaleDateString()}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>
