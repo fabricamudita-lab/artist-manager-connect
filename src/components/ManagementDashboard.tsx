@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Users, PlusCircle, FileText, DollarSign, LogOut, Send, TrendingUp, Music, Radio, Receipt, Headphones, Mic, Globe } from 'lucide-react';
+import { Calendar, Users, PlusCircle, FileText, DollarSign, LogOut, Send, TrendingUp, Music, Radio, Receipt, Headphones, Mic, Globe, Clock, MapPin } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import InviteArtistDialog from '@/components/InviteArtistDialog';
 import NotificationBell from '@/components/NotificationBell';
@@ -31,12 +31,25 @@ interface Request {
   created_at: string;
 }
 
+interface Event {
+  id: string;
+  title: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  location: string;
+  event_type: string;
+  artist_id: string;
+}
+
 export default function ManagementDashboard() {
   const { profile, signOut } = useAuth();
   const [artists, setArtists] = useState<Artist[]>([]);
   const [requests, setRequests] = useState<Request[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewRequestForm, setShowNewRequestForm] = useState(false);
+  const [eventTimeframe, setEventTimeframe] = useState<'day' | 'week' | 'month'>('week');
   const [newRequest, setNewRequest] = useState({
     artist_id: '',
     type: '',
@@ -66,8 +79,16 @@ export default function ManagementDashboard() {
         .eq('management_id', profile?.id)
         .order('created_at', { ascending: false });
 
+      // Fetch upcoming events
+      const { data: eventsData } = await supabase
+        .from('events')
+        .select('*')
+        .gte('start_date', new Date().toISOString())
+        .order('start_date', { ascending: true });
+
       setArtists(artistsData || []);
       setRequests(requestsData || []);
+      setEvents(eventsData || []);
     } catch (error) {
       toast({
         title: "Error",
@@ -146,6 +167,39 @@ export default function ManagementDashboard() {
       case 'information': return 'ℹ️';
       default: return '📄';
     }
+  };
+
+  const getEventTypeIcon = (type: string) => {
+    switch (type) {
+      case 'concert': return '🎵';
+      case 'festival': return '🎪';
+      case 'interview': return '🎙️';
+      case 'recording': return '🎧';
+      case 'meeting': return '🤝';
+      default: return '📅';
+    }
+  };
+
+  const getFilteredEvents = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    return events.filter(event => {
+      const eventDate = new Date(event.start_date);
+      
+      switch (eventTimeframe) {
+        case 'day':
+          return eventDate >= today && eventDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
+        case 'week':
+          const weekEnd = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+          return eventDate >= today && eventDate < weekEnd;
+        case 'month':
+          const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+          return eventDate >= today && eventDate < monthEnd;
+        default:
+          return false;
+      }
+    });
   };
 
 
@@ -357,15 +411,97 @@ export default function ManagementDashboard() {
 
         <TabsContent value="events">
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Gestión de Eventos</h2>
-            <Card>
-              <CardContent className="text-center py-8">
-                <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground">
-                  Visita la sección de <strong>Calendario</strong> para gestionar eventos.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Resumen de Eventos</h2>
+              <div className="flex gap-2">
+                <Select value={eventTimeframe} onValueChange={(value: 'day' | 'week' | 'month') => setEventTimeframe(value)}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="day">Hoy</SelectItem>
+                    <SelectItem value="week">Esta semana</SelectItem>
+                    <SelectItem value="month">Este mes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {getFilteredEvents().length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground mb-2">
+                    No hay eventos programados para {eventTimeframe === 'day' ? 'hoy' : eventTimeframe === 'week' ? 'esta semana' : 'este mes'}.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Visita la sección de <strong>Calendario</strong> para crear eventos.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {getFilteredEvents().map((event) => {
+                    const artist = artists.find(a => a.id === event.artist_id);
+                    const startDate = new Date(event.start_date);
+                    const isToday = startDate.toDateString() === new Date().toDateString();
+                    const isThisWeek = startDate <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                    
+                    return (
+                      <Card key={event.id} className={isToday ? 'border-primary' : ''}>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-2xl">{getEventTypeIcon(event.event_type)}</span>
+                              <div>
+                                <CardTitle className="text-lg">{event.title}</CardTitle>
+                                <CardDescription>
+                                  {artist?.full_name || 'Artista no encontrado'}
+                                </CardDescription>
+                              </div>
+                            </div>
+                            {isToday && (
+                              <Badge variant="secondary" className="bg-primary/10 text-primary">
+                                Hoy
+                              </Badge>
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          {event.description && (
+                            <p className="text-sm text-muted-foreground">{event.description}</p>
+                          )}
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <Clock className="w-4 h-4" />
+                            <span>
+                              {startDate.toLocaleDateString()} - {startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          {event.location && (
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <MapPin className="w-4 h-4" />
+                              <span>{event.location}</span>
+                            </div>
+                          )}
+                          <Badge variant="outline" className="w-fit">
+                            {event.event_type}
+                          </Badge>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+                
+                <Card>
+                  <CardContent className="text-center py-4">
+                    <p className="text-sm text-muted-foreground">
+                      Ver todos los eventos en <strong>Calendario</strong> para gestión completa.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         </TabsContent>
 
