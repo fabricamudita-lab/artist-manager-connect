@@ -23,7 +23,8 @@ interface Artist {
   id: string;
   full_name: string;
   email: string;
-  role: 'artist' | 'management';
+  roles: ('artist' | 'management')[];
+  active_role: 'artist' | 'management';
 }
 
 interface ArtistSelectorProps {
@@ -67,25 +68,29 @@ export function ArtistSelector({
           id: 'example-1',
           full_name: 'María Rodríguez',
           email: 'maria.rodriguez@example.com',
-          role: 'artist'
+          roles: ['artist'],
+          active_role: 'artist'
         },
         {
           id: 'example-2', 
           full_name: 'Carlos Méndez',
           email: 'carlos.mendez@example.com',
-          role: 'artist'
+          roles: ['artist'],
+          active_role: 'artist'
         },
         {
           id: 'example-3',
           full_name: 'Sofía García',
           email: 'sofia.garcia@example.com', 
-          role: 'artist'
+          roles: ['artist'],
+          active_role: 'artist'
         },
         {
           id: 'example-4',
           full_name: 'Alejandro López',
           email: 'alejandro.lopez@example.com',
-          role: 'artist'
+          roles: ['artist'],
+          active_role: 'artist'
         }
       ];
       
@@ -216,7 +221,7 @@ export function ArtistSelector({
                       <div className="flex flex-col">
                         <span>{artist.full_name}</span>
                         <span className="text-xs text-muted-foreground">
-                          {artist.email} • {artist.role}
+                          {artist.email} • {artist.active_role}
                         </span>
                       </div>
                     </CommandItem>

@@ -17,7 +17,8 @@ interface Profile {
   full_name: string;
   avatar_url: string | null;
   email: string;
-  role: 'artist' | 'management';
+  roles: ('artist' | 'management')[];
+  active_role: 'artist' | 'management';
   phone?: string | null;
 }
 
@@ -363,7 +364,7 @@ export default function Chat() {
                           {conversation.lastMessage?.message || 'Sin mensajes'}
                         </p>
                         <Badge variant="outline" className="text-xs mt-1">
-                          {conversation.profile.role}
+                          {conversation.profile.active_role}
                         </Badge>
                       </div>
                     </div>

@@ -143,7 +143,7 @@ export default function Documents() {
           file_type: newDocument.file.type,
           file_size: newDocument.file.size,
           file_url: publicUrl,
-          artist_id: profile?.role === 'management' ? newDocument.artist_id : profile?.id,
+          artist_id: profile?.active_role === 'management' ? newDocument.artist_id : profile?.id,
           uploaded_by: profile?.id,
         });
 
@@ -318,7 +318,7 @@ export default function Documents() {
                   </Select>
                 </div>
 
-                {profile?.role === 'management' && (
+                {profile?.active_role === 'management' && (
                   <div className="space-y-2">
                     <Label htmlFor="artist">Artista</Label>
                     <Select

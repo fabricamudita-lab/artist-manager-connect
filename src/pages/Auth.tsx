@@ -17,7 +17,7 @@ export default function Auth() {
     email: '', 
     password: '', 
     fullName: '', 
-    role: 'artist' as 'artist' | 'management' 
+    roles: ['artist'] as ('artist' | 'management')[]
   });
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
@@ -62,7 +62,7 @@ export default function Auth() {
         signUpData.email, 
         signUpData.password, 
         signUpData.fullName, 
-        signUpData.role
+        signUpData.roles
       );
       
       if (error) {
@@ -170,9 +170,9 @@ export default function Auth() {
                 <div className="space-y-2">
                   <Label>Tipo de Usuario</Label>
                   <RadioGroup
-                    value={signUpData.role}
+                    value={signUpData.roles[0]}
                     onValueChange={(value: 'artist' | 'management') => 
-                      setSignUpData({ ...signUpData, role: value })
+                      setSignUpData({ ...signUpData, roles: [value] })
                     }
                   >
                     <div className="flex items-center space-x-2">

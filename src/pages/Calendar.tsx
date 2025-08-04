@@ -47,7 +47,7 @@ export default function Calendar() {
 
   const fetchEvents = async () => {
     try {
-      if (profile?.role === 'management') {
+      if (profile?.active_role === 'management') {
         // Management users see events for selected artists (created by them or associated with selected artists)
         const { data, error } = await supabase
           .from('events')

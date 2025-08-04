@@ -7,7 +7,8 @@ interface Profile {
   user_id: string;
   email: string;
   full_name: string;
-  role: 'artist' | 'management';
+  roles: ('artist' | 'management')[];
+  active_role: 'artist' | 'management';
   avatar_url?: string;
   phone?: string;
 }
@@ -18,8 +19,11 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, fullName: string, role: 'artist' | 'management') => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName: string, roles: ('artist' | 'management')[]) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  switchRole: (role: 'artist' | 'management') => Promise<void>;
+  addRole: (role: 'artist' | 'management') => Promise<void>;
+  hasRole: (role: 'artist' | 'management') => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,13 +53,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(null);
       } else if (!profileData) {
         console.log('No profile found, creating one...');
+        const userRoles = session.user.user_metadata?.roles || ['artist'];
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .insert({
             user_id: session.user.id,
             email: session.user.email || '',
             full_name: session.user.user_metadata?.full_name || '',
-            role: session.user.user_metadata?.role || 'artist'
+            roles: userRoles,
+            active_role: userRoles[0]
           })
           .select()
           .single();
@@ -131,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
-  const signUp = async (email: string, password: string, fullName: string, role: 'artist' | 'management') => {
+  const signUp = async (email: string, password: string, fullName: string, roles: ('artist' | 'management')[]) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
@@ -141,11 +147,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
-          role: role,
+          roles: roles,
         }
       }
     });
     return { error };
+  };
+
+  const switchRole = async (role: 'artist' | 'management') => {
+    if (!profile) return;
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({ active_role: role })
+      .eq('user_id', profile.user_id);
+    
+    if (!error) {
+      setProfile({ ...profile, active_role: role });
+    }
+  };
+
+  const addRole = async (role: 'artist' | 'management') => {
+    if (!profile || profile.roles.includes(role)) return;
+    
+    const newRoles = [...profile.roles, role];
+    const { error } = await supabase
+      .from('profiles')
+      .update({ roles: newRoles })
+      .eq('user_id', profile.user_id);
+    
+    if (!error) {
+      setProfile({ ...profile, roles: newRoles });
+    }
+  };
+
+  const hasRole = (role: 'artist' | 'management') => {
+    return profile?.roles.includes(role) || false;
   };
 
   const signOut = async () => {
@@ -160,6 +197,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signUp,
     signOut,
+    switchRole,
+    addRole,
+    hasRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

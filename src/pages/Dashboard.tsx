@@ -9,7 +9,7 @@ export default function Dashboard() {
   const { profile, loading } = useAuth();
 
   console.log('Dashboard - Profile:', profile, 'Loading:', loading);
-  console.log('Dashboard - Profile role:', profile?.role);
+  console.log('Dashboard - Profile active role:', profile?.active_role);
   console.log('Dashboard - Should render:', !loading && profile);
 
   if (loading) {
@@ -34,16 +34,16 @@ export default function Dashboard() {
     );
   }
 
-  console.log('Dashboard - Rendering dashboard for role:', profile.role);
+  console.log('Dashboard - Rendering dashboard for role:', profile.active_role);
 
   return (
     <div className="p-6">
       <div className="bg-card rounded-lg p-4 mb-4">
         <h2 className="text-xl font-bold">Dashboard Funcionando</h2>
         <p>Perfil: {profile.full_name}</p>
-        <p>Rol: {profile.role}</p>
+        <p>Rol: {profile.active_role}</p>
       </div>
-      {profile.role === 'artist' ? (
+      {profile.active_role === 'artist' ? (
         <ArtistDashboard />
       ) : (
         <ManagementDashboard />

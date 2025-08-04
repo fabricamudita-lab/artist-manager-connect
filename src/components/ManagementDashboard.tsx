@@ -70,7 +70,7 @@ export default function ManagementDashboard() {
       const { data: artistsData } = await supabase
         .from('profiles')
         .select('*')
-        .eq('role', 'artist');
+        .contains('roles', ['artist']);
 
       // Fetch all requests created by this management
       const { data: requestsData } = await supabase

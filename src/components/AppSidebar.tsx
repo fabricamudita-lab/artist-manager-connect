@@ -1,3 +1,4 @@
+import RoleSelector from '@/components/RoleSelector';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
@@ -108,7 +109,7 @@ export function AppSidebar() {
           </div>
 
           {/* Management Tools */}
-          {profile?.role === 'management' && (
+          {profile?.active_role === 'management' && (
             <div>
               {!isCollapsed && (
                 <h3 className="px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -140,14 +141,17 @@ export function AppSidebar() {
         {/* Footer */}
         <div className="p-4 border-t space-y-3">
           {!isCollapsed && (
-            <div className="flex items-center justify-between">
-              <div className="text-sm">
-                <p className="font-medium">{profile?.full_name}</p>
-                <p className="text-xs text-muted-foreground capitalize">
-                  {profile?.role}
-                </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="text-sm">
+                  <p className="font-medium">{profile?.full_name}</p>
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {profile?.active_role}
+                  </p>
+                </div>
+                <NotificationBell />
               </div>
-              <NotificationBell />
+              <RoleSelector />
             </div>
           )}
           
