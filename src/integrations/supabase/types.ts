@@ -204,6 +204,9 @@ export type Database = {
           country: string | null
           created_at: string
           created_by: string
+          event_date: string | null
+          event_time: string | null
+          fee: number | null
           id: string
           internal_notes: string | null
           name: string
@@ -220,6 +223,9 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by: string
+          event_date?: string | null
+          event_time?: string | null
+          fee?: number | null
           id?: string
           internal_notes?: string | null
           name: string
@@ -236,6 +242,9 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by?: string
+          event_date?: string | null
+          event_time?: string | null
+          fee?: number | null
           id?: string
           internal_notes?: string | null
           name?: string

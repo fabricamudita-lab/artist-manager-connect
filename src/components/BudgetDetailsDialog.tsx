@@ -50,6 +50,9 @@ interface Budget {
   internal_notes: string;
   created_at: string;
   artist_id: string;
+  event_date: string;
+  event_time: string;
+  fee: number;
   profiles?: { full_name: string };
 }
 
@@ -386,6 +389,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           <div className="flex flex-wrap gap-2 pt-2">
             <Badge variant="outline">{budget.type}</Badge>
             <Badge variant="outline">{budget.city}, {budget.country}</Badge>
+            {budget.event_date && (
+              <Badge variant="outline">
+                {new Date(budget.event_date).toLocaleDateString()}
+                {budget.event_time && ` - ${budget.event_time}`}
+              </Badge>
+            )}
+            {budget.fee > 0 && (
+              <Badge variant="outline" className="text-green-600">
+                Fee: €{budget.fee.toLocaleString()}
+              </Badge>
+            )}
             <Badge className={
               budget.show_status === 'confirmado' ? 'bg-green-100 text-green-800' :
               budget.show_status === 'pendiente' ? 'bg-yellow-100 text-yellow-800' :
@@ -693,9 +707,27 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   })}
                   <Separator />
                   <div className="flex justify-between items-center text-lg font-bold">
-                    <span>TOTAL GENERAL:</span>
+                    <span>TOTAL GASTOS:</span>
                     <span>{items.reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(2)}€</span>
                   </div>
+                  
+                  {budget.fee > 0 && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-lg font-bold text-green-600">
+                          <span>FEE:</span>
+                          <span>+{budget.fee.toFixed(2)}€</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xl font-bold">
+                          <span>BENEFICIO/PÉRDIDA:</span>
+                          <span className={budget.fee - items.reduce((sum, item) => sum + calculateTotal(item), 0) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                            {budget.fee >= 0 ? '+' : ''}{(budget.fee - items.reduce((sum, item) => sum + calculateTotal(item), 0)).toFixed(2)}€
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>

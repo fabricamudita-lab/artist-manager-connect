@@ -6,10 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { Music, Mic, Megaphone, Video, Package } from 'lucide-react';
+import { SingleArtistSelector } from './SingleArtistSelector';
+import { CreateBudgetFromTemplateDialog } from './CreateBudgetFromTemplateDialog';
+import { Music, Mic, Megaphone, Video, Package, CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface CreateBudgetDialogProps {
   open: boolean;
@@ -38,7 +44,11 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: Cr
     show_status: 'pendiente' as 'confirmado' | 'pendiente' | 'cancelado',
     internal_notes: '',
     artist_id: '',
+    event_date: undefined as Date | undefined,
+    event_time: '',
+    fee: 0,
   });
+  const [showFromTemplate, setShowFromTemplate] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleTypeSelection = (type: string) => {
@@ -46,7 +56,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: Cr
     setStep(2);
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -74,6 +84,9 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: Cr
           show_status: formData.show_status,
           internal_notes: formData.internal_notes,
           artist_id: formData.artist_id || null,
+          event_date: formData.event_date?.toISOString().split('T')[0] || null,
+          event_time: formData.event_time || null,
+          fee: formData.fee,
           created_by: profile?.user_id
         });
 
@@ -96,6 +109,9 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: Cr
         show_status: 'pendiente',
         internal_notes: '',
         artist_id: '',
+        event_date: undefined,
+        event_time: '',
+        fee: 0,
       });
 
       onSuccess();
@@ -124,6 +140,9 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: Cr
       show_status: 'pendiente',
       internal_notes: '',
       artist_id: '',
+      event_date: undefined,
+      event_time: '',
+      fee: 0,
     });
     onOpenChange(false);
   };
@@ -139,9 +158,14 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: Cr
 
         {step === 1 ? (
           <div className="space-y-4">
-            <p className="text-muted-foreground">
-              Elige el tipo de presupuesto que deseas crear:
-            </p>
+            <div className="flex justify-between items-center">
+              <p className="text-muted-foreground">
+                Elige el tipo de presupuesto que deseas crear:
+              </p>
+              <Button variant="outline" onClick={() => setShowFromTemplate(true)}>
+                Usar Plantilla
+              </Button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {budgetTypes.map((type) => {
                 const Icon = type.icon;
@@ -246,6 +270,63 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: Cr
                 </Select>
               </div>
 
+              <div>
+                <Label htmlFor="event_date">Fecha del evento</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.event_date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.event_date ? format(formData.event_date, "PPP") : <span>Seleccionar fecha</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.event_date}
+                      onSelect={(date) => handleInputChange('event_date', date)}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div>
+                <Label htmlFor="event_time">Hora del evento</Label>
+                <Input
+                  id="event_time"
+                  type="time"
+                  value={formData.event_time}
+                  onChange={(e) => handleInputChange('event_time', e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="fee">Fee (€)</Label>
+                <Input
+                  id="fee"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.fee}
+                  onChange={(e) => handleInputChange('fee', parseFloat(e.target.value) || 0)}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="artist_id">Artista</Label>
+                <SingleArtistSelector
+                  value={formData.artist_id}
+                  onValueChange={(value) => handleInputChange('artist_id', value)}
+                />
+              </div>
+
               <div className="md:col-span-2">
                 <Label htmlFor="internal_notes">Notas internas</Label>
                 <Textarea
@@ -268,6 +349,15 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: Cr
             </div>
           </div>
         )}
+
+        <CreateBudgetFromTemplateDialog 
+          open={showFromTemplate}
+          onOpenChange={setShowFromTemplate}
+          onSuccess={() => {
+            onSuccess();
+            onOpenChange(false);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );

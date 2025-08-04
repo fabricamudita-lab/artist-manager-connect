@@ -24,6 +24,9 @@ interface Budget {
   internal_notes: string;
   created_at: string;
   artist_id: string;
+  event_date: string;
+  event_time: string;
+  fee: number;
   profiles?: { full_name: string };
 }
 
@@ -35,8 +38,9 @@ export default function Budgets() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [sortBy, setSortBy] = useState<'date' | 'name' | 'created_at'>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showCreateFromTemplateDialog, setShowCreateFromTemplateDialog] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
 
   useEffect(() => {
@@ -67,16 +71,41 @@ export default function Budgets() {
     }
   };
 
-  const filteredBudgets = budgets.filter(budget => {
-    const matchesSearch = budget.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         budget.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         budget.venue?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesType = filterType === 'all' || budget.type === filterType;
-    const matchesStatus = filterStatus === 'all' || budget.show_status === filterStatus;
-    
-    return matchesSearch && matchesType && matchesStatus;
-  });
+  const filteredAndSortedBudgets = budgets
+    .filter(budget => {
+      const matchesSearch = budget.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           budget.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           budget.venue?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesType = filterType === 'all' || budget.type === filterType;
+      const matchesStatus = filterStatus === 'all' || budget.show_status === filterStatus;
+      
+      return matchesSearch && matchesType && matchesStatus;
+    })
+    .sort((a, b) => {
+      let aValue: string | Date;
+      let bValue: string | Date;
+      
+      switch (sortBy) {
+        case 'date':
+          aValue = a.event_date ? new Date(a.event_date) : new Date('1900-01-01');
+          bValue = b.event_date ? new Date(b.event_date) : new Date('1900-01-01');
+          break;
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case 'created_at':
+        default:
+          aValue = new Date(a.created_at);
+          bValue = new Date(b.created_at);
+          break;
+      }
+      
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -172,12 +201,29 @@ export default function Budgets() {
                 <SelectItem value="cancelado">Cancelado</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
+              const [field, order] = value.split('-') as [typeof sortBy, typeof sortOrder];
+              setSortBy(field);
+              setSortOrder(order);
+            }}>
+              <SelectTrigger className="w-full lg:w-48">
+                <SelectValue placeholder="Ordenar por" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="created_at-desc">Más recientes</SelectItem>
+                <SelectItem value="created_at-asc">Más antiguos</SelectItem>
+                <SelectItem value="name-asc">Nombre A-Z</SelectItem>
+                <SelectItem value="name-desc">Nombre Z-A</SelectItem>
+                <SelectItem value="date-desc">Fecha evento (más reciente)</SelectItem>
+                <SelectItem value="date-asc">Fecha evento (más antiguo)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
 
       {/* Budgets Grid */}
-      {filteredBudgets.length === 0 ? (
+      {filteredAndSortedBudgets.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
             <Calculator className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -198,7 +244,7 @@ export default function Budgets() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredBudgets.map((budget) => (
+          {filteredAndSortedBudgets.map((budget) => (
             <Card 
               key={budget.id} 
               className="hover:shadow-lg transition-shadow cursor-pointer"
@@ -231,6 +277,20 @@ export default function Budgets() {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="w-4 h-4" />
                     <span className="line-clamp-1">{budget.venue}</span>
+                  </div>
+                )}
+                {budget.event_date && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="w-4 h-4" />
+                    <span>
+                      {new Date(budget.event_date).toLocaleDateString()}
+                      {budget.event_time && ` - ${budget.event_time}`}
+                    </span>
+                  </div>
+                )}
+                {budget.fee > 0 && (
+                  <div className="flex items-center gap-2 text-sm font-medium text-green-600">
+                    <span>€{budget.fee.toLocaleString()}</span>
                   </div>
                 )}
                 {budget.profiles && (
