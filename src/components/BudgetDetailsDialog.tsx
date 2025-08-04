@@ -76,6 +76,7 @@ interface BudgetDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
   budget: Budget;
   onUpdate: () => void;
+  onDelete?: () => void;
 }
 
 const budgetCategories = {
@@ -83,11 +84,6 @@ const budgetCategories = {
     title: 'Equipo Artístico',
     icon: Music,
     subcategories: ['artista_principal', 'banda', 'coristas', 'bailarines', 'otros']
-  },
-  'cuarteto_cuerdas': {
-    title: 'Cuarteto de Cuerdas',
-    icon: Music,
-    subcategories: ['violin_1', 'violin_2', 'viola', 'cello']
   },
   'menores_edad': {
     title: 'Menores de Edad',
@@ -126,12 +122,14 @@ const budgetCategories = {
   }
 };
 
-export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpdate }: BudgetDetailsDialogProps) {
+export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpdate, onDelete }: BudgetDetailsDialogProps) {
   const { profile, user } = useAuth();
   const [items, setItems] = useState<BudgetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [editingBudget, setEditingBudget] = useState(false);
+  const [budgetData, setBudgetData] = useState(budget);
   const [newItem, setNewItem] = useState<Partial<BudgetItem>>({
     category: '',
     subcategory: '',
@@ -147,6 +145,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   useEffect(() => {
     if (open && budget) {
+      setBudgetData(budget);
       fetchBudgetItems();
     }
   }, [open, budget]);
@@ -174,14 +173,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   };
 
   const addItem = async (category: string) => {
-    if (!newItem.name?.trim()) {
-      toast({
-        title: "Error",
-        description: "El nombre del elemento es obligatorio",
-        variant: "destructive"
-      });
-      return;
-    }
+    // Permitir agregar elemento sin nombre (se podrá editar después)
 
     try {
       const { error } = await supabase
@@ -190,7 +182,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           budget_id: budget.id,
           category,
           subcategory: newItem.subcategory || '',
-          name: newItem.name,
+          name: newItem.name || 'Nuevo elemento',
           quantity: newItem.quantity || 1,
           unit_price: newItem.unit_price || 0,
           iva_percentage: newItem.iva_percentage || 21,
@@ -369,6 +361,68 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   };
 
+  const updateBudget = async () => {
+    try {
+      const { error } = await supabase
+        .from('budgets')
+        .update({
+          name: budgetData.name,
+          city: budgetData.city,
+          country: budgetData.country,
+          venue: budgetData.venue,
+          event_date: budgetData.event_date,
+          event_time: budgetData.event_time,
+          fee: budgetData.fee,
+        })
+        .eq('id', budgetData.id);
+
+      if (error) throw error;
+
+      setEditingBudget(false);
+      onUpdate();
+      toast({
+        title: "¡Éxito!",
+        description: "Presupuesto actualizado correctamente"
+      });
+    } catch (error) {
+      console.error('Error updating budget:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el presupuesto",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteBudget = async () => {
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este presupuesto? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('budgets')
+        .delete()
+        .eq('id', budgetData.id);
+
+      if (error) throw error;
+
+      onDelete?.();
+      onOpenChange(false);
+      toast({
+        title: "¡Éxito!",
+        description: "Presupuesto eliminado correctamente"
+      });
+    } catch (error) {
+      console.error('Error deleting budget:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el presupuesto",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -385,28 +439,119 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl">{budget.name}</DialogTitle>
-          <div className="flex flex-wrap gap-2 pt-2">
-            <Badge variant="outline">{budget.type}</Badge>
-            <Badge variant="outline">{budget.city}, {budget.country}</Badge>
-            {budget.event_date && (
-              <Badge variant="outline">
-                {new Date(budget.event_date).toLocaleDateString()}
-                {budget.event_time && ` - ${budget.event_time}`}
-              </Badge>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              {editingBudget ? (
+                <div className="space-y-4">
+                  <div>
+                    <Label>Nombre del evento</Label>
+                    <Input
+                      value={budgetData.name}
+                      onChange={(e) => setBudgetData(prev => ({ ...prev, name: e.target.value }))}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>Ciudad</Label>
+                      <Input
+                        value={budgetData.city}
+                        onChange={(e) => setBudgetData(prev => ({ ...prev, city: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label>País</Label>
+                      <Input
+                        value={budgetData.country}
+                        onChange={(e) => setBudgetData(prev => ({ ...prev, country: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Lugar</Label>
+                    <Input
+                      value={budgetData.venue}
+                      onChange={(e) => setBudgetData(prev => ({ ...prev, venue: e.target.value }))}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label>Fecha</Label>
+                      <Input
+                        type="date"
+                        value={budgetData.event_date?.split('T')[0] || ''}
+                        onChange={(e) => setBudgetData(prev => ({ ...prev, event_date: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label>Hora</Label>
+                      <Input
+                        type="time"
+                        value={budgetData.event_time || ''}
+                        onChange={(e) => setBudgetData(prev => ({ ...prev, event_time: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label>Fee (€)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={budgetData.fee}
+                        onChange={(e) => setBudgetData(prev => ({ ...prev, fee: parseFloat(e.target.value) || 0 }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={updateBudget}>
+                      <Save className="w-4 h-4 mr-1" />
+                      Guardar
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setEditingBudget(false);
+                      setBudgetData(budget);
+                    }}>
+                      <X className="w-4 h-4 mr-1" />
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <DialogTitle className="text-xl">{budgetData.name}</DialogTitle>
+                    <Button size="sm" variant="outline" onClick={() => setEditingBudget(true)}>
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    <Badge variant="outline">{budgetData.type}</Badge>
+                    <Badge variant="outline">{budgetData.city}, {budgetData.country}</Badge>
+                    {budgetData.event_date && (
+                      <Badge variant="outline">
+                        {new Date(budgetData.event_date).toLocaleDateString()}
+                        {budgetData.event_time && ` - ${budgetData.event_time}`}
+                      </Badge>
+                    )}
+                    {budgetData.fee > 0 && (
+                      <Badge variant="outline" className="text-green-600">
+                        Fee: €{budgetData.fee.toLocaleString()}
+                      </Badge>
+                    )}
+                    <Badge className={
+                      budgetData.show_status === 'confirmado' ? 'bg-green-100 text-green-800' :
+                      budgetData.show_status === 'pendiente' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }>
+                      {budgetData.show_status}
+                    </Badge>
+                  </div>
+                </>
+              )}
+            </div>
+            {!editingBudget && (
+              <Button size="sm" variant="destructive" onClick={deleteBudget}>
+                <Trash2 className="w-4 h-4" />
+              </Button>
             )}
-            {budget.fee > 0 && (
-              <Badge variant="outline" className="text-green-600">
-                Fee: €{budget.fee.toLocaleString()}
-              </Badge>
-            )}
-            <Badge className={
-              budget.show_status === 'confirmado' ? 'bg-green-100 text-green-800' :
-              budget.show_status === 'pendiente' ? 'bg-yellow-100 text-yellow-800' :
-              'bg-red-100 text-red-800'
-            }>
-              {budget.show_status}
-            </Badge>
           </div>
         </DialogHeader>
 
@@ -609,10 +754,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                             <Button 
                               size="sm" 
                               onClick={() => addItem(categoryKey)}
-                              disabled={!newItem.name?.trim()}
                             >
                               <Plus className="w-4 h-4 mr-1" />
-                              Agregar
+                              Agregar Elemento
                             </Button>
                           </div>
                         </div>
@@ -711,23 +855,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                     <span>{items.reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(2)}€</span>
                   </div>
                   
-                  {budget.fee > 0 && (
-                    <>
-                      <Separator />
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center text-lg font-bold text-green-600">
-                          <span>FEE:</span>
-                          <span>+{budget.fee.toFixed(2)}€</span>
-                        </div>
-                        <div className="flex justify-between items-center text-xl font-bold">
-                          <span>BENEFICIO/PÉRDIDA:</span>
-                          <span className={budget.fee - items.reduce((sum, item) => sum + calculateTotal(item), 0) >= 0 ? 'text-green-600' : 'text-red-600'}>
-                            {budget.fee >= 0 ? '+' : ''}{(budget.fee - items.reduce((sum, item) => sum + calculateTotal(item), 0)).toFixed(2)}€
-                          </span>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                   {budgetData.fee > 0 && (
+                     <>
+                       <Separator />
+                       <div className="space-y-2">
+                         <div className="flex justify-between items-center text-lg font-bold text-green-600">
+                           <span>FEE:</span>
+                           <span>+{budgetData.fee.toFixed(2)}€</span>
+                         </div>
+                         <div className="flex justify-between items-center text-xl font-bold">
+                           <span>BENEFICIO/PÉRDIDA:</span>
+                           <span className={budgetData.fee - items.reduce((sum, item) => sum + calculateTotal(item), 0) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                             {budgetData.fee >= 0 ? '+' : ''}{(budgetData.fee - items.reduce((sum, item) => sum + calculateTotal(item), 0)).toFixed(2)}€
+                           </span>
+                         </div>
+                       </div>
+                     </>
+                   )}
                 </div>
               </CardContent>
             </Card>
@@ -776,7 +920,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           open={showTemplateDialog}
           onOpenChange={setShowTemplateDialog}
           onSave={handleSaveTemplate}
-          budgetName={budget?.name}
+          budgetName={budgetData?.name}
         />
       </DialogContent>
     </Dialog>

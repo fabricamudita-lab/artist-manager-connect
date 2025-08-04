@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Filter, Calendar, MapPin, User, Calculator } from 'lucide-react';
+import { Plus, Search, Filter, Calendar, MapPin, User, Calculator, Trash2 } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import CreateBudgetDialog from '@/components/CreateBudgetDialog';
 import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
@@ -222,7 +223,7 @@ export default function Budgets() {
         </CardContent>
       </Card>
 
-      {/* Budgets Grid */}
+      {/* Budgets Table */}
       {filteredAndSortedBudgets.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
@@ -243,71 +244,113 @@ export default function Budgets() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSortedBudgets.map((budget) => (
-            <Card 
-              key={budget.id} 
-              className="hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => setSelectedBudget(budget)}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">{getTypeIcon(budget.type)}</span>
-                    <div>
-                      <CardTitle className="text-lg line-clamp-1">{budget.name}</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {formatType(budget.type)}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge className={getStatusColor(budget.show_status)}>
-                    {budget.show_status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {budget.city && budget.country && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="w-4 h-4" />
-                    <span>{budget.city}, {budget.country}</span>
-                  </div>
-                )}
-                {budget.venue && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="w-4 h-4" />
-                    <span className="line-clamp-1">{budget.venue}</span>
-                  </div>
-                )}
-                {budget.event_date && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="w-4 h-4" />
-                    <span>
-                      {new Date(budget.event_date).toLocaleDateString()}
-                      {budget.event_time && ` - ${budget.event_time}`}
-                    </span>
-                  </div>
-                )}
-                {budget.fee > 0 && (
-                  <div className="flex items-center gap-2 text-sm font-medium text-green-600">
-                    <span>€{budget.fee.toLocaleString()}</span>
-                  </div>
-                )}
-                {budget.profiles && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <User className="w-4 h-4" />
-                    <span>{budget.profiles.full_name}</span>
-                  </div>
-                )}
-                <div className="pt-2 border-t">
-                  <p className="text-xs text-muted-foreground">
-                    Creado: {new Date(budget.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Evento</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Ubicación</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Hora</TableHead>
+                    <TableHead>Fee</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Artista</TableHead>
+                    <TableHead className="w-[100px]">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredAndSortedBudgets.map((budget) => (
+                    <TableRow 
+                      key={budget.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedBudget(budget)}
+                    >
+                      <TableCell className="font-medium">
+                        <div>
+                          <p className="font-semibold">{budget.name}</p>
+                          {budget.venue && (
+                            <p className="text-sm text-muted-foreground line-clamp-1">{budget.venue}</p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span>{getTypeIcon(budget.type)}</span>
+                          <span className="text-sm">{formatType(budget.type)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {budget.city && budget.country ? (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            <span className="text-sm">{budget.city}, {budget.country}</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {budget.event_date ? (
+                          <span className="text-sm">
+                            {new Date(budget.event_date).toLocaleDateString()}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {budget.event_time ? (
+                          <span className="text-sm">{budget.event_time}</span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {budget.fee > 0 ? (
+                          <span className="text-sm font-medium text-green-600">
+                            €{budget.fee.toLocaleString()}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(budget.show_status)}>
+                          {budget.show_status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {budget.profiles ? (
+                          <div className="flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            <span className="text-sm">{budget.profiles.full_name}</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedBudget(budget);
+                          }}
+                        >
+                          Ver
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Dialogs */}
@@ -323,6 +366,10 @@ export default function Budgets() {
           onOpenChange={(open) => !open && setSelectedBudget(null)}
           budget={selectedBudget}
           onUpdate={fetchBudgets}
+          onDelete={() => {
+            setSelectedBudget(null);
+            fetchBudgets();
+          }}
         />
       )}
     </div>
