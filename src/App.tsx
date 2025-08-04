@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Calendar from "./pages/Calendar";
+import Budgets from "./pages/Budgets";
 import Documents from "./pages/Documents";
 import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
@@ -77,6 +78,13 @@ const App = () => (
               <ProtectedRoute>
                 <DashboardLayout>
                   <Calendar />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/budgets" element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <Budgets />
                 </DashboardLayout>
               </ProtectedRoute>
             } />

@@ -14,6 +14,151 @@ export type Database = {
   }
   public: {
     Tables: {
+      budget_attachments: {
+        Row: {
+          budget_id: string
+          created_at: string
+          file_name: string
+          file_type: string | null
+          file_url: string
+          id: string
+          uploaded_by: string
+        }
+        Insert: {
+          budget_id: string
+          created_at?: string
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          id?: string
+          uploaded_by: string
+        }
+        Update: {
+          budget_id?: string
+          created_at?: string
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_attachments_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_items: {
+        Row: {
+          billing_status: Database["public"]["Enums"]["billing_status"] | null
+          budget_id: string
+          category: string
+          created_at: string
+          id: string
+          invoice_link: string | null
+          is_attendee: boolean | null
+          iva_percentage: number | null
+          name: string
+          observations: string | null
+          quantity: number | null
+          subcategory: string | null
+          unit_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          billing_status?: Database["public"]["Enums"]["billing_status"] | null
+          budget_id: string
+          category: string
+          created_at?: string
+          id?: string
+          invoice_link?: string | null
+          is_attendee?: boolean | null
+          iva_percentage?: number | null
+          name: string
+          observations?: string | null
+          quantity?: number | null
+          subcategory?: string | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          billing_status?: Database["public"]["Enums"]["billing_status"] | null
+          budget_id?: string
+          category?: string
+          created_at?: string
+          id?: string
+          invoice_link?: string | null
+          is_attendee?: boolean | null
+          iva_percentage?: number | null
+          name?: string
+          observations?: string | null
+          quantity?: number | null
+          subcategory?: string | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_items_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budgets: {
+        Row: {
+          artist_id: string | null
+          budget_status: Database["public"]["Enums"]["budget_status"] | null
+          city: string | null
+          country: string | null
+          created_at: string
+          created_by: string
+          id: string
+          internal_notes: string | null
+          name: string
+          show_status: Database["public"]["Enums"]["show_status"] | null
+          type: Database["public"]["Enums"]["budget_type"]
+          updated_at: string
+          venue: string | null
+        }
+        Insert: {
+          artist_id?: string | null
+          budget_status?: Database["public"]["Enums"]["budget_status"] | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          internal_notes?: string | null
+          name: string
+          show_status?: Database["public"]["Enums"]["show_status"] | null
+          type: Database["public"]["Enums"]["budget_type"]
+          updated_at?: string
+          venue?: string | null
+        }
+        Update: {
+          artist_id?: string | null
+          budget_status?: Database["public"]["Enums"]["budget_status"] | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          internal_notes?: string | null
+          name?: string
+          show_status?: Database["public"]["Enums"]["show_status"] | null
+          type?: Database["public"]["Enums"]["budget_type"]
+          updated_at?: string
+          venue?: string | null
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           created_at: string
@@ -352,6 +497,15 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      billing_status: "pendiente" | "pagado" | "facturado" | "cancelado"
+      budget_status: "nacional" | "internacional"
+      budget_type:
+        | "concierto"
+        | "produccion_musical"
+        | "campana_promocional"
+        | "videoclip"
+        | "otros"
+      show_status: "confirmado" | "pendiente" | "cancelado"
       user_role: "artist" | "management"
     }
     CompositeTypes: {
@@ -480,6 +634,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      billing_status: ["pendiente", "pagado", "facturado", "cancelado"],
+      budget_status: ["nacional", "internacional"],
+      budget_type: [
+        "concierto",
+        "produccion_musical",
+        "campana_promocional",
+        "videoclip",
+        "otros",
+      ],
+      show_status: ["confirmado", "pendiente", "cancelado"],
       user_role: ["artist", "management"],
     },
   },

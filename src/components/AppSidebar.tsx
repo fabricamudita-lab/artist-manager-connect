@@ -13,7 +13,8 @@ import {
   Send,
   LogOut,
   Music,
-  Menu
+  Menu,
+  Calculator
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import NotificationBell from './NotificationBell';
@@ -22,6 +23,7 @@ import { useState } from 'react';
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Calendario", url: "/calendar", icon: Calendar },
+  { title: "Presupuestos", url: "/budgets", icon: Calculator },
   { title: "Documentos", url: "/documents", icon: FileText },
   { title: "Chat", url: "/chat", icon: MessageCircle },
 ];
