@@ -12,7 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
+import { SaveTemplateDialog } from './SaveTemplateDialog';
 import { 
   Plus, 
   Trash2, 
@@ -26,7 +28,14 @@ import {
   CreditCard, 
   FileText,
   Download,
-  Upload
+  Upload,
+  Calculator,
+  Music,
+  Lightbulb,
+  Utensils,
+  Bed,
+  DollarSign,
+  File
 } from 'lucide-react';
 
 interface Budget {
@@ -69,46 +78,57 @@ interface BudgetDetailsDialogProps {
 const budgetCategories = {
   'equipo_artistico': {
     title: 'Equipo Artístico',
+    icon: Music,
+    subcategories: ['artista_principal', 'banda', 'coristas', 'bailarines', 'otros']
+  },
+  'cuarteto_cuerdas': {
+    title: 'Cuarteto de Cuerdas',
+    icon: Music,
+    subcategories: ['violin_1', 'violin_2', 'viola', 'cello']
+  },
+  'menores_edad': {
+    title: 'Menores de Edad',
     icon: Users,
-    subcategories: ['artista', 'banda_01', 'banda_02', 'banda_03', 'banda_04', 'menores']
+    subcategories: ['menor_artista', 'menor_staff']
   },
   'equipo_tecnico': {
-    title: 'Equipo Técnico y Producción',
-    icon: Users,
-    subcategories: ['tourmanager', 'tecnico_sonido', 'tecnico_luces', 'stage_manager', 'produccion_local', 'runner', 'otros']
+    title: 'Equipo Técnico/Producción',
+    icon: Lightbulb,
+    subcategories: ['tour_manager', 'tecnico_sonido', 'tecnico_luces', 'stage_manager', 'produccion_local', 'runner']
   },
   'transporte': {
     title: 'Transporte',
     icon: Car,
-    subcategories: ['avion', 'furgoneta', 'tren', 'ave', 'coche', 'asiento_extra', 'equipaje', 'seguro_medico']
+    subcategories: ['avion', 'furgoneta', 'tren', 'ave', 'coche', 'equipaje_extra', 'seguro_medico']
   },
   'dietas': {
     title: 'Dietas',
-    icon: UtensilsCrossed,
+    icon: Utensils,
     subcategories: ['dieta_completa', 'media_dieta', 'desayuno']
   },
   'hospedaje': {
     title: 'Hospedaje',
-    icon: BedDouble,
-    subcategories: ['habitacion', 'extra', 'apartamento']
+    icon: Bed,
+    subcategories: ['habitacion', 'habitacion_extra', 'apartamento']
   },
   'otros_gastos': {
     title: 'Otros Gastos',
-    icon: CreditCard,
-    subcategories: ['alquiler_material', 'promocion', 'visas', 'imprevistos', 'otros']
+    icon: DollarSign,
+    subcategories: ['alquiler_material', 'promocion', 'visas', 'imprevistos']
   },
-  'comisiones': {
-    title: 'Comisiones',
-    icon: CreditCard,
-    subcategories: ['booking', 'management', 'otros']
+  'porcentajes': {
+    title: 'Porcentajes',
+    icon: Calculator,
+    subcategories: ['booking', 'management', 'otros_fees']
   }
 };
 
 export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpdate }: BudgetDetailsDialogProps) {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [items, setItems] = useState<BudgetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [newItem, setNewItem] = useState<Partial<BudgetItem>>({
     category: '',
     subcategory: '',
@@ -283,6 +303,66 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       case 'pendiente': return 'bg-yellow-100 text-yellow-800';
       case 'cancelado': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const saveAsTemplate = () => {
+    if (!budget || items.length === 0) {
+      toast({
+        title: "Error",
+        description: "No hay elementos en el presupuesto para guardar como plantilla",
+        variant: "destructive"
+      });
+      return;
+    }
+    setShowTemplateDialog(true);
+  };
+
+  const handleSaveTemplate = async (name: string, description?: string) => {
+    if (!budget || !user) return;
+
+    try {
+      const { data: templateData, error: templateError } = await supabase
+        .from("budget_templates")
+        .insert({
+          name: name,
+          description: description || `Plantilla basada en ${budget.name}`,
+          created_by: user.id
+        })
+        .select()
+        .single();
+
+      if (templateError) throw templateError;
+
+      const templateItems = items.map(item => ({
+        template_id: templateData.id,
+        name: item.name,
+        category: item.category,
+        subcategory: item.subcategory,
+        unit_price: item.unit_price,
+        quantity: item.quantity,
+        iva_percentage: item.iva_percentage,
+        is_attendee: item.is_attendee,
+        observations: item.observations
+      }));
+
+      const { error: itemsError } = await supabase
+        .from("budget_template_items")
+        .insert(templateItems);
+
+      if (itemsError) throw itemsError;
+
+      toast({
+        title: "Éxito",
+        description: "Plantilla guardada exitosamente"
+      });
+    } catch (error) {
+      console.error("Error saving template:", error);
+      toast({
+        title: "Error",
+        description: "Error al guardar la plantilla",
+        variant: "destructive"
+      });
     }
   };
 
@@ -533,29 +613,88 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           <TabsContent value="summary">
             <Card>
               <CardHeader>
-                <CardTitle>Resumen del Presupuesto</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Calculator className="w-5 h-5" />
+                  Resumen Detallado
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[200px]">Concepto</TableHead>
+                        <TableHead>Categoría</TableHead>
+                        <TableHead className="text-right">Coste</TableHead>
+                        <TableHead className="text-center">Cant.</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="text-center">IVA %</TableHead>
+                        <TableHead className="text-right">€ + IVA</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Observaciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Object.entries(budgetCategories).map(([categoryKey, category]) => {
+                        const categoryItems = getCategoryItems(categoryKey);
+                        if (categoryItems.length === 0) return null;
+                        
+                        return categoryItems.map((item, index) => (
+                          <TableRow key={`${categoryKey}-${index}`}>
+                            <TableCell className="font-medium">{item.name}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <category.icon className="w-4 h-4" />
+                                {category.title}
+                                {item.subcategory && ` - ${item.subcategory}`}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">{(item.unit_price || 0).toFixed(2)}€</TableCell>
+                            <TableCell className="text-center">{item.quantity || 1}</TableCell>
+                            <TableCell className="text-right">
+                              {((item.unit_price || 0) * (item.quantity || 1)).toFixed(2)}€
+                            </TableCell>
+                            <TableCell className="text-center">{item.iva_percentage || 21}%</TableCell>
+                            <TableCell className="text-right font-semibold">
+                              {calculateTotal(item).toFixed(2)}€
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={getBillingStatusColor(item.billing_status || "pendiente")}>
+                                {item.billing_status || "pendiente"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate" title={item.observations}>
+                              {item.observations}
+                            </TableCell>
+                          </TableRow>
+                        ));
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                <div className="mt-6 space-y-3">
+                  <Separator />
                   {Object.entries(budgetCategories).map(([categoryKey, category]) => {
                     const categoryItems = getCategoryItems(categoryKey);
-                    const total = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
-                    
                     if (categoryItems.length === 0) return null;
                     
+                    const categoryTotal = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
+                    
                     return (
-                      <div key={categoryKey} className="flex justify-between items-center p-3 border rounded">
-                        <span className="font-medium">{category.title}</span>
-                        <span className="font-bold">{total.toFixed(2)}€</span>
+                      <div key={categoryKey} className="flex justify-between items-center text-sm">
+                        <div className="flex items-center gap-2">
+                          <category.icon className="w-4 h-4" />
+                          <span>{category.title}</span>
+                        </div>
+                        <span className="font-medium">{categoryTotal.toFixed(2)}€</span>
                       </div>
                     );
                   })}
                   <Separator />
                   <div className="flex justify-between items-center text-lg font-bold">
-                    <span>Total General</span>
-                    <span>
-                      {items.reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(2)}€
-                    </span>
+                    <span>TOTAL GENERAL:</span>
+                    <span>{items.reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(2)}€</span>
                   </div>
                 </div>
               </CardContent>
@@ -566,7 +705,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
+                  <File className="w-5 h-5" />
                   Archivos Adjuntos
                 </CardTitle>
               </CardHeader>
@@ -590,12 +729,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             Cerrar
           </Button>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={saveAsTemplate}>
+              <Save className="w-4 h-4 mr-1" />
+              Guardar como Plantilla
+            </Button>
             <Button variant="outline">
               <Download className="w-4 h-4 mr-1" />
               Exportar PDF
             </Button>
           </div>
         </div>
+
+        <SaveTemplateDialog
+          open={showTemplateDialog}
+          onOpenChange={setShowTemplateDialog}
+          onSave={handleSaveTemplate}
+          budgetName={budget?.name}
+        />
       </DialogContent>
     </Dialog>
   );

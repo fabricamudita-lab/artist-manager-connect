@@ -111,6 +111,91 @@ export type Database = {
           },
         ]
       }
+      budget_template_items: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_attendee: boolean | null
+          iva_percentage: number | null
+          name: string
+          observations: string | null
+          quantity: number | null
+          subcategory: string | null
+          template_id: string
+          unit_price: number | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          is_attendee?: boolean | null
+          iva_percentage?: number | null
+          name: string
+          observations?: string | null
+          quantity?: number | null
+          subcategory?: string | null
+          template_id: string
+          unit_price?: number | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_attendee?: boolean | null
+          iva_percentage?: number | null
+          name?: string
+          observations?: string | null
+          quantity?: number | null
+          subcategory?: string | null
+          template_id?: string
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "budget_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_templates: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       budgets: {
         Row: {
           artist_id: string | null
@@ -123,6 +208,7 @@ export type Database = {
           internal_notes: string | null
           name: string
           show_status: Database["public"]["Enums"]["show_status"] | null
+          template_id: string | null
           type: Database["public"]["Enums"]["budget_type"]
           updated_at: string
           venue: string | null
@@ -138,6 +224,7 @@ export type Database = {
           internal_notes?: string | null
           name: string
           show_status?: Database["public"]["Enums"]["show_status"] | null
+          template_id?: string | null
           type: Database["public"]["Enums"]["budget_type"]
           updated_at?: string
           venue?: string | null
@@ -153,6 +240,7 @@ export type Database = {
           internal_notes?: string | null
           name?: string
           show_status?: Database["public"]["Enums"]["show_status"] | null
+          template_id?: string | null
           type?: Database["public"]["Enums"]["budget_type"]
           updated_at?: string
           venue?: string | null
@@ -171,6 +259,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "budgets_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "budget_templates"
+            referencedColumns: ["id"]
           },
         ]
       }

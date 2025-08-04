@@ -36,6 +36,7 @@ export default function Budgets() {
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showCreateFromTemplateDialog, setShowCreateFromTemplateDialog] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
 
   useEffect(() => {
