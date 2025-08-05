@@ -387,9 +387,15 @@ export default function Chat() {
   );
 
   const startNewConversation = (contact: Profile) => {
+    console.log('Starting new conversation with:', contact);
     setSelectedConversation(contact);
     setShowNewChatDialog(false);
     setMessages([]);
+    
+    toast({
+      title: "Chat iniciado",
+      description: `Conversación iniciada con ${contact.full_name}`,
+    });
   };
 
   if (loading) {
