@@ -43,6 +43,24 @@ interface Request {
   created_at: string;
 }
 
+interface Solicitud {
+  id: string;
+  tipo: 'entrevista' | 'booking' | 'otro';
+  nombre_solicitante: string;
+  email?: string;
+  telefono?: string;
+  observaciones?: string;
+  notas_internas?: string;
+  estado: 'pendiente' | 'aprobada' | 'denegada';
+  fecha_creacion: string;
+  fecha_actualizacion: string;
+  created_by: string;
+  artist_id?: string;
+  profiles?: {
+    full_name: string;
+  } | null;
+}
+
 interface Event {
   id: string;
   title: string;
@@ -59,6 +77,7 @@ export default function ManagementDashboard() {
   const navigate = useNavigate();
   const [artists, setArtists] = useState<Artist[]>([]);
   const [requests, setRequests] = useState<Request[]>([]);
+  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewRequestForm, setShowNewRequestForm] = useState(false);
@@ -102,6 +121,18 @@ export default function ManagementDashboard() {
     }
   }, [profile]);
 
+  // Refrescar datos cuando se regresa de otras páginas
+  useEffect(() => {
+    const handleFocus = () => {
+      if (profile) {
+        fetchData();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [profile]);
+
   const fetchData = async () => {
     try {
       // Fetch artists (profiles with role 'artist')
@@ -117,6 +148,15 @@ export default function ManagementDashboard() {
         .eq('management_id', profile?.id)
         .order('created_at', { ascending: false });
 
+      // Fetch all solicitudes
+      const { data: solicitudesData } = await supabase
+        .from('solicitudes')
+        .select(`
+          *,
+          profiles:artist_id(full_name)
+        `)
+        .order('fecha_creacion', { ascending: false });
+
       // Fetch upcoming events
       const { data: eventsData } = await supabase
         .from('events')
@@ -126,6 +166,7 @@ export default function ManagementDashboard() {
 
       setArtists(artistsData || []);
       setRequests(requestsData || []);
+      setSolicitudes((solicitudesData as any) || []);
       setEvents(eventsData || []);
     } catch (error) {
       toast({
@@ -349,6 +390,53 @@ export default function ManagementDashboard() {
     });
   };
 
+  const getFilteredSolicitudes = () => {
+    return solicitudes.filter(solicitud => {
+      // Mapear estados de solicitudes a estados de filtro
+      const solicitudStatus = solicitud.estado === 'pendiente' ? 'pending' : 
+                            solicitud.estado === 'aprobada' ? 'approved' : 
+                            solicitud.estado === 'denegada' ? 'rejected' : solicitud.estado;
+      
+      const matchesStatus = statusFilter === 'all' || solicitudStatus === statusFilter;
+      const matchesSearch = searchTerm === '' || 
+        solicitud.nombre_solicitante.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        solicitud.observaciones?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        solicitud.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        solicitud.tipo.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      return matchesStatus && matchesSearch;
+    });
+  };
+
+  const getStatusCounts = () => {
+    const requestCounts = {
+      all: requests.length,
+      pending: requests.filter(r => r.status === 'pending').length,
+      approved: requests.filter(r => r.status === 'approved').length,
+      rejected: requests.filter(r => r.status === 'rejected').length,
+      urgent: requests.filter(r => r.status === 'urgent').length,
+      archived: requests.filter(r => r.status === 'archived').length,
+    };
+
+    const solicitudCounts = {
+      all: solicitudes.length,
+      pending: solicitudes.filter(s => s.estado === 'pendiente').length,
+      approved: solicitudes.filter(s => s.estado === 'aprobada').length,
+      rejected: solicitudes.filter(s => s.estado === 'denegada').length,
+      urgent: 0, // No hay urgentes en solicitudes
+      archived: 0, // No hay archivadas en solicitudes por ahora
+    };
+
+    return {
+      all: requestCounts.all + solicitudCounts.all,
+      pending: requestCounts.pending + solicitudCounts.pending,
+      approved: requestCounts.approved + solicitudCounts.approved,
+      rejected: requestCounts.rejected + solicitudCounts.rejected,
+      urgent: requestCounts.urgent + solicitudCounts.urgent,
+      archived: requestCounts.archived + solicitudCounts.archived,
+    };
+  };
+
   const getFilteredEvents = () => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -440,12 +528,12 @@ export default function ManagementDashboard() {
                   <SelectValue placeholder="Filtrar por estado" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
-                  <SelectItem value="pending">Pendientes</SelectItem>
-                  <SelectItem value="approved">Aprobadas</SelectItem>
-                  <SelectItem value="rejected">Rechazadas</SelectItem>
-                  <SelectItem value="urgent">Urgentes</SelectItem>
-                  <SelectItem value="archived">Archivadas</SelectItem>
+                  <SelectItem value="all">Todos ({getStatusCounts().all})</SelectItem>
+                  <SelectItem value="pending">Pendientes ({getStatusCounts().pending})</SelectItem>
+                  <SelectItem value="approved">Aprobadas ({getStatusCounts().approved})</SelectItem>
+                  <SelectItem value="rejected">Rechazadas ({getStatusCounts().rejected})</SelectItem>
+                  <SelectItem value="urgent">Urgentes ({getStatusCounts().urgent})</SelectItem>
+                  <SelectItem value="archived">Archivadas ({getStatusCounts().archived})</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -533,11 +621,11 @@ export default function ManagementDashboard() {
               </Card>
             )}
 
-            {getFilteredRequests().length === 0 ? (
+            {getFilteredRequests().length === 0 && getFilteredSolicitudes().length === 0 ? (
               <Card>
                 <CardContent className="text-center py-8">
                   <p className="text-muted-foreground">
-                    {requests.length === 0 
+                    {requests.length === 0 && solicitudes.length === 0
                       ? "No has creado solicitudes aún." 
                       : "No se encontraron solicitudes con los filtros actuales."
                     }
@@ -546,6 +634,96 @@ export default function ManagementDashboard() {
               </Card>
             ) : (
               <div className="grid gap-4">
+                {/* Mostrar solicitudes de la tabla 'solicitudes' */}
+                {getFilteredSolicitudes().map((solicitud) => {
+                  const solicitudStatus = solicitud.estado === 'pendiente' ? 'pending' : 
+                                        solicitud.estado === 'aprobada' ? 'approved' : 
+                                        solicitud.estado === 'denegada' ? 'rejected' : solicitud.estado;
+                  
+                  return (
+                    <div 
+                      key={`sol-${solicitud.id}`}
+                      className="border rounded-lg p-4 space-y-3 border-border"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-lg">
+                              {solicitud.tipo === 'entrevista' ? '📻' : 
+                               solicitud.tipo === 'booking' ? '🎤' : '📌'}
+                            </span>
+                            <h3 className="font-semibold">{solicitud.nombre_solicitante}</h3>
+                            <div className={getStatusBadge(solicitudStatus).className}>
+                              {getStatusBadge(solicitudStatus).icon}
+                              <span>{getStatusBadge(solicitudStatus).text}</span>
+                            </div>
+                          </div>
+                          
+                          {solicitud.profiles?.full_name && (
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-sm text-muted-foreground">Artista:</span>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="p-0 h-auto text-sm font-medium"
+                                onClick={() => openArtistProfile(solicitud.artist_id!)}
+                              >
+                                <User className="w-3 h-3 mr-1" />
+                                {solicitud.profiles.full_name}
+                              </Button>
+                            </div>
+                          )}
+                          
+                          {solicitud.observaciones && (
+                            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                              {solicitud.observaciones}
+                            </p>
+                          )}
+                          
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <span>Tipo: {solicitud.tipo}</span>
+                            <span>Creado: {new Date(solicitud.fecha_creacion).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-1">
+                          {solicitudStatus === 'approved' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigate('/calendar')}
+                              title="Ver en Calendario"
+                            >
+                              <CalendarPlus className="w-4 h-4" />
+                            </Button>
+                          )}
+                          
+                          {solicitud.artist_id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigate(`/chat?artist=${solicitud.artist_id}&subject=${encodeURIComponent(solicitud.nombre_solicitante)}`)}
+                              title="Abrir Chat"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </Button>
+                          )}
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate('/solicitudes')}
+                            title="Ver Detalles"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Mostrar solicitudes de la tabla 'requests' */}
                 {getFilteredRequests().map((request) => {
                   const artist = artists.find(a => a.id === request.artist_id);
                   
