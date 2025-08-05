@@ -119,54 +119,53 @@ export default function Chat() {
         // Create demo artists for management
         demoProfiles.push(
           {
+            id: 'demo-artist-1',
             email: 'artist1@demo.com',
-            full_name: 'Ana García (Artista)',
-            roles: ['artist'],
-            active_role: 'artist',
+            full_name: 'Ana García',
+            roles: ['artist'] as ('artist' | 'management')[],
+            active_role: 'artist' as const,
             phone: '666 111 222',
-            user_id: 'demo-artist-1'
+            avatar_url: null
           },
           {
+            id: 'demo-artist-2',
             email: 'artist2@demo.com', 
-            full_name: 'Carlos Mendez (Artista)',
-            roles: ['artist'],
-            active_role: 'artist',
+            full_name: 'Carlos Mendez',
+            roles: ['artist'] as ('artist' | 'management')[],
+            active_role: 'artist' as const,
             phone: '666 333 444',
-            user_id: 'demo-artist-2'
+            avatar_url: null
           }
         );
       } else if (profile?.active_role === 'artist') {
         // Create demo management for artist
         demoProfiles.push(
           {
+            id: 'demo-manager-1',
             email: 'manager1@demo.com',
-            full_name: 'Laura Martín (Manager)',
-            roles: ['management'],
-            active_role: 'management', 
+            full_name: 'Laura Martín',
+            roles: ['management'] as ('artist' | 'management')[],
+            active_role: 'management' as const, 
             phone: '666 555 666',
-            user_id: 'demo-manager-1'
+            avatar_url: null
           },
           {
+            id: 'demo-manager-2',
             email: 'manager2@demo.com',
-            full_name: 'Pedro Sánchez (Manager)',
-            roles: ['management'],
-            active_role: 'management',
+            full_name: 'Pedro Sánchez',
+            roles: ['management'] as ('artist' | 'management')[],
+            active_role: 'management' as const,
             phone: '666 777 888',
-            user_id: 'demo-manager-2'
+            avatar_url: null
           }
         );
       }
 
-      // Show demo profiles without inserting to database
-      setAllContacts(demoProfiles.map(p => ({
-        ...p,
-        id: p.user_id,
-        avatar_url: null
-      })));
+      setAllContacts(demoProfiles);
       
       toast({
         title: "Demo Mode",
-        description: `Mostrando contactos de demostración para el rol: ${profile?.active_role}`,
+        description: `Contactos disponibles para chat. Haz clic en "+" para iniciar una conversación.`,
       });
       
     } catch (error) {
@@ -259,6 +258,12 @@ export default function Chat() {
 
   const fetchMessages = async (userId: string) => {
     try {
+      // Handle demo contacts
+      if (userId.startsWith('demo-')) {
+        setMessages([]);
+        return;
+      }
+
       const { data } = await supabase
         .from('chat_messages')
         .select('*')
@@ -284,6 +289,37 @@ export default function Chat() {
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !profile) return;
+
+    // Handle demo contacts
+    if (selectedConversation.id.startsWith('demo-')) {
+      // Simulate sending message for demo
+      const demoMessage: Message = {
+        id: `demo-msg-${Date.now()}`,
+        message: newMessage.trim(),
+        sender_id: profile.id,
+        recipient_id: selectedConversation.id,
+        created_at: new Date().toISOString(),
+        read_at: null
+      };
+      
+      setMessages(prev => [...prev, demoMessage]);
+      setNewMessage('');
+      
+      // Simulate response after 2 seconds
+      setTimeout(() => {
+        const responseMessage: Message = {
+          id: `demo-response-${Date.now()}`,
+          message: `Gracias por tu mensaje. Este es un chat de demostración con ${selectedConversation.full_name}.`,
+          sender_id: selectedConversation.id,
+          recipient_id: profile.id,
+          created_at: new Date().toISOString(),
+          read_at: null
+        };
+        setMessages(prev => [...prev, responseMessage]);
+      }, 2000);
+      
+      return;
+    }
 
     try {
       const { error } = await supabase
