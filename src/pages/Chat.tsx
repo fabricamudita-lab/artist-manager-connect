@@ -52,13 +52,13 @@ export default function Chat() {
 
   useEffect(() => {
     if (profile) {
-      // Initialize with current user selected
-      setSelectedArtists([profile.id]);
+      // Por defecto no filtrar por artistas específicos, mostrar todos
+      setSelectedArtists([]);
     }
   }, [profile]);
 
   useEffect(() => {
-    if (profile && selectedArtists.length > 0) {
+    if (profile) {
       fetchConversations();
     }
   }, [profile, selectedArtists]);
@@ -75,12 +75,21 @@ export default function Chat() {
 
   const fetchConversations = async () => {
     try {
-      // Get profiles filtered by selected artists
-      const { data: profiles } = await supabase
+      // Obtener todos los usuarios que no sean el usuario actual
+      let profilesQuery = supabase
         .from('profiles')
         .select('*')
-        .in('id', selectedArtists)
         .neq('id', profile?.id);
+
+      // Si hay artistas seleccionados (excluyendo el usuario actual), filtrar por ellos
+      const filteredArtists = selectedArtists.filter(id => id !== profile?.id);
+      if (filteredArtists.length > 0) {
+        profilesQuery = profilesQuery.in('id', filteredArtists);
+      }
+
+      const { data: profiles } = await profilesQuery;
+
+      console.log('Profiles found:', profiles);
 
       const conversationsData: Conversation[] = [];
 
@@ -116,6 +125,7 @@ export default function Chat() {
         return new Date(b.lastMessage.created_at).getTime() - new Date(a.lastMessage.created_at).getTime();
       });
 
+      console.log('Conversations data:', conversationsData);
       setConversations(conversationsData);
     } catch (error) {
       console.error('Error fetching conversations:', error);
@@ -240,9 +250,9 @@ export default function Chat() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSelectedArtists(selectedArtists.length > 0 ? [] : [profile?.id || ''])}
+                  onClick={() => setSelectedArtists([])}
                   className="h-8 w-8 p-0 hover-lift"
-                  title="Filtrar conversaciones"
+                  title="Limpiar filtros"
                 >
                   <Filter className="h-4 w-4" />
                 </Button>
