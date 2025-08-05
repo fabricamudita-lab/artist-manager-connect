@@ -515,6 +515,50 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          read: boolean
+          related_id: string | null
+          scheduled_for: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          read?: boolean
+          related_id?: string | null
+          scheduled_for?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          read?: boolean
+          related_id?: string | null
+          scheduled_for?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active_role: Database["public"]["Enums"]["user_role"]
@@ -620,6 +664,99 @@ export type Database = {
           },
         ]
       }
+      solicitudes: {
+        Row: {
+          archivos_adjuntos: Json | null
+          artist_id: string | null
+          ciudad: string | null
+          created_by: string
+          descripcion_libre: string | null
+          email: string | null
+          estado: Database["public"]["Enums"]["request_status"]
+          fecha_actualizacion: string
+          fecha_creacion: string
+          hora_entrevista: string | null
+          hora_show: string | null
+          id: string
+          informacion_programa: string | null
+          lugar_concierto: string | null
+          medio: string | null
+          nombre_entrevistador: string | null
+          nombre_festival: string | null
+          nombre_programa: string | null
+          nombre_solicitante: string
+          notas_internas: string | null
+          observaciones: string | null
+          telefono: string | null
+          tipo: Database["public"]["Enums"]["request_type"]
+        }
+        Insert: {
+          archivos_adjuntos?: Json | null
+          artist_id?: string | null
+          ciudad?: string | null
+          created_by: string
+          descripcion_libre?: string | null
+          email?: string | null
+          estado?: Database["public"]["Enums"]["request_status"]
+          fecha_actualizacion?: string
+          fecha_creacion?: string
+          hora_entrevista?: string | null
+          hora_show?: string | null
+          id?: string
+          informacion_programa?: string | null
+          lugar_concierto?: string | null
+          medio?: string | null
+          nombre_entrevistador?: string | null
+          nombre_festival?: string | null
+          nombre_programa?: string | null
+          nombre_solicitante: string
+          notas_internas?: string | null
+          observaciones?: string | null
+          telefono?: string | null
+          tipo: Database["public"]["Enums"]["request_type"]
+        }
+        Update: {
+          archivos_adjuntos?: Json | null
+          artist_id?: string | null
+          ciudad?: string | null
+          created_by?: string
+          descripcion_libre?: string | null
+          email?: string | null
+          estado?: Database["public"]["Enums"]["request_status"]
+          fecha_actualizacion?: string
+          fecha_creacion?: string
+          hora_entrevista?: string | null
+          hora_show?: string | null
+          id?: string
+          informacion_programa?: string | null
+          lugar_concierto?: string | null
+          medio?: string | null
+          nombre_entrevistador?: string | null
+          nombre_festival?: string | null
+          nombre_programa?: string | null
+          nombre_solicitante?: string
+          notas_internas?: string | null
+          observaciones?: string | null
+          telefono?: string | null
+          tipo?: Database["public"]["Enums"]["request_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -636,6 +773,8 @@ export type Database = {
         | "campana_promocional"
         | "videoclip"
         | "otros"
+      request_status: "pendiente" | "aprobada" | "denegada"
+      request_type: "entrevista" | "booking" | "otro"
       show_status: "confirmado" | "pendiente" | "cancelado"
       user_role: "artist" | "management"
     }
@@ -774,6 +913,8 @@ export const Constants = {
         "videoclip",
         "otros",
       ],
+      request_status: ["pendiente", "aprobada", "denegada"],
+      request_type: ["entrevista", "booking", "otro"],
       show_status: ["confirmado", "pendiente", "cancelado"],
       user_role: ["artist", "management"],
     },
