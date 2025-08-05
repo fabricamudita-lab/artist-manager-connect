@@ -70,19 +70,34 @@ export default function Chat() {
 
   const fetchAllContacts = async () => {
     try {
-      console.log('Fetching all contacts...');
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .neq('id', profile?.id);
+      console.log('Fetching contacts based on role...');
+      let query = supabase.from('profiles').select('*');
+      
+      if (profile?.active_role === 'management') {
+        // Management can see all artists
+        query = query.contains('roles', ['artist']);
+      } else if (profile?.active_role === 'artist') {
+        // Artists can see management users
+        query = query.contains('roles', ['management']);
+      }
+      
+      // Always exclude current user
+      query = query.neq('id', profile?.id);
+
+      const { data: profiles, error } = await query;
 
       if (error) {
         console.error('Error fetching contacts:', error);
         throw error;
       }
 
-      console.log('All contacts found:', profiles);
+      console.log('Role-based contacts found:', profiles);
       setAllContacts(profiles || []);
+      
+      // If no contacts found, create demo data for testing
+      if (!profiles || profiles.length === 0) {
+        await createDemoContacts();
+      }
     } catch (error) {
       console.error('Error fetching contacts:', error);
       toast({
@@ -90,6 +105,72 @@ export default function Chat() {
         description: "No se pudieron cargar los contactos",
         variant: "destructive",
       });
+    }
+  };
+
+  const createDemoContacts = async () => {
+    try {
+      console.log('Creating demo contacts...');
+      
+      // Create demo profiles based on current user's role
+      const demoProfiles = [];
+      
+      if (profile?.active_role === 'management') {
+        // Create demo artists for management
+        demoProfiles.push(
+          {
+            email: 'artist1@demo.com',
+            full_name: 'Ana García (Artista)',
+            roles: ['artist'],
+            active_role: 'artist',
+            phone: '666 111 222',
+            user_id: 'demo-artist-1'
+          },
+          {
+            email: 'artist2@demo.com', 
+            full_name: 'Carlos Mendez (Artista)',
+            roles: ['artist'],
+            active_role: 'artist',
+            phone: '666 333 444',
+            user_id: 'demo-artist-2'
+          }
+        );
+      } else if (profile?.active_role === 'artist') {
+        // Create demo management for artist
+        demoProfiles.push(
+          {
+            email: 'manager1@demo.com',
+            full_name: 'Laura Martín (Manager)',
+            roles: ['management'],
+            active_role: 'management', 
+            phone: '666 555 666',
+            user_id: 'demo-manager-1'
+          },
+          {
+            email: 'manager2@demo.com',
+            full_name: 'Pedro Sánchez (Manager)',
+            roles: ['management'],
+            active_role: 'management',
+            phone: '666 777 888',
+            user_id: 'demo-manager-2'
+          }
+        );
+      }
+
+      // Show demo profiles without inserting to database
+      setAllContacts(demoProfiles.map(p => ({
+        ...p,
+        id: p.user_id,
+        avatar_url: null
+      })));
+      
+      toast({
+        title: "Demo Mode",
+        description: `Mostrando contactos de demostración para el rol: ${profile?.active_role}`,
+      });
+      
+    } catch (error) {
+      console.error('Error creating demo contacts:', error);
     }
   };
 
