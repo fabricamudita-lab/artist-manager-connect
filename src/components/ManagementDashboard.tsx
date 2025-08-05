@@ -118,6 +118,71 @@ export default function ManagementDashboard() {
   useEffect(() => {
     if (profile) {
       fetchData();
+      
+      // Configurar actualizaciones en tiempo real
+      const requestsChannel = supabase
+        .channel('requests-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'requests',
+            filter: `management_id=eq.${profile.id}`
+          },
+          (payload) => {
+            console.log('Request change detected:', payload);
+            
+            if (payload.eventType === 'INSERT') {
+              setRequests(prev => [payload.new as Request, ...prev]);
+            } else if (payload.eventType === 'UPDATE') {
+              setRequests(prev => 
+                prev.map(req => 
+                  req.id === payload.new.id ? { ...req, ...payload.new } : req
+                )
+              );
+            } else if (payload.eventType === 'DELETE') {
+              setRequests(prev => 
+                prev.filter(req => req.id !== payload.old.id)
+              );
+            }
+          }
+        )
+        .subscribe();
+
+      const solicitudesChannel = supabase
+        .channel('solicitudes-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'solicitudes'
+          },
+          (payload) => {
+            console.log('Solicitud change detected:', payload);
+            
+            if (payload.eventType === 'INSERT') {
+              setSolicitudes(prev => [payload.new as Solicitud, ...prev]);
+            } else if (payload.eventType === 'UPDATE') {
+              setSolicitudes(prev => 
+                prev.map(sol => 
+                  sol.id === payload.new.id ? { ...sol, ...payload.new } : sol
+                )
+              );
+            } else if (payload.eventType === 'DELETE') {
+              setSolicitudes(prev => 
+                prev.filter(sol => sol.id !== payload.old.id)
+              );
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(requestsChannel);
+        supabase.removeChannel(solicitudesChannel);
+      };
     }
   }, [profile]);
 
@@ -218,7 +283,17 @@ export default function ManagementDashboard() {
         due_date: '',
       });
       setShowNewRequestForm(false);
-      fetchData();
+      
+      // Refrescar solo las requests sin recargar todo
+      const { data: updatedRequests } = await supabase
+        .from('requests')
+        .select('*')
+        .eq('management_id', profile?.id)
+        .order('created_at', { ascending: false });
+      
+      if (updatedRequests) {
+        setRequests(updatedRequests);
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -294,6 +369,15 @@ export default function ManagementDashboard() {
 
   const updateRequestStatus = async (requestId: string, newStatus: string) => {
     try {
+      // Actualizar optimistamente el estado local
+      setRequests(prevRequests => 
+        prevRequests.map(request => 
+          request.id === requestId 
+            ? { ...request, status: newStatus }
+            : request
+        )
+      );
+
       const { error } = await supabase
         .from('requests')
         .update({ status: newStatus })
@@ -306,13 +390,24 @@ export default function ManagementDashboard() {
         description: `Solicitud ${newStatus === 'archived' ? 'archivada' : 'actualizada'} correctamente.`,
       });
 
-      fetchData();
     } catch (error) {
+      // Revertir el cambio optimista en caso de error
+      setRequests(prevRequests => 
+        prevRequests.map(request => 
+          request.id === requestId 
+            ? { ...request, status: request.status } // Revertir al estado anterior
+            : request
+        )
+      );
+      
       toast({
         title: "Error",
         description: "No se pudo actualizar la solicitud.",
         variant: "destructive",
       });
+      
+      // Recargar datos en caso de error
+      fetchData();
     }
   };
 
@@ -328,8 +423,70 @@ export default function ManagementDashboard() {
     setAddToCalendarDialog({ open: true, request });
   };
 
+  const handleEventCreated = () => {
+    // Marcar la solicitud como que tiene evento asignado
+    if (addToCalendarDialog.request) {
+      const cardElement = document.querySelector(`[data-request-id="${addToCalendarDialog.request.id}"]`);
+      if (cardElement) {
+        cardElement.classList.add('request-card-calendar-added');
+        // Remover la clase después de la animación
+        setTimeout(() => {
+          cardElement.classList.remove('request-card-calendar-added');
+        }, 1000);
+      }
+
+      setRequests(prevRequests => 
+        prevRequests.map(req => 
+          req.id === addToCalendarDialog.request!.id 
+            ? { ...req, status: 'approved' } // O algún indicador de que tiene evento
+            : req
+        )
+      );
+    }
+    
+    // Refrescar solo los eventos sin recargar todo
+    fetchEvents();
+  };
+
+  const fetchEvents = async () => {
+    try {
+      const { data: eventsData } = await supabase
+        .from('events')
+        .select('*')
+        .gte('start_date', new Date().toISOString())
+        .order('start_date', { ascending: true });
+      
+      if (eventsData) {
+        setEvents(eventsData);
+      }
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    }
+  };
+
   const openEditRequest = (request: Request) => {
     setEditRequestDialog({ open: true, request });
+  };
+
+  const handleRequestUpdated = () => {
+    // Refrescar solo las requests sin recargar todo
+    fetchRequests();
+  };
+
+  const fetchRequests = async () => {
+    try {
+      const { data: requestsData } = await supabase
+        .from('requests')
+        .select('*')
+        .eq('management_id', profile?.id)
+        .order('created_at', { ascending: false });
+      
+      if (requestsData) {
+        setRequests(requestsData);
+      }
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+    }
   };
 
   const openDeleteDialog = (requestId: string, title: string) => {
@@ -337,7 +494,23 @@ export default function ManagementDashboard() {
   };
 
   const deleteRequest = async () => {
+    // Añadir clase de animación de eliminación inmediatamente
+    const cardElement = document.querySelector(`[data-request-id="${deleteDialog.requestId}"]`);
+    if (cardElement) {
+      cardElement.classList.add('request-card-removing');
+    }
+
     try {
+      // Guardar referencia de la solicitud a eliminar
+      const requestToDelete = requests.find(r => r.id === deleteDialog.requestId);
+      
+      // Esperar la animación antes de actualizar el estado
+      setTimeout(() => {
+        setRequests(prevRequests => 
+          prevRequests.filter(request => request.id !== deleteDialog.requestId)
+        );
+      }, 300); // Duración de la animación
+
       const { error } = await supabase
         .from('requests')
         .delete()
@@ -351,13 +524,26 @@ export default function ManagementDashboard() {
       });
 
       setDeleteDialog({ open: false, requestId: '', title: '' });
-      fetchData();
     } catch (error) {
+      // Revertir el cambio optimista en caso de error
+      const requestToRestore = requests.find(r => r.id === deleteDialog.requestId);
+      if (requestToRestore) {
+        setRequests(prevRequests => [...prevRequests, requestToRestore]);
+      }
+
+      // Remover clase de animación en caso de error
+      if (cardElement) {
+        cardElement.classList.remove('request-card-removing');
+      }
+      
       toast({
         title: "Error",
         description: "No se pudo eliminar la solicitud.",
         variant: "destructive",
       });
+      
+      // Recargar datos en caso de error
+      fetchData();
     }
   };
 
@@ -643,29 +829,40 @@ export default function ManagementDashboard() {
                   return (
                     <div 
                       key={`sol-${solicitud.id}`}
-                      className="border rounded-lg p-4 space-y-3 border-border"
+                      data-request-id={`sol-${solicitud.id}`}
+                      className="card-interactive hover-glow group animate-fade-in"
+                      style={{ 
+                        transition: 'all 0.3s ease-out',
+                        animation: 'fade-in 0.3s ease-out'
+                      }}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-lg">
-                              {solicitud.tipo === 'entrevista' ? '📻' : 
-                               solicitud.tipo === 'booking' ? '🎤' : '📌'}
-                            </span>
-                            <h3 className="font-semibold">{solicitud.nombre_solicitante}</h3>
-                            <div className={getStatusBadge(solicitudStatus).className}>
-                              {getStatusBadge(solicitudStatus).icon}
-                              <span>{getStatusBadge(solicitudStatus).text}</span>
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
+                              <span className="text-white text-lg">
+                                {solicitud.tipo === 'entrevista' ? '📻' : 
+                                 solicitud.tipo === 'booking' ? '🎤' : '📌'}
+                              </span>
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                                {solicitud.nombre_solicitante}
+                              </h3>
+                              <div className={getStatusBadge(solicitudStatus).className}>
+                                {getStatusBadge(solicitudStatus).icon}
+                                <span>{getStatusBadge(solicitudStatus).text}</span>
+                              </div>
                             </div>
                           </div>
                           
                           {solicitud.profiles?.full_name && (
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-2 mb-3">
                               <span className="text-sm text-muted-foreground">Artista:</span>
                               <Button
                                 variant="link"
                                 size="sm"
-                                className="p-0 h-auto text-sm font-medium"
+                                className="p-0 h-auto text-sm font-medium hover-lift"
                                 onClick={() => openArtistProfile(solicitud.artist_id!)}
                               >
                                 <User className="w-3 h-3 mr-1" />
@@ -675,14 +872,22 @@ export default function ManagementDashboard() {
                           )}
                           
                           {solicitud.observaciones && (
-                            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                              {solicitud.observaciones}
-                            </p>
+                            <div className="bg-muted/30 p-3 rounded-lg mb-3">
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {solicitud.observaciones}
+                              </p>
+                            </div>
                           )}
                           
                           <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span>Tipo: {solicitud.tipo}</span>
-                            <span>Creado: {new Date(solicitud.fecha_creacion).toLocaleDateString()}</span>
+                            <div className="flex items-center gap-1">
+                              <div className="w-1 h-1 bg-primary rounded-full"></div>
+                              <span>Tipo: {solicitud.tipo}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <div className="w-1 h-1 bg-secondary rounded-full"></div>
+                              <span>Creado: {new Date(solicitud.fecha_creacion).toLocaleDateString()}</span>
+                            </div>
                           </div>
                         </div>
                         
@@ -693,6 +898,7 @@ export default function ManagementDashboard() {
                               size="sm"
                               onClick={() => navigate('/calendar')}
                               title="Ver en Calendario"
+                              className="hover-lift"
                             >
                               <CalendarPlus className="w-4 h-4" />
                             </Button>
@@ -704,6 +910,7 @@ export default function ManagementDashboard() {
                               size="sm"
                               onClick={() => navigate(`/chat?artist=${solicitud.artist_id}&subject=${encodeURIComponent(solicitud.nombre_solicitante)}`)}
                               title="Abrir Chat"
+                              className="hover-lift"
                             >
                               <MessageCircle className="w-4 h-4" />
                             </Button>
@@ -714,6 +921,7 @@ export default function ManagementDashboard() {
                             size="sm"
                             onClick={() => navigate('/solicitudes')}
                             title="Ver Detalles"
+                            className="hover-lift"
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -730,29 +938,40 @@ export default function ManagementDashboard() {
                   return (
                     <div 
                       key={request.id}
-                      className={`border rounded-lg p-4 space-y-3 ${
+                      data-request-id={request.id}
+                      className={`card-interactive hover-glow group animate-fade-in ${
                         isOverdue(request.due_date, request.status) 
-                          ? 'border-red-200 bg-red-50' 
-                          : 'border-border'
+                          ? 'border-destructive/20 bg-destructive/5' 
+                          : ''
                       }`}
+                      style={{ 
+                        transition: 'all 0.3s ease-out',
+                        animation: 'fade-in 0.3s ease-out'
+                      }}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-lg">{getTypeIcon(request.type)}</span>
-                            <h3 className="font-semibold">{request.title}</h3>
-                            <div className={getStatusBadge(request.status).className}>
-                              {getStatusBadge(request.status).icon}
-                              <span>{getStatusBadge(request.status).text}</span>
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 bg-gradient-secondary rounded-xl flex items-center justify-center">
+                              <span className="text-white text-lg">{getTypeIcon(request.type)}</span>
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                                {request.title}
+                              </h3>
+                              <div className={getStatusBadge(request.status).className}>
+                                {getStatusBadge(request.status).icon}
+                                <span>{getStatusBadge(request.status).text}</span>
+                              </div>
                             </div>
                           </div>
                           
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-2 mb-3">
                             <span className="text-sm text-muted-foreground">Artista:</span>
                             <Button
                               variant="link"
                               size="sm"
-                              className="p-0 h-auto text-sm font-medium"
+                              className="p-0 h-auto text-sm font-medium hover-lift"
                               onClick={() => openArtistInfo(request.artist_id)}
                             >
                               <User className="w-3 h-3 mr-1" />
@@ -761,17 +980,23 @@ export default function ManagementDashboard() {
                           </div>
                           
                           {request.description && (
-                            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                              {request.description}
-                            </p>
+                            <div className="bg-muted/30 p-3 rounded-lg mb-3">
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {request.description}
+                              </p>
+                            </div>
                           )}
                           
                           <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span>Creado: {new Date(request.created_at).toLocaleDateString()}</span>
+                            <div className="flex items-center gap-1">
+                              <div className="w-1 h-1 bg-primary rounded-full"></div>
+                              <span>Creado: {new Date(request.created_at).toLocaleDateString()}</span>
+                            </div>
                             {request.due_date && (
-                              <span className={isOverdue(request.due_date, request.status) ? 'text-red-600 font-medium' : ''}>
-                                Vence: {new Date(request.due_date).toLocaleDateString()}
-                              </span>
+                              <div className={`flex items-center gap-1 ${isOverdue(request.due_date, request.status) ? 'text-destructive font-medium' : ''}`}>
+                                <div className={`w-1 h-1 rounded-full ${isOverdue(request.due_date, request.status) ? 'bg-destructive' : 'bg-secondary'}`}></div>
+                                <span>Vence: {new Date(request.due_date).toLocaleDateString()}</span>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -784,6 +1009,7 @@ export default function ManagementDashboard() {
                               size="sm"
                               onClick={() => openAddToCalendar(request)}
                               title="Añadir al Calendario"
+                              className="hover-lift"
                             >
                               <CalendarPlus className="w-4 h-4" />
                             </Button>
@@ -794,6 +1020,7 @@ export default function ManagementDashboard() {
                             size="sm"
                             onClick={() => updateRequestStatus(request.id, 'archived')}
                             title="Archivar"
+                            className="hover-lift"
                           >
                             <Archive className="w-4 h-4" />
                           </Button>
@@ -803,6 +1030,7 @@ export default function ManagementDashboard() {
                             size="sm"
                             onClick={() => openChat(request.artist_id, request.title)}
                             title="Abrir Chat"
+                            className="hover-lift"
                           >
                             <MessageCircle className="w-4 h-4" />
                           </Button>
@@ -812,6 +1040,7 @@ export default function ManagementDashboard() {
                             size="sm"
                             onClick={() => openEditRequest(request)}
                             title="Editar"
+                            className="hover-lift"
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -829,8 +1058,8 @@ export default function ManagementDashboard() {
                       </div>
                       
                       {isOverdue(request.due_date, request.status) && (
-                        <div className="bg-red-100 border border-red-200 rounded-md p-2">
-                          <div className="flex items-center gap-2 text-red-700 text-sm">
+                        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mt-3">
+                          <div className="flex items-center gap-2 text-destructive text-sm">
                             <AlertTriangle className="w-4 h-4" />
                             <span>¡Fecha vencida!</span>
                           </div>
@@ -1283,14 +1512,14 @@ export default function ManagementDashboard() {
         request={editRequestDialog.request}
         open={editRequestDialog.open}
         onOpenChange={(open) => setEditRequestDialog({ open, request: null })}
-        onRequestUpdated={fetchData}
+        onRequestUpdated={handleRequestUpdated}
       />
 
       <AddToCalendarDialog
         request={addToCalendarDialog.request}
         open={addToCalendarDialog.open}
         onOpenChange={(open) => setAddToCalendarDialog({ open, request: null })}
-        onEventCreated={fetchData}
+        onEventCreated={handleEventCreated}
       />
 
       <ArtistInfoDialog

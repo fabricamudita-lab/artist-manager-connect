@@ -73,6 +73,7 @@
     --transition-swift: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --transition-elastic: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
     /* Border radius */
     --radius: 0.75rem;
@@ -259,5 +260,22 @@
   .nav-item.active::before {
     @apply absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full;
     content: '';
+  }
+  }
+
+  /* Request card removal animation */
+  .request-card-removing {
+    @apply transition-all duration-300 ease-out opacity-0 scale-95 -translate-y-2;
+    pointer-events: none;
+  }
+
+  /* Archive animation */
+  .request-card-archiving {
+    @apply transition-all duration-500 ease-out opacity-60 scale-98 translate-x-4;
+  }
+
+  /* Calendar added animation */
+  .request-card-calendar-added {
+    @apply transition-all duration-300 ease-out bg-success/5 border-success/20;
   }
 }
