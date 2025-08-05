@@ -142,8 +142,10 @@ export default function ArtistDashboard() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Dashboard - Artista</h1>
-          <p className="text-muted-foreground">Bienvenido, {profile?.full_name}</p>
+          <h1 className="text-4xl font-bold font-playfair bg-gradient-primary bg-clip-text text-transparent">
+            Mi Dashboard
+          </h1>
+          <p className="text-muted-foreground">Panel de artista - {profile?.full_name}</p>
         </div>
         <div className="flex items-center gap-4">
           <NotificationBell />

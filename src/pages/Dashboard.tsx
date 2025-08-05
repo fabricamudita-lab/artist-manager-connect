@@ -38,10 +38,12 @@ export default function Dashboard() {
 
   return (
     <div className="p-6">
-      <div className="bg-card rounded-lg p-4 mb-4">
-        <h2 className="text-xl font-bold">Dashboard Funcionando</h2>
-        <p>Perfil: {profile.full_name}</p>
-        <p>Rol: {profile.active_role}</p>
+      <div className="card-professional p-6 mb-6 bg-gradient-hero text-white">
+        <h2 className="text-2xl font-playfair font-bold mb-2">
+          ¡Bienvenido a MOODITA! 🎵
+        </h2>
+        <p className="text-white/90">Perfil: {profile.full_name}</p>
+        <p className="text-white/80">Rol: {profile.active_role === 'artist' ? 'Artista' : 'Management'}</p>
       </div>
       {profile.active_role === 'artist' ? (
         <ArtistDashboard />

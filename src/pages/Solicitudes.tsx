@@ -5,12 +5,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Filter, Calendar, MessageCircle, Edit, Trash2, FileDown } from 'lucide-react';
+import { Plus, Search, Filter, Calendar, MessageCircle, Edit, Trash2, FileDown, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { CreateSolicitudDialog } from '@/components/CreateSolicitudDialog';
 import { EditSolicitudDialog } from '@/components/EditSolicitudDialog';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { ArtistProfileDialog } from '@/components/ArtistProfileDialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -74,6 +76,15 @@ export default function Solicitudes() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedSolicitud, setSelectedSolicitud] = useState<Solicitud | null>(null);
   const [artists, setArtists] = useState<any[]>([]);
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; solicitudId: string; nombre: string }>({
+    open: false,
+    solicitudId: '',
+    nombre: ''
+  });
+  const [artistProfileDialog, setArtistProfileDialog] = useState<{ open: boolean; artistId: string | null }>({
+    open: false,
+    artistId: null
+  });
 
   useEffect(() => {
     fetchSolicitudes();
@@ -175,14 +186,16 @@ export default function Solicitudes() {
     }
   };
 
-  const handleDelete = async (solicitudId: string) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar esta solicitud?')) return;
+  const openDeleteDialog = (solicitudId: string, nombre: string) => {
+    setDeleteDialog({ open: true, solicitudId, nombre });
+  };
 
+  const handleDelete = async () => {
     try {
       const { error } = await supabase
         .from('solicitudes')
         .delete()
-        .eq('id', solicitudId);
+        .eq('id', deleteDialog.solicitudId);
 
       if (error) throw error;
 
@@ -191,6 +204,7 @@ export default function Solicitudes() {
         description: "La solicitud se ha eliminado correctamente.",
       });
 
+      setDeleteDialog({ open: false, solicitudId: '', nombre: '' });
       fetchSolicitudes();
     } catch (error) {
       console.error('Error deleting solicitud:', error);
@@ -202,6 +216,10 @@ export default function Solicitudes() {
     }
   };
 
+  const openArtistProfile = (artistId: string) => {
+    setArtistProfileDialog({ open: true, artistId });
+  };
+
   const renderSolicitudCard = (solicitud: Solicitud) => {
     const config = statusConfig[solicitud.estado];
     const typeInfo = typeConfig[solicitud.tipo];
@@ -209,13 +227,13 @@ export default function Solicitudes() {
                      (solicitud.estado === 'pendiente');
 
     return (
-      <Card key={solicitud.id} className={`transition-all hover:shadow-md ${isOverdue ? 'border-red-200 bg-red-50/30' : ''}`}>
+      <Card key={solicitud.id} className={`card-professional hover-lift ${isOverdue ? 'border-destructive/50 bg-destructive/5' : ''}`}>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-lg">{typeInfo.icon}</span>
-                <CardTitle className="text-base">{solicitud.nombre_solicitante}</CardTitle>
+                <CardTitle className="text-base font-playfair">{solicitud.nombre_solicitante}</CardTitle>
                 <Badge className={config.color}>
                   {config.icon} {config.label}
                 </Badge>
@@ -224,12 +242,17 @@ export default function Solicitudes() {
                 {typeInfo.label} • {format(new Date(solicitud.fecha_creacion), 'dd MMM yyyy', { locale: es })}
               </p>
               {solicitud.profiles?.full_name && (
-                <p className="text-sm font-medium text-primary">
-                  Artista: {solicitud.profiles.full_name}
-                </p>
+                <button 
+                  onClick={() => openArtistProfile(solicitud.artist_id!)}
+                  className="text-sm font-medium text-primary hover:text-primary-glow transition-colors cursor-pointer"
+                >
+                  Artista: {solicitud.profiles.full_name} →
+                </button>
               )}
               {isOverdue && (
-                <p className="text-sm text-red-600 font-medium">⚠️ Fecha vencida</p>
+                <p className="text-sm text-destructive font-medium flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> Fecha vencida
+                </p>
               )}
             </div>
             
@@ -241,13 +264,15 @@ export default function Solicitudes() {
                   setSelectedSolicitud(solicitud);
                   setShowEditDialog(true);
                 }}
+                className="hover-lift"
               >
                 <Edit className="w-4 h-4" />
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleDelete(solicitud.id)}
+                onClick={() => openDeleteDialog(solicitud.id, solicitud.nombre_solicitante)}
+                className="hover-lift text-destructive hover:text-destructive"
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
@@ -337,17 +362,19 @@ export default function Solicitudes() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Solicitudes</h1>
+          <h1 className="text-4xl font-bold font-playfair bg-gradient-primary bg-clip-text text-transparent">
+            Solicitudes
+          </h1>
           <p className="text-muted-foreground">Gestiona todas las solicitudes de entrevistas, bookings y más</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
+        <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
           <Plus className="w-4 h-4 mr-2" />
           Nueva Solicitud
         </Button>
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="card-professional">
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-4 items-center">
             <div className="flex-1 min-w-64">
@@ -357,7 +384,7 @@ export default function Solicitudes() {
                   placeholder="Buscar solicitudes..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
                 />
               </div>
             </div>
@@ -443,6 +470,26 @@ export default function Solicitudes() {
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
         onSolicitudUpdated={fetchSolicitudes}
+      />
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}
+        title="Eliminar Solicitud"
+        description={`¿Estás seguro de que quieres eliminar la solicitud "${deleteDialog.nombre}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="destructive"
+        icon="delete"
+        onConfirm={handleDelete}
+      />
+
+      {/* Artist Profile Dialog */}
+      <ArtistProfileDialog
+        open={artistProfileDialog.open}
+        onOpenChange={(open) => setArtistProfileDialog(prev => ({ ...prev, open }))}
+        artistId={artistProfileDialog.artistId}
       />
     </div>
   );

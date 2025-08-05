@@ -16,6 +16,8 @@ import NotificationBell from '@/components/NotificationBell';
 import { EditRequestDialog } from '@/components/EditRequestDialog';
 import { AddToCalendarDialog } from '@/components/AddToCalendarDialog';
 import { ArtistInfoDialog } from '@/components/ArtistInfoDialog';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { ArtistProfileDialog } from '@/components/ArtistProfileDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,6 +85,15 @@ export default function ManagementDashboard() {
   const [artistInfoDialog, setArtistInfoDialog] = useState<{ open: boolean; artistId: string | null }>({
     open: false,
     artistId: null,
+  });
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; requestId: string; title: string }>({
+    open: false,
+    requestId: '',
+    title: ''
+  });
+  const [artistProfileDialog, setArtistProfileDialog] = useState<{ open: boolean; artistId: string | null }>({
+    open: false,
+    artistId: null
   });
 
   useEffect(() => {
@@ -280,12 +291,16 @@ export default function ManagementDashboard() {
     setEditRequestDialog({ open: true, request });
   };
 
-  const deleteRequest = async (requestId: string) => {
+  const openDeleteDialog = (requestId: string, title: string) => {
+    setDeleteDialog({ open: true, requestId, title });
+  };
+
+  const deleteRequest = async () => {
     try {
       const { error } = await supabase
         .from('requests')
         .delete()
-        .eq('id', requestId);
+        .eq('id', deleteDialog.requestId);
 
       if (error) throw error;
 
@@ -294,6 +309,7 @@ export default function ManagementDashboard() {
         description: "Solicitud eliminada correctamente.",
       });
 
+      setDeleteDialog({ open: false, requestId: '', title: '' });
       fetchData();
     } catch (error) {
       toast({
@@ -302,6 +318,10 @@ export default function ManagementDashboard() {
         variant: "destructive",
       });
     }
+  };
+
+  const openArtistProfile = (artistId: string) => {
+    setArtistProfileDialog({ open: true, artistId });
   };
 
   const isOverdue = (dueDate: string, status: string) => {
@@ -361,7 +381,9 @@ export default function ManagementDashboard() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">M00DITA</h1>
+          <h1 className="text-4xl font-bold font-playfair bg-gradient-primary bg-clip-text text-transparent">
+            MOODITA
+          </h1>
           <p className="text-muted-foreground">Bienvenido, {profile?.full_name}</p>
         </div>
         <div className="flex items-center gap-4">
@@ -393,7 +415,7 @@ export default function ManagementDashboard() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Gestión de Solicitudes</h2>
-              <Button onClick={() => setShowNewRequestForm(!showNewRequestForm)}>
+              <Button onClick={() => setShowNewRequestForm(!showNewRequestForm)} className="btn-primary">
                 <PlusCircle className="w-4 h-4 mr-2" />
                 Nueva Solicitud
               </Button>
@@ -619,9 +641,9 @@ export default function ManagementDashboard() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => deleteRequest(request.id)}
+                            onClick={() => openDeleteDialog(request.id, request.title)}
                             title="Eliminar"
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10 hover-lift"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -1101,6 +1123,26 @@ export default function ManagementDashboard() {
           setArtistInfoDialog({ open: false, artistId: null });
           navigate(`/chat?artist=${artistId}`);
         }}
+      />
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}
+        title="Eliminar Solicitud"
+        description={`¿Estás seguro de que quieres eliminar la solicitud "${deleteDialog.title}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="destructive"
+        icon="delete"
+        onConfirm={deleteRequest}
+      />
+
+      {/* Artist Profile Dialog */}
+      <ArtistProfileDialog
+        open={artistProfileDialog.open}
+        onOpenChange={(open) => setArtistProfileDialog(prev => ({ ...prev, open }))}
+        artistId={artistProfileDialog.artistId}
       />
     </div>
   );
