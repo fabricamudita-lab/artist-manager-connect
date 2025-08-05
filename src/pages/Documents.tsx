@@ -206,20 +206,28 @@ export default function Documents() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FileText className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Gestión de Documentos</h1>
+    <div className="container-moodita section-spacing space-y-8">
+      {/* Hero Header */}
+      <div className="card-moodita p-8 bg-gradient-secondary text-white">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+            <FileText className="h-8 w-8 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-playfair font-bold">Gestión de Documentos</h1>
+            <p className="text-white/90 mt-1">Organiza y accede a toda tu documentación profesional</p>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2">
         {/* Artist Selector */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
+        <div className="card-moodita hover-lift">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-3 text-xl">
+              <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center">
+                <Filter className="h-4 w-4 text-primary" />
+              </div>
               Filtrar por Artistas
             </CardTitle>
             <CardDescription>
@@ -234,39 +242,48 @@ export default function Documents() {
               showSelfOption={true}
             />
           </CardContent>
-        </Card>
+        </div>
 
         {/* Material de Artistas - Drive Access */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FolderOpen className="h-5 w-5" />
+        <div className="card-moodita hover-lift bg-gradient-card">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-3 text-xl">
+              <div className="w-8 h-8 bg-accent/10 rounded-xl flex items-center justify-center">
+                <FolderOpen className="h-4 w-4 text-accent" />
+              </div>
               Material de Artistas
             </CardTitle>
             <CardDescription>
               Accede a las carpetas de Drive donde cada artista tiene su material profesional
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="text-sm text-muted-foreground">
-              Cada artista tiene una carpeta dedicada con fotos, videos, biografías, logos y material promocional.
+          <CardContent className="space-y-4">
+            <div className="bg-muted/50 p-4 rounded-xl">
+              <p className="text-sm text-muted-foreground">
+                Cada artista tiene una carpeta dedicada con fotos, videos, biografías, logos y material promocional.
+              </p>
             </div>
             <Button 
               variant="outline" 
-              className="w-full"
+              className="w-full hover-lift transition-swift"
               onClick={() => window.open('https://drive.google.com', '_blank')}
             >
               <ExternalLink className="h-4 w-4 mr-2" />
               Acceder a Carpetas de Drive
             </Button>
           </CardContent>
-        </Card>
+        </div>
       </div>
 
       {/* Upload Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Subir Documento</CardTitle>
+      <div className="card-moodita hover-lift">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-3 text-xl">
+            <div className="w-8 h-8 bg-secondary/10 rounded-xl flex items-center justify-center">
+              <Upload className="h-4 w-4 text-secondary" />
+            </div>
+            Subir Documento
+          </CardTitle>
           <CardDescription>
             Sube contratos, riders, setlists y documentos importantes
           </CardDescription>
@@ -274,7 +291,7 @@ export default function Documents() {
         <CardContent>
           <Dialog open={showUploadForm} onOpenChange={setShowUploadForm}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="btn-primary">
                 <Upload className="w-4 h-4 mr-2" />
                 Subir Documento
               </Button>
@@ -294,6 +311,7 @@ export default function Documents() {
                     value={newDocument.title}
                     onChange={(e) => setNewDocument({ ...newDocument, title: e.target.value })}
                     placeholder="Nombre del documento"
+                    className="input-modern"
                   />
                 </div>
 
@@ -303,7 +321,7 @@ export default function Documents() {
                     value={newDocument.category}
                     onValueChange={(value) => setNewDocument({ ...newDocument, category: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="input-modern">
                       <SelectValue placeholder="Selecciona la categoría" />
                     </SelectTrigger>
                     <SelectContent>
@@ -325,7 +343,7 @@ export default function Documents() {
                       value={newDocument.artist_id}
                       onValueChange={(value) => setNewDocument({ ...newDocument, artist_id: value })}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="input-modern">
                         <SelectValue placeholder="Selecciona un artista" />
                       </SelectTrigger>
                       <SelectContent>
@@ -346,6 +364,7 @@ export default function Documents() {
                     type="file"
                     onChange={(e) => setNewDocument({ ...newDocument, file: e.target.files?.[0] || null })}
                     accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.mp3,.wav,.mp4,.mov"
+                    className="input-modern"
                   />
                   <p className="text-xs text-muted-foreground">
                     Formatos soportados: PDF, DOC, DOCX, TXT, JPG, PNG, MP3, WAV, MP4, MOV
@@ -353,7 +372,7 @@ export default function Documents() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button type="submit" disabled={uploading}>
+                  <Button type="submit" disabled={uploading} className="btn-primary">
                     {uploading ? 'Subiendo...' : 'Subir Documento'}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => setShowUploadForm(false)}>
@@ -364,57 +383,65 @@ export default function Documents() {
             </DialogContent>
           </Dialog>
         </CardContent>
-      </Card>
+      </div>
 
       {/* Documents Grid */}
       {documents.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-12">
-            <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">No hay documentos</h3>
-            <p className="text-muted-foreground mb-4">
-              Sube tu primer documento para empezar a organizar tu biblioteca
+        <div className="card-moodita">
+          <CardContent className="text-center py-16">
+            <div className="w-20 h-20 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <FileText className="w-10 h-10 text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-semibold mb-3">No hay documentos</h3>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              Sube tu primer documento para empezar a organizar tu biblioteca digital profesional
             </p>
-            <Button onClick={() => setShowUploadForm(true)}>
+            <Button onClick={() => setShowUploadForm(true)} className="btn-primary">
               <Upload className="w-4 h-4 mr-2" />
               Subir Documento
             </Button>
           </CardContent>
-        </Card>
+        </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {documents.map((document) => (
-            <Card key={document.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
+            <div key={document.id} className="card-interactive hover-glow group">
+              <CardHeader className="pb-4">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    {getFileIcon(document.file_type)}
-                    <div className="flex-1">
-                      <CardTitle className="text-lg line-clamp-2">{document.title}</CardTitle>
-                      <CardDescription>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center flex-shrink-0">
+                      {getFileIcon(document.file_type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg line-clamp-2 group-hover:text-primary transition-colors">
+                        {document.title}
+                      </CardTitle>
+                      <CardDescription className="mt-1">
                         {artists.find(a => a.id === document.artist_id)?.full_name || 'Artista'}
                       </CardDescription>
                     </div>
                   </div>
-                  <Badge className={getCategoryColor(document.category)}>
+                  <Badge className={`${getCategoryColor(document.category)} flex-shrink-0 ml-2`}>
                     {document.category}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="text-sm text-muted-foreground">
-                  <p>Tamaño: {formatFileSize(document.file_size)}</p>
-                  <p>Subido: {format(new Date(document.created_at), 'PPP', { locale: es })}</p>
+                <div className="bg-muted/50 p-3 rounded-lg space-y-1">
+                  <p className="text-sm font-medium">Tamaño: {formatFileSize(document.file_size)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Subido: {format(new Date(document.created_at), 'PPP', { locale: es })}
+                  </p>
                 </div>
                 
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" asChild>
+                  <Button variant="outline" size="sm" asChild className="flex-1 hover-lift">
                     <a href={document.file_url} target="_blank" rel="noopener noreferrer">
                       <Eye className="w-4 h-4 mr-2" />
                       Ver
                     </a>
                   </Button>
-                  <Button variant="outline" size="sm" asChild>
+                  <Button variant="outline" size="sm" asChild className="flex-1 hover-lift">
                     <a href={document.file_url} download>
                       <Download className="w-4 h-4 mr-2" />
                       Descargar
@@ -422,7 +449,7 @@ export default function Documents() {
                   </Button>
                 </div>
               </CardContent>
-            </Card>
+            </div>
           ))}
         </div>
       )}

@@ -131,20 +131,32 @@ export default function Calendar() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <CalendarIcon className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Calendario Profesional</h1>
+    <div className="container-moodita section-spacing space-y-8">
+      {/* Hero Header */}
+      <div className="card-moodita p-8 bg-gradient-hero text-white">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                <CalendarIcon className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-playfair font-bold">Calendario Profesional</h1>
+                <p className="text-white/90">Organiza y visualiza todos tus eventos</p>
+              </div>
+            </div>
+          </div>
+          <CreateEventDialog onEventCreated={fetchEvents} />
         </div>
-        <CreateEventDialog onEventCreated={fetchEvents} />
       </div>
 
       {/* Artist Selector */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
+      <div className="card-moodita hover-lift">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-3 text-xl">
+            <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center">
+              <Filter className="h-4 w-4 text-primary" />
+            </div>
             Filtrar por Artistas
           </CardTitle>
           <CardDescription>
@@ -159,12 +171,13 @@ export default function Calendar() {
             showSelfOption={true}
           />
         </CardContent>
-      </Card>
+      </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Calendario</CardTitle>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Calendar Card */}
+        <div className="card-moodita hover-lift">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl">Calendario Interactivo</CardTitle>
             <CardDescription>
               Selecciona una fecha para ver los eventos programados
             </CardDescription>
@@ -174,16 +187,17 @@ export default function Calendar() {
               mode="single"
               selected={selectedDate}
               onSelect={setSelectedDate}
-              className="rounded-md border pointer-events-auto"
+              className="rounded-xl border-0 bg-muted/30 shadow-soft"
             />
           </CardContent>
-        </Card>
+        </div>
 
-        <Card>
-          <CardHeader>
+        {/* Events Card */}
+        <div className="card-moodita">
+          <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>
+              <div className="space-y-1">
+                <CardTitle className="text-xl">
                   Eventos para {selectedDate ? format(selectedDate, viewMode === 'day' ? 'PPPP' : "'semana del' PPP", { locale: es }) : 'hoy'}
                 </CardTitle>
                 <CardDescription>
@@ -195,6 +209,7 @@ export default function Calendar() {
                   variant={viewMode === 'day' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setViewMode('day')}
+                  className="transition-swift hover-lift"
                 >
                   <CalendarIcon className="h-4 w-4 mr-2" />
                   Día
@@ -203,6 +218,7 @@ export default function Calendar() {
                   variant={viewMode === 'week' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setViewMode('week')}
+                  className="transition-swift hover-lift"
                 >
                   <CalendarWeekIcon className="h-4 w-4 mr-2" />
                   Semana
@@ -212,41 +228,61 @@ export default function Calendar() {
           </CardHeader>
           <CardContent className="space-y-4">
             {eventsLoading ? (
-              <div className="text-center py-4">Cargando eventos...</div>
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Cargando eventos...</p>
+              </div>
             ) : selectedDateEvents.length === 0 ? (
-              <div className="text-center py-4 text-muted-foreground">
-                No hay eventos programados para este {viewMode === 'day' ? 'día' : 'período'}
+              <div className="text-center py-12 space-y-4">
+                <div className="w-16 h-16 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto">
+                  <CalendarIcon className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-foreground mb-2">No hay eventos</h3>
+                  <p className="text-muted-foreground text-sm">
+                    No hay eventos programados para este {viewMode === 'day' ? 'día' : 'período'}
+                  </p>
+                </div>
               </div>
             ) : (
               selectedDateEvents.map((event) => (
-                <div key={event.id} className="border rounded-lg p-4 space-y-2">
+                <div key={event.id} className="card-interactive p-6 space-y-3 hover-glow">
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold">{event.title}</h3>
-                      {viewMode === 'week' && (
-                        <Badge variant="secondary" className="text-xs">
-                          {format(new Date(event.start_date), 'EEE dd', { locale: es })}
-                        </Badge>
-                      )}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
+                        <CalendarIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">{event.title}</h3>
+                        {viewMode === 'week' && (
+                          <Badge variant="secondary" className="text-xs mt-1">
+                            {format(new Date(event.start_date), 'EEE dd', { locale: es })}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                    <Badge variant="outline">{event.event_type}</Badge>
+                    <Badge className="badge-info">{event.event_type}</Badge>
                   </div>
                   
                   {event.description && (
-                    <p className="text-sm text-muted-foreground">{event.description}</p>
+                    <p className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg">
+                      {event.description}
+                    </p>
                   )}
                   
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      {format(new Date(event.start_date), 'HH:mm', { locale: es })} - 
-                      {format(new Date(event.end_date), 'HH:mm', { locale: es })}
+                  <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-primary" />
+                      <span className="font-medium">
+                        {format(new Date(event.start_date), 'HH:mm', { locale: es })} - 
+                        {format(new Date(event.end_date), 'HH:mm', { locale: es })}
+                      </span>
                     </div>
                     
                     {event.location && (
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
-                        {event.location}
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-secondary" />
+                        <span className="font-medium">{event.location}</span>
                       </div>
                     )}
                   </div>
@@ -254,7 +290,7 @@ export default function Calendar() {
               ))
             )}
           </CardContent>
-        </Card>
+        </div>
       </div>
     </div>
   );
