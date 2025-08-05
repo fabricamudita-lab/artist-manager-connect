@@ -112,8 +112,6 @@ Todos los colores deben ser HSL para compatibilidad con el tema oscuro.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-}
 
     /* Gradientes MOODITA */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
@@ -130,6 +128,7 @@ Todos los colores deben ser HSL para compatibilidad con el tema oscuro.
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   }
+}
 
 @layer base {
   * {
