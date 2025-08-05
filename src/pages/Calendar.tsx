@@ -231,6 +231,7 @@ export default function Calendar() {
               events={events}
               onDateSelect={(date) => {
                 setSelectedDate(date);
+                setCurrentYear(date.getFullYear());
                 setViewMode('day');
               }}
               selectedDate={selectedDate}
@@ -248,12 +249,20 @@ export default function Calendar() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <CalendarComponent
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                className="rounded-xl border-0 bg-muted/30 shadow-soft"
-              />
+              <div className="calendar-with-events">
+                <CalendarComponent
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  className="rounded-xl border-0 bg-muted/30 shadow-soft"
+                  modifiers={{
+                    hasEvents: eventDates,
+                  }}
+                  modifiersClassNames={{
+                    hasEvents: 'has-events'
+                  }}
+                />
+              </div>
             </CardContent>
           </div>
 

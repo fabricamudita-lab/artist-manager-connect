@@ -276,4 +276,31 @@
   .request-card-calendar-added {
     @apply transition-all duration-300 ease-out bg-success/5 border-success/20;
   }
+
+  /* Calendar event indicators */
+  .calendar-with-events .has-events {
+    position: relative;
+  }
+
+  .calendar-with-events .has-events::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 6px;
+    height: 6px;
+    background: hsl(var(--primary));
+    border-radius: 50%;
+    z-index: 1;
+    box-shadow: 0 0 0 1px hsl(var(--background));
+  }
+
+  /* Enhanced event indicators on hover */
+  .calendar-with-events .has-events:hover::after {
+    width: 8px;
+    height: 8px;
+    background: hsl(var(--primary-glow));
+    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 8px hsl(var(--primary) / 0.4);
+    transition: all 0.2s ease;
+  }
 }
