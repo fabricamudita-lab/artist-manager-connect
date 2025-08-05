@@ -82,7 +82,7 @@ export default function ManagementDashboard() {
   const [loading, setLoading] = useState(true);
   const [showNewRequestForm, setShowNewRequestForm] = useState(false);
   const [eventTimeframe, setEventTimeframe] = useState<'day' | 'week' | 'month'>('week');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('pending');
   const [searchTerm, setSearchTerm] = useState('');
   const [newRequest, setNewRequest] = useState({
     artist_id: '',
