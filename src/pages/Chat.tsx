@@ -41,27 +41,22 @@ export default function Chat() {
   usePageTitle('Chat');
   const { profile } = useAuth();
   const { toast } = useToast();
+  const [allContacts, setAllContacts] = useState<Profile[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Profile | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
+  const [showNewChatDialog, setShowNewChatDialog] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (profile) {
-      // Por defecto no filtrar por artistas específicos, mostrar todos
-      setSelectedArtists([]);
-    }
-  }, [profile]);
-
-  useEffect(() => {
-    if (profile) {
+      fetchAllContacts();
       fetchConversations();
     }
-  }, [profile, selectedArtists]);
+  }, [profile]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -73,23 +68,65 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const fetchConversations = async () => {
+  const fetchAllContacts = async () => {
     try {
-      // Obtener todos los usuarios que no sean el usuario actual
-      let profilesQuery = supabase
+      console.log('Fetching all contacts...');
+      const { data: profiles, error } = await supabase
         .from('profiles')
         .select('*')
         .neq('id', profile?.id);
 
-      // Si hay artistas seleccionados (excluyendo el usuario actual), filtrar por ellos
-      const filteredArtists = selectedArtists.filter(id => id !== profile?.id);
-      if (filteredArtists.length > 0) {
-        profilesQuery = profilesQuery.in('id', filteredArtists);
+      if (error) {
+        console.error('Error fetching contacts:', error);
+        throw error;
       }
 
-      const { data: profiles } = await profilesQuery;
+      console.log('All contacts found:', profiles);
+      setAllContacts(profiles || []);
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los contactos",
+        variant: "destructive",
+      });
+    }
+  };
 
-      console.log('Profiles found:', profiles);
+  const fetchConversations = async () => {
+    try {
+      console.log('Fetching conversations...');
+      
+      // Only get conversations for contacts that have exchanged messages
+      const { data: messageProfiles } = await supabase
+        .from('chat_messages')
+        .select('sender_id, recipient_id')
+        .or(`sender_id.eq.${profile?.id},recipient_id.eq.${profile?.id}`);
+
+      console.log('Message profiles:', messageProfiles);
+
+      // Get unique user IDs that have conversations with current user
+      const userIds = new Set<string>();
+      messageProfiles?.forEach(msg => {
+        if (msg.sender_id !== profile?.id) userIds.add(msg.sender_id);
+        if (msg.recipient_id !== profile?.id) userIds.add(msg.recipient_id);
+      });
+
+      console.log('User IDs with conversations:', Array.from(userIds));
+
+      if (userIds.size === 0) {
+        setConversations([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get profiles for users with conversations
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', Array.from(userIds));
+
+      console.log('Conversation profiles found:', profiles);
 
       const conversationsData: Conversation[] = [];
 
@@ -125,7 +162,7 @@ export default function Chat() {
         return new Date(b.lastMessage.created_at).getTime() - new Date(a.lastMessage.created_at).getTime();
       });
 
-      console.log('Conversations data:', conversationsData);
+      console.log('Final conversations data:', conversationsData);
       setConversations(conversationsData);
     } catch (error) {
       console.error('Error fetching conversations:', error);
@@ -219,6 +256,17 @@ export default function Chat() {
     conv.profile.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredContacts = allContacts.filter(contact =>
+    contact.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    contact.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const startNewConversation = (contact: Profile) => {
+    setSelectedConversation(contact);
+    setShowNewChatDialog(false);
+    setMessages([]);
+  };
+
   if (loading) {
     return <div className="p-6">Cargando conversaciones...</div>;
   }
@@ -250,23 +298,13 @@ export default function Chat() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSelectedArtists([])}
+                  onClick={() => setShowNewChatDialog(true)}
                   className="h-8 w-8 p-0 hover-lift"
-                  title="Limpiar filtros"
+                  title="Nuevo chat"
                 >
-                  <Filter className="h-4 w-4" />
+                  <Plus className="h-4 w-4" />
                 </Button>
               </div>
-              {selectedArtists.length === 0 && (
-                <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-                  <ArtistSelector
-                    selectedArtists={selectedArtists}
-                    onSelectionChange={setSelectedArtists}
-                    placeholder="Selecciona artistas para mostrar conversaciones..."
-                    showSelfOption={false}
-                  />
-                </div>
-              )}
               <div className="relative mt-4">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -285,14 +323,17 @@ export default function Chat() {
                     <div className="w-16 h-16 mx-auto bg-muted/50 rounded-2xl flex items-center justify-center">
                       <MessageCircle className="w-8 h-8" />
                     </div>
-                    <div className="space-y-2">
-                      <p className="font-medium">No hay conversaciones disponibles</p>
-                      {selectedArtists.length === 0 && (
-                        <div className="text-xs space-y-1">
-                          <p>Usa el filtro <Filter className="inline h-3 w-3 mx-1" /> para seleccionar artistas</p>
-                          <p>y ver sus conversaciones</p>
-                        </div>
-                      )}
+                    <div className="space-y-3">
+                      <p className="font-medium">No hay conversaciones activas</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowNewChatDialog(true)}
+                        className="text-sm"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Iniciar nueva conversación
+                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -441,35 +482,105 @@ export default function Chat() {
             </>
           ) : (
             <CardContent className="flex items-center justify-center h-full">
-              <div className="text-center space-y-4">
-                <div className="text-6xl">💬</div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Chat Interno</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Usa el filtro <Filter className="inline h-4 w-4 mx-1" /> para seleccionar artistas y luego elige una conversación para chatear
-                  </p>
-                  <div className="flex gap-2 justify-center">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        if (filteredConversations.length > 0) {
-                          setSelectedConversation(filteredConversations[0].profile);
-                        } else {
-                          setSelectedArtists([]);
-                        }
-                      }}
-                    >
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      {filteredConversations.length > 0 ? 'Iniciar Chat' : 'Seleccionar Artistas'}
-                    </Button>
+                <div className="text-center space-y-4">
+                  <div className="text-6xl">💬</div>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Chat Interno</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Selecciona una conversación existente o inicia una nueva
+                    </p>
+                    <div className="flex gap-2 justify-center">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setShowNewChatDialog(true)}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Nueva conversación
+                      </Button>
+                      {filteredConversations.length > 0 && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setSelectedConversation(filteredConversations[0].profile)}
+                        >
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          Continuar chat
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
             </CardContent>
           )}
         </Card>
         </div>
+
+        {/* New Chat Dialog */}
+        {showNewChatDialog && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowNewChatDialog(false)}>
+            <Card className="w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Nueva Conversación</CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowNewChatDialog(false)}
+                    className="h-8 w-8 p-0"
+                  >
+                    ×
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar contactos..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <ScrollArea className="h-64">
+                  {filteredContacts.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <User className="h-8 w-8 mx-auto mb-2" />
+                      <p>No se encontraron contactos</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredContacts.map((contact) => (
+                        <div
+                          key={contact.id}
+                          className="p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => startNewConversation(contact)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarImage src={contact.avatar_url || ''} />
+                              <AvatarFallback>
+                                <User className="h-4 w-4" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{contact.full_name}</p>
+                              <p className="text-sm text-muted-foreground truncate">{contact.email}</p>
+                              <Badge variant="outline" className="text-xs mt-1">
+                                {contact.active_role}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
