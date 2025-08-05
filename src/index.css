@@ -261,8 +261,6 @@
     @apply absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full;
     content: '';
   }
-  }
-
   /* Request card removal animation */
   .request-card-removing {
     @apply transition-all duration-300 ease-out opacity-0 scale-95 -translate-y-2;
