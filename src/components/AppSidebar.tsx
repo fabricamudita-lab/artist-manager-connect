@@ -14,7 +14,8 @@ import {
   LogOut,
   Music,
   Menu,
-  Calculator
+  Calculator,
+  ClipboardList
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import NotificationBell from './NotificationBell';
@@ -24,6 +25,7 @@ const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Calendario", url: "/calendar", icon: Calendar },
   { title: "Presupuestos", url: "/budgets", icon: Calculator },
+  { title: "Solicitudes", url: "/solicitudes", icon: ClipboardList },
   { title: "Documentos", url: "/documents", icon: FileText },
   { title: "Chat", url: "/chat", icon: MessageCircle },
 ];

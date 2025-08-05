@@ -56,19 +56,37 @@ export function useNotifications() {
 
   const fetchNotifications = async () => {
     console.log('Fetching notifications...');
-    const mockNotifications: Notification[] = [
-      {
-        id: '1',
-        title: 'Bienvenido a MOODITA',
-        message: 'Tu cuenta ha sido configurada exitosamente.',
-        type: 'general',
-        read: false,
-        created_at: new Date().toISOString(),
-      },
-    ];
+    try {
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', profile?.user_id)
+        .order('created_at', { ascending: false });
 
-    setNotifications(mockNotifications);
-    setUnreadCount(mockNotifications.filter(n => !n.read).length);
+      if (data) {
+        const typedNotifications = data.map(item => ({
+          ...item,
+          type: item.type as 'request' | 'event' | 'financial' | 'general'
+        }));
+        setNotifications(typedNotifications);
+        setUnreadCount(typedNotifications.filter(n => !n.read).length);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      // Fallback to mock notification
+      const mockNotifications: Notification[] = [
+        {
+          id: '1',
+          title: 'Bienvenido a MOODITA',
+          message: 'Tu cuenta ha sido configurada exitosamente.',
+          type: 'general',
+          read: false,
+          created_at: new Date().toISOString(),
+        },
+      ];
+      setNotifications(mockNotifications);
+      setUnreadCount(mockNotifications.filter(n => !n.read).length);
+    }
   };
 
   const markAsRead = (notificationId: string) => {

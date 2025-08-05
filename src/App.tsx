@@ -11,6 +11,7 @@ import Calendar from "./pages/Calendar";
 import Budgets from "./pages/Budgets";
 import Documents from "./pages/Documents";
 import Chat from "./pages/Chat";
+import Solicitudes from "./pages/Solicitudes";
 import NotFound from "./pages/NotFound";
 import DashboardLayout from "./components/DashboardLayout";
 
@@ -99,6 +100,13 @@ const App = () => (
               <ProtectedRoute>
                 <DashboardLayout>
                   <Chat />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/solicitudes" element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <Solicitudes />
                 </DashboardLayout>
               </ProtectedRoute>
             } />
