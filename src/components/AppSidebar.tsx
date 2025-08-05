@@ -94,24 +94,29 @@ export function AppSidebar() {
               </h3>
             )}
             <nav className="space-y-1">
-              {navigationItems.map((item) => (
-                <NavLink
-                  key={item.title}
-                  to={item.url}
-                  className={({ isActive: navIsActive }) =>
-                    `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                      navIsActive
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                    }`
-                  }
-                >
-                  <item.icon className="w-4 h-4 flex-shrink-0" />
-                  {!isCollapsed && <span>{item.title}</span>}
-                </NavLink>
-              ))}
-            </nav>
-          </div>
+            {navigationItems.map((item) => (
+              <NavLink
+                key={item.title}
+                to={item.url}
+                className={({ isActive: navIsActive }) =>
+                  `nav-item group ${
+                    navIsActive
+                      ? 'active bg-primary/10 text-primary border border-primary/20'
+                      : 'hover:bg-muted/80 text-muted-foreground hover:text-foreground'
+                  } ${isCollapsed ? 'justify-center' : ''}`
+                }
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+                {!isCollapsed && <span className="font-medium">{item.title}</span>}
+                {isCollapsed && (
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                    {item.title}
+                  </div>
+                )}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
 
           {/* Management Tools */}
           {profile?.active_role === 'management' && (

@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Filter, Calendar, MessageCircle, Edit, Trash2, FileDown, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Filter, Calendar, MessageCircle, Edit, Trash2, FileDown, AlertTriangle, ClipboardList } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -227,16 +227,20 @@ export default function Solicitudes() {
                      (solicitud.estado === 'pendiente');
 
     return (
-      <Card key={solicitud.id} className={`card-professional hover-lift ${isOverdue ? 'border-destructive/50 bg-destructive/5' : ''}`}>
-        <CardHeader className="pb-3">
+      <Card key={solicitud.id} className={`card-interactive transition-all duration-300 ${isOverdue ? 'border-destructive/50 bg-destructive/5 shadow-glow' : 'hover:shadow-medium'}`}>
+        <CardHeader className="pb-4">
           <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">{typeInfo.icon}</span>
-                <CardTitle className="text-base font-playfair">{solicitud.nombre_solicitante}</CardTitle>
-                <Badge className={config.color}>
-                  {config.icon} {config.label}
-                </Badge>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-primary rounded-lg">
+                  <span className="text-2xl">{typeInfo.icon}</span>
+                </div>
+                <div className="flex flex-col">
+                  <CardTitle className="text-xl font-semibold text-gradient-primary">{solicitud.nombre_solicitante}</CardTitle>
+                  <Badge className={`${config.color} badge-info mt-1 w-fit`}>
+                    {config.icon} {config.label}
+                  </Badge>
+                </div>
               </div>
               <p className="text-sm text-muted-foreground">
                 {typeInfo.label} • {format(new Date(solicitud.fecha_creacion), 'dd MMM yyyy', { locale: es })}
@@ -358,71 +362,77 @@ export default function Solicitudes() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold font-playfair bg-gradient-primary bg-clip-text text-transparent">
-            Solicitudes
-          </h1>
-          <p className="text-muted-foreground">Gestiona todas las solicitudes de entrevistas, bookings y más</p>
-        </div>
-        <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
-          <Plus className="w-4 h-4 mr-2" />
-          Nueva Solicitud
-        </Button>
-      </div>
-
-      {/* Filters */}
-      <Card className="card-professional">
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-4 items-center">
-            <div className="flex-1 min-w-64">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar solicitudes..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
+      <div className="container-moodita section-spacing space-y-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-primary rounded-2xl">
+              <ClipboardList className="h-8 w-8 text-primary-foreground" />
             </div>
-            
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-48">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Filtrar por tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los tipos</SelectItem>
-                <SelectItem value="entrevista">📻 Entrevista</SelectItem>
-                <SelectItem value="booking">🎤 Booking</SelectItem>
-                <SelectItem value="otro">📌 Otro</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filterArtist} onValueChange={setFilterArtist}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filtrar por artista" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los artistas</SelectItem>
-                {artists.map((artist) => (
-                  <SelectItem key={artist.id} value={artist.id}>
-                    {artist.full_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Button variant="outline" size="sm">
-              <FileDown className="w-4 h-4 mr-2" />
-              Exportar
-            </Button>
+            <div>
+              <h1 className="text-4xl font-bold text-gradient-primary tracking-tight">
+                Solicitudes
+              </h1>
+              <p className="text-muted-foreground text-lg">Gestiona todas las solicitudes de entrevistas, bookings y más</p>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+          <Button onClick={() => setShowCreateDialog(true)} className="btn-primary hover-lift">
+            <Plus className="w-5 h-5 mr-2" />
+            Nueva Solicitud
+          </Button>
+        </div>
+
+        {/* Filters */}
+        <Card className="card-moodita">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap gap-6 items-center">
+              <div className="flex-1 min-w-80">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar solicitudes..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-12 py-3 text-base input-modern"
+                  />
+                </div>
+              </div>
+              
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="w-52 py-3">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Filtrar por tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los tipos</SelectItem>
+                  <SelectItem value="entrevista">📻 Entrevista</SelectItem>
+                  <SelectItem value="booking">🎤 Booking</SelectItem>
+                  <SelectItem value="otro">📌 Otro</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filterArtist} onValueChange={setFilterArtist}>
+                <SelectTrigger className="w-52 py-3">
+                  <SelectValue placeholder="Filtrar por artista" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los artistas</SelectItem>
+                  {artists.map((artist) => (
+                    <SelectItem key={artist.id} value={artist.id}>
+                      {artist.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Button variant="outline" size="default" className="hover-lift">
+                <FileDown className="w-4 h-4 mr-2" />
+                Exportar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -491,6 +501,7 @@ export default function Solicitudes() {
         onOpenChange={(open) => setArtistProfileDialog(prev => ({ ...prev, open }))}
         artistId={artistProfileDialog.artistId}
       />
+      </div>
     </div>
   );
 }

@@ -79,49 +79,50 @@
   }
 
   .dark {
-    /* MOODITA Dark Theme - Spotify inspired */
+    /* MOODITA Dark Theme */
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
 
-    --card: 240 10% 5%;
+    --card: 240 10% 3.9%;
     --card-foreground: 0 0% 98%;
-    --popover: 240 10% 5%;
+
+    --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
 
-    /* Vibrant colors pop more on dark */
-    --primary: 142 76% 55%;
-    --primary-foreground: 240 10% 3.9%;
-    --primary-glow: 142 80% 65%;
-    
-    --secondary: 260 90% 75%;
-    --secondary-foreground: 240 10% 3.9%;
-    --secondary-glow: 260 95% 85%;
-    
-    --accent: 213 100% 70%;
-    --accent-foreground: 240 10% 3.9%;
-    --accent-glow: 213 100% 80%;
+    --primary: 263 85% 70%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 263 85% 80%;
+
+    --secondary: 45 93% 47%;
+    --secondary-foreground: 0 0% 98%;
 
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 142 76% 55%;
 
-    --destructive: 0 62.8% 30.6%;
+    --accent: 263 30% 25%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
+
     --success: 142 76% 36%;
     --success-foreground: 0 0% 98%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 240 10% 3.9%;
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 142 76% 55%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 142 76% 55%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
+
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 263 85% 70%;
+
+    --sidebar-background: 240 3.7% 15.9%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 15.9%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 3.7% 25.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
 
     /* Enhanced shadows for dark mode */
     --shadow-soft: 0 2px 8px -2px hsl(0 0% 0% / 0.3);

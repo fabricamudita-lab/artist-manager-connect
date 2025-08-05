@@ -459,6 +459,7 @@ export default function Chat() {
             </CardContent>
           )}
         </Card>
+        </div>
       </div>
     </div>
   );
