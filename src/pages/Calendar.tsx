@@ -164,9 +164,28 @@ export default function Calendar() {
     ? getEventsForMonth(currentDate)
     : events;
 
+  const isAllDayEvent = (event: Event) => {
+    const startDate = new Date(event.start_date);
+    const endDate = new Date(event.end_date);
+    const startTime = startDate.getHours() * 60 + startDate.getMinutes();
+    const endTime = endDate.getHours() * 60 + endDate.getMinutes();
+    
+    // Consider it all-day if it starts at 00:00 and ends at 23:59 or spans multiple days
+    return (startTime === 0 && endTime === 1439) || 
+           startDate.toDateString() !== endDate.toDateString();
+  };
+
+  const getAllDayEventsForDate = (date: Date) => {
+    return getEventsForDate(date).filter(isAllDayEvent);
+  };
+
+  const getTimedEventsForDate = (date: Date) => {
+    return getEventsForDate(date).filter(event => !isAllDayEvent(event));
+  };
+
   const renderWeekView = () => {
     const weekDays = getWeekDays();
-    const timeSlots = Array.from({ length: 24 }, (_, i) => i);
+    const timeSlots = Array.from({ length: 15 }, (_, i) => i + 9); // Start at 9:00 AM, show 15 hours
 
     return (
       <div className="calendar-week-view bg-background rounded-xl border shadow-soft overflow-hidden">
@@ -239,6 +258,31 @@ export default function Calendar() {
           ))}
         </div>
 
+        {/* All-day events section */}
+        <div className="grid grid-cols-8 border-b bg-muted/5">
+          <div className="p-3 text-xs font-medium text-muted-foreground bg-muted/10">Todo el día</div>
+          {weekDays.map((day, dayIndex) => {
+            const allDayEvents = getAllDayEventsForDate(day);
+            return (
+              <div key={dayIndex} className="border-l min-h-16 p-2 space-y-1">
+                {allDayEvents.map((event, eventIndex) => (
+                  <div
+                    key={event.id}
+                    className={`text-xs px-2 py-1 rounded truncate font-medium ${
+                      event.event_type === 'concierto' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                      event.event_type === 'entrevista' ? 'bg-green-100 text-green-800 border border-green-200' :
+                      event.event_type === 'reunion' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
+                      'bg-gray-100 text-gray-800 border border-gray-200'
+                    }`}
+                  >
+                    {event.title}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+
         {/* Calendar grid */}
         <div className="h-96 overflow-y-auto">
           <div className="grid grid-cols-8">
@@ -255,7 +299,7 @@ export default function Calendar() {
             {weekDays.map((day, dayIndex) => (
               <div key={dayIndex} className="border-r border-muted/30">
                 {timeSlots.map(hour => {
-                  const dayEvents = getEventsForDate(day).filter(event => {
+                  const dayEvents = getTimedEventsForDate(day).filter(event => {
                     const eventHour = new Date(event.start_date).getHours();
                     return eventHour === hour;
                   });
@@ -265,13 +309,18 @@ export default function Calendar() {
                       {dayEvents.map((event, eventIndex) => (
                         <div
                           key={event.id}
-                          className="absolute inset-1 bg-primary/10 border border-primary/30 rounded text-xs p-1 overflow-hidden hover:bg-primary/20 transition-colors cursor-pointer"
+                          className={`absolute inset-1 border rounded text-xs p-1 overflow-hidden hover:opacity-80 transition-all cursor-pointer ${
+                            event.event_type === 'concierto' ? 'bg-blue-100 border-blue-300 text-blue-800' :
+                            event.event_type === 'entrevista' ? 'bg-green-100 border-green-300 text-green-800' :
+                            event.event_type === 'reunion' ? 'bg-purple-100 border-purple-300 text-purple-800' :
+                            'bg-gray-100 border-gray-300 text-gray-800'
+                          }`}
                           style={{ 
                             zIndex: eventIndex + 1,
                             marginTop: `${eventIndex * 2}px` 
                           }}
                         >
-                          <div className="font-medium text-primary truncate">
+                          <div className="font-medium truncate">
                             {event.title}
                           </div>
                           <div className="text-muted-foreground truncate">
