@@ -71,31 +71,39 @@ export default function Chat() {
   const fetchAllContacts = async () => {
     try {
       console.log('Fetching contacts based on role...');
-      let query = supabase.from('profiles').select('*');
       
-      if (profile?.active_role === 'management') {
-        // Management can see all artists
-        query = query.contains('roles', ['artist']);
-      } else if (profile?.active_role === 'artist') {
-        // Artists can see management users
-        query = query.contains('roles', ['management']);
-      }
-      
-      // Always exclude current user
-      query = query.neq('id', profile?.id);
-
-      const { data: profiles, error } = await query;
+      // Fetch all profiles first
+      const { data: allProfiles, error } = await supabase
+        .from('profiles')
+        .select('*');
 
       if (error) {
         console.error('Error fetching contacts:', error);
         throw error;
       }
 
-      console.log('Role-based contacts found:', profiles);
-      setAllContacts(profiles || []);
+      console.log('All profiles found:', allProfiles);
       
-      // If no contacts found, create demo data for testing
-      if (!profiles || profiles.length === 0) {
+      // Filter contacts based on current user's role
+      let filteredContacts = [];
+      
+      if (profile?.active_role === 'management') {
+        // Management can see artists (including themselves if they have artist role)
+        filteredContacts = allProfiles?.filter(p => 
+          p.roles.includes('artist')
+        ) || [];
+      } else if (profile?.active_role === 'artist') {
+        // Artists can see management users (including themselves if they have management role)
+        filteredContacts = allProfiles?.filter(p => 
+          p.roles.includes('management')
+        ) || [];
+      }
+
+      console.log('Filtered contacts:', filteredContacts);
+      setAllContacts(filteredContacts);
+      
+      // If no real contacts found, create demo data for testing
+      if (filteredContacts.length === 0) {
         await createDemoContacts();
       }
     } catch (error) {
