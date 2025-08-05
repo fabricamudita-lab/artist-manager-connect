@@ -1,132 +1,133 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
-/* MOODITA Design System - Gestión Artística Profesional
-Todos los colores deben ser HSL para compatibilidad con el tema oscuro.
-*/
+/* MOODITA Design System - Apple meets Spotify */
 
 @layer base {
   :root {
-    /* MOODITA Brand Colors */
-    --background: 0 0% 99%;
+    /* MOODITA Design System - Apple meets Spotify */
+    
+    /* Base Colors - Clean & Minimal */
+    --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
 
+    /* Apple-inspired neutrals */
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
 
-    /* MOODITA Primary - Púrpura elegante para marca musical */
-    --primary: 263 85% 70%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 263 85% 80%;
+    /* Spotify-inspired vibrant system */
+    --primary: 142 70% 45%;        /* Spotify Green */
+    --primary-foreground: 0 0% 98%;
+    --primary-glow: 142 76% 55%;   /* Brighter green */
+    
+    --secondary: 260 85% 65%;      /* Vibrant Purple */
+    --secondary-foreground: 0 0% 98%;
+    --secondary-glow: 260 90% 75%;
+    
+    --accent: 213 94% 60%;         /* Electric Blue */
+    --accent-foreground: 0 0% 98%;
+    --accent-glow: 213 100% 70%;
 
-    /* MOODITA Secondary - Dorado elegante */
-    --secondary: 45 93% 47%;
-    --secondary-foreground: 240 10% 3.9%;
+    /* Neutral grays - Apple style */
+    --muted: 210 40% 97%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 142 70% 45%;
 
-    /* Tonos neutros profesionales */
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-
-    --accent: 263 30% 95%;
-    --accent-foreground: 263 85% 40%;
-
-    /* Estados */
-    --destructive: 0 84.2% 60.2%;
+    /* Semantic colors */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-
-    --success: 142 76% 36%;
+    --success: 142 70% 45%;
     --success-foreground: 0 0% 98%;
-
     --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 98%;
+    --warning-foreground: 240 10% 3.9%;
 
-    /* Bordes e inputs */
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 263 85% 70%;
-
-    --radius: 0.5rem;
-
+    /* Sidebar system */
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
+    --sidebar-primary: 142 70% 45%;
     --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
+    --sidebar-accent: 210 40% 97%;
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 142 70% 45%;
 
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Apple + Spotify gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--secondary-glow)));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--accent-glow)));
+    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 50%, hsl(var(--accent)) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
+    
+    /* Apple-style shadows */
+    --shadow-soft: 0 2px 8px -2px hsl(var(--foreground) / 0.08);
+    --shadow-medium: 0 4px 16px -4px hsl(var(--foreground) / 0.12);
+    --shadow-large: 0 8px 32px -8px hsl(var(--foreground) / 0.16);
+    --shadow-glow: 0 0 40px hsl(var(--primary) / 0.3);
+    
+    /* Spotify-style transitions */
+    --transition-swift: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    /* Border radius */
+    --radius: 0.75rem;
   }
 
   .dark {
-    /* MOODITA Dark Theme */
+    /* MOODITA Dark Theme - Spotify inspired */
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
 
     --card: 240 10% 5%;
     --card-foreground: 0 0% 98%;
-
     --popover: 240 10% 5%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 263 85% 70%;
+    /* Vibrant colors pop more on dark */
+    --primary: 142 76% 55%;
     --primary-foreground: 240 10% 3.9%;
-    --primary-glow: 263 85% 60%;
-
-    --secondary: 45 93% 47%;
+    --primary-glow: 142 80% 65%;
+    
+    --secondary: 260 90% 75%;
     --secondary-foreground: 240 10% 3.9%;
+    --secondary-glow: 260 95% 85%;
+    
+    --accent: 213 100% 70%;
+    --accent-foreground: 240 10% 3.9%;
+    --accent-glow: 213 100% 80%;
 
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
-
-    --accent: 263 30% 15%;
-    --accent-foreground: 263 85% 70%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 142 76% 55%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-
     --success: 142 76% 36%;
     --success-foreground: 0 0% 98%;
-
     --warning: 38 92% 50%;
     --warning-foreground: 240 10% 3.9%;
 
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 263 85% 70%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary: 142 76% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 142 76% 55%;
 
-    /* Gradientes MOODITA */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(45 100% 60%));
-    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
-    
-    /* Sombras elegantes */
-    --shadow-sm: 0 1px 2px 0 hsl(var(--primary) / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(var(--primary) / 0.1), 0 2px 4px -1px hsl(var(--primary) / 0.06);
-    --shadow-lg: 0 10px 15px -3px hsl(var(--primary) / 0.1), 0 4px 6px -2px hsl(var(--primary) / 0.05);
-    --shadow-glow: 0 0 30px hsl(var(--primary) / 0.3);
-
-    /* Transiciones */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    /* Enhanced shadows for dark mode */
+    --shadow-soft: 0 2px 8px -2px hsl(0 0% 0% / 0.3);
+    --shadow-medium: 0 4px 16px -4px hsl(0 0% 0% / 0.4);
+    --shadow-large: 0 8px 32px -8px hsl(0 0% 0% / 0.5);
+    --shadow-glow: 0 0 40px hsl(var(--primary) / 0.4);
   }
 }
 
@@ -137,46 +138,125 @@ Todos los colores deben ser HSL para compatibilidad con el tema oscuro.
 
   body {
     @apply bg-background text-foreground font-inter antialiased;
-    font-feature-settings: "cv11", "ss01";
-    font-variation-settings: "opsz" 32;
+    font-feature-settings: "cv01", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-playfair;
+    @apply font-inter tracking-tight;
+  }
+
+  /* Apple-style focus rings */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
   }
 }
 
+/* MOODITA Component Classes */
 @layer components {
-  /* Botones profesionales MOODITA */
+  /* Apple-inspired cards */
+  .card-moodita {
+    @apply bg-card border border-border rounded-2xl shadow-soft backdrop-blur-sm;
+    @apply transition-all duration-300 hover:shadow-medium hover:scale-[1.02];
+  }
+
+  .card-interactive {
+    @apply card-moodita cursor-pointer hover:border-primary/20;
+  }
+
+  .card-glass {
+    @apply bg-card/80 backdrop-blur-md border border-border/50;
+  }
+
+  /* Spotify-inspired buttons */
   .btn-primary {
-    @apply bg-gradient-to-r from-primary to-primary-glow text-primary-foreground shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105;
+    @apply bg-gradient-to-r from-primary to-primary-glow text-primary-foreground;
+    @apply hover:from-primary-glow hover:to-primary shadow-soft hover:shadow-glow;
+    @apply transition-all duration-200 hover:scale-105 active:scale-95;
+    @apply font-medium rounded-xl px-6 py-3;
   }
-  
+
   .btn-secondary {
-    @apply bg-gradient-to-r from-secondary to-secondary text-secondary-foreground shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105;
+    @apply bg-gradient-to-r from-secondary to-secondary-glow text-secondary-foreground;
+    @apply hover:from-secondary-glow hover:to-secondary;
+    @apply transition-all duration-200 hover:scale-105 active:scale-95;
+    @apply font-medium rounded-xl px-6 py-3;
   }
-  
-  /* Cards profesionales */
-  .card-professional {
-    @apply bg-card border border-border shadow-sm hover:shadow-md transition-all duration-300;
+
+  .btn-ghost-modern {
+    @apply bg-transparent hover:bg-muted/80 border-0;
+    @apply transition-all duration-200 hover:scale-105;
+    @apply font-medium rounded-xl px-4 py-2;
   }
-  
-  /* Animaciones suaves */
-  .animate-fade-in {
-    @apply opacity-0 translate-y-4 transition-all duration-500 ease-out;
+
+  /* Text gradients */
+  .text-gradient-primary {
+    @apply bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent;
   }
-  
-  .animate-fade-in.in-view {
-    @apply opacity-100 translate-y-0;
+
+  .text-gradient-secondary {
+    @apply bg-gradient-to-r from-secondary to-secondary-glow bg-clip-text text-transparent;
   }
-  
-  /* Estados de hover elegantes */
+
+  .text-gradient-hero {
+    @apply bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent;
+  }
+
+  /* Interactive elements */
   .hover-lift {
-    @apply transition-transform duration-200 hover:-translate-y-1 hover:shadow-lg;
+    @apply transition-all duration-200 hover:scale-105 hover:shadow-medium;
   }
-  
-  /* Efectos de glassmorphism para modales */
-  .glass-modal {
-    @apply backdrop-blur-md bg-background/80 border border-border/50;
+
+  .hover-glow {
+    @apply transition-all duration-300 hover:shadow-glow;
+  }
+
+  /* Status badges - Spotify style */
+  .badge-success {
+    @apply bg-success/10 text-success border-success/20 font-medium rounded-full px-3 py-1;
+  }
+
+  .badge-warning {
+    @apply bg-warning/10 text-warning border-warning/20 font-medium rounded-full px-3 py-1;
+  }
+
+  .badge-error {
+    @apply bg-destructive/10 text-destructive border-destructive/20 font-medium rounded-full px-3 py-1;
+  }
+
+  .badge-info {
+    @apply bg-accent/10 text-accent border-accent/20 font-medium rounded-full px-3 py-1;
+  }
+
+  /* Layout helpers */
+  .container-moodita {
+    @apply container mx-auto px-6 lg:px-8;
+  }
+
+  .section-spacing {
+    @apply py-12 lg:py-20;
+  }
+
+  /* Apple-style form inputs */
+  .input-modern {
+    @apply bg-muted/30 border-border/50 rounded-xl px-4 py-3;
+    @apply focus:bg-background focus:border-primary/50 focus:ring-2 focus:ring-primary/20;
+    @apply transition-all duration-200;
+  }
+
+  /* Navigation improvements */
+  .nav-item {
+    @apply relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium;
+    @apply transition-all duration-200 hover:bg-muted/80;
+  }
+
+  .nav-item.active {
+    @apply bg-primary/10 text-primary border border-primary/20;
+  }
+
+  .nav-item.active::before {
+    @apply absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full;
+    content: '';
   }
 }

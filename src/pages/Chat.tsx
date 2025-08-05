@@ -214,121 +214,134 @@ export default function Chat() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center gap-2">
-        <MessageCircle className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Chat Profesional</h1>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
+      <div className="container-moodita section-spacing space-y-8">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-primary rounded-xl">
+            <MessageCircle className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gradient-primary tracking-tight">Chat Profesional</h1>
+            <p className="text-muted-foreground">Conecta con tu equipo artístico</p>
+          </div>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
-        {/* Conversations List */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                <h3 className="font-semibold">Conversaciones</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[70vh]">
+          {/* Conversations List */}
+          <Card className="lg:col-span-1 card-moodita">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 bg-gradient-primary rounded-lg">
+                    <Users className="h-4 w-4 text-primary-foreground" />
+                  </div>
+                  <h3 className="font-semibold text-lg">Conversaciones</h3>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedArtists(selectedArtists.length > 0 ? [] : [profile?.id || ''])}
+                  className="h-8 w-8 p-0 hover-lift"
+                  title="Filtrar conversaciones"
+                >
+                  <Filter className="h-4 w-4" />
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedArtists(selectedArtists.length > 0 ? [] : [profile?.id || ''])}
-                className="h-8 w-8 p-0"
-                title="Filtrar conversaciones"
-              >
-                <Filter className="h-4 w-4" />
-              </Button>
-            </div>
-            {selectedArtists.length === 0 && (
-              <div className="mt-2">
-                <ArtistSelector
-                  selectedArtists={selectedArtists}
-                  onSelectionChange={setSelectedArtists}
-                  placeholder="Selecciona artistas para mostrar conversaciones..."
-                  showSelfOption={false}
+              {selectedArtists.length === 0 && (
+                <div className="mt-3 p-3 bg-muted/50 rounded-lg">
+                  <ArtistSelector
+                    selectedArtists={selectedArtists}
+                    onSelectionChange={setSelectedArtists}
+                    placeholder="Selecciona artistas para mostrar conversaciones..."
+                    showSelfOption={false}
+                  />
+                </div>
+              )}
+              <div className="relative mt-4">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar contactos..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 input-modern"
                 />
               </div>
-            )}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar contactos..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </CardHeader>
+            </CardHeader>
 
-          <CardContent className="p-0">
-            <ScrollArea className="h-[400px]">
-              {filteredConversations.length === 0 ? (
-                <div className="p-4 text-center text-muted-foreground space-y-3">
-                  <div>No hay conversaciones disponibles</div>
-                  {selectedArtists.length === 0 && (
-                    <div className="text-xs">
-                      <p>Usa el filtro <Filter className="inline h-3 w-3 mx-1" /> para seleccionar artistas</p>
-                      <p>y ver sus conversaciones</p>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[500px]">
+                {filteredConversations.length === 0 ? (
+                  <div className="p-6 text-center text-muted-foreground space-y-4">
+                    <div className="w-16 h-16 mx-auto bg-muted/50 rounded-2xl flex items-center justify-center">
+                      <MessageCircle className="w-8 h-8" />
                     </div>
-                  )}
-                </div>
-              ) : (
-                filteredConversations.map((conversation) => (
-                  <div
-                    key={conversation.profile.id}
-                    className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
-                      selectedConversation?.id === conversation.profile.id ? 'bg-muted' : ''
-                    }`}
-                    onClick={() => setSelectedConversation(conversation.profile)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarImage src={conversation.profile.avatar_url || ''} />
-                        <AvatarFallback>
-                          <User className="h-4 w-4" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium truncate">
-                            {conversation.profile.full_name}
-                          </p>
-                          {conversation.unreadCount > 0 && (
-                            <Badge variant="destructive" className="text-xs">
-                              {conversation.unreadCount}
-                            </Badge>
-                          )}
+                    <div className="space-y-2">
+                      <p className="font-medium">No hay conversaciones disponibles</p>
+                      {selectedArtists.length === 0 && (
+                        <div className="text-xs space-y-1">
+                          <p>Usa el filtro <Filter className="inline h-3 w-3 mx-1" /> para seleccionar artistas</p>
+                          <p>y ver sus conversaciones</p>
                         </div>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {conversation.lastMessage?.message || 'Sin mensajes'}
-                        </p>
-                        <Badge variant="outline" className="text-xs mt-1">
-                          {conversation.profile.active_role}
-                        </Badge>
-                      </div>
+                      )}
                     </div>
                   </div>
-                ))
-              )}
+                ) : (
+                  filteredConversations.map((conversation) => (
+                    <div
+                      key={conversation.profile.id}
+                      className={`p-4 border-b border-border cursor-pointer transition-all duration-200 hover:bg-muted/50 ${
+                        selectedConversation?.id === conversation.profile.id ? 'bg-primary/10 border-primary/20' : ''
+                      }`}
+                      onClick={() => setSelectedConversation(conversation.profile)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage src={conversation.profile.avatar_url || ''} />
+                          <AvatarFallback>
+                            <User className="h-4 w-4" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="font-medium truncate">
+                              {conversation.profile.full_name}
+                            </p>
+                            {conversation.unreadCount > 0 && (
+                              <Badge variant="destructive" className="text-xs">
+                                {conversation.unreadCount}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate leading-relaxed">
+                            {conversation.lastMessage?.message || 'Sin mensajes'}
+                          </p>
+                          <Badge variant="outline" className="text-xs mt-2 badge-info">
+                            {conversation.profile.active_role}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
             </ScrollArea>
           </CardContent>
         </Card>
 
         {/* Messages Area */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 card-moodita">
           {selectedConversation ? (
             <>
-              <CardHeader className="border-b">
+              <CardHeader className="border-b border-border/50 bg-gradient-to-r from-muted/30 to-muted/10">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-10 w-10 ring-2 ring-primary/20">
                       <AvatarImage src={selectedConversation.avatar_url || ''} />
-                      <AvatarFallback>
-                        <User className="h-4 w-4" />
+                      <AvatarFallback className="bg-gradient-primary text-primary-foreground">
+                        <User className="h-5 w-5" />
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <CardTitle className="text-lg">
+                      <CardTitle className="text-lg font-semibold">
                         {selectedConversation.full_name}
                       </CardTitle>
                       <p className="text-sm text-muted-foreground">
@@ -338,10 +351,10 @@ export default function Chat() {
                   </div>
                   <div className="flex gap-2">
                     <Button 
-                      variant="outline" 
+                      variant="ghost" 
                       size="sm"
                       onClick={() => startWhatsAppChat(selectedConversation)}
-                      className="text-green-600 border-green-200 hover:bg-green-50"
+                      className="text-success hover:bg-success/10 hover-lift"
                       title="Abrir en WhatsApp"
                     >
                       <MessageSquare className="h-4 w-4" />
