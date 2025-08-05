@@ -220,103 +220,35 @@ export default function Chat() {
         <h1 className="text-2xl font-bold">Chat Profesional</h1>
       </div>
 
-      {/* Artist Selector */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filtrar Conversaciones
-          </CardTitle>
-          <CardDescription>
-            Selecciona con qué artistas quieres chatear
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ArtistSelector
-            selectedArtists={selectedArtists}
-            onSelectionChange={setSelectedArtists}
-            placeholder="Seleccionar artistas para mostrar conversaciones..."
-            showSelfOption={false}
-          />
-        </CardContent>
-      </Card>
-
-      {/* New Chat Options */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            Iniciar Nuevo Chat
-          </CardTitle>
-          <CardDescription>
-            Inicia una conversación por chat interno, WhatsApp o Gmail
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-3">
-            <Button 
-              variant="outline" 
-              className="w-full h-auto p-4 flex flex-col gap-2"
-              onClick={() => {
-                toast({
-                  title: "Chat Interno",
-                  description: "Selecciona un artista de la lista para chatear internamente",
-                });
-              }}
-            >
-              <MessageCircle className="h-5 w-5" />
-              <span className="text-sm">Chat Interno</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="w-full h-auto p-4 flex flex-col gap-2 text-green-600 border-green-200 hover:bg-green-50"
-              onClick={() => {
-                if (selectedConversation) {
-                  startWhatsAppChat(selectedConversation);
-                } else {
-                  toast({
-                    title: "WhatsApp",
-                    description: "Selecciona un contacto primero para abrir WhatsApp",
-                    variant: "destructive",
-                  });
-                }
-              }}
-            >
-              <MessageSquare className="h-5 w-5" />
-              <span className="text-sm">WhatsApp</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="w-full h-auto p-4 flex flex-col gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
-              onClick={() => {
-                if (selectedConversation) {
-                  startEmailChat(selectedConversation);
-                } else {
-                  toast({
-                    title: "Gmail",
-                    description: "Selecciona un contacto primero para abrir Gmail",
-                    variant: "destructive",
-                  });
-                }
-              }}
-            >
-              <Mail className="h-5 w-5" />
-              <span className="text-sm">Gmail</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
         {/* Conversations List */}
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Conversaciones
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                <h3 className="font-semibold">Conversaciones</h3>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedArtists(selectedArtists.length > 0 ? [] : [profile?.id || ''])}
+                className="h-8 w-8 p-0"
+                title="Filtrar conversaciones"
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
+            </div>
+            {selectedArtists.length === 0 && (
+              <div className="mt-2">
+                <ArtistSelector
+                  selectedArtists={selectedArtists}
+                  onSelectionChange={setSelectedArtists}
+                  placeholder="Selecciona artistas para mostrar conversaciones..."
+                  showSelfOption={false}
+                />
+              </div>
+            )}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -327,11 +259,18 @@ export default function Chat() {
               />
             </div>
           </CardHeader>
+
           <CardContent className="p-0">
             <ScrollArea className="h-[400px]">
               {filteredConversations.length === 0 ? (
-                <div className="p-4 text-center text-muted-foreground">
-                  No hay conversaciones disponibles
+                <div className="p-4 text-center text-muted-foreground space-y-3">
+                  <div>No hay conversaciones disponibles</div>
+                  {selectedArtists.length === 0 && (
+                    <div className="text-xs">
+                      <p>Usa el filtro <Filter className="inline h-3 w-3 mx-1" /> para seleccionar artistas</p>
+                      <p>y ver sus conversaciones</p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 filteredConversations.map((conversation) => (
@@ -478,17 +417,33 @@ export default function Chat() {
               </CardContent>
             </>
           ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <MessageCircle className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">
-                  Selecciona una conversación
-                </h3>
-                <p className="text-muted-foreground">
-                  Elige una conversación para empezar a chatear
-                </p>
+            <CardContent className="flex items-center justify-center h-full">
+              <div className="text-center space-y-4">
+                <div className="text-6xl">💬</div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Chat Interno</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Usa el filtro <Filter className="inline h-4 w-4 mx-1" /> para seleccionar artistas y luego elige una conversación para chatear
+                  </p>
+                  <div className="flex gap-2 justify-center">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        if (filteredConversations.length > 0) {
+                          setSelectedConversation(filteredConversations[0].profile);
+                        } else {
+                          setSelectedArtists([]);
+                        }
+                      }}
+                    >
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      {filteredConversations.length > 0 ? 'Iniciar Chat' : 'Seleccionar Artistas'}
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </div>
+            </CardContent>
           )}
         </Card>
       </div>
