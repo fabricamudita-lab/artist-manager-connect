@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { CreateSolicitudDialog } from '@/components/CreateSolicitudDialog';
+import { CreateSolicitudFromTemplateDialog } from '@/components/CreateSolicitudFromTemplateDialog';
 import { EditSolicitudDialog } from '@/components/EditSolicitudDialog';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { ArtistProfileDialog } from '@/components/ArtistProfileDialog';
@@ -74,6 +75,7 @@ export default function Solicitudes() {
   const [filterType, setFilterType] = useState('all');
   const [filterArtist, setFilterArtist] = useState('all');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedSolicitud, setSelectedSolicitud] = useState<Solicitud | null>(null);
   const [artists, setArtists] = useState<any[]>([]);
@@ -487,10 +489,15 @@ export default function Solicitudes() {
               <p className="text-muted-foreground text-lg">Gestiona todas las solicitudes de entrevistas, bookings y más</p>
             </div>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)} className="btn-primary hover-lift">
-            <Plus className="w-5 h-5 mr-2" />
-            Nueva Solicitud
-          </Button>
+          <div className="flex gap-3">
+            <Button onClick={() => setShowTemplateDialog(true)} className="btn-primary hover-lift">
+              <Plus className="w-5 h-5 mr-2" />
+              Nueva Solicitud
+            </Button>
+            <Button onClick={() => setShowCreateDialog(true)} variant="outline" className="hover-lift">
+              Solicitud Manual
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -604,6 +611,12 @@ export default function Solicitudes() {
       </Tabs>
 
       {/* Dialogs */}
+      <CreateSolicitudFromTemplateDialog
+        open={showTemplateDialog}
+        onOpenChange={setShowTemplateDialog}
+        onSuccess={fetchSolicitudes}
+      />
+      
       <CreateSolicitudDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
