@@ -13,6 +13,7 @@ import { toast } from '@/hooks/use-toast';
 import { CreateSolicitudDialog } from '@/components/CreateSolicitudDialog';
 import { CreateSolicitudFromTemplateDialog } from '@/components/CreateSolicitudFromTemplateDialog';
 import { EditSolicitudDialog } from '@/components/EditSolicitudDialog';
+import { SolicitudDetailsDialog } from '@/components/SolicitudDetailsDialog';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { ArtistProfileDialog } from '@/components/ArtistProfileDialog';
 import { format } from 'date-fns';
@@ -91,6 +92,8 @@ export default function Solicitudes() {
     artistId: null
   });
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [selectedSolicitudForDetails, setSelectedSolicitudForDetails] = useState<Solicitud | null>(null);
 
   useEffect(() => {
     fetchSolicitudes();
@@ -284,7 +287,14 @@ export default function Solicitudes() {
                      (solicitud.estado === 'pendiente');
 
     return (
-      <Card key={solicitud.id} className={`card-interactive transition-all duration-300 ${isOverdue ? 'border-destructive/50 bg-destructive/5 shadow-glow' : 'hover:shadow-medium'}`}>
+      <Card 
+        key={solicitud.id} 
+        className={`card-interactive transition-all duration-300 cursor-pointer ${isOverdue ? 'border-destructive/50 bg-destructive/5 shadow-glow' : 'hover:shadow-medium'}`}
+        onClick={() => {
+          setSelectedSolicitudForDetails(solicitud);
+          setShowDetailsDialog(true);
+        }}
+      >
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between">
             <div className="space-y-2">
@@ -321,7 +331,8 @@ export default function Solicitudes() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setSelectedSolicitud(solicitud);
                   setShowEditDialog(true);
                 }}
@@ -332,7 +343,10 @@ export default function Solicitudes() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => openDeleteDialog(solicitud.id, solicitud.nombre_solicitante)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openDeleteDialog(solicitud.id, solicitud.nombre_solicitante);
+                }}
                 className="hover-lift text-destructive hover:text-destructive"
               >
                 <Trash2 className="w-4 h-4" />
@@ -444,10 +458,14 @@ export default function Solicitudes() {
                 <TableRow 
                   key={solicitud.id} 
                   className={`
-                    border-b border-border/30 transition-all duration-200 hover:bg-muted/50
+                    border-b border-border/30 transition-all duration-200 hover:bg-muted/50 cursor-pointer
                     ${isOverdue ? 'bg-destructive/5 border-destructive/20' : ''}
                     ${index === filteredSolicitudes.length - 1 ? 'border-b-0' : ''}
                   `}
+                  onClick={() => {
+                    setSelectedSolicitudForDetails(solicitud);
+                    setShowDetailsDialog(true);
+                  }}
                 >
                   {filterType === 'all' && (
                     <TableCell className="py-6 px-6">
@@ -568,7 +586,8 @@ export default function Solicitudes() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setSelectedSolicitud(solicitud);
                           setShowEditDialog(true);
                         }}
@@ -580,7 +599,10 @@ export default function Solicitudes() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => openDeleteDialog(solicitud.id, solicitud.nombre_solicitante)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDeleteDialog(solicitud.id, solicitud.nombre_solicitante);
+                        }}
                         className="w-8 h-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -895,6 +917,13 @@ export default function Solicitudes() {
         open={artistProfileDialog.open}
         onOpenChange={(open) => setArtistProfileDialog(prev => ({ ...prev, open }))}
         artistId={artistProfileDialog.artistId}
+      />
+
+      {/* Details Dialog */}
+      <SolicitudDetailsDialog
+        solicitudId={selectedSolicitudForDetails?.id || null}
+        open={showDetailsDialog}
+        onOpenChange={setShowDetailsDialog}
       />
       </div>
     </div>
