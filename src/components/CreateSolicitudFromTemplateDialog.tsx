@@ -171,7 +171,7 @@ export function CreateSolicitudFromTemplateDialog({
         nombre_solicitante: contactData?.name || 'Sin nombre',
         email: contactData?.email || null,
         telefono: contactData?.phone || null,
-        contact_id: formData.contact_id,
+        contact_id: formData.contact_id || null,
         artist_id: formData.artist_id,
         observaciones: formData.observaciones || null,
         created_by: profile?.user_id,
