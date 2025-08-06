@@ -410,7 +410,7 @@ export default function Solicitudes() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Tipo</TableHead>
+            {filterType === 'all' && <TableHead>Tipo</TableHead>}
             <TableHead>Estado</TableHead>
             <TableHead>Artista</TableHead>
             <TableHead>Fecha</TableHead>
@@ -427,12 +427,14 @@ export default function Solicitudes() {
 
             return (
               <TableRow key={solicitud.id} className={isOverdue ? 'bg-destructive/5' : ''}>
-                <TableCell className="py-2">
-                  <div className="flex items-center gap-2">
-                    <span>{typeInfo.icon}</span>
-                    <span className="text-sm font-medium">{typeInfo.label}</span>
-                  </div>
-                </TableCell>
+                {filterType === 'all' && (
+                  <TableCell className="py-2">
+                    <div className="flex items-center gap-2">
+                      <span>{typeInfo.icon}</span>
+                      <span className="text-sm font-medium">{typeInfo.label}</span>
+                    </div>
+                  </TableCell>
+                )}
                 <TableCell className="py-2">
                   <div className="flex items-center gap-2">
                     <Badge className={`${config.color} badge-info text-xs`}>
