@@ -276,7 +276,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: Cr
               </div>
 
               <div>
-                <Label htmlFor="budget_status">Estado del presupuesto</Label>
+                <Label htmlFor="budget_status">Presupuesto</Label>
                 <Select value={formData.budget_status} onValueChange={(value) => handleInputChange('budget_status', value)}>
                   <SelectTrigger>
                     <SelectValue />
