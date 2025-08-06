@@ -12,7 +12,7 @@ import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 
 interface Solicitud {
   id: string;
-  tipo: 'entrevista' | 'booking' | 'otro';
+  tipo: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro';
   nombre_solicitante: string;
   email?: string;
   telefono?: string;
@@ -47,7 +47,7 @@ interface EditSolicitudDialogProps {
 
 export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitudUpdated }: EditSolicitudDialogProps) {
   const [formData, setFormData] = useState({
-    tipo: '' as 'entrevista' | 'booking' | 'otro',
+    tipo: '' as 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro',
     nombre_solicitante: '',
     email: '',
     telefono: '',
@@ -143,14 +143,14 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
           ciudad: formData.ciudad || null,
         }),
         
-        ...(formData.tipo === 'otro' && {
+        ...((formData.tipo === 'otro' || formData.tipo === 'consulta' || formData.tipo === 'informacion') && {
           descripcion_libre: formData.descripcion_libre || null,
         }),
       };
 
       const { error } = await supabase
         .from('solicitudes')
-        .update(solicitudData)
+        .update(solicitudData as any)
         .eq('id', solicitud.id);
 
       if (error) throw error;
@@ -194,7 +194,7 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
                   <Label htmlFor="tipo">Tipo de Solicitud</Label>
                   <Select
                     value={formData.tipo}
-                    onValueChange={(value: 'entrevista' | 'booking' | 'otro') => 
+                    onValueChange={(value: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro') => 
                       setFormData({ ...formData, tipo: value })
                     }
                   >
@@ -204,6 +204,8 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
                     <SelectContent>
                       <SelectItem value="entrevista">📻 Entrevista</SelectItem>
                       <SelectItem value="booking">🎤 Booking</SelectItem>
+                      <SelectItem value="consulta">💬 Consulta</SelectItem>
+                      <SelectItem value="informacion">ℹ️ Información</SelectItem>
                       <SelectItem value="otro">📌 Otro</SelectItem>
                     </SelectContent>
                   </Select>
@@ -412,7 +414,7 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
             </Card>
           )}
 
-          {formData.tipo === 'otro' && (
+          {(formData.tipo === 'otro' || formData.tipo === 'consulta' || formData.tipo === 'informacion') && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

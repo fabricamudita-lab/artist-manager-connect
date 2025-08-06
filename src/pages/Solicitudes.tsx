@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Filter, Calendar, MessageCircle, Edit, Trash2, FileDown, AlertTriangle, ClipboardList, Grid, List } from 'lucide-react';
+import { Plus, Search, Filter, Calendar, MessageCircle, Edit, Trash2, FileDown, AlertTriangle, ClipboardList, Grid, List, User, FileText, Mic, HelpCircle, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -20,7 +20,7 @@ import { es } from 'date-fns/locale';
 
 interface Solicitud {
   id: string;
-  tipo: 'entrevista' | 'booking' | 'otro';
+  tipo: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro';
   nombre_solicitante: string;
   email?: string;
   telefono?: string;
@@ -62,6 +62,8 @@ const statusConfig = {
 const typeConfig = {
   entrevista: { label: 'Entrevista', icon: '📻' },
   booking: { label: 'Booking', icon: '🎤' },
+  consulta: { label: 'Consulta', icon: '💬' },
+  informacion: { label: 'Información', icon: 'ℹ️' },
   otro: { label: 'Otro', icon: '📌' },
 };
 
@@ -165,6 +167,57 @@ export default function Solicitudes() {
     setFilteredSolicitudes(filtered);
   };
 
+  // Helper functions for styling and content
+  const getTypeIcon = (tipo: string) => {
+    switch (tipo) {
+      case 'booking': return '🎤';
+      case 'entrevista': return '🎙️';
+      case 'consulta': return '💬';
+      case 'informacion': return 'ℹ️';
+      default: return '📄';
+    }
+  };
+
+  const getTypeStyles = (tipo: string) => {
+    switch (tipo) {
+      case 'booking': return { bg: 'bg-gradient-to-br from-blue-500 to-blue-600', border: 'border-blue-200' };
+      case 'entrevista': return { bg: 'bg-gradient-to-br from-green-500 to-green-600', border: 'border-green-200' };
+      case 'consulta': return { bg: 'bg-gradient-to-br from-purple-500 to-purple-600', border: 'border-purple-200' };
+      case 'informacion': return { bg: 'bg-gradient-to-br from-orange-500 to-orange-600', border: 'border-orange-200' };
+      default: return { bg: 'bg-gradient-to-br from-slate-500 to-slate-600', border: 'border-slate-200' };
+    }
+  };
+
+  const getStatusDot = (estado: string) => {
+    switch (estado) {
+      case 'aprobada': return 'bg-green-500';
+      case 'pendiente': return 'bg-yellow-500';
+      case 'denegada': return 'bg-red-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const getMainContent = (solicitud: any) => {
+    // Extract main content based on type
+    if (solicitud.tipo === 'booking') {
+      return solicitud.nombre_festival || solicitud.lugar_concierto || 'Evento sin nombre';
+    } else if (solicitud.tipo === 'entrevista') {
+      return solicitud.nombre_programa || solicitud.medio || 'Entrevista';
+    } else if (solicitud.descripcion_libre) {
+      // For consulta/informacion types, try to extract meaningful content
+      const lines = solicitud.descripcion_libre.split('\n');
+      for (const line of lines) {
+        if (line.includes(':') && !line.includes('No especificado')) {
+          const content = line.split(':')[1]?.trim();
+          if (content && content !== 'No especificado') {
+            return content;
+          }
+        }
+      }
+    }
+    return `${solicitud.tipo.charAt(0).toUpperCase() + solicitud.tipo.slice(1)} - ${solicitud.nombre_solicitante}`;
+  };
+
   const handleStatusChange = async (solicitudId: string, newStatus: 'pendiente' | 'aprobada' | 'denegada') => {
     try {
       const { error } = await supabase
@@ -226,7 +279,7 @@ export default function Solicitudes() {
 
   const renderSolicitudCard = (solicitud: Solicitud) => {
     const config = statusConfig[solicitud.estado];
-    const typeInfo = typeConfig[solicitud.tipo];
+    const typeInfo = typeConfig[solicitud.tipo as keyof typeof typeConfig];
     const isOverdue = new Date(solicitud.fecha_actualizacion) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) && 
                      (solicitud.estado === 'pendiente');
 
@@ -368,7 +421,7 @@ export default function Solicitudes() {
         <TableBody>
           {filteredSolicitudes.map((solicitud) => {
             const config = statusConfig[solicitud.estado];
-            const typeInfo = typeConfig[solicitud.tipo];
+            const typeInfo = typeConfig[solicitud.tipo as keyof typeof typeConfig];
             const isOverdue = new Date(solicitud.fecha_actualizacion) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) && 
                              (solicitud.estado === 'pendiente');
 
@@ -525,6 +578,8 @@ export default function Solicitudes() {
                   <SelectItem value="all">Todos los tipos</SelectItem>
                   <SelectItem value="entrevista">📻 Entrevista</SelectItem>
                   <SelectItem value="booking">🎤 Booking</SelectItem>
+                  <SelectItem value="consulta">💬 Consulta</SelectItem>
+                  <SelectItem value="informacion">ℹ️ Información</SelectItem>
                   <SelectItem value="otro">📌 Otro</SelectItem>
                 </SelectContent>
               </Select>
@@ -584,6 +639,125 @@ export default function Solicitudes() {
             ❌ Denegadas ({solicitudes.filter(s => s.estado === 'denegada').length})
           </TabsTrigger>
         </TabsList>
+
+        {/* Visual Type Filter Menu */}
+        <Card className="mt-4">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">Filtrar por tipo:</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {/* All Types */}
+              <button
+                onClick={() => setFilterType('all')}
+                className={`p-3 rounded-lg border-2 transition-all hover:shadow-md ${
+                  filterType === 'all' 
+                    ? 'border-primary bg-primary/10 shadow-md' 
+                    : 'border-border hover:border-primary/30'
+                }`}
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-slate-500 to-slate-600 rounded-lg flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-medium">Todas</div>
+                    <div className="text-xs text-muted-foreground">({solicitudes.length})</div>
+                  </div>
+                </div>
+              </button>
+
+              {/* Booking */}
+              <button
+                onClick={() => setFilterType('booking')}
+                className={`p-3 rounded-lg border-2 transition-all hover:shadow-md ${
+                  filterType === 'booking' 
+                    ? 'border-blue-500 bg-blue-50 shadow-md' 
+                    : 'border-border hover:border-blue-300'
+                }`}
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                    <Calendar className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-medium">Booking</div>
+                    <div className="text-xs text-muted-foreground">
+                      ({solicitudes.filter(s => s.tipo === 'booking').length})
+                    </div>
+                  </div>
+                </div>
+              </button>
+
+              {/* Entrevista */}
+              <button
+                onClick={() => setFilterType('entrevista')}
+                className={`p-3 rounded-lg border-2 transition-all hover:shadow-md ${
+                  filterType === 'entrevista' 
+                    ? 'border-green-500 bg-green-50 shadow-md' 
+                    : 'border-border hover:border-green-300'
+                }`}
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+                    <Mic className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-medium">Entrevista</div>
+                    <div className="text-xs text-muted-foreground">
+                      ({solicitudes.filter(s => s.tipo === 'entrevista').length})
+                    </div>
+                  </div>
+                </div>
+              </button>
+
+              {/* Consulta */}
+              <button
+                onClick={() => setFilterType('consulta')}
+                className={`p-3 rounded-lg border-2 transition-all hover:shadow-md ${
+                  filterType === 'consulta' 
+                    ? 'border-purple-500 bg-purple-50 shadow-md' 
+                    : 'border-border hover:border-purple-300'
+                }`}
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <HelpCircle className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-medium">Consulta</div>
+                    <div className="text-xs text-muted-foreground">
+                      ({solicitudes.filter(s => s.tipo === 'consulta').length})
+                    </div>
+                  </div>
+                </div>
+              </button>
+
+              {/* Información */}
+              <button
+                onClick={() => setFilterType('informacion')}
+                className={`p-3 rounded-lg border-2 transition-all hover:shadow-md ${
+                  filterType === 'informacion' 
+                    ? 'border-orange-500 bg-orange-50 shadow-md' 
+                    : 'border-border hover:border-orange-300'
+                }`}
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
+                    <Info className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-medium">Información</div>
+                    <div className="text-xs text-muted-foreground">
+                      ({solicitudes.filter(s => s.tipo === 'informacion').length})
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </CardContent>
+        </Card>
 
         <TabsContent value={activeTab} className="space-y-4">
           {filteredSolicitudes.length === 0 ? (
