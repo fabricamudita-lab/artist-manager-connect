@@ -71,7 +71,13 @@ export function AddToCalendarDialog({ request, open, onOpenChange, onEventCreate
         .select('*')
         .contains('roles', ['artist']);
 
-      setArtists(data || []);
+      // Filter out any profiles without valid data
+      const validArtists = (data || []).filter(artist => 
+        artist && artist.id && artist.full_name
+      );
+      
+      setArtists(validArtists);
+      console.log('Artists fetched:', validArtists);
     } catch (error) {
       console.error('Error fetching artists:', error);
     }
@@ -161,8 +167,8 @@ export function AddToCalendarDialog({ request, open, onOpenChange, onEventCreate
               </SelectTrigger>
               <SelectContent>
                 {artists.map((artist) => (
-                  <SelectItem key={artist.id} value={artist.id}>
-                    {artist.full_name}
+                  <SelectItem key={artist.id} value={artist.id || ''}>
+                    {artist.full_name || 'Sin nombre'}
                   </SelectItem>
                 ))}
               </SelectContent>
