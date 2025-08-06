@@ -47,6 +47,14 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: Cr
     event_date: undefined as Date | undefined,
     event_time: '',
     fee: 0,
+    // Campos específicos para conciertos/actuaciones
+    festival_ciclo: '',
+    capacidad: '',
+    formato: '',
+    status_negociacion: '' as 'interes' | 'oferta' | 'negociacion' | 'cerrado' | 'cancelado' | '',
+    oferta: '',
+    condiciones: '',
+    invitaciones: '',
   });
   const [showFromTemplate, setShowFromTemplate] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -87,7 +95,17 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: Cr
           event_date: formData.event_date?.toISOString().split('T')[0] || null,
           event_time: formData.event_time || null,
           fee: formData.fee,
-          created_by: profile?.user_id
+          created_by: profile?.user_id,
+          // Campos específicos para conciertos
+          ...(selectedType === 'concierto' && {
+            festival_ciclo: formData.festival_ciclo || null,
+            capacidad: formData.capacidad ? parseInt(formData.capacidad) : null,
+            formato: formData.formato || null,
+            status_negociacion: formData.status_negociacion || null,
+            oferta: formData.oferta || null,
+            condiciones: formData.condiciones || null,
+            invitaciones: formData.invitaciones ? parseInt(formData.invitaciones) : null,
+          })
         });
 
       if (error) throw error;
@@ -112,6 +130,13 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: Cr
         event_date: undefined,
         event_time: '',
         fee: 0,
+        festival_ciclo: '',
+        capacidad: '',
+        formato: '',
+        status_negociacion: '',
+        oferta: '',
+        condiciones: '',
+        invitaciones: '',
       });
 
       onSuccess();
@@ -143,6 +168,13 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: Cr
       event_date: undefined,
       event_time: '',
       fee: 0,
+      festival_ciclo: '',
+      capacidad: '',
+      formato: '',
+      status_negociacion: '',
+      oferta: '',
+      condiciones: '',
+      invitaciones: '',
     });
     onOpenChange(false);
   };
@@ -326,6 +358,103 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: Cr
                   onValueChange={(value) => handleInputChange('artist_id', value)}
                 />
               </div>
+
+              {/* Campos específicos para Actuación / Concierto */}
+              {selectedType === 'concierto' && (
+                <>
+                  <div className="md:col-span-2">
+                    <div className="border-t pt-4 mb-4">
+                      <h3 className="text-lg font-medium mb-4">📋 Información específica de Concierto</h3>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="festival_ciclo">Festival / Ciclo</Label>
+                    <Input
+                      id="festival_ciclo"
+                      placeholder="Festival Primavera Sound"
+                      value={formData.festival_ciclo}
+                      onChange={(e) => handleInputChange('festival_ciclo', e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="capacidad">Capacidad</Label>
+                    <Input
+                      id="capacidad"
+                      type="number"
+                      placeholder="5000"
+                      value={formData.capacidad}
+                      onChange={(e) => handleInputChange('capacidad', e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="formato">Formato</Label>
+                    <Select value={formData.formato} onValueChange={(value) => handleInputChange('formato', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar formato" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="acustico">Acústico</SelectItem>
+                        <SelectItem value="electrico">Eléctrico</SelectItem>
+                        <SelectItem value="banda_completa">Banda completa</SelectItem>
+                        <SelectItem value="dj_set">DJ Set</SelectItem>
+                        <SelectItem value="otro">Otro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="status_negociacion">Status</Label>
+                    <Select value={formData.status_negociacion} onValueChange={(value) => handleInputChange('status_negociacion', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Estado de negociación" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="interes">Interés</SelectItem>
+                        <SelectItem value="oferta">Oferta</SelectItem>
+                        <SelectItem value="negociacion">Negociación</SelectItem>
+                        <SelectItem value="cerrado">Cerrado</SelectItem>
+                        <SelectItem value="cancelado">Cancelado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="invitaciones">Invitaciones</Label>
+                    <Input
+                      id="invitaciones"
+                      type="number"
+                      placeholder="10"
+                      value={formData.invitaciones}
+                      onChange={(e) => handleInputChange('invitaciones', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <Label htmlFor="oferta">Oferta</Label>
+                    <Textarea
+                      id="oferta"
+                      placeholder="Detalles de la oferta económica..."
+                      value={formData.oferta}
+                      onChange={(e) => handleInputChange('oferta', e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <Label htmlFor="condiciones">Condiciones</Label>
+                    <Textarea
+                      id="condiciones"
+                      placeholder="Rider técnico, catering, alojamiento, etc..."
+                      value={formData.condiciones}
+                      onChange={(e) => handleInputChange('condiciones', e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="md:col-span-2">
                 <Label htmlFor="internal_notes">Notas internas</Label>

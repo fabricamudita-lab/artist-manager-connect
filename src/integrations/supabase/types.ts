@@ -203,17 +203,24 @@ export type Database = {
         Row: {
           artist_id: string | null
           budget_status: Database["public"]["Enums"]["budget_status"] | null
+          capacidad: number | null
           city: string | null
+          condiciones: string | null
           country: string | null
           created_at: string
           created_by: string
           event_date: string | null
           event_time: string | null
           fee: number | null
+          festival_ciclo: string | null
+          formato: string | null
           id: string
           internal_notes: string | null
+          invitaciones: number | null
           name: string
+          oferta: string | null
           show_status: Database["public"]["Enums"]["show_status"] | null
+          status_negociacion: string | null
           template_id: string | null
           type: Database["public"]["Enums"]["budget_type"]
           updated_at: string
@@ -222,17 +229,24 @@ export type Database = {
         Insert: {
           artist_id?: string | null
           budget_status?: Database["public"]["Enums"]["budget_status"] | null
+          capacidad?: number | null
           city?: string | null
+          condiciones?: string | null
           country?: string | null
           created_at?: string
           created_by: string
           event_date?: string | null
           event_time?: string | null
           fee?: number | null
+          festival_ciclo?: string | null
+          formato?: string | null
           id?: string
           internal_notes?: string | null
+          invitaciones?: number | null
           name: string
+          oferta?: string | null
           show_status?: Database["public"]["Enums"]["show_status"] | null
+          status_negociacion?: string | null
           template_id?: string | null
           type: Database["public"]["Enums"]["budget_type"]
           updated_at?: string
@@ -241,17 +255,24 @@ export type Database = {
         Update: {
           artist_id?: string | null
           budget_status?: Database["public"]["Enums"]["budget_status"] | null
+          capacidad?: number | null
           city?: string | null
+          condiciones?: string | null
           country?: string | null
           created_at?: string
           created_by?: string
           event_date?: string | null
           event_time?: string | null
           fee?: number | null
+          festival_ciclo?: string | null
+          formato?: string | null
           id?: string
           internal_notes?: string | null
+          invitaciones?: number | null
           name?: string
+          oferta?: string | null
           show_status?: Database["public"]["Enums"]["show_status"] | null
+          status_negociacion?: string | null
           template_id?: string | null
           type?: Database["public"]["Enums"]["budget_type"]
           updated_at?: string
