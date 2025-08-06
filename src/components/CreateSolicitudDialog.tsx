@@ -107,18 +107,20 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
         break;
 
       case 'consulta':
-        subject = 'Consulta';
         if (formData.descripcion_libre) {
-          const firstWords = formData.descripcion_libre.split(' ').slice(0, 4).join(' ');
-          subject = `Consulta: ${firstWords}${formData.descripcion_libre.split(' ').length > 4 ? '...' : ''}`;
+          const firstWords = formData.descripcion_libre.split(' ').slice(0, 6).join(' ');
+          subject = `Consulta – ${firstWords}${formData.descripcion_libre.split(' ').length > 6 ? '...' : ''}`;
+        } else {
+          subject = 'Consulta';
         }
         break;
 
       case 'informacion':
-        subject = 'Solicitud de Información';
         if (formData.descripcion_libre) {
-          const firstWords = formData.descripcion_libre.split(' ').slice(0, 4).join(' ');
-          subject = `Info: ${firstWords}${formData.descripcion_libre.split(' ').length > 4 ? '...' : ''}`;
+          const firstWords = formData.descripcion_libre.split(' ').slice(0, 6).join(' ');
+          subject = `Solicitud de información – ${firstWords}${formData.descripcion_libre.split(' ').length > 6 ? '...' : ''}`;
+        } else {
+          subject = 'Solicitud de información';
         }
         break;
 

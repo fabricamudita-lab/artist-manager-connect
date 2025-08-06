@@ -158,18 +158,20 @@ export default function Solicitudes() {
         break;
 
       case 'consulta':
-        name = 'Consulta';
         if (solicitud.descripcion_libre) {
-          const firstWords = solicitud.descripcion_libre.split(' ').slice(0, 4).join(' ');
-          name = `Consulta: ${firstWords}${solicitud.descripcion_libre.split(' ').length > 4 ? '...' : ''}`;
+          const firstWords = solicitud.descripcion_libre.split(' ').slice(0, 6).join(' ');
+          name = `Consulta – ${firstWords}${solicitud.descripcion_libre.split(' ').length > 6 ? '...' : ''}`;
+        } else {
+          name = 'Consulta';
         }
         break;
 
       case 'informacion':
-        name = 'Solicitud de Información';
         if (solicitud.descripcion_libre) {
-          const firstWords = solicitud.descripcion_libre.split(' ').slice(0, 4).join(' ');
-          name = `Info: ${firstWords}${solicitud.descripcion_libre.split(' ').length > 4 ? '...' : ''}`;
+          const firstWords = solicitud.descripcion_libre.split(' ').slice(0, 6).join(' ');
+          name = `Solicitud de información – ${firstWords}${solicitud.descripcion_libre.split(' ').length > 6 ? '...' : ''}`;
+        } else {
+          name = 'Solicitud de información';
         }
         break;
 
