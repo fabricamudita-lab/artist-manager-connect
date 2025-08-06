@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import { SaveTemplateDialog } from './SaveTemplateDialog';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { 
   Plus, 
   Trash2, 
@@ -86,7 +87,7 @@ const budgetCategories = {
     subcategories: ['artista_principal', 'banda', 'coristas', 'bailarines', 'otros']
   },
   'equipo_tecnico': {
-    title: 'Equipo Técnico/Producción',
+    title: 'Equipo Técnico',
     icon: Lightbulb,
     subcategories: ['tour_manager', 'tecnico_sonido', 'tecnico_luces', 'stage_manager', 'produccion_local', 'runner']
   },
@@ -105,15 +106,20 @@ const budgetCategories = {
     icon: Bed,
     subcategories: ['habitacion', 'habitacion_extra', 'apartamento']
   },
+  'promocion': {
+    title: 'Promoción',
+    icon: FileText,
+    subcategories: ['marketing', 'publicidad', 'merchandising', 'contenido']
+  },
+  'comisiones': {
+    title: 'Comisiones',
+    icon: Calculator,
+    subcategories: ['booking', 'management', 'otros_fees']
+  },
   'otros_gastos': {
     title: 'Otros Gastos',
     icon: DollarSign,
-    subcategories: ['alquiler_material', 'promocion', 'visas', 'imprevistos']
-  },
-  'porcentajes': {
-    title: 'Porcentajes',
-    icon: Calculator,
-    subcategories: ['booking', 'management', 'otros_fees']
+    subcategories: ['alquiler_material', 'visas', 'imprevistos', 'varios']
   }
 };
 
@@ -911,12 +917,144 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           </TabsContent>
 
           <TabsContent value="summary">
-            <Card>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Diagrama Circular */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calculator className="w-5 h-5" />
+                    Distribución de Gastos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {items.length > 0 ? (
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={Object.entries(budgetCategories).map(([categoryKey, category]) => {
+                              const categoryItems = getCategoryItems(categoryKey);
+                              const categoryTotal = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
+                              
+                              return {
+                                name: category.title,
+                                value: categoryTotal,
+                                categoryKey
+                              };
+                            }).filter(item => item.value > 0)}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) => 
+                              percent > 5 ? `${name}: ${(percent * 100).toFixed(0)}%` : ''
+                            }
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {Object.entries(budgetCategories).map(([categoryKey, category], index) => {
+                              const colors = [
+                                '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', 
+                                '#ef4444', '#8b5cf6', '#6366f1', '#84cc16'
+                              ];
+                              return (
+                                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                              );
+                            })}
+                          </Pie>
+                          <Tooltip 
+                            formatter={(value: number) => [`${value.toFixed(2)}€`, 'Importe']}
+                            labelFormatter={(label) => `${label}`}
+                          />
+                          <Legend 
+                            verticalAlign="bottom" 
+                            height={36}
+                            iconType="circle"
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-80 flex items-center justify-center text-muted-foreground">
+                      No hay datos para mostrar el gráfico
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Resumen por Categorías */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calculator className="w-5 h-5" />
+                    Resumen por Categorías
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {Object.entries(budgetCategories).map(([categoryKey, category]) => {
+                      const categoryItems = getCategoryItems(categoryKey);
+                      if (categoryItems.length === 0) return null;
+                      
+                      const categoryTotal = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
+                      const totalBudget = items.reduce((sum, item) => sum + calculateTotal(item), 0);
+                      const percentage = totalBudget > 0 ? (categoryTotal / totalBudget) * 100 : 0;
+                      
+                      return (
+                        <div key={categoryKey} className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                              <category.icon className="w-4 h-4 text-primary" />
+                              <span className="font-medium">{category.title}</span>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold">{categoryTotal.toFixed(2)}€</div>
+                              <div className="text-sm text-muted-foreground">{percentage.toFixed(1)}%</div>
+                            </div>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-primary h-2 rounded-full transition-all duration-300" 
+                              style={{ width: `${percentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    <Separator className="my-4" />
+                    
+                    <div className="space-y-3 pt-4">
+                      <div className="flex justify-between items-center text-lg font-bold">
+                        <span>TOTAL GASTOS:</span>
+                        <span>{items.reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(2)}€</span>
+                      </div>
+                      
+                      {budgetData.fee > 0 && (
+                        <>
+                          <div className="flex justify-between items-center text-lg font-bold text-green-600">
+                            <span>FEE:</span>
+                            <span>+{budgetData.fee.toFixed(2)}€</span>
+                          </div>
+                          <Separator />
+                          <div className="flex justify-between items-center text-xl font-bold">
+                            <span>BENEFICIO/PÉRDIDA:</span>
+                            <span className={budgetData.fee - items.reduce((sum, item) => sum + calculateTotal(item), 0) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                              {budgetData.fee >= 0 ? '+' : ''}{(budgetData.fee - items.reduce((sum, item) => sum + calculateTotal(item), 0)).toFixed(2)}€
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Tabla detallada */}
+            <Card className="mt-6">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calculator className="w-5 h-5" />
-                  Resumen Detallado
-                </CardTitle>
+                <CardTitle>Detalle de Elementos</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
@@ -971,49 +1109,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       })}
                     </TableBody>
                   </Table>
-                </div>
-                
-                <div className="mt-6 space-y-3">
-                  <Separator />
-                  {Object.entries(budgetCategories).map(([categoryKey, category]) => {
-                    const categoryItems = getCategoryItems(categoryKey);
-                    if (categoryItems.length === 0) return null;
-                    
-                    const categoryTotal = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
-                    
-                    return (
-                      <div key={categoryKey} className="flex justify-between items-center text-sm">
-                        <div className="flex items-center gap-2">
-                          <category.icon className="w-4 h-4" />
-                          <span>{category.title}</span>
-                        </div>
-                        <span className="font-medium">{categoryTotal.toFixed(2)}€</span>
-                      </div>
-                    );
-                  })}
-                  <Separator />
-                  <div className="flex justify-between items-center text-lg font-bold">
-                    <span>TOTAL GASTOS:</span>
-                    <span>{items.reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(2)}€</span>
-                  </div>
-                  
-                   {budgetData.fee > 0 && (
-                     <>
-                       <Separator />
-                       <div className="space-y-2">
-                         <div className="flex justify-between items-center text-lg font-bold text-green-600">
-                           <span>FEE:</span>
-                           <span>+{budgetData.fee.toFixed(2)}€</span>
-                         </div>
-                         <div className="flex justify-between items-center text-xl font-bold">
-                           <span>BENEFICIO/PÉRDIDA:</span>
-                           <span className={budgetData.fee - items.reduce((sum, item) => sum + calculateTotal(item), 0) >= 0 ? 'text-green-600' : 'text-red-600'}>
-                             {budgetData.fee >= 0 ? '+' : ''}{(budgetData.fee - items.reduce((sum, item) => sum + calculateTotal(item), 0)).toFixed(2)}€
-                           </span>
-                         </div>
-                       </div>
-                     </>
-                   )}
                 </div>
               </CardContent>
             </Card>
