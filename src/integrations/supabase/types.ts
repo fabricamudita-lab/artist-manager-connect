@@ -773,7 +773,12 @@ export type Database = {
         | "campana_promocional"
         | "videoclip"
         | "otros"
-      request_status: "pendiente" | "aprobada" | "denegada"
+      request_status:
+        | "pendiente"
+        | "aprobada"
+        | "denegada"
+        | "consulta"
+        | "informacion"
       request_type: "entrevista" | "booking" | "otro"
       show_status: "confirmado" | "pendiente" | "cancelado"
       user_role: "artist" | "management"
@@ -913,7 +918,13 @@ export const Constants = {
         "videoclip",
         "otros",
       ],
-      request_status: ["pendiente", "aprobada", "denegada"],
+      request_status: [
+        "pendiente",
+        "aprobada",
+        "denegada",
+        "consulta",
+        "informacion",
+      ],
       request_type: ["entrevista", "booking", "otro"],
       show_status: ["confirmado", "pendiente", "cancelado"],
       user_role: ["artist", "management"],
