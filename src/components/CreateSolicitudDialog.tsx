@@ -21,7 +21,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
   const { profile } = useAuth();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    tipo: '' as 'entrevista' | 'booking' | 'otro' | '',
+    tipo: '' as 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro' | '',
     nombre_solicitante: '',
     email: '',
     telefono: '',
@@ -108,7 +108,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
           ciudad: formData.ciudad || null,
         }),
         
-        ...(formData.tipo === 'otro' && {
+        ...((formData.tipo === 'otro' || formData.tipo === 'consulta' || formData.tipo === 'informacion') && {
           descripcion_libre: formData.descripcion_libre || null,
         }),
       };
@@ -143,7 +143,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
         <Label htmlFor="tipo">Tipo de Solicitud *</Label>
         <Select
           value={formData.tipo}
-          onValueChange={(value: 'entrevista' | 'booking' | 'otro') => 
+          onValueChange={(value: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro') => 
             setFormData({ ...formData, tipo: value })
           }
         >
@@ -151,9 +151,11 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
             <SelectValue placeholder="Selecciona el tipo de solicitud" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="entrevista">📻 Entrevista</SelectItem>
+            <SelectItem value="entrevista">🎙️ Entrevista</SelectItem>
             <SelectItem value="booking">🎤 Booking</SelectItem>
-            <SelectItem value="otro">📌 Otro</SelectItem>
+            <SelectItem value="consulta">💬 Consulta</SelectItem>
+            <SelectItem value="informacion">ℹ️ Información</SelectItem>
+            <SelectItem value="otro">📄 Otro</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -283,6 +285,50 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
                 onChange={(e) => setFormData({ ...formData, informacion_programa: e.target.value })}
                 placeholder="Descripción del programa, audiencia, etc."
                 rows={3}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {formData.tipo === 'consulta' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              💬 Información de la Consulta
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="descripcion_libre">Descripción de la Consulta</Label>
+              <Textarea
+                id="descripcion_libre"
+                value={formData.descripcion_libre}
+                onChange={(e) => setFormData({ ...formData, descripcion_libre: e.target.value })}
+                placeholder="Describe detalladamente la consulta que necesitas realizar"
+                rows={5}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {formData.tipo === 'informacion' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              ℹ️ Información Solicitada
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="descripcion_libre">Tipo de Información</Label>
+              <Textarea
+                id="descripcion_libre"
+                value={formData.descripcion_libre}
+                onChange={(e) => setFormData({ ...formData, descripcion_libre: e.target.value })}
+                placeholder="Especifica qué información necesitas (biografía, fotos, rider técnico, etc.)"
+                rows={5}
               />
             </div>
           </CardContent>

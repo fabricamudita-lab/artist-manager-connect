@@ -842,7 +842,12 @@ export type Database = {
         | "denegada"
         | "consulta"
         | "informacion"
-      request_type: "entrevista" | "booking" | "otro"
+      request_type:
+        | "entrevista"
+        | "booking"
+        | "otro"
+        | "consulta"
+        | "informacion"
       show_status: "confirmado" | "pendiente" | "cancelado"
       user_role: "artist" | "management"
     }
@@ -988,7 +993,13 @@ export const Constants = {
         "consulta",
         "informacion",
       ],
-      request_type: ["entrevista", "booking", "otro"],
+      request_type: [
+        "entrevista",
+        "booking",
+        "otro",
+        "consulta",
+        "informacion",
+      ],
       show_status: ["confirmado", "pendiente", "cancelado"],
       user_role: ["artist", "management"],
     },
