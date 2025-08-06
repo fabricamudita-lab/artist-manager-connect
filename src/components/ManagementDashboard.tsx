@@ -19,6 +19,7 @@ import { ArtistInfoDialog } from '@/components/ArtistInfoDialog';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { ArtistProfileDialog } from '@/components/ArtistProfileDialog';
 import { CreateSolicitudFromTemplateDialog } from '@/components/CreateSolicitudFromTemplateDialog';
+import { SolicitudDetailsDialog } from '@/components/SolicitudDetailsDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -114,6 +115,10 @@ export default function ManagementDashboard() {
   const [artistProfileDialog, setArtistProfileDialog] = useState<{ open: boolean; artistId: string | null }>({
     open: false,
     artistId: null
+  });
+  const [solicitudDetailsDialog, setSolicitudDetailsDialog] = useState<{ open: boolean; solicitudId: string | null }>({
+    open: false,
+    solicitudId: null
   });
 
   useEffect(() => {
@@ -547,6 +552,10 @@ export default function ManagementDashboard() {
     }
   };
 
+  const openSolicitudDetails = (solicitudId: string) => {
+    setSolicitudDetailsDialog({ open: true, solicitudId });
+  };
+
   const openArtistProfile = (artistId: string) => {
     setArtistProfileDialog({ open: true, artistId });
   };
@@ -745,14 +754,15 @@ export default function ManagementDashboard() {
                                         solicitud.estado === 'denegada' ? 'rejected' : solicitud.estado;
                   
                   return (
-                    <div 
-                      key={`sol-${solicitud.id}`}
-                      data-request-id={`sol-${solicitud.id}`}
-                      className="card-interactive hover-glow group animate-fade-in"
-                      style={{ 
-                        transition: 'all 0.3s ease-out',
-                        animation: 'fade-in 0.3s ease-out'
-                      }}
+                     <div 
+                       key={`sol-${solicitud.id}`}
+                       data-request-id={`sol-${solicitud.id}`}
+                       className="card-interactive hover-glow group animate-fade-in cursor-pointer"
+                       onClick={() => openSolicitudDetails(solicitud.id)}
+                       style={{ 
+                         transition: 'all 0.3s ease-out',
+                         animation: 'fade-in 0.3s ease-out'
+                       }}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -779,12 +789,15 @@ export default function ManagementDashboard() {
                           {solicitud.profiles?.full_name && (
                             <div className="flex items-center gap-2 mb-3">
                               <span className="text-sm text-muted-foreground">Artista:</span>
-                              <Button
-                                variant="link"
-                                size="sm"
-                                className="p-0 h-auto text-sm font-medium hover-lift"
-                                onClick={() => openArtistProfile(solicitud.artist_id!)}
-                              >
+                             <Button
+                               variant="link"
+                               size="sm"
+                               className="p-0 h-auto text-sm font-medium hover-lift"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 openArtistProfile(solicitud.artist_id!);
+                               }}
+                             >
                                 <User className="w-3 h-3 mr-1" />
                                 {solicitud.profiles.full_name}
                               </Button>
@@ -813,38 +826,47 @@ export default function ManagementDashboard() {
                         
                         <div className="flex items-center gap-1">
                           {solicitudStatus === 'approved' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => navigate('/calendar')}
-                              title="Ver en Calendario"
-                              className="hover-lift"
-                            >
-                              <CalendarPlus className="w-4 h-4" />
-                            </Button>
-                          )}
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               navigate('/calendar');
+                             }}
+                             title="Ver en Calendario"
+                             className="hover-lift"
+                           >
+                             <CalendarPlus className="w-4 h-4" />
+                           </Button>
+                         )}
+                         
+                         {solicitud.artist_id && (
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               navigate(`/chat?artist=${solicitud.artist_id}&subject=${encodeURIComponent(solicitud.nombre_solicitante)}`);
+                             }}
+                             title="Abrir Chat"
+                             className="hover-lift"
+                           >
+                             <MessageCircle className="w-4 h-4" />
+                           </Button>
+                         )}
                           
-                          {solicitud.artist_id && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => navigate(`/chat?artist=${solicitud.artist_id}&subject=${encodeURIComponent(solicitud.nombre_solicitante)}`)}
-                              title="Abrir Chat"
-                              className="hover-lift"
-                            >
-                              <MessageCircle className="w-4 h-4" />
-                            </Button>
-                          )}
-                          
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate('/solicitudes')}
-                            title="Ver Detalles"
-                            className="hover-lift"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               navigate('/solicitudes');
+                             }}
+                             title="Ver Detalles"
+                             className="hover-lift"
+                           >
+                             <Edit className="w-4 h-4" />
+                           </Button>
                         </div>
                       </div>
                     </div>
@@ -1477,6 +1499,14 @@ export default function ManagementDashboard() {
         open={showTemplateDialog}
         onOpenChange={setShowTemplateDialog}
         onSuccess={fetchData}
+      />
+
+      {/* Solicitud Details Dialog */}
+      <SolicitudDetailsDialog
+        open={solicitudDetailsDialog.open}
+        onOpenChange={(open) => setSolicitudDetailsDialog({ open, solicitudId: null })}
+        solicitudId={solicitudDetailsDialog.solicitudId}
+        onUpdate={fetchData}
       />
     </div>
   );

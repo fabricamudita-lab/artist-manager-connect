@@ -1,0 +1,518 @@
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { 
+  User, 
+  Mail, 
+  Phone, 
+  Calendar, 
+  Clock, 
+  MapPin, 
+  MessageSquare, 
+  StickyNote,
+  Building2,
+  Radio,
+  Users,
+  Edit,
+  Check,
+  X,
+  Archive,
+  Mic
+} from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+
+interface SolicitudDetails {
+  id: string;
+  tipo: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro';
+  nombre_solicitante: string;
+  email?: string;
+  telefono?: string;
+  medio?: string;
+  nombre_programa?: string;
+  nombre_entrevistador?: string;
+  nombre_festival?: string;
+  lugar_concierto?: string;
+  ciudad?: string;
+  hora_entrevista?: string;
+  hora_show?: string;
+  informacion_programa?: string;
+  observaciones?: string;
+  notas_internas?: string;
+  descripcion_libre?: string;
+  estado: 'pendiente' | 'aprobada' | 'denegada';
+  fecha_creacion: string;
+  fecha_actualizacion: string;
+  artist_id?: string;
+  contact_id?: string;
+  archivos_adjuntos?: any[];
+  profiles?: {
+    full_name: string;
+    email: string;
+  } | null;
+}
+
+interface SolicitudDetailsDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  solicitudId: string | null;
+  onUpdate?: () => void;
+}
+
+export function SolicitudDetailsDialog({ 
+  open, 
+  onOpenChange, 
+  solicitudId, 
+  onUpdate 
+}: SolicitudDetailsDialogProps) {
+  const [solicitud, setSolicitud] = useState<SolicitudDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (open && solicitudId) {
+      fetchSolicitudDetails();
+    }
+  }, [open, solicitudId]);
+
+  const fetchSolicitudDetails = async () => {
+    if (!solicitudId) return;
+
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('solicitudes')
+        .select(`
+          *,
+          profiles:artist_id(full_name, email)
+        `)
+        .eq('id', solicitudId)
+        .single();
+
+      if (error) throw error;
+      setSolicitud(data as any);
+    } catch (error) {
+      console.error('Error fetching solicitud details:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los detalles de la solicitud",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateSolicitudStatus = async (newStatus: 'aprobada' | 'denegada') => {
+    if (!solicitud) return;
+
+    try {
+      const { error } = await supabase
+        .from('solicitudes')
+        .update({ 
+          estado: newStatus,
+          fecha_actualizacion: new Date().toISOString()
+        })
+        .eq('id', solicitud.id);
+
+      if (error) throw error;
+
+      setSolicitud(prev => prev ? { ...prev, estado: newStatus } : null);
+      onUpdate?.();
+      
+      toast({
+        title: "¡Éxito!",
+        description: `Solicitud ${newStatus === 'aprobada' ? 'aprobada' : 'denegada'} correctamente`,
+      });
+    } catch (error) {
+      console.error('Error updating solicitud status:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado de la solicitud",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pendiente':
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+            <Clock className="w-3 h-3 mr-1" />
+            Pendiente
+          </Badge>
+        );
+      case 'aprobada':
+        return (
+          <Badge className="bg-green-100 text-green-800 border-green-200">
+            <Check className="w-3 h-3 mr-1" />
+            Aprobada
+          </Badge>
+        );
+      case 'denegada':
+        return (
+          <Badge className="bg-red-100 text-red-800 border-red-200">
+            <X className="w-3 h-3 mr-1" />
+            Denegada
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const getTipoIcon = (tipo: string) => {
+    switch (tipo) {
+      case 'entrevista':
+        return <Radio className="w-5 h-5 text-blue-600" />;
+      case 'booking':
+        return <Mic className="w-5 h-5 text-purple-600" />;
+      case 'consulta':
+        return <MessageSquare className="w-5 h-5 text-green-600" />;
+      case 'informacion':
+        return <StickyNote className="w-5 h-5 text-orange-600" />;
+      default:
+        return <Users className="w-5 h-5 text-gray-600" />;
+    }
+  };
+
+  const getTipoColor = (tipo: string) => {
+    switch (tipo) {
+      case 'entrevista':
+        return 'from-blue-500 to-blue-600';
+      case 'booking':
+        return 'from-purple-500 to-purple-600';
+      case 'consulta':
+        return 'from-green-500 to-green-600';
+      case 'informacion':
+        return 'from-orange-500 to-orange-600';
+      default:
+        return 'from-gray-500 to-gray-600';
+    }
+  };
+
+  if (loading) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-center p-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="ml-2">Cargando detalles...</span>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (!solicitud) {
+    return null;
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-start justify-between">
+            <div>
+              <DialogTitle className="text-2xl font-bold text-foreground">
+                Detalles de la Solicitud
+              </DialogTitle>
+              <p className="text-muted-foreground mt-1">
+                ID: {solicitud.id.slice(0, 8)}... • Creada el {new Date(solicitud.fecha_creacion).toLocaleDateString()}
+              </p>
+            </div>
+            {getStatusBadge(solicitud.estado)}
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Header Card */}
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${getTipoColor(solicitud.tipo)} flex items-center justify-center`}>
+                  {getTipoIcon(solicitud.tipo)}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-semibold text-foreground mb-1">
+                    {solicitud.nombre_solicitante}
+                  </h3>
+                  <p className="text-muted-foreground capitalize mb-2">
+                    Solicitud de {solicitud.tipo.replace('_', ' ')}
+                  </p>
+                  {solicitud.profiles?.full_name && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <User className="w-4 h-4 text-primary" />
+                      <span className="text-foreground font-medium">
+                        Artista: {solicitud.profiles.full_name}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Información de Contacto */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Información de Contacto
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {solicitud.email && (
+                  <div className="flex items-center gap-3">
+                    <Mail className="w-4 h-4 text-blue-500" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Email</p>
+                      <p className="font-medium">{solicitud.email}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {solicitud.telefono && (
+                  <div className="flex items-center gap-3">
+                    <Phone className="w-4 h-4 text-green-500" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Teléfono</p>
+                      <p className="font-medium">{solicitud.telefono}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Detalles por Tipo */}
+          {solicitud.tipo === 'entrevista' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Radio className="w-5 h-5" />
+                  Detalles de la Entrevista
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {solicitud.medio && (
+                    <div className="flex items-center gap-3">
+                      <Building2 className="w-4 h-4 text-purple-500" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Medio</p>
+                        <p className="font-medium">{solicitud.medio}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {solicitud.nombre_programa && (
+                    <div className="flex items-center gap-3">
+                      <Radio className="w-4 h-4 text-blue-500" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Programa</p>
+                        <p className="font-medium">{solicitud.nombre_programa}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {solicitud.nombre_entrevistador && (
+                    <div className="flex items-center gap-3">
+                      <User className="w-4 h-4 text-orange-500" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Entrevistador</p>
+                        <p className="font-medium">{solicitud.nombre_entrevistador}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {solicitud.hora_entrevista && (
+                    <div className="flex items-center gap-3">
+                      <Clock className="w-4 h-4 text-red-500" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Fecha y Hora</p>
+                        <p className="font-medium">
+                          {new Date(solicitud.hora_entrevista).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {solicitud.informacion_programa && (
+                  <div className="mt-4">
+                    <p className="text-sm text-muted-foreground mb-2">Información del Programa</p>
+                    <div className="bg-muted/30 p-3 rounded-lg">
+                      <p className="text-sm">{solicitud.informacion_programa}</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {solicitud.tipo === 'booking' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mic className="w-5 h-5" />
+                  Detalles del Booking
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {solicitud.nombre_festival && (
+                    <div className="flex items-center gap-3">
+                      <Users className="w-4 h-4 text-purple-500" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Festival/Evento</p>
+                        <p className="font-medium">{solicitud.nombre_festival}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {solicitud.lugar_concierto && (
+                    <div className="flex items-center gap-3">
+                      <MapPin className="w-4 h-4 text-red-500" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Lugar</p>
+                        <p className="font-medium">{solicitud.lugar_concierto}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {solicitud.ciudad && (
+                    <div className="flex items-center gap-3">
+                      <MapPin className="w-4 h-4 text-blue-500" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Ciudad</p>
+                        <p className="font-medium">{solicitud.ciudad}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {solicitud.hora_show && (
+                    <div className="flex items-center gap-3">
+                      <Clock className="w-4 h-4 text-green-500" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Fecha y Hora del Show</p>
+                        <p className="font-medium">
+                          {new Date(solicitud.hora_show).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Observaciones y Notas */}
+          {(solicitud.observaciones || solicitud.descripcion_libre || solicitud.notas_internas) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  Observaciones y Notas
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {solicitud.observaciones && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Observaciones</p>
+                    <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                      <p className="text-sm">{solicitud.observaciones}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {solicitud.descripcion_libre && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Descripción Adicional</p>
+                    <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
+                      <p className="text-sm">{solicitud.descripcion_libre}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {solicitud.notas_internas && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Notas Internas</p>
+                    <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+                      <p className="text-sm">{solicitud.notas_internas}</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Información de Fechas */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Información de Fechas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Fecha de Creación</p>
+                  <p className="font-medium">
+                    {new Date(solicitud.fecha_creacion).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Última Actualización</p>
+                  <p className="font-medium">
+                    {new Date(solicitud.fecha_actualizacion).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Acciones */}
+          {solicitud.estado === 'pendiente' && (
+            <Card className="bg-gradient-to-r from-gray-50 to-gray-100 border-dashed">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-1">
+                      Acciones de la Solicitud
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      Aprueba o deniega esta solicitud para continuar con el proceso
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => updateSolicitudStatus('denegada')}
+                      variant="outline"
+                      className="border-red-200 text-red-700 hover:bg-red-50"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Denegar
+                    </Button>
+                    <Button
+                      onClick={() => updateSolicitudStatus('aprobada')}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <Check className="w-4 h-4 mr-1" />
+                      Aprobar
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
