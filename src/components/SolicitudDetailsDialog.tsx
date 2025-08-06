@@ -20,10 +20,13 @@ import {
   Check,
   X,
   Archive,
-  Mic
+  Mic,
+  FileText,
+  Download
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useConfetti } from '@/hooks/useConfetti';
 
 interface SolicitudDetails {
   id: string;
@@ -68,6 +71,7 @@ export function SolicitudDetailsDialog({
   solicitudId, 
   onUpdate 
 }: SolicitudDetailsDialogProps) {
+  const { fireCelebration } = useConfetti();
   const [solicitud, setSolicitud] = useState<SolicitudDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -108,6 +112,8 @@ export function SolicitudDetailsDialog({
   const updateSolicitudStatus = async (newStatus: 'aprobada' | 'denegada') => {
     if (!solicitud) return;
 
+    const previousEstado = solicitud.estado;
+
     try {
       const { error } = await supabase
         .from('solicitudes')
@@ -124,8 +130,23 @@ export function SolicitudDetailsDialog({
       
       toast({
         title: "¡Éxito!",
-        description: `Solicitud ${newStatus === 'aprobada' ? 'aprobada' : 'denegada'} correctamente`,
+        description: newStatus === 'aprobada' ? "¡Solicitud aprobada! 🎉" : "Solicitud denegada correctamente",
       });
+
+      // 🎉 ¡Confetti y cierre automático cuando se aprueba!
+      if (previousEstado !== 'aprobada' && newStatus === 'aprobada') {
+        console.log('🎉 Firing confetti celebration from details dialog!');
+        setTimeout(() => {
+          fireCelebration();
+          // Cerrar el diálogo después del confeti
+          onOpenChange(false);
+        }, 300);
+      } else {
+        // Para denegaciones, cerrar inmediatamente
+        if (newStatus === 'denegada') {
+          setTimeout(() => onOpenChange(false), 1000);
+        }
+      }
     } catch (error) {
       console.error('Error updating solicitud status:', error);
       toast({
