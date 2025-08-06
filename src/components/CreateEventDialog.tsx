@@ -56,17 +56,13 @@ const eventTypes = [
 
 const eventTypeValues = ['concert', 'recording', 'meeting', 'deadline', 'other'] as const;
 
-const availableArtists = [
-  'Ejemplo 1',
-  'Ejemplo 2', 
-  'Ejemplo 3',
-  'María García',
-  'Carlos Ruiz',
-  'Ana López'
-];
+interface Artist {
+  id: string;
+  full_name: string;
+}
 
 const formSchema = z.object({
-  artist_names: z.array(z.string()).min(1, 'Selecciona al menos un artista'),
+  artist_ids: z.array(z.string()).min(1, 'Selecciona al menos un artista'),
   title: z.string().min(1, 'El título es requerido'),
   event_type: z.enum(eventTypeValues, {
     required_error: 'Selecciona un tipo de evento',
@@ -97,6 +93,8 @@ interface CreateEventDialogProps {
 export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, prefilledData }: CreateEventDialogProps) {
   const [open, setOpen] = useState(shouldOpen || false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [artists, setArtists] = useState<Artist[]>([]);
+  const [loadingArtists, setLoadingArtists] = useState(true);
   const { profile } = useAuth();
   const { toast } = useToast();
 
@@ -109,10 +107,36 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
     }
   }, [shouldOpen]);
 
+  // Load artists from database
+  useEffect(() => {
+    const fetchArtists = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .order('full_name', { ascending: true });
+
+        if (error) throw error;
+        setArtists(data || []);
+      } catch (error) {
+        console.error('Error fetching artists:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los artistas",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingArtists(false);
+      }
+    };
+
+    fetchArtists();
+  }, []);
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      artist_names: ['Ejemplo 1'],
+      artist_ids: profile?.id ? [profile.id] : [],
       title: prefilledData?.title || '',
       event_type: prefilledData?.type || undefined,
       location: prefilledData?.location || '',
@@ -124,7 +148,7 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
     },
   });
 
-  const selectedArtists = form.watch('artist_names') || [];
+  const selectedArtistIds = form.watch('artist_ids') || [];
 
   const onSubmit = async (data: FormData) => {
     if (!profile) {
@@ -187,9 +211,9 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
       console.log('Event created successfully:', eventData);
 
       // Create entries in event_artists for all selected artists
-      const eventArtistEntries = data.artist_names.map(artistName => ({
+      const eventArtistEntries = data.artist_ids.map(artistId => ({
         event_id: eventData.id,
-        artist_id: profile.id // For now, use profile.id (in real app, map artist names to profile IDs)
+        artist_id: artistId
       }));
 
       const { error: eventArtistsError } = await supabase
@@ -210,7 +234,7 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
       console.log('Event and artist associations created successfully');
       toast({
         title: "¡Éxito!",
-        description: `Evento "${data.title}" creado exitosamente con ${data.artist_names.length} artista(s)`,
+        description: `Evento "${data.title}" creado exitosamente con ${data.artist_ids.length} artista(s)`,
       });
       
       form.reset();
@@ -229,16 +253,16 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
     }
   };
 
-  const addArtist = (artistName: string) => {
-    const current = form.getValues('artist_names') || [];
-    if (!current.includes(artistName)) {
-      form.setValue('artist_names', [...current, artistName]);
+  const addArtist = (artistId: string) => {
+    const current = form.getValues('artist_ids') || [];
+    if (!current.includes(artistId)) {
+      form.setValue('artist_ids', [...current, artistId]);
     }
   };
 
-  const removeArtist = (artistName: string) => {
-    const current = form.getValues('artist_names') || [];
-    form.setValue('artist_names', current.filter(name => name !== artistName));
+  const removeArtist = (artistId: string) => {
+    const current = form.getValues('artist_ids') || [];
+    form.setValue('artist_ids', current.filter(id => id !== artistId));
   };
 
   const handleLocationSelect = (location: string, lat?: number, lng?: number) => {
@@ -269,40 +293,48 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
               control={form.control}
-              name="artist_names"
+              name="artist_ids"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Artistas Seleccionados</FormLabel>
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
-                      {selectedArtists.map((artist) => (
-                        <Badge key={artist} variant="secondary" className="flex items-center gap-1">
-                          {artist}
-                          <X 
-                            className="h-3 w-3 cursor-pointer hover:text-red-500" 
-                            onClick={() => removeArtist(artist)}
-                          />
-                        </Badge>
-                      ))}
-                      {selectedArtists.length === 0 && (
+                      {selectedArtistIds.map((artistId) => {
+                        const artist = artists.find(a => a.id === artistId);
+                        return (
+                          <Badge key={artistId} variant="secondary" className="flex items-center gap-1">
+                            {artist?.full_name || 'Artista desconocido'}
+                            <X 
+                              className="h-3 w-3 cursor-pointer hover:text-red-500" 
+                              onClick={() => removeArtist(artistId)}
+                            />
+                          </Badge>
+                        );
+                      })}
+                      {selectedArtistIds.length === 0 && (
                         <p className="text-sm text-muted-foreground">No hay artistas seleccionados</p>
                       )}
                     </div>
                     
-                    <Select onValueChange={addArtist}>
+                    <Select onValueChange={addArtist} disabled={loadingArtists}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Agregar artista..." />
+                          <SelectValue placeholder={loadingArtists ? "Cargando artistas..." : "Agregar artista..."} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {availableArtists
-                          .filter(artist => !selectedArtists.includes(artist))
+                        {artists
+                          .filter(artist => !selectedArtistIds.includes(artist.id))
                           .map((artist) => (
-                            <SelectItem key={artist} value={artist}>
-                              {artist}
+                            <SelectItem key={artist.id} value={artist.id}>
+                              {artist.full_name}
                             </SelectItem>
                           ))}
+                        {artists.filter(artist => !selectedArtistIds.includes(artist.id)).length === 0 && (
+                          <SelectItem value="" disabled>
+                            {selectedArtistIds.length === artists.length ? "Todos los artistas ya están seleccionados" : "No hay artistas disponibles"}
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
