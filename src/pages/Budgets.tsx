@@ -12,7 +12,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from '@/hooks/use-toast';
 import CreateBudgetDialog from '@/components/CreateBudgetDialog';
 import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
-
 interface Budget {
   id: string;
   name: string;
@@ -28,12 +27,15 @@ interface Budget {
   event_date: string;
   event_time: string;
   fee: number;
-  profiles?: { full_name: string };
+  profiles?: {
+    full_name: string;
+  };
 }
-
 export default function Budgets() {
   usePageTitle('Presupuestos');
-  const { profile } = useAuth();
+  const {
+    profile
+  } = useAuth();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,23 +45,22 @@ export default function Budgets() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
-
   useEffect(() => {
     fetchBudgets();
   }, []);
-
   const fetchBudgets = async () => {
     try {
-      const { data, error } = await supabase
-        .from('budgets')
-        .select(`
+      const {
+        data,
+        error
+      } = await supabase.from('budgets').select(`
           *,
           profiles!budgets_artist_id_fkey(full_name)
-        `)
-        .order('created_at', { ascending: false });
-
+        `).order('created_at', {
+        ascending: false
+      });
       if (error) throw error;
-      setBudgets((data as any) || []);
+      setBudgets(data as any || []);
     } catch (error) {
       console.error('Error fetching budgets:', error);
       toast({
@@ -71,62 +72,59 @@ export default function Budgets() {
       setLoading(false);
     }
   };
-
-  const filteredAndSortedBudgets = budgets
-    .filter(budget => {
-      const matchesSearch = budget.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           budget.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           budget.venue?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesType = filterType === 'all' || budget.type === filterType;
-      const matchesStatus = filterStatus === 'all' || budget.show_status === filterStatus;
-      
-      return matchesSearch && matchesType && matchesStatus;
-    })
-    .sort((a, b) => {
-      let aValue: string | Date;
-      let bValue: string | Date;
-      
-      switch (sortBy) {
-        case 'date':
-          aValue = a.event_date ? new Date(a.event_date) : new Date('1900-01-01');
-          bValue = b.event_date ? new Date(b.event_date) : new Date('1900-01-01');
-          break;
-        case 'name':
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
-          break;
-        case 'created_at':
-        default:
-          aValue = new Date(a.created_at);
-          bValue = new Date(b.created_at);
-          break;
-      }
-      
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-
+  const filteredAndSortedBudgets = budgets.filter(budget => {
+    const matchesSearch = budget.name.toLowerCase().includes(searchTerm.toLowerCase()) || budget.city?.toLowerCase().includes(searchTerm.toLowerCase()) || budget.venue?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = filterType === 'all' || budget.type === filterType;
+    const matchesStatus = filterStatus === 'all' || budget.show_status === filterStatus;
+    return matchesSearch && matchesType && matchesStatus;
+  }).sort((a, b) => {
+    let aValue: string | Date;
+    let bValue: string | Date;
+    switch (sortBy) {
+      case 'date':
+        aValue = a.event_date ? new Date(a.event_date) : new Date('1900-01-01');
+        bValue = b.event_date ? new Date(b.event_date) : new Date('1900-01-01');
+        break;
+      case 'name':
+        aValue = a.name.toLowerCase();
+        bValue = b.name.toLowerCase();
+        break;
+      case 'created_at':
+      default:
+        aValue = new Date(a.created_at);
+        bValue = new Date(b.created_at);
+        break;
+    }
+    if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'confirmado': return 'bg-green-100 text-green-800';
-      case 'pendiente': return 'bg-yellow-100 text-yellow-800';
-      case 'cancelado': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'confirmado':
+        return 'bg-green-100 text-green-800';
+      case 'pendiente':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'cancelado':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
-
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'concierto': return '🎤';
-      case 'produccion_musical': return '🎧';
-      case 'campana_promocional': return '📣';
-      case 'videoclip': return '🎬';
-      default: return '🧩';
+      case 'concierto':
+        return '🎤';
+      case 'produccion_musical':
+        return '🎧';
+      case 'campana_promocional':
+        return '📣';
+      case 'videoclip':
+        return '🎬';
+      default:
+        return '🧩';
     }
   };
-
   const formatType = (type: string) => {
     const types = {
       'concierto': 'Concierto',
@@ -137,20 +135,15 @@ export default function Budgets() {
     };
     return types[type as keyof typeof types] || type;
   };
-
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
+    return <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p>Cargando presupuestos...</p>
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="container-moodita section-spacing space-y-8">
+  return <div className="container-moodita section-spacing space-y-8">
       {/* Hero Header */}
       <div className="card-moodita p-8 bg-gradient-accent text-white">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
@@ -165,10 +158,7 @@ export default function Budgets() {
               </p>
             </div>
           </div>
-          <Button 
-            onClick={() => setShowCreateDialog(true)} 
-            className="btn-primary bg-white/20 hover:bg-white/30 text-white border-white/20"
-          >
+          <Button onClick={() => setShowCreateDialog(true)} className="btn-primary bg-white/20 hover:bg-white/30 text-white border-white/20">
             <Plus className="w-4 h-4 mr-2" />
             Nuevo Presupuesto
           </Button>
@@ -181,12 +171,7 @@ export default function Budgets() {
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Buscar por nombre, ciudad o lugar..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-modern pl-10"
-              />
+              <Input placeholder="Buscar por nombre, ciudad o lugar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input-modern pl-10" />
             </div>
             <Select value={filterType} onValueChange={setFilterType}>
               <SelectTrigger className="w-full lg:w-48 input-modern">
@@ -212,11 +197,11 @@ export default function Budgets() {
                 <SelectItem value="cancelado">Cancelado</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
-              const [field, order] = value.split('-') as [typeof sortBy, typeof sortOrder];
-              setSortBy(field);
-              setSortOrder(order);
-            }}>
+            <Select value={`${sortBy}-${sortOrder}`} onValueChange={value => {
+            const [field, order] = value.split('-') as [typeof sortBy, typeof sortOrder];
+            setSortBy(field);
+            setSortOrder(order);
+          }}>
               <SelectTrigger className="w-full lg:w-48 input-modern">
                 <SelectValue placeholder="Ordenar por" />
               </SelectTrigger>
@@ -234,34 +219,28 @@ export default function Budgets() {
       </div>
 
       {/* Budgets Table */}
-      {filteredAndSortedBudgets.length === 0 ? (
-        <div className="card-moodita">
+      {filteredAndSortedBudgets.length === 0 ? <div className="card-moodita">
           <CardContent className="p-16 text-center">
             <div className="w-20 h-20 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <Calculator className="w-10 h-10 text-muted-foreground" />
             </div>
             <h3 className="text-xl font-semibold mb-3">No hay presupuestos</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              {searchTerm || filterType !== 'all' || filterStatus !== 'all' 
-                ? "No se encontraron presupuestos con los filtros aplicados"
-                : "Crea tu primer presupuesto para comenzar a organizar tus proyectos"
-              }
+              {searchTerm || filterType !== 'all' || filterStatus !== 'all' ? "No se encontraron presupuestos con los filtros aplicados" : "Crea tu primer presupuesto para comenzar a organizar tus proyectos"}
             </p>
-            {(!searchTerm && filterType === 'all' && filterStatus === 'all') && (
-              <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
+            {!searchTerm && filterType === 'all' && filterStatus === 'all' && <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
                 <Plus className="w-4 h-4 mr-2" />
                 Crear Presupuesto
-              </Button>
-            )}
+              </Button>}
           </CardContent>
-        </div>
-      ) : (
-        <div className="card-moodita overflow-hidden">
+        </div> : <div className="card-moodita overflow-hidden">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow className="border-0">
-                  <TableHead className="font-semibold">Presupuesto</TableHead>
+                  <TableHead className="font-semibold px-0">Presupuesto</TableHead>
+                  <TableHead className="font-semibold">Tipo</TableHead>
+                  <TableHead className="font-semibold">Ubicación</TableHead>
                   <TableHead className="font-semibold">Fecha</TableHead>
                   <TableHead className="font-semibold">Hora</TableHead>
                   <TableHead className="font-semibold">Fee</TableHead>
@@ -271,54 +250,42 @@ export default function Budgets() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAndSortedBudgets.map((budget) => (
-                  <TableRow 
-                    key={budget.id}
-                    className="cursor-pointer hover:bg-muted/30 transition-colors border-0 group"
-                    onClick={() => setSelectedBudget(budget)}
-                  >
+                {filteredAndSortedBudgets.map(budget => <TableRow key={budget.id} className="cursor-pointer hover:bg-muted/30 transition-colors border-0 group" onClick={() => setSelectedBudget(budget)}>
                     <TableCell className="font-medium py-4">
+                      <div className="space-y-1">
+                        <p className="font-semibold group-hover:text-primary transition-colors">{budget.name}</p>
+                        {budget.venue && <p className="text-sm text-muted-foreground line-clamp-1">{budget.venue}</p>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
                           <span className="text-white text-sm">{getTypeIcon(budget.type)}</span>
                         </div>
-                        <div className="space-y-1">
-                          <p className="font-semibold group-hover:text-primary transition-colors">
-                            {formatType(budget.type)} {budget.name}{budget.city && budget.country ? `, ${budget.city}` : ''}
-                          </p>
-                          {budget.venue && (
-                            <p className="text-sm text-muted-foreground line-clamp-1">{budget.venue}</p>
-                          )}
-                        </div>
+                        <span className="text-sm font-medium">{formatType(budget.type)}</span>
                       </div>
                     </TableCell>
                     <TableCell className="py-4">
-                      {budget.event_date ? (
-                        <div className="flex items-center gap-2">
+                      {budget.city && budget.country ? <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-secondary" />
+                          <span className="text-sm">{budget.city}, {budget.country}</span>
+                        </div> : <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell className="py-4">
+                      {budget.event_date ? <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-accent" />
                           <span className="text-sm font-medium">
                             {new Date(budget.event_date).toLocaleDateString()}
                           </span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
+                        </div> : <span className="text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell className="py-4">
-                      {budget.event_time ? (
-                        <span className="text-sm font-medium">{budget.event_time}</span>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
+                      {budget.event_time ? <span className="text-sm font-medium">{budget.event_time}</span> : <span className="text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell className="py-4">
-                      {budget.fee > 0 ? (
-                        <div className="badge-success">
+                      {budget.fee > 0 ? <div className="badge-success">
                           €{budget.fee.toLocaleString()}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
+                        </div> : <span className="text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell className="py-4">
                       <Badge className={getStatusColor(budget.show_status)}>
@@ -326,55 +293,31 @@ export default function Budgets() {
                       </Badge>
                     </TableCell>
                     <TableCell className="py-4">
-                      {budget.profiles ? (
-                        <div className="flex items-center gap-2">
+                      {budget.profiles ? <div className="flex items-center gap-2">
                           <User className="w-4 h-4 text-primary" />
                           <span className="text-sm font-medium">{budget.profiles.full_name}</span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
+                        </div> : <span className="text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell className="py-4">
-                      <Button 
-                        size="sm" 
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedBudget(budget);
-                        }}
-                        className="btn-ghost-modern"
-                      >
+                      <Button size="sm" variant="ghost" onClick={e => {
+                  e.stopPropagation();
+                  setSelectedBudget(budget);
+                }} className="btn-ghost-modern">
                         Ver
                       </Button>
                     </TableCell>
-                  </TableRow>
-                ))}
+                  </TableRow>)}
               </TableBody>
             </Table>
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* Dialogs */}
-      <CreateBudgetDialog 
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
-        onSuccess={fetchBudgets}
-      />
+      <CreateBudgetDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} onSuccess={fetchBudgets} />
       
-      {selectedBudget && (
-        <BudgetDetailsDialog
-          open={!!selectedBudget}
-          onOpenChange={(open) => !open && setSelectedBudget(null)}
-          budget={selectedBudget}
-          onUpdate={fetchBudgets}
-          onDelete={() => {
-            setSelectedBudget(null);
-            fetchBudgets();
-          }}
-        />
-      )}
-    </div>
-  );
+      {selectedBudget && <BudgetDetailsDialog open={!!selectedBudget} onOpenChange={open => !open && setSelectedBudget(null)} budget={selectedBudget} onUpdate={fetchBudgets} onDelete={() => {
+      setSelectedBudget(null);
+      fetchBudgets();
+    }} />}
+    </div>;
 }
