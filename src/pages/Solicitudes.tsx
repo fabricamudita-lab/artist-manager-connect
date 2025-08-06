@@ -475,7 +475,7 @@ export default function Solicitudes() {
                           ${getTypeStyles(solicitud.tipo).bg}
                         `}>
                           <span className="text-white text-sm">
-                            {getTypeIcon(solicitud.tipo)}
+                            {typeInfo.icon}
                           </span>
                         </div>
                         <span className="font-medium text-foreground">
