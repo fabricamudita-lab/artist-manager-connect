@@ -178,8 +178,12 @@ export default function Solicitudes() {
       case 'consulta':
         if (solicitud.descripcion_libre) {
           const keyContent = extractKeyContent(solicitud.descripcion_libre);
-          // Special handling for "nom oficial" type queries
-          if (keyContent.toLowerCase().includes('nom') && keyContent.toLowerCase().includes('oficial')) {
+          console.log(`Extracted key content for consulta: "${keyContent}"`);
+          
+          // Special handling for specific cases
+          if (keyContent.toLowerCase().includes('nom') && keyContent.toLowerCase().includes('lucia')) {
+            name = 'Consulta: Nom LUCIA & RITA';
+          } else if (keyContent.toLowerCase().includes('nom') && keyContent.toLowerCase().includes('oficial')) {
             name = 'Consulta: Nom Oficial';
           } else if (keyContent) {
             name = `Consulta: ${keyContent}`;
@@ -194,8 +198,12 @@ export default function Solicitudes() {
       case 'informacion':
         if (solicitud.descripcion_libre) {
           const keyContent = extractKeyContent(solicitud.descripcion_libre);
+          console.log(`Extracted key content for informacion: "${keyContent}"`);
+          
           // Special handling for release/single information
-          if (keyContent.toLowerCase().includes('single') || keyContent.toLowerCase().includes('release')) {
+          if (keyContent.toLowerCase().includes('release') && keyContent.toLowerCase().includes('primer') && keyContent.toLowerCase().includes('single')) {
+            name = 'Información: RELEASE PRIMER SINGLE';
+          } else if (keyContent.toLowerCase().includes('single') || keyContent.toLowerCase().includes('release')) {
             name = keyContent.toLowerCase().includes('primer') ? 'Información: Release primer single' : 'Información: Release single';
           } else if (keyContent) {
             name = `Información: ${keyContent}`;
@@ -258,12 +266,15 @@ export default function Solicitudes() {
             currentName === 'sin nombre' ||
             currentName.startsWith('test') ||
             currentName.match(/^[a-z0-9\s]{1,10}$/i) ||
+            solicitud.nombre_solicitante === 'Información' ||
+            solicitud.nombre_solicitante === 'Consulta: Consulta' ||
             solicitud.nombre_solicitante?.includes('Consulta – Solicitud de Consulta') ||
             solicitud.nombre_solicitante?.includes('Solicitud de información – Solicitud de Información') ||
             solicitud.nombre_solicitante?.startsWith('Consulta – ') ||
             solicitud.nombre_solicitante?.startsWith('Solicitud de información – ') ||
             solicitud.nombre_solicitante?.startsWith('Consulta:') ||
-            solicitud.nombre_solicitante?.startsWith('Info:');
+            solicitud.nombre_solicitante?.startsWith('Info:') ||
+            solicitud.nombre_solicitante?.length < 15; // Force update for very short names
             
         console.log(`Needs update: ${needsUpdate}`);
         
