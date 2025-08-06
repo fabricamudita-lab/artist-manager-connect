@@ -85,11 +85,6 @@ const budgetCategories = {
     icon: Music,
     subcategories: ['artista_principal', 'banda', 'coristas', 'bailarines', 'otros']
   },
-  'menores_edad': {
-    title: 'Menores de Edad',
-    icon: Users,
-    subcategories: ['menor_artista', 'menor_staff']
-  },
   'equipo_tecnico': {
     title: 'Equipo Técnico/Producción',
     icon: Lightbulb,
