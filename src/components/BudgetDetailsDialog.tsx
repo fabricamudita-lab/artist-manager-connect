@@ -583,16 +583,20 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   <TableHeader className="bg-gray-100">
                     <TableRow className="border-b">
                       <TableHead className="w-12 text-center font-bold bg-gray-800 text-white">SELECT</TableHead>
-                      <TableHead className="font-bold bg-gray-800 text-white">NOMBRE / CONCEPTO</TableHead>
+                      <TableHead className="font-bold bg-gray-800 text-white">NOMBRE</TableHead>
+                      <TableHead className="font-bold bg-gray-800 text-white">CONCEPTO</TableHead>
                       <TableHead className="w-20 text-center font-bold bg-gray-800 text-white">COSTE</TableHead>
-                      <TableHead className="w-12 text-center font-bold bg-gray-800 text-white">T</TableHead>
-                      <TableHead className="w-20 text-center font-bold bg-gray-800 text-white">TOTAL</TableHead>
+                      <TableHead className="w-16 text-center font-bold bg-gray-800 text-white">UNID.</TableHead>
+                      <TableHead className="w-16 text-center font-bold bg-gray-800 text-white">CANTIDAD</TableHead>
+                      <TableHead className="w-16 text-center font-bold bg-gray-800 text-white">% IVA</TableHead>
                       <TableHead className="w-16 text-center font-bold bg-gray-800 text-white">IVA</TableHead>
-                      <TableHead className="w-20 text-center font-bold bg-gray-800 text-white">€ + IVA</TableHead>
+                      <TableHead className="w-16 text-center font-bold bg-gray-800 text-white">%IRPF</TableHead>
+                      <TableHead className="w-16 text-center font-bold bg-gray-800 text-white">IRPF</TableHead>
+                      <TableHead className="w-20 text-center font-bold bg-gray-800 text-white">TOTAL</TableHead>
                       <TableHead className="w-24 text-center font-bold bg-gray-800 text-white">COMENTARIOS</TableHead>
-                      <TableHead className="w-16 text-center font-bold bg-gray-800 text-white">Nº FRA</TableHead>
+                      <TableHead className="w-20 text-center font-bold bg-gray-800 text-white">Nº FACTURA</TableHead>
                       <TableHead className="w-12 text-center font-bold bg-gray-800 text-white">N / I</TableHead>
-                      <TableHead className="w-20 text-center font-bold bg-gray-800 text-white">Quinteto</TableHead>
+                      <TableHead className="w-20 text-center font-bold bg-gray-800 text-white">ESTADO</TableHead>
                     </TableRow>
                   </TableHeader>
                   
@@ -605,9 +609,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                         <>
                           {/* Category Header */}
                           <TableRow key={`${categoryKey}-header`} className="bg-gray-800">
-                            <TableCell colSpan={11} className="font-bold text-white text-center py-2">
-                              {category.title.toUpperCase()}
-                            </TableCell>
+                             <TableCell colSpan={15} className="font-bold text-white text-center py-2">
+                               {category.title.toUpperCase()}
+                             </TableCell>
                           </TableRow>
                           
                           {/* Category Items */}
@@ -645,104 +649,126 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   </div>
                                 )}
                               </TableCell>
-                              <TableCell className="text-center">
-                                {editingItem === item.id ? (
-                                  <Input
-                                    type="number"
-                                    value={item.unit_price}
-                                    onChange={(e) => setItems(prev => 
-                                      prev.map(i => i.id === item.id ? { ...i, unit_price: parseFloat(e.target.value) || 0 } : i)
-                                    )}
-                                    className="h-6 text-xs w-16"
-                                  />
-                                ) : (
-                                  `${item.unit_price}€`
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {editingItem === item.id ? (
-                                  <Input
-                                    type="number"
-                                    value={item.quantity}
-                                    onChange={(e) => setItems(prev => 
-                                      prev.map(i => i.id === item.id ? { ...i, quantity: parseInt(e.target.value) || 1 } : i)
-                                    )}
-                                    className="h-6 text-xs w-12"
-                                  />
-                                ) : (
-                                  item.quantity
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center font-medium">
-                                {(item.unit_price * item.quantity).toFixed(0)}€
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {editingItem === item.id ? (
-                                  <Input
-                                    type="number"
-                                    value={item.iva_percentage}
-                                    onChange={(e) => setItems(prev => 
-                                      prev.map(i => i.id === item.id ? { ...i, iva_percentage: parseFloat(e.target.value) || 21 } : i)
-                                    )}
-                                    className="h-6 text-xs w-12"
-                                  />
-                                ) : (
-                                  `${item.iva_percentage}%`
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center font-medium">
-                                {calculateTotal(item).toFixed(0)}€
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {editingItem === item.id ? (
-                                  <Input
-                                    value={item.observations}
-                                    onChange={(e) => setItems(prev => 
-                                      prev.map(i => i.id === item.id ? { ...i, observations: e.target.value } : i)
-                                    )}
-                                    className="h-6 text-xs"
-                                  />
-                                ) : (
-                                  <span className="text-xs">{item.observations}</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <div className="flex items-center justify-center gap-1">
-                                  <Badge 
-                                    variant={item.billing_status === 'pagado' ? 'default' : 'outline'}
-                                    className="text-xs h-4"
-                                  >
-                                    {item.billing_status === 'pagado' ? 'FRA' : ''}
-                                  </Badge>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <span className="text-xs">
-                                  {item.billing_status === 'pagado' ? '-100' : 
-                                   item.billing_status === 'pendiente' ? '-100' : ''}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-xs h-4 ${
-                                    item.billing_status === 'pagado' ? 'bg-green-100 text-green-800' :
-                                    item.billing_status === 'pendiente' ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-gray-100 text-gray-800'
-                                  }`}
-                                >
-                                  {item.billing_status === 'pagado' ? 'Pagada' :
-                                   item.billing_status === 'pendiente' ? 'Pendiente' :
-                                   'Solicitada'}
-                                </Badge>
-                              </TableCell>
+                               <TableCell>
+                                 {editingItem === item.id ? (
+                                   <Input
+                                     value={item.subcategory || ''}
+                                     onChange={(e) => setItems(prev => 
+                                       prev.map(i => i.id === item.id ? { ...i, subcategory: e.target.value } : i)
+                                     )}
+                                     className="h-6 text-xs"
+                                   />
+                                 ) : (
+                                   <span className="text-xs">{item.subcategory || category.title}</span>
+                                 )}
+                               </TableCell>
+                               <TableCell className="text-center">
+                                 {editingItem === item.id ? (
+                                   <Input
+                                     type="number"
+                                     value={item.unit_price}
+                                     onChange={(e) => setItems(prev => 
+                                       prev.map(i => i.id === item.id ? { ...i, unit_price: parseFloat(e.target.value) || 0 } : i)
+                                     )}
+                                     className="h-6 text-xs w-16"
+                                   />
+                                 ) : (
+                                   `${item.unit_price}€`
+                                 )}
+                               </TableCell>
+                               <TableCell className="text-center">
+                                 <span className="text-xs">€</span>
+                               </TableCell>
+                               <TableCell className="text-center">
+                                 {editingItem === item.id ? (
+                                   <Input
+                                     type="number"
+                                     value={item.quantity}
+                                     onChange={(e) => setItems(prev => 
+                                       prev.map(i => i.id === item.id ? { ...i, quantity: parseInt(e.target.value) || 1 } : i)
+                                     )}
+                                     className="h-6 text-xs w-12"
+                                   />
+                                 ) : (
+                                   item.quantity
+                                 )}
+                               </TableCell>
+                               <TableCell className="text-center">
+                                 {editingItem === item.id ? (
+                                   <Input
+                                     type="number"
+                                     value={item.iva_percentage}
+                                     onChange={(e) => setItems(prev => 
+                                       prev.map(i => i.id === item.id ? { ...i, iva_percentage: parseFloat(e.target.value) || 21 } : i)
+                                     )}
+                                     className="h-6 text-xs w-12"
+                                   />
+                                 ) : (
+                                   `${item.iva_percentage}%`
+                                 )}
+                               </TableCell>
+                               <TableCell className="text-center">
+                                 {((item.unit_price * item.quantity) * (item.iva_percentage / 100)).toFixed(0)}€
+                               </TableCell>
+                               <TableCell className="text-center">
+                                 <span className="text-xs">15%</span>
+                               </TableCell>
+                               <TableCell className="text-center">
+                                 {((item.unit_price * item.quantity) * 0.15).toFixed(0)}€
+                               </TableCell>
+                               <TableCell className="text-center font-medium">
+                                 {calculateTotal(item).toFixed(0)}€
+                               </TableCell>
+                               <TableCell className="text-center">
+                                 {editingItem === item.id ? (
+                                   <Input
+                                     value={item.observations}
+                                     onChange={(e) => setItems(prev => 
+                                       prev.map(i => i.id === item.id ? { ...i, observations: e.target.value } : i)
+                                     )}
+                                     className="h-6 text-xs"
+                                   />
+                                 ) : (
+                                   <span className="text-xs">{item.observations}</span>
+                                 )}
+                               </TableCell>
+                               <TableCell className="text-center">
+                                 {editingItem === item.id ? (
+                                   <Input
+                                     value={item.invoice_link}
+                                     onChange={(e) => setItems(prev => 
+                                       prev.map(i => i.id === item.id ? { ...i, invoice_link: e.target.value } : i)
+                                     )}
+                                     className="h-6 text-xs"
+                                   />
+                                 ) : (
+                                   <span className="text-xs">{item.invoice_link}</span>
+                                 )}
+                               </TableCell>
+                               <TableCell className="text-center">
+                                 <span className="text-xs">-100</span>
+                               </TableCell>
+                               <TableCell className="text-center">
+                                 <Badge 
+                                   variant="outline" 
+                                   className={`text-xs h-4 ${
+                                     item.billing_status === 'pagado' ? 'bg-green-100 text-green-800' :
+                                     item.billing_status === 'pendiente' ? 'bg-yellow-100 text-yellow-800' :
+                                     'bg-gray-100 text-gray-800'
+                                   }`}
+                                 >
+                                   {item.billing_status === 'pagado' ? 'Pendiente' :
+                                    item.billing_status === 'pendiente' ? 'Pendiente' :
+                                    'Pendiente'}
+                                 </Badge>
+                               </TableCell>
                             </TableRow>
                           ))}
                           
                           {editingItem && (
                             <TableRow className="bg-blue-50">
-                              <TableCell colSpan={11} className="text-center">
-                                <div className="flex gap-2 justify-center">
+                               <TableCell colSpan={15} className="text-center">
+                                 <div className="flex gap-2 justify-center">
                                   <Button 
                                     size="sm" 
                                     onClick={() => {
@@ -779,30 +805,32 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                             </TableRow>
                           )}
                           
-                          {/* Category Total */}
-                          {categoryItems.length > 0 && (
-                            <TableRow className="bg-gray-100 font-medium">
-                              <TableCell></TableCell>
-                              <TableCell className="font-bold">SUBTOTAL {category.title.toUpperCase()}</TableCell>
-                              <TableCell></TableCell>
-                              <TableCell></TableCell>
-                              <TableCell className="text-center font-bold">
-                                {categoryItems.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0).toFixed(0)}€
-                              </TableCell>
-                              <TableCell></TableCell>
-                              <TableCell className="text-center font-bold">
-                                {categoryTotal.toFixed(0)}€
-                              </TableCell>
-                              <TableCell></TableCell>
-                              <TableCell></TableCell>
-                              <TableCell></TableCell>
-                              <TableCell></TableCell>
-                            </TableRow>
-                          )}
+                           {/* Category Total */}
+                           {categoryItems.length > 0 && (
+                             <TableRow className="bg-gray-100 font-medium">
+                               <TableCell></TableCell>
+                               <TableCell className="font-bold">SUBTOTAL {category.title.toUpperCase()}</TableCell>
+                               <TableCell></TableCell>
+                               <TableCell></TableCell>
+                               <TableCell></TableCell>
+                               <TableCell></TableCell>
+                               <TableCell></TableCell>
+                               <TableCell></TableCell>
+                               <TableCell></TableCell>
+                               <TableCell></TableCell>
+                               <TableCell className="text-center font-bold">
+                                 {categoryTotal.toFixed(0)}€
+                               </TableCell>
+                               <TableCell></TableCell>
+                               <TableCell></TableCell>
+                               <TableCell></TableCell>
+                               <TableCell></TableCell>
+                             </TableRow>
+                           )}
                           
                           {/* Add new item row */}
                           <TableRow className="bg-yellow-50 border-b-2">
-                            <TableCell colSpan={11}>
+                            <TableCell colSpan={15}>
                               <div className="flex items-center gap-2 py-2">
                                 <Button 
                                   size="sm" 
