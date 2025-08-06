@@ -256,41 +256,43 @@ export function SolicitudDetailsDialog({
             </CardContent>
           </Card>
 
-          {/* Información de Contacto */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Información de Contacto
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {solicitud.email && (
-                  <div className="flex items-center gap-3">
-                    <Mail className="w-4 h-4 text-blue-500" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Email</p>
-                      <p className="font-medium">{solicitud.email}</p>
+          {/* Información de Contacto - Solo si hay datos */}
+          {(solicitud.email || solicitud.telefono) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  Información de Contacto
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {solicitud.email && (
+                    <div className="flex items-center gap-3">
+                      <Mail className="w-4 h-4 text-blue-500" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Email</p>
+                        <p className="font-medium">{solicitud.email}</p>
+                      </div>
                     </div>
-                  </div>
-                )}
-                
-                {solicitud.telefono && (
-                  <div className="flex items-center gap-3">
-                    <Phone className="w-4 h-4 text-green-500" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Teléfono</p>
-                      <p className="font-medium">{solicitud.telefono}</p>
+                  )}
+                  
+                  {solicitud.telefono && (
+                    <div className="flex items-center gap-3">
+                      <Phone className="w-4 h-4 text-green-500" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Teléfono</p>
+                        <p className="font-medium">{solicitud.telefono}</p>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Detalles por Tipo */}
-          {solicitud.tipo === 'entrevista' && (
+          {solicitud.tipo === 'entrevista' && (solicitud.medio || solicitud.nombre_programa || solicitud.nombre_entrevistador || solicitud.hora_entrevista || solicitud.informacion_programa) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -355,7 +357,7 @@ export function SolicitudDetailsDialog({
             </Card>
           )}
 
-          {solicitud.tipo === 'booking' && (
+          {solicitud.tipo === 'booking' && (solicitud.nombre_festival || solicitud.lugar_concierto || solicitud.ciudad || solicitud.hora_show) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -421,29 +423,31 @@ export function SolicitudDetailsDialog({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {solicitud.observaciones && (
+                {(solicitud.observaciones || solicitud.descripcion_libre) && (
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">Observaciones</p>
-                    <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-                      <p className="text-sm">{solicitud.observaciones}</p>
-                    </div>
-                  </div>
-                )}
-                
-                {solicitud.descripcion_libre && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Descripción Adicional</p>
-                    <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
-                      <p className="text-sm">{solicitud.descripcion_libre}</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-3">Resumen</p>
+                    <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                      {solicitud.observaciones && (
+                        <div className="mb-3">
+                          <p className="text-sm font-medium text-blue-900 mb-1">Observaciones:</p>
+                          <p className="text-sm text-blue-800">{solicitud.observaciones}</p>
+                        </div>
+                      )}
+                      {solicitud.descripcion_libre && (
+                        <div>
+                          <p className="text-sm font-medium text-blue-900 mb-1">Descripción:</p>
+                          <p className="text-sm text-blue-800 whitespace-pre-wrap">{solicitud.descripcion_libre}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
                 
                 {solicitud.notas_internas && (
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">Notas Internas</p>
-                    <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
-                      <p className="text-sm">{solicitud.notas_internas}</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-3">Notas Internas</p>
+                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                      <p className="text-sm text-yellow-800 whitespace-pre-wrap">{solicitud.notas_internas}</p>
                     </div>
                   </div>
                 )}
