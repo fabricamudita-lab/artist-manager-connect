@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
+import { useConfetti } from '@/hooks/useConfetti';
 
 interface Solicitud {
   id: string;
@@ -46,6 +47,7 @@ interface EditSolicitudDialogProps {
 }
 
 export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitudUpdated }: EditSolicitudDialogProps) {
+  const { fireCelebration } = useConfetti();
   const [formData, setFormData] = useState({
     tipo: '' as 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro',
     nombre_solicitante: '',
@@ -116,6 +118,9 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
       return;
     }
 
+    const previousEstado = solicitud.estado;
+    const newEstado = formData.estado;
+
     try {
       const solicitudData = {
         tipo: formData.tipo,
@@ -155,9 +160,18 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
 
       if (error) throw error;
 
+      // 🎉 ¡Confetti cuando se aprueba una solicitud!
+      if (previousEstado !== 'aprobada' && newEstado === 'aprobada') {
+        setTimeout(() => {
+          fireCelebration();
+        }, 300); // Pequeño delay para que se vea mejor
+      }
+
       toast({
         title: "Solicitud actualizada",
-        description: "La solicitud se ha actualizado correctamente.",
+        description: newEstado === 'aprobada' && previousEstado !== 'aprobada' 
+          ? "¡Solicitud aprobada! 🎉" 
+          : "La solicitud se ha actualizado correctamente.",
       });
 
       onSolicitudUpdated();
