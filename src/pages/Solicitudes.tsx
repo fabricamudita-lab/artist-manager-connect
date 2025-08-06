@@ -482,6 +482,7 @@ export default function Solicitudes() {
         solicitudId={selectedSolicitudForDetails?.id || null}
         open={showDetailsDialog}
         onOpenChange={setShowDetailsDialog}
+        onUpdate={fetchSolicitudes}
       />
 
       <ConfirmationDialog
