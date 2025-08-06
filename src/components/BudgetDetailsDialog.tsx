@@ -66,6 +66,7 @@ interface BudgetItem {
   quantity: number;
   unit_price: number;
   iva_percentage: number;
+  irpf_percentage: number;
   is_attendee: boolean;
   billing_status: 'pendiente' | 'pagado' | 'facturado' | 'cancelado';
   invoice_link: string;
@@ -138,6 +139,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     quantity: 1,
     unit_price: 0,
     iva_percentage: 21,
+    irpf_percentage: 15,
     is_attendee: false,
     billing_status: 'pendiente' as const,
     invoice_link: '',
@@ -187,6 +189,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           quantity: newItem.quantity || 1,
           unit_price: newItem.unit_price || 0,
           iva_percentage: newItem.iva_percentage || 21,
+          irpf_percentage: newItem.irpf_percentage || 15,
           is_attendee: newItem.is_attendee || false,
           billing_status: (newItem.billing_status as 'pendiente' | 'pagado' | 'facturado' | 'cancelado') || 'pendiente',
           invoice_link: newItem.invoice_link || '',
@@ -203,6 +206,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         quantity: 1,
         unit_price: 0,
         iva_percentage: 21,
+        irpf_percentage: 15,
         is_attendee: false,
         billing_status: 'pendiente' as const,
         invoice_link: '',
@@ -233,6 +237,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           quantity: item.quantity,
           unit_price: item.unit_price,
           iva_percentage: item.iva_percentage,
+          irpf_percentage: item.irpf_percentage,
           is_attendee: item.is_attendee,
           billing_status: item.billing_status as 'pendiente' | 'pagado' | 'facturado' | 'cancelado',
           invoice_link: item.invoice_link,
@@ -710,12 +715,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                <TableCell className="text-center">
                                  {((item.unit_price * item.quantity) * (item.iva_percentage / 100)).toFixed(0)}€
                                </TableCell>
-                               <TableCell className="text-center">
-                                 <span className="text-xs">15%</span>
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 {((item.unit_price * item.quantity) * 0.15).toFixed(0)}€
-                               </TableCell>
+                                <TableCell className="text-center">
+                                  {editingItem === item.id ? (
+                                    <Input
+                                      type="number"
+                                      value={item.irpf_percentage || 15}
+                                      onChange={(e) => setItems(prev => 
+                                        prev.map(i => i.id === item.id ? { ...i, irpf_percentage: parseFloat(e.target.value) || 15 } : i)
+                                      )}
+                                      className="h-6 text-xs w-12"
+                                    />
+                                  ) : (
+                                    `${item.irpf_percentage || 15}%`
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {((item.unit_price * item.quantity) * ((item.irpf_percentage || 15) / 100)).toFixed(0)}€
+                                </TableCell>
                                <TableCell className="text-center font-medium">
                                  {calculateTotal(item).toFixed(0)}€
                                </TableCell>
