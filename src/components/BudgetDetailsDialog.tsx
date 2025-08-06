@@ -563,209 +563,356 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           </TabsList>
 
           <TabsContent value="items" className="space-y-6">
-            {Object.entries(budgetCategories).map(([categoryKey, category]) => {
-              const categoryItems = getCategoryItems(categoryKey);
-              const Icon = category.icon;
-              
-              return (
-                <Card key={categoryKey}>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2">
-                      <Icon className="w-5 h-5" />
-                      {category.title}
-                      <Badge variant="outline" className="ml-auto">
-                        {categoryItems.length} elementos
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Existing items */}
-                    {categoryItems.map((item) => (
-                      <div key={item.id} className="border rounded-lg p-4">
-                        {editingItem === item.id ? (
-                          <div className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                              <div className="md:col-span-2">
-                                <Label>Nombre</Label>
-                                <Input
-                                  value={item.name}
-                                  onChange={(e) => setItems(prev => 
-                                    prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i)
-                                  )}
-                                />
-                              </div>
-                              <div>
-                                <Label>Cantidad</Label>
-                                <Input
-                                  type="number"
-                                  value={item.quantity}
-                                  onChange={(e) => setItems(prev => 
-                                    prev.map(i => i.id === item.id ? { ...i, quantity: parseInt(e.target.value) || 0 } : i)
-                                  )}
-                                />
-                              </div>
-                              <div>
-                                <Label>Precio unitario (€)</Label>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={item.unit_price}
-                                  onChange={(e) => setItems(prev => 
-                                    prev.map(i => i.id === item.id ? { ...i, unit_price: parseFloat(e.target.value) || 0 } : i)
-                                  )}
-                                />
-                              </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              <div>
-                                <Label>IVA (%)</Label>
-                                <Input
-                                  type="number"
-                                  value={item.iva_percentage}
-                                  onChange={(e) => setItems(prev => 
-                                    prev.map(i => i.id === item.id ? { ...i, iva_percentage: parseFloat(e.target.value) || 0 } : i)
-                                  )}
-                                />
-                              </div>
-                              <div>
-                                <Label>Estado facturación</Label>
-                                <Select 
-                                  value={item.billing_status} 
-                                  onValueChange={(value) => setItems(prev => 
-                                    prev.map(i => i.id === item.id ? { ...i, billing_status: value as 'pendiente' | 'pagado' | 'facturado' | 'cancelado' } : i)
-                                  )}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="pendiente">Pendiente</SelectItem>
-                                    <SelectItem value="facturado">Facturado</SelectItem>
-                                    <SelectItem value="pagado">Pagado</SelectItem>
-                                    <SelectItem value="cancelado">Cancelado</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="flex items-center space-x-2 pt-6">
-                                <Checkbox
-                                  id={`attendee-${item.id}`}
-                                  checked={item.is_attendee}
-                                  onCheckedChange={(checked) => setItems(prev => 
-                                    prev.map(i => i.id === item.id ? { ...i, is_attendee: !!checked } : i)
-                                  )}
-                                />
-                                <label htmlFor={`attendee-${item.id}`} className="text-sm">
-                                  Asistente
-                                </label>
-                              </div>
-                            </div>
+            {/* Professional Budget Table */}
+            <div className="bg-white border rounded-lg overflow-hidden">
+              {/* Header */}
+              <div className="bg-gray-50 border-b p-4">
+                <div className="text-center">
+                  <h2 className="text-lg font-bold text-gray-900">{budgetData.name}</h2>
+                  <p className="text-sm text-gray-600">
+                    {budgetData.event_date && new Date(budgetData.event_date).toLocaleDateString('es-ES')} ({budgetData.city})
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">PRESUPUESTO NACIONAL / INTERNACIONAL</p>
+                </div>
+              </div>
 
-                            <div>
-                              <Label>Observaciones</Label>
-                              <Textarea
-                                value={item.observations}
-                                onChange={(e) => setItems(prev => 
-                                  prev.map(i => i.id === item.id ? { ...i, observations: e.target.value } : i)
-                                )}
-                                rows={2}
-                              />
-                            </div>
-
-                            <div className="flex gap-2">
-                              <Button size="sm" onClick={() => updateItem(item)}>
-                                <Save className="w-4 h-4 mr-1" />
-                                Guardar
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => setEditingItem(null)}>
-                                <X className="w-4 h-4 mr-1" />
-                                Cancelar
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-4 mb-2">
-                                <span className="font-medium">{item.name}</span>
-                                {item.is_attendee && (
-                                  <Badge variant="outline" className="text-xs">✓ Asistente</Badge>
-                                )}
-                                <Badge className={getBillingStatusColor(item.billing_status)}>
-                                  {item.billing_status}
-                                </Badge>
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {item.quantity}x {item.unit_price}€ + {item.iva_percentage}% IVA = {calculateTotal(item).toFixed(2)}€
-                              </div>
-                              {item.observations && (
-                                <div className="text-sm text-muted-foreground mt-1">
-                                  {item.observations}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex gap-2">
-                              <Button size="sm" variant="outline" onClick={() => setEditingItem(item.id)}>
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => deleteItem(item.id)}>
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                    {/* Add new item form */}
-                    <Card className="border-dashed">
-                      <CardContent className="p-4">
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="md:col-span-2">
-                              <Label>Nombre del elemento</Label>
-                              <Input
-                                placeholder="Nombre del elemento..."
-                                value={newItem.name || ''}
-                                onChange={(e) => setNewItem(prev => ({ ...prev, name: e.target.value }))}
-                              />
-                            </div>
-                            <div>
-                              <Label>Subcategoría</Label>
-                              <Select 
-                                value={newItem.subcategory || ''} 
-                                onValueChange={(value) => setNewItem(prev => ({ ...prev, subcategory: value }))}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleccionar..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {category.subcategories.map(sub => (
-                                    <SelectItem key={sub} value={sub}>
-                                      {sub.replace('_', ' ').toUpperCase()}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
+              {/* Main budget table */}
+              <div className="overflow-x-auto">
+                <Table className="text-xs">
+                  <TableHeader className="bg-gray-100">
+                    <TableRow className="border-b">
+                      <TableHead className="w-12 text-center font-bold bg-gray-800 text-white">SELECT</TableHead>
+                      <TableHead className="font-bold bg-gray-800 text-white">NOMBRE / CONCEPTO</TableHead>
+                      <TableHead className="w-20 text-center font-bold bg-gray-800 text-white">COSTE</TableHead>
+                      <TableHead className="w-12 text-center font-bold bg-gray-800 text-white">T</TableHead>
+                      <TableHead className="w-20 text-center font-bold bg-gray-800 text-white">TOTAL</TableHead>
+                      <TableHead className="w-16 text-center font-bold bg-gray-800 text-white">IVA</TableHead>
+                      <TableHead className="w-20 text-center font-bold bg-gray-800 text-white">€ + IVA</TableHead>
+                      <TableHead className="w-24 text-center font-bold bg-gray-800 text-white">COMENTARIOS</TableHead>
+                      <TableHead className="w-16 text-center font-bold bg-gray-800 text-white">Nº FRA</TableHead>
+                      <TableHead className="w-12 text-center font-bold bg-gray-800 text-white">N / I</TableHead>
+                      <TableHead className="w-20 text-center font-bold bg-gray-800 text-white">Quinteto</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  
+                  <TableBody>
+                    {Object.entries(budgetCategories).map(([categoryKey, category]) => {
+                      const categoryItems = getCategoryItems(categoryKey);
+                      const categoryTotal = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
+                      
+                      return (
+                        <>
+                          {/* Category Header */}
+                          <TableRow key={`${categoryKey}-header`} className="bg-gray-800">
+                            <TableCell colSpan={11} className="font-bold text-white text-center py-2">
+                              {category.title.toUpperCase()}
+                            </TableCell>
+                          </TableRow>
                           
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              onClick={() => addItem(categoryKey)}
+                          {/* Category Items */}
+                          {categoryItems.map((item, index) => (
+                            <TableRow 
+                              key={item.id} 
+                              className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
                             >
-                              <Plus className="w-4 h-4 mr-1" />
-                              Agregar Elemento
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                              <TableCell className="text-center">
+                                <Checkbox 
+                                  checked={true}
+                                  className="h-3 w-3"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                {editingItem === item.id ? (
+                                  <Input
+                                    value={item.name}
+                                    onChange={(e) => setItems(prev => 
+                                      prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i)
+                                    )}
+                                    className="h-6 text-xs"
+                                  />
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <span>{item.name}</span>
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      onClick={() => setEditingItem(item.id)}
+                                      className="h-4 w-4 p-0"
+                                    >
+                                      <Edit className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {editingItem === item.id ? (
+                                  <Input
+                                    type="number"
+                                    value={item.unit_price}
+                                    onChange={(e) => setItems(prev => 
+                                      prev.map(i => i.id === item.id ? { ...i, unit_price: parseFloat(e.target.value) || 0 } : i)
+                                    )}
+                                    className="h-6 text-xs w-16"
+                                  />
+                                ) : (
+                                  `${item.unit_price}€`
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {editingItem === item.id ? (
+                                  <Input
+                                    type="number"
+                                    value={item.quantity}
+                                    onChange={(e) => setItems(prev => 
+                                      prev.map(i => i.id === item.id ? { ...i, quantity: parseInt(e.target.value) || 1 } : i)
+                                    )}
+                                    className="h-6 text-xs w-12"
+                                  />
+                                ) : (
+                                  item.quantity
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center font-medium">
+                                {(item.unit_price * item.quantity).toFixed(0)}€
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {editingItem === item.id ? (
+                                  <Input
+                                    type="number"
+                                    value={item.iva_percentage}
+                                    onChange={(e) => setItems(prev => 
+                                      prev.map(i => i.id === item.id ? { ...i, iva_percentage: parseFloat(e.target.value) || 21 } : i)
+                                    )}
+                                    className="h-6 text-xs w-12"
+                                  />
+                                ) : (
+                                  `${item.iva_percentage}%`
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center font-medium">
+                                {calculateTotal(item).toFixed(0)}€
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {editingItem === item.id ? (
+                                  <Input
+                                    value={item.observations}
+                                    onChange={(e) => setItems(prev => 
+                                      prev.map(i => i.id === item.id ? { ...i, observations: e.target.value } : i)
+                                    )}
+                                    className="h-6 text-xs"
+                                  />
+                                ) : (
+                                  <span className="text-xs">{item.observations}</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Badge 
+                                    variant={item.billing_status === 'pagado' ? 'default' : 'outline'}
+                                    className="text-xs h-4"
+                                  >
+                                    {item.billing_status === 'pagado' ? 'FRA' : ''}
+                                  </Badge>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <span className="text-xs">
+                                  {item.billing_status === 'pagado' ? '-100' : 
+                                   item.billing_status === 'pendiente' ? '-100' : ''}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-xs h-4 ${
+                                    item.billing_status === 'pagado' ? 'bg-green-100 text-green-800' :
+                                    item.billing_status === 'pendiente' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}
+                                >
+                                  {item.billing_status === 'pagado' ? 'Pagada' :
+                                   item.billing_status === 'pendiente' ? 'Pendiente' :
+                                   'Solicitada'}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          
+                          {editingItem && (
+                            <TableRow className="bg-blue-50">
+                              <TableCell colSpan={11} className="text-center">
+                                <div className="flex gap-2 justify-center">
+                                  <Button 
+                                    size="sm" 
+                                    onClick={() => {
+                                      const item = items.find(i => i.id === editingItem);
+                                      if (item) updateItem(item);
+                                    }}
+                                  >
+                                    <Save className="w-4 h-4 mr-1" />
+                                    Guardar
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    onClick={() => setEditingItem(null)}
+                                  >
+                                    <X className="w-4 h-4 mr-1" />
+                                    Cancelar
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="destructive" 
+                                    onClick={() => {
+                                      if (editingItem) {
+                                        deleteItem(editingItem);
+                                        setEditingItem(null);
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-1" />
+                                    Eliminar
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                          
+                          {/* Category Total */}
+                          {categoryItems.length > 0 && (
+                            <TableRow className="bg-gray-100 font-medium">
+                              <TableCell></TableCell>
+                              <TableCell className="font-bold">SUBTOTAL {category.title.toUpperCase()}</TableCell>
+                              <TableCell></TableCell>
+                              <TableCell></TableCell>
+                              <TableCell className="text-center font-bold">
+                                {categoryItems.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0).toFixed(0)}€
+                              </TableCell>
+                              <TableCell></TableCell>
+                              <TableCell className="text-center font-bold">
+                                {categoryTotal.toFixed(0)}€
+                              </TableCell>
+                              <TableCell></TableCell>
+                              <TableCell></TableCell>
+                              <TableCell></TableCell>
+                              <TableCell></TableCell>
+                            </TableRow>
+                          )}
+                          
+                          {/* Add new item row */}
+                          <TableRow className="bg-yellow-50 border-b-2">
+                            <TableCell colSpan={11}>
+                              <div className="flex items-center gap-2 py-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => addItem(categoryKey)}
+                                  className="h-6 text-xs"
+                                >
+                                  <Plus className="w-3 h-3 mr-1" />
+                                  Agregar elemento a {category.title}
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        </>
+                      );
+                    })}
+                    
+                    {/* Grand Total */}
+                    <TableRow className="bg-gray-800 font-bold text-white">
+                      <TableCell></TableCell>
+                      <TableCell className="font-bold">COSTE NETO</TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
+                      <TableCell className="text-center">
+                        {items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0).toFixed(0)}€
+                      </TableCell>
+                      <TableCell className="text-center">21%</TableCell>
+                      <TableCell className="text-center font-bold">
+                        {items.reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(0)}€
+                      </TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
+                      <TableCell className="text-center">
+                        <Badge className="bg-green-600 text-white">MARGEN</Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="bg-green-600 text-white px-2 py-1 rounded text-xs">
+                          900€
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+              
+              {/* Bottom Summary */}
+              <div className="bg-gray-50 p-4 border-t">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>DIETES EXTRA</span>
+                      <span>1</span>
+                      <span>550€</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>NITS EXTRA</span>
+                      <span>0</span>
+                      <span>0€</span>
+                    </div>
+                    <div className="flex justify-between font-bold bg-gray-800 text-white px-2 py-1">
+                      <span>CALCULADORA XPRESS</span>
+                      <span>550€</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>COSTE REAL</span>
+                      <span className="font-bold">
+                        {(items.reduce((sum, item) => sum + calculateTotal(item), 0) + 550).toFixed(0)}€
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>CACHE</span>
+                      <span className="font-bold">{budgetData.fee?.toLocaleString() || 0}€</span>
+                    </div>
+                    <div className="border-t pt-2">
+                      <div className="flex justify-between">
+                        <span>IMPREVISTOS</span>
+                        <span>0€</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Buy Out</span>
+                        <span>0</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>SoldOut</span>
+                        <span>0€</span>
+                      </div>
+                      <div className="flex justify-between font-bold">
+                        <span>TOTAL</span>
+                        <span>820€</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="bg-green-100 p-2 rounded">
+                      <div className="flex justify-between">
+                        <span>INGRESOS MERCH</span>
+                        <span>0€</span>
+                      </div>
+                    </div>
+                    <div className="bg-gray-800 text-white p-2 rounded text-center">
+                      <div className="font-bold">SoldOut</div>
+                      <div>YES ☐</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="summary">
