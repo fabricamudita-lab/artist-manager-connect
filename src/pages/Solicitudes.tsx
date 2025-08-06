@@ -411,10 +411,10 @@ export default function Solicitudes() {
         <TableHeader>
           <TableRow>
             {filterType === 'all' && <TableHead>Tipo</TableHead>}
-            <TableHead>Estado</TableHead>
             <TableHead>Artista</TableHead>
             <TableHead>Fecha</TableHead>
             <TableHead>Detalles</TableHead>
+            <TableHead>Estado</TableHead>
             <TableHead className="text-right">Acciones</TableHead>
           </TableRow>
         </TableHeader>
@@ -435,14 +435,6 @@ export default function Solicitudes() {
                     </div>
                   </TableCell>
                 )}
-                <TableCell className="py-2">
-                  <div className="flex items-center gap-2">
-                    <Badge className={`${config.color} badge-info text-xs`}>
-                      {config.icon} {config.label}
-                    </Badge>
-                    {isOverdue && <AlertTriangle className="w-3 h-3 text-destructive" />}
-                  </div>
-                </TableCell>
                 <TableCell className="py-2">
                   {solicitud.profiles?.full_name ? (
                     <button 
@@ -470,6 +462,14 @@ export default function Solicitudes() {
                     {solicitud.tipo === 'booking' && solicitud.ciudad && `, ${solicitud.ciudad}`}
                     {solicitud.tipo === 'otro' && solicitud.descripcion_libre && `${solicitud.descripcion_libre.substring(0, 50)}...`}
                   </span>
+                </TableCell>
+                <TableCell className="py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">
+                      {config.label}
+                    </span>
+                    {isOverdue && <AlertTriangle className="w-3 h-3 text-destructive" />}
+                  </div>
                 </TableCell>
                 <TableCell className="text-right py-2">
                   <div className="flex justify-end gap-1">
