@@ -1,6 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/useCommon';
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,18 +27,31 @@ interface Event {
 export default function Calendar() {
   usePageTitle('Calendario');
   const { profile, loading } = useAuth();
+  const location = useLocation();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [viewMode, setViewMode] = useState<'week' | 'month' | 'year'>('week');
   const [events, setEvents] = useState<Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [shouldOpenCreateDialog, setShouldOpenCreateDialog] = useState(false);
+  const [prefilledData, setPrefilledData] = useState<any>(null);
 
   useEffect(() => {
     if (profile) {
       setSelectedArtists([profile.id]);
     }
   }, [profile]);
+
+  useEffect(() => {
+    // Check if we should create an event from solicitud
+    if (location.state?.createEvent) {
+      setPrefilledData(location.state.createEvent);
+      setShouldOpenCreateDialog(true);
+      // Clear the state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     if (profile && selectedArtists.length > 0) {
@@ -543,7 +557,12 @@ export default function Calendar() {
               </div>
             </div>
           </div>
-          <CreateEventDialog onEventCreated={fetchEvents} />
+          <CreateEventDialog 
+            onEventCreated={fetchEvents}
+            shouldOpen={shouldOpenCreateDialog}
+            onOpenChange={setShouldOpenCreateDialog}
+            prefilledData={prefilledData}
+          />
         </div>
       </div>
 

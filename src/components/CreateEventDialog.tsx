@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -89,26 +89,38 @@ type FormData = z.infer<typeof formSchema>;
 
 interface CreateEventDialogProps {
   onEventCreated: () => void;
+  shouldOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  prefilledData?: any;
 }
 
-export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
-  const [open, setOpen] = useState(false);
+export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, prefilledData }: CreateEventDialogProps) {
+  const [open, setOpen] = useState(shouldOpen || false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { profile } = useAuth();
   const { toast } = useToast();
 
   console.log('CreateEventDialog - Rendering, profile:', profile);
 
+  // Update open state when shouldOpen changes
+  useEffect(() => {
+    if (shouldOpen !== undefined) {
+      setOpen(shouldOpen);
+    }
+  }, [shouldOpen]);
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       artist_names: ['Ejemplo 1'],
-      title: '',
-      event_type: undefined,
-      location: '',
-      description: '',
-      start_time: '09:00',
-      end_time: '10:00',
+      title: prefilledData?.title || '',
+      event_type: prefilledData?.type || undefined,
+      location: prefilledData?.location || '',
+      description: prefilledData?.description || '',
+      start_time: prefilledData?.startDate ? format(new Date(prefilledData.startDate), 'HH:mm') : '09:00',
+      end_time: prefilledData?.startDate ? format(new Date(new Date(prefilledData.startDate).getTime() + 3600000), 'HH:mm') : '10:00',
+      start_date: prefilledData?.startDate ? new Date(prefilledData.startDate) : undefined,
+      end_date: prefilledData?.startDate ? new Date(prefilledData.startDate) : undefined,
     },
   });
 
@@ -202,7 +214,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       });
       
       form.reset();
-      setOpen(false);
+      const closeDialog = onOpenChange || setOpen;
+      closeDialog(false);
       onEventCreated();
     } catch (error) {
       console.error('Unexpected error:', error);
@@ -237,7 +250,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange || setOpen}>
       <DialogTrigger asChild>
         <Button>
           <CalendarIcon className="mr-2 h-4 w-4" />
@@ -500,7 +513,10 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
               <Button 
                 type="button" 
                 variant="outline" 
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  const closeDialog = onOpenChange || setOpen;
+                  closeDialog(false);
+                }}
                 disabled={isSubmitting}
               >
                 Cancelar

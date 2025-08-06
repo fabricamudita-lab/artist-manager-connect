@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -67,6 +68,7 @@ const statusConfig = {
 
 export default function Solicitudes() {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [filteredSolicitudes, setFilteredSolicitudes] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
@@ -203,6 +205,30 @@ export default function Solicitudes() {
     return solicitud.nombre_solicitante;
   };
 
+  const handleCreateCalendarEvent = (solicitud: Solicitud) => {
+    // Preparar datos para el evento
+    const eventData = {
+      solicitudId: solicitud.id,
+      title: getMainContent(solicitud),
+      type: solicitud.tipo === 'entrevista' ? 'meeting' : solicitud.tipo === 'booking' ? 'concert' : 'other',
+      location: solicitud.tipo === 'booking' 
+        ? `${solicitud.lugar_concierto || ''} ${solicitud.ciudad || ''}`.trim()
+        : solicitud.medio || '',
+      description: `${solicitud.tipo === 'entrevista' ? 'Entrevista' : 'Booking'} para ${solicitud.profiles?.full_name || 'artista'}\n\n` +
+        `Solicitante: ${solicitud.nombre_solicitante}\n` +
+        (solicitud.email ? `Email: ${solicitud.email}\n` : '') +
+        (solicitud.telefono ? `Teléfono: ${solicitud.telefono}\n` : '') +
+        (solicitud.observaciones ? `Observaciones: ${solicitud.observaciones}\n` : '') +
+        (solicitud.tipo === 'entrevista' && solicitud.nombre_entrevistador ? `Entrevistador: ${solicitud.nombre_entrevistador}\n` : '') +
+        (solicitud.tipo === 'booking' && solicitud.nombre_festival ? `Festival: ${solicitud.nombre_festival}\n` : ''),
+      startDate: solicitud.tipo === 'entrevista' ? solicitud.hora_entrevista : solicitud.hora_show,
+      artistId: solicitud.artist_id
+    };
+
+    // Navegar al calendario con los datos
+    navigate('/calendar', { state: { createEvent: eventData } });
+  };
+
   const renderSolicitudCard = (solicitud: Solicitud) => {
     const typeInfo = typeConfig[solicitud.tipo];
     const statusInfo = statusConfig[solicitud.estado];
@@ -312,8 +338,16 @@ export default function Solicitudes() {
             </Select>
 
             <div className="flex gap-1">
-              {solicitud.estado === 'aprobada' && (
-                <Button size="sm" variant="outline" className="h-8">
+              {solicitud.estado === 'aprobada' && (solicitud.hora_entrevista || solicitud.hora_show) && (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="h-8"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCreateCalendarEvent(solicitud);
+                  }}
+                >
                   <Calendar className="w-3 h-3" />
                 </Button>
               )}
