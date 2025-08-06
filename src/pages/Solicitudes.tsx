@@ -124,8 +124,8 @@ export default function Solicitudes() {
   const extractKeyContent = (text: string): string => {
     if (!text) return '';
     
-    // Remove common prefixes
-    let content = text.replace(/^(Solicitud de |Tema\/proyecto:\s*|Asunto principal:\s*|Detalle\/contexto:\s*|Detalle de la solicitud:\s*)/i, '');
+    // Remove common prefixes and clean up
+    let content = text.replace(/^(Solicitud de |Tema\/proyecto:\s*|Asunto principal:\s*|Detalle\/contexto:\s*|Detalle de la solicitud:\s*|Consulta|Información)/i, '');
     
     // Split by newlines and take the first meaningful line
     const lines = content.split('\n').filter(line => line.trim().length > 3);
@@ -133,11 +133,14 @@ export default function Solicitudes() {
       content = lines[0];
     }
     
-    // Remove common words and get key terms
+    // Clean up extra characters and spaces
+    content = content.replace(/^[:\s\-–]+/, '').trim();
+    
+    // Remove common words and get key terms (max 3 words)
     const words = content.split(' ')
       .filter(word => 
         word.length > 2 && 
-        !['hauriem', 'hauríem', 'de', 'el', 'la', 'que', 'per', 'amb', 'una', 'un', 'les', 'els', 'del', 'al', 'com', 'quan', 'per', 'sobre', 'si', 'saber'].includes(word.toLowerCase())
+        !['hauriem', 'hauríem', 'de', 'el', 'la', 'que', 'per', 'amb', 'una', 'un', 'les', 'els', 'del', 'al', 'com', 'quan', 'per', 'sobre', 'si', 'saber', 'decidir', 'treiem'].includes(word.toLowerCase())
       )
       .slice(0, 3);
     
@@ -175,7 +178,14 @@ export default function Solicitudes() {
       case 'consulta':
         if (solicitud.descripcion_libre) {
           const keyContent = extractKeyContent(solicitud.descripcion_libre);
-          name = keyContent ? `Consulta: ${keyContent}` : 'Consulta';
+          // Special handling for "nom oficial" type queries
+          if (keyContent.toLowerCase().includes('nom') && keyContent.toLowerCase().includes('oficial')) {
+            name = 'Consulta: Nom Oficial';
+          } else if (keyContent) {
+            name = `Consulta: ${keyContent}`;
+          } else {
+            name = 'Consulta';
+          }
         } else {
           name = 'Consulta';
         }
@@ -184,11 +194,13 @@ export default function Solicitudes() {
       case 'informacion':
         if (solicitud.descripcion_libre) {
           const keyContent = extractKeyContent(solicitud.descripcion_libre);
-          // For information requests, be more direct
+          // Special handling for release/single information
           if (keyContent.toLowerCase().includes('single') || keyContent.toLowerCase().includes('release')) {
-            name = keyContent.includes('primer') ? 'Release primer single' : 'Release single';
+            name = keyContent.toLowerCase().includes('primer') ? 'Información: Release primer single' : 'Información: Release single';
+          } else if (keyContent) {
+            name = `Información: ${keyContent}`;
           } else {
-            name = keyContent || 'Información';
+            name = 'Información';
           }
         } else {
           name = 'Información';
