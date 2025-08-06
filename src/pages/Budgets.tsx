@@ -261,9 +261,7 @@ export default function Budgets() {
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow className="border-0">
-                  <TableHead className="font-semibold">Evento</TableHead>
-                  <TableHead className="font-semibold">Tipo</TableHead>
-                  <TableHead className="font-semibold">Ubicación</TableHead>
+                  <TableHead className="font-semibold">Presupuesto</TableHead>
                   <TableHead className="font-semibold">Fecha</TableHead>
                   <TableHead className="font-semibold">Hora</TableHead>
                   <TableHead className="font-semibold">Fee</TableHead>
@@ -280,30 +278,19 @@ export default function Budgets() {
                     onClick={() => setSelectedBudget(budget)}
                   >
                     <TableCell className="font-medium py-4">
-                      <div className="space-y-1">
-                        <p className="font-semibold group-hover:text-primary transition-colors">{budget.name}</p>
-                        {budget.venue && (
-                          <p className="text-sm text-muted-foreground line-clamp-1">{budget.venue}</p>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
                           <span className="text-white text-sm">{getTypeIcon(budget.type)}</span>
                         </div>
-                        <span className="text-sm font-medium">{formatType(budget.type)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-4">
-                      {budget.city && budget.country ? (
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-secondary" />
-                          <span className="text-sm">{budget.city}, {budget.country}</span>
+                        <div className="space-y-1">
+                          <p className="font-semibold group-hover:text-primary transition-colors">
+                            {formatType(budget.type)} {budget.name}{budget.city && budget.country ? `, ${budget.city}` : ''}
+                          </p>
+                          {budget.venue && (
+                            <p className="text-sm text-muted-foreground line-clamp-1">{budget.venue}</p>
+                          )}
                         </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
+                      </div>
                     </TableCell>
                     <TableCell className="py-4">
                       {budget.event_date ? (
