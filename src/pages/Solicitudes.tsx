@@ -120,6 +120,30 @@ export default function Solicitudes() {
     }
   };
 
+  // Función para extraer contenido clave del texto
+  const extractKeyContent = (text: string): string => {
+    if (!text) return '';
+    
+    // Remove common prefixes
+    let content = text.replace(/^(Solicitud de |Tema\/proyecto:\s*|Asunto principal:\s*|Detalle\/contexto:\s*|Detalle de la solicitud:\s*)/i, '');
+    
+    // Split by newlines and take the first meaningful line
+    const lines = content.split('\n').filter(line => line.trim().length > 3);
+    if (lines.length > 0) {
+      content = lines[0];
+    }
+    
+    // Remove common words and get key terms
+    const words = content.split(' ')
+      .filter(word => 
+        word.length > 2 && 
+        !['hauriem', 'hauríem', 'de', 'el', 'la', 'que', 'per', 'amb', 'una', 'un', 'les', 'els', 'del', 'al', 'com', 'quan', 'per', 'sobre', 'si', 'saber'].includes(word.toLowerCase())
+      )
+      .slice(0, 3);
+    
+    return words.join(' ');
+  };
+
   // Función para generar automáticamente el nombre de una solicitud
   const generateSolicitudName = (solicitud: Solicitud) => {
     const { tipo } = solicitud;
@@ -128,39 +152,30 @@ export default function Solicitudes() {
     switch (tipo) {
       case 'entrevista':
         if (solicitud.nombre_programa) {
-          name = `Entrevista en ${solicitud.nombre_programa}`;
-          if (solicitud.medio) {
-            name += ` (${solicitud.medio})`;
-          }
+          name = `Entrevista ${solicitud.nombre_programa}`;
         } else if (solicitud.medio) {
-          name = `Entrevista en ${solicitud.medio}`;
+          name = `Entrevista ${solicitud.medio}`;
         } else {
-          name = 'Solicitud de Entrevista';
+          name = 'Entrevista';
         }
         break;
 
       case 'booking':
         if (solicitud.nombre_festival) {
-          name = `Booking para ${solicitud.nombre_festival}`;
-          if (solicitud.ciudad) {
-            name += ` - ${solicitud.ciudad}`;
-          }
+          name = `Booking ${solicitud.nombre_festival}`;
         } else if (solicitud.lugar_concierto) {
-          name = `Booking en ${solicitud.lugar_concierto}`;
-          if (solicitud.ciudad) {
-            name += ` - ${solicitud.ciudad}`;
-          }
+          name = `Booking ${solicitud.lugar_concierto}`;
         } else if (solicitud.ciudad) {
-          name = `Booking en ${solicitud.ciudad}`;
+          name = `Booking ${solicitud.ciudad}`;
         } else {
-          name = 'Solicitud de Booking';
+          name = 'Booking';
         }
         break;
 
       case 'consulta':
         if (solicitud.descripcion_libre) {
-          const firstWords = solicitud.descripcion_libre.split(' ').slice(0, 6).join(' ');
-          name = `Consulta – ${firstWords}${solicitud.descripcion_libre.split(' ').length > 6 ? '...' : ''}`;
+          const keyContent = extractKeyContent(solicitud.descripcion_libre);
+          name = keyContent ? `Consulta: ${keyContent}` : 'Consulta';
         } else {
           name = 'Consulta';
         }
@@ -168,24 +183,29 @@ export default function Solicitudes() {
 
       case 'informacion':
         if (solicitud.descripcion_libre) {
-          const firstWords = solicitud.descripcion_libre.split(' ').slice(0, 6).join(' ');
-          name = `Solicitud de información – ${firstWords}${solicitud.descripcion_libre.split(' ').length > 6 ? '...' : ''}`;
+          const keyContent = extractKeyContent(solicitud.descripcion_libre);
+          // For information requests, be more direct
+          if (keyContent.toLowerCase().includes('single') || keyContent.toLowerCase().includes('release')) {
+            name = keyContent.includes('primer') ? 'Release primer single' : 'Release single';
+          } else {
+            name = keyContent || 'Información';
+          }
         } else {
-          name = 'Solicitud de información';
+          name = 'Información';
         }
         break;
 
       case 'otro':
         if (solicitud.descripcion_libre) {
-          const firstWords = solicitud.descripcion_libre.split(' ').slice(0, 5).join(' ');
-          name = firstWords + (solicitud.descripcion_libre.split(' ').length > 5 ? '...' : '');
+          const keyContent = extractKeyContent(solicitud.descripcion_libre);
+          name = keyContent || 'Solicitud';
         } else {
-          name = 'Solicitud General';
+          name = 'Solicitud';
         }
         break;
 
       default:
-        name = 'Nueva Solicitud';
+        name = 'Solicitud';
     }
 
     return name;

@@ -69,6 +69,30 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
     });
   };
 
+  // Función para extraer contenido clave del texto
+  const extractKeyContent = (text: string): string => {
+    if (!text) return '';
+    
+    // Remove common prefixes
+    let content = text.replace(/^(Solicitud de |Tema\/proyecto:\s*|Asunto principal:\s*|Detalle\/contexto:\s*|Detalle de la solicitud:\s*)/i, '');
+    
+    // Split by newlines and take the first meaningful line
+    const lines = content.split('\n').filter(line => line.trim().length > 3);
+    if (lines.length > 0) {
+      content = lines[0];
+    }
+    
+    // Remove common words and get key terms
+    const words = content.split(' ')
+      .filter(word => 
+        word.length > 2 && 
+        !['hauriem', 'hauríem', 'de', 'el', 'la', 'que', 'per', 'amb', 'una', 'un', 'les', 'els', 'del', 'al', 'com', 'quan', 'per', 'sobre', 'si', 'saber'].includes(word.toLowerCase())
+      )
+      .slice(0, 3);
+    
+    return words.join(' ');
+  };
+
   // Función para generar automáticamente el asunto de la solicitud
   const generateSubject = () => {
     const { tipo } = formData;
@@ -77,39 +101,30 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
     switch (tipo) {
       case 'entrevista':
         if (formData.nombre_programa) {
-          subject = `Entrevista en ${formData.nombre_programa}`;
-          if (formData.medio) {
-            subject += ` (${formData.medio})`;
-          }
+          subject = `Entrevista ${formData.nombre_programa}`;
         } else if (formData.medio) {
-          subject = `Entrevista en ${formData.medio}`;
+          subject = `Entrevista ${formData.medio}`;
         } else {
-          subject = 'Solicitud de Entrevista';
+          subject = 'Entrevista';
         }
         break;
 
       case 'booking':
         if (formData.nombre_festival) {
-          subject = `Booking para ${formData.nombre_festival}`;
-          if (formData.ciudad) {
-            subject += ` - ${formData.ciudad}`;
-          }
+          subject = `Booking ${formData.nombre_festival}`;
         } else if (formData.lugar_concierto) {
-          subject = `Booking en ${formData.lugar_concierto}`;
-          if (formData.ciudad) {
-            subject += ` - ${formData.ciudad}`;
-          }
+          subject = `Booking ${formData.lugar_concierto}`;
         } else if (formData.ciudad) {
-          subject = `Booking en ${formData.ciudad}`;
+          subject = `Booking ${formData.ciudad}`;
         } else {
-          subject = 'Solicitud de Booking';
+          subject = 'Booking';
         }
         break;
 
       case 'consulta':
         if (formData.descripcion_libre) {
-          const firstWords = formData.descripcion_libre.split(' ').slice(0, 6).join(' ');
-          subject = `Consulta – ${firstWords}${formData.descripcion_libre.split(' ').length > 6 ? '...' : ''}`;
+          const keyContent = extractKeyContent(formData.descripcion_libre);
+          subject = keyContent ? `Consulta: ${keyContent}` : 'Consulta';
         } else {
           subject = 'Consulta';
         }
@@ -117,24 +132,29 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
 
       case 'informacion':
         if (formData.descripcion_libre) {
-          const firstWords = formData.descripcion_libre.split(' ').slice(0, 6).join(' ');
-          subject = `Solicitud de información – ${firstWords}${formData.descripcion_libre.split(' ').length > 6 ? '...' : ''}`;
+          const keyContent = extractKeyContent(formData.descripcion_libre);
+          // For information requests, be more direct
+          if (keyContent.toLowerCase().includes('single') || keyContent.toLowerCase().includes('release')) {
+            subject = keyContent.includes('primer') ? 'Release primer single' : 'Release single';
+          } else {
+            subject = keyContent || 'Información';
+          }
         } else {
-          subject = 'Solicitud de información';
+          subject = 'Información';
         }
         break;
 
       case 'otro':
         if (formData.descripcion_libre) {
-          const firstWords = formData.descripcion_libre.split(' ').slice(0, 5).join(' ');
-          subject = firstWords + (formData.descripcion_libre.split(' ').length > 5 ? '...' : '');
+          const keyContent = extractKeyContent(formData.descripcion_libre);
+          subject = keyContent || 'Solicitud';
         } else {
-          subject = 'Solicitud General';
+          subject = 'Solicitud';
         }
         break;
 
       default:
-        subject = 'Nueva Solicitud';
+        subject = 'Solicitud';
     }
 
     return subject;
