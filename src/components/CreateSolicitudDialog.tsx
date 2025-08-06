@@ -69,22 +69,94 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
     });
   };
 
+  // Función para generar automáticamente el asunto de la solicitud
+  const generateSubject = () => {
+    const { tipo } = formData;
+    let subject = '';
+
+    switch (tipo) {
+      case 'entrevista':
+        if (formData.nombre_programa) {
+          subject = `Entrevista en ${formData.nombre_programa}`;
+          if (formData.medio) {
+            subject += ` (${formData.medio})`;
+          }
+        } else if (formData.medio) {
+          subject = `Entrevista en ${formData.medio}`;
+        } else {
+          subject = 'Solicitud de Entrevista';
+        }
+        break;
+
+      case 'booking':
+        if (formData.nombre_festival) {
+          subject = `Booking para ${formData.nombre_festival}`;
+          if (formData.ciudad) {
+            subject += ` - ${formData.ciudad}`;
+          }
+        } else if (formData.lugar_concierto) {
+          subject = `Booking en ${formData.lugar_concierto}`;
+          if (formData.ciudad) {
+            subject += ` - ${formData.ciudad}`;
+          }
+        } else if (formData.ciudad) {
+          subject = `Booking en ${formData.ciudad}`;
+        } else {
+          subject = 'Solicitud de Booking';
+        }
+        break;
+
+      case 'consulta':
+        subject = 'Consulta';
+        if (formData.descripcion_libre) {
+          const firstWords = formData.descripcion_libre.split(' ').slice(0, 4).join(' ');
+          subject = `Consulta: ${firstWords}${formData.descripcion_libre.split(' ').length > 4 ? '...' : ''}`;
+        }
+        break;
+
+      case 'informacion':
+        subject = 'Solicitud de Información';
+        if (formData.descripcion_libre) {
+          const firstWords = formData.descripcion_libre.split(' ').slice(0, 4).join(' ');
+          subject = `Info: ${firstWords}${formData.descripcion_libre.split(' ').length > 4 ? '...' : ''}`;
+        }
+        break;
+
+      case 'otro':
+        if (formData.descripcion_libre) {
+          const firstWords = formData.descripcion_libre.split(' ').slice(0, 5).join(' ');
+          subject = firstWords + (formData.descripcion_libre.split(' ').length > 5 ? '...' : '');
+        } else {
+          subject = 'Solicitud General';
+        }
+        break;
+
+      default:
+        subject = 'Nueva Solicitud';
+    }
+
+    return subject;
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.tipo || !formData.nombre_solicitante) {
+    if (!formData.tipo) {
       toast({
         title: "Error",
-        description: "Por favor completa todos los campos requeridos.",
+        description: "Por favor selecciona el tipo de solicitud.",
         variant: "destructive",
       });
       return;
     }
 
+    // Generar automáticamente el asunto si no hay nombre_solicitante o está vacío
+    const generatedSubject = generateSubject();
+    const finalNombreSolicitante = formData.nombre_solicitante.trim() || generatedSubject;
+
     try {
       const solicitudData = {
         tipo: formData.tipo,
-        nombre_solicitante: formData.nombre_solicitante,
+        nombre_solicitante: finalNombreSolicitante,
         email: formData.email || null,
         telefono: formData.telefono || null,
         observaciones: formData.observaciones || null,
@@ -161,12 +233,15 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="nombre_solicitante">Nombre del Solicitante *</Label>
+        <Label htmlFor="nombre_solicitante">
+          Asunto de la Solicitud 
+          <span className="text-sm text-muted-foreground ml-2">(opcional - se generará automáticamente)</span>
+        </Label>
         <Input
           id="nombre_solicitante"
           value={formData.nombre_solicitante}
           onChange={(e) => setFormData({ ...formData, nombre_solicitante: e.target.value })}
-          placeholder="Nombre de la persona o empresa"
+          placeholder="Déjalo vacío para generar automáticamente"
         />
       </div>
 
@@ -219,7 +294,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
         <Button 
           type="button" 
           onClick={() => setStep(2)}
-          disabled={!formData.tipo || !formData.nombre_solicitante}
+          disabled={!formData.tipo}
         >
           Siguiente
         </Button>
