@@ -645,31 +645,23 @@ export default function Solicitudes() {
         {/* Visual Type Filter Menu */}
         <Card className="mt-4">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">Filtrar por tipo:</span>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">Filtrar por tipo:</span>
+              </div>
+              {filterType !== 'all' && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setFilterType('all')}
+                  className="text-xs"
+                >
+                  Mostrar todos
+                </Button>
+              )}
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {/* All Types */}
-              <button
-                onClick={() => setFilterType('all')}
-                className={`p-3 rounded-lg border-2 transition-all hover:shadow-md ${
-                  filterType === 'all' 
-                    ? 'border-primary bg-primary/10 shadow-md' 
-                    : 'border-border hover:border-primary/30'
-                }`}
-              >
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-slate-500 to-slate-600 rounded-lg flex items-center justify-center">
-                    <FileText className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm font-medium">Todas</div>
-                    <div className="text-xs text-muted-foreground">({solicitudes.length})</div>
-                  </div>
-                </div>
-              </button>
-
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {/* Booking */}
               <button
                 onClick={() => setFilterType('booking')}
