@@ -23,7 +23,7 @@ import { useState } from 'react';
 
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "", url: "/calendar", icon: Calendar },
+  { title: "Calendario", url: "/calendar", icon: Calendar },
   { title: "Presupuestos", url: "/budgets", icon: Calculator },
   { title: "Solicitudes", url: "/solicitudes", icon: ClipboardList },
   { title: "Documentos", url: "/documents", icon: FileText },

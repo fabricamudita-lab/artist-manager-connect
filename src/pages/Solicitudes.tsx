@@ -337,14 +337,12 @@ export default function Solicitudes() {
 
             {solicitud.estado === 'aprobada' && (
               <Button size="sm" variant="outline">
-                <Calendar className="w-4 h-4 mr-1" />
-                Calendario
+                <Calendar className="w-4 h-4" />
               </Button>
             )}
 
             <Button size="sm" variant="outline">
-              <MessageCircle className="w-4 h-4 mr-1" />
-              Chat
+              <MessageCircle className="w-4 h-4" />
             </Button>
           </div>
         </CardContent>
