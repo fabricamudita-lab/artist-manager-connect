@@ -89,6 +89,7 @@ export default function Solicitudes() {
 
   useEffect(() => {
     fetchSolicitudes();
+    updateExistingSolicitudesNames(); // Actualizar nombres automáticamente
   }, []);
 
   useEffect(() => {
@@ -116,6 +117,138 @@ export default function Solicitudes() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Función para generar automáticamente el nombre de una solicitud
+  const generateSolicitudName = (solicitud: Solicitud) => {
+    const { tipo } = solicitud;
+    let name = '';
+
+    switch (tipo) {
+      case 'entrevista':
+        if (solicitud.nombre_programa) {
+          name = `Entrevista en ${solicitud.nombre_programa}`;
+          if (solicitud.medio) {
+            name += ` (${solicitud.medio})`;
+          }
+        } else if (solicitud.medio) {
+          name = `Entrevista en ${solicitud.medio}`;
+        } else {
+          name = 'Solicitud de Entrevista';
+        }
+        break;
+
+      case 'booking':
+        if (solicitud.nombre_festival) {
+          name = `Booking para ${solicitud.nombre_festival}`;
+          if (solicitud.ciudad) {
+            name += ` - ${solicitud.ciudad}`;
+          }
+        } else if (solicitud.lugar_concierto) {
+          name = `Booking en ${solicitud.lugar_concierto}`;
+          if (solicitud.ciudad) {
+            name += ` - ${solicitud.ciudad}`;
+          }
+        } else if (solicitud.ciudad) {
+          name = `Booking en ${solicitud.ciudad}`;
+        } else {
+          name = 'Solicitud de Booking';
+        }
+        break;
+
+      case 'consulta':
+        name = 'Consulta';
+        if (solicitud.descripcion_libre) {
+          const firstWords = solicitud.descripcion_libre.split(' ').slice(0, 4).join(' ');
+          name = `Consulta: ${firstWords}${solicitud.descripcion_libre.split(' ').length > 4 ? '...' : ''}`;
+        }
+        break;
+
+      case 'informacion':
+        name = 'Solicitud de Información';
+        if (solicitud.descripcion_libre) {
+          const firstWords = solicitud.descripcion_libre.split(' ').slice(0, 4).join(' ');
+          name = `Info: ${firstWords}${solicitud.descripcion_libre.split(' ').length > 4 ? '...' : ''}`;
+        }
+        break;
+
+      case 'otro':
+        if (solicitud.descripcion_libre) {
+          const firstWords = solicitud.descripcion_libre.split(' ').slice(0, 5).join(' ');
+          name = firstWords + (solicitud.descripcion_libre.split(' ').length > 5 ? '...' : '');
+        } else {
+          name = 'Solicitud General';
+        }
+        break;
+
+      default:
+        name = 'Nueva Solicitud';
+    }
+
+    return name;
+  };
+
+  // Función para actualizar nombres de solicitudes existentes
+  const updateExistingSolicitudesNames = async () => {
+    try {
+      const { data: allSolicitudes, error } = await supabase
+        .from('solicitudes')
+        .select('*');
+
+      if (error) throw error;
+
+      const solicitudesToUpdate: any[] = [];
+      
+      allSolicitudes?.forEach((solicitud: any) => {
+        const currentName = solicitud.nombre_solicitante?.toLowerCase() || '';
+        
+        // Lista de nombres genéricos que necesitan actualización
+        const genericNames = [
+          'sin nombre',
+          'test',
+          'test 01',
+          'nueva solicitud',
+          'solicitud general',
+          'solicitud de entrevista',
+          'solicitud de booking',
+          'consulta',
+          'solicitud de información'
+        ];
+        
+        // Si el nombre actual es genérico o está en nuestra lista, actualizarlo
+        if (genericNames.includes(currentName) || 
+            currentName === '' || 
+            currentName === 'sin nombre' ||
+            currentName.startsWith('test') ||
+            currentName.match(/^[a-z0-9\s]{1,10}$/i)) {
+          
+          const newName = generateSolicitudName(solicitud);
+          if (newName !== solicitud.nombre_solicitante) {
+            solicitudesToUpdate.push({
+              id: solicitud.id,
+              nombre_solicitante: newName
+            });
+          }
+        }
+      });
+
+      // Actualizar en lotes
+      if (solicitudesToUpdate.length > 0) {
+        for (const update of solicitudesToUpdate) {
+          await supabase
+            .from('solicitudes')
+            .update({ nombre_solicitante: update.nombre_solicitante })
+            .eq('id', update.id);
+        }
+        
+        console.log(`Actualizadas ${solicitudesToUpdate.length} solicitudes con nombres automáticos`);
+        
+        // Refrescar la lista
+        fetchSolicitudes();
+      }
+    } catch (error) {
+      console.error('Error updating solicitudes names:', error);
     }
   };
 
