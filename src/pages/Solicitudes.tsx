@@ -358,7 +358,6 @@ export default function Solicitudes() {
         <TableHeader>
           <TableRow>
             <TableHead>Tipo</TableHead>
-            <TableHead>Solicitante</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>Artista</TableHead>
             <TableHead>Fecha</TableHead>
@@ -375,68 +374,49 @@ export default function Solicitudes() {
 
             return (
               <TableRow key={solicitud.id} className={isOverdue ? 'bg-destructive/5' : ''}>
-                <TableCell>
+                <TableCell className="py-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">{typeInfo.icon}</span>
-                    <span className="font-medium">{typeInfo.label}</span>
+                    <span>{typeInfo.icon}</span>
+                    <span className="text-sm font-medium">{typeInfo.label}</span>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{solicitud.nombre_solicitante}</div>
-                    {solicitud.email && (
-                      <div className="text-sm text-muted-foreground">{solicitud.email}</div>
-                    )}
+                <TableCell className="py-2">
+                  <div className="flex items-center gap-2">
+                    <Badge className={`${config.color} badge-info text-xs`}>
+                      {config.icon} {config.label}
+                    </Badge>
+                    {isOverdue && <AlertTriangle className="w-3 h-3 text-destructive" />}
                   </div>
                 </TableCell>
-                <TableCell>
-                  <Badge className={`${config.color} badge-info`}>
-                    {config.icon} {config.label}
-                  </Badge>
-                  {isOverdue && (
-                    <div className="text-xs text-destructive font-medium flex items-center gap-1 mt-1">
-                      <AlertTriangle className="w-3 h-3" /> Vencida
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell>
+                <TableCell className="py-2">
                   {solicitud.profiles?.full_name ? (
                     <button 
                       onClick={() => openArtistProfile(solicitud.artist_id!)}
-                      className="text-sm font-medium text-primary hover:text-primary-glow transition-colors cursor-pointer"
+                      className="text-sm text-primary hover:text-primary-glow transition-colors"
                     >
                       {solicitud.profiles.full_name}
                     </button>
                   ) : (
-                    <span className="text-muted-foreground">-</span>
+                    <span className="text-muted-foreground text-sm">-</span>
                   )}
                 </TableCell>
-                <TableCell>
-                  <div className="text-sm">
-                    {format(new Date(solicitud.fecha_creacion), 'dd MMM yyyy', { locale: es })}
-                  </div>
+                <TableCell className="py-2">
+                  <span className="text-sm">
+                    {format(new Date(solicitud.fecha_creacion), 'dd/MM/yy', { locale: es })}
+                  </span>
                 </TableCell>
-                <TableCell>
-                  <div className="text-sm space-y-1">
-                    {solicitud.tipo === 'entrevista' && (
-                      <>
-                        {solicitud.medio && <div><strong>Medio:</strong> {solicitud.medio}</div>}
-                        {solicitud.nombre_programa && <div><strong>Programa:</strong> {solicitud.nombre_programa}</div>}
-                      </>
-                    )}
-                    {solicitud.tipo === 'booking' && (
-                      <>
-                        {solicitud.nombre_festival && <div><strong>Festival:</strong> {solicitud.nombre_festival}</div>}
-                        {solicitud.lugar_concierto && <div><strong>Lugar:</strong> {solicitud.lugar_concierto}</div>}
-                        {solicitud.ciudad && <div><strong>Ciudad:</strong> {solicitud.ciudad}</div>}
-                      </>
-                    )}
-                    {solicitud.tipo === 'otro' && solicitud.descripcion_libre && (
-                      <div><strong>Descripción:</strong> {solicitud.descripcion_libre}</div>
-                    )}
-                  </div>
+                <TableCell className="py-2">
+                  <span className="text-sm text-muted-foreground">
+                    {solicitud.tipo === 'entrevista' && solicitud.medio && `${solicitud.medio}`}
+                    {solicitud.tipo === 'entrevista' && solicitud.nombre_programa && solicitud.medio && ` - ${solicitud.nombre_programa}`}
+                    {solicitud.tipo === 'entrevista' && solicitud.nombre_programa && !solicitud.medio && `${solicitud.nombre_programa}`}
+                    {solicitud.tipo === 'booking' && solicitud.nombre_festival && `${solicitud.nombre_festival}`}
+                    {solicitud.tipo === 'booking' && solicitud.lugar_concierto && !solicitud.nombre_festival && `${solicitud.lugar_concierto}`}
+                    {solicitud.tipo === 'booking' && solicitud.ciudad && `, ${solicitud.ciudad}`}
+                    {solicitud.tipo === 'otro' && solicitud.descripcion_libre && `${solicitud.descripcion_libre.substring(0, 50)}...`}
+                  </span>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right py-2">
                   <div className="flex justify-end gap-1">
                     <Select
                       value={solicitud.estado}
@@ -444,13 +424,13 @@ export default function Solicitudes() {
                         handleStatusChange(solicitud.id, value)
                       }
                     >
-                      <SelectTrigger className="w-28">
+                      <SelectTrigger className="w-24 h-8 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pendiente">⏳ Pendiente</SelectItem>
-                        <SelectItem value="aprobada">✅ Aprobada</SelectItem>
-                        <SelectItem value="denegada">❌ Denegada</SelectItem>
+                        <SelectItem value="pendiente">⏳</SelectItem>
+                        <SelectItem value="aprobada">✅</SelectItem>
+                        <SelectItem value="denegada">❌</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button
@@ -460,16 +440,17 @@ export default function Solicitudes() {
                         setSelectedSolicitud(solicitud);
                         setShowEditDialog(true);
                       }}
+                      className="h-8 w-8 p-0"
                     >
-                      <Edit className="w-4 h-4" />
+                      <Edit className="w-3 h-3" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => openDeleteDialog(solicitud.id, solicitud.nombre_solicitante)}
-                      className="text-destructive hover:text-destructive"
+                      className="text-destructive hover:text-destructive h-8 w-8 p-0"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3 h-3" />
                     </Button>
                   </div>
                 </TableCell>
