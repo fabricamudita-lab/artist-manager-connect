@@ -407,113 +407,192 @@ export default function Solicitudes() {
 
   const renderSolicitudTable = () => {
     return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {filterType === 'all' && <TableHead>Tipo</TableHead>}
-            <TableHead>Artista</TableHead>
-            <TableHead>Fecha</TableHead>
-            <TableHead>Detalles</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredSolicitudes.map((solicitud) => {
-            const config = statusConfig[solicitud.estado];
-            const typeInfo = typeConfig[solicitud.tipo as keyof typeof typeConfig];
-            const isOverdue = new Date(solicitud.fecha_actualizacion) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) && 
-                             (solicitud.estado === 'pendiente');
+      <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-b border-border/50 bg-muted/30">
+              {filterType === 'all' && (
+                <TableHead className="font-semibold text-foreground/90 py-4 px-6">
+                  Tipo
+                </TableHead>
+              )}
+              <TableHead className="font-semibold text-foreground/90 py-4 px-6">
+                Artista
+              </TableHead>
+              <TableHead className="font-semibold text-foreground/90 py-4 px-6">
+                Fecha
+              </TableHead>
+              <TableHead className="font-semibold text-foreground/90 py-4 px-6">
+                Detalles
+              </TableHead>
+              <TableHead className="font-semibold text-foreground/90 py-4 px-6">
+                Estado
+              </TableHead>
+              <TableHead className="font-semibold text-foreground/90 py-4 px-6 text-right">
+                Acciones
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredSolicitudes.map((solicitud, index) => {
+              const config = statusConfig[solicitud.estado];
+              const typeInfo = typeConfig[solicitud.tipo as keyof typeof typeConfig];
+              const isOverdue = new Date(solicitud.fecha_actualizacion) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) && 
+                               (solicitud.estado === 'pendiente');
 
-            return (
-              <TableRow key={solicitud.id} className={isOverdue ? 'bg-destructive/5' : ''}>
-                {filterType === 'all' && (
-                  <TableCell className="py-2">
-                    <div className="flex items-center gap-2">
-                      <span>{typeInfo.icon}</span>
-                      <span className="text-sm font-medium">{typeInfo.label}</span>
+              return (
+                <TableRow 
+                  key={solicitud.id} 
+                  className={`
+                    border-b border-border/30 transition-all duration-200 hover:bg-muted/50
+                    ${isOverdue ? 'bg-destructive/5 border-destructive/20' : ''}
+                    ${index === filteredSolicitudes.length - 1 ? 'border-b-0' : ''}
+                  `}
+                >
+                  {filterType === 'all' && (
+                    <TableCell className="py-6 px-6">
+                      <div className="flex items-center gap-3">
+                        <div className={`
+                          w-10 h-10 rounded-lg flex items-center justify-center
+                          ${getTypeStyles(solicitud.tipo).bg}
+                        `}>
+                          <span className="text-white text-sm">
+                            {getTypeIcon(solicitud.tipo)}
+                          </span>
+                        </div>
+                        <span className="font-medium text-foreground">
+                          {typeInfo.label}
+                        </span>
+                      </div>
+                    </TableCell>
+                  )}
+                  
+                  <TableCell className="py-6 px-6">
+                    <div className="space-y-1">
+                      {solicitud.profiles?.full_name ? (
+                        <button 
+                          onClick={() => openArtistProfile(solicitud.artist_id!)}
+                          className="font-medium text-primary hover:text-primary/80 transition-colors text-left"
+                        >
+                          {solicitud.profiles.full_name}
+                        </button>
+                      ) : (
+                        <span className="text-muted-foreground font-medium">Sin asignar</span>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        {solicitud.nombre_solicitante}
+                      </div>
                     </div>
                   </TableCell>
-                )}
-                <TableCell className="py-2">
-                  {solicitud.profiles?.full_name ? (
-                    <button 
-                      onClick={() => openArtistProfile(solicitud.artist_id!)}
-                      className="text-sm text-primary hover:text-primary-glow transition-colors"
-                    >
-                      {solicitud.profiles.full_name}
-                    </button>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">-</span>
-                  )}
-                </TableCell>
-                <TableCell className="py-2">
-                  <span className="text-sm">
-                    {format(new Date(solicitud.fecha_creacion), 'dd/MM/yy', { locale: es })}
-                  </span>
-                </TableCell>
-                <TableCell className="py-2">
-                  <span className="text-sm text-muted-foreground">
-                    {solicitud.tipo === 'entrevista' && solicitud.medio && `${solicitud.medio}`}
-                    {solicitud.tipo === 'entrevista' && solicitud.nombre_programa && solicitud.medio && ` - ${solicitud.nombre_programa}`}
-                    {solicitud.tipo === 'entrevista' && solicitud.nombre_programa && !solicitud.medio && `${solicitud.nombre_programa}`}
-                    {solicitud.tipo === 'booking' && solicitud.nombre_festival && `${solicitud.nombre_festival}`}
-                    {solicitud.tipo === 'booking' && solicitud.lugar_concierto && !solicitud.nombre_festival && `${solicitud.lugar_concierto}`}
-                    {solicitud.tipo === 'booking' && solicitud.ciudad && `, ${solicitud.ciudad}`}
-                    {solicitud.tipo === 'otro' && solicitud.descripcion_libre && `${solicitud.descripcion_libre.substring(0, 50)}...`}
-                  </span>
-                </TableCell>
-                <TableCell className="py-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">
-                      {config.label}
-                    </span>
-                    {isOverdue && <AlertTriangle className="w-3 h-3 text-destructive" />}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right py-2">
-                  <div className="flex justify-end gap-1">
-                    <Select
-                      value={solicitud.estado}
-                      onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') => 
-                        handleStatusChange(solicitud.id, value)
-                      }
-                    >
-                      <SelectTrigger className="w-24 h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pendiente">⏳</SelectItem>
-                        <SelectItem value="aprobada">✅</SelectItem>
-                        <SelectItem value="denegada">❌</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedSolicitud(solicitud);
-                        setShowEditDialog(true);
-                      }}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Edit className="w-3 h-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openDeleteDialog(solicitud.id, solicitud.nombre_solicitante)}
-                      className="text-destructive hover:text-destructive h-8 w-8 p-0"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                  
+                  <TableCell className="py-6 px-6">
+                    <div className="space-y-1">
+                      <div className="font-medium text-foreground">
+                        {format(new Date(solicitud.fecha_creacion), 'dd MMM', { locale: es })}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(solicitud.fecha_creacion), 'yyyy', { locale: es })}
+                      </div>
+                    </div>
+                  </TableCell>
+                  
+                  <TableCell className="py-6 px-6">
+                    <div className="space-y-1 max-w-xs">
+                      <div className="font-medium text-foreground truncate">
+                        {getMainContent(solicitud)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {solicitud.tipo === 'entrevista' && solicitud.medio && solicitud.medio}
+                        {solicitud.tipo === 'booking' && solicitud.ciudad && solicitud.ciudad}
+                        {(solicitud.tipo === 'consulta' || solicitud.tipo === 'informacion') && 
+                          solicitud.observaciones && 
+                          solicitud.observaciones.substring(0, 30) + '...'
+                        }
+                      </div>
+                    </div>
+                  </TableCell>
+                  
+                  <TableCell className="py-6 px-6">
+                    <div className="flex items-center gap-2">
+                      <div className={`
+                        px-3 py-1.5 rounded-lg text-sm font-medium
+                        ${solicitud.estado === 'aprobada' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : ''}
+                        ${solicitud.estado === 'pendiente' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' : ''}
+                        ${solicitud.estado === 'denegada' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' : ''}
+                      `}>
+                        {config.label}
+                      </div>
+                      {isOverdue && (
+                        <div className="p-1 rounded-full bg-destructive/10">
+                          <AlertTriangle className="w-3 h-3 text-destructive" />
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  
+                  <TableCell className="py-6 px-6">
+                    <div className="flex items-center justify-end gap-2">
+                      <Select
+                        value={solicitud.estado}
+                        onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') => 
+                          handleStatusChange(solicitud.id, value)
+                        }
+                      >
+                        <SelectTrigger className="w-8 h-8 p-0 border-0 hover:bg-muted">
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="text-lg">⏱️</span>
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent align="end">
+                          <SelectItem value="pendiente" className="text-yellow-600">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                              Pendiente
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="aprobada" className="text-green-600">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                              Aprobada
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="denegada" className="text-red-600">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                              Denegada
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedSolicitud(solicitud);
+                          setShowEditDialog(true);
+                        }}
+                        className="w-8 h-8 p-0 hover:bg-muted"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openDeleteDialog(solicitud.id, solicitud.nombre_solicitante)}
+                        className="w-8 h-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
     );
   };
 
