@@ -18,6 +18,7 @@ import { AddToCalendarDialog } from '@/components/AddToCalendarDialog';
 import { ArtistInfoDialog } from '@/components/ArtistInfoDialog';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { ArtistProfileDialog } from '@/components/ArtistProfileDialog';
+import { CreateSolicitudFromTemplateDialog } from '@/components/CreateSolicitudFromTemplateDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,7 +46,7 @@ interface Request {
 
 interface Solicitud {
   id: string;
-  tipo: 'entrevista' | 'booking' | 'otro';
+  tipo: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro';
   nombre_solicitante: string;
   email?: string;
   telefono?: string;
@@ -80,7 +81,7 @@ export default function ManagementDashboard() {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showNewRequestForm, setShowNewRequestForm] = useState(false);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [eventTimeframe, setEventTimeframe] = useState<'day' | 'week' | 'month'>('week');
   const [statusFilter, setStatusFilter] = useState<string>('pending');
   const [searchTerm, setSearchTerm] = useState('');
@@ -282,7 +283,6 @@ export default function ManagementDashboard() {
         description: '',
         due_date: '',
       });
-      setShowNewRequestForm(false);
       
       // Refrescar solo las requests sin recargar todo
       const { data: updatedRequests } = await supabase
@@ -689,7 +689,7 @@ export default function ManagementDashboard() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Gestión de Solicitudes</h2>
-              <Button onClick={() => setShowNewRequestForm(!showNewRequestForm)} className="btn-primary">
+              <Button onClick={() => setShowTemplateDialog(true)} className="btn-primary">
                 <PlusCircle className="w-4 h-4 mr-2" />
                 Nueva Solicitud
               </Button>
@@ -724,88 +724,6 @@ export default function ManagementDashboard() {
               </Select>
             </div>
 
-            {showNewRequestForm && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Crear Nueva Solicitud</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleCreateRequest} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="artist">Artista</Label>
-                        <Select
-                          value={newRequest.artist_id}
-                          onValueChange={(value) => setNewRequest({ ...newRequest, artist_id: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecciona un artista" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {artists.map((artist) => (
-                              <SelectItem key={artist.id} value={artist.id}>
-                                {artist.full_name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="type">Tipo</Label>
-                        <Select
-                          value={newRequest.type}
-                          onValueChange={(value) => setNewRequest({ ...newRequest, type: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Tipo de solicitud" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="booking">Booking</SelectItem>
-                            <SelectItem value="interview">Entrevista</SelectItem>
-                            <SelectItem value="consultation">Consulta</SelectItem>
-                            <SelectItem value="information">Información</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="title">Título</Label>
-                      <Input
-                        id="title"
-                        value={newRequest.title}
-                        onChange={(e) => setNewRequest({ ...newRequest, title: e.target.value })}
-                        placeholder="Título de la solicitud"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="description">Descripción</Label>
-                      <Textarea
-                        id="description"
-                        value={newRequest.description}
-                        onChange={(e) => setNewRequest({ ...newRequest, description: e.target.value })}
-                        placeholder="Descripción detallada de la solicitud"
-                        rows={3}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="due_date">Fecha Límite (Opcional)</Label>
-                      <Input
-                        id="due_date"
-                        type="datetime-local"
-                        value={newRequest.due_date}
-                        onChange={(e) => setNewRequest({ ...newRequest, due_date: e.target.value })}
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button type="submit">Crear Solicitud</Button>
-                      <Button type="button" variant="outline" onClick={() => setShowNewRequestForm(false)}>
-                        Cancelar
-                      </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
-            )}
 
             {getFilteredRequests().length === 0 && getFilteredSolicitudes().length === 0 ? (
               <Card>
@@ -839,12 +757,14 @@ export default function ManagementDashboard() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-3">
-                            <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
-                              <span className="text-white text-lg">
-                                {solicitud.tipo === 'entrevista' ? '📻' : 
-                                 solicitud.tipo === 'booking' ? '🎤' : '📌'}
-                              </span>
-                            </div>
+                             <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
+                               <span className="text-white text-lg">
+                                 {solicitud.tipo === 'entrevista' ? '📻' : 
+                                  solicitud.tipo === 'booking' ? '🎤' : 
+                                  solicitud.tipo === 'consulta' ? '💬' :
+                                  solicitud.tipo === 'informacion' ? 'ℹ️' : '📌'}
+                               </span>
+                             </div>
                             <div className="flex-1">
                               <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
                                 {solicitud.nombre_solicitante}
@@ -1550,6 +1470,13 @@ export default function ManagementDashboard() {
         open={artistProfileDialog.open}
         onOpenChange={(open) => setArtistProfileDialog(prev => ({ ...prev, open }))}
         artistId={artistProfileDialog.artistId}
+      />
+
+      {/* Template Dialog */}
+      <CreateSolicitudFromTemplateDialog
+        open={showTemplateDialog}
+        onOpenChange={setShowTemplateDialog}
+        onSuccess={fetchData}
       />
     </div>
   );
