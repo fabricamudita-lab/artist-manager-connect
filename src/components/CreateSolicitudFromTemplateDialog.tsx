@@ -145,10 +145,10 @@ export function CreateSolicitudFromTemplateDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.contact_id || !formData.artist_id) {
+    if (!formData.artist_id) {
       toast({
         title: "Error",
-        description: "El contacto y el artista son requeridos.",
+        description: "El artista es requerido.",
         variant: "destructive",
       });
       return;
@@ -336,15 +336,6 @@ export function CreateSolicitudFromTemplateDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="contact_id">Contacto *</Label>
-            <ContactSelector
-              value={formData.contact_id}
-              onValueChange={(value) => setFormData({ ...formData, contact_id: value })}
-              artistId={formData.artist_id}
-              placeholder="Seleccionar contacto"
-            />
-          </div>
           <div className="space-y-2">
             <Label htmlFor="prioridad">Prioridad</Label>
             <Select
