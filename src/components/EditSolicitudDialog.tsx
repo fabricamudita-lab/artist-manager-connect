@@ -162,14 +162,6 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
 
       console.log('Previous estado:', previousEstado, 'New estado:', newEstado);
 
-      // 🎉 ¡Confetti cuando se aprueba una solicitud!
-      if (previousEstado !== 'aprobada' && newEstado === 'aprobada') {
-        console.log('🎉 Firing confetti celebration!');
-        setTimeout(() => {
-          fireCelebration();
-        }, 300); // Pequeño delay para que se vea mejor
-      }
-
       toast({
         title: "Solicitud actualizada",
         description: newEstado === 'aprobada' && previousEstado !== 'aprobada' 
@@ -178,7 +170,19 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
       });
 
       onSolicitudUpdated();
-      onOpenChange(false);
+
+      // 🎉 ¡Confetti cuando se aprueba una solicitud!
+      if (previousEstado !== 'aprobada' && newEstado === 'aprobada') {
+        console.log('🎉 Firing confetti celebration!');
+        setTimeout(() => {
+          fireCelebration();
+          // Cerrar el diálogo después del confeti
+          onOpenChange(false);
+        }, 300);
+      } else {
+        // Cerrar inmediatamente si no hay confeti
+        onOpenChange(false);
+      }
     } catch (error) {
       console.error('Error updating solicitud:', error);
       toast({
