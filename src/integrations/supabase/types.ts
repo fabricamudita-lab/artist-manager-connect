@@ -320,6 +320,56 @@ export type Database = {
           },
         ]
       }
+      contacts: {
+        Row: {
+          artist_id: string | null
+          company: string | null
+          created_at: string
+          created_by: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          role: string | null
+          updated_at: string
+        }
+        Insert: {
+          artist_id?: string | null
+          company?: string | null
+          created_at?: string
+          created_by: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string | null
+          company?: string | null
+          created_at?: string
+          created_by?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           artist_id: string
@@ -669,6 +719,7 @@ export type Database = {
           archivos_adjuntos: Json | null
           artist_id: string | null
           ciudad: string | null
+          contact_id: string | null
           created_by: string
           descripcion_libre: string | null
           email: string | null
@@ -694,6 +745,7 @@ export type Database = {
           archivos_adjuntos?: Json | null
           artist_id?: string | null
           ciudad?: string | null
+          contact_id?: string | null
           created_by: string
           descripcion_libre?: string | null
           email?: string | null
@@ -719,6 +771,7 @@ export type Database = {
           archivos_adjuntos?: Json | null
           artist_id?: string | null
           ciudad?: string | null
+          contact_id?: string | null
           created_by?: string
           descripcion_libre?: string | null
           email?: string | null
@@ -746,6 +799,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {

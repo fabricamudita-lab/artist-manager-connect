@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { SingleArtistSelector } from "@/components/SingleArtistSelector";
+import { ContactSelector } from "@/components/ContactSelector";
 
 interface CreateSolicitudFromTemplateDialogProps {
   open: boolean;
@@ -90,9 +91,7 @@ export function CreateSolicitudFromTemplateDialog({
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [step, setStep] = useState<'select' | 'form'>('select');
   const [formData, setFormData] = useState<Record<string, any>>({
-    nombre_solicitante: '',
-    email: '',
-    telefono: '',
+    contact_id: '',
     artist_id: '',
     prioridad: 'media',
     observaciones: '',
@@ -103,9 +102,7 @@ export function CreateSolicitudFromTemplateDialog({
     setStep('form');
     // Reset form with template-specific structure
     setFormData({
-      nombre_solicitante: '',
-      email: '',
-      telefono: '',
+      contact_id: '',
       artist_id: '',
       prioridad: 'media',
       observaciones: '',
@@ -148,26 +145,34 @@ export function CreateSolicitudFromTemplateDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.nombre_solicitante) {
+    if (!formData.contact_id || !formData.artist_id) {
       toast({
         title: "Error",
-        description: "El nombre del solicitante es requerido.",
+        description: "El contacto y el artista son requeridos.",
         variant: "destructive",
       });
       return;
     }
 
     try {
+      // Get contact information for the solicitud
+      const { data: contactData } = await supabase
+        .from('contacts')
+        .select('name, email, phone')
+        .eq('id', formData.contact_id)
+        .single();
+
       const template = templates.find(t => t.id === selectedTemplate);
       const tipo = selectedTemplate as 'booking' | 'entrevista' | 'consulta' | 'informacion';
 
       // Prepare solicitud data based on template
       const solicitudData: any = {
         tipo,
-        nombre_solicitante: formData.nombre_solicitante,
-        email: formData.email || null,
-        telefono: formData.telefono || null,
-        artist_id: formData.artist_id || null,
+        nombre_solicitante: contactData?.name || 'Sin nombre',
+        email: contactData?.email || null,
+        telefono: contactData?.phone || null,
+        contact_id: formData.contact_id,
+        artist_id: formData.artist_id,
         observaciones: formData.observaciones || null,
         created_by: profile?.user_id,
         estado: 'pendiente'
@@ -244,9 +249,7 @@ export function CreateSolicitudFromTemplateDialog({
       setStep('select');
       setSelectedTemplate('');
       setFormData({
-        nombre_solicitante: '',
-        email: '',
-        telefono: '',
+        contact_id: '',
         artist_id: '',
         prioridad: 'media',
         observaciones: '',
@@ -325,64 +328,39 @@ export function CreateSolicitudFromTemplateDialog({
           <h4 className="font-medium text-sm uppercase tracking-wide text-muted-foreground">Información General</h4>
           
           <div className="space-y-2">
-            <Label htmlFor="nombre_solicitante">Nombre del Solicitante *</Label>
-            <Input
-              id="nombre_solicitante"
-              value={formData.nombre_solicitante}
-              onChange={(e) => setFormData({ ...formData, nombre_solicitante: e.target.value })}
-              placeholder="Nombre de la persona o empresa"
-              required
+            <Label htmlFor="artist_id">Artista Relacionado *</Label>
+            <SingleArtistSelector
+              value={formData.artist_id}
+              onValueChange={(value) => setFormData({ ...formData, artist_id: value })}
+              placeholder="Selecciona el artista"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="correo@ejemplo.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="telefono">Teléfono</Label>
-              <Input
-                id="telefono"
-                value={formData.telefono}
-                onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                placeholder="+34 600 000 000"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="contact_id">Contacto *</Label>
+            <ContactSelector
+              value={formData.contact_id}
+              onValueChange={(value) => setFormData({ ...formData, contact_id: value })}
+              artistId={formData.artist_id}
+              placeholder="Seleccionar contacto"
+            />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="artist_id">Artista Relacionado</Label>
-              <SingleArtistSelector
-                value={formData.artist_id}
-                onValueChange={(value) => setFormData({ ...formData, artist_id: value })}
-                placeholder="Selecciona un artista"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="prioridad">Prioridad</Label>
-              <Select
-                value={formData.prioridad}
-                onValueChange={(value) => setFormData({ ...formData, prioridad: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="baja">🟢 Baja</SelectItem>
-                  <SelectItem value="media">🟡 Media</SelectItem>
-                  <SelectItem value="alta">🟠 Alta</SelectItem>
-                  <SelectItem value="urgente">🔴 Urgente</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="prioridad">Prioridad</Label>
+            <Select
+              value={formData.prioridad}
+              onValueChange={(value) => setFormData({ ...formData, prioridad: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="baja">🟢 Baja</SelectItem>
+                <SelectItem value="media">🟡 Media</SelectItem>
+                <SelectItem value="alta">🟠 Alta</SelectItem>
+                <SelectItem value="urgente">🔴 Urgente</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
