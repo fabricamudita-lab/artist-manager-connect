@@ -447,7 +447,7 @@ export default function Solicitudes() {
                 </div>
                 <div>
                   <CardTitle className="text-lg font-semibold">{getMainContent(solicitud)}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{solicitud.nombre_solicitante}</p>
+                  <p className="text-sm text-muted-foreground capitalize">{typeInfo.label}</p>
                 </div>
               </div>
               
