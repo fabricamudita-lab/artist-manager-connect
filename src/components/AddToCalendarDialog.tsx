@@ -52,11 +52,20 @@ export function AddToCalendarDialog({ request, open, onOpenChange, onEventCreate
   useEffect(() => {
     if (open && request) {
       fetchArtists();
+      // Map request type to valid event types
+      const eventTypeMap: { [key: string]: string } = {
+        'entrevista': 'interview',
+        'booking': 'concert',
+        'consulta': 'meeting',
+        'informacion': 'meeting',
+        'otro': 'meeting'
+      };
+      
       setFormData({
         title: request.title,
         description: request.description,
-        artist_id: request.artist_id,
-        event_type: request.type,
+        artist_id: request.artist_id || '',
+        event_type: eventTypeMap[request.type] || 'meeting',
         location: '',
         start_time: '09:00',
         end_time: '10:00',
@@ -166,9 +175,9 @@ export function AddToCalendarDialog({ request, open, onOpenChange, onEventCreate
                 <SelectValue placeholder="Selecciona un artista" />
               </SelectTrigger>
               <SelectContent>
-                {artists.map((artist) => (
-                  <SelectItem key={artist.id} value={artist.id || ''}>
-                    {artist.full_name || 'Sin nombre'}
+                {artists.filter(artist => artist.id && artist.full_name).map((artist) => (
+                  <SelectItem key={artist.id} value={artist.id}>
+                    {artist.full_name}
                   </SelectItem>
                 ))}
               </SelectContent>
