@@ -162,7 +162,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         .order('category', { ascending: true });
 
       if (error) throw error;
-      setItems(data || []);
+      // Ensure irpf_percentage has a default value for existing records
+      const itemsWithDefaults = (data || []).map(item => ({
+        ...item,
+        irpf_percentage: item.irpf_percentage ?? 15
+      }));
+      setItems(itemsWithDefaults);
     } catch (error) {
       console.error('Error fetching budget items:', error);
       toast({

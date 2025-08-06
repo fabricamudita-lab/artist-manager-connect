@@ -60,6 +60,7 @@ export type Database = {
           created_at: string
           id: string
           invoice_link: string | null
+          irpf_percentage: number | null
           is_attendee: boolean | null
           iva_percentage: number | null
           name: string
@@ -76,6 +77,7 @@ export type Database = {
           created_at?: string
           id?: string
           invoice_link?: string | null
+          irpf_percentage?: number | null
           is_attendee?: boolean | null
           iva_percentage?: number | null
           name: string
@@ -92,6 +94,7 @@ export type Database = {
           created_at?: string
           id?: string
           invoice_link?: string | null
+          irpf_percentage?: number | null
           is_attendee?: boolean | null
           iva_percentage?: number | null
           name?: string
