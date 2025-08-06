@@ -160,8 +160,11 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
 
       if (error) throw error;
 
+      console.log('Previous estado:', previousEstado, 'New estado:', newEstado);
+
       // 🎉 ¡Confetti cuando se aprueba una solicitud!
       if (previousEstado !== 'aprobada' && newEstado === 'aprobada') {
+        console.log('🎉 Firing confetti celebration!');
         setTimeout(() => {
           fireCelebration();
         }, 300); // Pequeño delay para que se vea mejor

@@ -9,6 +9,7 @@ import { Plus, Search, Edit, Trash2, Clock, CheckCircle, XCircle, Calendar, Mess
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
+import { useConfetti } from '@/hooks/useConfetti';
 import { CreateSolicitudDialog } from '@/components/CreateSolicitudDialog';
 import { CreateSolicitudFromTemplateDialog } from '@/components/CreateSolicitudFromTemplateDialog';
 import { EditSolicitudDialog } from '@/components/EditSolicitudDialog';
@@ -67,6 +68,7 @@ const statusConfig = {
 };
 
 export default function Solicitudes() {
+  const { fireCelebration } = useConfetti();
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
