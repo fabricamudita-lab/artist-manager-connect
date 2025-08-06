@@ -5,7 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Filter, Calendar, MessageCircle, Edit, Trash2, FileDown, AlertTriangle, ClipboardList } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Plus, Search, Filter, Calendar, MessageCircle, Edit, Trash2, FileDown, AlertTriangle, ClipboardList, Grid, List } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -85,6 +86,7 @@ export default function Solicitudes() {
     open: false,
     artistId: null
   });
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
 
   useEffect(() => {
     fetchSolicitudes();
@@ -350,6 +352,135 @@ export default function Solicitudes() {
     );
   };
 
+  const renderSolicitudTable = () => {
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Tipo</TableHead>
+            <TableHead>Solicitante</TableHead>
+            <TableHead>Estado</TableHead>
+            <TableHead>Artista</TableHead>
+            <TableHead>Fecha</TableHead>
+            <TableHead>Detalles</TableHead>
+            <TableHead className="text-right">Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredSolicitudes.map((solicitud) => {
+            const config = statusConfig[solicitud.estado];
+            const typeInfo = typeConfig[solicitud.tipo];
+            const isOverdue = new Date(solicitud.fecha_actualizacion) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) && 
+                             (solicitud.estado === 'pendiente');
+
+            return (
+              <TableRow key={solicitud.id} className={isOverdue ? 'bg-destructive/5' : ''}>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{typeInfo.icon}</span>
+                    <span className="font-medium">{typeInfo.label}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div>
+                    <div className="font-medium">{solicitud.nombre_solicitante}</div>
+                    {solicitud.email && (
+                      <div className="text-sm text-muted-foreground">{solicitud.email}</div>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge className={`${config.color} badge-info`}>
+                    {config.icon} {config.label}
+                  </Badge>
+                  {isOverdue && (
+                    <div className="text-xs text-destructive font-medium flex items-center gap-1 mt-1">
+                      <AlertTriangle className="w-3 h-3" /> Vencida
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {solicitud.profiles?.full_name ? (
+                    <button 
+                      onClick={() => openArtistProfile(solicitud.artist_id!)}
+                      className="text-sm font-medium text-primary hover:text-primary-glow transition-colors cursor-pointer"
+                    >
+                      {solicitud.profiles.full_name}
+                    </button>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">
+                    {format(new Date(solicitud.fecha_creacion), 'dd MMM yyyy', { locale: es })}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm space-y-1">
+                    {solicitud.tipo === 'entrevista' && (
+                      <>
+                        {solicitud.medio && <div><strong>Medio:</strong> {solicitud.medio}</div>}
+                        {solicitud.nombre_programa && <div><strong>Programa:</strong> {solicitud.nombre_programa}</div>}
+                      </>
+                    )}
+                    {solicitud.tipo === 'booking' && (
+                      <>
+                        {solicitud.nombre_festival && <div><strong>Festival:</strong> {solicitud.nombre_festival}</div>}
+                        {solicitud.lugar_concierto && <div><strong>Lugar:</strong> {solicitud.lugar_concierto}</div>}
+                        {solicitud.ciudad && <div><strong>Ciudad:</strong> {solicitud.ciudad}</div>}
+                      </>
+                    )}
+                    {solicitud.tipo === 'otro' && solicitud.descripcion_libre && (
+                      <div><strong>Descripción:</strong> {solicitud.descripcion_libre}</div>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1">
+                    <Select
+                      value={solicitud.estado}
+                      onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') => 
+                        handleStatusChange(solicitud.id, value)
+                      }
+                    >
+                      <SelectTrigger className="w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pendiente">⏳ Pendiente</SelectItem>
+                        <SelectItem value="aprobada">✅ Aprobada</SelectItem>
+                        <SelectItem value="denegada">❌ Denegada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedSolicitud(solicitud);
+                        setShowEditDialog(true);
+                      }}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openDeleteDialog(solicitud.id, solicitud.nombre_solicitante)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -426,6 +557,25 @@ export default function Solicitudes() {
                 </SelectContent>
               </Select>
 
+              <div className="flex gap-2">
+                <Button 
+                  variant={viewMode === 'cards' ? 'default' : 'outline'} 
+                  size="sm" 
+                  onClick={() => setViewMode('cards')}
+                  className="hover-lift"
+                >
+                  <Grid className="w-4 h-4" />
+                </Button>
+                <Button 
+                  variant={viewMode === 'table' ? 'default' : 'outline'} 
+                  size="sm" 
+                  onClick={() => setViewMode('table')}
+                  className="hover-lift"
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+              </div>
+
               <Button variant="outline" size="default" className="hover-lift">
                 <FileDown className="w-4 h-4 mr-2" />
                 Exportar
@@ -460,10 +610,16 @@ export default function Solicitudes() {
                 </div>
               </CardContent>
             </Card>
-          ) : (
+          ) : viewMode === 'cards' ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {filteredSolicitudes.map(renderSolicitudCard)}
             </div>
+          ) : (
+            <Card className="card-moodita">
+              <CardContent className="p-0">
+                {renderSolicitudTable()}
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>
