@@ -953,12 +953,19 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                             dataKey="value"
                           >
                             {Object.entries(budgetCategories).map(([categoryKey, category], index) => {
-                              const colors = [
-                                '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', 
-                                '#ef4444', '#8b5cf6', '#6366f1', '#84cc16'
+                              // Using yearly calendar colors
+                              const calendarColors = [
+                                '#e11d48', // Rose 600 - Equipo Artístico
+                                '#ea580c', // Orange 600 - Equipo Técnico  
+                                '#d97706', // Amber 600 - Transporte
+                                '#2563eb', // Blue 600 - Dietas
+                                '#c2410c', // Red 600 - Hospedaje
+                                '#9333ea', // Purple 600 - Promoción
+                                '#65a30d', // Lime 600 - Comisiones
+                                '#0891b2'  // Cyan 600 - Otros Gastos
                               ];
                               return (
-                                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                                <Cell key={`cell-${index}`} fill={calendarColors[index % calendarColors.length]} />
                               );
                             })}
                           </Pie>
