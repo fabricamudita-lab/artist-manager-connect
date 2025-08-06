@@ -331,9 +331,9 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
                             </SelectItem>
                           ))}
                         {artists.filter(artist => !selectedArtistIds.includes(artist.id)).length === 0 && (
-                          <SelectItem value="" disabled>
+                          <div className="p-2 text-sm text-muted-foreground text-center">
                             {selectedArtistIds.length === artists.length ? "Todos los artistas ya están seleccionados" : "No hay artistas disponibles"}
-                          </SelectItem>
+                          </div>
                         )}
                       </SelectContent>
                     </Select>

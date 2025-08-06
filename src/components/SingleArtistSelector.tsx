@@ -24,8 +24,8 @@ interface Artist {
 }
 
 interface SingleArtistSelectorProps {
-  value: string;
-  onValueChange: (value: string) => void;
+  value: string | null;
+  onValueChange: (value: string | null) => void;
   placeholder?: string;
   className?: string;
 }
@@ -86,7 +86,7 @@ export function SingleArtistSelector({
               <CommandGroup>
                 <CommandItem
                   onSelect={() => {
-                    onValueChange('');
+                    onValueChange(null);
                     setOpen(false);
                   }}
                   className="cursor-pointer"

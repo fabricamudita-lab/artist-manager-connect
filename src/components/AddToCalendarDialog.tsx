@@ -42,7 +42,7 @@ export function AddToCalendarDialog({ request, open, onOpenChange, onEventCreate
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    artist_id: '',
+    artist_id: undefined as string | undefined,
     event_type: '',
     location: '',
     start_time: '',
@@ -64,7 +64,7 @@ export function AddToCalendarDialog({ request, open, onOpenChange, onEventCreate
       setFormData({
         title: request.title,
         description: request.description,
-        artist_id: request.artist_id || '',
+        artist_id: request.artist_id && request.artist_id.trim() !== '' ? request.artist_id : undefined,
         event_type: eventTypeMap[request.type] || 'meeting',
         location: '',
         start_time: '09:00',
@@ -80,9 +80,13 @@ export function AddToCalendarDialog({ request, open, onOpenChange, onEventCreate
         .select('*')
         .contains('roles', ['artist']);
 
-      // Filter out any profiles without valid data
+      // Filter out any profiles without valid data and ensure no empty values
       const validArtists = (data || []).filter(artist => 
-        artist && artist.id && artist.full_name
+        artist && 
+        artist.id && 
+        artist.id.trim() !== '' && 
+        artist.full_name && 
+        artist.full_name.trim() !== ''
       );
       
       setArtists(validArtists);
@@ -191,7 +195,7 @@ export function AddToCalendarDialog({ request, open, onOpenChange, onEventCreate
               onValueChange={(value) => setFormData({ ...formData, event_type: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Tipo de evento" />
+                <SelectValue placeholder="Selecciona el tipo de evento" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="concert">Concierto</SelectItem>
