@@ -241,22 +241,32 @@ export default function Solicitudes() {
         console.log(`Checking solicitud ${solicitud.id}: "${solicitud.nombre_solicitante}" (type: ${solicitud.tipo})`);
         
         // Si el nombre actual es genérico, tiene formato anterior, o está en nuestra lista, actualizarlo
-        if (genericNames.includes(currentName) || 
+        const needsUpdate = genericNames.includes(currentName) || 
             currentName === '' || 
             currentName === 'sin nombre' ||
             currentName.startsWith('test') ||
             currentName.match(/^[a-z0-9\s]{1,10}$/i) ||
-            solicitud.nombre_solicitante?.includes('Consulta: Solicitud de Consulta') ||
-            solicitud.nombre_solicitante?.includes('Info: Solicitud de Información') ||
+            solicitud.nombre_solicitante?.includes('Consulta – Solicitud de Consulta') ||
+            solicitud.nombre_solicitante?.includes('Solicitud de información – Solicitud de Información') ||
+            solicitud.nombre_solicitante?.startsWith('Consulta – ') ||
+            solicitud.nombre_solicitante?.startsWith('Solicitud de información – ') ||
             solicitud.nombre_solicitante?.startsWith('Consulta:') ||
-            solicitud.nombre_solicitante?.startsWith('Info:')) {
-          
+            solicitud.nombre_solicitante?.startsWith('Info:');
+            
+        console.log(`Needs update: ${needsUpdate}`);
+        
+        if (needsUpdate) {
           const newName = generateSolicitudName(solicitud);
+          console.log(`Generated new name: "${newName}" for solicitud "${solicitud.nombre_solicitante}"`);
+          
           if (newName !== solicitud.nombre_solicitante) {
+            console.log(`Will update solicitud ${solicitud.id}: "${solicitud.nombre_solicitante}" -> "${newName}"`);
             solicitudesToUpdate.push({
               id: solicitud.id,
               nombre_solicitante: newName
             });
+          } else {
+            console.log(`No change needed for solicitud ${solicitud.id}: names match`);
           }
         }
       });
