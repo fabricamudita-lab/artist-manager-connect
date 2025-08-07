@@ -569,77 +569,69 @@ export default function Solicitudes() {
   const aprobadasCount = solicitudes.filter(s => s.estado === 'aprobada').length;
   const denegadasCount = solicitudes.filter(s => s.estado === 'denegada').length;
 
+  const getStatusBadgeColor = (estado: string) => {
+    switch (estado) {
+      case 'pendiente': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
+      case 'aprobada': return 'bg-green-50 text-green-700 border-green-200';
+      case 'denegada': return 'bg-red-50 text-red-700 border-red-200';
+      default: return 'bg-gray-50 text-gray-700 border-gray-200';
+    }
+  };
+
+  const getTypeIcon = (tipo: string) => {
+    switch (tipo) {
+      case 'entrevista': return '🎙️';
+      case 'booking': return '🎤';
+      case 'consulta': return '💬';
+      case 'informacion': return 'ℹ️';
+      case 'otro': return '📄';
+      default: return '📄';
+    }
+  };
+
   return (
-    <div className="container mx-auto py-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Solicitudes</h1>
-          <p className="text-muted-foreground">
-            Gestiona todas las solicitudes de manera eficiente
-          </p>
+    <div className="container mx-auto p-6 max-w-6xl">
+      {/* Header estilo Gmail */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold">Solicitudes</h1>
+          <Badge variant="secondary" className="text-sm px-3 py-1">
+            {filteredSolicitudes.length} {filteredSolicitudes.length === 1 ? 'solicitud' : 'solicitudes'}
+          </Badge>
+          <div className="hidden sm:flex gap-2 text-sm text-muted-foreground">
+            <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs">
+              {pendientesCount} pendientes
+            </span>
+            <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+              {aprobadasCount} aprobadas
+            </span>
+            <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">
+              {denegadasCount} denegadas
+            </span>
+          </div>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setShowCreateDialog(true)} variant="outline">
+          <Button 
+            onClick={() => setShowCreateDialog(true)}
+            className="bg-primary hover:bg-primary/90"
+          >
             <Plus className="w-4 h-4 mr-2" />
-            Nueva
+            Nueva Solicitud
           </Button>
-          <Button onClick={() => setShowTemplateDialog(true)}>
+          <Button 
+            variant="outline"
+            onClick={() => setShowTemplateDialog(true)}
+          >
             <Plus className="w-4 h-4 mr-2" />
             Desde Plantilla
           </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card className="animate-fade-in">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{pendientesCount}</p>
-                <p className="text-sm text-muted-foreground">Pendientes</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center">
-                <CheckCircle className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{aprobadasCount}</p>
-                <p className="text-sm text-muted-foreground">Aprobadas</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center">
-                <XCircle className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{denegadasCount}</p>
-                <p className="text-sm text-muted-foreground">Denegadas</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+      {/* Toolbar de búsqueda y filtros */}
+      <div className="flex flex-col sm:flex-row gap-4 bg-card p-4 rounded-lg border mb-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Buscar solicitudes..."
             value={searchTerm}
@@ -647,42 +639,183 @@ export default function Solicitudes() {
             className="pl-10"
           />
         </div>
-        
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Estado" />
+            <SelectValue placeholder="Filtrar por estado" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los estados</SelectItem>
-            <SelectItem value="pendiente">Pendientes</SelectItem>
-            <SelectItem value="aprobada">Aprobadas</SelectItem>
-            <SelectItem value="denegada">Denegadas</SelectItem>
+            <SelectItem value="pendiente">Pendiente</SelectItem>
+            <SelectItem value="aprobada">Aprobada</SelectItem>
+            <SelectItem value="denegada">Denegada</SelectItem>
           </SelectContent>
         </Select>
-
         <Select value={filterType} onValueChange={setFilterType}>
           <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Tipo" />
+            <SelectValue placeholder="Filtrar por tipo" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los tipos</SelectItem>
-            <SelectItem value="entrevista">🎙️ Entrevista</SelectItem>
-            <SelectItem value="booking">🎤 Booking</SelectItem>
-            <SelectItem value="consulta">💬 Consulta</SelectItem>
-            <SelectItem value="informacion">ℹ️ Información</SelectItem>
-            <SelectItem value="otro">📄 Otro</SelectItem>
+            <SelectItem value="entrevista">Entrevista</SelectItem>
+            <SelectItem value="booking">Booking</SelectItem>
+            <SelectItem value="consulta">Consulta</SelectItem>
+            <SelectItem value="informacion">Información</SelectItem>
+            <SelectItem value="otro">Otro</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Solicitudes Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {filteredSolicitudes.map((solicitud) => renderSolicitudCard(solicitud))}
-      </div>
+      {/* Vista tipo inbox de Gmail */}
+      {filteredSolicitudes.length === 0 ? (
+        <Card className="text-center py-8">
+          <CardContent>
+            <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No hay solicitudes</h3>
+            <p className="text-muted-foreground mb-4">
+              {searchTerm || filterStatus !== 'all' || filterType !== 'all'
+                ? 'No se encontraron solicitudes que coincidan con los filtros seleccionados.'
+                : 'Aún no tienes solicitudes. ¡Crea la primera!'}
+            </p>
+            <Button onClick={() => setShowCreateDialog(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Crear Primera Solicitud
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="bg-card border rounded-lg overflow-hidden">
+          {filteredSolicitudes.map((solicitud, index) => {
+            const typeInfo = typeConfig[solicitud.tipo];
+            const statusInfo = statusConfig[solicitud.estado];
+            const StatusIcon = statusInfo.icon;
+            
+            return (
+              <div
+                key={solicitud.id}
+                className={`
+                  group flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer transition-colors border-b border-border/50 last:border-b-0
+                  ${solicitud.estado === 'pendiente' ? 'bg-yellow-50/30' : ''}
+                  ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}
+                `}
+                onClick={() => {
+                  setSelectedSolicitudForDetails(solicitud);
+                  setShowDetailsDialog(true);
+                }}
+              >
+                {/* Icono/Tipo */}
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm">
+                    {getTypeIcon(solicitud.tipo)}
+                  </div>
+                </div>
 
-      {filteredSolicitudes.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No se encontraron solicitudes</p>
+                {/* Contenido principal */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className={`font-medium truncate ${solicitud.estado === 'pendiente' ? 'text-foreground font-semibold' : 'text-foreground'}`}>
+                      {getMainContent(solicitud)}
+                    </h3>
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded capitalize flex-shrink-0">
+                      {typeInfo.label}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    {solicitud.profiles?.full_name && (
+                      <span className="flex-shrink-0">👤 {solicitud.profiles.full_name}</span>
+                    )}
+                    {solicitud.email && (
+                      <span className="flex-shrink-0">📧 {solicitud.email}</span>
+                    )}
+                    {(solicitud.tipo === 'booking' && solicitud.ciudad) && (
+                      <span className="flex-shrink-0">📍 {solicitud.ciudad}</span>
+                    )}
+                    {(solicitud.tipo === 'entrevista' && solicitud.medio) && (
+                      <span className="flex-shrink-0">📺 {solicitud.medio}</span>
+                    )}
+                    {solicitud.observaciones && (
+                      <span className="truncate">💬 {solicitud.observaciones.substring(0, 40)}...</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Estado */}
+                <div className="flex-shrink-0">
+                  <Badge className={`${getStatusBadgeColor(solicitud.estado)} text-xs border`}>
+                    <StatusIcon className="w-3 h-3 mr-1" />
+                    {statusInfo.label}
+                  </Badge>
+                </div>
+
+                {/* Fecha */}
+                <div className="flex-shrink-0 text-sm text-muted-foreground min-w-[80px] text-right">
+                  {format(new Date(solicitud.fecha_creacion), 'dd MMM', { locale: es })}
+                </div>
+
+                {/* Actions */}
+                <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1">
+                    <Select
+                      value={solicitud.estado}
+                      onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') => {
+                        handleStatusChange(solicitud.id, value);
+                      }}
+                    >
+                      <SelectTrigger 
+                        className="w-8 h-8 p-0 border-0 hover:bg-muted"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pendiente">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-3 h-3" />
+                            Pendiente
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="aprobada">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-3 h-3" />
+                            Aprobada
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="denegada">
+                          <div className="flex items-center gap-2">
+                            <XCircle className="w-3 h-3" />
+                            Denegada
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedSolicitud(solicitud);
+                        setShowEditDialog(true);
+                      }}
+                      className="h-8 w-8 p-0 hover:bg-muted"
+                    >
+                      <Edit className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openDeleteDialog(solicitud.id, getMainContent(solicitud));
+                      }}
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
