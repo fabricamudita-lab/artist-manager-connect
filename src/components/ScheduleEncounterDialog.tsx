@@ -86,9 +86,6 @@ export function ScheduleEncounterDialog({ open, onOpenChange, solicitud, onCreat
           description: `Relacionado con solicitud ${solicitud.id}\n${notes || ''}`,
           created_by: profile?.user_id,
           artist_id: solicitud.artist_id || null,
-          ...(solicitud.tipo === 'booking' ? {
-            booking_id: solicitud.id,
-          } : {})
         }
       ]);
 
