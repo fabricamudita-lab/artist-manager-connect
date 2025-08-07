@@ -34,6 +34,11 @@ interface Solicitud {
   created_by: string;
   artist_id?: string;
   
+  // Comentario y metadatos de decisión
+  comentario_estado?: string | null;
+  decision_por?: string | null;
+  decision_fecha?: string | null;
+  
   // Campos específicos para entrevistas
   medio?: string;
   nombre_entrevistador?: string;
@@ -348,30 +353,63 @@ export default function Solicitudes() {
     setFilteredSolicitudes(filtered);
   };
 
-  const handleStatusChange = async (solicitudId: string, newStatus: 'pendiente' | 'aprobada' | 'denegada') => {
-    try {
-      const { error } = await supabase
-        .from('solicitudes')
-        .update({ estado: newStatus })
-        .eq('id', solicitudId);
+const handleStatusChange = async (solicitudId: string, newStatus: 'pendiente' | 'aprobada' | 'denegada') => {
+  if (newStatus === 'aprobada' || newStatus === 'denegada') {
+    setStatusDialog({ open: true, solicitudId, newStatus });
+    return;
+  }
 
-      if (error) throw error;
+  try {
+    const { error } = await supabase
+      .from('solicitudes')
+      .update({ estado: newStatus })
+      .eq('id', solicitudId);
 
-      toast({
-        title: "Estado actualizado",
-        description: "El estado de la solicitud se ha actualizado correctamente.",
-      });
+    if (error) throw error;
 
-      fetchSolicitudes();
-    } catch (error) {
-      console.error('Error updating status:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el estado de la solicitud.",
-        variant: "destructive",
-      });
+    toast({
+      title: "Estado actualizado",
+      description: "El estado de la solicitud se ha actualizado correctamente.",
+    });
+
+    fetchSolicitudes();
+  } catch (error) {
+    console.error('Error updating status:', error);
+    toast({
+      title: "Error",
+      description: "No se pudo actualizar el estado de la solicitud.",
+      variant: "destructive",
+    });
+  }
+};
+
+const confirmStatusChange = async (comment: string) => {
+  const { solicitudId, newStatus } = statusDialog;
+  if (!solicitudId) return;
+  try {
+    const { error } = await supabase
+      .from('solicitudes')
+      .update({
+        estado: newStatus,
+        comentario_estado: comment || null,
+        decision_por: profile?.user_id || null,
+        decision_fecha: new Date().toISOString(),
+      } as any)
+      .eq('id', solicitudId);
+
+    if (error) throw error;
+
+    toast({ title: 'Estado actualizado', description: 'El estado y comentario han sido guardados.' });
+    setStatusDialog({ open: false, solicitudId: '', newStatus: 'aprobada' });
+    fetchSolicitudes();
+    if (newStatus === 'aprobada') {
+      fireCelebration();
     }
-  };
+  } catch (error) {
+    console.error('Error updating status:', error);
+    toast({ title: 'Error', description: 'No se pudo actualizar el estado.', variant: 'destructive' });
+  }
+};
 
   const openDeleteDialog = (solicitudId: string, nombre: string) => {
     setDeleteDialog({ open: true, solicitudId, nombre });
@@ -799,29 +837,40 @@ export default function Solicitudes() {
                         </SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedSolicitud(solicitud);
-                        setShowEditDialog(true);
-                      }}
-                      className="h-8 w-8 p-0 hover:bg-muted"
-                    >
-                      <Edit className="w-3 h-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openDeleteDialog(solicitud.id, getMainContent(solicitud));
-                      }}
-                      className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
+<Button
+  variant="ghost"
+  size="sm"
+  onClick={(e) => {
+    e.stopPropagation();
+    setEncuentroDialog({ open: true, solicitud });
+  }}
+  className="h-8 w-8 p-0 hover:bg-muted"
+>
+  <Phone className="w-3 h-3" />
+</Button>
+<Button
+  variant="ghost"
+  size="sm"
+  onClick={(e) => {
+    e.stopPropagation();
+    setSelectedSolicitud(solicitud);
+    setShowEditDialog(true);
+  }}
+  className="h-8 w-8 p-0 hover:bg-muted"
+>
+  <Edit className="w-3 h-3" />
+</Button>
+<Button
+  variant="ghost"
+  size="sm"
+  onClick={(e) => {
+    e.stopPropagation();
+    openDeleteDialog(solicitud.id, getMainContent(solicitud));
+  }}
+  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+>
+  <Trash2 className="w-3 h-3" />
+</Button>
                   </div>
                 </div>
               </div>
@@ -852,21 +901,43 @@ export default function Solicitudes() {
         />
       )}
 
-      <SolicitudDetailsDialog
-        solicitudId={selectedSolicitudForDetails?.id || null}
-        open={showDetailsDialog}
-        onOpenChange={setShowDetailsDialog}
-        onUpdate={fetchSolicitudes}
-      />
+<SolicitudDetailsDialog
+  solicitudId={selectedSolicitudForDetails?.id || null}
+  open={showDetailsDialog}
+  onOpenChange={setShowDetailsDialog}
+  onUpdate={fetchSolicitudes}
+/>
 
-      <ConfirmationDialog
-        open={deleteDialog.open}
-        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
-        title="¿Eliminar solicitud?"
-        description={`¿Estás seguro de que quieres eliminar la solicitud "${deleteDialog.nombre}"? Esta acción no se puede deshacer.`}
-        onConfirm={handleDelete}
-        variant="destructive"
-      />
+<ConfirmationDialog
+  open={deleteDialog.open}
+  onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
+  title="¿Eliminar solicitud?"
+  description={`¿Estás seguro de que quieres eliminar la solicitud "${deleteDialog.nombre}"? Esta acción no se puede deshacer.`}
+  onConfirm={handleDelete}
+  variant="destructive"
+/>
+
+<StatusCommentDialog
+  open={statusDialog.open}
+  onOpenChange={(open) => setStatusDialog(prev => ({ ...prev, open }))}
+  status={statusDialog.newStatus}
+  onSubmit={confirmStatusChange}
+/>
+
+<ScheduleEncounterDialog
+  open={encuentroDialog.open}
+  onOpenChange={(open) => setEncuentroDialog({ open, solicitud: open ? encuentroDialog.solicitud : null })}
+  solicitud={encuentroDialog.solicitud ? {
+    id: encuentroDialog.solicitud.id,
+    artist_id: encuentroDialog.solicitud.artist_id,
+    tipo: encuentroDialog.solicitud.tipo,
+    nombre_solicitante: encuentroDialog.solicitud.nombre_solicitante,
+    ciudad: encuentroDialog.solicitud.ciudad,
+    medio: encuentroDialog.solicitud.medio,
+    lugar_concierto: encuentroDialog.solicitud.lugar_concierto,
+  } : null}
+  onCreated={fetchSolicitudes}
+/>
     </div>
   );
 }

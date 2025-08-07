@@ -27,6 +27,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useConfetti } from '@/hooks/useConfetti';
+import { useAuth } from '@/hooks/useAuth';
 import { StatusCommentDialog } from '@/components/StatusCommentDialog';
 import { ScheduleEncounterDialog } from '@/components/ScheduleEncounterDialog';
 
@@ -54,6 +55,9 @@ interface SolicitudDetails {
   artist_id?: string;
   contact_id?: string;
   archivos_adjuntos?: any[];
+  comentario_estado?: string | null;
+  decision_por?: string | null;
+  decision_fecha?: string | null;
   profiles?: {
     full_name: string;
     email: string;
@@ -73,9 +77,13 @@ export function SolicitudDetailsDialog({
   solicitudId, 
   onUpdate 
 }: SolicitudDetailsDialogProps) {
-  const { fireCelebration } = useConfetti();
-  const [solicitud, setSolicitud] = useState<SolicitudDetails | null>(null);
-  const [loading, setLoading] = useState(true);
+const { fireCelebration } = useConfetti();
+const { profile } = useAuth();
+const [solicitud, setSolicitud] = useState<SolicitudDetails | null>(null);
+const [loading, setLoading] = useState(true);
+const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+const [pendingStatus, setPendingStatus] = useState<'aprobada' | 'denegada'>('aprobada');
+const [encuentroOpen, setEncuentroOpen] = useState(false);
 
   useEffect(() => {
     if (open && solicitudId) {
@@ -111,53 +119,50 @@ export function SolicitudDetailsDialog({
     }
   };
 
-  const updateSolicitudStatus = async (newStatus: 'aprobada' | 'denegada') => {
-    if (!solicitud) return;
+const updateSolicitudStatus = async (newStatus: 'aprobada' | 'denegada', comment?: string) => {
+  if (!solicitud) return;
 
-    const previousEstado = solicitud.estado;
+  const previousEstado = solicitud.estado;
 
-    try {
-      const { error } = await supabase
-        .from('solicitudes')
-        .update({ 
-          estado: newStatus,
-          fecha_actualizacion: new Date().toISOString()
-        })
-        .eq('id', solicitud.id);
+  try {
+    const { error } = await supabase
+      .from('solicitudes')
+      .update({
+        estado: newStatus,
+        fecha_actualizacion: new Date().toISOString(),
+        comentario_estado: comment || null,
+        decision_por: profile?.user_id || null,
+        decision_fecha: new Date().toISOString(),
+      } as any)
+      .eq('id', solicitud.id);
 
-      if (error) throw error;
+    if (error) throw error;
 
-      setSolicitud(prev => prev ? { ...prev, estado: newStatus } : null);
-      onUpdate?.();
-      
-      toast({
-        title: "¡Éxito!",
-        description: newStatus === 'aprobada' ? "¡Solicitud aprobada! 🎉" : "Solicitud denegada correctamente",
-      });
+    setSolicitud(prev => prev ? { ...prev, estado: newStatus, comentario_estado: comment || null } : null);
+    onUpdate?.();
+    
+    toast({
+      title: "¡Éxito!",
+      description: newStatus === 'aprobada' ? "¡Solicitud aprobada! 🎉" : "Solicitud denegada correctamente",
+    });
 
-      // 🎉 ¡Confetti y cierre automático cuando se aprueba!
-      if (previousEstado !== 'aprobada' && newStatus === 'aprobada') {
-        console.log('🎉 Firing confetti celebration from details dialog!');
-        setTimeout(() => {
-          fireCelebration();
-          // Cerrar el diálogo después del confeti
-          onOpenChange(false);
-        }, 300);
-      } else {
-        // Para denegaciones, cerrar inmediatamente
-        if (newStatus === 'denegada') {
-          setTimeout(() => onOpenChange(false), 1000);
-        }
-      }
-    } catch (error) {
-      console.error('Error updating solicitud status:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el estado de la solicitud",
-        variant: "destructive"
-      });
+    if (previousEstado !== 'aprobada' && newStatus === 'aprobada') {
+      setTimeout(() => {
+        fireCelebration();
+        onOpenChange(false);
+      }, 300);
+    } else if (newStatus === 'denegada') {
+      setTimeout(() => onOpenChange(false), 1000);
     }
-  };
+  } catch (error) {
+    console.error('Error updating solicitud status:', error);
+    toast({
+      title: "Error",
+      description: "No se pudo actualizar el estado de la solicitud",
+      variant: "destructive"
+    });
+  }
+};
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -437,7 +442,7 @@ export function SolicitudDetailsDialog({
           )}
 
           {/* Observaciones y Notas */}
-          {(solicitud.observaciones || solicitud.descripcion_libre || solicitud.notas_internas) && (
+          {(solicitud.observaciones || solicitud.descripcion_libre || solicitud.notas_internas || solicitud.comentario_estado) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -471,6 +476,15 @@ export function SolicitudDetailsDialog({
                     <p className="text-sm font-medium text-muted-foreground mb-3">Notas Internas</p>
                     <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
                       <p className="text-sm text-yellow-800 whitespace-pre-wrap">{solicitud.notas_internas}</p>
+                    </div>
+                  </div>
+                )}
+
+                {solicitud.comentario_estado && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-3">Comentario de decisión</p>
+                    <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+                      <p className="text-sm text-green-800 whitespace-pre-wrap">{solicitud.comentario_estado}</p>
                     </div>
                   </div>
                 )}
@@ -518,27 +532,60 @@ export function SolicitudDetailsDialog({
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      onClick={() => updateSolicitudStatus('denegada')}
-                      variant="outline"
-                      className="border-red-200 text-red-700 hover:bg-red-50"
-                    >
-                      <X className="w-4 h-4 mr-1" />
-                      Denegar
-                    </Button>
-                    <Button
-                      onClick={() => updateSolicitudStatus('aprobada')}
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <Check className="w-4 h-4 mr-1" />
-                      Aprobar
-                    </Button>
+<Button
+  onClick={() => { setPendingStatus('denegada'); setStatusDialogOpen(true); }}
+  variant="outline"
+  className="border-red-200 text-red-700 hover:bg-red-50"
+>
+  <X className="w-4 h-4 mr-1" />
+  Denegar
+</Button>
+<Button
+  onClick={() => { setPendingStatus('aprobada'); setStatusDialogOpen(true); }}
+  className="bg-green-600 hover:bg-green-700 text-white"
+>
+  <Check className="w-4 h-4 mr-1" />
+  Aprobar
+</Button>
+<Button
+  variant="outline"
+  onClick={() => setEncuentroOpen(true)}
+>
+  <Calendar className="w-4 h-4 mr-1" />
+  Organizar encuentro
+</Button>
                   </div>
                 </div>
               </CardContent>
             </Card>
           )}
         </div>
+
+        {/* Dialogos auxiliares */}
+        <StatusCommentDialog
+          open={statusDialogOpen}
+          onOpenChange={setStatusDialogOpen}
+          status={pendingStatus}
+          onSubmit={(comment) => {
+            setStatusDialogOpen(false);
+            updateSolicitudStatus(pendingStatus, comment);
+          }}
+        />
+
+        <ScheduleEncounterDialog
+          open={encuentroOpen}
+          onOpenChange={setEncuentroOpen}
+          solicitud={{
+            id: solicitud.id,
+            artist_id: solicitud.artist_id,
+            tipo: solicitud.tipo,
+            nombre_solicitante: solicitud.nombre_solicitante,
+            ciudad: solicitud.ciudad,
+            medio: solicitud.medio,
+            lugar_concierto: solicitud.lugar_concierto,
+          }}
+          onCreated={onUpdate}
+        />
       </DialogContent>
     </Dialog>
   );

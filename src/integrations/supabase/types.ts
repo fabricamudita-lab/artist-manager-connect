@@ -743,8 +743,11 @@ export type Database = {
           archivos_adjuntos: Json | null
           artist_id: string | null
           ciudad: string | null
+          comentario_estado: string | null
           contact_id: string | null
           created_by: string
+          decision_fecha: string | null
+          decision_por: string | null
           descripcion_libre: string | null
           email: string | null
           estado: Database["public"]["Enums"]["request_status"]
@@ -769,8 +772,11 @@ export type Database = {
           archivos_adjuntos?: Json | null
           artist_id?: string | null
           ciudad?: string | null
+          comentario_estado?: string | null
           contact_id?: string | null
           created_by: string
+          decision_fecha?: string | null
+          decision_por?: string | null
           descripcion_libre?: string | null
           email?: string | null
           estado?: Database["public"]["Enums"]["request_status"]
@@ -795,8 +801,11 @@ export type Database = {
           archivos_adjuntos?: Json | null
           artist_id?: string | null
           ciudad?: string | null
+          comentario_estado?: string | null
           contact_id?: string | null
           created_by?: string
+          decision_fecha?: string | null
+          decision_por?: string | null
           descripcion_libre?: string | null
           email?: string | null
           estado?: Database["public"]["Enums"]["request_status"]
