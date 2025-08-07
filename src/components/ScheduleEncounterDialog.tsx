@@ -84,8 +84,8 @@ export function ScheduleEncounterDialog({ open, onOpenChange, solicitud, onCreat
           end_date: end.toISOString(),
           location: type === 'llamada' ? (profile?.phone || '') : (linkOrPhone || 'Online'),
           description: `Relacionado con solicitud ${solicitud.id}\n${notes || ''}`,
-          created_by: profile?.user_id,
-          artist_id: solicitud.artist_id || null,
+          created_by: profile?.id,
+          artist_id: solicitud.artist_id || profile?.id || null,
         }
       ]);
 
