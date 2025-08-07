@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -35,6 +35,13 @@ export function ScheduleEncounterDialog({ open, onOpenChange, solicitud, onCreat
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    // Autorrellenar el teléfono desde el perfil cuando sea una llamada
+    if (type === 'llamada') {
+      setLinkOrPhone(profile?.phone || '');
+    }
+  }, [type, profile?.phone]);
+
   const reset = () => {
     setType(''); setDate(''); setTime(''); setLinkOrPhone(''); setNotes('');
   };
@@ -54,6 +61,16 @@ export function ScheduleEncounterDialog({ open, onOpenChange, solicitud, onCreat
       return;
     }
 
+    if (type === 'llamada' && !profile?.phone) {
+      toast({ title: 'Teléfono no configurado', description: 'Añade tu teléfono en el perfil antes de crear una llamada', variant: 'destructive' });
+      return;
+    }
+
+    if (type === 'videollamada' && !linkOrPhone) {
+      toast({ title: 'Falta el enlace', description: 'Añade el enlace de videollamada', variant: 'destructive' });
+      return;
+    }
+
     const start = new Date(`${date}T${time}`);
     const end = new Date(start.getTime() + 60 * 60 * 1000);
 
@@ -65,7 +82,7 @@ export function ScheduleEncounterDialog({ open, onOpenChange, solicitud, onCreat
           event_type: 'meeting',
           start_date: start.toISOString(),
           end_date: end.toISOString(),
-          location: linkOrPhone || (type === 'llamada' ? 'Phone' : 'Online'),
+          location: type === 'llamada' ? (profile?.phone || '') : (linkOrPhone || 'Online'),
           description: `Relacionado con solicitud ${solicitud.id}\n${notes || ''}`,
           created_by: profile?.user_id,
           artist_id: solicitud.artist_id || null,
@@ -123,15 +140,21 @@ export function ScheduleEncounterDialog({ open, onOpenChange, solicitud, onCreat
             </div>
           )}
 
-          {type && type !== 'chat' && (
+          {type === 'videollamada' && (
             <div className="space-y-2">
-              <Label>{type === 'llamada' ? 'Teléfono' : 'Enlace de videollamada'}</Label>
+              <Label>Enlace de videollamada</Label>
               <Input
-                placeholder={type === 'llamada' ? '+34 600 000 000' : 'https://meet...'}
+                placeholder="https://meet..."
                 value={linkOrPhone}
                 onChange={(e) => setLinkOrPhone(e.target.value)}
               />
             </div>
+          )}
+
+          {type === 'llamada' && (
+            <p className="text-sm text-muted-foreground">
+              Se usará el teléfono de tu perfil: {profile?.phone || 'No configurado'}
+            </p>
           )}
 
           <div className="space-y-2">
