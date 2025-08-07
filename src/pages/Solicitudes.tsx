@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Edit, Trash2, Clock, CheckCircle, XCircle, Calendar, MessageSquare } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Clock, CheckCircle, XCircle, Calendar, MessageSquare, Phone, Video } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -17,6 +17,8 @@ import { SolicitudDetailsDialog } from '@/components/SolicitudDetailsDialog';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { StatusCommentDialog } from '@/components/StatusCommentDialog';
+import { ScheduleEncounterDialog } from '@/components/ScheduleEncounterDialog';
 
 interface Solicitud {
   id: string;
@@ -87,6 +89,15 @@ export default function Solicitudes() {
     open: false,
     solicitudId: '',
     nombre: ''
+  });
+  const [statusDialog, setStatusDialog] = useState<{ open: boolean; solicitudId: string; newStatus: 'aprobada' | 'denegada' }>({
+    open: false,
+    solicitudId: '',
+    newStatus: 'aprobada'
+  });
+  const [encuentroDialog, setEncuentroDialog] = useState<{ open: boolean; solicitud: Solicitud | null }>({
+    open: false,
+    solicitud: null
   });
 
   useEffect(() => {

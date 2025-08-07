@@ -27,6 +27,8 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useConfetti } from '@/hooks/useConfetti';
+import { StatusCommentDialog } from '@/components/StatusCommentDialog';
+import { ScheduleEncounterDialog } from '@/components/ScheduleEncounterDialog';
 
 interface SolicitudDetails {
   id: string;
