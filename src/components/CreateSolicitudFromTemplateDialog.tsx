@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Plus, Calendar, Mic, HelpCircle, Info } from "lucide-react";
+import { FileText, Plus, Calendar, Mic, HelpCircle, Info, Scale, MoreHorizontal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
@@ -28,13 +28,17 @@ const templates = [
     icon: Calendar,
     color: 'bg-blue-100 text-blue-800',
     fields: [
-      'nombre_festival',
+      'fecha',
+      'festival_ciclo',
       'ciudad',
-      'lugar_concierto', 
-      'hora_show',
-      'fee_propuesto',
-      'condiciones_extra',
-      'contacto_organizacion'
+      'lugar',
+      'capacidad',
+      'hora',
+      'formato',
+      'status_booking',
+      'oferta',
+      'condiciones',
+      'comentarios'
     ]
   },
   {
@@ -44,12 +48,12 @@ const templates = [
     icon: Mic,
     color: 'bg-green-100 text-green-800',
     fields: [
-      'nombre_programa',
-      'nombre_entrevistador',
-      'hora_entrevista',
+      'programa',
+      'medio_canal',
+      'fecha_hora',
       'formato_entrevista',
-      'informacion_adicional',
-      'contacto_medio'
+      'nombre_entrevistador',
+      'informacion_adicional'
     ]
   },
   {
@@ -59,11 +63,11 @@ const templates = [
     icon: HelpCircle,
     color: 'bg-yellow-100 text-yellow-800',
     fields: [
-      'asunto_consulta',
-      'detalle_contexto',
-      'fecha_respuesta',
-      'materiales_adjuntos',
-      'contacto_referencia'
+      'asunto',
+      'descripcion_contexto',
+      'prioridad',
+      'contacto',
+      'tipo_respuesta'
     ]
   },
   {
@@ -74,10 +78,36 @@ const templates = [
     color: 'bg-purple-100 text-purple-800',
     fields: [
       'tema_proyecto',
-      'detalle_solicitud',
-      'formato_respuesta',
-      'fecha_limite',
-      'contacto_referencia'
+      'detalle_solicitado',
+      'tipo_respuesta'
+    ]
+  },
+  {
+    id: 'licencia',
+    title: 'Licencia',
+    description: 'Solicitudes de licencias musicales',
+    icon: Scale,
+    color: 'bg-orange-100 text-orange-800',
+    fields: [
+      'tipo_licencia',
+      'obra_licenciar',
+      'medio_proyecto',
+      'territorio',
+      'duracion',
+      'empresa_artista_solicitante'
+    ]
+  },
+  {
+    id: 'otros',
+    title: 'Otros',
+    description: 'Otras solicitudes no categorizadas',
+    icon: MoreHorizontal,
+    color: 'bg-gray-100 text-gray-800',
+    fields: [
+      'asunto',
+      'descripcion',
+      'contacto',
+      'tipo_respuesta'
     ]
   }
 ];
@@ -108,36 +138,51 @@ export function CreateSolicitudFromTemplateDialog({
       observaciones: '',
       // Template-specific fields
       ...(templateId === 'booking' && {
-        nombre_festival: '',
+        fecha: '',
+        festival_ciclo: '',
         ciudad: '',
-        lugar_concierto: '',
-        hora_show: '',
-        fee_propuesto: '',
-        condiciones_extra: '',
-        contacto_organizacion: ''
+        lugar: '',
+        capacidad: '',
+        hora: '',
+        formato: '',
+        status_booking: '',
+        oferta: '',
+        condiciones: '',
+        comentarios: ''
       }),
       ...(templateId === 'entrevista' && {
-        medio: '',
-        nombre_programa: '',
-        nombre_entrevistador: '',
-        hora_entrevista: '',
+        programa: '',
+        medio_canal: '',
+        fecha_hora: '',
         formato_entrevista: '',
-        informacion_programa: '',
-        contacto_medio: ''
+        nombre_entrevistador: '',
+        informacion_adicional: ''
       }),
       ...(templateId === 'consulta' && {
-        asunto_consulta: '',
-        detalle_contexto: '',
-        fecha_respuesta: '',
-        materiales_adjuntos: '',
-        contacto_referencia: ''
+        asunto: '',
+        descripcion_contexto: '',
+        prioridad: 'media',
+        contacto: '',
+        tipo_respuesta: ''
       }),
       ...(templateId === 'informacion' && {
         tema_proyecto: '',
-        detalle_solicitud: '',
-        formato_respuesta: '',
-        fecha_limite: '',
-        contacto_referencia: ''
+        detalle_solicitado: '',
+        tipo_respuesta: ''
+      }),
+      ...(templateId === 'licencia' && {
+        tipo_licencia: '',
+        obra_licenciar: '',
+        medio_proyecto: '',
+        territorio: '',
+        duracion: '',
+        empresa_artista_solicitante: ''
+      }),
+      ...(templateId === 'otros' && {
+        asunto: '',
+        descripcion: '',
+        contacto: '',
+        tipo_respuesta: ''
       })
     });
   };
@@ -163,7 +208,7 @@ export function CreateSolicitudFromTemplateDialog({
         .single();
 
       const template = templates.find(t => t.id === selectedTemplate);
-      const tipo = selectedTemplate as 'booking' | 'entrevista' | 'consulta' | 'informacion';
+      const tipo = selectedTemplate as 'booking' | 'entrevista' | 'consulta' | 'informacion' | 'licencia' | 'otros';
 
       // Prepare solicitud data based on template
       const solicitudData: any = {
@@ -182,54 +227,70 @@ export function CreateSolicitudFromTemplateDialog({
       let descripcionLibre = `Solicitud de ${template?.title}\n\n`;
       
       if (selectedTemplate === 'booking') {
-        descripcionLibre += `Nombre del festival/evento: ${formData.nombre_festival || 'No especificado'}\n`;
-        descripcionLibre += `Ciudad/país: ${formData.ciudad || 'No especificado'}\n`;
-        descripcionLibre += `Lugar del concierto: ${formData.lugar_concierto || 'No especificado'}\n`;
-        descripcionLibre += `Fecha y hora: ${formData.hora_show || 'No especificado'}\n`;
-        descripcionLibre += `Fee propuesto: ${formData.fee_propuesto || 'No especificado'}\n`;
-        descripcionLibre += `Condiciones extra: ${formData.condiciones_extra || 'No especificado'}\n`;
-        descripcionLibre += `Contacto organización: ${formData.contacto_organizacion || 'No especificado'}\n`;
+        descripcionLibre += `Fecha: ${formData.fecha || 'No especificada'}\n`;
+        descripcionLibre += `Festival / Ciclo: ${formData.festival_ciclo || 'No especificado'}\n`;
+        descripcionLibre += `Ciudad: ${formData.ciudad || 'No especificada'}\n`;
+        descripcionLibre += `Lugar: ${formData.lugar || 'No especificado'}\n`;
+        descripcionLibre += `Capacidad: ${formData.capacidad || 'No especificada'}\n`;
+        descripcionLibre += `Hora: ${formData.hora || 'No especificada'}\n`;
+        descripcionLibre += `Formato: ${formData.formato || 'No especificado'}\n`;
+        descripcionLibre += `Status: ${formData.status_booking || 'No especificado'}\n`;
+        descripcionLibre += `Oferta: ${formData.oferta || 'No especificada'}\n`;
+        descripcionLibre += `Condiciones: ${formData.condiciones || 'No especificadas'}\n`;
+        descripcionLibre += `Comentarios: ${formData.comentarios || 'No especificados'}\n`;
         
         // Map to existing fields where possible
-        solicitudData.nombre_festival = formData.nombre_festival || null;
+        solicitudData.nombre_festival = formData.festival_ciclo || null;
         solicitudData.ciudad = formData.ciudad || null;
-        solicitudData.lugar_concierto = formData.lugar_concierto || null;
-        solicitudData.hora_show = formData.hora_show ? new Date(formData.hora_show).toISOString() : null;
+        solicitudData.lugar_concierto = formData.lugar || null;
+        solicitudData.hora_show = formData.fecha && formData.hora ? new Date(formData.fecha + 'T' + formData.hora).toISOString() : null;
       }
 
       if (selectedTemplate === 'entrevista') {
-        descripcionLibre += `Nombre del programa/medio: ${formData.nombre_programa || 'No especificado'}\n`;
-        descripcionLibre += `Nombre del entrevistador: ${formData.nombre_entrevistador || 'No especificado'}\n`;
-        descripcionLibre += `Fecha y hora: ${formData.hora_entrevista || 'No especificado'}\n`;
+        descripcionLibre += `Programa: ${formData.programa || 'No especificado'}\n`;
+        descripcionLibre += `Medio / Canal: ${formData.medio_canal || 'No especificado'}\n`;
+        descripcionLibre += `Fecha y hora: ${formData.fecha_hora || 'No especificada'}\n`;
         descripcionLibre += `Formato: ${formData.formato_entrevista || 'No especificado'}\n`;
-        descripcionLibre += `Información adicional: ${formData.informacion_programa || 'No especificado'}\n`;
-        descripcionLibre += `Contacto del medio: ${formData.contacto_medio || 'No especificado'}\n`;
+        descripcionLibre += `Nombre del entrevistador: ${formData.nombre_entrevistador || 'No especificado'}\n`;
+        descripcionLibre += `Información adicional: ${formData.informacion_adicional || 'No especificada'}\n`;
         
         // Map to existing fields where possible
-        solicitudData.medio = formData.medio || null;
-        solicitudData.nombre_programa = formData.nombre_programa || null;
+        solicitudData.medio = formData.medio_canal || null;
+        solicitudData.nombre_programa = formData.programa || null;
         solicitudData.nombre_entrevistador = formData.nombre_entrevistador || null;
-        solicitudData.hora_entrevista = formData.hora_entrevista ? new Date(formData.hora_entrevista).toISOString() : null;
-        solicitudData.informacion_programa = formData.informacion_programa || null;
+        solicitudData.hora_entrevista = formData.fecha_hora ? new Date(formData.fecha_hora).toISOString() : null;
+        solicitudData.informacion_programa = formData.informacion_adicional || null;
       }
 
       if (selectedTemplate === 'consulta') {
-        descripcionLibre += `Asunto principal: ${formData.asunto_consulta || 'No especificado'}\n`;
-        descripcionLibre += `Detalle/contexto: ${formData.detalle_contexto || 'No especificado'}\n`;
-        descripcionLibre += `Fecha sugerida para respuesta: ${formData.fecha_respuesta || 'No especificado'}\n`;
-        descripcionLibre += `Materiales adjuntos: ${formData.materiales_adjuntos || 'No especificado'}\n`;
-        descripcionLibre += `Contacto de referencia: ${formData.contacto_referencia || 'No especificado'}\n`;
+        descripcionLibre += `Asunto: ${formData.asunto || 'No especificado'}\n`;
+        descripcionLibre += `Descripción / contexto: ${formData.descripcion_contexto || 'No especificada'}\n`;
+        descripcionLibre += `Prioridad: ${formData.prioridad || 'Media'}\n`;
+        descripcionLibre += `Contacto: ${formData.contacto || 'No especificado'}\n`;
+        descripcionLibre += `Tipo de respuesta: ${formData.tipo_respuesta || 'No especificado'}\n`;
       }
 
       if (selectedTemplate === 'informacion') {
-        descripcionLibre += `Tema/proyecto: ${formData.tema_proyecto || 'No especificado'}\n`;
-        descripcionLibre += `Detalle de la solicitud: ${formData.detalle_solicitud || 'No especificado'}\n`;
-        descripcionLibre += `Formato de respuesta: ${formData.formato_respuesta || 'No especificado'}\n`;
-        descripcionLibre += `Fecha límite: ${formData.fecha_limite || 'No especificado'}\n`;
-        descripcionLibre += `Contacto de referencia: ${formData.contacto_referencia || 'No especificado'}\n`;
+        descripcionLibre += `Tema o proyecto: ${formData.tema_proyecto || 'No especificado'}\n`;
+        descripcionLibre += `Detalle de lo solicitado: ${formData.detalle_solicitado || 'No especificado'}\n`;
+        descripcionLibre += `Tipo de respuesta: ${formData.tipo_respuesta || 'No especificado'}\n`;
       }
 
-      descripcionLibre += `\nPrioridad: ${formData.prioridad}\n`;
+      if (selectedTemplate === 'licencia') {
+        descripcionLibre += `Tipo de licencia: ${formData.tipo_licencia || 'No especificado'}\n`;
+        descripcionLibre += `Obra a licenciar: ${formData.obra_licenciar || 'No especificada'}\n`;
+        descripcionLibre += `Medio o proyecto: ${formData.medio_proyecto || 'No especificado'}\n`;
+        descripcionLibre += `Territorio: ${formData.territorio || 'No especificado'}\n`;
+        descripcionLibre += `Duración: ${formData.duracion || 'No especificada'}\n`;
+        descripcionLibre += `Empresa o artista solicitante: ${formData.empresa_artista_solicitante || 'No especificado'}\n`;
+      }
+
+      if (selectedTemplate === 'otros') {
+        descripcionLibre += `Asunto: ${formData.asunto || 'No especificado'}\n`;
+        descripcionLibre += `Descripción: ${formData.descripcion || 'No especificada'}\n`;
+        descripcionLibre += `Contacto: ${formData.contacto || 'No especificado'}\n`;
+        descripcionLibre += `Tipo de respuesta: ${formData.tipo_respuesta || 'No especificado'}\n`;
+      }
       
       solicitudData.descripcion_libre = descripcionLibre;
 
@@ -363,18 +424,30 @@ export function CreateSolicitudFromTemplateDialog({
           
           {selectedTemplate === 'booking' && (
             <>
-              <div className="space-y-2">
-                <Label htmlFor="nombre_festival">Nombre del festival / evento</Label>
-                <Input
-                  id="nombre_festival"
-                  value={formData.nombre_festival}
-                  onChange={(e) => setFormData({ ...formData, nombre_festival: e.target.value })}
-                  placeholder="Nombre del festival o evento"
-                />
-              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="ciudad">Ciudad / país</Label>
+                  <Label htmlFor="fecha">Fecha</Label>
+                  <Input
+                    id="fecha"
+                    type="date"
+                    value={formData.fecha}
+                    onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="festival_ciclo">Festival / Ciclo</Label>
+                  <Input
+                    id="festival_ciclo"
+                    value={formData.festival_ciclo}
+                    onChange={(e) => setFormData({ ...formData, festival_ciclo: e.target.value })}
+                    placeholder="Nombre del festival o ciclo"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ciudad">Ciudad</Label>
                   <Input
                     id="ciudad"
                     value={formData.ciudad}
@@ -383,52 +456,95 @@ export function CreateSolicitudFromTemplateDialog({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="lugar_concierto">Lugar del concierto</Label>
+                  <Label htmlFor="lugar">Lugar</Label>
                   <Input
-                    id="lugar_concierto"
-                    value={formData.lugar_concierto}
-                    onChange={(e) => setFormData({ ...formData, lugar_concierto: e.target.value })}
+                    id="lugar"
+                    value={formData.lugar}
+                    onChange={(e) => setFormData({ ...formData, lugar: e.target.value })}
                     placeholder="Nombre del venue"
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="hora_show">Fecha(s) propuesta(s)</Label>
+                  <Label htmlFor="capacidad">Capacidad</Label>
                   <Input
-                    id="hora_show"
-                    type="datetime-local"
-                    value={formData.hora_show}
-                    onChange={(e) => setFormData({ ...formData, hora_show: e.target.value })}
+                    id="capacidad"
+                    type="number"
+                    value={formData.capacidad}
+                    onChange={(e) => setFormData({ ...formData, capacidad: e.target.value })}
+                    placeholder="1500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="fee_propuesto">Fee propuesto (€)</Label>
+                  <Label htmlFor="hora">Hora</Label>
                   <Input
-                    id="fee_propuesto"
-                    value={formData.fee_propuesto}
-                    onChange={(e) => setFormData({ ...formData, fee_propuesto: e.target.value })}
-                    placeholder="5000"
+                    id="hora"
+                    type="time"
+                    value={formData.hora}
+                    onChange={(e) => setFormData({ ...formData, hora: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="formato">Formato</Label>
+                  <Input
+                    id="formato"
+                    value={formData.formato}
+                    onChange={(e) => setFormData({ ...formData, formato: e.target.value })}
+                    placeholder="Concierto, DJ set, etc."
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="status_booking">Status</Label>
+                  <Select
+                    value={formData.status_booking}
+                    onValueChange={(value) => setFormData({ ...formData, status_booking: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="interes">Interés</SelectItem>
+                      <SelectItem value="oferta">Oferta</SelectItem>
+                      <SelectItem value="negociacion">Negociación</SelectItem>
+                      <SelectItem value="cerrado">Cerrado</SelectItem>
+                      <SelectItem value="cancelado">Cancelado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="oferta">Oferta</Label>
+                  <Input
+                    id="oferta"
+                    value={formData.oferta}
+                    onChange={(e) => setFormData({ ...formData, oferta: e.target.value })}
+                    placeholder="€5000"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="condiciones_extra">Otras condiciones (backline, alojamiento, transporte)</Label>
+                <Label htmlFor="condiciones">Condiciones</Label>
                 <Textarea
-                  id="condiciones_extra"
-                  value={formData.condiciones_extra}
-                  onChange={(e) => setFormData({ ...formData, condiciones_extra: e.target.value })}
-                  placeholder="Especifica backline, rider, alojamiento, transporte..."
+                  id="condiciones"
+                  value={formData.condiciones}
+                  onChange={(e) => setFormData({ ...formData, condiciones: e.target.value })}
+                  placeholder="Backline, alojamiento, transporte, rider..."
                   rows={3}
                 />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="contacto_organizacion">Contacto de la organización (nombre, email, teléfono)</Label>
+                <Label htmlFor="comentarios">Comentarios</Label>
                 <Textarea
-                  id="contacto_organizacion"
-                  value={formData.contacto_organizacion}
-                  onChange={(e) => setFormData({ ...formData, contacto_organizacion: e.target.value })}
-                  placeholder="Nombre: Juan Pérez, Email: juan@festival.com, Teléfono: +34 600 000 000"
+                  id="comentarios"
+                  value={formData.comentarios}
+                  onChange={(e) => setFormData({ ...formData, comentarios: e.target.value })}
+                  placeholder="Comentarios adicionales sobre la solicitud"
                   rows={3}
                 />
               </div>
@@ -439,32 +555,33 @@ export function CreateSolicitudFromTemplateDialog({
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="nombre_programa">Nombre del programa / medio</Label>
+                  <Label htmlFor="programa">Programa</Label>
                   <Input
-                    id="nombre_programa"
-                    value={formData.nombre_programa}
-                    onChange={(e) => setFormData({ ...formData, nombre_programa: e.target.value })}
-                    placeholder="La Ventana, Cadena SER"
+                    id="programa"
+                    value={formData.programa}
+                    onChange={(e) => setFormData({ ...formData, programa: e.target.value })}
+                    placeholder="La Ventana"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nombre_entrevistador">Nombre del entrevistador/a</Label>
+                  <Label htmlFor="medio_canal">Medio / Canal</Label>
                   <Input
-                    id="nombre_entrevistador"
-                    value={formData.nombre_entrevistador}
-                    onChange={(e) => setFormData({ ...formData, nombre_entrevistador: e.target.value })}
-                    placeholder="María García"
+                    id="medio_canal"
+                    value={formData.medio_canal}
+                    onChange={(e) => setFormData({ ...formData, medio_canal: e.target.value })}
+                    placeholder="Cadena SER"
                   />
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="hora_entrevista">Fecha y hora propuesta</Label>
+                  <Label htmlFor="fecha_hora">Fecha y hora</Label>
                   <Input
-                    id="hora_entrevista"
+                    id="fecha_hora"
                     type="datetime-local"
-                    value={formData.hora_entrevista}
-                    onChange={(e) => setFormData({ ...formData, hora_entrevista: e.target.value })}
+                    value={formData.fecha_hora}
+                    onChange={(e) => setFormData({ ...formData, fecha_hora: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -479,30 +596,30 @@ export function CreateSolicitudFromTemplateDialog({
                     <SelectContent>
                       <SelectItem value="presencial">Presencial</SelectItem>
                       <SelectItem value="online">Online</SelectItem>
-                      <SelectItem value="grabada">Grabada</SelectItem>
-                      <SelectItem value="directo">En directo</SelectItem>
+                      <SelectItem value="phonecall">Phonecall</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="informacion_programa">Información adicional (enlace, preguntas previstas, temática)</Label>
-                <Textarea
-                  id="informacion_programa"
-                  value={formData.informacion_programa}
-                  onChange={(e) => setFormData({ ...formData, informacion_programa: e.target.value })}
-                  placeholder="Link del programa, temática principal, preguntas que podrían hacer..."
-                  rows={3}
+                <Label htmlFor="nombre_entrevistador">Nombre del entrevistador</Label>
+                <Input
+                  id="nombre_entrevistador"
+                  value={formData.nombre_entrevistador}
+                  onChange={(e) => setFormData({ ...formData, nombre_entrevistador: e.target.value })}
+                  placeholder="María García"
                 />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="contacto_medio">Contacto del medio (nombre, email, teléfono)</Label>
+                <Label htmlFor="informacion_adicional">Información adicional</Label>
                 <Textarea
-                  id="contacto_medio"
-                  value={formData.contacto_medio}
-                  onChange={(e) => setFormData({ ...formData, contacto_medio: e.target.value })}
-                  placeholder="Persona de contacto, email y teléfono del medio"
-                  rows={2}
+                  id="informacion_adicional"
+                  value={formData.informacion_adicional}
+                  onChange={(e) => setFormData({ ...formData, informacion_adicional: e.target.value })}
+                  placeholder="Enlace, preguntas previstas, temática..."
+                  rows={3}
                 />
               </div>
             </>
@@ -511,53 +628,71 @@ export function CreateSolicitudFromTemplateDialog({
           {selectedTemplate === 'consulta' && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="asunto_consulta">Asunto principal de la consulta</Label>
+                <Label htmlFor="asunto">Asunto</Label>
                 <Input
-                  id="asunto_consulta"
-                  value={formData.asunto_consulta}
-                  onChange={(e) => setFormData({ ...formData, asunto_consulta: e.target.value })}
-                  placeholder="Tema principal de la consulta"
+                  id="asunto"
+                  value={formData.asunto}
+                  onChange={(e) => setFormData({ ...formData, asunto: e.target.value })}
+                  placeholder="Asunto de la consulta"
                 />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="detalle_contexto">Detalle / contexto</Label>
+                <Label htmlFor="descripcion_contexto">Descripción / contexto</Label>
                 <Textarea
-                  id="detalle_contexto"
-                  value={formData.detalle_contexto}
-                  onChange={(e) => setFormData({ ...formData, detalle_contexto: e.target.value })}
+                  id="descripcion_contexto"
+                  value={formData.descripcion_contexto}
+                  onChange={(e) => setFormData({ ...formData, descripcion_contexto: e.target.value })}
                   placeholder="Describe el contexto y detalles de la consulta"
                   rows={4}
                 />
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="fecha_respuesta">Fecha sugerida para respuesta</Label>
-                  <Input
-                    id="fecha_respuesta"
-                    type="date"
-                    value={formData.fecha_respuesta}
-                    onChange={(e) => setFormData({ ...formData, fecha_respuesta: e.target.value })}
-                  />
+                  <Label htmlFor="prioridad">Prioridad</Label>
+                  <Select
+                    value={formData.prioridad}
+                    onValueChange={(value) => setFormData({ ...formData, prioridad: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="baja">🟢 Baja</SelectItem>
+                      <SelectItem value="media">🟡 Media</SelectItem>
+                      <SelectItem value="alta">🟠 Alta</SelectItem>
+                      <SelectItem value="urgente">🔴 Urgente</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="materiales_adjuntos">Materiales adjuntos (opcional)</Label>
+                  <Label htmlFor="contacto">Contacto</Label>
                   <Input
-                    id="materiales_adjuntos"
-                    value={formData.materiales_adjuntos}
-                    onChange={(e) => setFormData({ ...formData, materiales_adjuntos: e.target.value })}
-                    placeholder="Documentos, links, referencias"
+                    id="contacto"
+                    value={formData.contacto}
+                    onChange={(e) => setFormData({ ...formData, contacto: e.target.value })}
+                    placeholder="Persona de contacto"
                   />
                 </div>
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="contacto_referencia">Contacto de referencia (nombre, email, teléfono)</Label>
-                <Textarea
-                  id="contacto_referencia"
-                  value={formData.contacto_referencia}
-                  onChange={(e) => setFormData({ ...formData, contacto_referencia: e.target.value })}
-                  placeholder="Persona de contacto para esta consulta"
-                  rows={2}
-                />
+                <Label htmlFor="tipo_respuesta">Tipo de respuesta</Label>
+                <Select
+                  value={formData.tipo_respuesta}
+                  onValueChange={(value) => setFormData({ ...formData, tipo_respuesta: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona tipo de respuesta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="reunion">Reunión</SelectItem>
+                    <SelectItem value="phonecall">Phonecall</SelectItem>
+                    <SelectItem value="correo">Correo</SelectItem>
+                    <SelectItem value="chat">Chat</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </>
           )}
@@ -565,7 +700,7 @@ export function CreateSolicitudFromTemplateDialog({
           {selectedTemplate === 'informacion' && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="tema_proyecto">Tema o proyecto sobre el que se solicita información</Label>
+                <Label htmlFor="tema_proyecto">Tema o proyecto</Label>
                 <Input
                   id="tema_proyecto"
                   value={formData.tema_proyecto}
@@ -573,53 +708,161 @@ export function CreateSolicitudFromTemplateDialog({
                   placeholder="Nuevo álbum, gira, colaboración..."
                 />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="detalle_solicitud">Detalle de la solicitud</Label>
+                <Label htmlFor="detalle_solicitado">Detalle de lo solicitado</Label>
                 <Textarea
-                  id="detalle_solicitud"
-                  value={formData.detalle_solicitud}
-                  onChange={(e) => setFormData({ ...formData, detalle_solicitud: e.target.value })}
+                  id="detalle_solicitado"
+                  value={formData.detalle_solicitado}
+                  onChange={(e) => setFormData({ ...formData, detalle_solicitado: e.target.value })}
                   placeholder="Qué información específica necesitan"
                   rows={4}
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tipo_respuesta">Tipo de respuesta</Label>
+                <Select
+                  value={formData.tipo_respuesta}
+                  onValueChange={(value) => setFormData({ ...formData, tipo_respuesta: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona tipo de respuesta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="reunion">Reunión</SelectItem>
+                    <SelectItem value="phonecall">Phonecall</SelectItem>
+                    <SelectItem value="correo">Correo</SelectItem>
+                    <SelectItem value="chat">Chat</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+
+          {selectedTemplate === 'licencia' && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="tipo_licencia">Tipo de licencia</Label>
+                <Select
+                  value={formData.tipo_licencia}
+                  onValueChange={(value) => setFormData({ ...formData, tipo_licencia: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona tipo de licencia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cover">Cover</SelectItem>
+                    <SelectItem value="sampleo">Sampleo</SelectItem>
+                    <SelectItem value="sincronia">Sincronía</SelectItem>
+                    <SelectItem value="master">Master</SelectItem>
+                    <SelectItem value="otros">Otros</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="obra_licenciar">Obra a licenciar</Label>
+                <Input
+                  id="obra_licenciar"
+                  value={formData.obra_licenciar}
+                  onChange={(e) => setFormData({ ...formData, obra_licenciar: e.target.value })}
+                  placeholder="Nombre de la canción/obra"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="medio_proyecto">Medio o proyecto</Label>
+                <Input
+                  id="medio_proyecto"
+                  value={formData.medio_proyecto}
+                  onChange={(e) => setFormData({ ...formData, medio_proyecto: e.target.value })}
+                  placeholder="Película, anuncio, serie, etc."
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="formato_respuesta">Formato de respuesta</Label>
-                  <Select
-                    value={formData.formato_respuesta}
-                    onValueChange={(value) => setFormData({ ...formData, formato_respuesta: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona formato" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="email">Email</SelectItem>
-                      <SelectItem value="llamada">Llamada</SelectItem>
-                      <SelectItem value="reunion">Reunión</SelectItem>
-                      <SelectItem value="documento">Documento</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="territorio">Territorio</Label>
+                  <Input
+                    id="territorio"
+                    value={formData.territorio}
+                    onChange={(e) => setFormData({ ...formData, territorio: e.target.value })}
+                    placeholder="España, Mundial, etc."
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="fecha_limite">Fecha límite sugerida</Label>
+                  <Label htmlFor="duracion">Duración</Label>
                   <Input
-                    id="fecha_limite"
-                    type="date"
-                    value={formData.fecha_limite}
-                    onChange={(e) => setFormData({ ...formData, fecha_limite: e.target.value })}
+                    id="duracion"
+                    value={formData.duracion}
+                    onChange={(e) => setFormData({ ...formData, duracion: e.target.value })}
+                    placeholder="1 año, permanente, etc."
                   />
                 </div>
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="contacto_referencia">Contacto de referencia (nombre, email, teléfono)</Label>
-                <Textarea
-                  id="contacto_referencia"
-                  value={formData.contacto_referencia}
-                  onChange={(e) => setFormData({ ...formData, contacto_referencia: e.target.value })}
-                  placeholder="Persona de contacto para esta solicitud"
-                  rows={2}
+                <Label htmlFor="empresa_artista_solicitante">Empresa o artista solicitante</Label>
+                <Input
+                  id="empresa_artista_solicitante"
+                  value={formData.empresa_artista_solicitante}
+                  onChange={(e) => setFormData({ ...formData, empresa_artista_solicitante: e.target.value })}
+                  placeholder="Nombre de la empresa o artista"
                 />
+              </div>
+            </>
+          )}
+
+          {selectedTemplate === 'otros' && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="asunto">Asunto</Label>
+                <Input
+                  id="asunto"
+                  value={formData.asunto}
+                  onChange={(e) => setFormData({ ...formData, asunto: e.target.value })}
+                  placeholder="Asunto de la solicitud"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="descripcion">Descripción</Label>
+                <Textarea
+                  id="descripcion"
+                  value={formData.descripcion}
+                  onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                  placeholder="Describe la solicitud"
+                  rows={4}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="contacto">Contacto</Label>
+                <Input
+                  id="contacto"
+                  value={formData.contacto}
+                  onChange={(e) => setFormData({ ...formData, contacto: e.target.value })}
+                  placeholder="Persona de contacto"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tipo_respuesta">Tipo de respuesta</Label>
+                <Select
+                  value={formData.tipo_respuesta}
+                  onValueChange={(value) => setFormData({ ...formData, tipo_respuesta: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona tipo de respuesta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="reunion">Reunión</SelectItem>
+                    <SelectItem value="phonecall">Phonecall</SelectItem>
+                    <SelectItem value="correo">Correo</SelectItem>
+                    <SelectItem value="chat">Chat</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </>
           )}
