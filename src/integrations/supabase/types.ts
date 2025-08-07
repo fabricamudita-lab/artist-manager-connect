@@ -869,6 +869,8 @@ export type Database = {
         | "otro"
         | "consulta"
         | "informacion"
+        | "licencia"
+        | "otros"
       show_status: "confirmado" | "pendiente" | "cancelado"
       user_role: "artist" | "management"
     }
@@ -1020,6 +1022,8 @@ export const Constants = {
         "otro",
         "consulta",
         "informacion",
+        "licencia",
+        "otros",
       ],
       show_status: ["confirmado", "pendiente", "cancelado"],
       user_role: ["artist", "management"],
