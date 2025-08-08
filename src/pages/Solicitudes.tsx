@@ -808,9 +808,9 @@ const confirmStatusChange = async (comment: string) => {
                       value={solicitud.estado}
                       onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') => handleStatusChange(solicitud.id, value)}
                     >
-                      <SelectTrigger className={`${getStatusBadgeColor(solicitud.estado)} text-xs border rounded-full h-7 px-3`}
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                    <SelectTrigger className={`${getStatusBadgeColor(solicitud.estado)} text-xs border rounded-full h-7 px-3 [&>svg:last-child]:hidden`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                         <StatusIcon className="w-3 h-3 mr-1" />
                         {statusInfo.label}
                       </SelectTrigger>
