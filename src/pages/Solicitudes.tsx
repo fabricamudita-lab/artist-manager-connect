@@ -83,6 +83,7 @@ export default function Solicitudes() {
   const [filteredSolicitudes, setFilteredSolicitudes] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [profileSearchTerm, setProfileSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
   
@@ -114,7 +115,7 @@ export default function Solicitudes() {
 
   useEffect(() => {
     filterSolicitudes();
-  }, [solicitudes, searchTerm, filterStatus, filterType]);
+  }, [solicitudes, searchTerm, profileSearchTerm, filterStatus, filterType]);
 
   const fetchSolicitudes = async () => {
     try {
@@ -348,8 +349,13 @@ export default function Solicitudes() {
     if (searchTerm) {
       filtered = filtered.filter(s =>
         s.nombre_solicitante.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.observaciones?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
+        s.observaciones?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (profileSearchTerm) {
+      filtered = filtered.filter(s =>
+        s.profiles?.full_name?.toLowerCase().includes(profileSearchTerm.toLowerCase())
       );
     }
 
@@ -708,6 +714,15 @@ const confirmStatusChange = async (comment: string) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
+          />
+        </div>
+        <div className="relative w-full sm:w-60">
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar perfiles..."
+            value={profileSearchTerm}
+            onChange={(e) => setProfileSearchTerm(e.target.value)}
+            className="pl-9 h-9 text-sm"
           />
         </div>
         <Select value={filterType} onValueChange={setFilterType}>
