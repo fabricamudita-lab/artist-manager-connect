@@ -665,21 +665,37 @@ const confirmStatusChange = async (comment: string) => {
     <div className="container mx-auto p-6 max-w-6xl">
       {/* Header estilo Gmail */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div className="flex items-center gap-4">
-          <h1 className="text-3xl font-bold">Solicitudes</h1>
-          <Badge variant="secondary" className="text-sm px-3 py-1">
-            {filteredSolicitudes.length} {filteredSolicitudes.length === 1 ? 'solicitud' : 'solicitudes'}
-          </Badge>
-          <div className="hidden sm:flex gap-2 text-sm text-muted-foreground">
-            <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs">
-              {pendientesCount} pendientes
-            </span>
-            <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
-              {aprobadasCount} aprobadas
-            </span>
-            <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">
-              {denegadasCount} denegadas
-            </span>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">Solicitudes</h1>
+          <div className="flex gap-2">
+            <Button
+              variant={filterStatus === 'all' ? 'default' : 'outline'}
+              onClick={() => setFilterStatus('all')}
+              className={`h-auto px-4 py-2 rounded-full ${filterStatus === 'all' ? 'bg-primary hover:bg-primary/90' : 'bg-muted hover:bg-muted/80'}`}
+            >
+              {solicitudes.length} solicitud{solicitudes.length !== 1 ? 'es' : ''}
+            </Button>
+            <Button
+              variant={filterStatus === 'pendiente' ? 'default' : 'outline'}
+              onClick={() => setFilterStatus('pendiente')}
+              className={`h-auto px-4 py-2 rounded-full ${filterStatus === 'pendiente' ? 'bg-warning hover:bg-warning/90 text-warning-foreground' : 'bg-warning/20 text-warning-foreground border-warning/30 hover:bg-warning/30'}`}
+            >
+              {statusCounts.pendiente} pendientes
+            </Button>
+            <Button
+              variant={filterStatus === 'aprobada' ? 'default' : 'outline'}
+              onClick={() => setFilterStatus('aprobada')}
+              className={`h-auto px-4 py-2 rounded-full ${filterStatus === 'aprobada' ? 'bg-success hover:bg-success/90 text-success-foreground' : 'bg-success/20 text-success-foreground border-success/30 hover:bg-success/30'}`}
+            >
+              {statusCounts.aprobada} aprobadas
+            </Button>
+            <Button
+              variant={filterStatus === 'denegada' ? 'default' : 'outline'}
+              onClick={() => setFilterStatus('denegada')}
+              className={`h-auto px-4 py-2 rounded-full ${filterStatus === 'denegada' ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : 'bg-destructive/20 text-destructive-foreground border-destructive/30 hover:bg-destructive/30'}`}
+            >
+              {statusCounts.denegada} denegadas
+            </Button>
           </div>
         </div>
         <div className="flex gap-2">
@@ -711,39 +727,6 @@ const confirmStatusChange = async (comment: string) => {
             className="pl-10"
           />
         </div>
-
-        {/* Filtros por estado con contadores */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          <Button
-            variant={filterStatus === 'all' ? 'default' : 'outline'}
-            onClick={() => setFilterStatus('all')}
-            className="h-auto px-4 py-2"
-          >
-            Todos ({solicitudes.length})
-          </Button>
-          <Button
-            variant={filterStatus === 'pendiente' ? 'default' : 'outline'}
-            onClick={() => setFilterStatus('pendiente')}
-            className={`h-auto px-4 py-2 ${filterStatus === 'pendiente' ? 'bg-warning hover:bg-warning/90' : 'bg-warning/10 text-warning-foreground border-warning/20 hover:bg-warning/20'}`}
-          >
-            {statusCounts.pendiente} pendientes
-          </Button>
-          <Button
-            variant={filterStatus === 'aprobada' ? 'default' : 'outline'}
-            onClick={() => setFilterStatus('aprobada')}
-            className={`h-auto px-4 py-2 ${filterStatus === 'aprobada' ? 'bg-success hover:bg-success/90' : 'bg-success/10 text-success-foreground border-success/20 hover:bg-success/20'}`}
-          >
-            {statusCounts.aprobada} aprobadas
-          </Button>
-          <Button
-            variant={filterStatus === 'denegada' ? 'default' : 'outline'}
-            onClick={() => setFilterStatus('denegada')}
-            className={`h-auto px-4 py-2 ${filterStatus === 'denegada' ? 'bg-destructive hover:bg-destructive/90' : 'bg-destructive/10 text-destructive-foreground border-destructive/20 hover:bg-destructive/20'}`}
-          >
-            {statusCounts.denegada} denegadas
-          </Button>
-        </div>
-
         <Select value={filterType} onValueChange={setFilterType}>
           <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="Filtrar por tipo" />
