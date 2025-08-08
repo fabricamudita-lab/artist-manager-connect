@@ -19,7 +19,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { StatusCommentDialog } from '@/components/StatusCommentDialog';
 import { ScheduleEncounterDialog } from '@/components/ScheduleEncounterDialog';
-import { SingleArtistSelector } from '@/components/SingleArtistSelector';
+
 
 interface Solicitud {
   id: string;
@@ -85,7 +85,7 @@ export default function Solicitudes() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
-  const [filterArtistId, setFilterArtistId] = useState<string | null>(null);
+  
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -114,7 +114,7 @@ export default function Solicitudes() {
 
   useEffect(() => {
     filterSolicitudes();
-  }, [solicitudes, searchTerm, filterStatus, filterType, filterArtistId]);
+  }, [solicitudes, searchTerm, filterStatus, filterType]);
 
   const fetchSolicitudes = async () => {
     try {
@@ -344,9 +344,6 @@ export default function Solicitudes() {
       filtered = filtered.filter(s => s.tipo === filterType);
     }
 
-    if (filterArtistId) {
-      filtered = filtered.filter(s => s.artist_id === filterArtistId);
-    }
 
     if (searchTerm) {
       filtered = filtered.filter(s =>
@@ -726,14 +723,6 @@ const confirmStatusChange = async (comment: string) => {
             <SelectItem value="otro">Otro</SelectItem>
           </SelectContent>
         </Select>
-        {profile?.active_role === 'management' && (
-          <SingleArtistSelector
-            value={filterArtistId}
-            onValueChange={setFilterArtistId}
-            placeholder="Todos los artistas"
-            className="w-full sm:w-56"
-          />
-        )}
       </div>
 
       {/* Vista tipo inbox de Gmail */}
@@ -811,12 +800,39 @@ const confirmStatusChange = async (comment: string) => {
                   </div>
                 </div>
 
-                {/* Estado */}
-                <div className="flex-shrink-0">
-                  <Badge className={`${getStatusBadgeColor(solicitud.estado)} text-xs border`}>
-                    <StatusIcon className="w-3 h-3 mr-1" />
-                    {statusInfo.label}
-                  </Badge>
+                {/* Estado - chip interactivo */}
+                <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <Select
+                    value={solicitud.estado}
+                    onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') => handleStatusChange(solicitud.id, value)}
+                  >
+                    <SelectTrigger className={`${getStatusBadgeColor(solicitud.estado)} text-xs border rounded-full h-7 px-3`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <StatusIcon className="w-3 h-3 mr-1" />
+                      {statusInfo.label}
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pendiente">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3 h-3" />
+                          Pendiente
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="aprobada">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-3 h-3" />
+                          Aprobada
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="denegada">
+                        <div className="flex items-center gap-2">
+                          <XCircle className="w-3 h-3" />
+                          Denegada
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Fecha */}
