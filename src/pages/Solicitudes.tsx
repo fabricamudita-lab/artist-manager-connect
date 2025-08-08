@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -107,15 +107,39 @@ export default function Solicitudes() {
     open: false,
     solicitud: null
   });
+  const [profileSuggestions, setProfileSuggestions] = useState<{ id: string; full_name: string; email?: string | null }[]>([]);
+  const [showProfileSuggestions, setShowProfileSuggestions] = useState(false);
 
   useEffect(() => {
     fetchSolicitudes();
     updateExistingSolicitudesNames(); // Actualizar nombres automáticamente
   }, []);
-
   useEffect(() => {
     filterSolicitudes();
   }, [solicitudes, searchTerm, profileSearchTerm, filterStatus, filterType]);
+
+  // Sugerencias de perfiles con debounce
+  useEffect(() => {
+    const term = profileSearchTerm.trim();
+    if (!term) {
+      setProfileSuggestions([]);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .or(`full_name.ilike.%${term}%,email.ilike.%${term}%`)
+          .limit(8);
+        if (error) throw error;
+        setProfileSuggestions((data as any) || []);
+      } catch (err) {
+        console.error('Error buscando perfiles:', err);
+      }
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [profileSearchTerm]);
 
   const fetchSolicitudes = async () => {
     try {
@@ -721,9 +745,44 @@ const confirmStatusChange = async (comment: string) => {
           <Input
             placeholder="Buscar perfiles..."
             value={profileSearchTerm}
-            onChange={(e) => setProfileSearchTerm(e.target.value)}
+            onChange={(e) => { setProfileSearchTerm(e.target.value); setShowProfileSuggestions(true); }}
+            onFocus={() => setShowProfileSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowProfileSuggestions(false), 150)}
             className="pl-9 h-9 text-sm"
           />
+          {showProfileSuggestions && (
+            <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border bg-popover text-popover-foreground shadow-md">
+              <ul className="max-h-60 overflow-auto py-1">
+                {profileSearchTerm.trim().length === 0 ? (
+                  <li className="px-3 py-2 text-sm text-muted-foreground">Escribe para buscar perfiles…</li>
+                ) : (profileSuggestions.length > 0 ? (
+                  profileSuggestions.map((p) => (
+                    <li key={p.id}>
+                      <button
+                        className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground text-sm"
+                        onMouseDown={(e) => { e.preventDefault(); setProfileSearchTerm(p.full_name || ''); setShowProfileSuggestions(false); }}
+                      >
+                        <div className="font-medium">{p.full_name}</div>
+                        {p.email ? <div className="text-xs text-muted-foreground">{p.email}</div> : null}
+                      </button>
+                    </li>
+                  ))
+                ) : (
+                  <li className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</li>
+                ))}
+                {profileSearchTerm && (
+                  <li>
+                    <button
+                      className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      onMouseDown={(e) => { e.preventDefault(); setProfileSearchTerm(''); setShowProfileSuggestions(false); }}
+                    >
+                      Limpiar filtro
+                    </button>
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
         </div>
         <Select value={filterType} onValueChange={setFilterType}>
           <SelectTrigger className="w-full sm:w-48">
