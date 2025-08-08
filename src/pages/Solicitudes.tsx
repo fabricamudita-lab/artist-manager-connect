@@ -655,7 +655,7 @@ const confirmStatusChange = async (comment: string) => {
         <div className="flex items-center gap-4">
           <h1 className="text-3xl font-bold">Solicitudes</h1>
           <Badge variant="secondary" className="text-sm px-3 py-1 cursor-pointer" onClick={() => setFilterStatus('all')}>
-            {filteredSolicitudes.length} {filteredSolicitudes.length === 1 ? 'solicitud' : 'solicitudes'}
+            solicitudes
           </Badge>
           <div className="hidden sm:flex gap-2 text-sm text-muted-foreground">
             <span
