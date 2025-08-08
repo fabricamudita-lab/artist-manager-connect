@@ -843,39 +843,6 @@ const confirmStatusChange = async (comment: string) => {
                 {/* Actions */}
                 <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                   <div className="flex gap-1">
-                    <Select
-                      value={solicitud.estado}
-                      onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') => {
-                        handleStatusChange(solicitud.id, value);
-                      }}
-                    >
-                      <SelectTrigger 
-                        className="w-8 h-8 p-0 border-0 hover:bg-muted"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pendiente">
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-3 h-3" />
-                            Pendiente
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="aprobada">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="w-3 h-3" />
-                            Aprobada
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="denegada">
-                          <div className="flex items-center gap-2">
-                            <XCircle className="w-3 h-3" />
-                            Denegada
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
 <Button
   variant="ghost"
   size="sm"
