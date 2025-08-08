@@ -742,9 +742,10 @@ const confirmStatusChange = async (comment: string) => {
               <div
                 key={solicitud.id}
                 className={`
-                  group flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer transition-colors border-b border-border/50 last:border-b-0
-                  ${solicitud.estado === 'pendiente' ? 'bg-yellow-50/30' : ''}
-                  ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}
+                  group flex items-center gap-4 p-4 cursor-pointer transition-colors border-b border-border/50 last:border-b-0
+                  ${solicitud.estado === 'aprobada' ? 'bg-success/10 hover:bg-success/20' : ''}
+                  ${solicitud.estado === 'pendiente' ? 'bg-warning/10 hover:bg-warning/20' : ''}
+                  ${solicitud.estado === 'denegada' ? 'bg-destructive/10 hover:bg-destructive/20' : ''}
                 `}
                 onClick={() => {
                   setSelectedSolicitudForDetails(solicitud);
