@@ -19,6 +19,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { StatusCommentDialog } from '@/components/StatusCommentDialog';
 import { ScheduleEncounterDialog } from '@/components/ScheduleEncounterDialog';
+import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 
 interface Solicitud {
   id: string;
@@ -84,6 +85,7 @@ export default function Solicitudes() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [filterArtistId, setFilterArtistId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -112,7 +114,7 @@ export default function Solicitudes() {
 
   useEffect(() => {
     filterSolicitudes();
-  }, [solicitudes, searchTerm, filterStatus, filterType]);
+  }, [solicitudes, searchTerm, filterStatus, filterType, filterArtistId]);
 
   const fetchSolicitudes = async () => {
     try {
@@ -340,6 +342,10 @@ export default function Solicitudes() {
 
     if (filterType !== 'all') {
       filtered = filtered.filter(s => s.tipo === filterType);
+    }
+
+    if (filterArtistId) {
+      filtered = filtered.filter(s => s.artist_id === filterArtistId);
     }
 
     if (searchTerm) {
@@ -720,6 +726,14 @@ const confirmStatusChange = async (comment: string) => {
             <SelectItem value="otro">Otro</SelectItem>
           </SelectContent>
         </Select>
+        {profile?.active_role === 'management' && (
+          <SingleArtistSelector
+            value={filterArtistId}
+            onValueChange={setFilterArtistId}
+            placeholder="Todos los artistas"
+            className="w-full sm:w-56"
+          />
+        )}
       </div>
 
       {/* Vista tipo inbox de Gmail */}
