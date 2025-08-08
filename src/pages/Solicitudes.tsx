@@ -835,48 +835,49 @@ const confirmStatusChange = async (comment: string) => {
                   </Select>
                 </div>
 
-                {/* Fecha */}
-                <div className="flex-shrink-0 text-sm text-muted-foreground min-w-[80px] text-right">
-                  {format(new Date(solicitud.fecha_creacion), 'dd MMM', { locale: es })}
-                </div>
+                {/* Fecha / Acciones (intercambio al hover) */}
+                <div className="relative w-40 ml-auto">
+                  {/* Fecha (visible por defecto) */}
+                  <div className="absolute inset-0 flex items-center justify-end text-sm text-muted-foreground transition-opacity duration-200 group-hover:opacity-0">
+                    {format(new Date(solicitud.fecha_creacion), 'dd MMM', { locale: es })}
+                  </div>
 
-                {/* Actions */}
-                <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="flex gap-1">
-<Button
-  variant="ghost"
-  size="sm"
-  onClick={(e) => {
-    e.stopPropagation();
-    setEncuentroDialog({ open: true, solicitud });
-  }}
-  className="h-8 w-8 p-0 hover:bg-muted"
->
-  <Phone className="w-3 h-3" />
-</Button>
-<Button
-  variant="ghost"
-  size="sm"
-  onClick={(e) => {
-    e.stopPropagation();
-    setSelectedSolicitud(solicitud);
-    setShowEditDialog(true);
-  }}
-  className="h-8 w-8 p-0 hover:bg-muted"
->
-  <Edit className="w-3 h-3" />
-</Button>
-<Button
-  variant="ghost"
-  size="sm"
-  onClick={(e) => {
-    e.stopPropagation();
-    openDeleteDialog(solicitud.id, getMainContent(solicitud));
-  }}
-  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
->
-  <Trash2 className="w-3 h-3" />
-</Button>
+                  {/* Acciones (solo en hover) */}
+                  <div className="absolute inset-0 flex items-center justify-end gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEncuentroDialog({ open: true, solicitud });
+                      }}
+                      className="h-8 w-8 p-0 hover:bg-muted"
+                    >
+                      <Phone className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedSolicitud(solicitud);
+                        setShowEditDialog(true);
+                      }}
+                      className="h-8 w-8 p-0 hover:bg-muted"
+                    >
+                      <Edit className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openDeleteDialog(solicitud.id, getMainContent(solicitud));
+                      }}
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
                   </div>
                 </div>
               </div>
