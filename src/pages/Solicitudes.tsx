@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Edit, Trash2, Clock, CheckCircle, XCircle, Calendar, MessageSquare, Phone, Video } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Clock, CheckCircle, XCircle, Calendar, MessageSquare, Phone, Video, Mic, Music, HelpCircle, Info, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -637,13 +637,14 @@ const confirmStatusChange = async (comment: string) => {
   };
 
   const getTypeIcon = (tipo: string) => {
+    const iconProps = { size: 16, className: "text-white" };
     switch (tipo) {
-      case 'entrevista': return '🎙️';
-      case 'booking': return '🎤';
-      case 'consulta': return '💬';
-      case 'informacion': return 'ℹ️';
-      case 'otro': return '📄';
-      default: return '📄';
+      case 'entrevista': return <Mic {...iconProps} />;
+      case 'booking': return <Music {...iconProps} />;
+      case 'consulta': return <HelpCircle {...iconProps} />;
+      case 'informacion': return <Info {...iconProps} />;
+      case 'otro': return <FileText {...iconProps} />;
+      default: return <FileText {...iconProps} />;
     }
   };
 
@@ -763,7 +764,7 @@ const confirmStatusChange = async (comment: string) => {
               >
                 {/* Icono/Tipo */}
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm">
+                  <div className="w-8 h-8 rounded-lg bg-green-500 flex items-center justify-center">
                     {getTypeIcon(solicitud.tipo)}
                   </div>
                 </div>
