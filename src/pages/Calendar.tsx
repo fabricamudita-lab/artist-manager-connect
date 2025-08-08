@@ -12,6 +12,7 @@ import { CalendarIcon, Clock, MapPin, Plus, Filter, ChevronLeft, ChevronRight, C
 import { CreateEventDialog } from '@/components/CreateEventDialog';
 import { ArtistSelector } from '@/components/ArtistSelector';
 import { YearlyCalendar } from '@/components/YearlyCalendar';
+import { EditEventDialog } from '@/components/EditEventDialog';
 
 interface Event {
   id: string;
@@ -613,30 +614,33 @@ export default function Calendar() {
                 ) : (
                   getEventsForDate(selectedDate).map((event) => (
                     <div key={event.id} className="card-interactive p-4 space-y-2 hover-glow">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-                            <CalendarIcon className="h-4 w-4 text-white" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold">{event.title}</h3>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {format(new Date(event.start_date), 'HH:mm')} - 
-                                {format(new Date(event.end_date), 'HH:mm')}
-                              </div>
-                              {event.location && (
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
+                              <CalendarIcon className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold">{event.title}</h3>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-1">
-                                  <MapPin className="h-3 w-3" />
-                                  {event.location}
+                                  <Clock className="h-3 w-3" />
+                                  {format(new Date(event.start_date), 'HH:mm')} - 
+                                  {format(new Date(event.end_date), 'HH:mm')}
                                 </div>
-                              )}
+                                {event.location && (
+                                  <div className="flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    {event.location}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">{event.event_type}</Badge>
+                            <EditEventDialog event={event} onUpdated={fetchEvents} />
+                          </div>
                         </div>
-                        <Badge variant="outline">{event.event_type}</Badge>
-                      </div>
                       {event.description && (
                         <p className="text-sm text-muted-foreground bg-muted/30 p-2 rounded">
                           {event.description}
