@@ -801,7 +801,7 @@ const confirmStatusChange = async (comment: string) => {
                 </div>
 
                 {/* Estado - chip interactivo */}
-                <div className="flex-shrink-0 ml-auto mr-2 sm:mr-4" onClick={(e) => e.stopPropagation()}>
+                <div className="flex-shrink-0 mr-2 sm:mr-3" onClick={(e) => e.stopPropagation()}>
                   <Select
                     value={solicitud.estado}
                     onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') => handleStatusChange(solicitud.id, value)}
