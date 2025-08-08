@@ -743,9 +743,9 @@ const confirmStatusChange = async (comment: string) => {
                 key={solicitud.id}
                 className={`
                   group flex items-center gap-4 p-4 cursor-pointer transition-colors border-b border-border/50 last:border-b-0
-                  ${solicitud.estado === 'aprobada' ? 'bg-success/10 hover:bg-success/20' : ''}
-                  ${solicitud.estado === 'pendiente' ? 'bg-warning/10 hover:bg-warning/20' : ''}
-                  ${solicitud.estado === 'denegada' ? 'bg-destructive/10 hover:bg-destructive/20' : ''}
+                  ${solicitud.estado === 'aprobada' ? 'bg-success/30 hover:bg-success/40' : ''}
+                  ${solicitud.estado === 'pendiente' ? 'bg-warning/30 hover:bg-warning/40' : ''}
+                  ${solicitud.estado === 'denegada' ? 'bg-destructive/30 hover:bg-destructive/40' : ''}
                 `}
                 onClick={() => {
                   setSelectedSolicitudForDetails(solicitud);
