@@ -350,6 +350,15 @@ export default function Solicitudes() {
       );
     }
 
+    // Orden: pendientes primero, luego aprobadas y finalmente denegadas
+    // Dentro de cada grupo, ordenar por fecha de creación (más recientes primero)
+    const order: Record<Solicitud['estado'], number> = { pendiente: 0, aprobada: 1, denegada: 2 };
+    filtered.sort((a, b) => {
+      const byStatus = order[a.estado] - order[b.estado];
+      if (byStatus !== 0) return byStatus;
+      return new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime();
+    });
+
     setFilteredSolicitudes(filtered);
   };
 
@@ -743,9 +752,9 @@ const confirmStatusChange = async (comment: string) => {
                 key={solicitud.id}
                 className={`
                   group flex items-center gap-4 p-4 cursor-pointer transition-colors border-b border-border/50 last:border-b-0
-                  ${solicitud.estado === 'aprobada' ? 'bg-success/30 hover:bg-success/40' : ''}
-                  ${solicitud.estado === 'pendiente' ? 'bg-warning/30 hover:bg-warning/40' : ''}
-                  ${solicitud.estado === 'denegada' ? 'bg-destructive/30 hover:bg-destructive/40' : ''}
+                  ${solicitud.estado === 'aprobada' ? 'bg-success/50 hover:bg-success/60' : ''}
+                  ${solicitud.estado === 'pendiente' ? 'bg-warning/50 hover:bg-warning/60' : ''}
+                  ${solicitud.estado === 'denegada' ? 'bg-destructive/50 hover:bg-destructive/60' : ''}
                 `}
                 onClick={() => {
                   setSelectedSolicitudForDetails(solicitud);
