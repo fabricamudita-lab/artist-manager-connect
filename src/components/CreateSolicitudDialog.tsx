@@ -257,11 +257,11 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
             <SelectValue placeholder="Selecciona el tipo de solicitud" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="entrevista">🎙️ Entrevista</SelectItem>
-            <SelectItem value="booking">🎤 Booking</SelectItem>
-            <SelectItem value="consulta">💬 Consulta</SelectItem>
-            <SelectItem value="informacion">ℹ️ Información</SelectItem>
-            <SelectItem value="otro">📄 Otro</SelectItem>
+            <SelectItem value="entrevista">Entrevista</SelectItem>
+            <SelectItem value="booking">Booking</SelectItem>
+            <SelectItem value="consulta">Consulta</SelectItem>
+            <SelectItem value="informacion">Información</SelectItem>
+            <SelectItem value="otro">Otro</SelectItem>
           </SelectContent>
         </Select>
       </div>
