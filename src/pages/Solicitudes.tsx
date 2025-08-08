@@ -800,84 +800,87 @@ const confirmStatusChange = async (comment: string) => {
                   </div>
                 </div>
 
-                {/* Estado - chip interactivo */}
-                <div className="flex-shrink-0 mr-2 sm:mr-3" onClick={(e) => e.stopPropagation()}>
-                  <Select
-                    value={solicitud.estado}
-                    onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') => handleStatusChange(solicitud.id, value)}
-                  >
-                    <SelectTrigger className={`${getStatusBadgeColor(solicitud.estado)} text-xs border rounded-full h-7 px-3`}
-                      onClick={(e) => e.stopPropagation()}
+                {/* Estado + Fecha/Acciones alineados a la derecha */}
+                <div className="ml-auto flex items-center gap-2 sm:gap-3">
+                  {/* Estado - chip interactivo */}
+                  <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <Select
+                      value={solicitud.estado}
+                      onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') => handleStatusChange(solicitud.id, value)}
                     >
-                      <StatusIcon className="w-3 h-3 mr-1" />
-                      {statusInfo.label}
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pendiente">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-3 h-3" />
-                          Pendiente
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="aprobada">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="w-3 h-3" />
-                          Aprobada
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="denegada">
-                        <div className="flex items-center gap-2">
-                          <XCircle className="w-3 h-3" />
-                          Denegada
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Fecha / Acciones (intercambio al hover) */}
-                <div className="relative w-40 ml-auto">
-                  {/* Fecha (visible por defecto) */}
-                  <div className="absolute inset-0 flex items-center justify-end text-sm text-muted-foreground transition-opacity duration-200 group-hover:opacity-0">
-                    {format(new Date(solicitud.fecha_creacion), 'dd MMM', { locale: es })}
+                      <SelectTrigger className={`${getStatusBadgeColor(solicitud.estado)} text-xs border rounded-full h-7 px-3`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <StatusIcon className="w-3 h-3 mr-1" />
+                        {statusInfo.label}
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pendiente">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-3 h-3" />
+                            Pendiente
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="aprobada">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-3 h-3" />
+                            Aprobada
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="denegada">
+                          <div className="flex items-center gap-2">
+                            <XCircle className="w-3 h-3" />
+                            Denegada
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  {/* Acciones (solo en hover) */}
-                  <div className="absolute inset-0 flex items-center justify-end gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEncuentroDialog({ open: true, solicitud });
-                      }}
-                      className="h-8 w-8 p-0 hover:bg-muted"
-                    >
-                      <Phone className="w-3 h-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedSolicitud(solicitud);
-                        setShowEditDialog(true);
-                      }}
-                      className="h-8 w-8 p-0 hover:bg-muted"
-                    >
-                      <Edit className="w-3 h-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openDeleteDialog(solicitud.id, getMainContent(solicitud));
-                      }}
-                      className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
+                  {/* Fecha / Acciones (intercambio al hover) */}
+                  <div className="relative w-24 sm:w-32">
+                    {/* Fecha (visible por defecto) */}
+                    <div className="absolute inset-0 flex items-center justify-end text-sm text-muted-foreground transition-opacity duration-200 group-hover:opacity-0">
+                      {format(new Date(solicitud.fecha_creacion), 'dd MMM', { locale: es })}
+                    </div>
+
+                    {/* Acciones (solo en hover) */}
+                    <div className="absolute inset-0 flex items-center justify-end gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEncuentroDialog({ open: true, solicitud });
+                        }}
+                        className="h-8 w-8 p-0 hover:bg-muted"
+                      >
+                        <Phone className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedSolicitud(solicitud);
+                          setShowEditDialog(true);
+                        }}
+                        className="h-8 w-8 p-0 hover:bg-muted"
+                      >
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDeleteDialog(solicitud.id, getMainContent(solicitud));
+                        }}
+                        className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
