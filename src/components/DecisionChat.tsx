@@ -36,6 +36,14 @@ export function DecisionChat({ solicitudId }: { solicitudId: string }) {
     }
   };
 
+  const dayKey = (iso: string) => {
+    try { return format(new Date(iso), 'yyyy-MM-dd'); } catch { return iso; }
+  };
+
+  const dayLabel = (iso: string) => {
+    try { return format(new Date(iso), "EEE, d LLL", { locale: es }); } catch { return iso; }
+  };
+
   const fetchMessages = async () => {
     try {
       const { data, error } = await supabase
@@ -109,21 +117,31 @@ export function DecisionChat({ solicitudId }: { solicitudId: string }) {
           ) : messages.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sin mensajes todavía. Inicia la conversación.</p>
           ) : (
-            messages.map((m) => {
+            messages.map((m, idx) => {
               const isMine = !m.is_system && m.author_profile_id && (m.author_profile_id === profile?.id);
               const isSystem = m.is_system;
+              const showDay = idx === 0 || dayKey(messages[idx - 1].created_at) !== dayKey(m.created_at);
               return (
-                <div key={m.id} className={`flex ${isSystem ? 'justify-center' : isMine ? 'justify-end' : 'justify-start'}`}>
-                  {isSystem ? (
-                    <div className="text-xs text-muted-foreground italic">
-                      {m.message} · {formattedDate(m.created_at)}
-                    </div>
-                  ) : (
-                    <div className={`${isMine ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'} rounded-2xl px-3 py-2 max-w-[80%] shadow-sm`}> 
-                      <p className="whitespace-pre-wrap break-words">{m.message}</p>
-                      <div className="mt-1 text-[10px] opacity-70 text-right">{formattedDate(m.created_at)}</div>
+                <div key={m.id} className="space-y-1">
+                  {showDay && (
+                    <div className="flex justify-center my-2">
+                      <span className="text-xs bg-muted text-muted-foreground px-3 py-1 rounded-full">
+                        {dayLabel(m.created_at)}
+                      </span>
                     </div>
                   )}
+                  <div className={`flex ${isSystem ? 'justify-center' : isMine ? 'justify-end' : 'justify-start'}`}>
+                    {isSystem ? (
+                      <div className="text-xs text-muted-foreground italic">
+                        {m.message} · {formattedDate(m.created_at)}
+                      </div>
+                    ) : (
+                      <div className={`${isMine ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'} rounded-2xl px-3 py-2 max-w-[80%] shadow-sm`}> 
+                        <p className="whitespace-pre-wrap break-words">{m.message}</p>
+                        <div className="mt-1 text-[10px] opacity-70 text-right">{formattedDate(m.created_at)}</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })
