@@ -88,7 +88,11 @@ export function DecisionChat({ solicitudId }: { solicitudId: string }) {
     };
   }, [solicitudId]);
 
-  const sendMessage = async () => {
+  useEffect(() => {
+    console.info('[DecisionChat] mounted/updated - solicitudId:', solicitudId);
+  }, [solicitudId]);
+ 
+   const sendMessage = async () => {
     if (!canSend) return;
     try {
       const { error } = await supabase.from('solicitud_decision_messages').insert({
