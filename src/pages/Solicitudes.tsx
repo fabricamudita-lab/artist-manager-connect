@@ -98,7 +98,7 @@ export default function Solicitudes() {
     solicitudId: '',
     nombre: ''
   });
-  const [statusDialog, setStatusDialog] = useState<{ open: boolean; solicitudId: string; newStatus: 'aprobada' | 'denegada' }>({
+  const [statusDialog, setStatusDialog] = useState<{ open: boolean; solicitudId: string; newStatus: 'aprobada' | 'denegada' | 'pendiente' }>({
     open: false,
     solicitudId: '',
     newStatus: 'aprobada'
@@ -395,8 +395,16 @@ export default function Solicitudes() {
     setFilteredSolicitudes(filtered);
   };
 
-const handleStatusChange = async (solicitudId: string, newStatus: 'pendiente' | 'aprobada' | 'denegada') => {
-  if (newStatus === 'aprobada' || newStatus === 'denegada') {
+const handleStatusChange = async (
+  solicitudId: string,
+  newStatus: 'pendiente' | 'aprobada' | 'denegada',
+  currentStatus?: 'pendiente' | 'aprobada' | 'denegada'
+) => {
+  if (
+    newStatus === 'aprobada' ||
+    newStatus === 'denegada' ||
+    (newStatus === 'pendiente' && currentStatus && currentStatus !== 'pendiente')
+  ) {
     setStatusDialog({ open: true, solicitudId, newStatus });
     return;
   }
@@ -593,7 +601,7 @@ const confirmStatusChange = async (comment: string) => {
             <Select
               value={solicitud.estado}
               onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') => {
-                handleStatusChange(solicitud.id, value);
+                handleStatusChange(solicitud.id, value, solicitud.estado);
               }}
             >
               <SelectTrigger 
@@ -880,7 +888,7 @@ const confirmStatusChange = async (comment: string) => {
                   <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                     <Select
                       value={solicitud.estado}
-                      onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') => handleStatusChange(solicitud.id, value)}
+                      onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') => handleStatusChange(solicitud.id, value, solicitud.estado)}
                     >
                     <SelectTrigger className={`${getStatusBadgeColor(solicitud.estado)} text-xs border rounded-full h-7 px-3 [&>svg:last-child]:hidden`}
                       onClick={(e) => e.stopPropagation()}
