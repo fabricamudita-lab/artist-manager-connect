@@ -156,7 +156,10 @@ export default function Solicitudes() {
         .order('fecha_creacion', { ascending: false });
 
       if (error) throw error;
-      setSolicitudes((data as any) || []);
+      const rows = (data as any) || [];
+      setSolicitudes(rows);
+      // Recalcular y guardar fecha límite según prioridad si falta
+      await recalcMissingDueDates(rows);
     } catch (error) {
       console.error('Error fetching solicitudes:', error);
       toast({
@@ -359,6 +362,52 @@ export default function Solicitudes() {
       }
     } catch (error) {
       console.error('Error updating solicitudes names:', error);
+    }
+  };
+
+  // Helpers prioridad -> días y parsing desde descripcion_libre
+  const priorityToDays = (p?: string | null) => {
+    const key = (p || '').toLowerCase();
+    if (key === 'urgente') return 1;
+    if (key === 'alta') return 3;
+    if (key === 'media') return 7;
+    if (key === 'baja') return 14;
+    return null;
+  };
+
+  const parsePriorityFromDescripcion = (text?: string | null): string | null => {
+    if (!text) return null;
+    const match = text.match(/prioridad:\s*(urgente|alta|media|baja)/i);
+    return match ? match[1].toLowerCase() : null;
+  };
+
+  // Recalcular y guardar fechas límite faltantes según prioridad
+  const recalcMissingDueDates = async (rows: any[]) => {
+    const updates: { id: string; fecha: string }[] = [];
+    for (const s of rows) {
+      if (!s.fecha_limite_respuesta) {
+        const p = parsePriorityFromDescripcion(s.descripcion_libre);
+        const days = priorityToDays(p);
+        if (days) {
+          const base = new Date(s.fecha_creacion).getTime();
+          const fecha = new Date(base + days * 24 * 60 * 60 * 1000).toISOString();
+          const { error } = await supabase
+            .from('solicitudes')
+            .update({ fecha_limite_respuesta: fecha })
+            .eq('id', s.id);
+          if (!error) {
+            updates.push({ id: s.id, fecha });
+          } else {
+            console.error('Error updating fecha_limite_respuesta:', error);
+          }
+        }
+      }
+    }
+    if (updates.length) {
+      setSolicitudes(prev => prev.map(s => {
+        const u = updates.find(u2 => u2.id === s.id);
+        return u ? { ...s, fecha_limite_respuesta: u.fecha } : s;
+      }));
     }
   };
 

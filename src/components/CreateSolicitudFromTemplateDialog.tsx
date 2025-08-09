@@ -223,6 +223,12 @@ export function CreateSolicitudFromTemplateDialog({
         estado: 'pendiente'
       };
 
+      // Establecer fecha límite según prioridad seleccionada
+      const priorityDays: Record<string, number> = { urgente: 1, alta: 3, media: 7, baja: 14 };
+      const selectedPriority = (formData.prioridad || 'media').toLowerCase();
+      const daysToAdd = priorityDays[selectedPriority] ?? 7;
+      solicitudData.fecha_limite_respuesta = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
+
       // Add template-specific fields to descripcion_libre as structured text
       let descripcionLibre = `Solicitud de ${template?.title}\n\n`;
       
