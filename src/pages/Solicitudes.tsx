@@ -552,9 +552,7 @@ const confirmStatusChange = async (comment: string) => {
     }
 
     return (
-      <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full border ${cls}`}>
-        {text}
-      </span>
+      <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full border ${cls} opacity-80`}>{text}</span>
     );
   };
 
@@ -573,7 +571,10 @@ const confirmStatusChange = async (comment: string) => {
           setShowDetailsDialog(true);
         }}
       >
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 relative">
+          <div className="absolute top-2 right-12 sm:right-14 md:right-16 pointer-events-none">
+            <DueChip date={solicitud.fecha_limite_respuesta} estado={solicitud.estado} />
+          </div>
           <div className="flex items-start justify-between">
             <div className="flex-1 relative">
               <div className="flex items-center gap-3 mb-2">
@@ -584,9 +585,6 @@ const confirmStatusChange = async (comment: string) => {
                   <CardTitle className="text-lg font-semibold">{getMainContent(solicitud)}</CardTitle>
                   <p className="text-sm text-muted-foreground capitalize">{typeInfo.label}</p>
                 </div>
-              </div>
-              <div className="absolute top-1 right-0 pointer-events-none">
-                <DueChip date={solicitud.fecha_limite_respuesta} estado={solicitud.estado} />
               </div>
               <div className="flex items-center gap-3">
                 <Badge className={`${statusInfo.color} border font-medium`}>
