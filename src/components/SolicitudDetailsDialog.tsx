@@ -34,6 +34,8 @@ import { StatusCommentDialog } from '@/components/StatusCommentDialog';
 import { ScheduleEncounterDialog } from '@/components/ScheduleEncounterDialog';
 import { SolicitudHistory } from '@/components/SolicitudHistory';
 import { DecisionChat } from '@/components/DecisionChat';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 interface SolicitudDetails {
   id: string;
@@ -363,6 +365,44 @@ const updateSolicitudToPending = async (comment?: string) => {
           )
       : solicitud.descripcion_libre;
 
+  // Prioridad actual y cambio rápido
+  const extractPriority = (text?: string | null): 'urgente' | 'alta' | 'media' | 'baja' | null => {
+    if (!text) return null;
+    const m = text.match(/prioridad:\s*(urgente|alta|media|baja)/i);
+    return m ? (m[1].toLowerCase() as any) : null;
+  };
+  const priorityDays: Record<'urgente' | 'alta' | 'media' | 'baja', number> = { urgente: 1, alta: 3, media: 7, baja: 14 };
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  const currentPriority = extractPriority(solicitud.descripcion_libre) || 'media';
+
+  const updatePriorityQuick = async (p: 'urgente' | 'alta' | 'media' | 'baja') => {
+    if (!solicitud) return;
+    try {
+      const days = priorityDays[p];
+      const newDue = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+
+      let desc = solicitud.descripcion_libre || '';
+      if (/prioridad\s*:/i.test(desc)) {
+        desc = desc.replace(/(^|\n)\s*Prioridad:\s*(Urgente|Alta|Media|Baja)/i, (_m, p1) => `${p1}Prioridad: ${capitalize(p)}`);
+      } else {
+        desc = `Prioridad: ${capitalize(p)}\n\n` + desc;
+      }
+
+      const { error } = await supabase
+        .from('solicitudes')
+        .update({ descripcion_libre: desc, fecha_limite_respuesta: newDue, fecha_actualizacion: new Date().toISOString() })
+        .eq('id', solicitud.id);
+      if (error) throw error;
+
+      setSolicitud(prev => prev ? { ...prev, descripcion_libre: desc, fecha_actualizacion: new Date().toISOString() } : prev);
+      onUpdate?.();
+      toast({ title: 'Prioridad actualizada', description: `Establecida en ${capitalize(p)} — nueva fecha límite creada.` });
+    } catch (e) {
+      console.error('Error updating priority:', e);
+      toast({ title: 'Error', description: 'No se pudo actualizar la prioridad', variant: 'destructive' });
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -587,6 +627,70 @@ const updateSolicitudToPending = async (comment?: string) => {
               </CardContent>
             </Card>
           )}
+
+          {/* Prioridad de respuesta (editable mientras está pendiente) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Prioridad de respuesta
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <Label htmlFor="prioridad">Prioridad</Label>
+                  <Select
+                    value={currentPriority}
+                    onValueChange={(v) => updatePriorityQuick(v as 'urgente' | 'alta' | 'media' | 'baja')}
+                    disabled={solicitud.estado !== 'pendiente'}
+                  >
+                    <SelectTrigger className="mt-1" id="prioridad">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="urgente">
+                        <span className="inline-flex items-center gap-1">
+                          <span>🔴 Urgente</span>
+                          <span className="text-muted-foreground">— 1 día</span>
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="alta">
+                        <span className="inline-flex items-center gap-1">
+                          <span>🟠 Alta</span>
+                          <span className="text-muted-foreground">— 3 días</span>
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="media">
+                        <span className="inline-flex items-center gap-1">
+                          <span>🟡 Media</span>
+                          <span className="text-muted-foreground">— 7 días</span>
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="baja">
+                        <span className="inline-flex items-center gap-1">
+                          <span>🟢 Baja</span>
+                          <span className="text-muted-foreground">— 14 días</span>
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {solicitud.estado !== 'pendiente' && (
+                    <p className="text-xs text-muted-foreground mt-2">Solo editable cuando el estado es Pendiente.</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Plazos según prioridad</p>
+                  <ul className="text-sm space-y-1">
+                    <li>🔴 Urgente <span className="text-muted-foreground">— 1 día</span></li>
+                    <li>🟠 Alta <span className="text-muted-foreground">— 3 días</span></li>
+                    <li>🟡 Media <span className="text-muted-foreground">— 7 días</span></li>
+                    <li>🟢 Baja <span className="text-muted-foreground">— 14 días</span></li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Observaciones y Notas */}
           {(solicitud.observaciones || solicitud.descripcion_libre || solicitud.notas_internas || solicitud.comentario_estado) && (
