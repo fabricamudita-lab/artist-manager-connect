@@ -738,6 +738,51 @@ export type Database = {
           },
         ]
       }
+      solicitud_decision_messages: {
+        Row: {
+          author_name: string | null
+          author_profile_id: string | null
+          created_at: string
+          id: string
+          is_system: boolean
+          message: string
+          solicitud_id: string
+        }
+        Insert: {
+          author_name?: string | null
+          author_profile_id?: string | null
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          message: string
+          solicitud_id: string
+        }
+        Update: {
+          author_name?: string | null
+          author_profile_id?: string | null
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          message?: string
+          solicitud_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitud_decision_messages_author_profile_id_fkey"
+            columns: ["author_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_decision_messages_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "solicitudes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solicitud_history: {
         Row: {
           changed_at: string
@@ -792,6 +837,7 @@ export type Database = {
           contact_id: string | null
           created_by: string
           decision_fecha: string | null
+          decision_has_new_comment: boolean
           decision_por: string | null
           descripcion_libre: string | null
           email: string | null
@@ -822,6 +868,7 @@ export type Database = {
           contact_id?: string | null
           created_by: string
           decision_fecha?: string | null
+          decision_has_new_comment?: boolean
           decision_por?: string | null
           descripcion_libre?: string | null
           email?: string | null
@@ -852,6 +899,7 @@ export type Database = {
           contact_id?: string | null
           created_by?: string
           decision_fecha?: string | null
+          decision_has_new_comment?: boolean
           decision_por?: string | null
           descripcion_libre?: string | null
           email?: string | null

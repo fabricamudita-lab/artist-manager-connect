@@ -33,6 +33,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { StatusCommentDialog } from '@/components/StatusCommentDialog';
 import { ScheduleEncounterDialog } from '@/components/ScheduleEncounterDialog';
 import { SolicitudHistory } from '@/components/SolicitudHistory';
+import { DecisionChat } from '@/components/DecisionChat';
 
 interface SolicitudDetails {
   id: string;
@@ -111,6 +112,9 @@ const [showHistory, setShowHistory] = useState(false);
 
       if (error) throw error;
       setSolicitud(data as any);
+      // Resetear indicador de nuevo comentario al abrir
+      await supabase.from('solicitudes').update({ decision_has_new_comment: false }).eq('id', solicitudId);
+      onUpdate?.();
     } catch (error) {
       console.error('Error fetching solicitud details:', error);
       toast({
@@ -631,6 +635,9 @@ const updateSolicitudToPending = async (comment?: string) => {
             </Card>
           )}
 
+          {/* Chat de decisión */}
+          <DecisionChat solicitudId={solicitud.id} />
+          
           {/* Información de Fechas */}
           <Card>
             <CardHeader>

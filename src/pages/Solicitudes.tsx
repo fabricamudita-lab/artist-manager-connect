@@ -60,6 +60,9 @@ interface Solicitud {
   profiles?: {
     full_name: string;
   } | null;
+
+  // Indicador de nuevos comentarios de decisión
+  decision_has_new_comment?: boolean;
 }
 
 const typeConfig = {
@@ -888,6 +891,12 @@ const confirmStatusChange = async (comment: string) => {
                     <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded capitalize flex-shrink-0">
                       {typeInfo.label}
                     </span>
+                    {solicitud.decision_has_new_comment ? (
+                      <span className="ml-1 inline-flex items-center gap-1 text-xs text-primary">
+                        <span className="w-2 h-2 rounded-full bg-primary inline-block" />
+                        Nuevo
+                      </span>
+                    ) : null}
                   </div>
                   
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
