@@ -386,13 +386,24 @@ export default function Solicitudes() {
     const updates: { id: string; fecha: string }[] = [];
     for (const s of rows) {
       const p = parsePriorityFromDescripcion(s.descripcion_libre);
-      const days = priorityToDays(p);
-      if (!days) continue;
+      const daysFromPriority = priorityToDays(p);
 
-      const expectedTs = new Date(s.fecha_creacion).getTime() + days * 24 * 60 * 60 * 1000;
-      const expectedISO = new Date(expectedTs).toISOString();
+      // Determinar fecha esperada:
+      // - Si hay prioridad, usarla
+      // - Si NO hay prioridad y falta fecha_limite_respuesta, usar +7 días desde creación
+      let expectedISO: string | null = null;
+      if (daysFromPriority) {
+        const expectedTs = new Date(s.fecha_creacion).getTime() + daysFromPriority * 24 * 60 * 60 * 1000;
+        expectedISO = new Date(expectedTs).toISOString();
+      } else if (!s.fecha_limite_respuesta) {
+        const expectedTs = new Date(s.fecha_creacion).getTime() + 7 * 24 * 60 * 60 * 1000;
+        expectedISO = new Date(expectedTs).toISOString();
+      }
+
+      if (!expectedISO) continue; // ya tiene fecha y no hay prioridad -> no tocar
 
       const currentTs = s.fecha_limite_respuesta ? new Date(s.fecha_limite_respuesta).getTime() : null;
+      const expectedTs = new Date(expectedISO).getTime();
       const shouldUpdate = !currentTs || Math.abs(currentTs - expectedTs) > 12 * 60 * 60 * 1000;
 
       if (shouldUpdate) {

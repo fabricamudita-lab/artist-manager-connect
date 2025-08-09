@@ -394,7 +394,7 @@ const updateSolicitudToPending = async (comment?: string) => {
         .eq('id', solicitud.id);
       if (error) throw error;
 
-      setSolicitud(prev => prev ? { ...prev, descripcion_libre: desc, fecha_actualizacion: new Date().toISOString() } : prev);
+      setSolicitud(prev => prev ? { ...prev, descripcion_libre: desc, fecha_limite_respuesta: newDue, fecha_actualizacion: new Date().toISOString() } : prev);
       onUpdate?.();
       toast({ title: 'Prioridad actualizada', description: `Establecida en ${capitalize(p)} — nueva fecha límite creada.` });
     } catch (e) {
