@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,7 @@ export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
   const [items, setItems] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState<'desc' | 'asc'>('desc');
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -38,6 +39,12 @@ export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
 
     if (solicitudId) fetchHistory();
   }, [solicitudId, order]);
+
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.scrollTop = 0;
+    }
+  }, [order, items.length]);
 
   return (
     <Card>
@@ -66,39 +73,41 @@ export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
         ) : items.length === 0 ? (
           <div className="text-sm text-muted-foreground">Sin eventos aún.</div>
         ) : (
-          <div className="space-y-4">
-            {items.map((h, idx) => (
-              <div key={h.id} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium">
-                    {h.estado === 'aprobada'
-                      ? 'Aprobada'
-                      : h.estado === 'denegada'
-                      ? 'Denegada'
-                      : 'Pendiente'}
+          <div ref={listRef} className="max-h-96 overflow-y-auto pr-1">
+            <div className="space-y-4">
+              {items.map((h, idx) => (
+                <div key={h.id} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium">
+                      {h.estado === 'aprobada'
+                        ? 'Aprobada'
+                        : h.estado === 'denegada'
+                        ? 'Denegada'
+                        : 'Pendiente'}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(h.changed_at).toLocaleString()}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {new Date(h.changed_at).toLocaleString()}
-                  </div>
+                  {h.profiles?.full_name && (
+                    <div className="text-xs text-muted-foreground">por {h.profiles.full_name}</div>
+                  )}
+                  {h.condicion && (
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Condición: </span>
+                      <span className="whitespace-pre-wrap">{h.condicion}</span>
+                    </div>
+                  )}
+                  {h.nota && (
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Nota: </span>
+                      <span className="whitespace-pre-wrap">{h.nota}</span>
+                    </div>
+                  )}
+                  {idx < items.length - 1 && <Separator className="mt-3" />}
                 </div>
-                {h.profiles?.full_name && (
-                  <div className="text-xs text-muted-foreground">por {h.profiles.full_name}</div>
-                )}
-                {h.condicion && (
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Condición: </span>
-                    <span className="whitespace-pre-wrap">{h.condicion}</span>
-                  </div>
-                )}
-                {h.nota && (
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Nota: </span>
-                    <span className="whitespace-pre-wrap">{h.nota}</span>
-                  </div>
-                )}
-                {idx < items.length - 1 && <Separator className="mt-3" />}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </CardContent>
