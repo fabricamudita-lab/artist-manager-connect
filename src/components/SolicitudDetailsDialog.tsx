@@ -322,11 +322,11 @@ const updateSolicitudToPending = async (comment?: string) => {
     solicitud.descripcion_libre
       ? solicitud.descripcion_libre
           .replace(
-            /(^|\n)Fecha y hora:\s*(\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}(?::\d{2})?)?)/g,
+            /(^|\n)\s*Fecha y hora:\s*(\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}(?::\d{2})?))/gi,
             (_m, p1, d) => `${p1}Fecha y hora: ${formatFechaHoraLargaEs(d)}`
           )
           .replace(
-            /(^|\n)Fecha:\s*(\d{4}-\d{2}-\d{2})/g,
+            /(^|\n)\s*Fecha:\s*(\d{4}-\d{2}-\d{2})/gi,
             (_m, p1, d) => `${p1}Fecha: ${formatFechaLargaEs(d)}`
           )
       : solicitud.descripcion_libre;
