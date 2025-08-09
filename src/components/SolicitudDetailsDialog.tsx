@@ -279,6 +279,27 @@ const updateSolicitudToPending = async (comment?: string) => {
     }
   };
 
+  // Acepta "YYYY-MM-DDTHH:mm" o "YYYY-MM-DD HH:mm" y devuelve formato largo
+  const formatFechaHoraLargaEs = (dateTimeStr: string) => {
+    try {
+      const hasTime = /\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}(?::\d{2})?/.test(dateTimeStr);
+      if (!hasTime) return formatFechaLargaEs(dateTimeStr);
+      const normalized = dateTimeStr.replace(' ', 'T');
+      const d = new Date(normalized);
+      if (isNaN(d.getTime())) return dateTimeStr;
+      let s = format(d, "EEEE, d 'de' MMMM 'de' yyyy HH:mm", { locale: es });
+      s = s.charAt(0).toUpperCase() + s.slice(1);
+      const parts = s.split(' de ');
+      if (parts.length >= 3) {
+        parts[1] = parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
+        s = parts.join(' de ');
+      }
+      return s;
+    } catch {
+      return dateTimeStr;
+    }
+  };
+
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -299,10 +320,15 @@ const updateSolicitudToPending = async (comment?: string) => {
   // Descripción con fechas legibles para cualquier tipo (no altera datos guardados)
   const processedDescripcionLibre =
     solicitud.descripcion_libre
-      ? solicitud.descripcion_libre.replace(
-          /(^|\n)Fecha:\s*(\d{4}-\d{2}-\d{2})/g,
-          (_m, p1, d) => `${p1}Fecha: ${formatFechaLargaEs(d)}`
-        )
+      ? solicitud.descripcion_libre
+          .replace(
+            /(^|\n)Fecha y hora:\s*(\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}(?::\d{2})?)?)/g,
+            (_m, p1, d) => `${p1}Fecha y hora: ${formatFechaHoraLargaEs(d)}`
+          )
+          .replace(
+            /(^|\n)Fecha:\s*(\d{4}-\d{2}-\d{2})/g,
+            (_m, p1, d) => `${p1}Fecha: ${formatFechaLargaEs(d)}`
+          )
       : solicitud.descripcion_libre;
 
   return (
@@ -432,7 +458,7 @@ const updateSolicitudToPending = async (comment?: string) => {
                       <div>
                         <p className="text-sm text-muted-foreground">Fecha y Hora</p>
                         <p className="font-medium">
-                          {new Date(solicitud.hora_entrevista).toLocaleString()}
+                          {formatFechaHoraLargaEs(solicitud.hora_entrevista)}
                         </p>
                       </div>
                     </div>
@@ -497,7 +523,7 @@ const updateSolicitudToPending = async (comment?: string) => {
                       <div>
                         <p className="text-sm text-muted-foreground">Fecha y Hora del Show</p>
                         <p className="font-medium">
-                          {new Date(solicitud.hora_show).toLocaleString()}
+                          {formatFechaHoraLargaEs(solicitud.hora_show)}
                         </p>
                       </div>
                     </div>
