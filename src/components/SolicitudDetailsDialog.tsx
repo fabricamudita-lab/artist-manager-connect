@@ -324,6 +324,9 @@ const updateSolicitudToPending = async (comment?: string) => {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Cargando detalles</DialogTitle>
+          </DialogHeader>
           <div className="flex items-center justify-center p-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             <span className="ml-2">Cargando detalles...</span>
@@ -378,6 +381,13 @@ const updateSolicitudToPending = async (comment?: string) => {
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Chat de decisión (arriba para verificar visibilidad) */}
+          {(() => { console.info('[SolicitudDetailsDialog] Rendering DecisionChat (top) for solicitud:', solicitud.id); return null; })()}
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-3">Chat de decisión</p>
+            <DecisionChat solicitudId={solicitud.id} />
+          </div>
+
           {/* Header Card */}
           <Card className="border-0 shadow-sm">
             <CardContent className="p-6">
@@ -637,6 +647,7 @@ const updateSolicitudToPending = async (comment?: string) => {
           )}
 
           {/* Chat de decisión */}
+          {(() => { console.info('[SolicitudDetailsDialog] Rendering DecisionChat for solicitud:', solicitud.id); return null; })()}
           <div>
             <p className="text-sm font-medium text-muted-foreground mb-3">Chat de decisión</p>
             <DecisionChat solicitudId={solicitud.id} />
