@@ -103,23 +103,30 @@ export function DecisionChat({ solicitudId }: { solicitudId: string }) {
         <CardTitle>Chat de decisión</CardTitle>
       </CardHeader>
       <CardContent>
-        <div ref={listRef} className="max-h-64 overflow-y-auto space-y-3 pr-1">
+        <div ref={listRef} className="max-h-64 overflow-y-auto space-y-2 pr-1 py-1">
           {loading ? (
             <p className="text-sm text-muted-foreground">Cargando chat...</p>
           ) : messages.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sin mensajes todavía. Inicia la conversación.</p>
           ) : (
-            messages.map((m) => (
-              <div key={m.id} className="text-sm">
-                <div className="flex items-center gap-2">
-                  <span className={`font-medium ${m.is_system ? 'text-muted-foreground' : 'text-foreground'}`}>
-                    {m.is_system ? 'Sistema' : (m.profiles?.full_name || m.author_name || 'Usuario')}
-                  </span>
-                  <span className="text-xs text-muted-foreground">{formattedDate(m.created_at)}</span>
+            messages.map((m) => {
+              const isMine = !m.is_system && m.author_profile_id && (m.author_profile_id === profile?.id);
+              const isSystem = m.is_system;
+              return (
+                <div key={m.id} className={`flex ${isSystem ? 'justify-center' : isMine ? 'justify-end' : 'justify-start'}`}>
+                  {isSystem ? (
+                    <div className="text-xs text-muted-foreground italic">
+                      {m.message} · {formattedDate(m.created_at)}
+                    </div>
+                  ) : (
+                    <div className={`${isMine ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'} rounded-2xl px-3 py-2 max-w-[80%] shadow-sm`}> 
+                      <p className="whitespace-pre-wrap break-words">{m.message}</p>
+                      <div className="mt-1 text-[10px] opacity-70 text-right">{formattedDate(m.created_at)}</div>
+                    </div>
+                  )}
                 </div>
-                <p className={`mt-0.5 whitespace-pre-wrap ${m.is_system ? 'text-muted-foreground' : 'text-foreground'}`}>{m.message}</p>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -127,6 +134,12 @@ export function DecisionChat({ solicitudId }: { solicitudId: string }) {
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
             placeholder="Escribe un comentario de decisión..."
             rows={2}
           />
