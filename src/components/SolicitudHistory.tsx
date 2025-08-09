@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface HistoryEntry {
   id: string;
@@ -15,6 +17,8 @@ interface HistoryEntry {
 export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
   const [items, setItems] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [order, setOrder] = useState<'desc' | 'asc'>('desc');
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -24,7 +28,7 @@ export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
           .from('solicitud_history')
           .select(`id, estado, condicion, nota, changed_at, profiles:changed_by_profile_id ( full_name )`)
           .eq('solicitud_id', solicitudId)
-          .order('changed_at', { ascending: false });
+          .order('changed_at', { ascending: order === 'asc' });
         if (error) throw error;
         setItems((data as any) || []);
       } catch (e) {
@@ -35,15 +39,36 @@ export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
     };
 
     if (solicitudId) fetchHistory();
-  }, [solicitudId]);
+  }, [solicitudId, order]);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Historial</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Historial</CardTitle>
+          <div className="flex items-center gap-2">
+            <div className="text-xs text-muted-foreground">{items.length} eventos</div>
+            <div className="w-[220px]">
+              <Select value={order} onValueChange={(v) => setOrder(v as 'asc' | 'desc')}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Orden" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Más recientes primero</SelectItem>
+                  <SelectItem value="asc">Más antiguos primero</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="outline" onClick={() => setExpanded(!expanded)}>
+              {expanded ? 'Ocultar' : 'Ver'}
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {!expanded ? (
+          <div className="text-sm text-muted-foreground">Historial oculto</div>
+        ) : loading ? (
           <div className="text-sm text-muted-foreground">Cargando historial…</div>
         ) : items.length === 0 ? (
           <div className="text-sm text-muted-foreground">Sin eventos aún.</div>
