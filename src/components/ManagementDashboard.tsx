@@ -20,6 +20,7 @@ import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { ArtistProfileDialog } from '@/components/ArtistProfileDialog';
 import { CreateSolicitudFromTemplateDialog } from '@/components/CreateSolicitudFromTemplateDialog';
 import { SolicitudDetailsDialog } from '@/components/SolicitudDetailsDialog';
+import { StatusCommentDialog } from '@/components/StatusCommentDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -654,6 +655,70 @@ export default function ManagementDashboard() {
     });
   };
 
+  const [statusDialog, setStatusDialog] = useState<{ open: boolean; solicitudId: string; newStatus: 'pendiente' | 'aprobada' | 'denegada' }>({
+    open: false,
+    solicitudId: '',
+    newStatus: 'aprobada'
+  });
+
+  const getStatusBadgeColor = (estado: 'pendiente' | 'aprobada' | 'denegada') => {
+    switch (estado) {
+      case 'pendiente': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
+      case 'aprobada': return 'bg-green-50 text-green-700 border-green-200';
+      case 'denegada': return 'bg-red-50 text-red-700 border-red-200';
+      default: return 'bg-gray-50 text-gray-700 border-gray-200';
+    }
+  };
+
+  const handleSolicitudStatusChange = async (
+    solicitudId: string,
+    newStatus: 'pendiente' | 'aprobada' | 'denegada',
+    currentStatus: 'pendiente' | 'aprobada' | 'denegada'
+  ) => {
+    if (
+      newStatus === 'aprobada' ||
+      newStatus === 'denegada' ||
+      (newStatus === 'pendiente' && currentStatus !== 'pendiente')
+    ) {
+      setStatusDialog({ open: true, solicitudId, newStatus });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('solicitudes')
+        .update({ estado: newStatus })
+        .eq('id', solicitudId);
+      if (error) throw error;
+      toast({ title: 'Estado actualizado', description: 'El estado se ha actualizado correctamente.' });
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Error', description: 'No se pudo actualizar el estado.', variant: 'destructive' });
+    }
+  };
+
+  const confirmSolicitudStatusChange = async (comment: string) => {
+    const { solicitudId, newStatus } = statusDialog;
+    if (!solicitudId) return;
+    try {
+      const { error } = await supabase
+        .from('solicitudes')
+        .update({
+          estado: newStatus,
+          comentario_estado: comment || null,
+          decision_por: profile?.user_id || null,
+          decision_fecha: new Date().toISOString(),
+        } as any)
+        .eq('id', solicitudId);
+
+      if (error) throw error;
+      toast({ title: 'Estado actualizado', description: 'El estado y comentario han sido guardados.' });
+      setStatusDialog({ open: false, solicitudId: '', newStatus: 'aprobada' });
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Error', description: 'No se pudo actualizar el estado.', variant: 'destructive' });
+    }
+  };
 
   if (loading) {
     return <div className="p-6">Cargando...</div>;
@@ -661,7 +726,6 @@ export default function ManagementDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-4xl font-bold font-playfair bg-gradient-primary bg-clip-text text-transparent">
