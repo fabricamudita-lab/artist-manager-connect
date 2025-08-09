@@ -628,10 +628,10 @@ const confirmStatusChange = async (comment: string) => {
       text = `Vencida hace ${Math.abs(days)}d`;
       cls = 'bg-destructive/10 text-destructive border-destructive/20';
     } else if (days === 0) {
-      text = 'Vence hoy';
+      text = '0d';
       cls = 'bg-warning/10 text-warning border-warning/20';
     } else {
-      text = `Faltan ${days}d`;
+      text = `${days}d`;
       cls = days <= 3
         ? 'bg-warning/10 text-warning border-warning/20'
         : 'bg-secondary/10 text-secondary-foreground border-border';
