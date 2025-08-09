@@ -721,18 +721,11 @@ const confirmStatusChange = async (comment: string) => {
         </div>
         <div className="flex gap-2">
           <Button 
-            onClick={() => setShowCreateDialog(true)}
+            onClick={() => setShowTemplateDialog(true)}
             className="bg-primary hover:bg-primary/90"
           >
             <Plus className="w-4 h-4 mr-2" />
             Nueva Solicitud
-          </Button>
-          <Button 
-            variant="outline"
-            onClick={() => setShowTemplateDialog(true)}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Desde Plantilla
           </Button>
         </div>
       </div>
@@ -818,7 +811,7 @@ const confirmStatusChange = async (comment: string) => {
                 ? 'No se encontraron solicitudes que coincidan con los filtros seleccionados.'
                 : 'Aún no tienes solicitudes. ¡Crea la primera!'}
             </p>
-            <Button onClick={() => setShowCreateDialog(true)}>
+            <Button onClick={() => setShowTemplateDialog(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Crear Primera Solicitud
             </Button>
