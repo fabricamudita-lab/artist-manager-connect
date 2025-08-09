@@ -30,6 +30,7 @@ import { useConfetti } from '@/hooks/useConfetti';
 import { useAuth } from '@/hooks/useAuth';
 import { StatusCommentDialog } from '@/components/StatusCommentDialog';
 import { ScheduleEncounterDialog } from '@/components/ScheduleEncounterDialog';
+import { SolicitudHistory } from '@/components/SolicitudHistory';
 
 interface SolicitudDetails {
   id: string;
@@ -82,7 +83,7 @@ const { profile } = useAuth();
 const [solicitud, setSolicitud] = useState<SolicitudDetails | null>(null);
 const [loading, setLoading] = useState(true);
 const [statusDialogOpen, setStatusDialogOpen] = useState(false);
-const [pendingStatus, setPendingStatus] = useState<'aprobada' | 'denegada'>('aprobada');
+const [pendingStatus, setPendingStatus] = useState<'aprobada' | 'denegada' | 'pendiente'>('aprobada');
 const [encuentroOpen, setEncuentroOpen] = useState(false);
 
   useEffect(() => {
@@ -160,6 +161,40 @@ const updateSolicitudStatus = async (newStatus: 'aprobada' | 'denegada', comment
       title: "Error",
       description: "No se pudo actualizar el estado de la solicitud",
       variant: "destructive"
+    });
+  }
+};
+
+const updateSolicitudToPending = async (comment?: string) => {
+  if (!solicitud) return;
+
+  try {
+    const { error } = await supabase
+      .from('solicitudes')
+      .update({
+        estado: 'pendiente',
+        fecha_actualizacion: new Date().toISOString(),
+        comentario_estado: comment || null,
+        decision_por: profile?.user_id || null,
+        decision_fecha: new Date().toISOString(),
+      } as any)
+      .eq('id', solicitud.id);
+
+    if (error) throw error;
+
+    setSolicitud(prev => prev ? { ...prev, estado: 'pendiente', comentario_estado: comment || null } : null);
+    onUpdate?.();
+
+    toast({
+      title: 'Solicitud reabierta',
+      description: 'Estado cambiado a pendiente',
+    });
+  } catch (error) {
+    console.error('Error reopening solicitud:', error);
+    toast({
+      title: 'Error',
+      description: 'No se pudo reabrir la solicitud',
+      variant: 'destructive'
     });
   }
 };
@@ -518,6 +553,9 @@ const updateSolicitudStatus = async (newStatus: 'aprobada' | 'denegada', comment
             </CardContent>
           </Card>
 
+          {/* Historial de respuestas */}
+          <SolicitudHistory solicitudId={solicitud.id} />
+
           {/* Acciones */}
           {solicitud.estado === 'pendiente' && (
             <Card className="bg-gradient-to-r from-gray-50 to-gray-100 border-dashed">
@@ -559,6 +597,24 @@ const updateSolicitudStatus = async (newStatus: 'aprobada' | 'denegada', comment
               </CardContent>
             </Card>
           )}
+
+          {solicitud.estado !== 'pendiente' && (
+            <Card className="bg-gradient-to-r from-gray-50 to-gray-100 border-dashed">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-1">Reabrir solicitud</h4>
+                    <p className="text-sm text-muted-foreground">Vuelve el estado a pendiente para solicitar una nueva respuesta</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => { setPendingStatus('pendiente'); setStatusDialogOpen(true); }}>
+                      Volver a pendiente
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Dialogos auxiliares */}
@@ -568,7 +624,11 @@ const updateSolicitudStatus = async (newStatus: 'aprobada' | 'denegada', comment
           status={pendingStatus}
           onSubmit={(comment) => {
             setStatusDialogOpen(false);
-            updateSolicitudStatus(pendingStatus, comment);
+            if (pendingStatus === 'pendiente') {
+              updateSolicitudToPending(comment);
+            } else {
+              updateSolicitudStatus(pendingStatus as 'aprobada' | 'denegada', comment);
+            }
           }}
         />
 

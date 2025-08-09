@@ -7,7 +7,7 @@ import { useState, useEffect } from "react";
 interface StatusCommentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  status: 'aprobada' | 'denegada';
+  status: 'aprobada' | 'denegada' | 'pendiente';
   onSubmit: (comment: string) => void;
 }
 
@@ -22,7 +22,12 @@ export function StatusCommentDialog({ open, onOpenChange, status, onSubmit }: St
     onSubmit(comment.trim());
   };
 
-  const title = status === 'aprobada' ? 'Añadir condiciones al aprobar' : 'Añadir motivo al denegar';
+  const title =
+    status === 'aprobada'
+      ? 'Añadir condiciones al aprobar'
+      : status === 'denegada'
+      ? 'Añadir motivo al denegar'
+      : 'Motivo de reapertura a pendiente';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,7 +41,13 @@ export function StatusCommentDialog({ open, onOpenChange, status, onSubmit }: St
             id="status-comment"
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder={status === 'aprobada' ? 'Condiciones, notas internas, próximos pasos…' : 'Explica brevemente el motivo de la denegación…'}
+            placeholder={
+              status === 'aprobada'
+                ? 'Condiciones, notas internas, próximos pasos…'
+                : status === 'denegada'
+                ? 'Explica brevemente el motivo de la denegación…'
+                : 'Motivo o contexto del cambio (p. ej., nuevas fechas)…'
+            }
             rows={5}
           />
         </div>

@@ -738,6 +738,51 @@ export type Database = {
           },
         ]
       }
+      solicitud_history: {
+        Row: {
+          changed_at: string
+          changed_by_profile_id: string
+          condicion: string | null
+          estado: Database["public"]["Enums"]["request_status"]
+          id: string
+          nota: string | null
+          solicitud_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by_profile_id: string
+          condicion?: string | null
+          estado: Database["public"]["Enums"]["request_status"]
+          id?: string
+          nota?: string | null
+          solicitud_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by_profile_id?: string
+          condicion?: string | null
+          estado?: Database["public"]["Enums"]["request_status"]
+          id?: string
+          nota?: string | null
+          solicitud_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitud_history_changed_by_profile_id_fkey"
+            columns: ["changed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_history_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "solicitudes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solicitudes: {
         Row: {
           archivos_adjuntos: Json | null
@@ -855,7 +900,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_profile_id_by_user: {
+        Args: { _user_id: string }
+        Returns: string
+      }
     }
     Enums: {
       billing_status: "pendiente" | "pagado" | "facturado" | "cancelado"
