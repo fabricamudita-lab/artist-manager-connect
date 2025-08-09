@@ -451,12 +451,31 @@ export default function Solicitudes() {
       );
     }
 
-    // Orden: pendientes primero, luego aprobadas y finalmente denegadas
-    // Dentro de cada grupo, ordenar por fecha de creación (más recientes primero)
-    const order: Record<Solicitud['estado'], number> = { pendiente: 0, aprobada: 1, denegada: 2 };
+    // Orden: pendientes primero; dentro de cada grupo, por prioridad (urgente→baja→sin), luego por fecha límite y finalmente por creación
+    const statusOrder: Record<Solicitud['estado'], number> = { pendiente: 0, aprobada: 1, denegada: 2 };
+    const priorityRank = (s: Solicitud) => {
+      const p = parsePriorityFromDescripcion((s as any).descripcion_libre);
+      switch (p) {
+        case 'urgente': return 0;
+        case 'alta': return 1;
+        case 'media': return 2;
+        case 'baja': return 3;
+        default: return 4; // sin prioridad al final
+      }
+    };
+
     filtered.sort((a, b) => {
-      const byStatus = order[a.estado] - order[b.estado];
+      const byStatus = statusOrder[a.estado] - statusOrder[b.estado];
       if (byStatus !== 0) return byStatus;
+
+      const prA = priorityRank(a);
+      const prB = priorityRank(b);
+      if (prA !== prB) return prA - prB;
+
+      const dueA = a.fecha_limite_respuesta ? new Date(a.fecha_limite_respuesta).getTime() : Number.POSITIVE_INFINITY;
+      const dueB = b.fecha_limite_respuesta ? new Date(b.fecha_limite_respuesta).getTime() : Number.POSITIVE_INFINITY;
+      if (dueA !== dueB) return dueA - dueB;
+
       return new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime();
     });
 
