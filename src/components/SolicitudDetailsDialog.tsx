@@ -637,57 +637,46 @@ const updateSolicitudToPending = async (comment?: string) => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label htmlFor="prioridad">Prioridad</Label>
-                  <Select
-                    value={currentPriority}
-                    onValueChange={(v) => updatePriorityQuick(v as 'urgente' | 'alta' | 'media' | 'baja')}
-                    disabled={solicitud.estado !== 'pendiente'}
-                  >
-                    <SelectTrigger className="mt-1" id="prioridad">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="urgente">
-                        <span className="inline-flex items-center gap-1">
-                          <span>🔴 Urgente</span>
-                          <span className="text-muted-foreground">— 1 día</span>
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="alta">
-                        <span className="inline-flex items-center gap-1">
-                          <span>🟠 Alta</span>
-                          <span className="text-muted-foreground">— 3 días</span>
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="media">
-                        <span className="inline-flex items-center gap-1">
-                          <span>🟡 Media</span>
-                          <span className="text-muted-foreground">— 7 días</span>
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="baja">
-                        <span className="inline-flex items-center gap-1">
-                          <span>🟢 Baja</span>
-                          <span className="text-muted-foreground">— 14 días</span>
-                        </span>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {solicitud.estado !== 'pendiente' && (
-                    <p className="text-xs text-muted-foreground mt-2">Solo editable cuando el estado es Pendiente.</p>
-                  )}
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">Plazos según prioridad</p>
-                  <ul className="text-sm space-y-1">
-                    <li>🔴 Urgente <span className="text-muted-foreground">— 1 día</span></li>
-                    <li>🟠 Alta <span className="text-muted-foreground">— 3 días</span></li>
-                    <li>🟡 Media <span className="text-muted-foreground">— 7 días</span></li>
-                    <li>🟢 Baja <span className="text-muted-foreground">— 14 días</span></li>
-                  </ul>
-                </div>
+              <div>
+                <Label htmlFor="prioridad">Prioridad</Label>
+                <Select
+                  value={currentPriority}
+                  onValueChange={(v) => updatePriorityQuick(v as 'urgente' | 'alta' | 'media' | 'baja')}
+                  disabled={solicitud.estado !== 'pendiente'}
+                >
+                  <SelectTrigger className="mt-1" id="prioridad">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="urgente">
+                      <span className="inline-flex items-center gap-1">
+                        <span>🔴 Urgente</span>
+                        <span className="text-muted-foreground">— 1 día</span>
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="alta">
+                      <span className="inline-flex items-center gap-1">
+                        <span>🟠 Alta</span>
+                        <span className="text-muted-foreground">— 3 días</span>
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="media">
+                      <span className="inline-flex items-center gap-1">
+                        <span>🟡 Media</span>
+                        <span className="text-muted-foreground">— 7 días</span>
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="baja">
+                      <span className="inline-flex items-center gap-1">
+                        <span>🟢 Baja</span>
+                        <span className="text-muted-foreground">— 14 días</span>
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                {solicitud.estado !== 'pendiente' && (
+                  <p className="text-xs text-muted-foreground mt-2">Solo editable cuando el estado es Pendiente.</p>
+                )}
               </div>
             </CardContent>
           </Card>
