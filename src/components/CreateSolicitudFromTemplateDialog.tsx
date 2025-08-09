@@ -230,8 +230,10 @@ export function CreateSolicitudFromTemplateDialog({
       solicitudData.fecha_limite_respuesta = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
 
       // Add template-specific fields to descripcion_libre as structured text
-      let descripcionLibre = `Solicitud de ${template?.title}\n\n`;
-      
+      let descripcionLibre = `Solicitud de ${template?.title}\n`;
+      const prioridadLabelMap: Record<string, string> = { baja: 'Baja', media: 'Media', alta: 'Alta', urgente: 'Urgente' };
+      const prioridadLabel = prioridadLabelMap[(formData.prioridad || 'media').toLowerCase()] || 'Media';
+      descripcionLibre += `Prioridad: ${prioridadLabel}\n\n`;
       if (selectedTemplate === 'booking') {
         descripcionLibre += `Fecha: ${formData.fecha || 'No especificada'}\n`;
         descripcionLibre += `Festival / Ciclo: ${formData.festival_ciclo || 'No especificado'}\n`;
@@ -413,10 +415,10 @@ export function CreateSolicitudFromTemplateDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="baja">🟢 Baja</SelectItem>
-                <SelectItem value="media">🟡 Media</SelectItem>
-                <SelectItem value="alta">🟠 Alta</SelectItem>
-                <SelectItem value="urgente">🔴 Urgente</SelectItem>
+                <SelectItem value="baja">🟢 Baja — 14 días</SelectItem>
+                <SelectItem value="media">🟡 Media — 7 días</SelectItem>
+                <SelectItem value="alta">🟠 Alta — 3 días</SelectItem>
+                <SelectItem value="urgente">🔴 Urgente — 1 día</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -665,10 +667,10 @@ export function CreateSolicitudFromTemplateDialog({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="baja">🟢 Baja</SelectItem>
-                      <SelectItem value="media">🟡 Media</SelectItem>
-                      <SelectItem value="alta">🟠 Alta</SelectItem>
-                      <SelectItem value="urgente">🔴 Urgente</SelectItem>
+                      <SelectItem value="baja">🟢 Baja — 14 días</SelectItem>
+                      <SelectItem value="media">🟡 Media — 7 días</SelectItem>
+                      <SelectItem value="alta">🟠 Alta — 3 días</SelectItem>
+                      <SelectItem value="urgente">🔴 Urgente — 1 día</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

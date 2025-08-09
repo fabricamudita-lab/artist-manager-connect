@@ -385,21 +385,25 @@ export default function Solicitudes() {
   const recalcMissingDueDates = async (rows: any[]) => {
     const updates: { id: string; fecha: string }[] = [];
     for (const s of rows) {
-      if (!s.fecha_limite_respuesta) {
-        const p = parsePriorityFromDescripcion(s.descripcion_libre);
-        const days = priorityToDays(p);
-        if (days) {
-          const base = new Date(s.fecha_creacion).getTime();
-          const fecha = new Date(base + days * 24 * 60 * 60 * 1000).toISOString();
-          const { error } = await supabase
-            .from('solicitudes')
-            .update({ fecha_limite_respuesta: fecha })
-            .eq('id', s.id);
-          if (!error) {
-            updates.push({ id: s.id, fecha });
-          } else {
-            console.error('Error updating fecha_limite_respuesta:', error);
-          }
+      const p = parsePriorityFromDescripcion(s.descripcion_libre);
+      const days = priorityToDays(p);
+      if (!days) continue;
+
+      const expectedTs = new Date(s.fecha_creacion).getTime() + days * 24 * 60 * 60 * 1000;
+      const expectedISO = new Date(expectedTs).toISOString();
+
+      const currentTs = s.fecha_limite_respuesta ? new Date(s.fecha_limite_respuesta).getTime() : null;
+      const shouldUpdate = !currentTs || Math.abs(currentTs - expectedTs) > 12 * 60 * 60 * 1000;
+
+      if (shouldUpdate) {
+        const { error } = await supabase
+          .from('solicitudes')
+          .update({ fecha_limite_respuesta: expectedISO })
+          .eq('id', s.id);
+        if (!error) {
+          updates.push({ id: s.id, fecha: expectedISO });
+        } else {
+          console.error('Error updating fecha_limite_respuesta:', error);
         }
       }
     }
