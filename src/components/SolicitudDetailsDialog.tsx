@@ -300,6 +300,22 @@ const updateSolicitudToPending = async (comment?: string) => {
     }
   };
 
+  const formatHoraEs = (dateOrTimeStr: string) => {
+    try {
+      const withTime = /\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}(?::\d{2})?/.test(dateOrTimeStr);
+      if (withTime) {
+        const d = new Date(dateOrTimeStr.replace(' ', 'T'));
+        if (!isNaN(d.getTime())) {
+          return format(d, 'HH:mm', { locale: es });
+        }
+      }
+      const m = dateOrTimeStr.match(/\b(\d{2}:\d{2})/);
+      return m ? m[1] : dateOrTimeStr;
+    } catch {
+      return dateOrTimeStr;
+    }
+  };
+
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -322,8 +338,13 @@ const updateSolicitudToPending = async (comment?: string) => {
     solicitud.descripcion_libre
       ? solicitud.descripcion_libre
           .replace(
-            /(^|\n)\s*Fecha y hora:\s*(\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}(?::\d{2})?))/gi,
-            (_m, p1, d) => `${p1}Fecha y hora: ${formatFechaHoraLargaEs(d)}`
+            /(^|\n)\s*Fecha\s*y\s*hora(?:[^:\n]*)?:\s*(\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}(?::\d{2})?))/gi,
+            (_m, p1, d) => {
+              const datePart = (d.match(/^\d{4}-\d{2}-\d{2}/)?.[0]) || d;
+              const fecha = formatFechaLargaEs(datePart);
+              const hora = formatHoraEs(d);
+              return `${p1}Fecha: ${fecha}\nHora: ${hora}`;
+            }
           )
           .replace(
             /(^|\n)\s*Fecha:\s*(\d{4}-\d{2}-\d{2})/gi,
@@ -454,11 +475,22 @@ const updateSolicitudToPending = async (comment?: string) => {
                   
                   {solicitud.hora_entrevista && (
                     <div className="flex items-center gap-3">
+                      <Calendar className="w-4 h-4 text-red-500" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Fecha de la Entrevista</p>
+                        <p className="font-medium">
+                          {formatFechaLargaEs((solicitud.hora_entrevista.match(/^\d{4}-\d{2}-\d{2}/)?.[0]) || solicitud.hora_entrevista)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {solicitud.hora_entrevista && (
+                    <div className="flex items-center gap-3">
                       <Clock className="w-4 h-4 text-red-500" />
                       <div>
-                        <p className="text-sm text-muted-foreground">Fecha y Hora</p>
+                        <p className="text-sm text-muted-foreground">Hora de la Entrevista</p>
                         <p className="font-medium">
-                          {formatFechaHoraLargaEs(solicitud.hora_entrevista)}
+                          {formatHoraEs(solicitud.hora_entrevista)}
                         </p>
                       </div>
                     </div>
@@ -519,11 +551,22 @@ const updateSolicitudToPending = async (comment?: string) => {
                   
                   {solicitud.hora_show && (
                     <div className="flex items-center gap-3">
+                      <Calendar className="w-4 h-4 text-green-500" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Fecha del Show</p>
+                        <p className="font-medium">
+                          {formatFechaLargaEs((solicitud.hora_show.match(/^\d{4}-\d{2}-\d{2}/)?.[0]) || solicitud.hora_show)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {solicitud.hora_show && (
+                    <div className="flex items-center gap-3">
                       <Clock className="w-4 h-4 text-green-500" />
                       <div>
-                        <p className="text-sm text-muted-foreground">Fecha y Hora del Show</p>
+                        <p className="text-sm text-muted-foreground">Hora del Show</p>
                         <p className="font-medium">
-                          {formatFechaHoraLargaEs(solicitud.hora_show)}
+                          {formatHoraEs(solicitud.hora_show)}
                         </p>
                       </div>
                     </div>
