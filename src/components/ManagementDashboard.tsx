@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Users, PlusCircle, FileText, DollarSign, LogOut, Send, TrendingUp, Music, Radio, Receipt, Headphones, Mic, Globe, Clock, MapPin, Archive, MessageCircle, Edit, Filter, Search, MoreHorizontal, CalendarPlus, AlertTriangle, CheckCircle, XCircle, Package, User, Trash2 } from 'lucide-react';
+import { Calendar, Users, PlusCircle, FileText, DollarSign, LogOut, Send, TrendingUp, Music, Radio, Receipt, Headphones, Mic, Globe, Clock, MapPin, Archive, MessageCircle, Edit, Filter, Search, MoreHorizontal, CalendarPlus, AlertTriangle, CheckCircle, XCircle, Package, User, Trash2, HelpCircle, Info } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import InviteArtistDialog from '@/components/InviteArtistDialog';
 import NotificationBell from '@/components/NotificationBell';
@@ -59,6 +59,12 @@ interface Solicitud {
   fecha_actualizacion: string;
   created_by: string;
   artist_id?: string;
+  // Optional fields used in Solicitudes UI
+  nombre_festival?: string;
+  lugar_concierto?: string;
+  nombre_programa?: string;
+  medio?: string;
+  ciudad?: string;
   profiles?: {
     full_name: string;
   } | null;
@@ -371,6 +377,29 @@ export default function ManagementDashboard() {
       case 'meeting': return '🤝';
       default: return '📅';
     }
+  };
+
+  // Icons for Solicitud types (match Solicitudes page)
+  const getSolicitudTypeIcon = (tipo: string) => {
+    const iconProps = { size: 16, className: "text-white" };
+    switch (tipo) {
+      case 'entrevista': return <Mic {...iconProps} />;
+      case 'booking': return <Music {...iconProps} />;
+      case 'consulta': return <HelpCircle {...iconProps} />;
+      case 'informacion': return <Info {...iconProps} />;
+      case 'otro': return <FileText {...iconProps} />;
+      default: return <FileText {...iconProps} />;
+    }
+  };
+
+  // Title/content for Solicitud (match Solicitudes page)
+  const getMainContent = (solicitud: Solicitud) => {
+    if (solicitud.tipo === 'booking') {
+      return solicitud.nombre_festival || solicitud.lugar_concierto || 'Evento sin nombre';
+    } else if (solicitud.tipo === 'entrevista') {
+      return solicitud.nombre_programa || solicitud.medio || 'Entrevista';
+    }
+    return solicitud.nombre_solicitante;
   };
 
   const updateRequestStatus = async (requestId: string, newStatus: string) => {
