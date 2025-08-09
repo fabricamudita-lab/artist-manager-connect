@@ -28,6 +28,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
     observaciones: '',
     notas_internas: '',
     artist_id: '',
+    fecha_limite_respuesta: new Date(Date.now() + 7*24*60*60*1000).toISOString().slice(0,10),
     
     // Campos específicos para entrevistas
     medio: '',
@@ -56,6 +57,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
       observaciones: '',
       notas_internas: '',
       artist_id: '',
+      fecha_limite_respuesta: new Date(Date.now() + 7*24*60*60*1000).toISOString().slice(0,10),
       medio: '',
       nombre_entrevistador: '',
       nombre_programa: '',
@@ -197,6 +199,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
         notas_internas: formData.notas_internas || null,
         created_by: profile?.user_id,
         artist_id: formData.artist_id || null,
+        fecha_limite_respuesta: formData.fecha_limite_respuesta || null,
         
         // Campos específicos según el tipo
         ...(formData.tipo === 'entrevista' && {
@@ -299,6 +302,17 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
             placeholder="+34 600 000 000"
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="fecha_limite_respuesta">Fecha límite de respuesta</Label>
+        <Input
+          id="fecha_limite_respuesta"
+          type="date"
+          value={formData.fecha_limite_respuesta}
+          onChange={(e) => setFormData({ ...formData, fecha_limite_respuesta: e.target.value })}
+        />
+        <p className="text-xs text-muted-foreground">Por defecto: +7 días</p>
       </div>
 
       <div className="space-y-2">

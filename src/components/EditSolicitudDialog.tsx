@@ -21,6 +21,7 @@ interface Solicitud {
   notas_internas?: string;
   estado: 'pendiente' | 'aprobada' | 'denegada';
   artist_id?: string;
+  fecha_limite_respuesta?: string;
   
   // Campos específicos para entrevistas
   medio?: string;
@@ -57,6 +58,7 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
     notas_internas: '',
     estado: '' as 'pendiente' | 'aprobada' | 'denegada',
     artist_id: '',
+    fecha_limite_respuesta: '',
     
     // Campos específicos para entrevistas
     medio: '',
@@ -86,6 +88,7 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
         notas_internas: solicitud.notas_internas || '',
         estado: solicitud.estado,
         artist_id: solicitud.artist_id || '',
+        fecha_limite_respuesta: solicitud.fecha_limite_respuesta ? new Date(solicitud.fecha_limite_respuesta).toISOString().slice(0, 10) : '',
         
         // Campos específicos para entrevistas
         medio: solicitud.medio || '',
@@ -151,6 +154,9 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
         ...((formData.tipo === 'otro' || formData.tipo === 'consulta' || formData.tipo === 'informacion') && {
           descripcion_libre: formData.descripcion_libre || null,
         }),
+        
+        // Campo común
+        fecha_limite_respuesta: formData.fecha_limite_respuesta || null,
       };
 
       const { error } = await supabase
@@ -282,6 +288,17 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
                     placeholder="+34 600 000 000"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fecha_limite_respuesta">Fecha límite de respuesta</Label>
+                <Input
+                  id="fecha_limite_respuesta"
+                  type="date"
+                  value={formData.fecha_limite_respuesta}
+                  onChange={(e) => setFormData({ ...formData, fecha_limite_respuesta: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">Usado para mostrar el chip de vencimiento</p>
               </div>
 
               <div className="space-y-2">
