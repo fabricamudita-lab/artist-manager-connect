@@ -85,6 +85,7 @@ const [loading, setLoading] = useState(true);
 const [statusDialogOpen, setStatusDialogOpen] = useState(false);
 const [pendingStatus, setPendingStatus] = useState<'aprobada' | 'denegada' | 'pendiente'>('aprobada');
 const [encuentroOpen, setEncuentroOpen] = useState(false);
+const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     if (open && solicitudId) {
@@ -554,7 +555,13 @@ const updateSolicitudToPending = async (comment?: string) => {
           </Card>
 
           {/* Historial de respuestas */}
-          <SolicitudHistory solicitudId={solicitud.id} />
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setShowHistory((v) => !v)}>
+              {showHistory ? 'Ocultar historial' : 'Ver historial'}
+            </Button>
+          </div>
+          {showHistory && <SolicitudHistory solicitudId={solicitud.id} />}
+
 
           {/* Acciones */}
           {solicitud.estado === 'pendiente' && (
