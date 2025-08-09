@@ -631,13 +631,16 @@ const updateSolicitudToPending = async (comment?: string) => {
                     </div>
                   </div>
                 )}
+
+                {/* Chat de decisión dentro del bloque para que quede siempre visible */}
+                <div className="pt-2">
+                  <p className="text-sm font-medium text-muted-foreground mb-3">Chat de decisión</p>
+                  <DecisionChat solicitudId={solicitud.id} />
+                </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Chat de decisión */}
-          <DecisionChat solicitudId={solicitud.id} />
-          
           {/* Información de Fechas */}
           <Card>
             <CardHeader>
