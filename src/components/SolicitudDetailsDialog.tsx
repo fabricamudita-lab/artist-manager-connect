@@ -24,6 +24,8 @@ import {
   FileText,
   Download
 } from 'lucide-react';
+import { format, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useConfetti } from '@/hooks/useConfetti';
@@ -258,6 +260,25 @@ const updateSolicitudToPending = async (comment?: string) => {
     }
   };
 
+  // Formatea "YYYY-MM-DD" a "Lunes, 4 de Agosto de 2025" en español
+  const formatFechaLargaEs = (dateStr: string) => {
+    try {
+      const d = parse(dateStr, 'yyyy-MM-dd', new Date());
+      if (isNaN(d.getTime())) return dateStr;
+      let s = format(d, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es });
+      // Capitalizar primera letra y mes
+      s = s.charAt(0).toUpperCase() + s.slice(1);
+      const parts = s.split(' de ');
+      if (parts.length >= 3) {
+        parts[1] = parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
+        s = parts.join(' de ');
+      }
+      return s;
+    } catch {
+      return dateStr;
+    }
+  };
+
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -274,6 +295,15 @@ const updateSolicitudToPending = async (comment?: string) => {
   if (!solicitud) {
     return null;
   }
+
+  // Descripción con fecha legible para bookings (no altera datos guardados)
+  const processedDescripcionLibre =
+    solicitud.descripcion_libre && solicitud.tipo === 'booking'
+      ? solicitud.descripcion_libre.replace(
+          /^Fecha:\s*(\d{4}-\d{2}-\d{2})/m,
+          (_match, d) => `Fecha: ${formatFechaLargaEs(d)}`
+        )
+      : solicitud.descripcion_libre;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -500,7 +530,7 @@ const updateSolicitudToPending = async (comment?: string) => {
                       {solicitud.descripcion_libre && (
                         <div>
                           <p className="text-sm font-medium text-blue-900 mb-1">Descripción:</p>
-                          <p className="text-sm text-blue-800 whitespace-pre-wrap">{solicitud.descripcion_libre}</p>
+                          <p className="text-sm text-blue-800 whitespace-pre-wrap">{processedDescripcionLibre}</p>
                         </div>
                       )}
                     </div>
