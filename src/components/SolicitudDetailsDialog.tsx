@@ -381,12 +381,6 @@ const updateSolicitudToPending = async (comment?: string) => {
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Chat de decisión (arriba para verificar visibilidad) */}
-          {(() => { console.info('[SolicitudDetailsDialog] Rendering DecisionChat (top) for solicitud:', solicitud.id); return null; })()}
-          <div>
-            <p className="text-sm font-medium text-muted-foreground mb-3">Chat de decisión</p>
-            <DecisionChat solicitudId={solicitud.id} />
-          </div>
 
           {/* Header Card */}
           <Card className="border-0 shadow-sm">
@@ -647,7 +641,7 @@ const updateSolicitudToPending = async (comment?: string) => {
           )}
 
           {/* Chat de decisión */}
-          {(() => { console.info('[SolicitudDetailsDialog] Rendering DecisionChat for solicitud:', solicitud.id); return null; })()}
+          
           <div>
             <p className="text-sm font-medium text-muted-foreground mb-3">Chat de decisión</p>
             <DecisionChat solicitudId={solicitud.id} />
