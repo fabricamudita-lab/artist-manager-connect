@@ -415,10 +415,30 @@ export function CreateSolicitudFromTemplateDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="baja">🟢 Baja — 14 días</SelectItem>
-                <SelectItem value="media">🟡 Media — 7 días</SelectItem>
-                <SelectItem value="alta">🟠 Alta — 3 días</SelectItem>
-                <SelectItem value="urgente">🔴 Urgente — 1 día</SelectItem>
+                <SelectItem value="baja">
+                  <span className="inline-flex items-center gap-1">
+                    <span>🟢 Baja</span>
+                    <span className="text-muted-foreground">— 14 días</span>
+                  </span>
+                </SelectItem>
+                <SelectItem value="media">
+                  <span className="inline-flex items-center gap-1">
+                    <span>🟡 Media</span>
+                    <span className="text-muted-foreground">— 7 días</span>
+                  </span>
+                </SelectItem>
+                <SelectItem value="alta">
+                  <span className="inline-flex items-center gap-1">
+                    <span>🟠 Alta</span>
+                    <span className="text-muted-foreground">— 3 días</span>
+                  </span>
+                </SelectItem>
+                <SelectItem value="urgente">
+                  <span className="inline-flex items-center gap-1">
+                    <span>🔴 Urgente</span>
+                    <span className="text-muted-foreground">— 1 día</span>
+                  </span>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -667,10 +687,30 @@ export function CreateSolicitudFromTemplateDialog({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="baja">🟢 Baja — 14 días</SelectItem>
-                      <SelectItem value="media">🟡 Media — 7 días</SelectItem>
-                      <SelectItem value="alta">🟠 Alta — 3 días</SelectItem>
-                      <SelectItem value="urgente">🔴 Urgente — 1 día</SelectItem>
+                      <SelectItem value="baja">
+                        <span className="inline-flex items-center gap-1">
+                          <span>🟢 Baja</span>
+                          <span className="text-muted-foreground">— 14 días</span>
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="media">
+                        <span className="inline-flex items-center gap-1">
+                          <span>🟡 Media</span>
+                          <span className="text-muted-foreground">— 7 días</span>
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="alta">
+                        <span className="inline-flex items-center gap-1">
+                          <span>🟠 Alta</span>
+                          <span className="text-muted-foreground">— 3 días</span>
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="urgente">
+                        <span className="inline-flex items-center gap-1">
+                          <span>🔴 Urgente</span>
+                          <span className="text-muted-foreground">— 1 día</span>
+                        </span>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
