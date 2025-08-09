@@ -555,8 +555,8 @@ const updateSolicitudToPending = async (comment?: string) => {
           </Card>
 
           {/* Historial de respuestas */}
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={() => setShowHistory((v) => !v)}>
+          <div>
+            <Button variant="outline" className="w-full" onClick={() => setShowHistory((v) => !v)}>
               {showHistory ? 'Ocultar historial' : 'Ver historial'}
             </Button>
           </div>
