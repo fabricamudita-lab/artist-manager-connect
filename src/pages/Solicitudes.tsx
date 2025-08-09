@@ -552,7 +552,7 @@ const confirmStatusChange = async (comment: string) => {
     }
 
     return (
-      <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full border ${cls} opacity-80`}>{text}</span>
+      <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full border ${cls} opacity-80 whitespace-nowrap`}>{text}</span>
     );
   };
 
@@ -911,15 +911,25 @@ const confirmStatusChange = async (comment: string) => {
 
                 {/* Estado + Fecha/Acciones alineados a la derecha */}
                 <div className="ml-auto flex items-center gap-2 sm:gap-3">
+                  {/* Slot fijo para días restantes (no mueve el estado) */}
+                  <div className="flex-shrink-0 min-w-[90px] flex justify-end">
+                    {solicitud.estado === 'pendiente' ? (
+                      <DueChip date={solicitud.fecha_limite_respuesta} estado={solicitud.estado} />
+                    ) : (
+                      <span className="invisible block text-[10px] sm:text-xs px-2 py-1 rounded-full border">--</span>
+                    )}
+                  </div>
+
                   {/* Estado - chip interactivo */}
                   <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                     <Select
                       value={solicitud.estado}
                       onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') => handleStatusChange(solicitud.id, value, solicitud.estado)}
                     >
-                    <SelectTrigger className={`${getStatusBadgeColor(solicitud.estado)} text-xs border rounded-full h-7 px-3 [&>svg:last-child]:hidden`}
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                      <SelectTrigger
+                        className={`${getStatusBadgeColor(solicitud.estado)} text-xs border rounded-full h-7 px-3 [&>svg:last-child]:hidden`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <StatusIcon className="w-3 h-3 mr-1" />
                         {statusInfo.label}
                       </SelectTrigger>
@@ -944,11 +954,6 @@ const confirmStatusChange = async (comment: string) => {
                         </SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  {/* Chip de vencimiento */}
-                  <div className="flex-shrink-0">
-                    <DueChip date={solicitud.fecha_limite_respuesta} estado={solicitud.estado} />
                   </div>
 
                   {/* Fecha / Acciones (intercambio al hover) */}
