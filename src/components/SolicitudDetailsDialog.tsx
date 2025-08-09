@@ -347,6 +347,10 @@ const updateSolicitudToPending = async (comment?: string) => {
             }
           )
           .replace(
+            /(^|\n)\s*Fecha\s*y\s*hora[^:\n]*:\s*([^\n]*?)\s+(\d{1,2}:\d{2}(?::\d{2})?)/gi,
+            (_m, p1, fechaTexto, horaTexto) => `${p1}Fecha: ${fechaTexto.trim()}\nHora: ${horaTexto}`
+          )
+          .replace(
             /(^|\n)\s*Fecha:\s*(\d{4}-\d{2}-\d{2})/gi,
             (_m, p1, d) => `${p1}Fecha: ${formatFechaLargaEs(d)}`
           )
