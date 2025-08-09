@@ -325,7 +325,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="observaciones">Observaciones</Label>
+        <Label htmlFor="observaciones">Comentarios de la solicitante</Label>
         <Textarea
           id="observaciones"
           value={formData.observaciones}

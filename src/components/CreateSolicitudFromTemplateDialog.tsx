@@ -869,7 +869,7 @@ export function CreateSolicitudFromTemplateDialog({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="observaciones">Observaciones adicionales</Label>
+          <Label htmlFor="observaciones">Comentarios de la solicitante</Label>
           <Textarea
             id="observaciones"
             value={formData.observaciones}

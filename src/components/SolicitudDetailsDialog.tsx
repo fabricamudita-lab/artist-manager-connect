@@ -596,7 +596,7 @@ const updateSolicitudToPending = async (comment?: string) => {
                     <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
                       {solicitud.observaciones && (
                         <div className="mb-3">
-                          <p className="text-sm font-medium text-blue-900 mb-1">Observaciones:</p>
+                          <p className="text-sm font-medium text-blue-900 mb-1">Comentarios de la solicitante:</p>
                           <p className="text-sm text-blue-800">{solicitud.observaciones}</p>
                         </div>
                       )}

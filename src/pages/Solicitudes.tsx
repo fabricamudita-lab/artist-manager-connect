@@ -514,7 +514,7 @@ const confirmStatusChange = async (comment: string) => {
         `Solicitante: ${solicitud.nombre_solicitante}\n` +
         (solicitud.email ? `Email: ${solicitud.email}\n` : '') +
         (solicitud.telefono ? `Teléfono: ${solicitud.telefono}\n` : '') +
-        (solicitud.observaciones ? `Observaciones: ${solicitud.observaciones}\n` : '') +
+        (solicitud.observaciones ? `Comentarios de la solicitante: ${solicitud.observaciones}\n` : '') +
         (solicitud.tipo === 'entrevista' && solicitud.nombre_entrevistador ? `Entrevistador: ${solicitud.nombre_entrevistador}\n` : '') +
         (solicitud.tipo === 'booking' && solicitud.nombre_festival ? `Festival: ${solicitud.nombre_festival}\n` : ''),
       startDate: solicitud.tipo === 'entrevista' ? solicitud.hora_entrevista : solicitud.hora_show,
