@@ -628,9 +628,6 @@ const confirmStatusChange = async (comment: string) => {
         }}
       >
         <CardHeader className="pb-3 relative">
-          <div className="absolute top-2 right-12 sm:right-14 md:right-16 pointer-events-none">
-            <DueChip date={solicitud.fecha_limite_respuesta} estado={solicitud.estado} />
-          </div>
           <div className="flex items-start justify-between">
             <div className="flex-1 relative">
               <div className="flex items-center gap-3 mb-2">
