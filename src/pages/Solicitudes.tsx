@@ -15,7 +15,7 @@ import { CreateSolicitudFromTemplateDialog } from '@/components/CreateSolicitudF
 import { EditSolicitudDialog } from '@/components/EditSolicitudDialog';
 import { SolicitudDetailsDialog } from '@/components/SolicitudDetailsDialog';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
-import { format } from 'date-fns';
+import { format, differenceInCalendarDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { StatusCommentDialog } from '@/components/StatusCommentDialog';
 import { ScheduleEncounterDialog } from '@/components/ScheduleEncounterDialog';
@@ -34,6 +34,7 @@ interface Solicitud {
   fecha_actualizacion: string;
   created_by: string;
   artist_id?: string;
+  fecha_limite_respuesta?: string;
   
   // Comentario y metadatos de decisión
   comentario_estado?: string | null;
@@ -524,6 +525,39 @@ const confirmStatusChange = async (comment: string) => {
     navigate('/calendar', { state: { createEvent: eventData } });
   };
 
+  // Helpers para fecha límite de respuesta
+  const getDaysToDeadline = (dateStr?: string | null) => {
+    if (!dateStr) return null;
+    try { return differenceInCalendarDays(new Date(dateStr), new Date()); } catch { return null; }
+  };
+
+  const DueChip = ({ date, estado }: { date?: string | null; estado: Solicitud['estado']; }) => {
+    const days = getDaysToDeadline(date);
+    if (days === null || estado !== 'pendiente') return null;
+
+    let text = '';
+    let cls = 'bg-secondary/10 text-muted-foreground border-border';
+
+    if (days < 0) {
+      text = `Vencida hace ${Math.abs(days)}d`;
+      cls = 'bg-destructive/10 text-destructive border-destructive/20';
+    } else if (days === 0) {
+      text = 'Vence hoy';
+      cls = 'bg-warning/10 text-warning border-warning/20';
+    } else {
+      text = `Faltan ${days}d`;
+      cls = days <= 3
+        ? 'bg-warning/10 text-warning border-warning/20'
+        : 'bg-secondary/10 text-secondary-foreground border-border';
+    }
+
+    return (
+      <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full border ${cls}`}>
+        {text}
+      </span>
+    );
+  };
+
   const renderSolicitudCard = (solicitud: Solicitud) => {
     const typeInfo = typeConfig[solicitud.tipo];
     const statusInfo = statusConfig[solicitud.estado];
@@ -557,6 +591,7 @@ const confirmStatusChange = async (comment: string) => {
                   <StatusIcon className="w-3 h-3 mr-1" />
                   {statusInfo.label}
                 </Badge>
+                <DueChip date={solicitud.fecha_limite_respuesta} estado={solicitud.estado} />
                 <span className="text-xs text-muted-foreground">
                   {format(new Date(solicitud.fecha_creacion), 'dd MMM yyyy', { locale: es })}
                 </span>
@@ -910,6 +945,11 @@ const confirmStatusChange = async (comment: string) => {
                         </SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  {/* Chip de vencimiento */}
+                  <div className="flex-shrink-0">
+                    <DueChip date={solicitud.fecha_limite_respuesta} estado={solicitud.estado} />
                   </div>
 
                   {/* Fecha / Acciones (intercambio al hover) */}

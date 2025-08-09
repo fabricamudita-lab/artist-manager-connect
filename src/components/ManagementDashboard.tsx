@@ -1067,13 +1067,19 @@ export default function ManagementDashboard() {
                             <div className="flex items-center gap-1">
                               <div className="w-1 h-1 bg-primary rounded-full"></div>
                               <span>Creado: {new Date(request.created_at).toLocaleDateString()}</span>
-                            </div>
-                            {request.due_date && (
-                              <div className={`flex items-center gap-1 ${isOverdue(request.due_date, request.status) ? 'text-destructive font-medium' : ''}`}>
-                                <div className={`w-1 h-1 rounded-full ${isOverdue(request.due_date, request.status) ? 'bg-destructive' : 'bg-secondary'}`}></div>
-                                <span>Vence: {new Date(request.due_date).toLocaleDateString()}</span>
                               </div>
-                            )}
+                              {request.due_date && (
+                                <div className={`flex items-center gap-1 ${isOverdue(request.due_date, request.status) ? 'text-destructive font-medium' : ''}`}>
+                                  <div className={`w-1 h-1 rounded-full ${isOverdue(request.due_date, request.status) ? 'bg-destructive' : 'bg-secondary'}`}></div>
+                                  <span>Vence: {new Date(request.due_date).toLocaleDateString()}</span>
+                                </div>
+                              )}
+                              {/* Chip de vencimiento relativo */}
+                              {request.due_date && (
+                                <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full border ${isOverdue(request.due_date, request.status) ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-warning/10 text-warning border-warning/20'}`}>
+                                  {isOverdue(request.due_date, request.status) ? 'Vencida' : ''}
+                                </span>
+                              )}
                           </div>
                         </div>
                         
@@ -1133,14 +1139,14 @@ export default function ManagementDashboard() {
                         </div>
                       </div>
                       
-                      {isOverdue(request.due_date, request.status) && (
-                        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mt-3">
-                          <div className="flex items-center gap-2 text-destructive text-sm">
-                            <AlertTriangle className="w-4 h-4" />
-                            <span>¡Fecha vencida!</span>
+                        {isOverdue(request.due_date, request.status) && (
+                          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mt-3">
+                            <div className="flex items-center gap-2 text-destructive text-sm">
+                              <AlertTriangle className="w-4 h-4" />
+                              <span>¡Fecha vencida!</span>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                     </div>
                   );
                 })}
