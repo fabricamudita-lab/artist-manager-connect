@@ -296,12 +296,12 @@ const updateSolicitudToPending = async (comment?: string) => {
     return null;
   }
 
-  // Descripción con fecha legible para bookings (no altera datos guardados)
+  // Descripción con fechas legibles para cualquier tipo (no altera datos guardados)
   const processedDescripcionLibre =
-    solicitud.descripcion_libre && solicitud.tipo === 'booking'
+    solicitud.descripcion_libre
       ? solicitud.descripcion_libre.replace(
-          /^Fecha:\s*(\d{4}-\d{2}-\d{2})/m,
-          (_match, d) => `Fecha: ${formatFechaLargaEs(d)}`
+          /(^|\n)Fecha:\s*(\d{4}-\d{2}-\d{2})/g,
+          (_m, p1, d) => `${p1}Fecha: ${formatFechaLargaEs(d)}`
         )
       : solicitud.descripcion_libre;
 
