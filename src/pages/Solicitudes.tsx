@@ -575,7 +575,7 @@ const confirmStatusChange = async (comment: string) => {
       >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
-            <div className="flex-1">
+            <div className="flex-1 relative">
               <div className="flex items-center gap-3 mb-2">
                 <div className={`w-8 h-8 rounded-full ${typeInfo.color} flex items-center justify-center text-white text-sm`}>
                   {typeInfo.icon}
@@ -585,13 +585,14 @@ const confirmStatusChange = async (comment: string) => {
                   <p className="text-sm text-muted-foreground capitalize">{typeInfo.label}</p>
                 </div>
               </div>
-              
+              <div className="absolute top-1 right-0 pointer-events-none">
+                <DueChip date={solicitud.fecha_limite_respuesta} estado={solicitud.estado} />
+              </div>
               <div className="flex items-center gap-3">
                 <Badge className={`${statusInfo.color} border font-medium`}>
                   <StatusIcon className="w-3 h-3 mr-1" />
                   {statusInfo.label}
                 </Badge>
-                <DueChip date={solicitud.fecha_limite_respuesta} estado={solicitud.estado} />
                 <span className="text-xs text-muted-foreground">
                   {format(new Date(solicitud.fecha_creacion), 'dd MMM yyyy', { locale: es })}
                 </span>
