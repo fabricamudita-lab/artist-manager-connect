@@ -888,7 +888,48 @@ export default function ManagementDashboard() {
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-1">
+                        <div className="ml-auto flex items-center gap-2 sm:gap-3" onClick={(e) => e.stopPropagation()}>
+                          {/* Estado - chip interactivo */}
+                          <div className="flex-shrink-0">
+                            <Select
+                              value={solicitud.estado}
+                              onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') =>
+                                handleSolicitudStatusChange(solicitud.id, value, solicitud.estado)
+                              }
+                            >
+                              <SelectTrigger className={`${getStatusBadgeColor(solicitud.estado)} text-xs border rounded-full h-7 px-3 [&>svg:last-child]:hidden`}>
+                                {solicitud.estado === 'pendiente' ? (
+                                  <Clock className="w-3 h-3 mr-1" />
+                                ) : solicitud.estado === 'aprobada' ? (
+                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                ) : (
+                                  <XCircle className="w-3 h-3 mr-1" />
+                                )}
+                                {solicitud.estado === 'pendiente' ? 'Pendiente' : solicitud.estado === 'aprobada' ? 'Aprobada' : 'Denegada'}
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pendiente">
+                                  <div className="flex items-center gap-2">
+                                    <Clock className="w-3 h-3" />
+                                    Pendiente
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="aprobada">
+                                  <div className="flex items-center gap-2">
+                                    <CheckCircle className="w-3 h-3" />
+                                    Aprobada
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="denegada">
+                                  <div className="flex items-center gap-2">
+                                    <XCircle className="w-3 h-3" />
+                                    Denegada
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
                           {solicitudStatus === 'approved' && (
                            <Button
                              variant="ghost"
@@ -1563,6 +1604,14 @@ export default function ManagementDashboard() {
         open={showTemplateDialog}
         onOpenChange={setShowTemplateDialog}
         onSuccess={fetchData}
+      />
+
+      {/* Status Comment Dialog */}
+      <StatusCommentDialog
+        open={statusDialog.open}
+        onOpenChange={(open) => setStatusDialog(prev => ({ ...prev, open }))}
+        status={statusDialog.newStatus}
+        onSubmit={confirmSolicitudStatusChange}
       />
 
       {/* Solicitud Details Dialog */}
