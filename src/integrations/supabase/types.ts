@@ -798,6 +798,7 @@ export type Database = {
           estado: Database["public"]["Enums"]["request_status"]
           fecha_actualizacion: string
           fecha_creacion: string
+          fecha_limite_respuesta: string | null
           hora_entrevista: string | null
           hora_show: string | null
           id: string
@@ -827,6 +828,7 @@ export type Database = {
           estado?: Database["public"]["Enums"]["request_status"]
           fecha_actualizacion?: string
           fecha_creacion?: string
+          fecha_limite_respuesta?: string | null
           hora_entrevista?: string | null
           hora_show?: string | null
           id?: string
@@ -856,6 +858,7 @@ export type Database = {
           estado?: Database["public"]["Enums"]["request_status"]
           fecha_actualizacion?: string
           fecha_creacion?: string
+          fecha_limite_respuesta?: string | null
           hora_entrevista?: string | null
           hora_show?: string | null
           id?: string
