@@ -632,9 +632,15 @@ const confirmStatusChange = async (comment: string) => {
       cls = 'bg-warning/10 text-warning border-warning/20';
     } else {
       text = `${days}d`;
-      cls = days <= 3
-        ? 'bg-warning/10 text-warning border-warning/20'
-        : 'bg-secondary/10 text-secondary-foreground border-border';
+      if (days <= 1) {
+        cls = 'bg-warning/30 text-warning border-warning/40';
+      } else if (days <= 3) {
+        cls = 'bg-warning/20 text-warning border-warning/30';
+      } else if (days <= 7) {
+        cls = 'bg-warning/10 text-warning border-warning/20';
+      } else {
+        cls = 'bg-secondary/10 text-secondary-foreground border-border';
+      }
     }
 
     return (
