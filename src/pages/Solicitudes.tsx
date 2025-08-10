@@ -629,17 +629,17 @@ const confirmStatusChange = async (comment: string) => {
       cls = 'text-destructive font-semibold';
     } else if (days === 0) {
       text = '0d';
-      cls = 'text-warning font-semibold';
+      cls = 'text-muted-foreground font-bold';
     } else {
       text = `${days}d`;
       if (days <= 1) {
-        cls = 'text-warning font-semibold';
+        cls = 'text-muted-foreground font-bold';
       } else if (days <= 3) {
-        cls = 'text-warning/90 font-semibold';
+        cls = 'text-muted-foreground font-semibold';
       } else if (days <= 7) {
-        cls = 'text-warning/80 font-medium';
+        cls = 'text-muted-foreground font-medium';
       } else {
-        cls = 'text-warning/60';
+        cls = 'text-muted-foreground';
       }
     }
 
