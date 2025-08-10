@@ -622,29 +622,29 @@ const confirmStatusChange = async (comment: string) => {
     if (days === null || estado !== 'pendiente') return null;
 
     let text = '';
-    let cls = 'bg-secondary/10 text-muted-foreground border-border';
+    let cls = 'text-muted-foreground';
 
     if (days < 0) {
       text = `Vencida hace ${Math.abs(days)}d`;
-      cls = 'bg-destructive/10 text-destructive border-destructive/20';
+      cls = 'text-destructive font-semibold';
     } else if (days === 0) {
       text = '0d';
-      cls = 'bg-warning/50 text-warning-foreground border-warning/60';
+      cls = 'text-warning font-semibold';
     } else {
       text = `${days}d`;
       if (days <= 1) {
-        cls = 'bg-warning/60 text-warning-foreground border-warning/70 font-semibold';
+        cls = 'text-warning font-semibold';
       } else if (days <= 3) {
-        cls = 'bg-warning/40 text-warning-foreground border-warning/60 font-semibold';
+        cls = 'text-warning/90 font-semibold';
       } else if (days <= 7) {
-        cls = 'bg-warning/30 text-warning border-warning/40 font-medium';
+        cls = 'text-warning/80 font-medium';
       } else {
-        cls = 'bg-secondary/10 text-secondary-foreground border-border';
+        cls = 'text-warning/60';
       }
     }
 
     return (
-      <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full border font-medium ${cls} whitespace-nowrap`}>{text}</span>
+      <span className={`text-[10px] sm:text-xs ${cls} whitespace-nowrap`}>{text}</span>
     );
   };
 
