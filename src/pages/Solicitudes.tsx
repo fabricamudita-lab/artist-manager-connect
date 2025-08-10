@@ -629,22 +629,22 @@ const confirmStatusChange = async (comment: string) => {
       cls = 'bg-destructive/10 text-destructive border-destructive/20';
     } else if (days === 0) {
       text = '0d';
-      cls = 'bg-warning/10 text-warning border-warning/20';
+      cls = 'bg-warning/50 text-warning-foreground border-warning/60';
     } else {
       text = `${days}d`;
       if (days <= 1) {
-        cls = 'bg-warning/30 text-warning border-warning/40';
+        cls = 'bg-warning/60 text-warning-foreground border-warning/70 font-semibold';
       } else if (days <= 3) {
-        cls = 'bg-warning/20 text-warning border-warning/30';
+        cls = 'bg-warning/40 text-warning-foreground border-warning/60 font-semibold';
       } else if (days <= 7) {
-        cls = 'bg-warning/10 text-warning border-warning/20';
+        cls = 'bg-warning/30 text-warning border-warning/40 font-medium';
       } else {
         cls = 'bg-secondary/10 text-secondary-foreground border-border';
       }
     }
 
     return (
-      <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full border ${cls} opacity-80 whitespace-nowrap`}>{text}</span>
+      <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full border font-medium ${cls} whitespace-nowrap`}>{text}</span>
     );
   };
 
