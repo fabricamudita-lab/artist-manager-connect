@@ -10,6 +10,9 @@ interface HistoryEntry {
   condicion: string | null;
   nota: string | null;
   changed_at: string;
+  event_type?: 'create' | 'update' | 'status_change' | 'comment' | 'update_message';
+  message?: string | null;
+  changes?: Record<string, { old: any; new: any }> | null;
   profiles?: { full_name?: string | null } | null;
 }
 
@@ -25,7 +28,7 @@ export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
         setLoading(true);
         const { data, error } = await supabase
           .from('solicitud_history')
-          .select(`id, estado, condicion, nota, changed_at, profiles:changed_by_profile_id ( full_name )`)
+          .select(`id, estado, condicion, nota, changed_at, event_type, message, changes, profiles:changed_by_profile_id ( full_name )`)
           .eq('solicitud_id', solicitudId)
           .order('changed_at', { ascending: order === 'asc' });
         if (error) throw error;
@@ -79,11 +82,13 @@ export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
                 <div key={h.id} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-medium">
-                      {h.estado === 'aprobada'
-                        ? 'Aprobada'
-                        : h.estado === 'denegada'
-                        ? 'Denegada'
-                        : 'Pendiente'}
+                      {h.event_type === 'comment'
+                        ? 'Comentario'
+                        : h.event_type === 'create'
+                        ? 'Creación'
+                        : h.event_type === 'status_change'
+                        ? 'Cambio de estado'
+                        : 'Actualización'}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {new Date(h.changed_at).toLocaleString()}
@@ -92,6 +97,33 @@ export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
                   {h.profiles?.full_name && (
                     <div className="text-xs text-muted-foreground">por {h.profiles.full_name}</div>
                   )}
+
+                  {h.event_type === 'status_change' && (h.changes as any)?.estado && (
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Estado: </span>
+                      <span>
+                        {String((h.changes as any).estado.old)} → {String((h.changes as any).estado.new)}
+                      </span>
+                    </div>
+                  )}
+
+                  {h.message && (
+                    <div className="text-sm whitespace-pre-wrap">{h.message}</div>
+                  )}
+
+                  {h.changes && (
+                    <div className="space-y-1">
+                      {Object.entries(h.changes as any)
+                        .filter(([k]) => !['estado','updated_at','fecha_actualizacion','id','created_by','changed_at','decision_has_new_comment'].includes(k as string))
+                        .map(([k, v]: any) => (
+                          <div key={k} className="text-sm">
+                            <span className="text-muted-foreground">{(k as string).split('_').join(' ')}: </span>
+                            <span className="whitespace-pre-wrap">{String(v.old ?? '')} → {String(v.new ?? '')}</span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+
                   {h.condicion && (
                     <div className="text-sm">
                       <span className="text-muted-foreground">Condición: </span>
@@ -104,6 +136,7 @@ export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
                       <span className="whitespace-pre-wrap">{h.nota}</span>
                     </div>
                   )}
+
                   {idx < items.length - 1 && <Separator className="mt-3" />}
                 </div>
               ))}
