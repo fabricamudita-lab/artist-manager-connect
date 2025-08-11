@@ -787,28 +787,40 @@ export type Database = {
         Row: {
           changed_at: string
           changed_by_profile_id: string
+          changes: Json
           condicion: string | null
           estado: Database["public"]["Enums"]["request_status"]
+          event_type: string
           id: string
+          message: string | null
           nota: string | null
+          related_message_id: string | null
           solicitud_id: string
         }
         Insert: {
           changed_at?: string
           changed_by_profile_id: string
+          changes?: Json
           condicion?: string | null
           estado: Database["public"]["Enums"]["request_status"]
+          event_type?: string
           id?: string
+          message?: string | null
           nota?: string | null
+          related_message_id?: string | null
           solicitud_id: string
         }
         Update: {
           changed_at?: string
           changed_by_profile_id?: string
+          changes?: Json
           condicion?: string | null
           estado?: Database["public"]["Enums"]["request_status"]
+          event_type?: string
           id?: string
+          message?: string | null
           nota?: string | null
+          related_message_id?: string | null
           solicitud_id?: string
         }
         Relationships: [
@@ -951,6 +963,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      build_changes_json: {
+        Args: { old_data: Json; new_data: Json }
+        Returns: Json
+      }
       get_profile_id_by_user: {
         Args: { _user_id: string }
         Returns: string
