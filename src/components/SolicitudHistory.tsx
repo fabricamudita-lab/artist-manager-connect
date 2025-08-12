@@ -4,6 +4,22 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+// Helpers to format changed values nicely (dates, nulls, arrays, etc.)
+const isIsoDateTime = (val: any) =>
+  typeof val === 'string' && /\d{4}-\d{2}-\d{2}T/.test(val) && !isNaN(new Date(val).getTime());
+
+function formatValue(val: any) {
+  if (val === null || val === undefined) return '—';
+  if (typeof val === 'string') {
+    if (isIsoDateTime(val)) return new Date(val).toLocaleString();
+    return val;
+  }
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  if (Array.isArray(val)) return val.join(', ');
+  if (typeof val === 'object') return JSON.stringify(val);
+  return String(val);
+}
+
 interface HistoryEntry {
   id: string;
   estado: 'pendiente' | 'aprobada' | 'denegada';
@@ -15,6 +31,7 @@ interface HistoryEntry {
   changes?: Record<string, { old: any; new: any }> | null;
   profiles?: { full_name?: string | null } | null;
 }
+
 
 export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
   const [items, setItems] = useState<HistoryEntry[]>([]);
@@ -111,14 +128,19 @@ export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
                     <div className="text-sm whitespace-pre-wrap">{h.message}</div>
                   )}
 
-                  {h.changes && (
+                  {h.event_type !== 'comment' && h.changes &&
+                    Object.entries(h.changes as any)
+                      .filter(([k, v]: any) => typeof v === 'object' && v && 'old' in v && 'new' in v)
+                      .filter(([k]) => !['estado','updated_at','fecha_actualizacion','id','created_by','changed_at','decision_has_new_comment'].includes(k as string))
+                      .length > 0 && (
                     <div className="space-y-1">
                       {Object.entries(h.changes as any)
+                        .filter(([k, v]: any) => typeof v === 'object' && v && 'old' in v && 'new' in v)
                         .filter(([k]) => !['estado','updated_at','fecha_actualizacion','id','created_by','changed_at','decision_has_new_comment'].includes(k as string))
                         .map(([k, v]: any) => (
                           <div key={k} className="text-sm">
                             <span className="text-muted-foreground">{(k as string).split('_').join(' ')}: </span>
-                            <span className="whitespace-pre-wrap">{String(v.old ?? '')} → {String(v.new ?? '')}</span>
+                            <span className="whitespace-pre-wrap">{formatValue(v.old)} → {formatValue(v.new)}</span>
                           </div>
                         ))}
                     </div>
