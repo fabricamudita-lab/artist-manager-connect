@@ -63,6 +63,13 @@ interface Solicitud {
     full_name: string;
   } | null;
 
+  // Proyecto asociado
+  project_id?: string | null;
+  project?: {
+    id: string;
+    name: string;
+  } | null;
+
   // Indicador de nuevos comentarios de decisión
   decision_has_new_comment?: boolean;
 }
@@ -155,7 +162,8 @@ export default function Solicitudes() {
         .from('solicitudes')
         .select(`
           *,
-          profiles:artist_id(full_name)
+          profiles:artist_id(full_name),
+          project:project_id(id,name)
         `)
         .order('fecha_creacion', { ascending: false });
 
@@ -704,7 +712,7 @@ const confirmStatusChange = async (comment: string) => {
                     className="h-8 px-2"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    Proyecto
+                    <span className="truncate max-w-[140px]">{solicitud.project?.name ?? 'Proyecto'}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
@@ -1009,7 +1017,7 @@ const confirmStatusChange = async (comment: string) => {
                           className="h-7 px-2"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          Proyecto
+                          <span className="truncate max-w-[140px]">{solicitud.project?.name ?? 'Proyecto'}</span>
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
