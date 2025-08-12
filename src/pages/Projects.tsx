@@ -24,6 +24,7 @@ export default function Projects() {
   const [items, setItems] = useState<ProjectListItem[]>([]);
   const [openCreate, setOpenCreate] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // SEO: title, meta, canonical
   useEffect(() => {
@@ -81,7 +82,7 @@ export default function Projects() {
     };
 
     fetchProjects();
-  }, [status]);
+  }, [status, refreshKey]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -182,7 +183,7 @@ export default function Projects() {
 
       <CreateProjectDialog open={openCreate} onOpenChange={setOpenCreate} onSuccess={() => {
         // Refrescar lista al crear
-        setStatus((s) => s);
+        setRefreshKey((k) => k + 1);
       }} />
     </div>
   );
