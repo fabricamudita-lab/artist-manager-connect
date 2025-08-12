@@ -696,6 +696,26 @@ const confirmStatusChange = async (comment: string) => {
             </div>
             
             <div className="flex gap-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Proyecto
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuItem onClick={() => setAssociateDialog({ open: true, solicitud })}>
+                    Asociar a proyecto
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setCreateProjectForSolicitud({ open: true, solicitud })}>
+                    Nuevo proyecto
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="ghost"
                 size="sm"
