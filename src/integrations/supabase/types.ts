@@ -219,6 +219,7 @@ export type Database = {
           invitaciones: number | null
           name: string
           oferta: string | null
+          project_id: string | null
           show_status: Database["public"]["Enums"]["show_status"] | null
           status_negociacion: string | null
           template_id: string | null
@@ -245,6 +246,7 @@ export type Database = {
           invitaciones?: number | null
           name: string
           oferta?: string | null
+          project_id?: string | null
           show_status?: Database["public"]["Enums"]["show_status"] | null
           status_negociacion?: string | null
           template_id?: string | null
@@ -271,6 +273,7 @@ export type Database = {
           invitaciones?: number | null
           name?: string
           oferta?: string | null
+          project_id?: string | null
           show_status?: Database["public"]["Enums"]["show_status"] | null
           status_negociacion?: string | null
           template_id?: string | null
@@ -292,6 +295,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "budgets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "budgets_template_id_fkey"
@@ -394,6 +404,50 @@ export type Database = {
           },
         ]
       }
+      contracts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          file_url: string | null
+          id: string
+          project_id: string
+          status: Database["public"]["Enums"]["contract_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          file_url?: string | null
+          id?: string
+          project_id: string
+          status?: Database["public"]["Enums"]["contract_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          file_url?: string | null
+          id?: string
+          project_id?: string
+          status?: Database["public"]["Enums"]["contract_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           artist_id: string
@@ -403,6 +457,7 @@ export type Database = {
           file_type: string
           file_url: string
           id: string
+          project_id: string | null
           title: string
           updated_at: string
           uploaded_by: string
@@ -415,6 +470,7 @@ export type Database = {
           file_type: string
           file_url: string
           id?: string
+          project_id?: string | null
           title: string
           updated_at?: string
           uploaded_by: string
@@ -427,6 +483,7 @@ export type Database = {
           file_type?: string
           file_url?: string
           id?: string
+          project_id?: string | null
           title?: string
           updated_at?: string
           uploaded_by?: string
@@ -437,6 +494,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
@@ -684,6 +748,59 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          artist_id: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          end_date_estimada: string | null
+          equipo_involucrado: string | null
+          id: string
+          name: string
+          objective: string | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["project_status"]
+          updated_at: string
+        }
+        Insert: {
+          artist_id?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          end_date_estimada?: string | null
+          equipo_involucrado?: string | null
+          id?: string
+          name: string
+          objective?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          end_date_estimada?: string | null
+          equipo_involucrado?: string | null
+          id?: string
+          name?: string
+          objective?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       requests: {
         Row: {
           artist_id: string
@@ -869,6 +986,7 @@ export type Database = {
           nombre_solicitante: string
           notas_internas: string | null
           observaciones: string | null
+          project_id: string | null
           telefono: string | null
           tipo: Database["public"]["Enums"]["request_type"]
         }
@@ -900,6 +1018,7 @@ export type Database = {
           nombre_solicitante: string
           notas_internas?: string | null
           observaciones?: string | null
+          project_id?: string | null
           telefono?: string | null
           tipo: Database["public"]["Enums"]["request_type"]
         }
@@ -931,6 +1050,7 @@ export type Database = {
           nombre_solicitante?: string
           notas_internas?: string | null
           observaciones?: string | null
+          project_id?: string | null
           telefono?: string | null
           tipo?: Database["public"]["Enums"]["request_type"]
         }
@@ -955,6 +1075,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "solicitudes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -981,6 +1108,8 @@ export type Database = {
         | "campana_promocional"
         | "videoclip"
         | "otros"
+      contract_status: "borrador" | "pendiente_firma" | "firmado"
+      project_status: "en_curso" | "finalizado" | "archivado"
       request_status:
         | "pendiente"
         | "aprobada"
@@ -1133,6 +1262,8 @@ export const Constants = {
         "videoclip",
         "otros",
       ],
+      contract_status: ["borrador", "pendiente_firma", "firmado"],
+      project_status: ["en_curso", "finalizado", "archivado"],
       request_status: [
         "pendiente",
         "aprobada",
