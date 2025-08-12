@@ -409,6 +409,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          file_bucket: string
+          file_path: string | null
           file_url: string | null
           id: string
           project_id: string
@@ -420,6 +422,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          file_bucket?: string
+          file_path?: string | null
           file_url?: string | null
           id?: string
           project_id: string
@@ -431,6 +435,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          file_bucket?: string
+          file_path?: string | null
           file_url?: string | null
           id?: string
           project_id?: string
@@ -747,6 +753,45 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      project_team: {
+        Row: {
+          created_at: string
+          id: string
+          profile_id: string
+          project_id: string
+          role: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_id: string
+          project_id: string
+          role?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_id?: string
+          project_id?: string
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_team_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_team_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       projects: {
         Row: {
