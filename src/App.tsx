@@ -119,6 +119,13 @@ const App = () => (
                 </DashboardLayout>
               </ProtectedRoute>
             } />
+            <Route path="/projects/:id" element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ProjectDetail />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
