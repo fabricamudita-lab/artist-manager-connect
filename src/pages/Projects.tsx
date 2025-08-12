@@ -3,12 +3,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Filter, Folder } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Search, Filter, FolderOpen } from "lucide-react";
+import CreateProjectDialog from "@/components/CreateProjectDialog";
+
+interface ProjectListItem {
+  id: string;
+  name: string;
+  status: 'en_curso' | 'finalizado' | 'archivado';
+  start_date: string | null;
+  end_date_estimada: string | null;
+  artist_name?: string | null;
+}
 
 export default function Projects() {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string>("todos");
+  const [items, setItems] = useState<ProjectListItem[]>([]);
+  const [openCreate, setOpenCreate] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // SEO: title, meta, canonical
   useEffect(() => {
@@ -32,11 +47,49 @@ export default function Projects() {
     canonical.setAttribute("href", window.location.href);
   }, []);
 
-  // Placeholder data (hasta conectar con Supabase)
-  const items = useMemo(
-    () => [],
-    []
-  );
+  useEffect(() => {
+    const fetchProjects = async () => {
+      setLoading(true);
+      try {
+        let queryBuilder = supabase
+          .from('projects')
+          .select(`id,name,status,start_date,end_date_estimada, profiles:artist_id ( full_name )`)
+          .order('created_at', { ascending: false });
+
+        if (status !== 'todos') {
+          queryBuilder = queryBuilder.eq('status', status as any);
+        }
+
+        const { data, error } = await queryBuilder;
+        if (error) throw error;
+
+        const mapped: ProjectListItem[] = (data as any[]).map((p) => ({
+          id: p.id,
+          name: p.name,
+          status: p.status,
+          start_date: p.start_date,
+          end_date_estimada: p.end_date_estimada,
+          artist_name: p.profiles?.full_name ?? null,
+        }));
+
+        setItems(mapped);
+      } catch (e) {
+        console.error('Error loading projects', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, [status]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((it) =>
+      it.name.toLowerCase().includes(q) || (it.artist_name || '').toLowerCase().includes(q)
+    );
+  }, [items, query]);
 
   return (
     <div className="space-y-6">
@@ -46,8 +99,8 @@ export default function Projects() {
           <Button variant="outline">
             <Filter className="w-4 h-4 mr-2" /> Filtros
           </Button>
-          <Button>
-            <Plus className="w-4 h-4 mr-2" /> Nuevo proyecto
+          <Button onClick={() => setOpenCreate(true)}>
+            Nuevo proyecto
           </Button>
         </div>
       </header>
@@ -83,51 +136,54 @@ export default function Projects() {
               </div>
             </div>
 
-            {/* Lista simple (placeholder) */}
-            {items.length === 0 ? (
+            {/* Lista */}
+            {loading ? (
+              <div className="text-sm text-muted-foreground">Cargando…</div>
+            ) : filtered.length === 0 ? (
               <div className="flex items-center gap-3 text-sm text-muted-foreground border rounded-lg p-6">
-                <Folder className="w-5 h-5" />
-                Aún no hay proyectos. Crea el primero con "Nuevo proyecto".
+                <FolderOpen className="w-5 h-5" />
+                No hay proyectos con esos criterios.
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {/* map de proyectos cuando haya datos */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-muted-foreground">
+                      <th className="py-2 pr-4">Proyecto</th>
+                      <th className="py-2 pr-4">Artista</th>
+                      <th className="py-2 pr-4">Estado</th>
+                      <th className="py-2 pr-4">Inicio</th>
+                      <th className="py-2 pr-4">Fin estimado</th>
+                      <th className="py-2 pr-4 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((p) => (
+                      <tr key={p.id} className="border-t">
+                        <td className="py-3 pr-4 font-medium">{p.name}</td>
+                        <td className="py-3 pr-4">{p.artist_name || '—'}</td>
+                        <td className="py-3 pr-4 capitalize">{p.status.replace('_', ' ')}</td>
+                        <td className="py-3 pr-4">{p.start_date || '—'}</td>
+                        <td className="py-3 pr-4">{p.end_date_estimada || '—'}</td>
+                        <td className="py-3 pr-0 text-right">
+                          <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${p.id}`)}>
+                            Ver detalle
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </CardContent>
         </Card>
       </section>
 
-      <section>
-        <Tabs defaultValue="resumen">
-          <TabsList>
-            <TabsTrigger value="resumen">Resumen</TabsTrigger>
-            <TabsTrigger value="presupuestos">Presupuestos</TabsTrigger>
-            <TabsTrigger value="documentos">Documentos</TabsTrigger>
-            <TabsTrigger value="contratos">Contratos</TabsTrigger>
-            <TabsTrigger value="solicitudes">Solicitudes</TabsTrigger>
-            <TabsTrigger value="notas">Notas internas</TabsTrigger>
-          </TabsList>
-          <TabsContent value="resumen" className="text-sm text-muted-foreground">
-            Selecciona un proyecto para ver su resumen.
-          </TabsContent>
-          <TabsContent value="presupuestos" className="text-sm text-muted-foreground">
-            Presupuestos del proyecto seleccionado.
-          </TabsContent>
-          <TabsContent value="documentos" className="text-sm text-muted-foreground">
-            Documentos del proyecto seleccionado.
-          </TabsContent>
-          <TabsContent value="contratos" className="text-sm text-muted-foreground">
-            Contratos del proyecto seleccionado.
-          </TabsContent>
-          <TabsContent value="solicitudes" className="text-sm text-muted-foreground">
-            Solicitudes asociadas al proyecto seleccionado.
-          </TabsContent>
-          <TabsContent value="notas" className="text-sm text-muted-foreground">
-            Notas internas del proyecto seleccionado.
-          </TabsContent>
-        </Tabs>
-      </section>
+      <CreateProjectDialog open={openCreate} onOpenChange={setOpenCreate} onSuccess={() => {
+        // Refrescar lista al crear
+        setStatus((s) => s);
+      }} />
     </div>
   );
 }

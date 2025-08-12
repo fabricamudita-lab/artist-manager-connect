@@ -21,6 +21,7 @@ interface CreateBudgetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  projectId?: string;
 }
 
 const budgetTypes = [
@@ -31,7 +32,7 @@ const budgetTypes = [
   { value: 'otros', label: 'Otros', icon: Package },
 ];
 
-export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: CreateBudgetDialogProps) {
+export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, projectId }: CreateBudgetDialogProps) {
   const { profile } = useAuth();
   const [step, setStep] = useState(1);
   const [selectedType, setSelectedType] = useState('');
@@ -96,6 +97,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess }: Cr
           event_time: formData.event_time || null,
           fee: formData.fee,
           created_by: profile?.user_id,
+          project_id: projectId || null,
           // Campos específicos para conciertos
           ...(selectedType === 'concierto' && {
             festival_ciclo: formData.festival_ciclo || null,

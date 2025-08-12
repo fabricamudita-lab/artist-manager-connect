@@ -15,9 +15,10 @@ interface CreateSolicitudDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSolicitudCreated: () => void;
+  projectId?: string;
 }
 
-export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }: CreateSolicitudDialogProps) {
+export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, projectId }: CreateSolicitudDialogProps) {
   const { profile } = useAuth();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -200,6 +201,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated }
         created_by: profile?.user_id,
         artist_id: formData.artist_id || null,
         fecha_limite_respuesta: formData.fecha_limite_respuesta || null,
+        project_id: projectId || null,
         
         // Campos específicos según el tipo
         ...(formData.tipo === 'entrevista' && {
