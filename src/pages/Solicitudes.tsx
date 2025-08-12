@@ -981,6 +981,30 @@ const confirmStatusChange = async (comment: string) => {
                     <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded capitalize flex-shrink-0">
                       {typeInfo.label}
                     </span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Proyecto
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuItem
+                          onClick={() => setAssociateDialog({ open: true, solicitud })}
+                        >
+                          Asociar a proyecto
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setCreateProjectForSolicitud({ open: true, solicitud })}
+                        >
+                          Nuevo proyecto
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     {solicitud.decision_has_new_comment ? (
                       <span className="ml-1 inline-flex items-center gap-1 text-xs text-primary">
                         <span className="w-2 h-2 rounded-full bg-primary inline-block" />
@@ -1166,6 +1190,37 @@ const confirmStatusChange = async (comment: string) => {
   } : null}
   onCreated={fetchSolicitudes}
 />
+      <AssociateProjectDialog
+        open={associateDialog.open}
+        onOpenChange={(open) => setAssociateDialog({ open, solicitud: open ? associateDialog.solicitud : null })}
+        solicitudId={associateDialog.solicitud?.id || null}
+        artistId={associateDialog.solicitud?.artist_id || null}
+        onLinked={() => {
+          fetchSolicitudes();
+        }}
+      />
+
+      <CreateProjectDialog
+        open={createProjectForSolicitud.open}
+        onOpenChange={(open) => setCreateProjectForSolicitud({ open, solicitud: open ? createProjectForSolicitud.solicitud : null })}
+        onSuccess={fetchSolicitudes}
+        defaultArtistId={createProjectForSolicitud.solicitud?.artist_id}
+        onCreated={async (projectId: string) => {
+          const solicitudId = createProjectForSolicitud.solicitud?.id;
+          if (!solicitudId) return;
+          const { error } = await supabase
+            .from('solicitudes')
+            .update({ project_id: projectId })
+            .eq('id', solicitudId);
+          if (error) {
+            console.error('Error linking new project to solicitud:', error);
+            toast({ title: 'Error', description: 'No se pudo asociar la solicitud al nuevo proyecto', variant: 'destructive' });
+          } else {
+            toast({ title: 'Proyecto asociado', description: 'Proyecto creado y asociado a la solicitud.' });
+            fetchSolicitudes();
+          }
+        }}
+      />
     </div>
   );
 }
