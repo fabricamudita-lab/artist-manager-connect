@@ -19,7 +19,9 @@ import { format, differenceInCalendarDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { StatusCommentDialog } from '@/components/StatusCommentDialog';
 import { ScheduleEncounterDialog } from '@/components/ScheduleEncounterDialog';
-
+import CreateProjectDialog from '@/components/CreateProjectDialog';
+import AssociateProjectDialog from '@/components/AssociateProjectDialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface Solicitud {
   id: string;
@@ -113,6 +115,8 @@ export default function Solicitudes() {
   });
   const [profileSuggestions, setProfileSuggestions] = useState<{ id: string; full_name: string; email?: string | null }[]>([]);
   const [showProfileSuggestions, setShowProfileSuggestions] = useState(false);
+  const [associateDialog, setAssociateDialog] = useState<{ open: boolean; solicitud: Solicitud | null }>({ open: false, solicitud: null });
+  const [createProjectForSolicitud, setCreateProjectForSolicitud] = useState<{ open: boolean; solicitud: Solicitud | null }>({ open: false, solicitud: null });
 
   useEffect(() => {
     fetchSolicitudes();

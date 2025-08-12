@@ -14,14 +14,16 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  onCreated?: (projectId: string) => void;
+  defaultArtistId?: string;
 }
 
-export default function CreateProjectDialog({ open, onOpenChange, onSuccess }: Props) {
+export default function CreateProjectDialog({ open, onOpenChange, onSuccess, onCreated, defaultArtistId }: Props) {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: '',
-    artist_id: '',
+    artist_id: defaultArtistId || '',
     status: 'en_curso' as 'en_curso' | 'finalizado' | 'archivado',
     start_date: '',
     end_date_estimada: '',
@@ -38,17 +40,24 @@ export default function CreateProjectDialog({ open, onOpenChange, onSuccess }: P
     }
     setLoading(true);
     try {
-      const { error } = await supabase.from('projects').insert({
-        name: form.name.trim(),
-        artist_id: form.artist_id || null,
-        status: form.status,
-        start_date: form.start_date || null,
-        end_date_estimada: form.end_date_estimada || null,
-        description: form.description || null,
-        objective: form.objective || null,
-        created_by: profile?.user_id,
-      });
+      const { data, error } = await supabase
+        .from('projects')
+        .insert({
+          name: form.name.trim(),
+          artist_id: form.artist_id || null,
+          status: form.status,
+          start_date: form.start_date || null,
+          end_date_estimada: form.end_date_estimada || null,
+          description: form.description || null,
+          objective: form.objective || null,
+          created_by: profile?.user_id,
+        })
+        .select('id')
+        .single();
       if (error) throw error;
+      if (data?.id && onCreated) {
+        onCreated(data.id);
+      }
       toast({ title: 'Proyecto creado', description: 'Proyecto creado correctamente' });
       onSuccess();
       onOpenChange(false);
