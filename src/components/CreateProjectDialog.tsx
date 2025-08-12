@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,6 +66,7 @@ export default function CreateProjectDialog({ open, onOpenChange, onSuccess }: P
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Nuevo proyecto</DialogTitle>
+          <DialogDescription>Crea un proyecto y vincúlalo con artistas, presupuestos y documentos.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
