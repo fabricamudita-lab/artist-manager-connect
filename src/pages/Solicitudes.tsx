@@ -716,6 +716,15 @@ const confirmStatusChange = async (comment: string) => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuItem
+                    disabled={!solicitud.project?.id && !solicitud.project_id}
+                    onClick={() => {
+                      const pid = solicitud.project?.id ?? solicitud.project_id;
+                      if (pid) navigate(`/projects/${pid}`);
+                    }}
+                  >
+                    Ir al proyecto
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setAssociateDialog({ open: true, solicitud })}>
                     Asociar a proyecto
                   </DropdownMenuItem>
@@ -1021,6 +1030,15 @@ const confirmStatusChange = async (comment: string) => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuItem
+                          disabled={!solicitud.project?.id && !solicitud.project_id}
+                          onClick={() => {
+                            const pid = solicitud.project?.id ?? solicitud.project_id;
+                            if (pid) navigate(`/projects/${pid}`);
+                          }}
+                        >
+                          Ir al proyecto
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => setAssociateDialog({ open: true, solicitud })}
                         >
