@@ -66,6 +66,53 @@ export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
     }
   }, [order, items.length]);
 
+  const EXCLUDED_KEYS = [
+    'estado','updated_at','fecha_actualizacion','id','created_by','changed_at','decision_has_new_comment','related_message_id','message'
+  ];
+  const FRIENDLY_LABELS: Record<string, string> = {
+    fecha_limite_respuesta: 'Fecha límite de respuesta',
+    decision_fecha: 'Fecha de decisión',
+    hora_show: 'Hora del show',
+    hora_entrevista: 'Hora de la entrevista',
+    nombre_solicitante: 'Nombre del solicitante',
+    nombre_festival: 'Nombre del festival',
+    lugar_concierto: 'Lugar del concierto',
+    descripcion_libre: 'Descripción',
+  };
+  const humanizeKey = (k: string) => FRIENDLY_LABELS[k] ?? k.split('_').join(' ');
+  const buildSummary = (h: HistoryEntry) => {
+    if (h.event_type === 'comment') return 'Comentario';
+    if (h.event_type === 'create') return 'Creación de solicitud';
+
+    const changes: Record<string, any> = (h.changes as any) || {};
+    const keys = Object.keys(changes)
+      .filter((k) => !EXCLUDED_KEYS.includes(k))
+      .filter((k) => {
+        const v = changes[k];
+        return typeof v === 'object' && v && 'old' in v && 'new' in v;
+      });
+
+    if (h.event_type === 'status_change' && (changes as any).estado) {
+      const v = (changes as any).estado;
+      return `Cambio de estado: ${formatValue(v.old)} → ${formatValue(v.new)}`;
+    }
+
+    if (keys.length === 0) return 'Actualización';
+
+    const dateKeys = keys.filter((k) => /(fecha|hora|date|time)/i.test(k));
+    const otherKeys = keys.filter((k) => !/(fecha|hora|date|time)/i.test(k));
+
+    if (dateKeys.length > 0 && otherKeys.length === 0) {
+      return dateKeys.length === 1
+        ? `Modificación de ${humanizeKey(dateKeys[0])}`
+        : `Modificación de fechas/horas (${dateKeys.length} cambios)`;
+    }
+
+    const headlineList = keys.slice(0, 3).map(humanizeKey).join(', ');
+    const suffix = keys.length > 3 ? ` +${keys.length - 3} más` : '';
+    return `Actualización: ${headlineList}${suffix}`;
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -98,15 +145,7 @@ export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
               {items.map((h, idx) => (
                 <div key={h.id} className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">
-                      {h.event_type === 'comment'
-                        ? 'Comentario'
-                        : h.event_type === 'create'
-                        ? 'Creación'
-                        : h.event_type === 'status_change'
-                        ? 'Cambio de estado'
-                        : 'Actualización'}
-                    </div>
+                    <div className="text-sm font-medium">{buildSummary(h)}</div>
                     <div className="text-xs text-muted-foreground">
                       {new Date(h.changed_at).toLocaleString()}
                     </div>
