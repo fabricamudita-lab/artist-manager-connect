@@ -14,6 +14,7 @@ import Chat from "./pages/Chat";
 import Solicitudes from "./pages/Solicitudes";
 import NotFound from "./pages/NotFound";
 import DashboardLayout from "./components/DashboardLayout";
+import Projects from "./pages/Projects";
 
 const queryClient = new QueryClient();
 
@@ -107,6 +108,13 @@ const App = () => (
               <ProtectedRoute>
                 <DashboardLayout>
                   <Solicitudes />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/projects" element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <Projects />
                 </DashboardLayout>
               </ProtectedRoute>
             } />
