@@ -36,6 +36,10 @@ import { SolicitudHistory } from '@/components/SolicitudHistory';
 import { DecisionChat } from '@/components/DecisionChat';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import AssociateProjectDialog from '@/components/AssociateProjectDialog';
+import CreateProjectDialog from '@/components/CreateProjectDialog';
+import { useNavigate } from 'react-router-dom';
 
 interface SolicitudDetails {
   id: string;
@@ -68,6 +72,8 @@ interface SolicitudDetails {
     full_name: string;
     email: string;
   } | null;
+  project_id?: string | null;
+  project?: { id: string; name: string } | null;
 }
 
 interface SolicitudDetailsDialogProps {
@@ -91,6 +97,9 @@ const [statusDialogOpen, setStatusDialogOpen] = useState(false);
 const [pendingStatus, setPendingStatus] = useState<'aprobada' | 'denegada' | 'pendiente'>('aprobada');
 const [encuentroOpen, setEncuentroOpen] = useState(false);
 const [showHistory, setShowHistory] = useState(false);
+const [associateOpen, setAssociateOpen] = useState(false);
+const [createOpen, setCreateOpen] = useState(false);
+const navigate = useNavigate();
 
   useEffect(() => {
     if (open && solicitudId) {
@@ -107,7 +116,8 @@ const [showHistory, setShowHistory] = useState(false);
         .from('solicitudes')
         .select(`
           *,
-          profiles:artist_id(full_name, email)
+          profiles:artist_id(full_name, email),
+          project:project_id(id, name)
         `)
         .eq('id', solicitudId)
         .single();
@@ -449,7 +459,35 @@ const updateSolicitudToPending = async (comment?: string) => {
             </CardContent>
           </Card>
 
-          {/* Información de Contacto - Solo si hay datos */}
+           {/* Proyecto */}
+           <Card>
+             <CardHeader>
+               <CardTitle className="flex items-center justify-between">
+                 <span>Proyecto</span>
+                 <DropdownMenu>
+                   <DropdownMenuTrigger asChild>
+                     <Button variant="outline">
+                       {solicitud.project?.name || 'Proyecto'}
+                     </Button>
+                   </DropdownMenuTrigger>
+                   <DropdownMenuContent align="end">
+                     <DropdownMenuItem disabled={!solicitud.project_id} onClick={() => solicitud.project_id && navigate(`/projects/${solicitud.project_id}`)}>
+                       Ir al proyecto
+                     </DropdownMenuItem>
+                     <DropdownMenuSeparator />
+                     <DropdownMenuItem onClick={() => setAssociateOpen(true)}>
+                       Asociar a proyecto
+                     </DropdownMenuItem>
+                     <DropdownMenuItem onClick={() => setCreateOpen(true)}>
+                       Nuevo proyecto
+                     </DropdownMenuItem>
+                   </DropdownMenuContent>
+                 </DropdownMenu>
+               </CardTitle>
+             </CardHeader>
+           </Card>
+
+           {/* Información de Contacto - Solo si hay datos */}
           {(solicitud.email || solicitud.telefono) && (
             <Card>
               <CardHeader>
@@ -864,6 +902,32 @@ const updateSolicitudToPending = async (comment?: string) => {
             lugar_concierto: solicitud.lugar_concierto,
           }}
           onCreated={onUpdate}
+        />
+
+        <AssociateProjectDialog
+          open={associateOpen}
+          onOpenChange={setAssociateOpen}
+          solicitudId={solicitud.id}
+          artistId={solicitud.artist_id ?? null}
+          onLinked={async () => { await fetchSolicitudDetails(); onUpdate?.(); }}
+        />
+        <CreateProjectDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          defaultArtistId={solicitud.artist_id ?? undefined}
+          onSuccess={() => {}}
+          onCreated={async (newId) => {
+            try {
+              const { error } = await supabase.from('solicitudes').update({ project_id: newId }).eq('id', solicitud.id);
+              if (error) throw error;
+              toast({ title: 'Proyecto vinculado', description: 'La solicitud fue asociada al nuevo proyecto.' });
+              await fetchSolicitudDetails();
+              onUpdate?.();
+            } catch (e) {
+              console.error(e);
+              toast({ title: 'Error', description: 'No se pudo asociar al nuevo proyecto', variant: 'destructive' });
+            }
+          }}
         />
       </DialogContent>
     </Dialog>
