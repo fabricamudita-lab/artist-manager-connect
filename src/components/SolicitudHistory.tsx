@@ -78,8 +78,12 @@ export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
     nombre_festival: 'Nombre del festival',
     lugar_concierto: 'Lugar del concierto',
     descripcion_libre: 'Descripción',
+    prioridad: 'Prioridad',
   };
+  const PRIORITY_KEYS = ['prioridad', 'priority', 'nivel_prioridad'];
   const humanizeKey = (k: string) => FRIENDLY_LABELS[k] ?? k.split('_').join(' ');
+  const isChangeEntry = (v: any) => typeof v === 'object' && v && 'old' in v && 'new' in v;
+
   const buildSummary = (h: HistoryEntry) => {
     if (h.event_type === 'comment') return 'Comentario';
     if (h.event_type === 'create') return 'Creación de solicitud';
@@ -87,32 +91,53 @@ export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
     const changes: Record<string, any> = (h.changes as any) || {};
     const keys = Object.keys(changes)
       .filter((k) => !EXCLUDED_KEYS.includes(k))
-      .filter((k) => {
-        const v = changes[k];
-        return typeof v === 'object' && v && 'old' in v && 'new' in v;
-      });
+      .filter((k) => isChangeEntry(changes[k]));
 
-    if (h.event_type === 'status_change' && (changes as any).estado) {
-      const v = (changes as any).estado;
+    // Cambio de estado explícito
+    if (h.event_type === 'status_change' && changes.estado && isChangeEntry(changes.estado)) {
+      const v = changes.estado;
       return `Cambio de estado: ${formatValue(v.old)} → ${formatValue(v.new)}`;
     }
 
     if (keys.length === 0) return 'Actualización';
 
-    const dateKeys = keys.filter((k) => /(fecha|hora|date|time)/i.test(k));
-    const otherKeys = keys.filter((k) => !/(fecha|hora|date|time)/i.test(k));
+    const isDateTime = (k: string) => /(fecha|hora|date|time)/i.test(k);
+    const dateKeys = keys.filter(isDateTime);
+    const priorityKeys = keys.filter((k) => PRIORITY_KEYS.includes(k));
+    const otherKeys = keys.filter((k) => !isDateTime(k) && !PRIORITY_KEYS.includes(k) && k !== 'estado');
 
-    if (dateKeys.length > 0 && otherKeys.length === 0) {
+    // Un solo cambio
+    if (keys.length === 1) {
+      const k = keys[0];
+      const v = changes[k];
+      if (dateKeys.length === 1) {
+        return `Modificación de ${humanizeKey(k)}: ${formatValue(v.old)} → ${formatValue(v.new)}`;
+      }
+      if (priorityKeys.length === 1) {
+        return `Cambio de prioridad: ${formatValue(v.old)} → ${formatValue(v.new)}`;
+      }
+      return `Edición de ${humanizeKey(k)}: ${formatValue(v.old)} → ${formatValue(v.new)}`;
+    }
+
+    // Solo fechas/horas
+    if (dateKeys.length > 0 && otherKeys.length === 0 && priorityKeys.length === 0) {
       return dateKeys.length === 1
         ? `Modificación de ${humanizeKey(dateKeys[0])}`
         : `Modificación de fechas/horas (${dateKeys.length} cambios)`;
     }
 
+    // Solo prioridad
+    if (priorityKeys.length > 0 && otherKeys.length === 0 && dateKeys.length === 0) {
+      const pk = priorityKeys[0];
+      const v = changes[pk];
+      return v ? `Cambio de prioridad: ${formatValue(v.old)} → ${formatValue(v.new)}` : 'Cambio de prioridad';
+    }
+
+    // Mezcla de campos
     const headlineList = keys.slice(0, 3).map(humanizeKey).join(', ');
     const suffix = keys.length > 3 ? ` +${keys.length - 3} más` : '';
-    return `Actualización: ${headlineList}${suffix}`;
+    return `Edición de información: ${headlineList}${suffix}`;
   };
-
   return (
     <Card>
       <CardHeader>
@@ -178,7 +203,7 @@ export function SolicitudHistory({ solicitudId }: { solicitudId: string }) {
                         .filter(([k]) => !['estado','updated_at','fecha_actualizacion','id','created_by','changed_at','decision_has_new_comment'].includes(k as string))
                         .map(([k, v]: any) => (
                           <div key={k} className="text-sm">
-                            <span className="text-muted-foreground">{(k as string).split('_').join(' ')}: </span>
+                            <span className="text-muted-foreground">{humanizeKey(k as string)}: </span>
                             <span className="whitespace-pre-wrap">{formatValue(v.old)} → {formatValue(v.new)}</span>
                           </div>
                         ))}
