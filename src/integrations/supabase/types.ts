@@ -1032,6 +1032,7 @@ export type Database = {
           nombre_solicitante: string
           notas_internas: string | null
           observaciones: string | null
+          oferta: string | null
           project_id: string | null
           telefono: string | null
           tipo: Database["public"]["Enums"]["request_type"]
@@ -1065,6 +1066,7 @@ export type Database = {
           nombre_solicitante: string
           notas_internas?: string | null
           observaciones?: string | null
+          oferta?: string | null
           project_id?: string | null
           telefono?: string | null
           tipo: Database["public"]["Enums"]["request_type"]
@@ -1098,6 +1100,7 @@ export type Database = {
           nombre_solicitante?: string
           notas_internas?: string | null
           observaciones?: string | null
+          oferta?: string | null
           project_id?: string | null
           telefono?: string | null
           tipo?: Database["public"]["Enums"]["request_type"]
