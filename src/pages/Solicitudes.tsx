@@ -954,23 +954,20 @@ const confirmStatusChange = async (comment: string) => {
               className={`px-2 py-1 rounded-full text-xs cursor-pointer ${
                 filterStatus === 'denegada' 
                   ? 'bg-red-100 text-red-800' 
-                  : filterStatus === 'archivadas'
-                  ? 'bg-gray-100 text-gray-800'
-                  : 'bg-red-100 text-red-800'
+                  : 'bg-gray-100 text-gray-800'
               }`}
               onClick={() => {
+                // Toggle simple entre denegadas y archivadas
                 if (filterStatus === 'denegada') {
                   setFilterStatus('archivadas');
-                } else if (filterStatus === 'archivadas') {
-                  setFilterStatus('denegada');
                 } else {
                   setFilterStatus('denegada');
                 }
               }}
             >
-              {filterStatus === 'archivadas' 
-                ? `${archivadasCount} archivadas` 
-                : `${denegadasCount} denegadas`
+              {filterStatus === 'denegada' 
+                ? `${denegadasCount} denegadas`
+                : `${archivadasCount} archivadas`
               }
             </span>
           </div>
