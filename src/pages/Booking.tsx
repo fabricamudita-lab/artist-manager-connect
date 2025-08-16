@@ -69,13 +69,16 @@ export default function Booking() {
   }, [offers]);
 
   const validateAllOffers = async () => {
+    console.log('Validating all offers:', offers.length);
     const results: Record<string, ValidationResult> = {};
     try {
       for (const offer of offers) {
         if (offer.id) {
+          console.log('Validating offer:', offer.id);
           results[offer.id] = await validateBookingOffer(offer);
         }
       }
+      console.log('Validation results:', results);
       setValidationResults(results);
     } catch (error) {
       console.error('Error validating offers:', error);
@@ -84,12 +87,18 @@ export default function Booking() {
 
   const fetchOffers = async () => {
     try {
+      console.log('Fetching booking offers...');
       const { data, error } = await supabase
         .from('booking_offers')
         .select('*')
         .order('fecha', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching offers:', error);
+        throw error;
+      }
+      
+      console.log('Fetched offers:', data);
       setOffers(data || []);
     } catch (error) {
       console.error('Error fetching offers:', error);
@@ -103,6 +112,7 @@ export default function Booking() {
 
   const fetchTemplateFields = async () => {
     try {
+      console.log('Fetching template fields...');
       setLoading(true);
       const { data, error } = await supabase
         .from('booking_template_config')
@@ -110,10 +120,20 @@ export default function Booking() {
         .eq('is_active', true)
         .order('field_order');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching template fields:', error);
+        throw error;
+      }
+      
+      console.log('Fetched template fields:', data);
       setTemplateFields(data || []);
     } catch (error) {
       console.error('Error fetching template fields:', error);
+      toast({
+        title: "Error", 
+        description: "No se pudieron cargar los campos de la plantilla.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

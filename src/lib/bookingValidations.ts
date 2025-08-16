@@ -36,6 +36,8 @@ export async function validateBookingOffer(
   offer: BookingOffer, 
   isNew: boolean = false
 ): Promise<ValidationResult> {
+  console.log('Validating booking offer:', offer);
+  
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
 
