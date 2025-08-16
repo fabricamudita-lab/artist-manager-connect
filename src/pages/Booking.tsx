@@ -165,9 +165,9 @@ export default function Booking() {
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Booking</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Ofertas de Booking</h1>
           <p className="text-muted-foreground">
-            Gestiona ofertas de conciertos y presenta propuestas
+            Lista de ofertas de conciertos con información detallada
           </p>
         </div>
         <div className="flex gap-2">
@@ -201,9 +201,20 @@ export default function Booking() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  {templateFields.slice(0, 6).map((field) => (
-                    <TableHead key={field.id}>{field.field_label}</TableHead>
-                  ))}
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Festival / Ciclo</TableHead>
+                  <TableHead>Ciudad</TableHead>
+                  <TableHead>Lugar</TableHead>
+                  <TableHead>Capacidad</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Oferta</TableHead>
+                  <TableHead>Formato</TableHead>
+                  <TableHead>Contacto</TableHead>
+                  <TableHead>Tour Manager</TableHead>
+                  <TableHead>Info / Comentarios</TableHead>
+                  <TableHead>Condiciones</TableHead>
+                  <TableHead>Link de venta</TableHead>
+                  <TableHead>Contratos</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -211,7 +222,7 @@ export default function Booking() {
                 {offers.length === 0 ? (
                   <TableRow>
                     <TableCell 
-                      colSpan={templateFields.slice(0, 6).length + 1} 
+                      colSpan={15} 
                       className="text-center py-8 text-muted-foreground"
                     >
                       No hay ofertas registradas. Crea la primera oferta.
@@ -220,23 +231,40 @@ export default function Booking() {
                 ) : (
                   offers.map((offer) => (
                     <TableRow key={offer.id} className="hover:bg-muted/50">
-                      {templateFields.slice(0, 6).map((field) => (
-                        <TableCell key={field.id}>
-                          {field.field_name === 'estado' ? (
-                            <Badge 
-                              variant="outline" 
-                              className={getStatusBadgeColor(offer[field.field_name as keyof BookingOffer] as string)}
-                            >
-                              {offer[field.field_name as keyof BookingOffer] || 'Pendiente'}
-                            </Badge>
-                          ) : (
-                            formatValue(
-                              offer[field.field_name as keyof BookingOffer], 
-                              field.field_type
-                            )
-                          )}
-                        </TableCell>
-                      ))}
+                      <TableCell>
+                        {offer.fecha ? new Date(offer.fecha).toLocaleDateString('es-ES') : '-'}
+                      </TableCell>
+                      <TableCell>{offer.festival_ciclo || '-'}</TableCell>
+                      <TableCell>{offer.ciudad || '-'}</TableCell>
+                      <TableCell>{offer.lugar || '-'}</TableCell>
+                      <TableCell>{offer.capacidad ? offer.capacidad.toLocaleString() : '-'}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant="outline" 
+                          className={getStatusBadgeColor(offer.estado)}
+                        >
+                          {offer.estado || 'Pendiente'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-32 truncate">{offer.oferta || '-'}</TableCell>
+                      <TableCell>{offer.formato || '-'}</TableCell>
+                      <TableCell>{offer.contacto || '-'}</TableCell>
+                      <TableCell>{offer.tour_manager || '-'}</TableCell>
+                      <TableCell className="max-w-32 truncate">{offer.info_comentarios || '-'}</TableCell>
+                      <TableCell className="max-w-32 truncate">{offer.condiciones || '-'}</TableCell>
+                      <TableCell>
+                        {offer.link_venta ? (
+                          <a 
+                            href={offer.link_venta} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            Ver enlace
+                          </a>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell>{offer.contratos || '-'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
                           <Button

@@ -17,7 +17,7 @@ import {
   Calculator,
   ClipboardList,
   Folder,
-  MicIcon
+  Mic
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import NotificationBell from './NotificationBell';
@@ -27,7 +27,7 @@ const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Calendario", url: "/calendar", icon: Calendar },
   { title: "Presupuestos", url: "/budgets", icon: Calculator },
-  { title: "Booking", url: "/booking", icon: MicIcon },
+  { title: "Booking", url: "/booking", icon: Mic },
   { title: "Solicitudes", url: "/solicitudes", icon: ClipboardList },
   { title: "Proyectos", url: "/projects", icon: Folder },
   { title: "Documentos", url: "/documents", icon: FileText },
