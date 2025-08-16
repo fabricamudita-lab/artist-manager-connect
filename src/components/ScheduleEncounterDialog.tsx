@@ -94,7 +94,7 @@ export function ScheduleEncounterDialog({ open, onOpenChange, solicitud, onCreat
           start_date: start.toISOString(),
           end_date: end.toISOString(),
           location: type === 'llamada' ? (profile?.phone || '') : (linkOrPhone || 'Online'),
-          description: notes || null,
+          description: `Franja de disponibilidad: ${timeSlot.replace('-', ' a ')}${notes ? `\n\n${notes}` : ''}`,
           created_by: profile?.id,
           artist_id: solicitud.artist_id || profile?.id || null,
         }
