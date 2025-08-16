@@ -83,11 +83,8 @@ export default function Calendar() {
         
         const { data, error } = await supabase
           .from('events')
-          .select(`
-            *,
-            event_artists!inner(artist_id)
-          `)
-          .in('event_artists.artist_id', artistFilter)
+          .select('*')
+          .in('artist_id', artistFilter)
           .order('start_date', { ascending: true });
 
         if (error) {
