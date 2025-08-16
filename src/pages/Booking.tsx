@@ -12,6 +12,7 @@ import { EditBookingTemplateDialog } from '@/components/EditBookingTemplateDialo
 import { EditBookingOfferDialog } from '@/components/EditBookingOfferDialog';
 import { AlertsBadge } from '@/components/AlertsBadge';
 import { validateBookingOffer, ValidationResult } from '@/lib/bookingValidations';
+import { getStatusBadgeColor } from '@/lib/statusColors';
 
 interface BookingOffer {
   id: string;
@@ -143,15 +144,6 @@ export default function Booking() {
     }
   };
 
-  const getStatusBadgeColor = (estado?: string) => {
-    switch (estado?.toLowerCase()) {
-      case 'confirmado': return 'bg-green-50 text-green-700 border-green-200';
-      case 'interest': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
-      case 'cancelado': return 'bg-red-50 text-red-700 border-red-200';
-      default: return 'bg-gray-50 text-gray-700 border-gray-200';
-    }
-  };
-
   const formatValue = (value: any, fieldType: string) => {
     if (!value) return '-';
     
@@ -263,14 +255,14 @@ export default function Booking() {
                       <TableCell>{offer.ciudad || '-'}</TableCell>
                       <TableCell>{offer.lugar || '-'}</TableCell>
                       <TableCell>{offer.capacidad ? offer.capacidad.toLocaleString() : '-'}</TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant="outline" 
-                          className={getStatusBadgeColor(offer.estado)}
-                        >
-                          {offer.estado || 'Pendiente'}
-                        </Badge>
-                      </TableCell>
+                       <TableCell>
+                         <Badge 
+                           variant="outline" 
+                           className={getStatusBadgeColor(offer.estado)}
+                         >
+                           {offer.estado || 'Pendiente'}
+                         </Badge>
+                       </TableCell>
                       <TableCell className="max-w-32 truncate">{offer.oferta || '-'}</TableCell>
                       <TableCell>{offer.formato || '-'}</TableCell>
                       <TableCell>{offer.contacto || '-'}</TableCell>

@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { getStatusBadgeColor } from '@/lib/statusColors';
 
 interface StatusOption {
   id: string;
@@ -90,15 +91,6 @@ export function BookingStatusCombobox({
         description: "No se pudo añadir el nuevo estado.",
         variant: "destructive",
       });
-    }
-  };
-
-  const getStatusBadgeColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'confirmado': return 'bg-green-50 text-green-700 border-green-200';
-      case 'interés': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
-      case 'cancelado': return 'bg-red-50 text-red-700 border-red-200';
-      default: return 'bg-blue-50 text-blue-700 border-blue-200';
     }
   };
 

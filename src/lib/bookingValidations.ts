@@ -140,7 +140,13 @@ export async function validateBookingOffer(
         type: 'blocking'
       });
     }
-    // Contract validation already covered above
+    if (!offer.contratos?.trim()) {
+      errors.push({
+        field: 'contratos',
+        message: 'Los contratos son obligatorios para ofertas confirmadas',
+        type: 'blocking'
+      });
+    }
   }
 
   return {
