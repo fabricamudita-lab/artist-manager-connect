@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Edit, Trash2, Clock, CheckCircle, XCircle, Calendar, MessageSquare, Phone, Video, Mic, Music, HelpCircle, Info, FileText } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Clock, CheckCircle, XCircle, Calendar, MessageSquare, Phone, Video, Mic, Music, HelpCircle, Info, FileText, Archive, ArchiveRestore } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -32,6 +32,7 @@ interface Solicitud {
   observaciones?: string;
   notas_internas?: string;
   estado: 'pendiente' | 'aprobada' | 'denegada';
+  archived?: boolean;
   fecha_creacion: string;
   fecha_actualizacion: string;
   created_by: string;
@@ -442,7 +443,14 @@ export default function Solicitudes() {
     let filtered = [...solicitudes];
 
     if (filterStatus !== 'all') {
-      filtered = filtered.filter(s => s.estado === filterStatus);
+      if (filterStatus === 'archivadas') {
+        filtered = filtered.filter(s => s.archived);
+      } else {
+        filtered = filtered.filter(s => s.estado === filterStatus && !s.archived);
+      }
+    } else {
+      // Si no hay filtro específico, excluir archivadas por defecto
+      filtered = filtered.filter(s => !s.archived);
     }
 
     if (filterType !== 'all') {
@@ -585,6 +593,56 @@ const confirmStatusChange = async (comment: string) => {
       toast({
         title: "Error",
         description: "No se pudo eliminar la solicitud.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleArchive = async (solicitudId: string) => {
+    try {
+      const { error } = await supabase
+        .from('solicitudes')
+        .update({ archived: true })
+        .eq('id', solicitudId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Solicitud archivada",
+        description: "La solicitud se ha archivado correctamente.",
+      });
+
+      fetchSolicitudes();
+    } catch (error) {
+      console.error('Error archiving solicitud:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo archivar la solicitud.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUnarchive = async (solicitudId: string) => {
+    try {
+      const { error } = await supabase
+        .from('solicitudes')
+        .update({ archived: false })
+        .eq('id', solicitudId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Solicitud desarchivada",
+        description: "La solicitud se ha desarchivado correctamente.",
+      });
+
+      fetchSolicitudes();
+    } catch (error) {
+      console.error('Error unarchiving solicitud:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo desarchivar la solicitud.",
         variant: "destructive",
       });
     }
@@ -756,6 +814,22 @@ const confirmStatusChange = async (comment: string) => {
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (solicitud.archived) {
+                    handleUnarchive(solicitud.id);
+                  } else {
+                    handleArchive(solicitud.id);
+                  }
+                }}
+                className="w-8 h-8 p-0 text-muted-foreground hover:text-orange-500 hover:bg-orange-500/10"
+                title={solicitud.archived ? "Desarchivar" : "Archivar"}
+              >
+                {solicitud.archived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -828,9 +902,10 @@ const confirmStatusChange = async (comment: string) => {
     );
   }
 
-  const pendientesCount = solicitudes.filter(s => s.estado === 'pendiente').length;
-  const aprobadasCount = solicitudes.filter(s => s.estado === 'aprobada').length;
-  const denegadasCount = solicitudes.filter(s => s.estado === 'denegada').length;
+  const pendientesCount = solicitudes.filter(s => s.estado === 'pendiente' && !s.archived).length;
+  const aprobadasCount = solicitudes.filter(s => s.estado === 'aprobada' && !s.archived).length;
+  const denegadasCount = solicitudes.filter(s => s.estado === 'denegada' && !s.archived).length;
+  const archivadasCount = solicitudes.filter(s => s.archived).length;
 
   const getStatusBadgeColor = (estado: string) => {
     switch (estado) {
@@ -876,10 +951,27 @@ const confirmStatusChange = async (comment: string) => {
               {aprobadasCount} aprobadas
             </span>
             <span
-              className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs cursor-pointer"
-              onClick={() => setFilterStatus('denegada')}
+              className={`px-2 py-1 rounded-full text-xs cursor-pointer ${
+                filterStatus === 'denegada' 
+                  ? 'bg-red-100 text-red-800' 
+                  : filterStatus === 'archivadas'
+                  ? 'bg-gray-100 text-gray-800'
+                  : 'bg-red-100 text-red-800'
+              }`}
+              onClick={() => {
+                if (filterStatus === 'denegada') {
+                  setFilterStatus('archivadas');
+                } else if (filterStatus === 'archivadas') {
+                  setFilterStatus('denegada');
+                } else {
+                  setFilterStatus('denegada');
+                }
+              }}
             >
-              {denegadasCount} denegadas
+              {filterStatus === 'archivadas' 
+                ? `${archivadasCount} archivadas` 
+                : `${denegadasCount} denegadas`
+              }
             </span>
           </div>
         </div>
@@ -1167,6 +1259,22 @@ const confirmStatusChange = async (comment: string) => {
                         className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (solicitud.archived) {
+                            handleUnarchive(solicitud.id);
+                          } else {
+                            handleArchive(solicitud.id);
+                          }
+                        }}
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-orange-500 hover:bg-orange-500/10"
+                        title={solicitud.archived ? "Desarchivar" : "Archivar"}
+                      >
+                        {solicitud.archived ? <ArchiveRestore className="w-3 h-3" /> : <Archive className="w-3 h-3" />}
                       </Button>
                     </div>
                   </div>

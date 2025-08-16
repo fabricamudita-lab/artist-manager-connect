@@ -1004,6 +1004,7 @@ export type Database = {
       }
       solicitudes: {
         Row: {
+          archived: boolean
           archivos_adjuntos: Json | null
           artist_id: string | null
           ciudad: string | null
@@ -1036,6 +1037,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["request_type"]
         }
         Insert: {
+          archived?: boolean
           archivos_adjuntos?: Json | null
           artist_id?: string | null
           ciudad?: string | null
@@ -1068,6 +1070,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["request_type"]
         }
         Update: {
+          archived?: boolean
           archivos_adjuntos?: Json | null
           artist_id?: string | null
           ciudad?: string | null
