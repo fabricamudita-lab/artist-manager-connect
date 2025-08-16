@@ -726,7 +726,9 @@ const confirmStatusChange = async (comment: string) => {
     return (
       <Card 
         key={solicitud.id} 
-        className="hover:shadow-lg transition-all duration-200 cursor-pointer border-l-4 animate-fade-in"
+        className={`hover:shadow-lg transition-all duration-200 cursor-pointer border-l-4 animate-fade-in ${
+          solicitud.archived ? 'bg-gray-50' : ''
+        }`}
         style={{ borderLeftColor: typeInfo.color.replace('bg-', '') }}
         onClick={() => {
           setSelectedSolicitudForDetails(solicitud);
@@ -907,7 +909,12 @@ const confirmStatusChange = async (comment: string) => {
   const denegadasCount = solicitudes.filter(s => s.estado === 'denegada' && !s.archived).length;
   const archivadasCount = solicitudes.filter(s => s.archived).length;
 
-  const getStatusBadgeColor = (estado: string) => {
+  const getStatusBadgeColor = (estado: string, archived?: boolean) => {
+    // Si está archivada, usar color gris independientemente del estado
+    if (archived) {
+      return 'bg-gray-50 text-gray-700 border-gray-200';
+    }
+    
     switch (estado) {
       case 'pendiente': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
       case 'aprobada': return 'bg-green-50 text-green-700 border-green-200';
@@ -1090,9 +1097,13 @@ const confirmStatusChange = async (comment: string) => {
                 key={solicitud.id}
                 className={`
                   group flex items-center gap-4 p-4 cursor-pointer transition-colors border-b border-border/50 last:border-b-0
-                  ${solicitud.estado === 'aprobada' ? 'bg-success/50 hover:bg-success/60' : ''}
-                  ${solicitud.estado === 'pendiente' ? 'bg-warning/50 hover:bg-warning/60' : ''}
-                  ${solicitud.estado === 'denegada' ? 'bg-destructive/50 hover:bg-destructive/60' : ''}
+                  ${solicitud.archived 
+                    ? 'bg-gray-50 hover:bg-gray-100' 
+                    : solicitud.estado === 'aprobada' ? 'bg-success/50 hover:bg-success/60' 
+                    : solicitud.estado === 'pendiente' ? 'bg-warning/50 hover:bg-warning/60' 
+                    : solicitud.estado === 'denegada' ? 'bg-destructive/50 hover:bg-destructive/60' 
+                    : ''
+                  }
                 `}
                 onClick={() => {
                   setSelectedSolicitudForDetails(solicitud);
@@ -1193,7 +1204,7 @@ const confirmStatusChange = async (comment: string) => {
                       onValueChange={(value: 'pendiente' | 'aprobada' | 'denegada') => handleStatusChange(solicitud.id, value, solicitud.estado)}
                     >
                       <SelectTrigger
-                        className={`${getStatusBadgeColor(solicitud.estado)} text-xs border rounded-full h-7 px-3 [&>svg:last-child]:hidden`}
+                        className={`${getStatusBadgeColor(solicitud.estado, solicitud.archived)} text-xs border rounded-full h-7 px-3 [&>svg:last-child]:hidden`}
                         onClick={(e) => e.stopPropagation()}
                       >
                         <StatusIcon className="w-3 h-3 mr-1" />
