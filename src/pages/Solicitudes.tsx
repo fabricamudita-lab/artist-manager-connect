@@ -972,9 +972,9 @@ const confirmStatusChange = async (comment: string) => {
               }}
             >
               {filterStatus === 'denegada' 
-                ? `ver archivadas (${archivadasCount})`
+                ? `${archivadasCount} archivadas`
                 : filterStatus === 'archivadas'
-                ? `ver denegadas (${denegadasCount})`
+                ? `${denegadasCount} denegadas`
                 : `${denegadasCount} denegadas`
               }
             </span>
