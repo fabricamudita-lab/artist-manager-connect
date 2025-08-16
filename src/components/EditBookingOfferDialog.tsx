@@ -270,7 +270,7 @@ export function EditBookingOfferDialog({
                 <span className="text-sm font-medium">Estado de validación</span>
               </div>
               {validationResult.errors.length > 0 && (
-                <div className="text-sm text-red-600 space-y-1">
+                <div className="text-sm text-destructive space-y-1">
                   {validationResult.errors.map((error, index) => (
                     <div key={index}>• {error.message}</div>
                   ))}

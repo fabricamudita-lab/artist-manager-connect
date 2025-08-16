@@ -14,7 +14,7 @@ export function AlertsBadge({ errors, warnings }: AlertsBadgeProps) {
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger>
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+            <Badge variant="outline" className="badge-success">
               <CheckCircle className="w-3 h-3 mr-1" />
               OK
             </Badge>
@@ -36,15 +36,15 @@ export function AlertsBadge({ errors, warnings }: AlertsBadgeProps) {
   let summary = '';
 
   if (hasBlocking) {
-    badgeClass = 'bg-red-50 text-red-700 border-red-200';
+    badgeClass = 'badge-error';
     icon = <XCircle className="w-3 h-3 mr-1" />;
     summary = `${errors.length} Error${errors.length > 1 ? 'es' : ''}`;
   } else if (hasRedWarnings) {
-    badgeClass = 'bg-red-50 text-red-700 border-red-200';
+    badgeClass = 'badge-error';
     icon = <AlertTriangle className="w-3 h-3 mr-1" />;
     summary = `${warnings.length} Alerta${warnings.length > 1 ? 's' : ''}`;
   } else {
-    badgeClass = 'bg-yellow-50 text-yellow-700 border-yellow-200';
+    badgeClass = 'badge-warning';
     icon = <AlertTriangle className="w-3 h-3 mr-1" />;
     summary = `${warnings.length} Aviso${warnings.length > 1 ? 's' : ''}`;
   }
@@ -61,7 +61,7 @@ export function AlertsBadge({ errors, warnings }: AlertsBadgeProps) {
         <TooltipContent className="max-w-80">
           <div className="space-y-2">
             {errors.map((error, index) => (
-              <div key={`error-${index}`} className="flex items-start gap-2 text-red-600">
+              <div key={`error-${index}`} className="flex items-start gap-2 text-destructive">
                 <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <div>
                   <div className="font-medium">Error de validación:</div>
@@ -71,7 +71,7 @@ export function AlertsBadge({ errors, warnings }: AlertsBadgeProps) {
             ))}
             {warnings.map((warning, index) => (
               <div key={`warning-${index}`} className={`flex items-start gap-2 ${
-                warning.severity === 'red' ? 'text-red-600' : 'text-yellow-600'
+                warning.severity === 'red' ? 'text-destructive' : 'text-warning'
               }`}>
                 <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <div>

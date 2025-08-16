@@ -1,14 +1,14 @@
 export function getStatusBadgeColor(estado?: string) {
   switch (estado?.toLowerCase()) {
     case 'confirmado': 
-      return 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100';
+      return 'bg-success/10 text-success border-success/20 font-medium';
     case 'interés': 
-      return 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100';
+      return 'bg-warning/10 text-warning border-warning/20 font-medium';
     case 'propuesta': 
-      return 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100';
+      return 'bg-accent/10 text-accent border-accent/20 font-medium';
     case 'cancelado': 
-      return 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100';
+      return 'bg-destructive/10 text-destructive border-destructive/20 font-medium';
     default: 
-      return 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100';
+      return 'bg-muted/10 text-muted-foreground border-muted/20 font-medium';
   }
 }
