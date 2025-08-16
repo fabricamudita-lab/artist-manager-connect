@@ -30,10 +30,20 @@ export function ScheduleEncounterDialog({ open, onOpenChange, solicitud, onCreat
   const navigate = useNavigate();
   const [type, setType] = useState<'llamada' | 'videollamada' | 'chat' | ''>('');
   const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [timeSlot, setTimeSlot] = useState("");
   const [linkOrPhone, setLinkOrPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const timeSlots = [
+    { value: "08:00-10:00", label: "08:00 - 10:00" },
+    { value: "10:00-12:00", label: "10:00 - 12:00" },
+    { value: "12:00-14:00", label: "12:00 - 14:00" },
+    { value: "14:00-16:00", label: "14:00 - 16:00" },
+    { value: "16:00-18:00", label: "16:00 - 18:00" },
+    { value: "18:00-20:00", label: "18:00 - 20:00" },
+    { value: "20:00-22:00", label: "20:00 - 22:00" },
+  ];
 
   useEffect(() => {
     // Autorrellenar el teléfono desde el perfil cuando sea una llamada
@@ -43,7 +53,7 @@ export function ScheduleEncounterDialog({ open, onOpenChange, solicitud, onCreat
   }, [type, profile?.phone]);
 
   const reset = () => {
-    setType(''); setDate(''); setTime(''); setLinkOrPhone(''); setNotes('');
+    setType(''); setDate(''); setTimeSlot(''); setLinkOrPhone(''); setNotes('');
   };
 
   const handleSubmit = async () => {
@@ -56,8 +66,8 @@ export function ScheduleEncounterDialog({ open, onOpenChange, solicitud, onCreat
       return;
     }
 
-    if (!date || !time) {
-      toast({ title: 'Faltan datos', description: 'Selecciona fecha y hora', variant: 'destructive' });
+    if (!date || !timeSlot) {
+      toast({ title: 'Faltan datos', description: 'Selecciona fecha y franja horaria', variant: 'destructive' });
       return;
     }
 
@@ -71,8 +81,9 @@ export function ScheduleEncounterDialog({ open, onOpenChange, solicitud, onCreat
       return;
     }
 
-    const start = new Date(`${date}T${time}`);
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    const [startTime, endTime] = timeSlot.split('-');
+    const start = new Date(`${date}T${startTime}`);
+    const end = new Date(`${date}T${endTime}`);
 
     try {
       setLoading(true);
@@ -131,8 +142,19 @@ export function ScheduleEncounterDialog({ open, onOpenChange, solicitud, onCreat
                 <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Hora</Label>
-                <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+                <Label>Franja horaria</Label>
+                <Select value={timeSlot} onValueChange={setTimeSlot}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona franja" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timeSlots.map((slot) => (
+                      <SelectItem key={slot.value} value={slot.value}>
+                        {slot.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
