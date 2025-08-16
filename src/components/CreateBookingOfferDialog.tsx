@@ -56,8 +56,12 @@ export function CreateBookingOfferDialog({
   }, [formData]);
 
   const validateForm = async () => {
-    const result = await validateBookingOffer(formData, true);
-    setValidationResult(result);
+    try {
+      const result = await validateBookingOffer(formData, true);
+      setValidationResult(result);
+    } catch (error) {
+      console.error('Error validating form:', error);
+    }
   };
 
   const resetForm = () => {

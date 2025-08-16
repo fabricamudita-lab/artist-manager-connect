@@ -69,12 +69,16 @@ export default function Booking() {
 
   const validateAllOffers = async () => {
     const results: Record<string, ValidationResult> = {};
-    for (const offer of offers) {
-      if (offer.id) {
-        results[offer.id] = await validateBookingOffer(offer);
+    try {
+      for (const offer of offers) {
+        if (offer.id) {
+          results[offer.id] = await validateBookingOffer(offer);
+        }
       }
+      setValidationResults(results);
+    } catch (error) {
+      console.error('Error validating offers:', error);
     }
-    setValidationResults(results);
   };
 
   const fetchOffers = async () => {

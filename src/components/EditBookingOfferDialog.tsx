@@ -78,8 +78,12 @@ export function EditBookingOfferDialog({
   }, [formData]);
 
   const validateForm = async (data: Record<string, any>) => {
-    const result = await validateBookingOffer(data);
-    setValidationResult(result);
+    try {
+      const result = await validateBookingOffer(data);
+      setValidationResult(result);
+    } catch (error) {
+      console.error('Error validating form:', error);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

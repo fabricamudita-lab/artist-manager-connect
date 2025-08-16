@@ -51,7 +51,7 @@ export async function validateBookingOffer(
   // 2. Date conflict check
   if (offer.estado?.toLowerCase() === 'confirmado' && offer.fecha && offer.artist_id) {
     try {
-      const { data: conflictingOffers } = await supabase
+      const { data: conflictingOffers, error } = await supabase
         .from('booking_offers')
         .select('id, fecha')
         .eq('fecha', offer.fecha)
@@ -59,7 +59,9 @@ export async function validateBookingOffer(
         .ilike('estado', 'confirmado')
         .neq('id', offer.id || '');
 
-      if (conflictingOffers && conflictingOffers.length > 0) {
+      if (error) {
+        console.error('Error checking date conflicts:', error);
+      } else if (conflictingOffers && conflictingOffers.length > 0) {
         errors.push({
           field: 'fecha',
           message: 'Ya existe otra oferta confirmada en esta fecha para el mismo artista',
