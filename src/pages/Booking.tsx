@@ -213,18 +213,19 @@ export default function Booking() {
                   <TableHead>Tour Manager</TableHead>
                   <TableHead>Info / Comentarios</TableHead>
                   <TableHead>Condiciones</TableHead>
-                  <TableHead>Link de venta</TableHead>
-                  <TableHead>Contratos</TableHead>
+                   <TableHead>Link de venta</TableHead>
+                   <TableHead>Inicio venta</TableHead>
+                   <TableHead>Contratos</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {offers.length === 0 ? (
                   <TableRow>
-                    <TableCell 
-                      colSpan={15} 
-                      className="text-center py-8 text-muted-foreground"
-                    >
+                     <TableCell 
+                       colSpan={16} 
+                       className="text-center py-8 text-muted-foreground"
+                     >
                       No hay ofertas registradas. Crea la primera oferta.
                     </TableCell>
                   </TableRow>
@@ -250,21 +251,24 @@ export default function Booking() {
                       <TableCell>{offer.formato || '-'}</TableCell>
                       <TableCell>{offer.contacto || '-'}</TableCell>
                       <TableCell>{offer.tour_manager || '-'}</TableCell>
-                      <TableCell className="max-w-32 truncate">{offer.info_comentarios || '-'}</TableCell>
-                      <TableCell className="max-w-32 truncate">{offer.condiciones || '-'}</TableCell>
-                      <TableCell>
-                        {offer.link_venta ? (
-                          <a 
-                            href={offer.link_venta} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline"
-                          >
-                            Ver enlace
-                          </a>
-                        ) : '-'}
-                      </TableCell>
-                      <TableCell>{offer.contratos || '-'}</TableCell>
+                       <TableCell className="max-w-32 truncate">{offer.info_comentarios || '-'}</TableCell>
+                       <TableCell className="max-w-32 truncate">{offer.condiciones || '-'}</TableCell>
+                       <TableCell>
+                         {offer.link_venta ? (
+                           <a 
+                             href={offer.link_venta} 
+                             target="_blank" 
+                             rel="noopener noreferrer"
+                             className="text-primary hover:underline"
+                           >
+                             Ver enlace
+                           </a>
+                         ) : '-'}
+                       </TableCell>
+                       <TableCell>
+                         {offer.inicio_venta ? new Date(offer.inicio_venta).toLocaleDateString('es-ES') : '-'}
+                       </TableCell>
+                       <TableCell>{offer.contratos || '-'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
                           <Button
