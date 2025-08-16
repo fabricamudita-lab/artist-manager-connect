@@ -22,7 +22,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
   const { profile } = useAuth();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    tipo: '' as 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro' | '',
+    tipo: '' as 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro' | '',
     nombre_solicitante: '',
     email: '',
     telefono: '',
@@ -43,6 +43,9 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
     nombre_festival: '',
     lugar_concierto: '',
     ciudad: '',
+    
+    // Campos específicos para licencias
+    oferta: '',
     
     // Campo libre para tipo "otro"
     descripcion_libre: '',
@@ -68,6 +71,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
       nombre_festival: '',
       lugar_concierto: '',
       ciudad: '',
+      oferta: '',
       descripcion_libre: '',
     });
   };
@@ -159,6 +163,15 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
         }
         break;
 
+      case 'licencia':
+        if (formData.oferta) {
+          const keyContent = extractKeyContent(formData.oferta);
+          subject = keyContent ? `Licencia: ${keyContent}` : 'Licencia';
+        } else {
+          subject = 'Licencia';
+        }
+        break;
+
       case 'otro':
         if (formData.descripcion_libre) {
           const keyContent = extractKeyContent(formData.descripcion_libre);
@@ -219,6 +232,10 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
           ciudad: formData.ciudad || null,
         }),
         
+        ...(formData.tipo === 'licencia' && {
+          oferta: formData.oferta || null,
+        }),
+        
         ...((formData.tipo === 'otro' || formData.tipo === 'consulta' || formData.tipo === 'informacion') && {
           descripcion_libre: formData.descripcion_libre || null,
         }),
@@ -254,7 +271,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
         <Label htmlFor="tipo">Tipo de Solicitud *</Label>
         <Select
           value={formData.tipo}
-          onValueChange={(value: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro') => 
+          onValueChange={(value: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro') => 
             setFormData({ ...formData, tipo: value })
           }
         >
@@ -266,6 +283,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
             <SelectItem value="booking">Booking</SelectItem>
             <SelectItem value="consulta">Consulta</SelectItem>
             <SelectItem value="informacion">Información</SelectItem>
+            <SelectItem value="licencia">Licencia</SelectItem>
             <SelectItem value="otro">Otro</SelectItem>
           </SelectContent>
         </Select>
@@ -453,6 +471,28 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
                 value={formData.descripcion_libre}
                 onChange={(e) => setFormData({ ...formData, descripcion_libre: e.target.value })}
                 placeholder="Especifica qué información necesitas (biografía, fotos, rider técnico, etc.)"
+                rows={5}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {formData.tipo === 'licencia' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              📋 Información de la Licencia
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="oferta">Oferta</Label>
+              <Textarea
+                id="oferta"
+                value={formData.oferta}
+                onChange={(e) => setFormData({ ...formData, oferta: e.target.value })}
+                placeholder="Describe la oferta para la licencia (propósito, duración, territorio, etc.)"
                 rows={5}
               />
             </div>
