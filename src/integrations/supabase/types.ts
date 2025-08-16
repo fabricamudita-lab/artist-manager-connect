@@ -14,6 +14,117 @@ export type Database = {
   }
   public: {
     Tables: {
+      booking_offers: {
+        Row: {
+          artist_id: string | null
+          capacidad: number | null
+          ciudad: string | null
+          condiciones: string | null
+          contacto: string | null
+          contratos: string | null
+          created_at: string
+          created_by: string
+          estado: string | null
+          fecha: string | null
+          festival_ciclo: string | null
+          formato: string | null
+          id: string
+          info_comentarios: string | null
+          inicio_venta: string | null
+          link_venta: string | null
+          lugar: string | null
+          oferta: string | null
+          project_id: string | null
+          tour_manager: string | null
+          updated_at: string
+        }
+        Insert: {
+          artist_id?: string | null
+          capacidad?: number | null
+          ciudad?: string | null
+          condiciones?: string | null
+          contacto?: string | null
+          contratos?: string | null
+          created_at?: string
+          created_by: string
+          estado?: string | null
+          fecha?: string | null
+          festival_ciclo?: string | null
+          formato?: string | null
+          id?: string
+          info_comentarios?: string | null
+          inicio_venta?: string | null
+          link_venta?: string | null
+          lugar?: string | null
+          oferta?: string | null
+          project_id?: string | null
+          tour_manager?: string | null
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string | null
+          capacidad?: number | null
+          ciudad?: string | null
+          condiciones?: string | null
+          contacto?: string | null
+          contratos?: string | null
+          created_at?: string
+          created_by?: string
+          estado?: string | null
+          fecha?: string | null
+          festival_ciclo?: string | null
+          formato?: string | null
+          id?: string
+          info_comentarios?: string | null
+          inicio_venta?: string | null
+          link_venta?: string | null
+          lugar?: string | null
+          oferta?: string | null
+          project_id?: string | null
+          tour_manager?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      booking_template_config: {
+        Row: {
+          created_at: string
+          created_by: string
+          field_label: string
+          field_name: string
+          field_order: number
+          field_type: string
+          id: string
+          is_active: boolean | null
+          is_required: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          field_label: string
+          field_name: string
+          field_order: number
+          field_type?: string
+          id?: string
+          is_active?: boolean | null
+          is_required?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          field_label?: string
+          field_name?: string
+          field_order?: number
+          field_type?: string
+          id?: string
+          is_active?: boolean | null
+          is_required?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       budget_attachments: {
         Row: {
           budget_id: string
