@@ -86,6 +86,30 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_status_options: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_default: boolean
+          status_value: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_default?: boolean
+          status_value: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_default?: boolean
+          status_value?: string
+        }
+        Relationships: []
+      }
       booking_template_config: {
         Row: {
           created_at: string

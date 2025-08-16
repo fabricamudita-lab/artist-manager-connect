@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { BookingStatusCombobox } from './BookingStatusCombobox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -93,6 +94,15 @@ export function CreateBookingOfferDialog({
         );
 
       case 'select':
+        if (field.field_name === 'estado') {
+          return (
+            <BookingStatusCombobox
+              value={value}
+              onValueChange={(newValue) => setFormData({ ...formData, [field.field_name]: newValue })}
+              placeholder={`Selecciona ${field.field_label.toLowerCase()}`}
+            />
+          );
+        }
         const options = getSelectOptions(field.field_name);
         return (
           <Select
