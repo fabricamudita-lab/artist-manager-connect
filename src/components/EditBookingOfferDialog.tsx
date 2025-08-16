@@ -10,6 +10,8 @@ import { FormatoCombobox } from './FormatoCombobox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { validateBookingOffer, ValidationResult } from '@/lib/bookingValidations';
+import { AlertsBadge } from './AlertsBadge';
 
 interface TemplateField {
   id: string;
@@ -60,15 +62,41 @@ export function EditBookingOfferDialog({
 }: EditBookingOfferDialogProps) {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
 
   useEffect(() => {
     if (open && offer) {
       setFormData({ ...offer });
+      validateForm(offer);
     }
   }, [open, offer]);
 
+  useEffect(() => {
+    if (Object.keys(formData).length > 0) {
+      validateForm(formData);
+    }
+  }, [formData]);
+
+  const validateForm = async (data: Record<string, any>) => {
+    const result = await validateBookingOffer(data);
+    setValidationResult(result);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate before submission
+    const validation = await validateBookingOffer(formData);
+    
+    if (!validation.isValid) {
+      toast({
+        title: "Errores de validación",
+        description: "Por favor, corrige los errores antes de continuar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -228,6 +256,25 @@ export function EditBookingOfferDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {validationResult && (validationResult.errors.length > 0 || validationResult.warnings.length > 0) && (
+            <div className="p-4 border rounded-lg bg-muted/50">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertsBadge 
+                  errors={validationResult.errors}
+                  warnings={validationResult.warnings}
+                />
+                <span className="text-sm font-medium">Estado de validación</span>
+              </div>
+              {validationResult.errors.length > 0 && (
+                <div className="text-sm text-red-600 space-y-1">
+                  {validationResult.errors.map((error, index) => (
+                    <div key={index}>• {error.message}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Información de la Oferta</CardTitle>
@@ -254,7 +301,7 @@ export function EditBookingOfferDialog({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || (validationResult && !validationResult.isValid)}>
               {loading ? 'Actualizando...' : 'Actualizar Oferta'}
             </Button>
           </div>

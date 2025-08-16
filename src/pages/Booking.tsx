@@ -10,6 +10,8 @@ import { toast } from '@/hooks/use-toast';
 import { CreateBookingOfferDialog } from '@/components/CreateBookingOfferDialog';
 import { EditBookingTemplateDialog } from '@/components/EditBookingTemplateDialog';
 import { EditBookingOfferDialog } from '@/components/EditBookingOfferDialog';
+import { AlertsBadge } from '@/components/AlertsBadge';
+import { validateBookingOffer, ValidationResult } from '@/lib/bookingValidations';
 
 interface BookingOffer {
   id: string;
@@ -52,11 +54,28 @@ export default function Booking() {
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedOffer, setSelectedOffer] = useState<BookingOffer | null>(null);
+  const [validationResults, setValidationResults] = useState<Record<string, ValidationResult>>({});
 
   useEffect(() => {
     fetchOffers();
     fetchTemplateFields();
   }, []);
+
+  useEffect(() => {
+    if (offers.length > 0) {
+      validateAllOffers();
+    }
+  }, [offers]);
+
+  const validateAllOffers = async () => {
+    const results: Record<string, ValidationResult> = {};
+    for (const offer of offers) {
+      if (offer.id) {
+        results[offer.id] = await validateBookingOffer(offer);
+      }
+    }
+    setValidationResults(results);
+  };
 
   const fetchOffers = async () => {
     try {
@@ -216,14 +235,15 @@ export default function Booking() {
                    <TableHead>Link de venta</TableHead>
                    <TableHead>Inicio venta</TableHead>
                    <TableHead>Contratos</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                   <TableHead>Alertas</TableHead>
+                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {offers.length === 0 ? (
                   <TableRow>
                      <TableCell 
-                       colSpan={16} 
+                       colSpan={17} 
                        className="text-center py-8 text-muted-foreground"
                      >
                       No hay ofertas registradas. Crea la primera oferta.
@@ -269,7 +289,15 @@ export default function Booking() {
                          {offer.inicio_venta ? new Date(offer.inicio_venta).toLocaleDateString('es-ES') : '-'}
                        </TableCell>
                        <TableCell>{offer.contratos || '-'}</TableCell>
-                      <TableCell className="text-right">
+                       <TableCell>
+                         {offer.id && validationResults[offer.id] && (
+                           <AlertsBadge 
+                             errors={validationResults[offer.id].errors}
+                             warnings={validationResults[offer.id].warnings}
+                           />
+                         )}
+                       </TableCell>
+                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
                           <Button
                             variant="ghost"
