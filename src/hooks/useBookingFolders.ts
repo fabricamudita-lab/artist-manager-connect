@@ -31,7 +31,10 @@ export function useBookingFolders() {
     const ciudad = offer.ciudad || 'sin-ciudad';
     const festival = offer.festival_ciclo || 'sin-festival';
     
-    return `[${date}] - ${ciudad} - ${festival}`;
+    // Remove invalid characters for storage paths: []<>:"|?*
+    const sanitize = (str: string) => str.replace(/[\[\]<>:"|?*]/g, '-').replace(/\s+/g, '_');
+    
+    return `${date}_${sanitize(ciudad)}_${sanitize(festival)}`;
   };
 
   const createEventFolder = useCallback(async (offer: BookingOffer): Promise<string | null> => {
