@@ -12,6 +12,8 @@ import { EditBookingTemplateDialog } from '@/components/EditBookingTemplateDialo
 import { EditBookingOfferDialog } from '@/components/EditBookingOfferDialog';
 import { AlertsBadge } from '@/components/AlertsBadge';
 import { validateBookingOffer, ValidationResult } from '@/lib/bookingValidations';
+import { useBookingReminders } from '@/hooks/useBookingReminders';
+import { ReminderBadge } from '@/components/ReminderBadge';
 import { getStatusBadgeColor } from '@/lib/statusColors';
 
 interface BookingOffer {
@@ -58,6 +60,7 @@ export default function Booking() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedOffer, setSelectedOffer] = useState<BookingOffer | null>(null);
   const [validationResults, setValidationResults] = useState<Record<string, ValidationResult>>({});
+  const { getRemindersForBooking } = useBookingReminders(offers);
 
   useEffect(() => {
     fetchOffers();
@@ -253,6 +256,7 @@ export default function Booking() {
                    <TableHead>Link de venta</TableHead>
                    <TableHead>Inicio venta</TableHead>
                    <TableHead>Contratos</TableHead>
+                   <TableHead>Recordatorios</TableHead>
                    <TableHead>Alertas</TableHead>
                    <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -261,7 +265,7 @@ export default function Booking() {
                 {offers.length === 0 ? (
                   <TableRow>
                      <TableCell 
-                       colSpan={17} 
+                       colSpan={18} 
                        className="text-center py-8 text-muted-foreground"
                      >
                       No hay ofertas registradas. Crea la primera oferta.
@@ -303,18 +307,21 @@ export default function Booking() {
                            </a>
                          ) : '-'}
                        </TableCell>
-                       <TableCell>
-                         {offer.inicio_venta ? new Date(offer.inicio_venta).toLocaleDateString('es-ES') : '-'}
-                       </TableCell>
-                       <TableCell>{offer.contratos || '-'}</TableCell>
-                       <TableCell>
-                         {offer.id && validationResults[offer.id] && (
-                           <AlertsBadge 
-                             errors={validationResults[offer.id].errors}
-                             warnings={validationResults[offer.id].warnings}
-                           />
-                         )}
-                       </TableCell>
+                        <TableCell>
+                          {offer.inicio_venta ? new Date(offer.inicio_venta).toLocaleDateString('es-ES') : '-'}
+                        </TableCell>
+                        <TableCell>{offer.contratos || '-'}</TableCell>
+                        <TableCell>
+                          <ReminderBadge reminders={getRemindersForBooking(offer.id)} variant="compact" />
+                        </TableCell>
+                        <TableCell>
+                          {offer.id && validationResults[offer.id] && (
+                            <AlertsBadge 
+                              errors={validationResults[offer.id].errors}
+                              warnings={validationResults[offer.id].warnings}
+                            />
+                          )}
+                        </TableCell>
                        <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
                           <Button

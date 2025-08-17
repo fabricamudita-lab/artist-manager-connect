@@ -13,6 +13,8 @@ import { CreateEventDialog } from '@/components/CreateEventDialog';
 import { ArtistSelector } from '@/components/ArtistSelector';
 import { YearlyCalendar } from '@/components/YearlyCalendar';
 import { EditEventDialog } from '@/components/EditEventDialog';
+import { useBookingReminders } from '@/hooks/useBookingReminders';
+import { ReminderBadge } from '@/components/ReminderBadge';
 
 interface Event {
   id: string;
@@ -37,6 +39,8 @@ export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [shouldOpenCreateDialog, setShouldOpenCreateDialog] = useState(false);
   const [prefilledData, setPrefilledData] = useState<any>(null);
+  const [bookingOffers, setBookingOffers] = useState<any[]>([]);
+  const { getRemindersForBooking } = useBookingReminders(bookingOffers);
 
   useEffect(() => {
     if (profile) {
@@ -57,6 +61,7 @@ export default function Calendar() {
   useEffect(() => {
     if (profile && selectedArtists.length > 0) {
       fetchEvents();
+      fetchBookingOffers();
     }
   }, [profile, selectedArtists]);
 
@@ -97,6 +102,24 @@ export default function Calendar() {
       console.error('Error fetching events:', error);
     } finally {
       setEventsLoading(false);
+    }
+  };
+
+  const fetchBookingOffers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('booking_offers')
+        .select('id, fecha, estado, contratos, link_venta, ciudad, lugar, festival_ciclo, event_id')
+        .eq('estado', 'confirmado')
+        .not('event_id', 'is', null);
+
+      if (error) {
+        console.error('Error fetching booking offers:', error);
+      } else {
+        setBookingOffers(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching booking offers:', error);
     }
   };
 
@@ -280,14 +303,28 @@ export default function Calendar() {
                 {allDayEvents.map((event, eventIndex) => (
                   <div
                     key={event.id}
-                    className={`text-xs px-2 py-1 rounded truncate font-medium ${
+                    className={`text-xs px-2 py-1 rounded truncate font-medium relative ${
                       event.event_type === 'concierto' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
                       event.event_type === 'entrevista' ? 'bg-green-100 text-green-800 border border-green-200' :
                       event.event_type === 'reunion' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
                       'bg-gray-100 text-gray-800 border border-gray-200'
                     }`}
                   >
-                    {event.title}
+                    <div className="flex items-center justify-between">
+                      <span className="truncate">{event.title}</span>
+                      {(() => {
+                        const bookingOffer = bookingOffers.find(offer => offer.event_id === event.id);
+                        if (bookingOffer) {
+                          const reminders = getRemindersForBooking(bookingOffer.id);
+                          return reminders.length > 0 ? (
+                            <div className="ml-1 flex-shrink-0">
+                              <ReminderBadge reminders={reminders} variant="compact" />
+                            </div>
+                          ) : null;
+                        }
+                        return null;
+                      })()}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -332,11 +369,27 @@ export default function Calendar() {
                             marginTop: `${eventIndex * 2}px` 
                           }}
                         >
-                          <div className="font-medium truncate">
-                            {event.title}
-                          </div>
-                          <div className="text-muted-foreground truncate">
-                            {format(new Date(event.start_date), 'HH:mm')}
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">
+                                {event.title}
+                              </div>
+                              <div className="text-muted-foreground truncate">
+                                {format(new Date(event.start_date), 'HH:mm')}
+                              </div>
+                            </div>
+                            {(() => {
+                              const bookingOffer = bookingOffers.find(offer => offer.event_id === event.id);
+                              if (bookingOffer) {
+                                const reminders = getRemindersForBooking(bookingOffer.id);
+                                return reminders.length > 0 ? (
+                                  <div className="ml-1 flex-shrink-0">
+                                    <ReminderBadge reminders={reminders} variant="compact" />
+                                  </div>
+                                ) : null;
+                              }
+                              return null;
+                            })()}
                           </div>
                         </div>
                       ))}
@@ -442,9 +495,21 @@ export default function Calendar() {
                     {dayEvents.slice(0, 3).map(event => (
                       <div
                         key={event.id}
-                        className="text-xs bg-primary/10 text-primary px-2 py-1 rounded truncate"
+                        className="text-xs bg-primary/10 text-primary px-2 py-1 rounded flex items-center justify-between"
                       >
-                        {event.title}
+                        <span className="truncate">{event.title}</span>
+                        {(() => {
+                          const bookingOffer = bookingOffers.find(offer => offer.event_id === event.id);
+                          if (bookingOffer) {
+                            const reminders = getRemindersForBooking(bookingOffer.id);
+                            return reminders.length > 0 ? (
+                              <div className="ml-1 flex-shrink-0">
+                                <ReminderBadge reminders={reminders} variant="compact" />
+                              </div>
+                            ) : null;
+                          }
+                          return null;
+                        })()}
                       </div>
                     ))}
                     {dayEvents.length > 3 && (
@@ -635,6 +700,16 @@ export default function Calendar() {
                           </div>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline">{event.event_type}</Badge>
+                            {(() => {
+                              const bookingOffer = bookingOffers.find(offer => offer.event_id === event.id);
+                              if (bookingOffer) {
+                                const reminders = getRemindersForBooking(bookingOffer.id);
+                                return reminders.length > 0 ? (
+                                  <ReminderBadge reminders={reminders} />
+                                ) : null;
+                              }
+                              return null;
+                            })()}
                             <EditEventDialog event={event} onUpdated={fetchEvents} />
                           </div>
                         </div>
