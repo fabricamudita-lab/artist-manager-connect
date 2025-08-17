@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { validateBookingOffer, ValidationResult } from '@/lib/bookingValidations';
 import { AlertsBadge } from './AlertsBadge';
+import { useBookingCalendarSync } from '@/hooks/useBookingCalendarSync';
 
 interface TemplateField {
   id: string;
@@ -38,6 +39,7 @@ export function CreateBookingOfferDialog({
   templateFields 
 }: CreateBookingOfferDialogProps) {
   const { profile } = useAuth();
+  const { syncBookingWithCalendar } = useBookingCalendarSync();
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
@@ -92,11 +94,18 @@ export function CreateBookingOfferDialog({
         created_by: profile?.user_id,
       };
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('booking_offers')
-        .insert([offerData]);
+        .insert([offerData])
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Sync with calendar if the offer is created as "confirmado"
+      if (data && data.estado === 'confirmado' && profile?.user_id) {
+        await syncBookingWithCalendar(null, data, profile.user_id);
+      }
 
       toast({
         title: "Oferta creada",

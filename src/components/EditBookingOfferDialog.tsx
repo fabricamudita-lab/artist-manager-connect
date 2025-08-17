@@ -12,6 +12,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { validateBookingOffer, ValidationResult } from '@/lib/bookingValidations';
 import { AlertsBadge } from './AlertsBadge';
+import { useBookingCalendarSync } from '@/hooks/useBookingCalendarSync';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TemplateField {
   id: string;
@@ -62,13 +64,17 @@ export function EditBookingOfferDialog({
   onOfferUpdated, 
   templateFields 
 }: EditBookingOfferDialogProps) {
+  const { profile } = useAuth();
+  const { syncBookingWithCalendar } = useBookingCalendarSync();
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [originalOffer, setOriginalOffer] = useState<BookingOffer | null>(null);
 
   useEffect(() => {
     if (open && offer) {
       setFormData({ ...offer });
+      setOriginalOffer({ ...offer });
       validateForm(offer);
     }
   }, [open, offer]);
@@ -112,6 +118,11 @@ export function EditBookingOfferDialog({
         .eq('id', offer.id);
 
       if (error) throw error;
+
+      // Sync with calendar if needed
+      if (profile?.user_id) {
+        await syncBookingWithCalendar(originalOffer, formData as BookingOffer, profile.user_id);
+      }
 
       toast({
         title: "Oferta actualizada",
