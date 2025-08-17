@@ -399,21 +399,23 @@ export function useBookingFolders() {
     let updated = 0;
 
     try {
-      // Get all booking offers without folder_url that have the required fields
+      // Get all booking offers without folder_url
       const { data: offers, error } = await supabase
         .from('booking_offers')
         .select('*')
         .or('folder_url.is.null,folder_url.eq.')
-        .not('fecha', 'is', null)
-        .not('ciudad', 'is', null)
-        .not('festival_ciclo', 'is', null)
         .order('fecha', { ascending: true });
 
       if (error) throw error;
 
-      console.log(`Processing ${offers?.length || 0} offers for backfill`);
+      // Filter offers that have the required fields
+      const validOffers = (offers || []).filter(offer => 
+        offer.fecha && offer.ciudad && offer.festival_ciclo
+      );
 
-      for (const offer of offers || []) {
+      console.log(`Processing ${validOffers.length} valid offers for backfill`);
+
+      for (const offer of validOffers) {
         try {
           // Double-check required fields before creating
           if (!offer.fecha || !offer.ciudad || !offer.festival_ciclo) {
