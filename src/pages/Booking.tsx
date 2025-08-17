@@ -17,6 +17,8 @@ import { validateBookingOffer, ValidationResult } from '@/lib/bookingValidations
 import { useBookingReminders } from '@/hooks/useBookingReminders';
 import { ReminderBadge } from '@/components/ReminderBadge';
 import { getStatusBadgeColor } from '@/lib/statusColors';
+import { useBookingFolders } from '@/hooks/useBookingFolders';
+import { FolderOpen } from 'lucide-react';
 
 interface BookingOffer {
   id: string;
@@ -63,6 +65,8 @@ export default function Booking() {
   const [selectedOffer, setSelectedOffer] = useState<BookingOffer | null>(null);
   const [validationResults, setValidationResults] = useState<Record<string, ValidationResult>>({});
   const { getRemindersForBooking } = useBookingReminders(offers);
+  const { openFolder, checkFolderExists } = useBookingFolders();
+  const [folderExists, setFolderExists] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchOffers();
@@ -72,8 +76,20 @@ export default function Booking() {
   useEffect(() => {
     if (offers.length > 0) {
       validateAllOffers();
+      checkAllFolders();
     }
   }, [offers]);
+
+  const checkAllFolders = async () => {
+    const folderStatuses: Record<string, boolean> = {};
+    for (const offer of offers) {
+      if (offer.id) {
+        const exists = await checkFolderExists(offer);
+        folderStatuses[offer.id] = exists;
+      }
+    }
+    setFolderExists(folderStatuses);
+  };
 
   const validateAllOffers = async () => {
     console.log('Validating all offers:', offers.length);
@@ -279,7 +295,22 @@ export default function Booking() {
                       <TableCell>
                         {offer.fecha ? new Date(offer.fecha).toLocaleDateString('es-ES') : '-'}
                       </TableCell>
-                      <TableCell>{offer.festival_ciclo || '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {offer.festival_ciclo || '-'}
+                          {folderExists[offer.id] && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openFolder(offer)}
+                              className="h-6 w-6 p-0 hover:bg-muted"
+                              title="Abrir carpeta del evento"
+                            >
+                              <FolderOpen className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{offer.ciudad || '-'}</TableCell>
                       <TableCell>{offer.lugar || '-'}</TableCell>
                       <TableCell>{offer.capacidad ? offer.capacidad.toLocaleString() : '-'}</TableCell>

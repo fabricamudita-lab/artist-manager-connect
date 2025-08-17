@@ -14,6 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import { validateBookingOffer, ValidationResult } from '@/lib/bookingValidations';
 import { AlertsBadge } from './AlertsBadge';
 import { useBookingCalendarSync } from '@/hooks/useBookingCalendarSync';
+import { useBookingFolders } from '@/hooks/useBookingFolders';
 
 interface TemplateField {
   id: string;
@@ -40,6 +41,7 @@ export function CreateBookingOfferDialog({
 }: CreateBookingOfferDialogProps) {
   const { profile } = useAuth();
   const { syncBookingWithCalendar } = useBookingCalendarSync();
+  const { createEventFolder } = useBookingFolders();
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
@@ -105,6 +107,11 @@ export function CreateBookingOfferDialog({
       // Sync with calendar if the offer is created as "confirmado"
       if (data && data.estado === 'confirmado' && profile?.user_id) {
         await syncBookingWithCalendar(null, data, profile.user_id);
+      }
+
+      // Create event folder if the offer is saved or marked as "confirmado"
+      if (data && (data.estado === 'confirmado' || data.estado === 'pendiente')) {
+        await createEventFolder(data);
       }
 
       toast({

@@ -14,6 +14,7 @@ import { validateBookingOffer, ValidationResult } from '@/lib/bookingValidations
 import { AlertsBadge } from './AlertsBadge';
 import { useBookingCalendarSync } from '@/hooks/useBookingCalendarSync';
 import { useAuth } from '@/hooks/useAuth';
+import { useBookingFolders } from '@/hooks/useBookingFolders';
 
 interface TemplateField {
   id: string;
@@ -67,6 +68,7 @@ export function EditBookingOfferDialog({
 }: EditBookingOfferDialogProps) {
   const { profile } = useAuth();
   const { syncBookingWithCalendar } = useBookingCalendarSync();
+  const { createEventFolder, checkFolderExists, updateFolderMetadata } = useBookingFolders();
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
@@ -123,6 +125,17 @@ export function EditBookingOfferDialog({
       // Sync with calendar if needed
       if (profile?.user_id) {
         await syncBookingWithCalendar(originalOffer, formData as BookingOffer, profile.user_id);
+      }
+
+      // Handle folder creation/update when saving or changing to "confirmado"
+      const updatedOffer = formData as BookingOffer;
+      if (updatedOffer.estado === 'confirmado' || originalOffer?.estado !== 'confirmado') {
+        const folderExists = await checkFolderExists(updatedOffer);
+        if (!folderExists && (updatedOffer.estado === 'confirmado' || updatedOffer.estado === 'pendiente')) {
+          await createEventFolder(updatedOffer);
+        } else if (folderExists) {
+          await updateFolderMetadata(updatedOffer);
+        }
       }
 
       toast({
