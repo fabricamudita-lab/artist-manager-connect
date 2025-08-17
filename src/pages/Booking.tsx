@@ -389,37 +389,40 @@ export default function Booking() {
                       <TableCell>
                         {offer.fecha ? new Date(offer.fecha).toLocaleDateString('es-ES') : '-'}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {folderExists[offer.id] ? (
-                            <button
-                              onClick={() => handleOpenFolder(offer)}
-                              className="text-primary hover:underline hover:text-primary/80 transition-colors cursor-pointer text-left"
-                              title="Abrir carpeta del evento"
-                            >
-                              {offer.festival_ciclo || '-'}
-                            </button>
-                          ) : (
-                            <span>{offer.festival_ciclo || '-'}</span>
-                          )}
-                          {folderExists[offer.id] && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleOpenFolder(offer)}
-                              className="h-6 w-6 p-0 hover:bg-muted"
-                              title="Abrir carpeta del evento"
-                            >
-                              <FolderOpen className="h-3 w-3" />
-                            </Button>
-                          )}
-                          {offer.estado === 'confirmado' && offer.id && !contractStatus[offer.id] && (
-                            <div title="Sin contrato">
-                              <AlertTriangle className="h-4 w-4 text-amber-500" />
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
+                       <TableCell>
+                         <div className="flex items-center gap-2">
+                           {offer.folder_url ? (
+                             <>
+                               <button
+                                 onClick={() => handleOpenFolder(offer)}
+                                 className="text-primary hover:underline hover:text-primary/80 transition-colors cursor-pointer text-left"
+                                 title="Abrir carpeta del evento"
+                               >
+                                 {offer.festival_ciclo || '-'}
+                               </button>
+                               <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 onClick={() => handleOpenFolder(offer)}
+                                 className="h-6 w-6 p-0 hover:bg-muted"
+                                 title="Abrir carpeta del evento"
+                               >
+                                 <FolderOpen className="h-3 w-3" />
+                               </Button>
+                             </>
+                           ) : (
+                             <div className="flex items-center gap-2">
+                               <FolderOpen className="h-3 w-3 text-muted-foreground opacity-50" />
+                               <span className="text-muted-foreground">{offer.festival_ciclo || '-'}</span>
+                             </div>
+                           )}
+                           {offer.estado === 'confirmado' && offer.id && !contractStatus[offer.id] && (
+                             <div title="Sin contrato">
+                               <AlertTriangle className="h-4 w-4 text-amber-500" />
+                             </div>
+                           )}
+                         </div>
+                       </TableCell>
                       <TableCell>{offer.ciudad || '-'}</TableCell>
                       <TableCell>{offer.lugar || '-'}</TableCell>
                       <TableCell>{offer.capacidad ? offer.capacidad.toLocaleString() : '-'}</TableCell>
@@ -506,27 +509,36 @@ export default function Booking() {
                                    setShowEditDialog(true);
                                  }}
                                >
-                                 <Edit className="h-4 w-4 mr-2" />
-                                 Editar
-                               </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem 
-                                      onSelect={(e) => e.preventDefault()}
-                                      className="text-destructive focus:text-destructive"
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-2" />
-                                      Eliminar
-                                    </DropdownMenuItem>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>¿Seguro que quieres eliminarlo?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Esta acción no se puede deshacer. Si quieres mantener la información, puedes marcar el evento como cancelado.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
+                                   <Edit className="h-4 w-4 mr-2" />
+                                   Editar
+                                 </DropdownMenuItem>
+                                 {!offer.folder_url && offer.fecha && offer.ciudad && offer.festival_ciclo && (
+                                   <DropdownMenuItem 
+                                     onClick={() => handleCreateMissingFolder(offer)}
+                                     disabled={foldersLoading}
+                                   >
+                                     <FolderPlus className="h-4 w-4 mr-2" />
+                                     Crear carpeta
+                                   </DropdownMenuItem>
+                                 )}
+                                  <DropdownMenuSeparator />
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <DropdownMenuItem 
+                                        onSelect={(e) => e.preventDefault()}
+                                        className="text-destructive focus:text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Eliminar
+                                      </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Seguro que quieres eliminarlo?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Esta acción no se puede deshacer. Si quieres mantener la información, puedes marcar el evento como cancelado.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
                                     <AlertDialogFooter>
                                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                       <AlertDialogAction 
