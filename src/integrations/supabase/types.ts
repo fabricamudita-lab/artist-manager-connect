@@ -25,6 +25,7 @@ export type Database = {
           created_at: string
           created_by: string
           estado: string | null
+          event_id: string | null
           fecha: string | null
           festival_ciclo: string | null
           formato: string | null
@@ -50,6 +51,7 @@ export type Database = {
           created_at?: string
           created_by: string
           estado?: string | null
+          event_id?: string | null
           fecha?: string | null
           festival_ciclo?: string | null
           formato?: string | null
@@ -75,6 +77,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           estado?: string | null
+          event_id?: string | null
           fecha?: string | null
           festival_ciclo?: string | null
           formato?: string | null
@@ -90,7 +93,15 @@ export type Database = {
           tour_manager_new?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "booking_offers_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       booking_status_options: {
         Row: {

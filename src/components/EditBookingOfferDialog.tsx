@@ -46,6 +46,7 @@ interface BookingOffer {
   contratos?: string;
   artist_id?: string;
   project_id?: string;
+  event_id?: string;
   created_at: string;
 }
 

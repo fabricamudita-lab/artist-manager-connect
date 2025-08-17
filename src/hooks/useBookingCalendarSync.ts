@@ -12,6 +12,7 @@ interface BookingOffer {
   estado?: string;
   hora?: string;
   artist_id?: string;
+  event_id?: string;
 }
 
 interface CalendarEvent {
