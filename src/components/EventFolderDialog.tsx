@@ -20,6 +20,9 @@ interface BookingOffer {
   lugar?: string;
   formato?: string;
   estado?: string;
+  capacidad?: number;
+  oferta?: string;
+  contacto?: string;
 }
 
 interface EventFile {
@@ -377,22 +380,56 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                 <CardHeader>
                   <CardTitle className="text-lg">Información del Evento</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <CardContent className="space-y-3">
+                  <div className="space-y-2 text-sm">
                     <div>
-                      <span className="font-medium">Fecha:</span>
-                      <div>{offer.fecha ? new Date(offer.fecha).toLocaleDateString('es-ES') : '-'}</div>
+                      <span className="font-medium">Fecha: </span>
+                      <span>{offer.fecha ? new Date(offer.fecha).toLocaleDateString('es-ES') : '-'}</span>
                     </div>
                     <div>
-                      <span className="font-medium">Ciudad:</span>
-                      <div>{offer.ciudad || '-'}</div>
+                      <span className="font-medium">Ciudad: </span>
+                      <span>{offer.ciudad || '-'}</span>
                     </div>
                     <div>
-                      <span className="font-medium">Lugar:</span>
-                      <div>{offer.lugar || '-'}</div>
+                      <span className="font-medium">Lugar: </span>
+                      <span>{offer.lugar || '-'}</span>
                     </div>
-                    <div>
-                      <span className="font-medium">Estado:</span>
+                    {offer.festival_ciclo && (
+                      <div>
+                        <span className="font-medium">Festival/Ciclo: </span>
+                        <span>{offer.festival_ciclo}</span>
+                      </div>
+                    )}
+                    {offer.formato && (
+                      <div>
+                        <span className="font-medium">Formato: </span>
+                        <span>{offer.formato}</span>
+                      </div>
+                    )}
+                    {offer.capacidad && (
+                      <div>
+                        <span className="font-medium">Capacidad: </span>
+                        <span>{offer.capacidad.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {offer.oferta && (
+                      <div>
+                        <span className="font-medium">Oferta: </span>
+                        <span>{offer.oferta}</span>
+                      </div>
+                    )}
+                    {offer.contacto && (
+                      <div>
+                        <span className="font-medium">Contacto: </span>
+                        <span>{offer.contacto}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Estado en casilla separada */}
+                  <div className="pt-3 border-t">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">Estado:</span>
                       <Badge variant="outline">{offer.estado || 'Pendiente'}</Badge>
                     </div>
                   </div>
