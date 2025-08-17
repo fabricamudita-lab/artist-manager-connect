@@ -68,7 +68,7 @@ export function EditBookingOfferDialog({
 }: EditBookingOfferDialogProps) {
   const { profile } = useAuth();
   const { syncBookingWithCalendar } = useBookingCalendarSync();
-  const { createEventFolder, checkFolderExists, updateFolderMetadata } = useBookingFolders();
+  const { createEventFolder, checkFolderExists, updateFolderMetadata, renameEventFolder } = useBookingFolders();
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
@@ -129,7 +129,26 @@ export function EditBookingOfferDialog({
 
       // Handle folder creation/update when saving or changing to "confirmado"
       const updatedOffer = formData as BookingOffer;
-      if (updatedOffer.estado === 'confirmado' || originalOffer?.estado !== 'confirmado') {
+      
+      // Check if folder renaming is needed (when fecha, ciudad, or festival_ciclo changes)
+      const needsFolderRename = originalOffer && (
+        originalOffer.fecha !== updatedOffer.fecha ||
+        originalOffer.ciudad !== updatedOffer.ciudad ||
+        originalOffer.festival_ciclo !== updatedOffer.festival_ciclo
+      );
+
+      if (needsFolderRename && originalOffer) {
+        const folderExists = await checkFolderExists(originalOffer);
+        if (folderExists) {
+          await renameEventFolder(originalOffer, updatedOffer);
+        } else {
+          // Create new folder if original doesn't exist
+          if (updatedOffer.estado === 'confirmado' || updatedOffer.estado === 'pendiente') {
+            await createEventFolder(updatedOffer);
+          }
+        }
+      } else {
+        // Standard folder handling when no renaming is needed
         const folderExists = await checkFolderExists(updatedOffer);
         if (!folderExists && (updatedOffer.estado === 'confirmado' || updatedOffer.estado === 'pendiente')) {
           await createEventFolder(updatedOffer);

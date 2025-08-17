@@ -426,14 +426,20 @@ export default function Booking() {
       <CreateBookingOfferDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
-        onOfferCreated={fetchOffers}
+        onOfferCreated={() => {
+          fetchOffers();
+          checkAllFolders();
+        }}
         templateFields={templateFields}
       />
 
       <EditBookingTemplateDialog
         open={showTemplateDialog}
         onOpenChange={setShowTemplateDialog}
-        onTemplateUpdated={fetchTemplateFields}
+        onTemplateUpdated={() => {
+          fetchTemplateFields();
+          checkAllFolders();
+        }}
       />
 
       {selectedOffer && (
@@ -441,7 +447,10 @@ export default function Booking() {
           open={showEditDialog}
           onOpenChange={setShowEditDialog}
           offer={selectedOffer}
-          onOfferUpdated={fetchOffers}
+          onOfferUpdated={() => {
+            fetchOffers();
+            checkAllFolders();
+          }}
           templateFields={templateFields}
         />
       )}
