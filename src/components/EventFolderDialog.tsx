@@ -376,61 +376,80 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
               )}
 
               {/* Event Info */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Información del Evento</CardTitle>
+              <Card className="card-moodita">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl font-semibold tracking-tight text-gradient-primary">
+                    Información del Evento
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="space-y-2 text-sm">
-                    <div>
-                      <span className="font-medium">Fecha: </span>
-                      <span>{offer.fecha ? new Date(offer.fecha).toLocaleDateString('es-ES') : '-'}</span>
+                <CardContent className="space-y-6">
+                  {/* Información principal del evento */}
+                  <div className="bg-gradient-card rounded-xl p-6 space-y-4">
+                    <div className="grid gap-3">
+                      <div className="flex items-center justify-between py-2 border-b border-border/30">
+                        <span className="text-sm font-medium text-muted-foreground">Fecha:</span>
+                        <span className="text-sm font-semibold text-foreground">
+                          {offer.fecha ? new Date(offer.fecha).toLocaleDateString('es-ES') : '-'}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between py-2 border-b border-border/30">
+                        <span className="text-sm font-medium text-muted-foreground">Ciudad:</span>
+                        <span className="text-sm font-semibold text-foreground">{offer.ciudad || '-'}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between py-2 border-b border-border/30">
+                        <span className="text-sm font-medium text-muted-foreground">Lugar:</span>
+                        <span className="text-sm font-semibold text-foreground">{offer.lugar || '-'}</span>
+                      </div>
+                      
+                      {offer.festival_ciclo && (
+                        <div className="flex items-center justify-between py-2 border-b border-border/30">
+                          <span className="text-sm font-medium text-muted-foreground">Festival/Ciclo:</span>
+                          <span className="text-sm font-semibold text-foreground">{offer.festival_ciclo}</span>
+                        </div>
+                      )}
+                      
+                      {offer.formato && (
+                        <div className="flex items-center justify-between py-2 border-b border-border/30">
+                          <span className="text-sm font-medium text-muted-foreground">Formato:</span>
+                          <span className="text-sm font-semibold text-foreground">{offer.formato}</span>
+                        </div>
+                      )}
+                      
+                      {offer.capacidad && (
+                        <div className="flex items-center justify-between py-2 border-b border-border/30">
+                          <span className="text-sm font-medium text-muted-foreground">Capacidad:</span>
+                          <span className="text-sm font-semibold text-foreground">{offer.capacidad.toLocaleString()}</span>
+                        </div>
+                      )}
+                      
+                      {offer.oferta && (
+                        <div className="flex items-center justify-between py-2 border-b border-border/30">
+                          <span className="text-sm font-medium text-muted-foreground">Oferta:</span>
+                          <span className="text-sm font-semibold text-foreground">{offer.oferta}</span>
+                        </div>
+                      )}
+                      
+                      {offer.contacto && (
+                        <div className="flex items-center justify-between py-2">
+                          <span className="text-sm font-medium text-muted-foreground">Contacto:</span>
+                          <span className="text-sm font-semibold text-foreground">{offer.contacto}</span>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <span className="font-medium">Ciudad: </span>
-                      <span>{offer.ciudad || '-'}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium">Lugar: </span>
-                      <span>{offer.lugar || '-'}</span>
-                    </div>
-                    {offer.festival_ciclo && (
-                      <div>
-                        <span className="font-medium">Festival/Ciclo: </span>
-                        <span>{offer.festival_ciclo}</span>
-                      </div>
-                    )}
-                    {offer.formato && (
-                      <div>
-                        <span className="font-medium">Formato: </span>
-                        <span>{offer.formato}</span>
-                      </div>
-                    )}
-                    {offer.capacidad && (
-                      <div>
-                        <span className="font-medium">Capacidad: </span>
-                        <span>{offer.capacidad.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {offer.oferta && (
-                      <div>
-                        <span className="font-medium">Oferta: </span>
-                        <span>{offer.oferta}</span>
-                      </div>
-                    )}
-                    {offer.contacto && (
-                      <div>
-                        <span className="font-medium">Contacto: </span>
-                        <span>{offer.contacto}</span>
-                      </div>
-                    )}
                   </div>
                   
-                  {/* Estado en casilla separada */}
-                  <div className="pt-3 border-t">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">Estado:</span>
-                      <Badge variant="outline">{offer.estado || 'Pendiente'}</Badge>
+                  {/* Estado en sección separada */}
+                  <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-muted-foreground">Estado:</span>
+                      <Badge 
+                        variant="outline" 
+                        className="bg-primary/10 text-primary border-primary/20 font-medium rounded-full px-3 py-1"
+                      >
+                        {offer.estado || 'Pendiente'}
+                      </Badge>
                     </div>
                   </div>
                 </CardContent>
