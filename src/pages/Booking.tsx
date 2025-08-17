@@ -18,8 +18,9 @@ import { useBookingReminders } from '@/hooks/useBookingReminders';
 import { ReminderBadge } from '@/components/ReminderBadge';
 import { getStatusBadgeColor } from '@/lib/statusColors';
 import { useBookingFolders } from '@/hooks/useBookingFolders';
-import { FolderOpen } from 'lucide-react';
+import { FolderOpen, AlertTriangle } from 'lucide-react';
 import { EventFolderDialog } from '@/components/EventFolderDialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface BookingOffer {
   id: string;
@@ -66,10 +67,11 @@ export default function Booking() {
   const [selectedOffer, setSelectedOffer] = useState<BookingOffer | null>(null);
   const [validationResults, setValidationResults] = useState<Record<string, ValidationResult>>({});
   const { getRemindersForBooking } = useBookingReminders(offers);
-  const { openFolder, checkFolderExists } = useBookingFolders();
+  const { openFolder, checkFolderExists, checkContractExists } = useBookingFolders();
   const [folderExists, setFolderExists] = useState<Record<string, boolean>>({});
   const [showFolderDialog, setShowFolderDialog] = useState(false);
   const [selectedFolderOffer, setSelectedFolderOffer] = useState<BookingOffer | null>(null);
+  const [contractStatus, setContractStatus] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchOffers();
@@ -80,6 +82,7 @@ export default function Booking() {
     if (offers.length > 0) {
       validateAllOffers();
       checkAllFolders();
+      checkAllContracts();
     }
   }, [offers]);
 
@@ -92,6 +95,17 @@ export default function Booking() {
       }
     }
     setFolderExists(folderStatuses);
+  };
+
+  const checkAllContracts = async () => {
+    const contractStatuses: Record<string, boolean> = {};
+    for (const offer of offers) {
+      if (offer.id && offer.estado === 'confirmado') {
+        const hasContract = await checkContractExists(offer);
+        contractStatuses[offer.id] = hasContract;
+      }
+    }
+    setContractStatus(contractStatuses);
   };
 
   const validateAllOffers = async () => {
@@ -263,6 +277,16 @@ export default function Booking() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Contract Warning for Confirmed Events without Contracts */}
+          {offers.some(offer => offer.estado === 'confirmado' && offer.id && !contractStatus[offer.id]) && (
+            <Alert className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Aviso:</strong> Hay eventos confirmados sin contrato subido. Revisa las ofertas marcadas.
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -316,6 +340,11 @@ export default function Booking() {
                             >
                               <FolderOpen className="h-3 w-3" />
                             </Button>
+                          )}
+                          {offer.estado === 'confirmado' && offer.id && !contractStatus[offer.id] && (
+                            <div title="Sin contrato">
+                              <AlertTriangle className="h-4 w-4 text-amber-500" />
+                            </div>
                           )}
                         </div>
                       </TableCell>
@@ -429,6 +458,7 @@ export default function Booking() {
         onOfferCreated={() => {
           fetchOffers();
           checkAllFolders();
+          checkAllContracts();
         }}
         templateFields={templateFields}
       />
@@ -439,6 +469,7 @@ export default function Booking() {
         onTemplateUpdated={() => {
           fetchTemplateFields();
           checkAllFolders();
+          checkAllContracts();
         }}
       />
 
@@ -450,6 +481,7 @@ export default function Booking() {
           onOfferUpdated={() => {
             fetchOffers();
             checkAllFolders();
+            checkAllContracts();
           }}
           templateFields={templateFields}
         />

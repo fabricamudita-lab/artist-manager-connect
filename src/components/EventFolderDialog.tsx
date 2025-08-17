@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Link, FileText, Upload, Download, Image, FileBarChart, FileSignature, Clock } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Plus, Link, FileText, Upload, Download, Image, FileBarChart, FileSignature, Clock, Share2, Copy, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useBookingFolders } from '@/hooks/useBookingFolders';
@@ -37,17 +38,20 @@ interface EventFolderDialogProps {
 
 export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDialogProps) {
   const { profile } = useAuth();
-  const { generateFolderName } = useBookingFolders();
+  const { generateFolderName, generateSendingsShareLink, checkContractExists } = useBookingFolders();
   const [loading, setLoading] = useState(false);
   const [folderContents, setFolderContents] = useState<Record<string, EventFile[]>>({});
   const [showCreateBudgetDialog, setShowCreateBudgetDialog] = useState(false);
   const [recentFiles, setRecentFiles] = useState<EventFile[]>([]);
+  const [sendingsShareLink, setSendingsShareLink] = useState<string | null>(null);
+  const [hasContract, setHasContract] = useState(false);
 
   const subfolders = ['Assets', 'Facturas', 'Presupuesto', 'Contrato', 'Sendings'];
 
   useEffect(() => {
     if (open && offer) {
       loadFolderContents();
+      checkContractStatus();
     }
   }, [open, offer]);
 
@@ -105,6 +109,17 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
     }
   };
 
+  const checkContractStatus = async () => {
+    if (!offer) return;
+    
+    try {
+      const contractExists = await checkContractExists(offer);
+      setHasContract(contractExists);
+    } catch (error) {
+      console.error('Error checking contract status:', error);
+    }
+  };
+
   const handleFileUpload = async (subfolder: string, file: File) => {
     if (!offer) return;
 
@@ -130,6 +145,11 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
       });
 
       loadFolderContents();
+      
+      // Update contract status if uploading to Contrato folder
+      if (subfolder === 'Contrato') {
+        await checkContractStatus();
+      }
     } catch (error) {
       console.error('Error uploading file:', error);
       toast({
@@ -158,6 +178,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
         // If uploading to Contrato subfolder, update the booking offer
         if (subfolder === 'Contrato') {
           await updateBookingContract(file.name);
+          await checkContractStatus();
         }
       }
     };
@@ -195,7 +216,66 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
   };
 
   const handleCreateBudget = () => {
+    // Validate required fields
+    if (!offer?.fecha || !offer?.ciudad) {
+      toast({
+        title: "Error de validación",
+        description: "La fecha y la ciudad son requeridos para crear un presupuesto.",
+        variant: "destructive",
+      });
+      return;
+    }
     setShowCreateBudgetDialog(true);
+  };
+
+  const handleLinkBudget = () => {
+    // Validate required fields
+    if (!offer?.fecha || !offer?.ciudad) {
+      toast({
+        title: "Error de validación",
+        description: "La fecha y la ciudad son requeridos para vincular un presupuesto.",
+        variant: "destructive",
+      });
+      return;
+    }
+    handleQuickUpload('Presupuesto', '.pdf,.doc,.docx,.xls,.xlsx');
+  };
+
+  const handleShareSendings = async () => {
+    if (!offer) return;
+
+    try {
+      const shareLink = await generateSendingsShareLink(offer);
+      if (shareLink) {
+        setSendingsShareLink(shareLink);
+        await navigator.clipboard.writeText(shareLink);
+        toast({
+          title: "Enlace copiado",
+          description: "El enlace de la carpeta Sendings se ha copiado al portapapeles.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "No se pudo generar el enlace compartible.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error sharing sendings:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo generar el enlace compartible.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRevokeAccess = () => {
+    setSendingsShareLink(null);
+    toast({
+      title: "Acceso revocado",
+      description: "El enlace compartible ha sido revocado.",
+    });
   };
 
   const handleBudgetCreated = () => {
@@ -282,6 +362,16 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Main Content */}
             <div className="lg:col-span-3 space-y-6">
+              {/* Contract Warning for Confirmed Events */}
+              {offer.estado === 'confirmado' && !hasContract && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Aviso:</strong> Este evento está confirmado pero no tiene contrato subido en la carpeta /Contrato.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Event Info */}
               <Card>
                 <CardHeader>
@@ -358,23 +448,72 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                   <CardTitle className="text-lg">Gestión de Presupuesto</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {(!offer.fecha || !offer.ciudad) && (
+                    <Alert className="mb-4">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        Se requiere fecha y ciudad para crear o vincular presupuestos.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <div className="flex gap-2">
                     <Button
                       onClick={handleCreateBudget}
                       className="flex items-center gap-2"
+                      disabled={!offer.fecha || !offer.ciudad}
                     >
                       <Plus className="h-4 w-4" />
                       Crear presupuesto
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={() => handleQuickUpload('Presupuesto', '.pdf,.doc,.docx,.xls,.xlsx')}
+                      onClick={handleLinkBudget}
                       className="flex items-center gap-2"
+                      disabled={!offer.fecha || !offer.ciudad}
                     >
                       <Link className="h-4 w-4" />
                       Vincular presupuesto
                     </Button>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Sendings Sharing */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Compartir Sendings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleShareSendings}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <Share2 className="h-4 w-4" />
+                      Compartir Sendings
+                    </Button>
+                    {sendingsShareLink && (
+                      <Button
+                        onClick={handleRevokeAccess}
+                        variant="destructive"
+                        size="sm"
+                      >
+                        Revocar acceso
+                      </Button>
+                    )}
+                  </div>
+                  {sendingsShareLink && (
+                    <div className="mt-3 p-3 bg-muted rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        <span className="text-sm font-medium">Enlace activo</span>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground break-all">
+                        {sendingsShareLink}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

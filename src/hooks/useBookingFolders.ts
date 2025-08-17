@@ -337,6 +337,61 @@ export function useBookingFolders() {
     }
   }, [generateFolderName, updateFolderMetadata]);
 
+  const generateSendingsShareLink = useCallback(async (offer: BookingOffer): Promise<string | null> => {
+    if (!offer.fecha || !offer.ciudad || !offer.festival_ciclo) {
+      return null;
+    }
+
+    try {
+      const folderName = generateFolderName(offer);
+      const sendingsPath = `events/${folderName}/Sendings`;
+      
+      // Create a signed URL that expires in 7 days
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .createSignedUrl(`${sendingsPath}/.keep`, 60 * 60 * 24 * 7); // 7 days
+
+      if (error) {
+        console.error('Error creating signed URL:', error);
+        return null;
+      }
+
+      // Extract the base URL and create a shareable folder link
+      const baseUrl = data.signedUrl.split('/.keep')[0];
+      return baseUrl;
+    } catch (error) {
+      console.error('Error generating share link:', error);
+      return null;
+    }
+  }, [generateFolderName]);
+
+  const checkContractExists = useCallback(async (offer: BookingOffer): Promise<boolean> => {
+    if (!offer.fecha || !offer.ciudad || !offer.festival_ciclo) {
+      return false;
+    }
+
+    try {
+      const folderName = generateFolderName(offer);
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .list(`events/${folderName}/Contrato`, {
+          limit: 10
+        });
+
+      if (error) {
+        console.error('Error checking contract folder:', error);
+        return false;
+      }
+
+      // Filter out .keep files
+      const files = (data || []).filter(file => file.name !== '.keep');
+      return files.length > 0;
+    } catch (error) {
+      console.error('Error checking contract existence:', error);
+      return false;
+    }
+  }, [generateFolderName]);
+
   return {
     createEventFolder,
     checkFolderExists,
@@ -344,6 +399,8 @@ export function useBookingFolders() {
     updateFolderMetadata,
     renameEventFolder,
     generateFolderName,
+    generateSendingsShareLink,
+    checkContractExists,
     loading
   };
 }
