@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Settings, Edit, Trash2 } from 'lucide-react';
+import { Plus, Settings, Edit, Trash2, Folder, FolderPlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -43,6 +43,7 @@ interface BookingOffer {
   project_id?: string;
   event_id?: string;
   hora?: string;
+  folder_url?: string;
   created_at: string;
 }
 
@@ -67,7 +68,7 @@ export default function Booking() {
   const [selectedOffer, setSelectedOffer] = useState<BookingOffer | null>(null);
   const [validationResults, setValidationResults] = useState<Record<string, ValidationResult>>({});
   const { getRemindersForBooking } = useBookingReminders(offers);
-  const { openFolder, checkFolderExists, checkContractExists } = useBookingFolders();
+  const { openFolder, checkFolderExists, checkContractExists, backfillEventFolders, createEventFolder, loading: foldersLoading } = useBookingFolders();
   const [folderExists, setFolderExists] = useState<Record<string, boolean>>({});
   const [showFolderDialog, setShowFolderDialog] = useState(false);
   const [selectedFolderOffer, setSelectedFolderOffer] = useState<BookingOffer | null>(null);
@@ -209,6 +210,57 @@ export default function Booking() {
     setShowFolderDialog(true);
   };
 
+  const handleBackfillFolders = async () => {
+    try {
+      const result = await backfillEventFolders();
+      
+      toast({
+        title: "Backfill completado",
+        description: `${result.created} carpetas creadas, ${result.updated} actualizadas.`,
+      });
+
+      // Refresh data
+      fetchOffers();
+      checkAllFolders();
+    } catch (error) {
+      console.error('Error in backfill:', error);
+      toast({
+        title: "Error",
+        description: "Error durante el backfill de carpetas.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateMissingFolder = async (offer: BookingOffer) => {
+    try {
+      const folderUrl = await createEventFolder(offer);
+      if (folderUrl) {
+        const publicUrl = `https://hptjzbaiclmgbvxlmllo.supabase.co/storage/v1/object/public/documents/${folderUrl}`;
+        await supabase
+          .from('booking_offers')
+          .update({ folder_url: publicUrl })
+          .eq('id', offer.id);
+
+        toast({
+          title: "Carpeta creada",
+          description: "La carpeta del evento se ha creado exitosamente.",
+        });
+
+        // Refresh data
+        fetchOffers();
+        checkAllFolders();
+      }
+    } catch (error) {
+      console.error('Error creating folder:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo crear la carpeta del evento.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatValue = (value: any, fieldType: string) => {
     if (!value) return '-';
     
@@ -251,6 +303,15 @@ export default function Booking() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            onClick={handleBackfillFolders}
+            variant="outline"
+            disabled={foldersLoading}
+            className="flex items-center gap-2"
+          >
+            <Folder className="h-4 w-4" />
+            Backfill Carpetas
+          </Button>
           <Button
             variant="outline"
             onClick={() => setShowTemplateDialog(true)}
@@ -306,6 +367,7 @@ export default function Booking() {
                    <TableHead>Link de venta</TableHead>
                    <TableHead>Inicio venta</TableHead>
                    <TableHead>Contratos</TableHead>
+                   <TableHead>Carpeta</TableHead>
                    <TableHead>Recordatorios</TableHead>
                    <TableHead>Alertas</TableHead>
                    <TableHead className="text-right">Acciones</TableHead>
@@ -315,7 +377,7 @@ export default function Booking() {
                 {offers.length === 0 ? (
                   <TableRow>
                      <TableCell 
-                       colSpan={18} 
+                       colSpan={19} 
                        className="text-center py-8 text-muted-foreground"
                      >
                       No hay ofertas registradas. Crea la primera oferta.
@@ -390,10 +452,37 @@ export default function Booking() {
                         <TableCell>
                           {offer.inicio_venta ? new Date(offer.inicio_venta).toLocaleDateString('es-ES') : '-'}
                         </TableCell>
-                        <TableCell>{offer.contratos || '-'}</TableCell>
-                        <TableCell>
-                          <ReminderBadge reminders={getRemindersForBooking(offer.id)} variant="compact" />
-                        </TableCell>
+                         <TableCell>{offer.contratos || '-'}</TableCell>
+                         <TableCell>
+                           <div className="flex items-center gap-2">
+                             {offer.folder_url ? (
+                               <Badge variant="default" className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-100 dark:border-green-700">
+                                 OK
+                               </Badge>
+                             ) : (
+                               <div className="flex items-center gap-2">
+                                 <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-100 dark:border-orange-700">
+                                   Falta
+                                 </Badge>
+                                 {offer.fecha && offer.ciudad && offer.festival_ciclo && (
+                                   <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     onClick={() => handleCreateMissingFolder(offer)}
+                                     disabled={foldersLoading}
+                                     title="Crear carpeta"
+                                     className="h-6 w-6 p-0"
+                                   >
+                                     <FolderPlus className="h-3 w-3" />
+                                   </Button>
+                                 )}
+                               </div>
+                             )}
+                           </div>
+                         </TableCell>
+                         <TableCell>
+                           <ReminderBadge reminders={getRemindersForBooking(offer.id)} variant="compact" />
+                         </TableCell>
                         <TableCell>
                           {offer.id && validationResults[offer.id] && (
                             <AlertsBadge 

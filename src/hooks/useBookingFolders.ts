@@ -11,6 +11,7 @@ interface BookingOffer {
   formato?: string;
   estado?: string;
   contratos?: string;
+  folder_url?: string;
 }
 
 interface FolderMetadata {
@@ -392,6 +393,79 @@ export function useBookingFolders() {
     }
   }, [generateFolderName]);
 
+  const backfillEventFolders = useCallback(async (): Promise<{ created: number; updated: number }> => {
+    setLoading(true);
+    let created = 0;
+    let updated = 0;
+
+    try {
+      // Get all booking offers without folder_url
+      const { data: offers, error } = await supabase
+        .from('booking_offers')
+        .select('*')
+        .or('folder_url.is.null,folder_url.eq.')
+        .order('fecha', { ascending: true });
+
+      if (error) throw error;
+
+      for (const offer of offers || []) {
+        try {
+          // Create folder for this offer
+          const folderUrl = await createEventFolder(offer);
+          
+          if (folderUrl) {
+            // Update the offer with the folder URL
+            const publicUrl = `https://hptjzbaiclmgbvxlmllo.supabase.co/storage/v1/object/public/documents/${folderUrl}`;
+            
+            const { error: updateError } = await supabase
+              .from('booking_offers')
+              .update({ folder_url: publicUrl })
+              .eq('id', offer.id);
+
+            if (updateError) {
+              console.error('Error updating folder URL:', updateError);
+            } else {
+              created++;
+            }
+          }
+        } catch (error) {
+          console.error(`Error creating folder for offer ${offer.id}:`, error);
+        }
+      }
+
+      // Also update existing folders that might need URL updates
+      const { data: existingOffers, error: existingError } = await supabase
+        .from('booking_offers')
+        .select('*')
+        .not('folder_url', 'is', null);
+
+      if (!existingError && existingOffers) {
+        for (const offer of existingOffers) {
+          const folderName = generateFolderName(offer);
+          const expectedUrl = `https://hptjzbaiclmgbvxlmllo.supabase.co/storage/v1/object/public/documents/events/${folderName}/`;
+          
+          if (offer.folder_url !== expectedUrl) {
+            const { error: updateError } = await supabase
+              .from('booking_offers')
+              .update({ folder_url: expectedUrl })
+              .eq('id', offer.id);
+
+            if (!updateError) {
+              updated++;
+            }
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('Error in backfill process:', error);
+    } finally {
+      setLoading(false);
+    }
+
+    return { created, updated };
+  }, [createEventFolder, generateFolderName]);
+
   return {
     createEventFolder,
     checkFolderExists,
@@ -401,6 +475,7 @@ export function useBookingFolders() {
     generateFolderName,
     generateSendingsShareLink,
     checkContractExists,
+    backfillEventFolders,
     loading
   };
 }

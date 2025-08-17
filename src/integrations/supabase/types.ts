@@ -28,6 +28,7 @@ export type Database = {
           event_id: string | null
           fecha: string | null
           festival_ciclo: string | null
+          folder_url: string | null
           formato: string | null
           hora: string | null
           id: string
@@ -54,6 +55,7 @@ export type Database = {
           event_id?: string | null
           fecha?: string | null
           festival_ciclo?: string | null
+          folder_url?: string | null
           formato?: string | null
           hora?: string | null
           id?: string
@@ -80,6 +82,7 @@ export type Database = {
           event_id?: string | null
           fecha?: string | null
           festival_ciclo?: string | null
+          folder_url?: string | null
           formato?: string | null
           hora?: string | null
           id?: string
