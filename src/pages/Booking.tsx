@@ -19,6 +19,7 @@ import { ReminderBadge } from '@/components/ReminderBadge';
 import { getStatusBadgeColor } from '@/lib/statusColors';
 import { useBookingFolders } from '@/hooks/useBookingFolders';
 import { FolderOpen } from 'lucide-react';
+import { EventFolderDialog } from '@/components/EventFolderDialog';
 
 interface BookingOffer {
   id: string;
@@ -67,6 +68,8 @@ export default function Booking() {
   const { getRemindersForBooking } = useBookingReminders(offers);
   const { openFolder, checkFolderExists } = useBookingFolders();
   const [folderExists, setFolderExists] = useState<Record<string, boolean>>({});
+  const [showFolderDialog, setShowFolderDialog] = useState(false);
+  const [selectedFolderOffer, setSelectedFolderOffer] = useState<BookingOffer | null>(null);
 
   useEffect(() => {
     fetchOffers();
@@ -187,6 +190,11 @@ export default function Booking() {
     }
   };
 
+  const handleOpenFolder = (offer: BookingOffer) => {
+    setSelectedFolderOffer(offer);
+    setShowFolderDialog(true);
+  };
+
   const formatValue = (value: any, fieldType: string) => {
     if (!value) return '-';
     
@@ -302,7 +310,7 @@ export default function Booking() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => openFolder(offer)}
+                              onClick={() => handleOpenFolder(offer)}
                               className="h-6 w-6 p-0 hover:bg-muted"
                               title="Abrir carpeta del evento"
                             >
@@ -437,6 +445,12 @@ export default function Booking() {
           templateFields={templateFields}
         />
       )}
+
+      <EventFolderDialog
+        open={showFolderDialog}
+        onOpenChange={setShowFolderDialog}
+        offer={selectedFolderOffer}
+      />
     </div>
   );
 }

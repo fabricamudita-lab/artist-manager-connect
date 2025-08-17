@@ -54,24 +54,42 @@ export function useBookingFolders() {
         estado: offer.estado || ''
       };
 
-      // Create a metadata file in the folder
+      // Create subfolders by uploading placeholder files
+      const subfolders = ['Assets', 'Facturas', 'Presupuesto', 'Contrato', 'Sendings'];
       const metadataContent = JSON.stringify(metadata, null, 2);
       const metadataBlob = new Blob([metadataContent], { type: 'application/json' });
       
-      // Upload the metadata file to create the folder structure
-      const { data, error } = await supabase.storage
+      // Create main metadata file
+      const { error: mainError } = await supabase.storage
         .from('documents')
         .upload(`${folderPath}metadata.json`, metadataBlob, {
           cacheControl: '3600',
           upsert: true
         });
 
-      if (error) {
-        console.error('Error creating folder:', error);
-        throw error;
+      if (mainError) {
+        console.error('Error creating main folder:', mainError);
+        throw mainError;
       }
 
-      console.log('Event folder created:', folderPath);
+      // Create subfolders with placeholder files
+      for (const subfolder of subfolders) {
+        const placeholderContent = `# ${subfolder}\n\nEsta carpeta está destinada para ${subfolder.toLowerCase()}.`;
+        const placeholderBlob = new Blob([placeholderContent], { type: 'text/plain' });
+        
+        const { error } = await supabase.storage
+          .from('documents')
+          .upload(`${folderPath}${subfolder}/.keep`, placeholderBlob, {
+            cacheControl: '3600',
+            upsert: true
+          });
+
+        if (error) {
+          console.error(`Error creating subfolder ${subfolder}:`, error);
+        }
+      }
+
+      console.log('Event folder with subfolders created:', folderPath);
       return folderPath;
     } catch (error) {
       console.error('Error creating event folder:', error);
@@ -114,7 +132,7 @@ export function useBookingFolders() {
     }
   }, []);
 
-  const openFolder = useCallback(async (offer: BookingOffer) => {
+  const openFolder = useCallback((offer: BookingOffer, onOpenFolderDialog?: (offer: BookingOffer) => void) => {
     if (!offer.fecha || !offer.ciudad || !offer.festival_ciclo) {
       toast({
         title: "Error",
@@ -124,38 +142,17 @@ export function useBookingFolders() {
       return;
     }
 
-    const folderName = generateFolderName(offer);
-    const folderPath = `events/${folderName}/`;
-    
-    try {
-      // Check if folder exists first
-      const exists = await checkFolderExists(offer);
-      if (!exists) {
-        toast({
-          title: "Carpeta no encontrada",
-          description: "La carpeta del evento no existe. Se creará cuando el estado sea 'Confirmado'.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // For now, we'll show a toast with the folder path
-      // In a real implementation, this could open a file browser or redirect to a documents page
+    if (onOpenFolderDialog) {
+      onOpenFolderDialog(offer);
+    } else {
+      // Fallback to showing folder path
+      const folderName = generateFolderName(offer);
       toast({
         title: "Carpeta del evento",
         description: `Carpeta: ${folderName}`,
       });
-      
-      console.log('Opening folder:', folderPath);
-    } catch (error) {
-      console.error('Error opening folder:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo abrir la carpeta del evento.",
-        variant: "destructive",
-      });
     }
-  }, [checkFolderExists]);
+  }, []);
 
   const updateFolderMetadata = useCallback(async (offer: BookingOffer): Promise<void> => {
     if (!offer.id || !offer.fecha || !offer.ciudad || !offer.festival_ciclo) {
