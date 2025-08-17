@@ -329,7 +329,17 @@ export default function Booking() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          {offer.festival_ciclo || '-'}
+                          {folderExists[offer.id] ? (
+                            <button
+                              onClick={() => handleOpenFolder(offer)}
+                              className="text-primary hover:underline hover:text-primary/80 transition-colors cursor-pointer text-left"
+                              title="Abrir carpeta del evento"
+                            >
+                              {offer.festival_ciclo || '-'}
+                            </button>
+                          ) : (
+                            <span>{offer.festival_ciclo || '-'}</span>
+                          )}
                           {folderExists[offer.id] && (
                             <Button
                               variant="ghost"
