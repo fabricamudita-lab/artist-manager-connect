@@ -41,14 +41,7 @@ export async function validateBookingOffer(
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
 
-  // 1. Contract required (Confirmed)
-  if (offer.estado?.toLowerCase() === 'confirmado' && !offer.contratos?.trim()) {
-    errors.push({
-      field: 'contratos',
-      message: 'Los contratos son obligatorios para ofertas confirmadas',
-      type: 'blocking'
-    });
-  }
+  // 1. Contract required check removed - handled in section 5
 
   // 2. Date conflict check
   if (offer.estado?.toLowerCase() === 'confirmado' && offer.fecha && offer.artist_id) {
@@ -132,13 +125,6 @@ export async function validateBookingOffer(
       errors.push({
         field: 'contacto',
         message: 'El contacto es obligatorio para ofertas confirmadas',
-        type: 'blocking'
-      });
-    }
-    if (!offer.tour_manager?.trim()) {
-      errors.push({
-        field: 'tour_manager',
-        message: 'El tour manager es obligatorio para ofertas confirmadas',
         type: 'blocking'
       });
     }
