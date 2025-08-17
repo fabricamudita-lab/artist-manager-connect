@@ -1,6 +1,8 @@
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, FileText, Link, Truck } from 'lucide-react';
 import { BookingReminder } from '@/hooks/useBookingReminders';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useState } from 'react';
 
 interface ReminderBadgeProps {
   reminders: BookingReminder[];
@@ -8,6 +10,8 @@ interface ReminderBadgeProps {
 }
 
 export function ReminderBadge({ reminders, variant = 'default' }: ReminderBadgeProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  
   if (reminders.length === 0) return null;
 
   const getIcon = (type: BookingReminder['type']) => {
@@ -41,30 +45,102 @@ export function ReminderBadge({ reminders, variant = 'default' }: ReminderBadgeP
     const totalCount = reminders.length;
     
     return (
-      <Badge variant={highPriorityCount > 0 ? 'destructive' : 'secondary'} className="text-xs">
-        <AlertCircle className="h-3 w-3 mr-1" />
-        {totalCount}
-      </Badge>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+          <Badge 
+            variant={highPriorityCount > 0 ? 'destructive' : 'secondary'} 
+            className="text-xs cursor-pointer hover:opacity-80"
+          >
+            <AlertCircle className="h-3 w-3 mr-1" />
+            {totalCount}
+          </Badge>
+        </DialogTrigger>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Recordatorios</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-60 overflow-y-auto">
+            {reminders.map((reminder) => (
+              <div key={reminder.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                <div className={`p-1 rounded ${
+                  reminder.priority === 'high' ? 'bg-destructive/10 text-destructive' : 
+                  reminder.priority === 'medium' ? 'bg-secondary text-secondary-foreground' :
+                  'bg-muted text-muted-foreground'
+                }`}>
+                  {getIcon(reminder.type)}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">
+                    {reminder.type === 'contract' && 'Contrato'}
+                    {reminder.type === 'sales_link' && 'Link de venta'}
+                    {reminder.type === 'logistics' && 'Logística'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {reminder.message}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {reminder.daysUntilEvent} días hasta el evento
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
   return (
-    <div className="flex flex-wrap gap-1">
-      {reminders.map((reminder) => (
-        <Badge
-          key={reminder.id}
-          variant={getVariantColor(reminder.priority)}
-          className="text-xs flex items-center gap-1"
-          title={reminder.message}
-        >
-          {getIcon(reminder.type)}
-          <span className="hidden sm:inline">
-            {reminder.type === 'contract' && 'Contrato'}
-            {reminder.type === 'sales_link' && 'Link venta'}
-            {reminder.type === 'logistics' && 'Logística'}
-          </span>
-        </Badge>
-      ))}
-    </div>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <div className="flex flex-wrap gap-1 cursor-pointer">
+          {reminders.map((reminder) => (
+            <Badge
+              key={reminder.id}
+              variant={getVariantColor(reminder.priority)}
+              className="text-xs flex items-center gap-1 hover:opacity-80"
+            >
+              {getIcon(reminder.type)}
+              <span className="hidden sm:inline">
+                {reminder.type === 'contract' && 'Contrato'}
+                {reminder.type === 'sales_link' && 'Link venta'}
+                {reminder.type === 'logistics' && 'Logística'}
+              </span>
+            </Badge>
+          ))}
+        </div>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Recordatorios</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 max-h-60 overflow-y-auto">
+          {reminders.map((reminder) => (
+            <div key={reminder.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+              <div className={`p-1 rounded ${
+                reminder.priority === 'high' ? 'bg-destructive/10 text-destructive' : 
+                reminder.priority === 'medium' ? 'bg-secondary text-secondary-foreground' :
+                'bg-muted text-muted-foreground'
+              }`}>
+                {getIcon(reminder.type)}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium">
+                  {reminder.type === 'contract' && 'Contrato'}
+                  {reminder.type === 'sales_link' && 'Link de venta'}
+                  {reminder.type === 'logistics' && 'Logística'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {reminder.message}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {reminder.daysUntilEvent} días hasta el evento
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
