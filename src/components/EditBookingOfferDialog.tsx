@@ -35,6 +35,8 @@ interface BookingOffer {
   formato?: string;
   contacto?: string;
   tour_manager?: string;
+  tour_manager_new?: string;
+  hora?: string;
   info_comentarios?: string;
   condiciones?: string;
   link_venta?: string;
@@ -199,6 +201,16 @@ export function EditBookingOfferDialog({
           <Input
             id={field.field_name}
             type="date"
+            value={value}
+            onChange={(e) => setFormData({ ...formData, [field.field_name]: e.target.value })}
+          />
+        );
+
+      case 'time':
+        return (
+          <Input
+            id={field.field_name}
+            type="time"
             value={value}
             onChange={(e) => setFormData({ ...formData, [field.field_name]: e.target.value })}
           />

@@ -192,6 +192,16 @@ export function CreateBookingOfferDialog({
           />
         );
 
+      case 'time':
+        return (
+          <Input
+            id={field.field_name}
+            type="time"
+            value={value}
+            onChange={(e) => setFormData({ ...formData, [field.field_name]: e.target.value })}
+          />
+        );
+
       case 'url':
         return (
           <Input

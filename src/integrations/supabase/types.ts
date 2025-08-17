@@ -28,6 +28,7 @@ export type Database = {
           fecha: string | null
           festival_ciclo: string | null
           formato: string | null
+          hora: string | null
           id: string
           info_comentarios: string | null
           inicio_venta: string | null
@@ -36,6 +37,7 @@ export type Database = {
           oferta: string | null
           project_id: string | null
           tour_manager: string | null
+          tour_manager_new: string | null
           updated_at: string
         }
         Insert: {
@@ -51,6 +53,7 @@ export type Database = {
           fecha?: string | null
           festival_ciclo?: string | null
           formato?: string | null
+          hora?: string | null
           id?: string
           info_comentarios?: string | null
           inicio_venta?: string | null
@@ -59,6 +62,7 @@ export type Database = {
           oferta?: string | null
           project_id?: string | null
           tour_manager?: string | null
+          tour_manager_new?: string | null
           updated_at?: string
         }
         Update: {
@@ -74,6 +78,7 @@ export type Database = {
           fecha?: string | null
           festival_ciclo?: string | null
           formato?: string | null
+          hora?: string | null
           id?: string
           info_comentarios?: string | null
           inicio_venta?: string | null
@@ -82,6 +87,7 @@ export type Database = {
           oferta?: string | null
           project_id?: string | null
           tour_manager?: string | null
+          tour_manager_new?: string | null
           updated_at?: string
         }
         Relationships: []
