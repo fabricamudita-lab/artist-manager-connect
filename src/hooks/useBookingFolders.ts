@@ -31,8 +31,12 @@ export function useBookingFolders() {
     const ciudad = offer.ciudad || 'sin-ciudad';
     const festival = offer.festival_ciclo || 'sin-festival';
     
-    // Remove invalid characters for storage paths: []<>:"|?*
-    const sanitize = (str: string) => str.replace(/[\[\]<>:"|?*]/g, '-').replace(/\s+/g, '_');
+    // Remove invalid characters for storage paths: []<>:"|?* and normalize diacritics
+    const sanitize = (str: string) => str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics (í -> i)
+      .replace(/[\[\]<>:"|?*]/g, '-') // Replace forbidden chars with dash
+      .replace(/\s+/g, '_'); // Replace spaces with underscore
     
     return `${date}_${sanitize(ciudad)}_${sanitize(festival)}`;
   };

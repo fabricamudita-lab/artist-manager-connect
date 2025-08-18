@@ -106,6 +106,15 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
 
   const subfolders = ['Assets', 'Facturas', 'Contrato', 'Agente IA'];
 
+  const normalizeFileName = (text: string) => {
+    return text
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+      .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace special chars with underscore
+      .replace(/_+/g, '_') // Collapse multiple underscores
+      .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+  };
+
   useEffect(() => {
     if (open && offer) {
       loadFolderContents();
@@ -193,7 +202,8 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
 
     try {
       const folderName = generateFolderName(offer);
-      const filePath = `events/${folderName}/${subfolder}/${file.name}`;
+      const normalizedFileName = normalizeFileName(file.name);
+      const filePath = `events/${folderName}/${subfolder}/${normalizedFileName}`;
 
       // Simulate progress for user feedback
       setUploadProgress(prev => ({ ...prev, [subfolder]: 50 }));
@@ -220,7 +230,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
       
       // Update contract field if uploading to Contrato folder
       if (subfolder === 'Contrato') {
-        await updateBookingContract(file.name);
+        await updateBookingContract(normalizedFileName);
         await checkContractStatus();
         // Trigger auto-reindex for contract uploads
         triggerAutoReindex();
