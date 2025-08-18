@@ -78,8 +78,10 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
   const [indexStatus, setIndexStatus] = useState<{
     totalDocuments: number;
     processedDocuments: number;
+    totalFragmentsSaved?: number;
     lastIndexed: string | null;
     status: string;
+    warning?: string | null;
     stats?: {
       PDF?: { processed: number; skipped: number; errors: number };
       DOC?: { processed: number; skipped: number; errors: number };
@@ -100,6 +102,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
   }>({
     totalDocuments: 0,
     processedDocuments: 0,
+    totalFragmentsSaved: 0,
     lastIndexed: null,
     status: 'idle'
   });

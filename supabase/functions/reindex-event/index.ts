@@ -289,6 +289,8 @@ serve(async (req) => {
       OTHER: { processed: 0, skipped: 0, errors: 0 }
     };
 
+    let totalFragmentsSaved = 0;
+
     // Initialize or update status
     await supabase
       .from('event_index_status')
@@ -312,6 +314,7 @@ serve(async (req) => {
     }
 
     // Clear existing index for this event
+    console.log(`Clearing existing index data for event: ${eventId}`);
     await supabase
       .from('event_document_index')
       .delete()
@@ -337,8 +340,9 @@ serve(async (req) => {
       .join('\n');
 
     // Add booking metadata to index
+    console.log(`Indexing booking metadata for event: ${eventId}`);
     const metadataEmbedding = await generateEmbedding(metadataText);
-    await supabase
+    const { error: metadataInsertError } = await supabase
       .from('event_document_index')
       .insert({
         event_id: eventId,
@@ -351,6 +355,13 @@ serve(async (req) => {
         embedding_data: metadataEmbedding
       });
 
+    if (!metadataInsertError) {
+      totalFragmentsSaved++;
+      console.log(`✅ Booking metadata indexed → 1 fragment saved`);
+    } else {
+      console.error('❌ Error inserting booking metadata:', metadataInsertError);
+    }
+
     // Scan subfolders for files
     const subfolders = ['Contrato', 'Facturas', 'Assets'];
     const folderName = `${bookingOffer.fecha}_${bookingOffer.ciudad}_${bookingOffer.festival_ciclo}`
@@ -362,6 +373,8 @@ serve(async (req) => {
 
     for (const subfolder of subfolders) {
       try {
+        console.log(`📁 Scanning subfolder: ${subfolder}`);
+        
         // List files in subfolder
         const { data: files, error: listError } = await supabase.storage
           .from('documents')
@@ -370,16 +383,20 @@ serve(async (req) => {
           });
 
         if (listError) {
-          console.error(`Error listing files in ${subfolder}:`, listError);
+          console.error(`❌ Error listing files in ${subfolder}:`, listError);
           continue;
         }
 
         const validFiles = (files || []).filter(file => file.name !== '.keep');
         totalFiles += validFiles.length;
+        console.log(`📄 Found ${validFiles.length} files in ${subfolder}`);
 
         for (const file of validFiles) {
+          let fileFragmentCount = 0;
+          
           try {
             const filePath = `events/${folderName}/${subfolder}/${file.name}`;
+            console.log(`🔄 Processing file: ${file.name} in ${subfolder}`);
             
             // Download file
             const { data: fileData, error: downloadError } = await supabase.storage
@@ -387,18 +404,19 @@ serve(async (req) => {
               .download(filePath);
 
             if (downloadError) {
-              console.error(`Error downloading ${filePath}:`, downloadError);
+              console.error(`❌ Error downloading ${filePath}:`, downloadError);
+              const fileType = file.name.split('.').pop()?.toUpperCase() || 'OTHER';
+              stats[fileType as keyof typeof stats]?.errors || stats.OTHER.errors++;
               continue;
             }
 
             // Extract text with enhanced extraction
             const extractionResult = await extractTextFromFile(fileData, file.name);
             
-            // Update stats
-            if (extractionResult.supported) {
-              stats[extractionResult.fileType as keyof typeof stats].processed++;
-            } else {
+            if (!extractionResult.supported || extractionResult.fragments.length === 0) {
               stats[extractionResult.fileType as keyof typeof stats].skipped++;
+              console.log(`⚠️ Skipped ${file.name} (${extractionResult.fileType}) - ${extractionResult.skipReason || 'no extractable text'}`);
+              continue;
             }
             
             // Process each fragment
@@ -412,7 +430,7 @@ serve(async (req) => {
                 const chunk = textChunks[chunkIndex];
                 const embedding = await generateEmbedding(chunk);
                 
-                await supabase
+                const { error: insertError } = await supabase
                   .from('event_document_index')
                   .insert({
                     event_id: eventId,
@@ -438,10 +456,20 @@ serve(async (req) => {
                     },
                     embedding_data: embedding
                   });
+
+                if (!insertError) {
+                  fileFragmentCount++;
+                  totalFragmentsSaved++;
+                } else {
+                  console.error(`❌ Error inserting fragment for ${file.name}:`, insertError);
+                }
               }
             }
 
+            // Update stats
+            stats[extractionResult.fileType as keyof typeof stats].processed++;
             processedFiles++;
+            console.log(`✅ Processed ${file.name} (${extractionResult.fileType}) → ${fileFragmentCount} fragments saved`);
             
             // Update progress
             await supabase
@@ -453,13 +481,12 @@ serve(async (req) => {
               .eq('event_id', eventId);
 
           } catch (fileError) {
-            console.error(`Error processing file ${file.name}:`, fileError);
-            // Update error stats
+            console.error(`❌ Error processing file ${file.name}:`, fileError);
             stats.OTHER.errors++;
           }
         }
       } catch (folderError) {
-        console.error(`Error processing folder ${subfolder}:`, folderError);
+        console.error(`❌ Error processing folder ${subfolder}:`, folderError);
       }
     }
 
@@ -474,6 +501,17 @@ serve(async (req) => {
       }))
       .filter(summary => summary.total > 0);
 
+    // Determine if we should show a warning
+    const hasWarning = totalFragmentsSaved === 0 && totalFiles > 0;
+    const warningMessage = hasWarning ? 
+      "⚠ No se indexó ningún documento. Revisa la carpeta y el formato del archivo." : 
+      null;
+
+    if (hasWarning) {
+      console.log(`⚠️ WARNING: ${warningMessage}`);
+      console.log(`Total files found: ${totalFiles}, but no fragments were saved to database`);
+    }
+
     // Update final status with detailed metrics
     await supabase
       .from('event_index_status')
@@ -485,7 +523,9 @@ serve(async (req) => {
         error_message: null,
         metadata: {
           processing_stats: stats,
-          processing_summary: processingSummary
+          processing_summary: processingSummary,
+          total_fragments_saved: totalFragmentsSaved,
+          warning: warningMessage
         }
       })
       .eq('event_id', eventId);
@@ -493,23 +533,29 @@ serve(async (req) => {
     console.log(`Reindex completed for event ${eventId}:`, {
       totalFiles,
       processedFiles,
+      totalFragmentsSaved,
       stats,
-      processingSummary
+      processingSummary,
+      warning: warningMessage
     });
+
+    console.log(`📊 Total fragments saved to database: ${totalFragmentsSaved}`);
 
     return new Response(JSON.stringify({
       success: true,
       totalDocuments: totalFiles,
       processedDocuments: processedFiles,
+      totalFragmentsSaved,
       stats,
       processingSummary,
+      warning: warningMessage,
       message: `Reindexing completed successfully`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Reindex error:', error);
+    console.error('❌ Reindex error:', error);
     
     // Update status with error
     const { eventId } = await req.json().catch(() => ({}));
@@ -518,7 +564,8 @@ serve(async (req) => {
         .from('event_index_status')
         .update({
           status: 'error',
-          error_message: error.message
+          error_message: error.message,
+          last_indexed_at: new Date().toISOString()
         })
         .eq('event_id', eventId)
         .catch(console.error);
