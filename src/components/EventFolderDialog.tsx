@@ -64,6 +64,23 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
     processedDocuments: number;
     lastIndexed: string | null;
     status: string;
+    stats?: {
+      PDF?: { processed: number; skipped: number; errors: number };
+      DOC?: { processed: number; skipped: number; errors: number };
+      XLS?: { processed: number; skipped: number; errors: number };
+      TXT?: { processed: number; skipped: number; errors: number };
+      CSV?: { processed: number; skipped: number; errors: number };
+      JSON?: { processed: number; skipped: number; errors: number };
+      IMAGE?: { processed: number; skipped: number; errors: number };
+      OTHER?: { processed: number; skipped: number; errors: number };
+    };
+    processingSummary?: Array<{
+      type: string;
+      processed: number;
+      skipped: number;
+      errors: number;
+      total: number;
+    }>;
   }>({
     totalDocuments: 0,
     processedDocuments: 0,
@@ -496,7 +513,9 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
           totalDocuments: data.total_documents,
           processedDocuments: data.processed_documents,
           lastIndexed: data.last_indexed_at,
-          status: data.status
+          status: data.status,
+          stats: data.metadata?.processing_stats,
+          processingSummary: data.metadata?.processing_summary
         });
       }
     } catch (error) {
@@ -532,7 +551,9 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
             totalDocuments: statusData.total_documents,
             processedDocuments: statusData.processed_documents,
             lastIndexed: statusData.last_indexed_at,
-            status: statusData.status
+            status: statusData.status,
+            stats: statusData.metadata?.processing_stats,
+            processingSummary: statusData.metadata?.processing_summary
           });
 
           if (statusData.status === 'processing') {
@@ -968,11 +989,41 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                        indexStatus.status === 'error' ? 'Error' : 'No indexado'}
                     </Badge>
                   </div>
-                  <div className="text-xs text-muted-foreground space-y-1">
-                    <div>Documentos: {indexStatus.totalDocuments}</div>
+                  <div className="text-xs text-muted-foreground space-y-2">
+                    <div>Documentos totales: {indexStatus.totalDocuments}</div>
                     {indexStatus.lastIndexed && (
                       <div>Última actualización: {new Date(indexStatus.lastIndexed).toLocaleString('es-ES')}</div>
                     )}
+                    
+                    {/* Processing Summary */}
+                    {indexStatus.processingSummary && indexStatus.processingSummary.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        <div className="font-medium text-xs">Archivos procesados por tipo:</div>
+                        {indexStatus.processingSummary.map((summary, index) => (
+                          <div key={index} className="flex justify-between items-center text-xs">
+                            <span className="flex items-center gap-1">
+                              <span className="font-mono text-[10px] bg-muted px-1 rounded">{summary.type}</span>
+                              {summary.total}
+                            </span>
+                            <div className="flex gap-1 text-[10px]">
+                              {summary.processed > 0 && (
+                                <span className="text-green-600">✓{summary.processed}</span>
+                              )}
+                              {summary.skipped > 0 && (
+                                <span className="text-yellow-600">⚠{summary.skipped}</span>
+                              )}
+                              {summary.errors > 0 && (
+                                <span className="text-red-600">✗{summary.errors}</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                          ✓ Procesado | ⚠ Omitido | ✗ Error
+                        </div>
+                      </div>
+                    )}
+                    
                     {reindexing && (
                       <div className="mt-2">
                         <div className="flex justify-between text-xs mb-1">

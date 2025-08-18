@@ -2,6 +2,11 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0';
 
+// Import text extraction libraries
+import { getDocument } from 'https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs';
+import { extractRawText } from 'https://esm.sh/mammoth@1.6.0';
+import * as XLSX from 'https://esm.sh/xlsx@0.18.5';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -12,54 +17,226 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Text extraction functions
-const extractTextFromFile = async (file: Blob, fileName: string): Promise<string[]> => {
+// Enhanced text extraction functions
+const extractTextFromPDF = async (file: Blob): Promise<{ text: string; pageIndex: number }[]> => {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await getDocument({ data: arrayBuffer }).promise;
+    const pages: { text: string; pageIndex: number }[] = [];
+    
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const text = textContent.items
+        .filter((item: any) => item.str)
+        .map((item: any) => item.str)
+        .join(' ');
+      
+      if (text.trim()) {
+        pages.push({ text: text.trim(), pageIndex: i });
+      }
+    }
+    
+    return pages;
+  } catch (error) {
+    console.error('PDF extraction error:', error);
+    return [{ text: `PDF extraction failed: ${error.message}`, pageIndex: 1 }];
+  }
+};
+
+const extractTextFromDOCX = async (file: Blob): Promise<string> => {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await extractRawText({ arrayBuffer });
+    return result.value || '';
+  } catch (error) {
+    console.error('DOCX extraction error:', error);
+    return `DOCX extraction failed: ${error.message}`;
+  }
+};
+
+const extractTextFromExcel = async (file: Blob): Promise<{ text: string; sheetName: string }[]> => {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const sheets: { text: string; sheetName: string }[] = [];
+    
+    workbook.SheetNames.forEach(sheetName => {
+      const worksheet = workbook.Sheets[sheetName];
+      const csvContent = XLSX.utils.sheet_to_csv(worksheet);
+      
+      if (csvContent.trim()) {
+        sheets.push({
+          text: `Sheet: ${sheetName}\n${csvContent}`,
+          sheetName
+        });
+      }
+    });
+    
+    return sheets;
+  } catch (error) {
+    console.error('Excel extraction error:', error);
+    return [{ text: `Excel extraction failed: ${error.message}`, sheetName: 'error' }];
+  }
+};
+
+const isImageFile = (fileName: string): boolean => {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  return ['jpg', 'jpeg', 'png', 'webp', 'svg', 'gif', 'bmp', 'tiff'].includes(extension || '');
+};
+
+const extractTextFromFile = async (file: Blob, fileName: string): Promise<{
+  fragments: Array<{
+    text: string;
+    pageIndex?: number;
+    sheetName?: string;
+    metadata: any;
+  }>;
+  fileType: string;
+  supported: boolean;
+  skipReason?: string;
+}> => {
   const extension = fileName.split('.').pop()?.toLowerCase();
   
   try {
     switch (extension) {
+      case 'pdf':
+        const pdfPages = await extractTextFromPDF(file);
+        return {
+          fragments: pdfPages.map(page => ({
+            text: page.text,
+            pageIndex: page.pageIndex,
+            metadata: { pageIndex: page.pageIndex }
+          })),
+          fileType: 'PDF',
+          supported: true
+        };
+      
+      case 'doc':
+      case 'docx':
+        const docText = await extractTextFromDOCX(file);
+        return {
+          fragments: [{ text: docText, metadata: {} }],
+          fileType: 'DOC',
+          supported: true
+        };
+      
+      case 'xls':
+      case 'xlsx':
+        const excelSheets = await extractTextFromExcel(file);
+        return {
+          fragments: excelSheets.map(sheet => ({
+            text: sheet.text,
+            sheetName: sheet.sheetName,
+            metadata: { sheetName: sheet.sheetName }
+          })),
+          fileType: 'XLS',
+          supported: true
+        };
+      
       case 'txt':
       case 'md':
-        return [await file.text()];
+        const textContent = await file.text();
+        return {
+          fragments: [{ text: textContent, metadata: {} }],
+          fileType: 'TXT',
+          supported: true
+        };
       
       case 'csv':
-        const csvText = await file.text();
-        return csvText.split('\n').filter(line => line.trim());
+        const csvContent = await file.text();
+        const csvLines = csvContent.split('\n').filter(line => line.trim());
+        return {
+          fragments: [{ text: csvLines.join('\n'), metadata: { rows: csvLines.length } }],
+          fileType: 'CSV',
+          supported: true
+        };
       
       case 'json':
-        const jsonText = await file.text();
-        const jsonData = JSON.parse(jsonText);
-        return [JSON.stringify(jsonData, null, 2)];
+        const jsonContent = await file.text();
+        const jsonData = JSON.parse(jsonContent);
+        return {
+          fragments: [{ text: JSON.stringify(jsonData, null, 2), metadata: {} }],
+          fileType: 'JSON',
+          supported: true
+        };
       
       default:
-        // For unsupported formats, return metadata only
-        return [`File: ${fileName} (${extension} format - content not extracted)`];
+        if (isImageFile(fileName)) {
+          // For images, store metadata only (OCR could be added here)
+          return {
+            fragments: [{
+              text: `Image file: ${fileName} (OCR not available)`,
+              metadata: { 
+                isImage: true,
+                size: file.size,
+                type: file.type || 'unknown'
+              }
+            }],
+            fileType: 'IMAGE',
+            supported: false,
+            skipReason: 'OCR not available'
+          };
+        } else {
+          // Unsupported file type
+          return {
+            fragments: [{
+              text: `File: ${fileName} (${extension} format not supported)`,
+              metadata: { 
+                size: file.size,
+                type: file.type || 'unknown'
+              }
+            }],
+            fileType: 'OTHER',
+            supported: false,
+            skipReason: `${extension?.toUpperCase()} format not supported`
+          };
+        }
     }
   } catch (error) {
     console.error(`Error extracting text from ${fileName}:`, error);
-    return [`File: ${fileName} (extraction failed: ${error.message})`];
+    return {
+      fragments: [{
+        text: `File: ${fileName} (extraction failed: ${error.message})`,
+        metadata: { error: error.message }
+      }],
+      fileType: 'ERROR',
+      supported: false,
+      skipReason: `Extraction failed: ${error.message}`
+    };
   }
 };
 
-// Split text into chunks of ~1500-2000 tokens (roughly 750-1000 words)
-const chunkText = (text: string, maxChunkSize = 1500): string[] => {
-  const sentences = text.split(/[.!?]+/).filter(s => s.trim());
-  const chunks: string[] = [];
-  let currentChunk = '';
-  
-  for (const sentence of sentences) {
-    const potentialChunk = currentChunk + sentence + '. ';
-    
-    if (potentialChunk.length > maxChunkSize && currentChunk) {
-      chunks.push(currentChunk.trim());
-      currentChunk = sentence + '. ';
-    } else {
-      currentChunk = potentialChunk;
-    }
+// Enhanced text chunking with overlap
+const chunkTextWithOverlap = (text: string, maxChunkSize = 1800, overlapSize = 250): string[] => {
+  if (text.length <= maxChunkSize) {
+    return [text];
   }
+
+  const chunks: string[] = [];
+  let start = 0;
   
-  if (currentChunk.trim()) {
-    chunks.push(currentChunk.trim());
+  while (start < text.length) {
+    let end = start + maxChunkSize;
+    
+    // If we're not at the end, try to find a sentence boundary
+    if (end < text.length) {
+      const lastSentenceEnd = text.lastIndexOf('.', end);
+      const lastParagraphEnd = text.lastIndexOf('\n', end);
+      const boundary = Math.max(lastSentenceEnd, lastParagraphEnd);
+      
+      if (boundary > start + maxChunkSize * 0.7) {
+        end = boundary + 1;
+      }
+    }
+    
+    const chunk = text.slice(start, end).trim();
+    if (chunk) {
+      chunks.push(chunk);
+    }
+    
+    // Move start position with overlap
+    start = Math.max(start + maxChunkSize - overlapSize, end);
   }
   
   return chunks.length > 0 ? chunks : [text];
@@ -99,6 +276,18 @@ serve(async (req) => {
     }
 
     console.log(`Starting reindex for event: ${eventId}`);
+
+    // Initialize processing stats
+    const stats = {
+      PDF: { processed: 0, skipped: 0, errors: 0 },
+      DOC: { processed: 0, skipped: 0, errors: 0 },
+      XLS: { processed: 0, skipped: 0, errors: 0 },
+      TXT: { processed: 0, skipped: 0, errors: 0 },
+      CSV: { processed: 0, skipped: 0, errors: 0 },
+      JSON: { processed: 0, skipped: 0, errors: 0 },
+      IMAGE: { processed: 0, skipped: 0, errors: 0 },
+      OTHER: { processed: 0, skipped: 0, errors: 0 }
+    };
 
     // Initialize or update status
     await supabase
@@ -202,30 +391,54 @@ serve(async (req) => {
               continue;
             }
 
-            // Extract text
-            const textChunks = await extractTextFromFile(fileData, file.name);
+            // Extract text with enhanced extraction
+            const extractionResult = await extractTextFromFile(fileData, file.name);
             
-            // Process each chunk
-            for (let i = 0; i < textChunks.length; i++) {
-              const chunk = textChunks[i];
-              const embedding = await generateEmbedding(chunk);
+            // Update stats
+            if (extractionResult.supported) {
+              stats[extractionResult.fileType as keyof typeof stats].processed++;
+            } else {
+              stats[extractionResult.fileType as keyof typeof stats].skipped++;
+            }
+            
+            // Process each fragment
+            for (let fragmentIndex = 0; fragmentIndex < extractionResult.fragments.length; fragmentIndex++) {
+              const fragment = extractionResult.fragments[fragmentIndex];
               
-              await supabase
-                .from('event_document_index')
-                .insert({
-                  event_id: eventId,
-                  file_name: file.name,
-                  file_path: filePath,
-                  subfolder: subfolder,
-                  content_fragment: chunk,
-                  fragment_index: i,
-                  metadata: {
-                    file_size: file.metadata?.size || 0,
-                    last_modified: file.metadata?.lastModified || file.updated_at,
-                    content_type: file.metadata?.mimetype || 'unknown'
-                  },
-                  embedding_data: embedding
-                });
+              // Chunk the text with overlap
+              const textChunks = chunkTextWithOverlap(fragment.text);
+              
+              for (let chunkIndex = 0; chunkIndex < textChunks.length; chunkIndex++) {
+                const chunk = textChunks[chunkIndex];
+                const embedding = await generateEmbedding(chunk);
+                
+                await supabase
+                  .from('event_document_index')
+                  .insert({
+                    event_id: eventId,
+                    file_name: file.name,
+                    file_path: filePath,
+                    subfolder: subfolder,
+                    content_fragment: chunk,
+                    fragment_index: chunkIndex,
+                    page_number: fragment.pageIndex || null,
+                    metadata: {
+                      ...fragment.metadata,
+                      file_size: file.metadata?.size || 0,
+                      last_modified: file.metadata?.lastModified || file.updated_at,
+                      content_type: file.metadata?.mimetype || 'unknown',
+                      file_type: extractionResult.fileType,
+                      supported: extractionResult.supported,
+                      skip_reason: extractionResult.skipReason,
+                      sheet_name: fragment.sheetName,
+                      chunk_index: chunkIndex,
+                      total_chunks: textChunks.length,
+                      fragment_index: fragmentIndex,
+                      total_fragments: extractionResult.fragments.length
+                    },
+                    embedding_data: embedding
+                  });
+              }
             }
 
             processedFiles++;
@@ -241,6 +454,8 @@ serve(async (req) => {
 
           } catch (fileError) {
             console.error(`Error processing file ${file.name}:`, fileError);
+            // Update error stats
+            stats.OTHER.errors++;
           }
         }
       } catch (folderError) {
@@ -248,7 +463,18 @@ serve(async (req) => {
       }
     }
 
-    // Update final status
+    // Generate detailed processing summary
+    const processingSummary = Object.entries(stats)
+      .map(([type, stat]) => ({
+        type,
+        processed: stat.processed,
+        skipped: stat.skipped,
+        errors: stat.errors,
+        total: stat.processed + stat.skipped + stat.errors
+      }))
+      .filter(summary => summary.total > 0);
+
+    // Update final status with detailed metrics
     await supabase
       .from('event_index_status')
       .update({
@@ -256,16 +482,27 @@ serve(async (req) => {
         total_documents: totalFiles,
         processed_documents: processedFiles,
         last_indexed_at: new Date().toISOString(),
-        error_message: null
+        error_message: null,
+        metadata: {
+          processing_stats: stats,
+          processing_summary: processingSummary
+        }
       })
       .eq('event_id', eventId);
 
-    console.log(`Reindex completed for event ${eventId}: ${processedFiles}/${totalFiles} files processed`);
+    console.log(`Reindex completed for event ${eventId}:`, {
+      totalFiles,
+      processedFiles,
+      stats,
+      processingSummary
+    });
 
     return new Response(JSON.stringify({
       success: true,
       totalDocuments: totalFiles,
       processedDocuments: processedFiles,
+      stats,
+      processingSummary,
       message: `Reindexing completed successfully`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
