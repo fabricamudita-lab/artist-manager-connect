@@ -395,7 +395,7 @@ export default function Booking() {
                              <>
                                <button
                                  onClick={() => handleOpenFolder(offer)}
-                                 className="text-primary hover:underline hover:text-primary/80 transition-colors cursor-pointer text-left"
+                                 className="text-primary hover:underline hover:text-primary/80 transition-colors cursor-pointer text-left font-medium"
                                  title="Abrir carpeta del evento"
                                >
                                  {offer.festival_ciclo || '-'}
@@ -412,8 +412,8 @@ export default function Booking() {
                              </>
                            ) : (
                              <div className="flex items-center gap-2">
-                               <FolderOpen className="h-3 w-3 text-muted-foreground opacity-50" />
-                               <span className="text-muted-foreground">{offer.festival_ciclo || '-'}</span>
+                               <FolderOpen className="h-3 w-3 text-muted-foreground/50" />
+                               <span>{offer.festival_ciclo || '-'}</span>
                              </div>
                            )}
                            {offer.estado === 'confirmado' && offer.id && !contractStatus[offer.id] && (
