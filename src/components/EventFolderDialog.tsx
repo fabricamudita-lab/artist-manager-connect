@@ -7,7 +7,10 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
-import { Plus, Link, FileText, Upload, Download, Image, FileBarChart, FileSignature, Clock, Share2, Copy, AlertTriangle, ChevronDown, Folder, Home, ChevronRight } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Plus, Link, FileText, Upload, Download, Image, FileBarChart, FileSignature, Clock, Share2, Copy, AlertTriangle, ChevronDown, Folder, Home, ChevronRight, X, Send, Bot, RotateCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useBookingFolders } from '@/hooks/useBookingFolders';
@@ -52,8 +55,11 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
   const [hasContract, setHasContract] = useState(false);
   const [currentSubfolder, setCurrentSubfolder] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [aiMessage, setAiMessage] = useState('');
+  const [citeSources, setCiteSources] = useState(true);
 
-  const subfolders = ['Assets', 'Facturas', 'Contrato', 'Presupuestos'];
+  const subfolders = ['Assets', 'Facturas', 'Contrato', 'Agente IA'];
 
   useEffect(() => {
     if (open && offer) {
@@ -427,12 +433,30 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
         return <FileBarChart className="h-4 w-4" />;
       case 'Contrato':
         return <FileSignature className="h-4 w-4" />;
-      case 'Presupuestos':
-        return <FileText className="h-4 w-4" />;
+      case 'Agente IA':
+        return <Bot className="h-4 w-4" />;
       default:
         return <Folder className="h-4 w-4" />;
     }
   };
+
+  const handleAIItemClick = () => {
+    setShowAIPanel(true);
+  };
+
+  const handleSendMessage = () => {
+    if (!aiMessage.trim()) return;
+    // TODO: Implement AI message sending
+    console.log('Sending message:', aiMessage, 'with cite sources:', citeSources);
+    setAiMessage('');
+  };
+
+  const quickStartChips = [
+    "Fecha, ciudad y formato",
+    "¿Hay contrato y condiciones clave?",
+    "Resumen económico (oferta + IVA)",
+    "Tareas pendientes antes del show"
+  ];
 
   if (!offer) return null;
 
@@ -570,44 +594,57 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {subfolders.map((subfolder) => (
                         <div key={subfolder} className="relative">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className="flex items-center justify-between w-full p-4 h-auto hover:bg-muted/50"
-                                disabled={uploadProgress[subfolder] !== undefined}
-                              >
-                                <div className="flex items-center gap-2">
-                                  {getSubfolderIcon(subfolder)}
-                                  <span className="text-sm font-medium">{subfolder}</span>
-                                </div>
-                                <ChevronDown className="h-3 w-3 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-48 p-2" align="start">
-                              <div className="space-y-1">
+                          {subfolder === 'Agente IA' ? (
+                            <Button
+                              variant="outline"
+                              className="flex items-center justify-center w-full p-4 h-auto hover:bg-muted/50"
+                              onClick={handleAIItemClick}
+                            >
+                              <div className="flex items-center gap-2">
+                                {getSubfolderIcon(subfolder)}
+                                <span className="text-sm font-medium">{subfolder}</span>
+                              </div>
+                            </Button>
+                          ) : (
+                            <Popover>
+                              <PopoverTrigger asChild>
                                 <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleGoToFolder(subfolder)}
-                                  className="w-full justify-start text-sm"
-                                >
-                                  <Folder className="h-4 w-4 mr-2" />
-                                  Ir a carpeta
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleUploadFile(subfolder)}
-                                  className="w-full justify-start text-sm"
+                                  variant="outline"
+                                  className="flex items-center justify-between w-full p-4 h-auto hover:bg-muted/50"
                                   disabled={uploadProgress[subfolder] !== undefined}
                                 >
-                                  <Upload className="h-4 w-4 mr-2" />
-                                  Subir archivo
+                                  <div className="flex items-center gap-2">
+                                    {getSubfolderIcon(subfolder)}
+                                    <span className="text-sm font-medium">{subfolder}</span>
+                                  </div>
+                                  <ChevronDown className="h-3 w-3 opacity-50" />
                                 </Button>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-48 p-2" align="start">
+                                <div className="space-y-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleGoToFolder(subfolder)}
+                                    className="w-full justify-start text-sm"
+                                  >
+                                    <Folder className="h-4 w-4 mr-2" />
+                                    Ir a carpeta
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleUploadFile(subfolder)}
+                                    className="w-full justify-start text-sm"
+                                    disabled={uploadProgress[subfolder] !== undefined}
+                                  >
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    Subir archivo
+                                  </Button>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          )}
                           {uploadProgress[subfolder] !== undefined && (
                             <div className="absolute inset-x-0 bottom-0 px-2 pb-1">
                               <Progress value={uploadProgress[subfolder]} className="h-1" />
@@ -703,7 +740,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                         </div>
                       )}
 
-                      {/* Show budget creation only in Presupuestos subfolder */}
+                      {/* Show budget creation only in Presupuestos subfolder (hidden from menu but still accessible) */}
                       {currentSubfolder === 'Presupuestos' && (
                         <div className="mt-6 p-4 border rounded-lg bg-muted/30">
                           <div className="flex items-center justify-between">
@@ -774,6 +811,114 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
             </div>
           </div>
         </DialogContent>
+
+        {/* AI Agent Side Panel */}
+        {showAIPanel && (
+          <div className="fixed inset-y-0 right-0 w-96 bg-background border-l border-border shadow-lg z-50 flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold">Agente IA</h3>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAIPanel(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Messages Area */}
+            <ScrollArea className="flex-1 p-4">
+              <div className="space-y-4">
+                <div className="text-center text-sm text-muted-foreground">
+                  ¡Hola! Soy tu asistente para gestionar este evento. ¿En qué puedo ayudarte?
+                </div>
+                
+                {/* Quick Start Chips */}
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Inicio rápido
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {quickStartChips.map((chip, index) => (
+                      <Button
+                        key={index}
+                        variant="outline"
+                        size="sm"
+                        className="h-auto py-2 px-3 text-xs rounded-full whitespace-nowrap"
+                        onClick={() => setAiMessage(chip)}
+                      >
+                        {chip}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+
+            {/* Input Area */}
+            <div className="p-4 border-t border-border space-y-3">
+              {/* Cite Sources Toggle */}
+              <div className="flex items-center justify-between">
+                <label htmlFor="cite-sources" className="text-sm font-medium">
+                  Citar fuentes
+                </label>
+                <Switch
+                  id="cite-sources"
+                  checked={citeSources}
+                  onCheckedChange={setCiteSources}
+                />
+              </div>
+
+              {/* Message Input */}
+              <div className="flex gap-2">
+                <Input
+                  value={aiMessage}
+                  onChange={(e) => setAiMessage(e.target.value)}
+                  placeholder="En qué puedo ayudarte"
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!aiMessage.trim()}
+                  size="sm"
+                  className="px-3"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Reindex Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled
+                className="w-full flex items-center gap-2"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Reindexar ahora
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Backdrop for AI Panel */}
+        {showAIPanel && (
+          <div
+            className="fixed inset-0 bg-black/20 z-40"
+            onClick={() => setShowAIPanel(false)}
+          />
+        )}
       </Dialog>
 
       {offer && profile && (
