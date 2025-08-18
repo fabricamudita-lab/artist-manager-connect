@@ -746,6 +746,7 @@ export type Database = {
           event_id: string
           id: string
           last_indexed_at: string | null
+          metadata: Json | null
           processed_documents: number
           status: string
           total_documents: number
@@ -757,6 +758,7 @@ export type Database = {
           event_id: string
           id?: string
           last_indexed_at?: string | null
+          metadata?: Json | null
           processed_documents?: number
           status?: string
           total_documents?: number
@@ -768,6 +770,7 @@ export type Database = {
           event_id?: string
           id?: string
           last_indexed_at?: string | null
+          metadata?: Json | null
           processed_documents?: number
           status?: string
           total_documents?: number

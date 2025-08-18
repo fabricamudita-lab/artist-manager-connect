@@ -514,8 +514,8 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
           processedDocuments: data.processed_documents,
           lastIndexed: data.last_indexed_at,
           status: data.status,
-          stats: data.metadata?.processing_stats,
-          processingSummary: data.metadata?.processing_summary
+          stats: (data as any).metadata?.processing_stats,
+          processingSummary: (data as any).metadata?.processing_summary
         });
       }
     } catch (error) {
@@ -552,8 +552,8 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
             processedDocuments: statusData.processed_documents,
             lastIndexed: statusData.last_indexed_at,
             status: statusData.status,
-            stats: statusData.metadata?.processing_stats,
-            processingSummary: statusData.metadata?.processing_summary
+            stats: (statusData as any).metadata?.processing_stats,
+            processingSummary: (statusData as any).metadata?.processing_summary
           });
 
           if (statusData.status === 'processing') {
