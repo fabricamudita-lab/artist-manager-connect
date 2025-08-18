@@ -32,3 +32,6 @@ port = 54327
 
 [functions.reindex-event]
 verify_jwt = true
+
+[functions.search-event-ai]
+verify_jwt = false

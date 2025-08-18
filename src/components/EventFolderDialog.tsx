@@ -59,6 +59,22 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
   const [aiMessage, setAiMessage] = useState('');
   const [citeSources, setCiteSources] = useState(true);
   const [reindexing, setReindexing] = useState(false);
+  const [aiConversation, setAiConversation] = useState<Array<{
+    id: string;
+    type: 'user' | 'assistant';
+    content: string;
+    sources?: Array<{
+      fileName: string;
+      subfolder: string;
+      pageNumber?: number;
+      confidence: number;
+      type: string;
+      filePath: string;
+      content: string;
+    }>;
+    timestamp: Date;
+  }>>([]);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const [indexStatus, setIndexStatus] = useState<{
     totalDocuments: number;
     processedDocuments: number;
@@ -479,11 +495,93 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
     setShowAIPanel(true);
   };
 
-  const handleSendMessage = () => {
-    if (!aiMessage.trim()) return;
-    // TODO: Implement AI message sending
-    console.log('Sending message:', aiMessage, 'with cite sources:', citeSources);
+  const handleSendMessage = async () => {
+    if (!aiMessage.trim() || isAiLoading) return;
+    
+    const userMessage = aiMessage.trim();
     setAiMessage('');
+    setIsAiLoading(true);
+
+    // Add user message to conversation
+    const userMessageObj = {
+      id: Date.now().toString(),
+      type: 'user' as const,
+      content: userMessage,
+      timestamp: new Date()
+    };
+    setAiConversation(prev => [...prev, userMessageObj]);
+
+    try {
+      // Call AI search function
+      const { data, error } = await supabase.functions.invoke('search-event-ai', {
+        body: {
+          eventId: offer?.id,
+          query: userMessage,
+          citeSources,
+          eventData: {
+            fecha: offer?.fecha,
+            ciudad: offer?.ciudad,
+            lugar: offer?.lugar,
+            formato: offer?.formato,
+            oferta: offer?.oferta,
+            estado: offer?.estado
+          }
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Handle index status responses
+      if (data.indexStatus && data.indexStatus !== 'completed') {
+        const assistantMessage = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant' as const,
+          content: data.response + '\n\n💡 **Tip:** Puedes usar el botón "Reindexar ahora" para procesar los archivos del evento.',
+          timestamp: new Date()
+        };
+        setAiConversation(prev => [...prev, assistantMessage]);
+        return;
+      }
+
+      // Add assistant response to conversation
+      const assistantMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant' as const,
+        content: data.response,
+        sources: data.sources || [],
+        timestamp: new Date()
+      };
+      setAiConversation(prev => [...prev, assistantMessage]);
+
+      // Scroll to bottom
+      setTimeout(() => {
+        const scrollArea = document.querySelector('[data-ai-scroll-area]');
+        if (scrollArea) {
+          scrollArea.scrollTop = scrollArea.scrollHeight;
+        }
+      }, 100);
+
+    } catch (error) {
+      console.error('Error sending AI message:', error);
+      toast({
+        title: "Error",
+        description: "No pude procesar tu consulta. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+
+      // Add error message
+      const errorMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant' as const,
+        content: '❌ **Error:** No pude procesar tu consulta. Por favor, inténtalo de nuevo.',
+        timestamp: new Date()
+      };
+      setAiConversation(prev => [...prev, errorMessage]);
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
   const quickStartChips = [
@@ -492,6 +590,40 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
     "Resumen económico (oferta + IVA)",
     "Tareas pendientes antes del show"
   ];
+
+  const handleQuickStartChip = async (chip: string) => {
+    setAiMessage(chip);
+    // Auto-send for quick start chips
+    setTimeout(() => handleSendMessage(), 100);
+  };
+
+  const getFileTypeBadge = (type: string) => {
+    const colors = {
+      PDF: 'bg-red-100 text-red-800 border-red-200',
+      DOC: 'bg-blue-100 text-blue-800 border-blue-200',
+      XLS: 'bg-green-100 text-green-800 border-green-200',
+      TXT: 'bg-gray-100 text-gray-800 border-gray-200',
+      CSV: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      JSON: 'bg-purple-100 text-purple-800 border-purple-200',
+      IMAGE: 'bg-pink-100 text-pink-800 border-pink-200',
+      OTHER: 'bg-orange-100 text-orange-800 border-orange-200'
+    };
+    
+    return colors[type as keyof typeof colors] || colors.OTHER;
+  };
+
+  const formatPageReference = (source: any) => {
+    if (source.pageNumber) {
+      return `PDF p.${source.pageNumber}`;
+    }
+    if (source.fileName.includes('.xlsx') || source.fileName.includes('.xls')) {
+      return 'Hoja de cálculo';
+    }
+    if (source.fileName.includes('.docx') || source.fileName.includes('.doc')) {
+      return 'DOC sección';
+    }
+    return 'Archivo';
+  };
 
   const loadIndexStatus = async () => {
     if (!offer) return;
@@ -977,7 +1109,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
             </div>
 
             {/* Messages Area */}
-            <ScrollArea className="flex-1 p-4">
+            <ScrollArea className="flex-1 p-4" data-ai-scroll-area>
               <div className="space-y-4">
                 {/* Index Status */}
                 <div className="bg-muted/30 rounded-lg p-3 border">
@@ -1039,29 +1171,131 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                   </div>
                 </div>
 
-                <div className="text-center text-sm text-muted-foreground">
-                  ¡Hola! Soy tu asistente para gestionar este evento. ¿En qué puedo ayudarte?
-                </div>
-                
-                {/* Quick Start Chips */}
-                <div className="space-y-2">
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Inicio rápido
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {quickStartChips.map((chip, index) => (
-                      <Button
-                        key={index}
-                        variant="outline"
-                        size="sm"
-                        className="h-auto py-2 px-3 text-xs rounded-full whitespace-nowrap"
-                        onClick={() => setAiMessage(chip)}
-                      >
-                        {chip}
-                      </Button>
+                {/* Conversation Messages */}
+                {aiConversation.length === 0 ? (
+                  <>
+                    <div className="text-center text-sm text-muted-foreground">
+                      ¡Hola! Soy tu asistente para gestionar este evento. ¿En qué puedo ayudarte?
+                    </div>
+                    
+                    {/* Quick Start Chips */}
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Inicio rápido
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {quickStartChips.map((chip, index) => (
+                          <Button
+                            key={index}
+                            variant="outline"
+                            size="sm"
+                            className="h-auto py-2 px-3 text-xs rounded-full whitespace-nowrap"
+                            onClick={() => handleQuickStartChip(chip)}
+                            disabled={isAiLoading}
+                          >
+                            {chip}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-4">
+                    {aiConversation.map((message) => (
+                      <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[85%] rounded-lg p-3 ${
+                          message.type === 'user' 
+                            ? 'bg-primary text-primary-foreground ml-8' 
+                            : 'bg-muted text-foreground mr-8'
+                        }`}>
+                          {/* Message Content */}
+                          <div className="text-sm whitespace-pre-wrap" 
+                               dangerouslySetInnerHTML={{ 
+                                 __html: message.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') 
+                               }} 
+                          />
+                          
+                          {/* Sources (only for assistant messages with sources) */}
+                          {message.type === 'assistant' && message.sources && message.sources.length > 0 && citeSources && (
+                            <div className="mt-3 pt-3 border-t border-border/20">
+                              <div className="text-xs font-medium mb-2">📚 Fuentes:</div>
+                              <div className="space-y-2">
+                                {message.sources.map((source, sourceIndex) => (
+                                  <div key={sourceIndex} className="bg-background/50 rounded-md p-2 border border-border/30">
+                                    <div className="flex items-start justify-between gap-2 mb-1">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <Badge 
+                                          variant="outline" 
+                                          className={`text-[10px] px-1 py-0.5 ${getFileTypeBadge(source.type)}`}
+                                        >
+                                          {source.type}
+                                        </Badge>
+                                        <span className="text-[11px] font-medium truncate">
+                                          {source.fileName}
+                                        </span>
+                                      </div>
+                                      <Badge variant="secondary" className="text-[10px] px-1 py-0.5 shrink-0">
+                                        {source.confidence}%
+                                      </Badge>
+                                    </div>
+                                    
+                                    <div className="text-[10px] text-muted-foreground mb-1">
+                                      {source.subfolder} — {formatPageReference(source)}
+                                    </div>
+                                    
+                                    {source.content && (
+                                      <div className="text-[10px] text-muted-foreground italic">
+                                        "{source.content}"
+                                      </div>
+                                    )}
+                                    
+                                    {/* View Document Button */}
+                                    {source.pageNumber && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-5 text-[10px] px-2 mt-1"
+                                        onClick={() => {
+                                          // TODO: Implement document viewer
+                                          toast({
+                                            title: "Visor de documentos",
+                                            description: "Funcionalidad próximamente disponible.",
+                                          });
+                                        }}
+                                      >
+                                        Ver en documento
+                                      </Button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Timestamp */}
+                          <div className="text-[10px] opacity-70 mt-2">
+                            {message.timestamp.toLocaleTimeString('es-ES', { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </div>
+                        </div>
+                      </div>
                     ))}
+                    
+                    {/* Loading indicator */}
+                    {isAiLoading && (
+                      <div className="flex justify-start">
+                        <div className="max-w-[85%] rounded-lg p-3 bg-muted text-foreground mr-8">
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="animate-spin h-4 w-4 border-2 border-foreground border-t-transparent rounded-full"></div>
+                            Pensando...
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
               </div>
             </ScrollArea>
 
@@ -1086,6 +1320,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                   onChange={(e) => setAiMessage(e.target.value)}
                   placeholder="En qué puedo ayudarte"
                   className="flex-1"
+                  disabled={isAiLoading}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -1095,11 +1330,15 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                 />
                 <Button
                   onClick={handleSendMessage}
-                  disabled={!aiMessage.trim()}
+                  disabled={!aiMessage.trim() || isAiLoading}
                   size="sm"
                   className="px-3"
                 >
-                  <Send className="h-4 w-4" />
+                  {isAiLoading ? (
+                    <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
 
