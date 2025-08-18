@@ -73,6 +73,7 @@ export default function Booking() {
   const [showFolderDialog, setShowFolderDialog] = useState(false);
   const [selectedFolderOffer, setSelectedFolderOffer] = useState<BookingOffer | null>(null);
   const [contractStatus, setContractStatus] = useState<Record<string, boolean>>({});
+  const [folderErrors, setFolderErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchOffers();
@@ -233,10 +234,18 @@ export default function Booking() {
   };
 
   const handleCreateMissingFolder = async (offer: BookingOffer) => {
+    // Clear previous error for this offer
+    setFolderErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[offer.id];
+      return newErrors;
+    });
+
     try {
-      const folderUrl = await createEventFolder(offer);
-      if (folderUrl) {
-        const publicUrl = `https://hptjzbaiclmgbvxlmllo.supabase.co/storage/v1/object/public/documents/${folderUrl}`;
+      const result = await createEventFolder(offer);
+      
+      if (result.success && result.folderPath) {
+        const publicUrl = `https://hptjzbaiclmgbvxlmllo.supabase.co/storage/v1/object/public/documents/${result.folderPath}`;
         await supabase
           .from('booking_offers')
           .update({ folder_url: publicUrl })
@@ -250,12 +259,32 @@ export default function Booking() {
         // Refresh data
         fetchOffers();
         checkAllFolders();
+      } else {
+        // Store error for this specific offer
+        setFolderErrors(prev => ({
+          ...prev,
+          [offer.id]: result.error || "Error desconocido"
+        }));
+
+        // Show specific error message
+        toast({
+          title: "Error al crear carpeta",
+          description: result.error || "No se pudo crear la carpeta del evento.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error creating folder:', error);
+      
+      // Store error for this specific offer
+      setFolderErrors(prev => ({
+        ...prev,
+        [offer.id]: "Error inesperado al crear la carpeta"
+      }));
+
       toast({
         title: "Error",
-        description: "No se pudo crear la carpeta del evento.",
+        description: "Error inesperado al crear la carpeta.",
         variant: "destructive",
       });
     }
@@ -456,33 +485,53 @@ export default function Booking() {
                           {offer.inicio_venta ? new Date(offer.inicio_venta).toLocaleDateString('es-ES') : '-'}
                         </TableCell>
                          <TableCell>{offer.contratos || '-'}</TableCell>
-                         <TableCell>
-                           <div className="flex items-center gap-2">
-                             {offer.folder_url ? (
-                               <Badge variant="default" className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-100 dark:border-green-700">
-                                 OK
-                               </Badge>
-                             ) : (
-                               <div className="flex items-center gap-2">
-                                 <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-100 dark:border-orange-700">
-                                   Falta
-                                 </Badge>
-                                 {offer.fecha && offer.ciudad && offer.festival_ciclo && (
-                                   <Button
-                                     variant="ghost"
-                                     size="sm"
-                                     onClick={() => handleCreateMissingFolder(offer)}
-                                     disabled={foldersLoading}
-                                     title="Crear carpeta"
-                                     className="h-6 w-6 p-0"
-                                   >
-                                     <FolderPlus className="h-3 w-3" />
-                                   </Button>
-                                 )}
-                               </div>
-                             )}
-                           </div>
-                         </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {offer.folder_url ? (
+                                <Badge variant="default" className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-100 dark:border-green-700">
+                                  OK
+                                </Badge>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  {folderErrors[offer.id] ? (
+                                    <>
+                                      <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-100 dark:border-red-700">
+                                        Error
+                                      </Badge>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleCreateMissingFolder(offer)}
+                                        disabled={foldersLoading}
+                                        title={`Reintentar - ${folderErrors[offer.id]}`}
+                                        className="h-6 w-6 p-0 text-amber-600 hover:text-amber-700"
+                                      >
+                                        <FolderPlus className="h-3 w-3" />
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-100 dark:border-orange-700">
+                                        Falta
+                                      </Badge>
+                                      {offer.fecha && offer.ciudad && offer.festival_ciclo && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleCreateMissingFolder(offer)}
+                                          disabled={foldersLoading}
+                                          title="Crear carpeta"
+                                          className="h-6 w-6 p-0"
+                                        >
+                                          <FolderPlus className="h-3 w-3" />
+                                        </Button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
                          <TableCell>
                            <ReminderBadge reminders={getRemindersForBooking(offer.id)} variant="compact" />
                          </TableCell>
@@ -512,15 +561,15 @@ export default function Booking() {
                                    <Edit className="h-4 w-4 mr-2" />
                                    Editar
                                  </DropdownMenuItem>
-                                 {!offer.folder_url && offer.fecha && offer.ciudad && offer.festival_ciclo && (
-                                   <DropdownMenuItem 
-                                     onClick={() => handleCreateMissingFolder(offer)}
-                                     disabled={foldersLoading}
-                                   >
-                                     <FolderPlus className="h-4 w-4 mr-2" />
-                                     Crear carpeta
-                                   </DropdownMenuItem>
-                                 )}
+                                  {!offer.folder_url && offer.fecha && offer.ciudad && offer.festival_ciclo && (
+                                    <DropdownMenuItem 
+                                      onClick={() => handleCreateMissingFolder(offer)}
+                                      disabled={foldersLoading}
+                                    >
+                                      <FolderPlus className="h-4 w-4 mr-2" />
+                                      {folderErrors[offer.id] ? 'Reintentar carpeta' : 'Crear carpeta'}
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuSeparator />
                                   <AlertDialog>
                                     <AlertDialogTrigger asChild>
