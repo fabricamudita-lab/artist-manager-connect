@@ -657,8 +657,10 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
         setIndexStatus({
           totalDocuments: data.total_documents,
           processedDocuments: data.processed_documents,
+          totalFragmentsSaved: (data as any).metadata?.total_fragments_saved || 0,
           lastIndexed: data.last_indexed_at,
           status: data.status,
+          warning: (data as any).metadata?.warning,
           stats: (data as any).metadata?.processing_stats,
           processingSummary: (data as any).metadata?.processing_summary
         });
@@ -695,8 +697,10 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
           setIndexStatus({
             totalDocuments: statusData.total_documents,
             processedDocuments: statusData.processed_documents,
+            totalFragmentsSaved: (statusData as any).metadata?.total_fragments_saved || 0,
             lastIndexed: statusData.last_indexed_at,
             status: statusData.status,
+            warning: (statusData as any).metadata?.warning,
             stats: (statusData as any).metadata?.processing_stats,
             processingSummary: (statusData as any).metadata?.processing_summary
           });
@@ -707,10 +711,21 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
             setReindexing(false);
             
             if (statusData.status === 'completed') {
-              toast({
-                title: "Reindexado completado",
-                description: `Se procesaron ${statusData.processed_documents} documentos correctamente.`,
-              });
+              const warning = (statusData as any).metadata?.warning;
+              const totalFragments = (statusData as any).metadata?.total_fragments_saved || 0;
+              
+              if (warning) {
+                toast({
+                  title: "Advertencia de indexación",
+                  description: warning,
+                  variant: "destructive",
+                });
+              } else {
+                toast({
+                  title: "Reindexado completado",
+                  description: `Se indexaron ${totalFragments} fragmentos de ${statusData.processed_documents} documentos.`,
+                });
+              }
             } else if (statusData.status === 'error') {
               toast({
                 title: "Error en reindexado",
@@ -1134,11 +1149,12 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                        indexStatus.status === 'error' ? 'Error' : 'No indexado'}
                     </Badge>
                   </div>
-                  <div className="text-xs text-muted-foreground space-y-2">
-                    <div>Documentos totales: {indexStatus.totalDocuments}</div>
-                    {indexStatus.lastIndexed && (
-                      <div>Última actualización: {new Date(indexStatus.lastIndexed).toLocaleString('es-ES')}</div>
-                    )}
+                   <div className="text-xs text-muted-foreground space-y-2">
+                     <div>Documentos totales: {indexStatus.totalDocuments}</div>
+                     <div>Fragmentos indexados: {indexStatus.totalFragmentsSaved || 0}</div>
+                     {indexStatus.lastIndexed && (
+                       <div>Última actualización: {new Date(indexStatus.lastIndexed).toLocaleString('es-ES')}</div>
+                     )}
                     
                     {/* Processing Summary */}
                     {indexStatus.processingSummary && indexStatus.processingSummary.length > 0 && (
@@ -1181,8 +1197,18 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                         />
                       </div>
                     )}
-                  </div>
-                </div>
+                   </div>
+                 </div>
+
+                 {/* Warning Alert */}
+                 {indexStatus.warning && (
+                   <Alert variant="destructive" className="mb-4">
+                     <AlertTriangle className="h-4 w-4" />
+                     <AlertDescription>
+                       {indexStatus.warning}
+                     </AlertDescription>
+                   </Alert>
+                 )}
 
                 {/* Conversation Messages */}
                 {aiConversation.length === 0 ? (
