@@ -58,6 +58,18 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [aiMessage, setAiMessage] = useState('');
   const [citeSources, setCiteSources] = useState(true);
+  const [reindexing, setReindexing] = useState(false);
+  const [indexStatus, setIndexStatus] = useState<{
+    totalDocuments: number;
+    processedDocuments: number;
+    lastIndexed: string | null;
+    status: string;
+  }>({
+    totalDocuments: 0,
+    processedDocuments: 0,
+    lastIndexed: null,
+    status: 'idle'
+  });
 
   const subfolders = ['Assets', 'Facturas', 'Contrato', 'Agente IA'];
 
@@ -65,6 +77,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
     if (open && offer) {
       loadFolderContents();
       checkContractStatus();
+      loadIndexStatus();
     }
   }, [open, offer]);
 
@@ -176,6 +189,11 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
       if (subfolder === 'Contrato') {
         await updateBookingContract(file.name);
         await checkContractStatus();
+        // Trigger auto-reindex for contract uploads
+        triggerAutoReindex();
+      } else if (subfolder === 'Facturas') {
+        // Trigger auto-reindex for invoice uploads
+        triggerAutoReindex();
       }
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -457,6 +475,112 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
     "Resumen económico (oferta + IVA)",
     "Tareas pendientes antes del show"
   ];
+
+  const loadIndexStatus = async () => {
+    if (!offer) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('event_index_status')
+        .select('*')
+        .eq('event_id', offer.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error loading index status:', error);
+        return;
+      }
+
+      if (data) {
+        setIndexStatus({
+          totalDocuments: data.total_documents,
+          processedDocuments: data.processed_documents,
+          lastIndexed: data.last_indexed_at,
+          status: data.status
+        });
+      }
+    } catch (error) {
+      console.error('Error loading index status:', error);
+    }
+  };
+
+  const handleReindex = async () => {
+    if (!offer || reindexing) return;
+
+    setReindexing(true);
+    setIndexStatus(prev => ({ ...prev, status: 'processing' }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('reindex-event', {
+        body: { eventId: offer.id }
+      });
+
+      if (error) throw error;
+
+      // Poll for status updates
+      const pollStatus = async () => {
+        try {
+          const { data: statusData, error: statusError } = await supabase
+            .from('event_index_status')
+            .select('*')
+            .eq('event_id', offer.id)
+            .single();
+
+          if (statusError) throw statusError;
+
+          setIndexStatus({
+            totalDocuments: statusData.total_documents,
+            processedDocuments: statusData.processed_documents,
+            lastIndexed: statusData.last_indexed_at,
+            status: statusData.status
+          });
+
+          if (statusData.status === 'processing') {
+            setTimeout(pollStatus, 2000); // Poll every 2 seconds
+          } else {
+            setReindexing(false);
+            
+            if (statusData.status === 'completed') {
+              toast({
+                title: "Reindexado completado",
+                description: `Se procesaron ${statusData.processed_documents} documentos correctamente.`,
+              });
+            } else if (statusData.status === 'error') {
+              toast({
+                title: "Error en reindexado",
+                description: statusData.error_message || "Error desconocido",
+                variant: "destructive",
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error polling status:', error);
+          setReindexing(false);
+        }
+      };
+
+      // Start polling
+      setTimeout(pollStatus, 1000);
+
+    } catch (error) {
+      console.error('Error starting reindex:', error);
+      setReindexing(false);
+      setIndexStatus(prev => ({ ...prev, status: 'error' }));
+      
+      toast({
+        title: "Error",
+        description: "No se pudo iniciar el reindexado.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const triggerAutoReindex = async () => {
+    // Auto-reindex when files are uploaded to Contrato or Facturas
+    if (offer) {
+      handleReindex();
+    }
+  };
 
   if (!offer) return null;
 
@@ -834,6 +958,36 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
             {/* Messages Area */}
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-4">
+                {/* Index Status */}
+                <div className="bg-muted/30 rounded-lg p-3 border">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Estado del índice</span>
+                    <Badge variant={indexStatus.status === 'completed' ? 'default' : indexStatus.status === 'error' ? 'destructive' : 'secondary'}>
+                      {indexStatus.status === 'completed' ? 'Actualizado' : 
+                       indexStatus.status === 'processing' ? 'Procesando' : 
+                       indexStatus.status === 'error' ? 'Error' : 'No indexado'}
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <div>Documentos: {indexStatus.totalDocuments}</div>
+                    {indexStatus.lastIndexed && (
+                      <div>Última actualización: {new Date(indexStatus.lastIndexed).toLocaleString('es-ES')}</div>
+                    )}
+                    {reindexing && (
+                      <div className="mt-2">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span>Procesando...</span>
+                          <span>{indexStatus.processedDocuments}/{indexStatus.totalDocuments}</span>
+                        </div>
+                        <Progress 
+                          value={indexStatus.totalDocuments > 0 ? (indexStatus.processedDocuments / indexStatus.totalDocuments) * 100 : 0} 
+                          className="h-1"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="text-center text-sm text-muted-foreground">
                   ¡Hola! Soy tu asistente para gestionar este evento. ¿En qué puedo ayudarte?
                 </div>
@@ -902,11 +1056,12 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
               <Button
                 variant="outline"
                 size="sm"
-                disabled
+                onClick={handleReindex}
+                disabled={reindexing}
                 className="w-full flex items-center gap-2"
               >
-                <RotateCcw className="h-4 w-4" />
-                Reindexar ahora
+                <RotateCcw className={`h-4 w-4 ${reindexing ? 'animate-spin' : ''}`} />
+                {reindexing ? 'Reindexando...' : 'Reindexar ahora'}
               </Button>
             </div>
           </div>
