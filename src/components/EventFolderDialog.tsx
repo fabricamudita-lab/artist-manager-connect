@@ -510,6 +510,73 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
     setShowAIPanel(true);
   };
 
+  // Helper function to detect simple intentions and respond with eventMeta
+  const detectSimpleIntention = (query: string): string | null => {
+    if (!offer) return null;
+
+    const lowerQuery = query.toLowerCase().trim();
+    
+    // Detect "where" intentions (dónde es el concierto)
+    if (lowerQuery.match(/dónde|donde|ubicación|lugar|ciudad|localización/)) {
+      const location = [offer.ciudad, offer.lugar].filter(Boolean).join(', ');
+      return location ? `📍 **Ubicación del concierto:**\n${location}` : null;
+    }
+    
+    // Detect "when" intentions (cuándo es)
+    if (lowerQuery.match(/cuándo|cuando|fecha|día|horario|hora/)) {
+      if (offer.fecha) {
+        const date = new Date(offer.fecha).toLocaleDateString('es-ES', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+        // TODO: Add hour if available from hora field
+        return `📅 **Fecha del concierto:**\n${date}`;
+      }
+      return null;
+    }
+    
+    // Detect format intentions
+    if (lowerQuery.match(/formato|tipo de show|tipo de concierto/)) {
+      return offer.formato ? `🎵 **Formato:**\n${offer.formato}` : null;
+    }
+    
+    // Detect capacity intentions
+    if (lowerQuery.match(/capacidad|aforo|cuánta gente|cuantas personas/)) {
+      return offer.capacidad ? `👥 **Capacidad del venue:**\n${offer.capacidad} personas` : null;
+    }
+    
+    // Detect offer/fee intentions
+    if (lowerQuery.match(/oferta|caché|cachê|honorarios|precio|pago/)) {
+      if (offer.oferta) {
+        let response = `💰 **Oferta/Caché:**\n${offer.oferta}`;
+        
+        // Calculate IVA if the offer contains "+ IVA"
+        if (offer.oferta.toLowerCase().includes('+ iva') || offer.oferta.toLowerCase().includes('+iva')) {
+          const amountMatch = offer.oferta.match(/(\d+(?:\.?\d+)?(?:,\d+)?)/);
+          if (amountMatch) {
+            const amount = parseFloat(amountMatch[1].replace(',', '.'));
+            if (!isNaN(amount)) {
+              const withIva = amount * 1.21;
+              response += `\n\n💡 **Con IVA (21%):** ${withIva.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€`;
+            }
+          }
+        }
+        
+        return response;
+      }
+      return null;
+    }
+    
+    // Detect status intentions
+    if (lowerQuery.match(/estado|status|situación|confirmado|pendiente/)) {
+      return offer.estado ? `📋 **Estado del booking:**\n${offer.estado}` : null;
+    }
+    
+    return null;
+  };
+
   const handleSendMessage = async () => {
     if (!aiMessage.trim() || isAiLoading) return;
     
@@ -527,20 +594,28 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
     setAiConversation(prev => [...prev, userMessageObj]);
 
     try {
-      // Call AI search function
+      // First, try to detect simple intentions and respond with eventMeta
+      const simpleResponse = detectSimpleIntention(userMessage);
+      
+      if (simpleResponse) {
+        // Respond directly with eventMeta data
+        const assistantMessage = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant' as const,
+          content: simpleResponse,
+          timestamp: new Date()
+        };
+        setAiConversation(prev => [...prev, assistantMessage]);
+        return;
+      }
+
+      // If not a simple intention, search the document index
       const { data, error } = await supabase.functions.invoke('search-event-ai', {
         body: {
           eventId: offer?.id,
           query: userMessage,
           citeSources,
-          eventData: {
-            fecha: offer?.fecha,
-            ciudad: offer?.ciudad,
-            lugar: offer?.lugar,
-            formato: offer?.formato,
-            oferta: offer?.oferta,
-            estado: offer?.estado
-          }
+          topK: 8
         }
       });
 
@@ -548,24 +623,25 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
         throw new Error(error.message);
       }
 
-      // Handle index status responses
-      if (data.indexStatus && data.indexStatus !== 'completed') {
-        const assistantMessage = {
-          id: (Date.now() + 1).toString(),
-          type: 'assistant' as const,
-          content: data.response + '\n\n💡 **Tip:** Puedes usar el botón "Reindexar ahora" para procesar los archivos del evento.',
-          timestamp: new Date()
-        };
-        setAiConversation(prev => [...prev, assistantMessage]);
-        return;
+      // Handle different response scenarios
+      let responseContent = '';
+      let sources = [];
+
+      if (data.sources && data.sources.length > 0) {
+        // We have results from the document index
+        responseContent = data.response;
+        sources = citeSources ? data.sources : [];
+      } else {
+        // No results found in document index
+        responseContent = '❌ **No consta en los archivos del evento.**\n\nNo he encontrado información sobre esa consulta en los documentos indexados de este evento.';
       }
 
       // Add assistant response to conversation
       const assistantMessage = {
         id: (Date.now() + 1).toString(),
         type: 'assistant' as const,
-        content: data.response,
-        sources: data.sources || [],
+        content: responseContent,
+        sources: sources,
         timestamp: new Date()
       };
       setAiConversation(prev => [...prev, assistantMessage]);
