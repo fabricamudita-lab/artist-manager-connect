@@ -77,6 +77,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
   }>>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [eventSummaryExpanded, setEventSummaryExpanded] = useState(true);
+  const [showDiagnostic, setShowDiagnostic] = useState(false);
   const [indexStatus, setIndexStatus] = useState<{
     totalDocuments: number;
     processedDocuments: number;
@@ -596,6 +597,19 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
     try {
       // First, try to detect simple intentions and respond with eventMeta
       const simpleResponse = detectSimpleIntention(userMessage);
+      
+      // Handle diagnostic command
+      if (userMessage.toLowerCase().trim() === '/diagnostico' || userMessage.toLowerCase().trim() === '/diag') {
+        setShowDiagnostic(true);
+        const assistantMessage = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant' as const,
+          content: '🔍 **Modo diagnóstico activado**\n\nPuedes ver la información de diagnóstico en el panel que aparece arriba.',
+          timestamp: new Date()
+        };
+        setAiConversation(prev => [...prev, assistantMessage]);
+        return;
+      }
       
       if (simpleResponse) {
         // Respond directly with eventMeta data
@@ -1289,6 +1303,48 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                   </CollapsibleContent>
                 </Collapsible>
 
+                {/* Diagnostic Panel */}
+                {showDiagnostic && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 dark:bg-yellow-950/20 dark:border-yellow-800">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">🔍 Diagnóstico del Agente IA</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowDiagnostic(false)}
+                        className="h-6 w-6 p-0 text-yellow-600 hover:text-yellow-800"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="text-xs space-y-1 text-yellow-700 dark:text-yellow-300">
+                      <div className="flex justify-between">
+                        <span>EventMeta presente:</span>
+                        <span className="font-mono font-medium">
+                          {offer ? '✅ SÍ' : '❌ NO'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Documentos totales:</span>
+                        <span className="font-mono font-medium">{indexStatus.totalDocuments}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Fragmentos indexados:</span>
+                        <span className="font-mono font-medium">{indexStatus.totalFragmentsSaved || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Último warning:</span>
+                        <span className="font-mono font-medium text-[10px] max-w-32 truncate">
+                          {indexStatus.warning || 'Ninguno'}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-yellow-600 dark:text-yellow-400 mt-2 pt-1 border-t border-yellow-200 dark:border-yellow-800">
+                        💡 Escribe "/diagnostico" en el chat para mostrar este panel
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Index Status */}
                 <div className="bg-muted/30 rounded-lg p-3 border">
                   <div className="flex items-center justify-between mb-2">
@@ -1300,8 +1356,8 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                     </Badge>
                   </div>
                    <div className="text-xs text-muted-foreground space-y-2">
-                     <div>Documentos totales: {indexStatus.totalDocuments}</div>
-                     <div>Fragmentos indexados: {indexStatus.totalFragmentsSaved || 0}</div>
+                     <div>Documentos totales: {indexStatus.totalDocuments} <span className="text-[10px] text-muted-foreground/60">(archivos únicos)</span></div>
+                     <div>Fragmentos indexados: {indexStatus.totalFragmentsSaved || 0} <span className="text-[10px] text-muted-foreground/60">(chunks guardados)</span></div>
                      {indexStatus.lastIndexed && (
                        <div>Última actualización: {new Date(indexStatus.lastIndexed).toLocaleString('es-ES')}</div>
                      )}
