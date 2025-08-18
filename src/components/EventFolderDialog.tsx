@@ -49,7 +49,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
   const [sendingsShareLink, setSendingsShareLink] = useState<string | null>(null);
   const [hasContract, setHasContract] = useState(false);
 
-  const subfolders = ['Assets', 'Facturas', 'Presupuesto', 'Contrato', 'Sendings'];
+  const subfolders = ['Assets', 'Facturas', 'Contrato', 'Agente IA'];
 
   useEffect(() => {
     if (open && offer) {
@@ -126,6 +126,12 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
   const handleFileUpload = async (subfolder: string, file: File) => {
     if (!offer) return;
 
+    // Contract replacement confirmation
+    if (subfolder === 'Contrato' && hasContract) {
+      const confirm = window.confirm('Ya existe un contrato en esta carpeta. ¿Deseas reemplazarlo?');
+      if (!confirm) return;
+    }
+
     setLoading(true);
     try {
       const folderName = generateFolderName(offer);
@@ -149,8 +155,9 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
 
       loadFolderContents();
       
-      // Update contract status if uploading to Contrato folder
+      // Update contract field if uploading to Contrato folder
       if (subfolder === 'Contrato') {
+        await updateBookingContract(file.name);
         await checkContractStatus();
       }
     } catch (error) {
@@ -165,23 +172,21 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
     }
   };
 
-  const handleQuickUpload = async (subfolder: string, acceptedTypes?: string) => {
+  const handleQuickUpload = async (subfolder: string, enableDragDrop = false) => {
     if (!offer) return;
 
     const input = document.createElement('input');
     input.type = 'file';
-    if (acceptedTypes) {
-      input.accept = acceptedTypes;
+    input.multiple = true;
+    // Allow any file type for Assets, Facturas, and Contrato
+    if (['Assets', 'Facturas', 'Contrato'].includes(subfolder)) {
+      input.accept = '*/*';
     }
     input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        await handleFileUpload(subfolder, file);
-        
-        // If uploading to Contrato subfolder, update the booking offer
-        if (subfolder === 'Contrato') {
-          await updateBookingContract(file.name);
-          await checkContractStatus();
+      const files = (e.target as HTMLInputElement).files;
+      if (files) {
+        for (const file of Array.from(files)) {
+          await handleFileUpload(subfolder, file);
         }
       }
     };
@@ -241,7 +246,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
       });
       return;
     }
-    handleQuickUpload('Presupuesto', '.pdf,.doc,.docx,.xls,.xlsx');
+    handleQuickUpload('Agente IA');
   };
 
   const handleShareSendings = async () => {
@@ -463,7 +468,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <Button
-                      onClick={() => handleQuickUpload('Assets', 'image/*,.pdf,.zip,.rar')}
+                      onClick={() => handleQuickUpload('Assets')}
                       variant="outline"
                       className="flex items-center gap-2 h-auto p-4 flex-col"
                     >
@@ -471,7 +476,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                       <span className="text-sm">Subir Asset</span>
                     </Button>
                     <Button
-                      onClick={() => handleQuickUpload('Facturas', '.pdf,.doc,.docx,.xls,.xlsx')}
+                      onClick={() => handleQuickUpload('Facturas')}
                       variant="outline"
                       className="flex items-center gap-2 h-auto p-4 flex-col"
                     >
@@ -479,7 +484,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                       <span className="text-sm">Subir Factura</span>
                     </Button>
                     <Button
-                      onClick={() => handleQuickUpload('Contrato', '.pdf,.doc,.docx')}
+                      onClick={() => handleQuickUpload('Contrato')}
                       variant="outline"
                       className="flex items-center gap-2 h-auto p-4 flex-col"
                     >
@@ -492,16 +497,16 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                       className="flex items-center gap-2 h-auto p-4 flex-col"
                     >
                       <Plus className="h-5 w-5" />
-                      <span className="text-sm">Crear Presupuesto</span>
+                      <span className="text-sm">Agente IA</span>
                     </Button>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Budget Actions */}
+              {/* AI Agent Actions */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Gestión de Presupuesto</CardTitle>
+                  <CardTitle className="text-lg">Agente IA</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {(!offer.fecha || !offer.ciudad) && (
@@ -534,45 +539,6 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                 </CardContent>
               </Card>
 
-              {/* Sendings Sharing */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Compartir Sendings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleShareSendings}
-                      variant="outline"
-                      className="flex items-center gap-2"
-                    >
-                      <Share2 className="h-4 w-4" />
-                      Compartir Sendings
-                    </Button>
-                    {sendingsShareLink && (
-                      <Button
-                        onClick={handleRevokeAccess}
-                        variant="destructive"
-                        size="sm"
-                      >
-                        Revocar acceso
-                      </Button>
-                    )}
-                  </div>
-                  {sendingsShareLink && (
-                    <div className="mt-3 p-3 bg-muted rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        <span className="text-sm font-medium">Enlace activo</span>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground break-all">
-                        {sendingsShareLink}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
               {/* Subfolders */}
               <div className="grid gap-4">
                 {subfolders.map((subfolder) => (
@@ -584,13 +550,17 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                           <Badge variant="secondary">
                             {folderContents[subfolder]?.length || 0} archivos
                           </Badge>
-                          <Button
+                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => {
                               const input = document.createElement('input');
                               input.type = 'file';
                               input.multiple = true;
+                              // Allow any file type for upload folders
+                              if (['Assets', 'Facturas', 'Contrato'].includes(subfolder)) {
+                                input.accept = '*/*';
+                              }
                               input.onchange = (e) => {
                                 const files = (e.target as HTMLInputElement).files;
                                 if (files) {
@@ -640,8 +610,43 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                           ))}
                         </div>
                       ) : (
-                        <div className="text-sm text-muted-foreground">
-                          No hay archivos en esta carpeta
+                        <div 
+                          className="min-h-[100px] border-2 border-dashed border-muted-foreground/25 rounded-lg flex flex-col items-center justify-center text-center p-4 hover:border-muted-foreground/50 transition-colors cursor-pointer"
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.classList.add('border-primary');
+                          }}
+                          onDragLeave={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.classList.remove('border-primary');
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.classList.remove('border-primary');
+                            const files = e.dataTransfer.files;
+                            if (files && ['Assets', 'Facturas', 'Contrato'].includes(subfolder)) {
+                              Array.from(files).forEach(file => {
+                                handleFileUpload(subfolder, file);
+                              });
+                            }
+                          }}
+                          onClick={() => {
+                            if (['Assets', 'Facturas', 'Contrato'].includes(subfolder)) {
+                              handleQuickUpload(subfolder);
+                            }
+                          }}
+                        >
+                          <Upload className="h-8 w-8 text-muted-foreground/50 mb-2" />
+                          <div className="text-sm text-muted-foreground">
+                            {['Assets', 'Facturas', 'Contrato'].includes(subfolder) ? (
+                              <>
+                                <div>Arrastra archivos aquí o haz clic para subir</div>
+                                <div className="text-xs mt-1">Cualquier tipo de archivo: psd, ai, indd, sketch, fig, ttf, otf, zip, rar, 7z, wav, aiff, mp3, mov, mp4, pdf, doc, docx, xls, xlsx, csv, jpg, png, webp, svg, etc.</div>
+                              </>
+                            ) : (
+                              'No hay archivos en esta carpeta'
+                            )}
+                          </div>
                         </div>
                       )}
                     </CardContent>
