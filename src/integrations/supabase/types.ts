@@ -694,6 +694,87 @@ export type Database = {
         }
         Relationships: []
       }
+      event_document_index: {
+        Row: {
+          content_fragment: string
+          created_at: string
+          embedding_data: Json | null
+          event_id: string
+          file_name: string
+          file_path: string
+          fragment_index: number
+          id: string
+          metadata: Json | null
+          page_number: number | null
+          subfolder: string
+          updated_at: string
+        }
+        Insert: {
+          content_fragment: string
+          created_at?: string
+          embedding_data?: Json | null
+          event_id: string
+          file_name: string
+          file_path: string
+          fragment_index?: number
+          id?: string
+          metadata?: Json | null
+          page_number?: number | null
+          subfolder: string
+          updated_at?: string
+        }
+        Update: {
+          content_fragment?: string
+          created_at?: string
+          embedding_data?: Json | null
+          event_id?: string
+          file_name?: string
+          file_path?: string
+          fragment_index?: number
+          id?: string
+          metadata?: Json | null
+          page_number?: number | null
+          subfolder?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      event_index_status: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_id: string
+          id: string
+          last_indexed_at: string | null
+          processed_documents: number
+          status: string
+          total_documents: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_id: string
+          id?: string
+          last_indexed_at?: string | null
+          processed_documents?: number
+          status?: string
+          total_documents?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_id?: string
+          id?: string
+          last_indexed_at?: string | null
+          processed_documents?: number
+          status?: string
+          total_documents?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           artist_id: string
