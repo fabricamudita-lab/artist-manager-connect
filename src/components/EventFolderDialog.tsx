@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Plus, Link, FileText, Upload, Download, Image, FileBarChart, FileSignature, Clock, Share2, Copy, AlertTriangle, ChevronDown, Folder, Home, ChevronRight, X, Send, Bot, RotateCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -75,6 +76,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
     timestamp: Date;
   }>>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [eventSummaryExpanded, setEventSummaryExpanded] = useState(true);
   const [indexStatus, setIndexStatus] = useState<{
     totalDocuments: number;
     processedDocuments: number;
@@ -1139,6 +1141,78 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
             {/* Messages Area */}
             <ScrollArea className="flex-1 p-4" data-ai-scroll-area>
               <div className="space-y-4">
+                {/* Event Summary */}
+                <Collapsible open={eventSummaryExpanded} onOpenChange={setEventSummaryExpanded}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" className="w-full justify-between p-3 h-auto bg-muted/30 border rounded-lg">
+                      <span className="text-sm font-medium">Resumen del evento</span>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${eventSummaryExpanded ? 'rotate-180' : ''}`} />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-2">
+                    <div className="bg-muted/20 rounded-lg p-3 border space-y-2">
+                      {offer && (
+                        <div className="grid grid-cols-1 gap-2 text-xs">
+                          {offer.fecha && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Fecha:</span>
+                              <span className="font-medium">{new Date(offer.fecha).toLocaleDateString('es-ES')}</span>
+                            </div>
+                          )}
+                          {offer.ciudad && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Ciudad:</span>
+                              <span className="font-medium">{offer.ciudad}</span>
+                            </div>
+                          )}
+                          {offer.lugar && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Lugar:</span>
+                              <span className="font-medium">{offer.lugar}</span>
+                            </div>
+                          )}
+                          {offer.festival_ciclo && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Festival/Ciclo:</span>
+                              <span className="font-medium">{offer.festival_ciclo}</span>
+                            </div>
+                          )}
+                          {offer.formato && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Formato:</span>
+                              <span className="font-medium">{offer.formato}</span>
+                            </div>
+                          )}
+                          {offer.capacidad && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Capacidad:</span>
+                              <span className="font-medium">{offer.capacidad}</span>
+                            </div>
+                          )}
+                          {offer.oferta && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Oferta:</span>
+                              <span className="font-medium">{offer.oferta}</span>
+                            </div>
+                          )}
+                          {offer.estado && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Estado:</span>
+                              <Badge variant="outline" className="text-xs h-5">{offer.estado}</Badge>
+                            </div>
+                          )}
+                          {offer.contacto && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Contacto:</span>
+                              <span className="font-medium">{offer.contacto}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+
                 {/* Index Status */}
                 <div className="bg-muted/30 rounded-lg p-3 border">
                   <div className="flex items-center justify-between mb-2">
