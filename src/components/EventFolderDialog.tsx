@@ -5,7 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Plus, Link, FileText, Upload, Download, Image, FileBarChart, FileSignature, Clock, Share2, Copy, AlertTriangle } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Progress } from '@/components/ui/progress';
+import { Plus, Link, FileText, Upload, Download, Image, FileBarChart, FileSignature, Clock, Share2, Copy, AlertTriangle, ChevronDown, Folder, Home, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useBookingFolders } from '@/hooks/useBookingFolders';
@@ -48,8 +50,10 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
   const [recentFiles, setRecentFiles] = useState<EventFile[]>([]);
   const [sendingsShareLink, setSendingsShareLink] = useState<string | null>(null);
   const [hasContract, setHasContract] = useState(false);
+  const [currentSubfolder, setCurrentSubfolder] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
-  const subfolders = ['Assets', 'Facturas', 'Contrato', 'Agente IA'];
+  const subfolders = ['Assets', 'Facturas', 'Contrato', 'Presupuestos'];
 
   useEffect(() => {
     if (open && offer) {
@@ -132,10 +136,15 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
       if (!confirm) return;
     }
 
-    setLoading(true);
+    // Set upload progress
+    setUploadProgress(prev => ({ ...prev, [subfolder]: 0 }));
+
     try {
       const folderName = generateFolderName(offer);
       const filePath = `events/${folderName}/${subfolder}/${file.name}`;
+
+      // Simulate progress for user feedback
+      setUploadProgress(prev => ({ ...prev, [subfolder]: 50 }));
 
       const { error } = await supabase.storage
         .from('documents')
@@ -148,12 +157,14 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
         throw error;
       }
 
+      setUploadProgress(prev => ({ ...prev, [subfolder]: 100 }));
+
       toast({
         title: "Archivo subido",
         description: `${file.name} se ha subido a ${subfolder}.`,
       });
 
-      loadFolderContents();
+      await loadFolderContents();
       
       // Update contract field if uploading to Contrato folder
       if (subfolder === 'Contrato') {
@@ -168,7 +179,14 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      // Clear progress after 1 second
+      setTimeout(() => {
+        setUploadProgress(prev => {
+          const newProgress = { ...prev };
+          delete newProgress[subfolder];
+          return newProgress;
+        });
+      }, 1000);
     }
   };
 
@@ -286,14 +304,14 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
     });
   };
 
-  const handleBudgetCreated = () => {
+  const handleBudgetCreated = async () => {
     // When budget is created, we could potentially create a link or reference in the folder
     toast({
       title: "Presupuesto creado",
       description: "El presupuesto se ha creado y vinculado al evento.",
     });
     setShowCreateBudgetDialog(false);
-    loadFolderContents();
+    await loadFolderContents();
   };
 
   const downloadFile = async (subfolder: string, fileName: string) => {
@@ -349,6 +367,70 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
         return <FileBarChart className="h-4 w-4 text-green-600" />;
       default:
         return <FileText className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  const handleGoToFolder = async (subfolder: string) => {
+    if (!offer) return;
+
+    // Create subfolder if it doesn't exist
+    if (!folderContents[subfolder] || folderContents[subfolder].length === 0) {
+      try {
+        const folderName = generateFolderName(offer);
+        const keepFilePath = `events/${folderName}/${subfolder}/.keep`;
+        const keepContent = `# ${subfolder}\n\nEsta carpeta está destinada para ${subfolder.toLowerCase()}.`;
+        const keepBlob = new Blob([keepContent], { type: 'text/plain' });
+
+        const { error } = await supabase.storage
+          .from('documents')
+          .upload(keepFilePath, keepBlob, {
+            cacheControl: '3600',
+            upsert: true
+          });
+
+        if (error) {
+          console.error('Error creating subfolder:', error);
+        } else {
+          await loadFolderContents();
+        }
+      } catch (error) {
+        console.error('Error creating subfolder:', error);
+      }
+    }
+
+    setCurrentSubfolder(subfolder);
+  };
+
+  const handleUploadFile = (subfolder: string) => {
+    if (!offer || uploadProgress[subfolder] !== undefined) return;
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = '*/*';
+    input.onchange = async (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (files) {
+        for (const file of Array.from(files)) {
+          await handleFileUpload(subfolder, file);
+        }
+      }
+    };
+    input.click();
+  };
+
+  const getSubfolderIcon = (subfolder: string) => {
+    switch (subfolder) {
+      case 'Assets':
+        return <Image className="h-4 w-4" />;
+      case 'Facturas':
+        return <FileBarChart className="h-4 w-4" />;
+      case 'Contrato':
+        return <FileSignature className="h-4 w-4" />;
+      case 'Presupuestos':
+        return <FileText className="h-4 w-4" />;
+      default:
+        return <Folder className="h-4 w-4" />;
     }
   };
 
@@ -460,158 +542,137 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                 </CardContent>
               </Card>
 
-              {/* Quick Actions */}
+              {/* Folder Navigation */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Acciones Rápidas</CardTitle>
+                  <div className="flex items-center gap-2">
+                    {currentSubfolder ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setCurrentSubfolder(null)}
+                          className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                        >
+                          <Home className="h-4 w-4" />
+                          Evento
+                        </Button>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{currentSubfolder}</span>
+                      </>
+                    ) : (
+                      <CardTitle className="text-lg">Carpetas del Evento</CardTitle>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <Button
-                      onClick={() => handleQuickUpload('Assets')}
-                      variant="outline"
-                      className="flex items-center gap-2 h-auto p-4 flex-col"
-                    >
-                      <Image className="h-5 w-5" />
-                      <span className="text-sm">Subir Asset</span>
-                    </Button>
-                    <Button
-                      onClick={() => handleQuickUpload('Facturas')}
-                      variant="outline"
-                      className="flex items-center gap-2 h-auto p-4 flex-col"
-                    >
-                      <FileBarChart className="h-5 w-5" />
-                      <span className="text-sm">Subir Factura</span>
-                    </Button>
-                    <Button
-                      onClick={() => handleQuickUpload('Contrato')}
-                      variant="outline"
-                      className="flex items-center gap-2 h-auto p-4 flex-col"
-                    >
-                      <FileSignature className="h-5 w-5" />
-                      <span className="text-sm">Subir Contrato</span>
-                    </Button>
-                    <Button
-                      onClick={handleCreateBudget}
-                      variant="outline"
-                      className="flex items-center gap-2 h-auto p-4 flex-col"
-                    >
-                      <Plus className="h-5 w-5" />
-                      <span className="text-sm">Agente IA</span>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* AI Agent Actions */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Agente IA</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {(!offer.fecha || !offer.ciudad) && (
-                    <Alert className="mb-4">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
-                        Se requiere fecha y ciudad para crear o vincular presupuestos.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleCreateBudget}
-                      className="flex items-center gap-2"
-                      disabled={!offer.fecha || !offer.ciudad}
-                    >
-                      <Plus className="h-4 w-4" />
-                      Crear presupuesto
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleLinkBudget}
-                      className="flex items-center gap-2"
-                      disabled={!offer.fecha || !offer.ciudad}
-                    >
-                      <Link className="h-4 w-4" />
-                      Vincular presupuesto
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Subfolders */}
-              <div className="grid gap-4">
-                {subfolders.map((subfolder) => (
-                  <Card key={subfolder}>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-base">{subfolder}</CardTitle>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary">
-                            {folderContents[subfolder]?.length || 0} archivos
-                          </Badge>
-                           <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const input = document.createElement('input');
-                              input.type = 'file';
-                              input.multiple = true;
-                              // Allow any file type for upload folders
-                              if (['Assets', 'Facturas', 'Contrato'].includes(subfolder)) {
-                                input.accept = '*/*';
-                              }
-                              input.onchange = (e) => {
-                                const files = (e.target as HTMLInputElement).files;
-                                if (files) {
-                                  Array.from(files).forEach(file => {
-                                    handleFileUpload(subfolder, file);
-                                  });
-                                }
-                              };
-                              input.click();
-                            }}
-                            className="flex items-center gap-1"
-                          >
-                            <Upload className="h-3 w-3" />
-                            Subir
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {loading ? (
-                        <div className="text-sm text-muted-foreground">Cargando...</div>
-                      ) : folderContents[subfolder]?.length > 0 ? (
-                        <div className="space-y-2">
-                          {folderContents[subfolder].map((file) => (
-                            <div
-                              key={file.name}
-                              className="flex items-center justify-between p-2 rounded border"
-                            >
-                              <div className="flex items-center gap-2">
-                                {getFileIcon(file.name)}
-                                <span className="text-sm">{file.name}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(file.created_at).toLocaleDateString('es-ES')}
-                                </span>
+                  {!currentSubfolder ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {subfolders.map((subfolder) => (
+                        <div key={subfolder} className="relative">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="flex items-center justify-between w-full p-4 h-auto hover:bg-muted/50"
+                                disabled={uploadProgress[subfolder] !== undefined}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {getSubfolderIcon(subfolder)}
+                                  <span className="text-sm font-medium">{subfolder}</span>
+                                </div>
+                                <ChevronDown className="h-3 w-3 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48 p-2" align="start">
+                              <div className="space-y-1">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => downloadFile(subfolder, file.name)}
-                                  className="h-6 w-6 p-0"
+                                  onClick={() => handleGoToFolder(subfolder)}
+                                  className="w-full justify-start text-sm"
                                 >
-                                  <Download className="h-3 w-3" />
+                                  <Folder className="h-4 w-4 mr-2" />
+                                  Ir a carpeta
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleUploadFile(subfolder)}
+                                  className="w-full justify-start text-sm"
+                                  disabled={uploadProgress[subfolder] !== undefined}
+                                >
+                                  <Upload className="h-4 w-4 mr-2" />
+                                  Subir archivo
                                 </Button>
                               </div>
+                            </PopoverContent>
+                          </Popover>
+                          {uploadProgress[subfolder] !== undefined && (
+                            <div className="absolute inset-x-0 bottom-0 px-2 pb-1">
+                              <Progress value={uploadProgress[subfolder]} className="h-1" />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Current subfolder content */}
+                      <div className="flex justify-between items-center">
+                        <Badge variant="secondary">
+                          {folderContents[currentSubfolder]?.length || 0} archivos
+                        </Badge>
+                        <Button
+                          onClick={() => handleUploadFile(currentSubfolder)}
+                          className="flex items-center gap-2"
+                          disabled={uploadProgress[currentSubfolder] !== undefined}
+                        >
+                          <Upload className="h-4 w-4" />
+                          Subir archivos
+                        </Button>
+                      </div>
+                      
+                      {uploadProgress[currentSubfolder] !== undefined && (
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Subiendo archivo...</span>
+                            <span>{uploadProgress[currentSubfolder]}%</span>
+                          </div>
+                          <Progress value={uploadProgress[currentSubfolder]} />
+                        </div>
+                      )}
+
+                      {folderContents[currentSubfolder]?.length > 0 ? (
+                        <div className="space-y-2">
+                          {folderContents[currentSubfolder].map((file) => (
+                            <div
+                              key={file.name}
+                              className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                            >
+                              <div className="flex items-center gap-3">
+                                {getFileIcon(file.name)}
+                                <div>
+                                  <div className="font-medium text-sm">{file.name}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {new Date(file.created_at).toLocaleDateString('es-ES')}
+                                  </div>
+                                </div>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => downloadFile(currentSubfolder, file.name)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
                             </div>
                           ))}
                         </div>
                       ) : (
                         <div 
-                          className="min-h-[100px] border-2 border-dashed border-muted-foreground/25 rounded-lg flex flex-col items-center justify-center text-center p-4 hover:border-muted-foreground/50 transition-colors cursor-pointer"
+                          className="min-h-[200px] border-2 border-dashed border-muted-foreground/25 rounded-lg flex flex-col items-center justify-center text-center p-6 hover:border-muted-foreground/50 transition-colors cursor-pointer"
                           onDragOver={(e) => {
                             e.preventDefault();
                             e.currentTarget.classList.add('border-primary');
@@ -624,35 +685,49 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                             e.preventDefault();
                             e.currentTarget.classList.remove('border-primary');
                             const files = e.dataTransfer.files;
-                            if (files && ['Assets', 'Facturas', 'Contrato'].includes(subfolder)) {
+                            if (files && currentSubfolder) {
                               Array.from(files).forEach(file => {
-                                handleFileUpload(subfolder, file);
+                                handleFileUpload(currentSubfolder, file);
                               });
                             }
                           }}
-                          onClick={() => {
-                            if (['Assets', 'Facturas', 'Contrato'].includes(subfolder)) {
-                              handleQuickUpload(subfolder);
-                            }
-                          }}
+                          onClick={() => currentSubfolder && handleUploadFile(currentSubfolder)}
                         >
-                          <Upload className="h-8 w-8 text-muted-foreground/50 mb-2" />
-                          <div className="text-sm text-muted-foreground">
-                            {['Assets', 'Facturas', 'Contrato'].includes(subfolder) ? (
-                              <>
-                                <div>Arrastra archivos aquí o haz clic para subir</div>
-                                <div className="text-xs mt-1">Cualquier tipo de archivo: psd, ai, indd, sketch, fig, ttf, otf, zip, rar, 7z, wav, aiff, mp3, mov, mp4, pdf, doc, docx, xls, xlsx, csv, jpg, png, webp, svg, etc.</div>
-                              </>
-                            ) : (
-                              'No hay archivos en esta carpeta'
-                            )}
+                          <Upload className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                          <div className="space-y-2">
+                            <div className="font-medium">Arrastra archivos aquí o haz clic para subir</div>
+                            <div className="text-sm text-muted-foreground">
+                              Cualquier tipo de archivo: psd, ai, indd, sketch, fig, ttf, otf, zip, rar, 7z, wav, aiff, mp3, mov, mp4, pdf, doc, docx, xls, xlsx, csv, jpg, png, webp, svg, etc.
+                            </div>
                           </div>
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+
+                      {/* Show budget creation only in Presupuestos subfolder */}
+                      {currentSubfolder === 'Presupuestos' && (
+                        <div className="mt-6 p-4 border rounded-lg bg-muted/30">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium">Crear presupuesto</div>
+                              <div className="text-sm text-muted-foreground">Generar un nuevo presupuesto para este evento</div>
+                            </div>
+                            <Button
+                              onClick={handleCreateBudget}
+                              disabled={!offer.fecha || !offer.ciudad}
+                              className="flex items-center gap-2"
+                            >
+                              <Plus className="h-4 w-4" />
+                              Crear
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+
             </div>
 
             {/* Sidebar - Recent Files */}
