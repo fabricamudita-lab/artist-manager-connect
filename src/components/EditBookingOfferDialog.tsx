@@ -361,7 +361,7 @@ export function EditBookingOfferDialog({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading || (validationResult && !validationResult.isValid)}>
+            <Button type="submit" disabled={loading || (validationResult?.errors && validationResult.errors.length > 0)}>
               {loading ? 'Actualizando...' : 'Actualizar Oferta'}
             </Button>
           </div>
