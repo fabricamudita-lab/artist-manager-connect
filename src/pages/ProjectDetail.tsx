@@ -142,6 +142,11 @@ export default function ProjectDetail() {
     }
   ]);
 
+  // Filter state
+  const [activeFilters, setActiveFilters] = useState(new Set([
+    "pendiente", "en_progreso", "completada", "bloqueada", "cancelada"
+  ]));
+
   // Helper function to get status icon
   const getStatusIcon = (estado) => {
     switch (estado) {
@@ -154,9 +159,9 @@ export default function ProjectDetail() {
     }
   };
 
-  // Helper function to calculate progress for each stage
+  // Helper function to calculate progress for each stage (based on filtered tasks)
   const getStageProgress = (etapa) => {
-    const stageTasks = tasks.filter(task => task.etapa === etapa);
+    const stageTasks = tasks.filter(task => task.etapa === etapa && activeFilters.has(task.estado));
     const completedTasks = stageTasks.filter(task => task.estado === "completada");
     const total = stageTasks.length;
     const completed = completedTasks.length;
@@ -166,12 +171,28 @@ export default function ProjectDetail() {
 
   // Helper function to render tasks for a stage
   const renderStageTasks = (etapa) => {
-    const stageTasks = tasks.filter(task => task.etapa === etapa);
+    const stageTasks = tasks.filter(task => task.etapa === etapa && activeFilters.has(task.estado));
+    const allStageTasks = tasks.filter(task => task.etapa === etapa);
     
-    if (stageTasks.length === 0) {
+    if (allStageTasks.length === 0) {
       return (
         <div className="text-center py-8">
           <p className="text-sm text-muted-foreground mb-4">No hay tareas en esta etapa</p>
+          <Button variant="secondary" size="sm" onClick={() => {
+            setCurrentStage(etapa);
+            setOpenAddTask(true);
+          }}>
+            <Plus className="w-4 h-4 mr-2" />
+            Añadir tarea
+          </Button>
+        </div>
+      );
+    }
+
+    if (stageTasks.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <p className="text-sm text-muted-foreground mb-4">No hay tareas visibles con los filtros actuales</p>
           <Button variant="secondary" size="sm" onClick={() => {
             setCurrentStage(etapa);
             setOpenAddTask(true);
@@ -494,6 +515,65 @@ export default function ProjectDetail() {
             <ListTodo className="w-5 h-5" />
             Checklist
           </CardTitle>
+          
+          {/* Filter bar */}
+          <div className="flex items-center gap-2">
+            <div className="flex flex-wrap gap-1">
+              {[
+                { id: "pendiente", emoji: "⬜", label: "Pendiente" },
+                { id: "en_progreso", emoji: "🟨", label: "En progreso" },
+                { id: "completada", emoji: "🟩", label: "Completada" },
+                { id: "bloqueada", emoji: "🟥", label: "Bloqueada" },
+                { id: "cancelada", emoji: "⬛", label: "Cancelada" }
+              ].map(status => (
+                <button
+                  key={status.id}
+                  onClick={() => {
+                    const newFilters = new Set(activeFilters);
+                    if (newFilters.has(status.id)) {
+                      newFilters.delete(status.id);
+                    } else {
+                      newFilters.add(status.id);
+                    }
+                    setActiveFilters(newFilters);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      const newFilters = new Set(activeFilters);
+                      if (newFilters.has(status.id)) {
+                        newFilters.delete(status.id);
+                      } else {
+                        newFilters.add(status.id);
+                      }
+                      setActiveFilters(newFilters);
+                    }
+                  }}
+                  className={`
+                    px-2 py-1 rounded-md text-sm transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
+                    ${activeFilters.has(status.id) 
+                      ? 'bg-accent text-accent-foreground border border-border' 
+                      : 'bg-muted/50 text-muted-foreground border border-transparent hover:bg-muted'
+                    }
+                  `}
+                  aria-label={`${activeFilters.has(status.id) ? 'Desactivar' : 'Activar'} filtro ${status.label}`}
+                  role="checkbox"
+                  aria-checked={activeFilters.has(status.id)}
+                  tabIndex={0}
+                >
+                  {status.emoji}
+                </button>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setActiveFilters(new Set(["pendiente", "en_progreso", "completada", "bloqueada", "cancelada"]))}
+              className="text-xs"
+            >
+              Limpiar
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Accordion type="multiple" className="w-full">
@@ -551,18 +631,6 @@ export default function ProjectDetail() {
               </AccordionContent>
             </AccordionItem>
           </Accordion>
-
-          {/* Status Legend */}
-          <div className="mt-6 pt-4 border-t">
-            <p className="text-xs text-muted-foreground mb-2">Leyenda de estados:</p>
-            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">⚪ Pendiente</span>
-              <span className="flex items-center gap-1">🟡 En progreso</span>
-              <span className="flex items-center gap-1">✅ Completada</span>
-              <span className="flex items-center gap-1">🔴 Bloqueada</span>
-              <span className="flex items-center gap-1">⚫ Cancelada</span>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
