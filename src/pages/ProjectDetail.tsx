@@ -29,10 +29,14 @@ import {
   FolderOpen,
   Clock,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  ChevronDown,
+  ListTodo
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Project {
   id: string;
@@ -59,6 +63,7 @@ export default function ProjectDetail() {
   const [openBudget, setOpenBudget] = useState(false);
   const [openSolicitud, setOpenSolicitud] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState(null);
+  const [openAddTask, setOpenAddTask] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -326,6 +331,97 @@ export default function ProjectDetail() {
         </Card>
       </div>
 
+      {/* Checklist Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <ListTodo className="w-5 h-5" />
+            Checklist
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Accordion type="multiple" className="w-full">
+            {/* PREPARATIVOS */}
+            <AccordionItem value="preparativos">
+              <AccordionTrigger className="hover:no-underline">
+                <div className="flex items-center justify-between w-full mr-4">
+                  <span className="font-medium">PREPARATIVOS</span>
+                  <span className="text-sm text-muted-foreground">(0/0 completadas · 0%)</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4">
+                  <Separator />
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground mb-4">No hay tareas en esta etapa</p>
+                    <Button variant="secondary" size="sm" onClick={() => setOpenAddTask(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Añadir tarea
+                    </Button>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* PRODUCCIÓN */}
+            <AccordionItem value="produccion">
+              <AccordionTrigger className="hover:no-underline">
+                <div className="flex items-center justify-between w-full mr-4">
+                  <span className="font-medium">PRODUCCIÓN</span>
+                  <span className="text-sm text-muted-foreground">(0/0 completadas · 0%)</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4">
+                  <Separator />
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground mb-4">No hay tareas en esta etapa</p>
+                    <Button variant="secondary" size="sm" onClick={() => setOpenAddTask(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Añadir tarea
+                    </Button>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* CIERRE */}
+            <AccordionItem value="cierre">
+              <AccordionTrigger className="hover:no-underline">
+                <div className="flex items-center justify-between w-full mr-4">
+                  <span className="font-medium">CIERRE</span>
+                  <span className="text-sm text-muted-foreground">(0/0 completadas · 0%)</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4">
+                  <Separator />
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground mb-4">No hay tareas en esta etapa</p>
+                    <Button variant="secondary" size="sm" onClick={() => setOpenAddTask(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Añadir tarea
+                    </Button>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+
+          {/* Status Legend */}
+          <div className="mt-6 pt-4 border-t">
+            <p className="text-xs text-muted-foreground mb-2">Leyenda de estados:</p>
+            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">⚪ Pendiente</span>
+              <span className="flex items-center gap-1">🟡 En progreso</span>
+              <span className="flex items-center gap-1">✅ Completada</span>
+              <span className="flex items-center gap-1">🔴 Bloqueada</span>
+              <span className="flex items-center gap-1">⚫ Cancelada</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Content Tabs */}
       <Card>
         <Tabs defaultValue="presupuestos" className="w-full">
@@ -558,6 +654,18 @@ export default function ProjectDetail() {
           }} 
         />
       )}
+
+      {/* Add Task Dialog */}
+      <Dialog open={openAddTask} onOpenChange={setOpenAddTask}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Añadir tarea</DialogTitle>
+            <DialogDescription>
+              Funcionalidad próximamente disponible.
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
