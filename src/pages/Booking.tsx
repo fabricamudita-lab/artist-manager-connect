@@ -484,7 +484,18 @@ export default function Booking() {
                         <TableCell>
                           {offer.inicio_venta ? new Date(offer.inicio_venta).toLocaleDateString('es-ES') : '-'}
                         </TableCell>
-                         <TableCell>{offer.contratos || '-'}</TableCell>
+                          <TableCell>
+                            {offer.contratos ? (
+                              <a 
+                                href={offer.contratos} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline text-sm"
+                              >
+                                📄 Ver contrato
+                              </a>
+                            ) : '-'}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               {offer.folder_url ? (
