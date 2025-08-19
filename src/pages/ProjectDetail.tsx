@@ -13,6 +13,13 @@ import BudgetDetailsDialog from "@/components/BudgetDetailsDialog";
 import CreateBudgetDialog from "@/components/CreateBudgetDialog";
 import { CreateSolicitudDialog } from "@/components/CreateSolicitudDialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { 
   Upload, 
   FileText, 
@@ -23,7 +30,6 @@ import {
   MoreHorizontal, 
   Target, 
   Users,
-  Calendar,
   Download,
   Eye,
   ExternalLink,
@@ -33,7 +39,12 @@ import {
   AlertCircle,
   ChevronDown,
   ListTodo,
-  Filter
+  Filter,
+  CalendarIcon,
+  Trash2,
+  Copy,
+  AlertTriangle,
+  Check
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -68,6 +79,8 @@ export default function ProjectDetail() {
   const [openAddTask, setOpenAddTask] = useState(false);
   const [currentStage, setCurrentStage] = useState<"PREPARATIVOS" | "PRODUCCIÓN" | "CIERRE" | null>(null);
   const [checklistOpen, setChecklistOpen] = useState(true);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
 
   // Tasks state
   const [tasks, setTasks] = useState([
@@ -263,7 +276,14 @@ export default function ProjectDetail() {
     return (
       <div className="space-y-3">
         {stageTasks.map(task => (
-          <div key={task.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+          <div 
+            key={task.id} 
+            className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors"
+            onClick={() => {
+              setSelectedTask(task);
+              setTaskPanelOpen(true);
+            }}
+          >
             <div 
               className="text-sm leading-none flex-shrink-0"
               title={getStatusLabel(task.estado)}
@@ -302,6 +322,33 @@ export default function ProjectDetail() {
       id: Date.now().toString() // Simple ID generation for now
     };
     setTasks(prevTasks => [...prevTasks, newTask]);
+  };
+
+  // Task update function
+  const handleUpdateTask = (updatedTask: any) => {
+    setTasks(prevTasks => 
+      prevTasks.map(task => 
+        task.id === updatedTask.id ? updatedTask : task
+      )
+    );
+  };
+
+  // Task delete function
+  const handleDeleteTask = (taskId: string) => {
+    setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+    setTaskPanelOpen(false);
+    setSelectedTask(null);
+  };
+
+  // Task duplicate function
+  const handleDuplicateTask = (task: any) => {
+    const duplicatedTask = {
+      ...task,
+      id: Date.now().toString(),
+      nombre: `${task.nombre} (Copia)`,
+      estado: "pendiente"
+    };
+    setTasks(prevTasks => [...prevTasks, duplicatedTask]);
   };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -460,7 +507,7 @@ export default function ProjectDetail() {
               )}
               {project.start_date && (
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <Calendar className="w-4 h-4" />
+                  <CalendarDays className="w-4 h-4" />
                   <span className="text-sm">Inicio: {new Date(project.start_date).toLocaleDateString()}</span>
                 </div>
               )}
@@ -486,7 +533,7 @@ export default function ProjectDetail() {
                 Presupuesto
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setOpenSolicitud(true)}>
-                <Calendar className="w-4 h-4 mr-2" />
+                <CalendarDays className="w-4 h-4 mr-2" />
                 Solicitud
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
@@ -763,7 +810,7 @@ export default function ProjectDetail() {
                           <div className="flex items-center gap-4 text-sm text-muted-foreground">
                             {budget.event_date && (
                               <span className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
+                                <CalendarDays className="w-3 h-3" />
                                 {new Date(budget.event_date).toLocaleDateString()}
                               </span>
                             )}
@@ -864,7 +911,7 @@ export default function ProjectDetail() {
             <TabsContent value="solicitudes" className="mt-0">
               {solicitudes.length === 0 ? (
                 <div className="text-center py-12">
-                  <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                  <CalendarDays className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
                   <h3 className="text-lg font-medium mb-2">No hay solicitudes</h3>
                   <p className="text-sm text-muted-foreground mb-4">Crea solicitudes asociadas a este proyecto</p>
                   <Button onClick={() => setOpenSolicitud(true)}>
@@ -885,7 +932,7 @@ export default function ProjectDetail() {
                             </Badge>
                             {solicitud.fecha_creacion && (
                               <span className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
+                                <CalendarDays className="w-3 h-3" />
                                 {new Date(solicitud.fecha_creacion).toLocaleDateString()}
                               </span>
                             )}
@@ -941,6 +988,240 @@ export default function ProjectDetail() {
         onCreateTask={handleCreateTask}
         teamMembers={team}
       />
+
+      {/* Task Detail Panel */}
+      {selectedTask && (
+        <Sheet open={taskPanelOpen} onOpenChange={setTaskPanelOpen}>
+          <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Detalles de la tarea</SheetTitle>
+            </SheetHeader>
+            
+            <div className="space-y-6 py-6">
+              {/* Título editable */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Título</label>
+                <Input 
+                  value={selectedTask.nombre}
+                  onChange={(e) => {
+                    const updatedTask = { ...selectedTask, nombre: e.target.value };
+                    setSelectedTask(updatedTask);
+                    handleUpdateTask(updatedTask);
+                  }}
+                  className="font-medium"
+                />
+              </div>
+
+              {/* Estado */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Estado</label>
+                <Select 
+                  value={selectedTask.estado} 
+                  onValueChange={(value) => {
+                    const updatedTask = { ...selectedTask, estado: value };
+                    setSelectedTask(updatedTask);
+                    handleUpdateTask(updatedTask);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pendiente">Pendiente</SelectItem>
+                    <SelectItem value="en_progreso">En progreso</SelectItem>
+                    <SelectItem value="completada">Completada</SelectItem>
+                    <SelectItem value="bloqueada">Bloqueada</SelectItem>
+                    <SelectItem value="cancelada">Cancelada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Prioridad */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Prioridad</label>
+                <Select 
+                  value={selectedTask.prioridad} 
+                  onValueChange={(value) => {
+                    const updatedTask = { ...selectedTask, prioridad: value };
+                    setSelectedTask(updatedTask);
+                    handleUpdateTask(updatedTask);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Alta">Alta</SelectItem>
+                    <SelectItem value="Media">Media</SelectItem>
+                    <SelectItem value="Baja">Baja</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Categoría */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Categoría</label>
+                <Select 
+                  value={selectedTask.categoria} 
+                  onValueChange={(value) => {
+                    const updatedTask = { ...selectedTask, categoria: value };
+                    setSelectedTask(updatedTask);
+                    handleUpdateTask(updatedTask);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Promoción">Promoción</SelectItem>
+                    <SelectItem value="Finanzas">Finanzas</SelectItem>
+                    <SelectItem value="Ventas">Ventas</SelectItem>
+                    <SelectItem value="Stock">Stock</SelectItem>
+                    <SelectItem value="Merch">Merch</SelectItem>
+                    <SelectItem value="Logística">Logística</SelectItem>
+                    <SelectItem value="Técnica">Técnica</SelectItem>
+                    <SelectItem value="Legal">Legal</SelectItem>
+                    <SelectItem value="Producción">Producción</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Responsables */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Responsables</label>
+                <div className="border rounded-md p-2 min-h-[40px]">
+                  <div className="flex flex-wrap gap-1">
+                    {selectedTask.responsables.map((responsable, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {responsable}
+                        <button
+                          onClick={() => {
+                            const newResponsables = selectedTask.responsables.filter((_, i) => i !== index);
+                            const updatedTask = { ...selectedTask, responsables: newResponsables };
+                            setSelectedTask(updatedTask);
+                            handleUpdateTask(updatedTask);
+                          }}
+                          className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Responsables actuales. En el futuro podrás seleccionar del equipo del proyecto.
+                </p>
+              </div>
+
+              {/* Vencimiento */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Vencimiento</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !selectedTask.vencimiento && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedTask.vencimiento ? format(new Date(selectedTask.vencimiento), "PPP") : "Seleccionar fecha"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedTask.vencimiento ? new Date(selectedTask.vencimiento) : undefined}
+                      onSelect={(date) => {
+                        const updatedTask = { 
+                          ...selectedTask, 
+                          vencimiento: date ? date.toISOString() : null 
+                        };
+                        setSelectedTask(updatedTask);
+                        handleUpdateTask(updatedTask);
+                      }}
+                      className={cn("p-3 pointer-events-auto")}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Comentarios */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Comentarios</label>
+                <Textarea
+                  value={selectedTask.comentarios || ""}
+                  onChange={(e) => {
+                    const updatedTask = { ...selectedTask, comentarios: e.target.value };
+                    setSelectedTask(updatedTask);
+                    handleUpdateTask(updatedTask);
+                  }}
+                  placeholder="Añadir comentarios o notas..."
+                  rows={4}
+                />
+              </div>
+
+              {/* Botones de acción */}
+              <div className="space-y-3 pt-4 border-t">
+                <Button 
+                  className="w-full" 
+                  onClick={() => {
+                    const updatedTask = { ...selectedTask, estado: "completada" };
+                    setSelectedTask(updatedTask);
+                    handleUpdateTask(updatedTask);
+                  }}
+                  disabled={selectedTask.estado === "completada"}
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                  Marcar completada
+                </Button>
+
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => {
+                    const updatedTask = { ...selectedTask, estado: "bloqueada" };
+                    setSelectedTask(updatedTask);
+                    handleUpdateTask(updatedTask);
+                  }}
+                >
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  Bloquear tarea
+                </Button>
+
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => {
+                    handleDuplicateTask(selectedTask);
+                    toast({ title: "Tarea duplicada", description: "Se ha creado una copia de la tarea" });
+                  }}
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Duplicar
+                </Button>
+
+                <Button 
+                  variant="destructive" 
+                  className="w-full"
+                  onClick={() => {
+                    if (confirm("¿Estás seguro de que quieres eliminar esta tarea?")) {
+                      handleDeleteTask(selectedTask.id);
+                      toast({ title: "Tarea eliminada", description: "La tarea ha sido eliminada correctamente" });
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Eliminar
+                </Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }
