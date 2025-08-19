@@ -150,12 +150,24 @@ export default function ProjectDetail() {
   // Helper function to get status icon
   const getStatusIcon = (estado) => {
     switch (estado) {
-      case "pendiente": return "⚪";
-      case "en_progreso": return "🟡";
-      case "completada": return "✅";
-      case "bloqueada": return "🔴";
-      case "cancelada": return "⚫";
-      default: return "⚪";
+      case "pendiente": return "⬜";
+      case "en_progreso": return "🟨";
+      case "completada": return "🟩";
+      case "bloqueada": return "🟥";
+      case "cancelada": return "⬛";
+      default: return "⬜";
+    }
+  };
+
+  // Helper function to get status label for tooltip
+  const getStatusLabel = (estado) => {
+    switch (estado) {
+      case "pendiente": return "Pendiente";
+      case "en_progreso": return "En progreso";
+      case "completada": return "Completada";
+      case "bloqueada": return "Bloqueada";
+      case "cancelada": return "Cancelada";
+      default: return "Pendiente";
     }
   };
 
@@ -208,7 +220,13 @@ export default function ProjectDetail() {
       <div className="space-y-3">
         {stageTasks.map(task => (
           <div key={task.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-            <span className="text-lg">{getStatusIcon(task.estado)}</span>
+            <div 
+              className="text-sm leading-none flex-shrink-0"
+              title={getStatusLabel(task.estado)}
+              style={{ fontSize: '14px' }}
+            >
+              {getStatusIcon(task.estado)}
+            </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium">{task.nombre}</span>
