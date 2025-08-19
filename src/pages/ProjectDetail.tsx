@@ -88,6 +88,8 @@ export default function ProjectDetail() {
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const [showBlockedDialog, setShowBlockedDialog] = useState(false);
   const [newComment, setNewComment] = useState("");
+  const [showEventFolderSelector, setShowEventFolderSelector] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Tasks state
   const [tasks, setTasks] = useState([
@@ -335,7 +337,8 @@ export default function ProjectDetail() {
       brief: "",
       riesgos: [],
       comentarios: [],
-      actividad: []
+      actividad: [],
+      archivos: []
     };
     setTasks(prevTasks => [...prevTasks, newTask]);
   };
@@ -379,7 +382,8 @@ export default function ProjectDetail() {
           author: profile?.full_name || "Usuario",
           timestamp: new Date().toISOString()
         }
-      ]
+      ],
+      archivos: []
     };
     setTasks(prevTasks => [...prevTasks, duplicatedTask]);
   };
@@ -435,7 +439,72 @@ export default function ProjectDetail() {
     handleUpdateTask(updatedTask);
     setNewComment("");
   };
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle file upload
+  const handleFileUpload = (files: FileList | null) => {
+    if (!files || !selectedTask) return;
+    
+    const file = files[0];
+    const newFile = {
+      id: Date.now().toString(),
+      nombre: file.name,
+      origen: "Subido",
+      fechaSubida: new Date().toISOString(),
+      tipo: "subido",
+      rutaArchivo: `/tareas/${file.name}`
+    };
+    
+    const updatedTask = {
+      ...selectedTask,
+      archivos: [...(selectedTask.archivos || []), newFile]
+    };
+    
+    setSelectedTask(updatedTask);
+    handleUpdateTask(updatedTask);
+    
+    toast({ title: "Archivo subido", description: `${file.name} se ha adjuntado a la tarea` });
+  };
+
+  // Handle linking from event folder
+  const handleLinkFromEventFolder = (folder: string) => {
+    if (!selectedTask) return;
+    
+    // Simulate file selection from event folder
+    const mockFile = {
+      id: Date.now().toString(),
+      nombre: `Documento-${folder}.pdf`,
+      origen: folder,
+      fechaSubida: new Date().toISOString(),
+      tipo: "vinculado",
+      rutaArchivo: `/eventos/current-event/${folder.toLowerCase()}/documento.pdf`
+    };
+    
+    const updatedTask = {
+      ...selectedTask,
+      archivos: [...(selectedTask.archivos || []), mockFile]
+    };
+    
+    setSelectedTask(updatedTask);
+    handleUpdateTask(updatedTask);
+    setShowEventFolderSelector(false);
+    
+    toast({ title: "Archivo vinculado", description: `Documento de ${folder} vinculado a la tarea` });
+  };
+
+  // Remove file attachment
+  const handleRemoveFile = (fileId: string) => {
+    if (!selectedTask) return;
+    
+    const updatedTask = {
+      ...selectedTask,
+      archivos: (selectedTask.archivos || []).filter(file => file.id !== fileId)
+    };
+    
+    setSelectedTask(updatedTask);
+    handleUpdateTask(updatedTask);
+    
+    toast({ title: "Archivo desvinculado", description: "El archivo se ha desvinculado de la tarea" });
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -628,7 +697,7 @@ export default function ProjectDetail() {
             </DropdownMenuContent>
           </DropdownMenu>
           
-          <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={(e) => {
+              <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) handleUploadContract(f);
           }} />
@@ -1696,6 +1765,133 @@ export default function ProjectDetail() {
                       </p>
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Archivos Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="text-sm font-medium">Archivos</h3>
+                
+                {/* Upload and Link buttons */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex-1"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Subir archivo
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowEventFolderSelector(true)}
+                    className="flex-1"
+                  >
+                    <Link className="w-4 h-4 mr-2" />
+                    Vincular desde carpeta
+                  </Button>
+                </div>
+
+                {/* File input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => handleFileUpload(e.target.files)}
+                />
+
+                {/* Event Folder Selector */}
+                {showEventFolderSelector && (
+                  <div className="border rounded-lg p-4 bg-muted/50">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-sm">Seleccionar carpeta del evento</h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowEventFolderSelector(false)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {["Assets", "Facturas", "Contrato", "Sendings"].map((folder) => (
+                        <Button
+                          key={folder}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleLinkFromEventFolder(folder)}
+                          className="justify-start"
+                        >
+                          <FolderOpen className="w-4 h-4 mr-2" />
+                          {folder}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Attached files list */}
+                <div className="space-y-2">
+                  {(selectedTask.archivos || []).length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No hay archivos adjuntos
+                    </p>
+                  ) : (
+                    (selectedTask.archivos || []).map((archivo) => (
+                      <div key={archivo.id} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                        <Paperclip className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{archivo.nombre}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{archivo.origen}</span>
+                            <span>•</span>
+                            <span>{new Date(archivo.fechaSubida).toLocaleDateString()}</span>
+                            {archivo.tipo === "vinculado" && (
+                              <>
+                                <span>•</span>
+                                <span className="text-blue-600">Vinculado</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              toast({ title: "Abrir archivo", description: "Funcionalidad en desarrollo" });
+                            }}
+                            title="Ver/Descargar"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </Button>
+                          {archivo.tipo === "vinculado" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                toast({ title: "Ver en carpeta", description: "Abriendo ubicación del archivo..." });
+                              }}
+                              title="Ver en carpeta"
+                            >
+                              <FolderOpen className="w-4 h-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveFile(archivo.id)}
+                            title="Quitar vínculo"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
