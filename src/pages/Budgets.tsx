@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Filter, Calendar, MapPin, User, Calculator, Trash2 } from 'lucide-react';
+import { Plus, Search, Filter, Calendar, MapPin, User, Calculator, Trash2, Truck, MicIcon } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import CreateBudgetDialog from '@/components/CreateBudgetDialog';
@@ -114,9 +114,9 @@ export default function Budgets() {
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'concierto':
-        return '🎤';
+        return <Truck className="w-4 h-4" />;
       case 'produccion_musical':
-        return '🎧';
+        return <MicIcon className="w-4 h-4" />;
       case 'campana_promocional':
         return '📣';
       case 'videoclip':
@@ -238,8 +238,8 @@ export default function Budgets() {
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow className="border-0">
-                  <TableHead className="font-semibold px-0">Presupuesto</TableHead>
-                  <TableHead className="font-semibold">Tipo</TableHead>
+                  <TableHead className="font-semibold w-[80px]">Tipo</TableHead>
+                  <TableHead className="font-semibold">Presupuesto</TableHead>
                   <TableHead className="font-semibold">Ubicación</TableHead>
                   <TableHead className="font-semibold">Fecha</TableHead>
                   <TableHead className="font-semibold">Hora</TableHead>
@@ -251,18 +251,15 @@ export default function Budgets() {
               </TableHeader>
               <TableBody>
                 {filteredAndSortedBudgets.map(budget => <TableRow key={budget.id} className="cursor-pointer hover:bg-muted/30 transition-colors border-0 group" onClick={() => setSelectedBudget(budget)}>
+                    <TableCell className="py-4">
+                      <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
+                        <div className="text-white">{getTypeIcon(budget.type)}</div>
+                      </div>
+                    </TableCell>
                     <TableCell className="font-medium py-4">
                       <div className="space-y-1">
                         <p className="font-semibold group-hover:text-primary transition-colors">{budget.name}</p>
                         {budget.venue && <p className="text-sm text-muted-foreground line-clamp-1">{budget.venue}</p>}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-                          <span className="text-white text-sm">{getTypeIcon(budget.type)}</span>
-                        </div>
-                        <span className="text-sm font-medium">{formatType(budget.type)}</span>
                       </div>
                     </TableCell>
                     <TableCell className="py-4">
