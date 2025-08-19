@@ -16,7 +16,7 @@ import { AlertsBadge } from '@/components/AlertsBadge';
 import { validateBookingOffer, ValidationResult } from '@/lib/bookingValidations';
 import { useBookingReminders } from '@/hooks/useBookingReminders';
 import { ReminderBadge } from '@/components/ReminderBadge';
-import { getStatusBadgeColor } from '@/lib/statusColors';
+import { getStatusBadgeColor, getStatusBadgeVariant } from '@/lib/statusColors';
 import { useBookingFolders } from '@/hooks/useBookingFolders';
 import { FolderOpen, AlertTriangle } from 'lucide-react';
 import { EventFolderDialog } from '@/components/EventFolderDialog';
@@ -455,14 +455,13 @@ export default function Booking() {
                       <TableCell>{offer.ciudad || '-'}</TableCell>
                       <TableCell>{offer.lugar || '-'}</TableCell>
                       <TableCell>{offer.capacidad ? offer.capacidad.toLocaleString() : '-'}</TableCell>
-                       <TableCell>
-                         <Badge 
-                           variant="outline" 
-                           className={getStatusBadgeColor(offer.estado)}
-                         >
-                           {offer.estado || 'Pendiente'}
-                         </Badge>
-                       </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={getStatusBadgeVariant(offer.estado)}
+                          >
+                            {offer.estado || 'Pendiente'}
+                          </Badge>
+                        </TableCell>
                       <TableCell className="max-w-32 truncate">{offer.oferta || '-'}</TableCell>
                       <TableCell>{offer.formato || '-'}</TableCell>
                       <TableCell>{offer.contacto || '-'}</TableCell>

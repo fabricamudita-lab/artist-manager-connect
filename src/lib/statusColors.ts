@@ -1,3 +1,24 @@
+export function getStatusBadgeVariant(estado?: string): "success" | "warning" | "accent" | "destructive" | "muted" {
+  const normalizedEstado = estado?.toLowerCase().trim();
+  
+  switch (normalizedEstado) {
+    case 'confirmado': 
+    case 'confirmada':
+      return 'success';
+    case 'interés': 
+    case 'interes':
+      return 'warning';
+    case 'propuesta': 
+      return 'accent';
+    case 'cancelado': 
+    case 'cancelada':
+      return 'destructive';
+    default: 
+      return 'muted';
+  }
+}
+
+// Mantener la función original para compatibilidad
 export function getStatusBadgeColor(estado?: string) {
   const normalizedEstado = estado?.toLowerCase().trim();
   
