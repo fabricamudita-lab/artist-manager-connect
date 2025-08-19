@@ -451,8 +451,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${isFullscreen ? 'max-w-screen w-screen max-h-screen h-screen' : 'max-w-[95vw] w-full max-h-[95vh] h-full'} overflow-hidden p-0`}>
-        <div className="flex flex-col h-full">
+      <DialogContent className={`${isFullscreen ? 'max-w-screen w-screen max-h-screen h-screen' : 'max-w-[95vw] w-full max-h-[95vh] h-full'} p-0`}>
+        <div className="flex flex-col h-full overflow-hidden">
           {/* Header */}
           <div className="bg-black text-white p-6 flex-shrink-0">
             <div className="flex items-start justify-between">
@@ -638,7 +638,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   </div>
 
                   {/* Scrollable Table Content */}
-                  <div className="flex-1 overflow-y-auto overflow-x-auto p-4">
+                  <div className="flex-1" style={{ overflow: 'auto', scrollBehavior: 'smooth' }}>
                     <Table className="text-sm">
                       <TableHeader className="sticky top-0 bg-muted/50 backdrop-blur-sm border-b-2">
                         <TableRow>
