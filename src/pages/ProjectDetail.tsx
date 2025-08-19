@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import BudgetDetailsDialog from "@/components/BudgetDetailsDialog";
 import CreateBudgetDialog from "@/components/CreateBudgetDialog";
 import { CreateSolicitudDialog } from "@/components/CreateSolicitudDialog";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,7 @@ export default function ProjectDetail() {
 
   const [openBudget, setOpenBudget] = useState(false);
   const [openSolicitud, setOpenSolicitud] = useState(false);
+  const [selectedBudget, setSelectedBudget] = useState(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -104,7 +106,7 @@ export default function ProjectDetail() {
     const loadLinked = async () => {
       try {
         const [bRes, cRes, dRes, sRes] = await Promise.all([
-          supabase.from('budgets').select('id, name, event_date, show_status').eq('project_id', id).order('created_at', { ascending: false }),
+          supabase.from('budgets').select('id, name, event_date, show_status, type, city, country, venue, budget_status, internal_notes, created_at, artist_id, event_time, fee, profiles:artist_id(full_name)').eq('project_id', id).order('created_at', { ascending: false }),
           supabase.from('contracts').select('id, title, status, file_path').eq('project_id', id).order('created_at', { ascending: false }),
           supabase.from('documents').select('id, title, file_url, category').eq('project_id', id).order('created_at', { ascending: false }),
           supabase.from('solicitudes').select('id, nombre_solicitante, estado, fecha_creacion').eq('project_id', id).order('fecha_creacion', { ascending: false }),
@@ -175,6 +177,15 @@ export default function ProjectDetail() {
     } catch (e) {
       console.error(e);
       toast({ title: 'Error', description: 'No se pudo subir el contrato', variant: 'destructive' });
+    }
+  };
+
+  const refreshBudgets = async () => {
+    try {
+      const { data, error } = await supabase.from('budgets').select('id, name, event_date, show_status, type, city, country, venue, budget_status, internal_notes, created_at, artist_id, event_time, fee, profiles:artist_id(full_name)').eq('project_id', id).order('created_at', { ascending: false });
+      if (!error) setBudgets(data || []);
+    } catch (e) {
+      console.error('Error refreshing budgets', e);
     }
   };
 
@@ -389,7 +400,7 @@ export default function ProjectDetail() {
                             )}
                           </div>
                         </div>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => setSelectedBudget(budget)}>
                           <Eye className="w-4 h-4 mr-2" />
                           Ver
                         </Button>
@@ -532,8 +543,21 @@ export default function ProjectDetail() {
         </Tabs>
       </Card>
 
-      <CreateBudgetDialog open={openBudget} onOpenChange={setOpenBudget} onSuccess={() => {}} projectId={project.id} />
+      <CreateBudgetDialog open={openBudget} onOpenChange={setOpenBudget} onSuccess={refreshBudgets} projectId={project.id} />
       <CreateSolicitudDialog open={openSolicitud} onOpenChange={setOpenSolicitud} onSolicitudCreated={() => {}} projectId={project.id} />
+      
+      {selectedBudget && (
+        <BudgetDetailsDialog 
+          open={!!selectedBudget} 
+          onOpenChange={(open) => !open && setSelectedBudget(null)} 
+          budget={selectedBudget} 
+          onUpdate={refreshBudgets} 
+          onDelete={() => {
+            setSelectedBudget(null);
+            refreshBudgets();
+          }} 
+        />
+      )}
     </div>
   );
 }
