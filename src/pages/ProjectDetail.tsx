@@ -44,12 +44,16 @@ import {
   Trash2,
   Copy,
   AlertTriangle,
-  Check
+  Check,
+  X,
+  Link,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Project {
   id: string;
@@ -81,6 +85,7 @@ export default function ProjectDetail() {
   const [checklistOpen, setChecklistOpen] = useState(true);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
+  const [showBlockedDialog, setShowBlockedDialog] = useState(false);
 
   // Tasks state
   const [tasks, setTasks] = useState([
@@ -319,7 +324,12 @@ export default function ProjectDetail() {
   const handleCreateTask = (taskData: any) => {
     const newTask = {
       ...taskData,
-      id: Date.now().toString() // Simple ID generation for now
+      id: Date.now().toString(), // Simple ID generation for now
+      definitionOfDone: [],
+      pasos: [],
+      recursos: [],
+      bloqueadaPor: [],
+      bloqueaA: []
     };
     setTasks(prevTasks => [...prevTasks, newTask]);
   };
@@ -346,9 +356,35 @@ export default function ProjectDetail() {
       ...task,
       id: Date.now().toString(),
       nombre: `${task.nombre} (Copia)`,
-      estado: "pendiente"
+      estado: "pendiente",
+      definitionOfDone: task.definitionOfDone?.map(item => ({ ...item, id: Date.now() + Math.random() })) || [],
+      pasos: task.pasos?.map(item => ({ ...item, id: Date.now() + Math.random() })) || [],
+      recursos: task.recursos?.map(item => ({ ...item, id: Date.now() + Math.random() })) || [],
+      bloqueadaPor: [],
+      bloqueaA: []
     };
     setTasks(prevTasks => [...prevTasks, duplicatedTask]);
+  };
+
+  // Check if task has blocking dependencies
+  const hasBlockingDependencies = (task: any) => {
+    if (!task.bloqueadaPor || task.bloqueadaPor.length === 0) return false;
+    
+    const blockingTasks = tasks.filter(t => 
+      task.bloqueadaPor.includes(t.id) && t.estado !== "completada"
+    );
+    return blockingTasks.length > 0;
+  };
+
+  // Handle task completion with dependency check
+  const handleCompleteTask = (task: any) => {
+    if (hasBlockingDependencies(task)) {
+      setShowBlockedDialog(true);
+    } else {
+      const updatedTask = { ...task, estado: "completada" };
+      setSelectedTask(updatedTask);
+      handleUpdateTask(updatedTask);
+    }
   };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1164,15 +1200,308 @@ export default function ProjectDetail() {
                 />
               </div>
 
+              {/* Ejecución Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="text-sm font-medium">Ejecución</h3>
+                
+                {/* Definition of Done */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Definition of Done</label>
+                  <div className="space-y-2">
+                    {(selectedTask.definitionOfDone || []).map((item, index) => (
+                      <div key={item.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={item.completed}
+                          onChange={(e) => {
+                            const newDod = [...(selectedTask.definitionOfDone || [])];
+                            newDod[index] = { ...item, completed: e.target.checked };
+                            const updatedTask = { ...selectedTask, definitionOfDone: newDod };
+                            setSelectedTask(updatedTask);
+                            handleUpdateTask(updatedTask);
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                        <Input
+                          value={item.text}
+                          onChange={(e) => {
+                            const newDod = [...(selectedTask.definitionOfDone || [])];
+                            newDod[index] = { ...item, text: e.target.value };
+                            const updatedTask = { ...selectedTask, definitionOfDone: newDod };
+                            setSelectedTask(updatedTask);
+                            handleUpdateTask(updatedTask);
+                          }}
+                          className="flex-1 text-sm"
+                          placeholder="Criterio de aceptación..."
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newDod = (selectedTask.definitionOfDone || []).filter((_, i) => i !== index);
+                            const updatedTask = { ...selectedTask, definitionOfDone: newDod };
+                            setSelectedTask(updatedTask);
+                            handleUpdateTask(updatedTask);
+                          }}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newItem = { id: Date.now().toString(), text: "", completed: false };
+                        const newDod = [...(selectedTask.definitionOfDone || []), newItem];
+                        const updatedTask = { ...selectedTask, definitionOfDone: newDod };
+                        setSelectedTask(updatedTask);
+                        handleUpdateTask(updatedTask);
+                      }}
+                      className="w-full"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Añadir criterio
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Pasos */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Pasos</label>
+                  <div className="space-y-2">
+                    {(selectedTask.pasos || []).map((item, index) => (
+                      <div key={item.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={item.completed}
+                          onChange={(e) => {
+                            const newPasos = [...(selectedTask.pasos || [])];
+                            newPasos[index] = { ...item, completed: e.target.checked };
+                            const updatedTask = { ...selectedTask, pasos: newPasos };
+                            setSelectedTask(updatedTask);
+                            handleUpdateTask(updatedTask);
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                        <Input
+                          value={item.text}
+                          onChange={(e) => {
+                            const newPasos = [...(selectedTask.pasos || [])];
+                            newPasos[index] = { ...item, text: e.target.value };
+                            const updatedTask = { ...selectedTask, pasos: newPasos };
+                            setSelectedTask(updatedTask);
+                            handleUpdateTask(updatedTask);
+                          }}
+                          className="flex-1 text-sm"
+                          placeholder="Paso a seguir..."
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newPasos = (selectedTask.pasos || []).filter((_, i) => i !== index);
+                            const updatedTask = { ...selectedTask, pasos: newPasos };
+                            setSelectedTask(updatedTask);
+                            handleUpdateTask(updatedTask);
+                          }}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newItem = { id: Date.now().toString(), text: "", completed: false };
+                        const newPasos = [...(selectedTask.pasos || []), newItem];
+                        const updatedTask = { ...selectedTask, pasos: newPasos };
+                        setSelectedTask(updatedTask);
+                        handleUpdateTask(updatedTask);
+                      }}
+                      className="w-full"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Añadir paso
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Recursos necesarios */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Recursos necesarios</label>
+                  <div className="space-y-2">
+                    {(selectedTask.recursos || []).map((item, index) => (
+                      <div key={item.id} className="flex items-center gap-2">
+                        <Link className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                        <Input
+                          value={item.name}
+                          onChange={(e) => {
+                            const newRecursos = [...(selectedTask.recursos || [])];
+                            newRecursos[index] = { ...item, name: e.target.value };
+                            const updatedTask = { ...selectedTask, recursos: newRecursos };
+                            setSelectedTask(updatedTask);
+                            handleUpdateTask(updatedTask);
+                          }}
+                          className="flex-1 text-sm"
+                          placeholder="Nombre del recurso..."
+                        />
+                        <Input
+                          value={item.url}
+                          onChange={(e) => {
+                            const newRecursos = [...(selectedTask.recursos || [])];
+                            newRecursos[index] = { ...item, url: e.target.value };
+                            const updatedTask = { ...selectedTask, recursos: newRecursos };
+                            setSelectedTask(updatedTask);
+                            handleUpdateTask(updatedTask);
+                          }}
+                          className="flex-1 text-sm"
+                          placeholder="URL..."
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newRecursos = (selectedTask.recursos || []).filter((_, i) => i !== index);
+                            const updatedTask = { ...selectedTask, recursos: newRecursos };
+                            setSelectedTask(updatedTask);
+                            handleUpdateTask(updatedTask);
+                          }}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newItem = { id: Date.now().toString(), name: "", url: "" };
+                        const newRecursos = [...(selectedTask.recursos || []), newItem];
+                        const updatedTask = { ...selectedTask, recursos: newRecursos };
+                        setSelectedTask(updatedTask);
+                        handleUpdateTask(updatedTask);
+                      }}
+                      className="w-full"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Añadir recurso
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Dependencias */}
+                <div className="space-y-4">
+                  <label className="text-sm font-medium">Dependencias</label>
+                  
+                  {/* Bloqueada por */}
+                  <div className="space-y-2">
+                    <label className="text-xs text-muted-foreground">Bloqueada por:</label>
+                    <Select 
+                      value="" 
+                      onValueChange={(value) => {
+                        if (value && !selectedTask.bloqueadaPor?.includes(value)) {
+                          const newBlocked = [...(selectedTask.bloqueadaPor || []), value];
+                          const updatedTask = { ...selectedTask, bloqueadaPor: newBlocked };
+                          setSelectedTask(updatedTask);
+                          handleUpdateTask(updatedTask);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar tarea..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tasks.filter(t => t.id !== selectedTask.id).map(task => (
+                          <SelectItem key={task.id} value={task.id}>
+                            {task.nombre} ({task.etapa})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex flex-wrap gap-1">
+                      {(selectedTask.bloqueadaPor || []).map(taskId => {
+                        const blockingTask = tasks.find(t => t.id === taskId);
+                        return blockingTask ? (
+                          <Badge 
+                            key={taskId} 
+                            variant={blockingTask.estado === "completada" ? "default" : "destructive"}
+                            className="text-xs"
+                          >
+                            {blockingTask.nombre}
+                            <button
+                              onClick={() => {
+                                const newBlocked = (selectedTask.bloqueadaPor || []).filter(id => id !== taskId);
+                                const updatedTask = { ...selectedTask, bloqueadaPor: newBlocked };
+                                setSelectedTask(updatedTask);
+                                handleUpdateTask(updatedTask);
+                              }}
+                              className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                            >
+                              ×
+                            </button>
+                          </Badge>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Bloquea a */}
+                  <div className="space-y-2">
+                    <label className="text-xs text-muted-foreground">Bloquea a:</label>
+                    <Select 
+                      value="" 
+                      onValueChange={(value) => {
+                        if (value && !selectedTask.bloqueaA?.includes(value)) {
+                          const newBlocks = [...(selectedTask.bloqueaA || []), value];
+                          const updatedTask = { ...selectedTask, bloqueaA: newBlocks };
+                          setSelectedTask(updatedTask);
+                          handleUpdateTask(updatedTask);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar tarea..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tasks.filter(t => t.id !== selectedTask.id).map(task => (
+                          <SelectItem key={task.id} value={task.id}>
+                            {task.nombre} ({task.etapa})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex flex-wrap gap-1">
+                      {(selectedTask.bloqueaA || []).map(taskId => {
+                        const blockedTask = tasks.find(t => t.id === taskId);
+                        return blockedTask ? (
+                          <Badge key={taskId} variant="secondary" className="text-xs">
+                            {blockedTask.nombre}
+                            <button
+                              onClick={() => {
+                                const newBlocks = (selectedTask.bloqueaA || []).filter(id => id !== taskId);
+                                const updatedTask = { ...selectedTask, bloqueaA: newBlocks };
+                                setSelectedTask(updatedTask);
+                                handleUpdateTask(updatedTask);
+                              }}
+                              className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                            >
+                              ×
+                            </button>
+                          </Badge>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Botones de acción */}
               <div className="space-y-3 pt-4 border-t">
                 <Button 
                   className="w-full" 
-                  onClick={() => {
-                    const updatedTask = { ...selectedTask, estado: "completada" };
-                    setSelectedTask(updatedTask);
-                    handleUpdateTask(updatedTask);
-                  }}
+                  onClick={() => handleCompleteTask(selectedTask)}
                   disabled={selectedTask.estado === "completada"}
                 >
                   <Check className="w-4 h-4 mr-2" />
@@ -1222,6 +1551,45 @@ export default function ProjectDetail() {
           </SheetContent>
         </Sheet>
       )}
+
+      {/* Blocked Dependencies Dialog */}
+      <AlertDialog open={showBlockedDialog} onOpenChange={setShowBlockedDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-500" />
+              Tarea con dependencias pendientes
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta tarea está bloqueada por las siguientes tareas que aún no están completadas:
+              <ul className="mt-2 list-disc list-inside">
+                {selectedTask?.bloqueadaPor?.map(taskId => {
+                  const blockingTask = tasks.find(t => t.id === taskId && t.estado !== "completada");
+                  return blockingTask ? (
+                    <li key={taskId} className="text-sm">
+                      <strong>{blockingTask.nombre}</strong> ({blockingTask.estado})
+                    </li>
+                  ) : null;
+                })}
+              </ul>
+              <p className="mt-2">¿Estás seguro de que quieres marcarla como completada de todas formas?</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                const updatedTask = { ...selectedTask, estado: "completada" };
+                setSelectedTask(updatedTask);
+                handleUpdateTask(updatedTask);
+                setShowBlockedDialog(false);
+              }}
+            >
+              Completar de todas formas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
