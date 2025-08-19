@@ -36,7 +36,9 @@ import {
   Utensils,
   Bed,
   DollarSign,
-  File
+  File,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 
 interface Budget {
@@ -132,6 +134,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetData, setBudgetData] = useState(budget);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [newItem, setNewItem] = useState<Partial<BudgetItem>>({
     category: '',
     subcategory: '',
@@ -448,10 +451,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] h-full overflow-hidden p-0">
+      <DialogContent className={`${isFullscreen ? 'max-w-screen w-screen max-h-screen h-screen' : 'max-w-[95vw] w-full max-h-[95vh] h-full'} overflow-hidden p-0`}>
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="bg-gradient-accent text-white p-6 flex-shrink-0">
+          <div className="bg-black text-white p-6 flex-shrink-0">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 {editingBudget ? (
@@ -574,6 +577,14 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 )}
               </div>
               <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => setIsFullscreen(!isFullscreen)} 
+                  className="bg-white/10 hover:bg-white/20 text-white border-white/20"
+                >
+                  {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </Button>
                 {!editingBudget && (
                   <>
                     <Button size="sm" variant="outline" onClick={() => setEditingBudget(true)} className="bg-white/10 hover:bg-white/20 text-white border-white/20">
@@ -616,7 +627,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 {/* Professional Budget Table */}
                 <div className="card-moodita overflow-hidden h-full flex flex-col">
                   {/* Table Header */}
-                  <div className="bg-gradient-primary text-white p-4 flex-shrink-0">
+                  <div className="bg-black text-white p-4 flex-shrink-0">
                     <div className="text-center">
                       <h2 className="text-lg font-bold">{budgetData.name}</h2>
                       <p className="text-white/90 text-sm">
@@ -627,7 +638,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   </div>
 
                   {/* Scrollable Table Content */}
-                  <div className="flex-1 overflow-auto">
+                  <div className="flex-1 overflow-y-auto" style={{ scrollBehavior: 'smooth' }}>
                     <Table className="text-sm">
                       <TableHeader className="sticky top-0 bg-muted/50 backdrop-blur-sm border-b-2">
                         <TableRow>
@@ -656,7 +667,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                           return (
                             <React.Fragment key={categoryKey}>
                               {/* Category Header */}
-                              <TableRow className="bg-gradient-primary hover:bg-gradient-primary">
+                              <TableRow className="bg-black hover:bg-black">
                                 <TableCell colSpan={14} className="font-bold text-white text-center py-3">
                                   <div className="flex items-center justify-center gap-3">
                                     <IconComponent className="w-5 h-5" />
