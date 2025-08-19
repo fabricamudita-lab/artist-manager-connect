@@ -50,6 +50,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
     // Campo libre para tipo "otro"
     descripcion_libre: '',
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
 
   const resetForm = () => {
     setStep(1);
@@ -74,6 +75,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
       oferta: '',
       descripcion_libre: '',
     });
+    setFieldErrors({});
   };
 
   // Función para extraer contenido clave del texto
@@ -190,14 +192,23 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    const errors: Record<string, boolean> = {};
+    
     if (!formData.tipo) {
+      errors.tipo = true;
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       toast({
         title: "Error",
-        description: "Por favor selecciona el tipo de solicitud.",
+        description: "Por favor completa todos los campos obligatorios marcados en rojo.",
         variant: "destructive",
       });
       return;
     }
+    
+    setFieldErrors({});
 
     // Generar automáticamente el asunto si no hay nombre_solicitante o está vacío
     const generatedSubject = generateSubject();
@@ -205,7 +216,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
 
     try {
       const solicitudData = {
-        tipo: formData.tipo,
+        tipo: formData.tipo as 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro',
         nombre_solicitante: finalNombreSolicitante,
         email: formData.email || null,
         telefono: formData.telefono || null,
@@ -243,7 +254,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
 
       const { error } = await supabase
         .from('solicitudes')
-        .insert([solicitudData]);
+        .insert(solicitudData);
 
       if (error) throw error;
 
@@ -268,14 +279,20 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
   const renderStep1 = () => (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="tipo">Tipo de Solicitud *</Label>
+        <Label htmlFor="tipo" className={fieldErrors.tipo ? "text-destructive" : ""}>
+          Tipo de Solicitud *
+          {fieldErrors.tipo && <span className="text-xs block text-destructive mt-1">Campo obligatorio</span>}
+        </Label>
         <Select
           value={formData.tipo}
-          onValueChange={(value: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro') => 
-            setFormData({ ...formData, tipo: value })
-          }
+          onValueChange={(value: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro') => {
+            setFormData({ ...formData, tipo: value });
+            if (fieldErrors.tipo) {
+              setFieldErrors(prev => ({ ...prev, tipo: false }));
+            }
+          }}
         >
-          <SelectTrigger>
+          <SelectTrigger className={fieldErrors.tipo ? "border-destructive ring-destructive" : ""}>
             <SelectValue placeholder="Selecciona el tipo de solicitud" />
           </SelectTrigger>
           <SelectContent>

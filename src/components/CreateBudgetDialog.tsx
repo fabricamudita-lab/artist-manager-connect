@@ -59,6 +59,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
   });
   const [showFromTemplate, setShowFromTemplate] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
 
   const handleTypeSelection = (type: string) => {
     setSelectedType(type);
@@ -70,7 +71,18 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
   };
 
   const handleSubmit = async () => {
-    if (!selectedType || !formData.name.trim()) {
+    const errors: Record<string, boolean> = {};
+    
+    if (!selectedType) {
+      errors.selectedType = true;
+    }
+    
+    if (!formData.name.trim()) {
+      errors.name = true;
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       toast({
         title: "Error",
         description: "Por favor, completa los campos obligatorios",
@@ -78,6 +90,8 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
       });
       return;
     }
+    
+    setFieldErrors({});
 
     setLoading(true);
     try {
@@ -120,6 +134,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
       // Reset form
       setStep(1);
       setSelectedType('');
+      setFieldErrors({});
       setFormData({
         name: '',
         city: '',
@@ -158,6 +173,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
   const handleClose = () => {
     setStep(1);
     setSelectedType('');
+    setFieldErrors({});
     setFormData({
       name: '',
       city: '',
@@ -238,12 +254,21 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <Label htmlFor="name">Nombre del evento *</Label>
+                <Label htmlFor="name" className={fieldErrors.name ? "text-destructive" : ""}>
+                  Nombre del evento *
+                  {fieldErrors.name && <span className="text-xs block text-destructive mt-1">Campo obligatorio</span>}
+                </Label>
                 <Input
                   id="name"
                   placeholder="Ej. 12.07.2025 – Barcelona – Festival Alma"
                   value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  onChange={(e) => {
+                    handleInputChange('name', e.target.value);
+                    if (fieldErrors.name) {
+                      setFieldErrors(prev => ({ ...prev, name: false }));
+                    }
+                  }}
+                  className={fieldErrors.name ? "border-destructive ring-destructive" : ""}
                 />
               </div>
 

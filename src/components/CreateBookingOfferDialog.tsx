@@ -45,11 +45,13 @@ export function CreateBookingOfferDialog({
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (open) {
       setFormData({});
       setValidationResult(null);
+      setFieldErrors({});
     }
   }, [open]);
 
@@ -71,10 +73,34 @@ export function CreateBookingOfferDialog({
   const resetForm = () => {
     setFormData({});
     setValidationResult(null);
+    setFieldErrors({});
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check required fields and mark errors
+    const errors: Record<string, boolean> = {};
+    const requiredFields = templateFields.filter(field => field.is_required);
+    
+    requiredFields.forEach(field => {
+      const value = formData[field.field_name];
+      if (!value || (typeof value === 'string' && !value.trim())) {
+        errors[field.field_name] = true;
+      }
+    });
+    
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      toast({
+        title: "Campos obligatorios",
+        description: "Por favor, completa todos los campos obligatorios marcados en rojo.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setFieldErrors({});
     
     // Validate before submission
     const validation = await validateBookingOffer(formData, true);
@@ -136,6 +162,15 @@ export function CreateBookingOfferDialog({
 
   const renderField = (field: TemplateField) => {
     const value = formData[field.field_name] || '';
+    const hasError = fieldErrors[field.field_name];
+    const errorClass = hasError ? "border-destructive ring-destructive" : "";
+
+    const handleChange = (newValue: string | number) => {
+      setFormData({ ...formData, [field.field_name]: newValue });
+      if (hasError) {
+        setFieldErrors(prev => ({ ...prev, [field.field_name]: false }));
+      }
+    };
 
     switch (field.field_type) {
       case 'textarea':
@@ -143,9 +178,10 @@ export function CreateBookingOfferDialog({
           <Textarea
             id={field.field_name}
             value={value}
-            onChange={(e) => setFormData({ ...formData, [field.field_name]: e.target.value })}
+            onChange={(e) => handleChange(e.target.value)}
             placeholder={`Ingresa ${field.field_label.toLowerCase()}`}
             rows={3}
+            className={errorClass}
           />
         );
 
@@ -154,7 +190,7 @@ export function CreateBookingOfferDialog({
           return (
             <BookingStatusCombobox
               value={value}
-              onValueChange={(newValue) => setFormData({ ...formData, [field.field_name]: newValue })}
+              onValueChange={(newValue) => handleChange(newValue)}
               placeholder={`Selecciona ${field.field_label.toLowerCase()}`}
             />
           );
@@ -163,7 +199,7 @@ export function CreateBookingOfferDialog({
           return (
             <FormatoCombobox
               value={value}
-              onValueChange={(newValue) => setFormData({ ...formData, [field.field_name]: newValue })}
+              onValueChange={(newValue) => handleChange(newValue)}
               placeholder={`Ingresa ${field.field_label.toLowerCase()}`}
             />
           );
@@ -172,9 +208,9 @@ export function CreateBookingOfferDialog({
         return (
           <Select
             value={value}
-            onValueChange={(newValue) => setFormData({ ...formData, [field.field_name]: newValue })}
+            onValueChange={(newValue) => handleChange(newValue)}
           >
-            <SelectTrigger>
+            <SelectTrigger className={errorClass}>
               <SelectValue placeholder={`Selecciona ${field.field_label.toLowerCase()}`} />
             </SelectTrigger>
             <SelectContent>
@@ -193,8 +229,9 @@ export function CreateBookingOfferDialog({
             id={field.field_name}
             type="number"
             value={value}
-            onChange={(e) => setFormData({ ...formData, [field.field_name]: parseInt(e.target.value) || '' })}
+            onChange={(e) => handleChange(parseInt(e.target.value) || '')}
             placeholder={`Ingresa ${field.field_label.toLowerCase()}`}
+            className={errorClass}
           />
         );
 
@@ -204,7 +241,8 @@ export function CreateBookingOfferDialog({
             id={field.field_name}
             type="date"
             value={value}
-            onChange={(e) => setFormData({ ...formData, [field.field_name]: e.target.value })}
+            onChange={(e) => handleChange(e.target.value)}
+            className={errorClass}
           />
         );
 
@@ -214,7 +252,8 @@ export function CreateBookingOfferDialog({
             id={field.field_name}
             type="time"
             value={value}
-            onChange={(e) => setFormData({ ...formData, [field.field_name]: e.target.value })}
+            onChange={(e) => handleChange(e.target.value)}
+            className={errorClass}
           />
         );
 
@@ -224,8 +263,9 @@ export function CreateBookingOfferDialog({
             id={field.field_name}
             type="url"
             value={value}
-            onChange={(e) => setFormData({ ...formData, [field.field_name]: e.target.value })}
+            onChange={(e) => handleChange(e.target.value)}
             placeholder={`https://ejemplo.com`}
+            className={errorClass}
           />
         );
 
@@ -234,8 +274,9 @@ export function CreateBookingOfferDialog({
           <Input
             id={field.field_name}
             value={value}
-            onChange={(e) => setFormData({ ...formData, [field.field_name]: e.target.value })}
+            onChange={(e) => handleChange(e.target.value)}
             placeholder={`Ingresa ${field.field_label.toLowerCase()}`}
+            className={errorClass}
           />
         );
     }
@@ -300,11 +341,17 @@ export function CreateBookingOfferDialog({
             <CardContent className="space-y-4">
               {templateFields.map((field) => (
                 <div key={field.id} className="space-y-2">
-                  <Label htmlFor={field.field_name}>
+                  <Label 
+                    htmlFor={field.field_name}
+                    className={fieldErrors[field.field_name] ? "text-destructive" : ""}
+                  >
                     {field.field_label}
                     {field.is_required && <span className="text-red-500 ml-1">*</span>}
+                    {fieldErrors[field.field_name] && <span className="text-xs block text-destructive mt-1">Campo obligatorio</span>}
                   </Label>
-                  {renderField(field)}
+                  <div className={fieldErrors[field.field_name] ? "has-error" : ""}>
+                    {renderField(field)}
+                  </div>
                 </div>
               ))}
             </CardContent>
