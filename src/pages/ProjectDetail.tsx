@@ -142,10 +142,52 @@ export default function ProjectDetail() {
     }
   ]);
 
-  // Filter state
+  // Filter state - will be initialized after user and project are loaded
   const [activeFilters, setActiveFilters] = useState(new Set([
     "pendiente", "en_progreso", "completada", "bloqueada", "cancelada"
   ]));
+
+  // Get filter storage key
+  const getFilterStorageKey = () => {
+    if (!profile?.user_id || !id) return null;
+    return `checklist_filters_${profile.user_id}_${id}`;
+  };
+
+  // Save filters to localStorage
+  const saveFiltersToStorage = (filters: Set<string>) => {
+    const key = getFilterStorageKey();
+    if (key) {
+      localStorage.setItem(key, JSON.stringify([...filters]));
+    }
+  };
+
+  // Load filters from localStorage
+  const loadFiltersFromStorage = () => {
+    const key = getFilterStorageKey();
+    if (key) {
+      try {
+        const saved = localStorage.getItem(key);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return new Set(parsed);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading filters from storage:', error);
+      }
+    }
+    // Default filters if nothing saved or error
+    return new Set(["pendiente", "en_progreso", "completada", "bloqueada", "cancelada"]);
+  };
+
+  // Load filters when user and project are available
+  useEffect(() => {
+    if (profile?.user_id && id) {
+      const savedFilters = loadFiltersFromStorage();
+      setActiveFilters(savedFilters);
+    }
+  }, [profile?.user_id, id]);
 
   // Helper function to get status icon
   const getStatusIcon = (estado) => {
@@ -554,6 +596,7 @@ export default function ProjectDetail() {
                       newFilters.add(status.id);
                     }
                     setActiveFilters(newFilters);
+                    saveFiltersToStorage(newFilters);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -565,6 +608,7 @@ export default function ProjectDetail() {
                         newFilters.add(status.id);
                       }
                       setActiveFilters(newFilters);
+                      saveFiltersToStorage(newFilters);
                     }
                   }}
                   className={`
@@ -586,7 +630,11 @@ export default function ProjectDetail() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setActiveFilters(new Set(["pendiente", "en_progreso", "completada", "bloqueada", "cancelada"]))}
+              onClick={() => {
+                const defaultFilters = new Set(["pendiente", "en_progreso", "completada", "bloqueada", "cancelada"]);
+                setActiveFilters(defaultFilters);
+                saveFiltersToStorage(defaultFilters);
+              }}
               className="text-xs"
             >
               Limpiar
