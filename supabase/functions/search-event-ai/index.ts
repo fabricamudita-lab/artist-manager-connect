@@ -85,7 +85,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 // Search event index with hybrid approach
-async function searchEventIndex(eventId: string, query: string, topK = 8, minScore = 0.35) {
+async function searchEventIndex(eventId: string, query: string, topK = 8, minScore = 0.35, scope?: string) {
   try {
     // Check index status
     const { data: indexStatus } = await supabase
@@ -103,11 +103,18 @@ async function searchEventIndex(eventId: string, query: string, topK = 8, minSco
     }
 
     // Get all processed document fragments
-    const { data: documents, error } = await supabase
+    let query_builder = supabase
       .from('event_document_index')
       .select('*')
       .eq('event_id', eventId)
       .not('embedding_data', 'is', null);
+
+    // Apply scope filter if provided
+    if (scope) {
+      query_builder = query_builder.ilike('subfolder', `%${scope.replace('/', '')}%`);
+    }
+
+    const { data: documents, error } = await query_builder;
 
     if (error) {
       console.error('Error fetching documents:', error);
@@ -117,7 +124,7 @@ async function searchEventIndex(eventId: string, query: string, topK = 8, minSco
     if (!documents || documents.length === 0) {
       return {
         results: [],
-        message: 'No consta en los archivos del evento.'
+        message: scope ? `No hay documentos en ${scope} para buscar.` : 'No consta en los archivos del evento.'
       };
     }
 
@@ -258,6 +265,84 @@ function getFileType(fileName: string): string {
   }
 }
 
+// Generate specialized payment response
+async function generatePaymentResponse(searchResults: any[], citeSources = true) {
+  if (!openAIApiKey) {
+    return {
+      response: "OpenAI API no está configurada. No puedo generar respuestas.",
+      sources: []
+    };
+  }
+
+  try {
+    // Prepare context from search results
+    const context = searchResults.map((result, index) => 
+      `[${index + 1}] ${result.file_name} (página ${result.page_number || 'N/A'}): ${result.content_fragment}`
+    ).join('\n\n');
+
+    const systemPrompt = `Eres un asistente especializado en análisis de contratos musicales. 
+Tu tarea es extraer información específica sobre la forma de pago del contenido proporcionado.
+
+INFORMACIÓN A EXTRAER:
+1. **Esquema de pago**: Porcentajes y fechas (ej: "50% al firmar, 50% el día de la actuación")
+2. **Método de pago**: Transferencia bancaria, efectivo, cheque, etc.
+3. **IBAN**: Si aparece algún número de cuenta bancaria
+
+FORMATO DE RESPUESTA:
+• **Esquema de pago:** [porcentaje/fecha]
+• **Método:** [transferencia/efectivo/etc]
+• **IBAN:** [si aparece, o "No especificado"]
+
+REGLAS:
+- Responde en formato de bullets como se muestra arriba
+- Si no encuentras algún dato, pon "No especificado"
+- Extrae texto literal del contrato cuando sea posible
+- Se breve y preciso`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Contexto del contrato:\n${context}\n\nExtrae la información de forma de pago:` }
+        ],
+        temperature: 0.1,
+        max_tokens: 300
+      }),
+    });
+
+    const data = await response.json();
+    const aiResponse = data.choices[0]?.message?.content || 'No pude extraer información de pago.';
+
+    // Prepare sources if citation is enabled
+    const sources = citeSources ? searchResults.map(result => ({
+      fileName: result.file_name,
+      subfolder: result.subfolder,
+      pageNumber: result.page_number,
+      confidence: Math.round(result.score * 100),
+      type: getFileType(result.file_name),
+      filePath: result.file_path,
+      content: result.content_fragment.substring(0, 200) + '...'
+    })) : [];
+
+    return {
+      response: aiResponse,
+      sources
+    };
+  } catch (error) {
+    console.error('Error generating payment response:', error);
+    return {
+      response: 'Error al extraer información de pago. Por favor, inténtalo de nuevo.',
+      sources: []
+    };
+  }
+}
+
 // Handle quick start chips
 function handleQuickStartQuery(chip: string, eventData: any) {
   switch (chip) {
@@ -302,6 +387,10 @@ function handleQuickStartQuery(chip: string, eventData: any) {
         isQuickStart: true
       };
     
+    case "Forma de pago":
+      // This is handled as a special contract search, not a quick start
+      return null;
+    
     default:
       return null;
   }
@@ -313,7 +402,7 @@ serve(async (req) => {
   }
 
   try {
-    const { eventId, query, topK = 8, minScore = 0.35, citeSources = false, eventData } = await req.json();
+    const { eventId, query, topK = 8, minScore = 0.35, citeSources = false, eventData, scope } = await req.json();
 
     if (!eventId || !query) {
       return new Response(
@@ -331,8 +420,37 @@ serve(async (req) => {
       );
     }
 
-    // Perform search
-    const searchResults = await searchEventIndex(eventId, query, topK, minScore);
+    // Handle special "Forma de pago" query
+    if (query === "Forma de pago") {
+      const paymentPatterns = [
+        "forma de pago", "pago", "transferencia", "iban", "cuenta", 
+        "%", "día de la actuación"
+      ];
+      
+      const paymentQuery = paymentPatterns.join(" ");
+      const searchResults = await searchEventIndex(eventId, paymentQuery, 6, 0.25, "/Contrato");
+      
+      if (searchResults.results && searchResults.results.length > 0) {
+        // Extract payment information from results
+        const aiResult = await generatePaymentResponse(searchResults.results, true);
+        
+        return new Response(
+          JSON.stringify(aiResult),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({
+            response: '❌ **No encuentro información de forma de pago en el contrato**\n\nNo he encontrado detalles sobre el método de pago en el contrato. Te recomiendo:\n• Reindexa los documentos\n• Sube el documento del contrato si falta',
+            sources: []
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Perform regular search
+    const searchResults = await searchEventIndex(eventId, query, topK, minScore, scope);
     
     if (searchResults.error) {
       return new Response(

@@ -712,6 +712,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
     "Fecha, ciudad y formato",
     "¿Hay contrato y condiciones clave?",
     "Resumen económico (oferta + IVA)",
+    "Forma de pago",
     "Tareas pendientes antes del show"
   ];
 
