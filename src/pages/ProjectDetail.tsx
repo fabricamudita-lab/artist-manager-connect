@@ -582,11 +582,19 @@ export default function ProjectDetail() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
                 <Filter className="w-4 h-4" />
-                Filtrar estados
+                {activeFilters.size === 5 
+                  ? "Todos los estados" 
+                  : activeFilters.size === 1
+                    ? `1 estado activo`
+                    : `${activeFilters.size} estados activos`
+                }
                 <ChevronDown className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              <div className="px-2 py-1 text-xs text-muted-foreground border-b mb-1">
+                Selecciona múltiples estados
+              </div>
               {[
                 { id: "pendiente", label: "Pendientes" },
                 { id: "en_progreso", label: "En progreso" },
