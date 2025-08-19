@@ -623,9 +623,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 </TabsList>
               </div>
 
-              <TabsContent value="items" className="flex-1 overflow-hidden p-6 space-y-6">
+              <TabsContent value="items" className="flex-1 overflow-hidden p-0 m-0">
                 {/* Professional Budget Table */}
-                <div className="card-moodita overflow-hidden h-full flex flex-col">
+                <div className="h-full flex flex-col">
                   {/* Table Header */}
                   <div className="bg-black text-white p-4 flex-shrink-0">
                     <div className="text-center">
@@ -638,7 +638,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   </div>
 
                   {/* Scrollable Table Content */}
-                  <div className="flex-1 overflow-y-auto" style={{ scrollBehavior: 'smooth' }}>
+                  <div className="flex-1 overflow-y-auto overflow-x-auto p-4">
                     <Table className="text-sm">
                       <TableHeader className="sticky top-0 bg-muted/50 backdrop-blur-sm border-b-2">
                         <TableRow>
