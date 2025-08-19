@@ -32,9 +32,10 @@ import {
   CheckCircle2,
   AlertCircle,
   ChevronDown,
-  ListTodo
+  ListTodo,
+  Filter
 } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -576,70 +577,52 @@ export default function ProjectDetail() {
             Checklist
           </CardTitle>
           
-          {/* Filter bar */}
-          <div className="flex items-center gap-2">
-            <div className="flex flex-wrap gap-1">
+          {/* Filter dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Filter className="w-4 h-4" />
+                Filtrar estados
+                <ChevronDown className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
               {[
-                { id: "pendiente", emoji: "⬜", label: "Pendiente" },
-                { id: "en_progreso", emoji: "🟨", label: "En progreso" },
-                { id: "completada", emoji: "🟩", label: "Completada" },
-                { id: "bloqueada", emoji: "🟥", label: "Bloqueada" },
-                { id: "cancelada", emoji: "⬛", label: "Cancelada" }
+                { id: "pendiente", label: "Pendientes" },
+                { id: "en_progreso", label: "En progreso" },
+                { id: "completada", label: "Completadas" },
+                { id: "bloqueada", label: "Bloqueadas" },
+                { id: "cancelada", label: "Canceladas" }
               ].map(status => (
-                <button
+                <DropdownMenuCheckboxItem
                   key={status.id}
-                  onClick={() => {
+                  checked={activeFilters.has(status.id)}
+                  onCheckedChange={(checked) => {
                     const newFilters = new Set(activeFilters);
-                    if (newFilters.has(status.id)) {
-                      newFilters.delete(status.id);
-                    } else {
+                    if (checked) {
                       newFilters.add(status.id);
+                    } else {
+                      newFilters.delete(status.id);
                     }
                     setActiveFilters(newFilters);
                     saveFiltersToStorage(newFilters);
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      const newFilters = new Set(activeFilters);
-                      if (newFilters.has(status.id)) {
-                        newFilters.delete(status.id);
-                      } else {
-                        newFilters.add(status.id);
-                      }
-                      setActiveFilters(newFilters);
-                      saveFiltersToStorage(newFilters);
-                    }
-                  }}
-                  className={`
-                    px-2 py-1 rounded-md text-sm transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
-                    ${activeFilters.has(status.id) 
-                      ? 'bg-accent text-accent-foreground border border-border' 
-                      : 'bg-muted/50 text-muted-foreground border border-transparent hover:bg-muted'
-                    }
-                  `}
-                  aria-label={`${activeFilters.has(status.id) ? 'Desactivar' : 'Activar'} filtro ${status.label}`}
-                  role="checkbox"
-                  aria-checked={activeFilters.has(status.id)}
-                  tabIndex={0}
                 >
-                  {status.emoji}
-                </button>
+                  {status.label}
+                </DropdownMenuCheckboxItem>
               ))}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const defaultFilters = new Set(["pendiente", "en_progreso", "completada", "bloqueada", "cancelada"]);
-                setActiveFilters(defaultFilters);
-                saveFiltersToStorage(defaultFilters);
-              }}
-              className="text-xs"
-            >
-              Limpiar
-            </Button>
-          </div>
+              <DropdownMenuItem
+                onClick={() => {
+                  const defaultFilters = new Set(["pendiente", "en_progreso", "completada", "bloqueada", "cancelada"]);
+                  setActiveFilters(defaultFilters);
+                  saveFiltersToStorage(defaultFilters);
+                }}
+                className="border-t mt-1 pt-1"
+              >
+                Seleccionar todos
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </CardHeader>
         <CardContent>
           <Accordion type="multiple" className="w-full">
