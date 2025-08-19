@@ -578,6 +578,17 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
     return null;
   };
 
+  // Helper function to detect contract-related intentions
+  const detectContractIntention = (query: string): boolean => {
+    const contractKeywords = [
+      'contrato', 'forma de pago', 'pagos', 'transferencia', 'iban', 
+      'cancelación', 'penalización', 'hospitality', 'backline'
+    ];
+    
+    const lowerQuery = query.toLowerCase().trim();
+    return contractKeywords.some(keyword => lowerQuery.includes(keyword));
+  };
+
   const handleSendMessage = async () => {
     if (!aiMessage.trim() || isAiLoading) return;
     
@@ -623,13 +634,17 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
         return;
       }
 
+      // Check if it's a contract-related query
+      const isContractQuery = detectContractIntention(userMessage);
+      
       // If not a simple intention, search the document index
       const { data, error } = await supabase.functions.invoke('search-event-ai', {
         body: {
           eventId: offer?.id,
           query: userMessage,
-          citeSources,
-          topK: 8
+          citeSources: isContractQuery ? true : citeSources, // Always cite sources for contract queries
+          topK: isContractQuery ? 6 : 8,
+          scope: isContractQuery ? '/Contrato' : undefined
         }
       });
 
@@ -644,10 +659,14 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
       if (data.sources && data.sources.length > 0) {
         // We have results from the document index
         responseContent = data.response;
-        sources = citeSources ? data.sources : [];
+        sources = (isContractQuery ? true : citeSources) ? data.sources : [];
       } else {
         // No results found in document index
-        responseContent = '❌ **No consta en los archivos del evento.**\n\nNo he encontrado información sobre esa consulta en los documentos indexados de este evento.';
+        if (isContractQuery) {
+          responseContent = '❌ **No encuentro esa cláusula en el contrato**\n\nNo he encontrado información sobre esa consulta en el contrato. Te recomiendo:\n• Reindexa los documentos\n• Sube el documento del contrato si falta';
+        } else {
+          responseContent = '❌ **No consta en los archivos del evento.**\n\nNo he encontrado información sobre esa consulta en los documentos indexados de este evento.';
+        }
       }
 
       // Add assistant response to conversation
