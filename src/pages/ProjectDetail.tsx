@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,7 @@ export default function ProjectDetail() {
   const [openSolicitud, setOpenSolicitud] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [openAddTask, setOpenAddTask] = useState(false);
+  const [currentStage, setCurrentStage] = useState<"PREPARATIVOS" | "PRODUCCIÓN" | "CIERRE" | null>(null);
 
   // Tasks state
   const [tasks, setTasks] = useState([
@@ -170,7 +172,10 @@ export default function ProjectDetail() {
       return (
         <div className="text-center py-8">
           <p className="text-sm text-muted-foreground mb-4">No hay tareas en esta etapa</p>
-          <Button variant="secondary" size="sm" onClick={() => setOpenAddTask(true)}>
+          <Button variant="secondary" size="sm" onClick={() => {
+            setCurrentStage(etapa);
+            setOpenAddTask(true);
+          }}>
             <Plus className="w-4 h-4 mr-2" />
             Añadir tarea
           </Button>
@@ -195,13 +200,25 @@ export default function ProjectDetail() {
           </div>
         ))}
         <div className="pt-2">
-          <Button variant="secondary" size="sm" onClick={() => setOpenAddTask(true)}>
+          <Button variant="secondary" size="sm" onClick={() => {
+            setCurrentStage(etapa);
+            setOpenAddTask(true);
+          }}>
             <Plus className="w-4 h-4 mr-2" />
             Añadir tarea
           </Button>
         </div>
       </div>
     );
+  };
+
+  // Task creation function
+  const handleCreateTask = (taskData: any) => {
+    const newTask = {
+      ...taskData,
+      id: Date.now().toString() // Simple ID generation for now
+    };
+    setTasks(prevTasks => [...prevTasks, newTask]);
   };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -782,17 +799,14 @@ export default function ProjectDetail() {
         />
       )}
 
-      {/* Add Task Dialog */}
-      <Dialog open={openAddTask} onOpenChange={setOpenAddTask}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Añadir tarea</DialogTitle>
-            <DialogDescription>
-              Funcionalidad próximamente disponible.
-            </DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
+      {/* Create Task Dialog */}
+      <CreateTaskDialog
+        open={openAddTask}
+        onOpenChange={setOpenAddTask}
+        etapa={currentStage}
+        onCreateTask={handleCreateTask}
+        teamMembers={team}
+      />
     </div>
   );
 }
