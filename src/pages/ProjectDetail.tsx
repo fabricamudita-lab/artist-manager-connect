@@ -48,6 +48,7 @@ import {
   X,
   Link,
 } from "lucide-react";
+import { MessageSquare, Activity, Send } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -86,6 +87,7 @@ export default function ProjectDetail() {
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const [showBlockedDialog, setShowBlockedDialog] = useState(false);
+  const [newComment, setNewComment] = useState("");
 
   // Tasks state
   const [tasks, setTasks] = useState([
@@ -329,7 +331,11 @@ export default function ProjectDetail() {
       pasos: [],
       recursos: [],
       bloqueadaPor: [],
-      bloqueaA: []
+      bloqueaA: [],
+      brief: "",
+      riesgos: [],
+      comentarios: [],
+      actividad: []
     };
     setTasks(prevTasks => [...prevTasks, newTask]);
   };
@@ -361,7 +367,19 @@ export default function ProjectDetail() {
       pasos: task.pasos?.map(item => ({ ...item, id: Date.now() + Math.random() })) || [],
       recursos: task.recursos?.map(item => ({ ...item, id: Date.now() + Math.random() })) || [],
       bloqueadaPor: [],
-      bloqueaA: []
+      bloqueaA: [],
+      brief: task.brief || "",
+      riesgos: task.riesgos?.map(item => ({ ...item, id: Date.now() + Math.random() })) || [],
+      comentarios: [],
+      actividad: [
+        {
+          id: Date.now().toString(),
+          type: "created",
+          description: "Tarea duplicada",
+          author: profile?.full_name || "Usuario",
+          timestamp: new Date().toISOString()
+        }
+      ]
     };
     setTasks(prevTasks => [...prevTasks, duplicatedTask]);
   };
@@ -382,9 +400,40 @@ export default function ProjectDetail() {
       setShowBlockedDialog(true);
     } else {
       const updatedTask = { ...task, estado: "completada" };
+      // Add activity log
+      const newActivity = {
+        id: Date.now().toString(),
+        type: "status_change",
+        description: `Estado cambiado de '${task.estado}' a 'completada'`,
+        author: profile?.full_name || "Usuario",
+        timestamp: new Date().toISOString()
+      };
+      updatedTask.actividad = [...(task.actividad || []), newActivity];
       setSelectedTask(updatedTask);
       handleUpdateTask(updatedTask);
     }
+  };
+
+  // Add comment function
+  const handleAddComment = () => {
+    if (!newComment.trim() || !selectedTask) return;
+    
+    const comment = {
+      id: Date.now().toString(),
+      author: profile?.full_name || "Usuario",
+      content: newComment,
+      timestamp: new Date().toISOString(),
+      mentions: [] // TODO: Extract @mentions from content
+    };
+    
+    const updatedTask = {
+      ...selectedTask,
+      comentarios: [...(selectedTask.comentarios || []), comment]
+    };
+    
+    setSelectedTask(updatedTask);
+    handleUpdateTask(updatedTask);
+    setNewComment("");
   };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1497,6 +1546,159 @@ export default function ProjectDetail() {
                 </div>
               </div>
 
+              {/* Contexto Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="text-sm font-medium">Contexto</h3>
+                
+                {/* Brief / Información adicional */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Brief / Información adicional</label>
+                  <Textarea
+                    value={selectedTask.brief || ""}
+                    onChange={(e) => {
+                      const updatedTask = { ...selectedTask, brief: e.target.value };
+                      setSelectedTask(updatedTask);
+                      handleUpdateTask(updatedTask);
+                    }}
+                    placeholder="Información adicional sobre la tarea..."
+                    rows={3}
+                  />
+                </div>
+
+                {/* Riesgos & mitigaciones */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Riesgos & mitigaciones</label>
+                  <div className="space-y-2">
+                    {(selectedTask.riesgos || []).map((item, index) => (
+                      <div key={item.id} className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                        <Input
+                          value={item.text}
+                          onChange={(e) => {
+                            const newRiesgos = [...(selectedTask.riesgos || [])];
+                            newRiesgos[index] = { ...item, text: e.target.value };
+                            const updatedTask = { ...selectedTask, riesgos: newRiesgos };
+                            setSelectedTask(updatedTask);
+                            handleUpdateTask(updatedTask);
+                          }}
+                          className="flex-1 text-sm"
+                          placeholder="Describir riesgo y mitigación..."
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newRiesgos = (selectedTask.riesgos || []).filter((_, i) => i !== index);
+                            const updatedTask = { ...selectedTask, riesgos: newRiesgos };
+                            setSelectedTask(updatedTask);
+                            handleUpdateTask(updatedTask);
+                          }}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newItem = { id: Date.now().toString(), text: "" };
+                        const newRiesgos = [...(selectedTask.riesgos || []), newItem];
+                        const updatedTask = { ...selectedTask, riesgos: newRiesgos };
+                        setSelectedTask(updatedTask);
+                        handleUpdateTask(updatedTask);
+                      }}
+                      className="w-full"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Añadir riesgo
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Comentarios */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4" />
+                    Comentarios
+                  </label>
+                  
+                  {/* Comments thread */}
+                  <div className="space-y-3 max-h-60 overflow-y-auto">
+                    {(selectedTask.comentarios || []).map((comment) => (
+                      <div key={comment.id} className="bg-muted/50 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">{comment.author}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(comment.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-sm">{comment.content}</p>
+                        {comment.mentions && comment.mentions.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {comment.mentions.map((mention, idx) => (
+                              <Badge key={idx} variant="outline" className="text-xs">
+                                @{mention}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Add comment */}
+                  <div className="flex gap-2">
+                    <Textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Escribe un comentario... (usa @nombre para mencionar)"
+                      rows={2}
+                      className="flex-1"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleAddComment}
+                      disabled={!newComment.trim()}
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Actividad */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Activity className="w-4 h-4" />
+                    Actividad
+                  </label>
+                  
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {(selectedTask.actividad || []).reverse().map((activity) => (
+                      <div key={activity.id} className="flex items-start gap-3 py-2 border-l-2 border-muted pl-3">
+                        <div className="flex-1">
+                          <p className="text-sm">{activity.description}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-muted-foreground">
+                              {activity.author}
+                            </span>
+                            <span className="text-xs text-muted-foreground">•</span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(activity.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {(!selectedTask.actividad || selectedTask.actividad.length === 0) && (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No hay actividad registrada
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Botones de acción */}
               <div className="space-y-3 pt-4 border-t">
                 <Button 
@@ -1578,12 +1780,21 @@ export default function ProjectDetail() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={() => {
-                const updatedTask = { ...selectedTask, estado: "completada" };
-                setSelectedTask(updatedTask);
-                handleUpdateTask(updatedTask);
-                setShowBlockedDialog(false);
-              }}
+                onClick={() => {
+                  const updatedTask = { ...selectedTask, estado: "completada" };
+                  // Add activity log
+                  const newActivity = {
+                    id: Date.now().toString(),
+                    type: "status_change",
+                    description: `Estado cambiado de '${selectedTask.estado}' a 'completada'`,
+                    author: profile?.full_name || "Usuario",
+                    timestamp: new Date().toISOString()
+                  };
+                  updatedTask.actividad = [...(selectedTask.actividad || []), newActivity];
+                  setSelectedTask(updatedTask);
+                  handleUpdateTask(updatedTask);
+                  setShowBlockedDialog(false);
+                }}
             >
               Completar de todas formas
             </AlertDialogAction>
