@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -448,774 +448,544 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              {editingBudget ? (
-                <div className="space-y-4">
-                  <div>
-                    <Label>Nombre del evento</Label>
-                    <Input
-                      value={budgetData.name}
-                      onChange={(e) => setBudgetData(prev => ({ ...prev, name: e.target.value }))}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] h-full overflow-hidden p-0">
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="bg-gradient-accent text-white p-6 flex-shrink-0">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                {editingBudget ? (
+                  <div className="space-y-4">
                     <div>
-                      <Label>Ciudad</Label>
+                      <Label className="text-white/90">Nombre del evento</Label>
                       <Input
-                        value={budgetData.city}
-                        onChange={(e) => setBudgetData(prev => ({ ...prev, city: e.target.value }))}
+                        value={budgetData.name}
+                        onChange={(e) => setBudgetData(prev => ({ ...prev, name: e.target.value }))}
+                        className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
                       />
                     </div>
-                    <div>
-                      <Label>País</Label>
-                      <Input
-                        value={budgetData.country}
-                        onChange={(e) => setBudgetData(prev => ({ ...prev, country: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Lugar</Label>
-                    <Input
-                      value={budgetData.venue}
-                      onChange={(e) => setBudgetData(prev => ({ ...prev, venue: e.target.value }))}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label>Fecha</Label>
-                      <Input
-                        type="date"
-                        value={budgetData.event_date?.split('T')[0] || ''}
-                        onChange={(e) => setBudgetData(prev => ({ ...prev, event_date: e.target.value }))}
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-white/90">Ciudad</Label>
+                        <Input
+                          value={budgetData.city}
+                          onChange={(e) => setBudgetData(prev => ({ ...prev, city: e.target.value }))}
+                          className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-white/90">País</Label>
+                        <Input
+                          value={budgetData.country}
+                          onChange={(e) => setBudgetData(prev => ({ ...prev, country: e.target.value }))}
+                          className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                        />
+                      </div>
                     </div>
                     <div>
-                      <Label>Hora</Label>
+                      <Label className="text-white/90">Lugar</Label>
                       <Input
-                        type="time"
-                        value={budgetData.event_time || ''}
-                        onChange={(e) => setBudgetData(prev => ({ ...prev, event_time: e.target.value }))}
+                        value={budgetData.venue}
+                        onChange={(e) => setBudgetData(prev => ({ ...prev, venue: e.target.value }))}
+                        className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
                       />
                     </div>
-                    <div>
-                      <Label>Fee (€)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={budgetData.fee}
-                        onChange={(e) => setBudgetData(prev => ({ ...prev, fee: parseFloat(e.target.value) || 0 }))}
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label className="text-white/90">Fecha</Label>
+                        <Input
+                          type="date"
+                          value={budgetData.event_date?.split('T')[0] || ''}
+                          onChange={(e) => setBudgetData(prev => ({ ...prev, event_date: e.target.value }))}
+                          className="bg-white/10 border-white/20 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-white/90">Hora</Label>
+                        <Input
+                          type="time"
+                          value={budgetData.event_time || ''}
+                          onChange={(e) => setBudgetData(prev => ({ ...prev, event_time: e.target.value }))}
+                          className="bg-white/10 border-white/20 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-white/90">Fee (€)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={budgetData.fee}
+                          onChange={(e) => setBudgetData(prev => ({ ...prev, fee: parseFloat(e.target.value) || 0 }))}
+                          className="bg-white/10 border-white/20 text-white"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={updateBudget} className="bg-white/20 hover:bg-white/30 text-white border-white/20">
+                        <Save className="w-4 h-4 mr-1" />
+                        Guardar
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => {
+                        setEditingBudget(false);
+                        setBudgetData(budget);
+                      }} className="bg-white/10 hover:bg-white/20 text-white border-white/20">
+                        <X className="w-4 h-4 mr-1" />
+                        Cancelar
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={updateBudget}>
-                      <Save className="w-4 h-4 mr-1" />
-                      Guardar
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => {
-                      setEditingBudget(false);
-                      setBudgetData(budget);
-                    }}>
-                      <X className="w-4 h-4 mr-1" />
-                      Cancelar
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2">
-                    <DialogTitle className="text-xl">{budgetData.name}</DialogTitle>
-                    <Button size="sm" variant="outline" onClick={() => setEditingBudget(true)}>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                        <Calculator className="h-8 w-8 text-white" />
+                      </div>
+                      <div>
+                        <DialogTitle className="text-3xl font-playfair font-bold text-white">{budgetData.name}</DialogTitle>
+                        <p className="text-white/90 text-lg">
+                          {budgetData.city}, {budgetData.country} • {budgetData.venue}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      <Badge variant="outline" className="bg-white/10 text-white border-white/20 hover:bg-white/20">
+                        {budgetData.type}
+                      </Badge>
+                      {budgetData.event_date && (
+                        <Badge variant="outline" className="bg-white/10 text-white border-white/20 hover:bg-white/20">
+                          {new Date(budgetData.event_date).toLocaleDateString('es-ES')}
+                          {budgetData.event_time && ` - ${budgetData.event_time}`}
+                        </Badge>
+                      )}
+                      {budgetData.fee > 0 && (
+                        <Badge variant="outline" className="bg-white/10 text-white border-white/20 hover:bg-white/20">
+                          Fee: €{budgetData.fee.toLocaleString()}
+                        </Badge>
+                      )}
+                      <Badge className={`${
+                        budgetData.show_status === 'confirmado' ? 'bg-green-500/20 text-green-200 border-green-400/20' :
+                        budgetData.show_status === 'pendiente' ? 'bg-yellow-500/20 text-yellow-200 border-yellow-400/20' :
+                        'bg-red-500/20 text-red-200 border-red-400/20'
+                      }`}>
+                        {budgetData.show_status}
+                      </Badge>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {!editingBudget && (
+                  <>
+                    <Button size="sm" variant="outline" onClick={() => setEditingBudget(true)} className="bg-white/10 hover:bg-white/20 text-white border-white/20">
                       <Edit className="w-4 h-4" />
                     </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    <Badge variant="outline">{budgetData.type}</Badge>
-                    <Badge variant="outline">{budgetData.city}, {budgetData.country}</Badge>
-                    {budgetData.event_date && (
-                      <Badge variant="outline">
-                        {new Date(budgetData.event_date).toLocaleDateString()}
-                        {budgetData.event_time && ` - ${budgetData.event_time}`}
-                      </Badge>
-                    )}
-                    {budgetData.fee > 0 && (
-                      <Badge variant="outline" className="text-green-600">
-                        Fee: €{budgetData.fee.toLocaleString()}
-                      </Badge>
-                    )}
-                    <Badge className={
-                      budgetData.show_status === 'confirmado' ? 'bg-green-100 text-green-800' :
-                      budgetData.show_status === 'pendiente' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }>
-                      {budgetData.show_status}
-                    </Badge>
-                  </div>
-                </>
-              )}
+                    <Button size="sm" onClick={saveAsTemplate} className="bg-white/20 hover:bg-white/30 text-white border-white/20">
+                      <FileText className="w-4 h-4 mr-1" />
+                      Plantilla
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={deleteBudget} className="bg-red-500/20 hover:bg-red-500/30 text-red-200 border-red-400/20">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
-            {!editingBudget && (
-              <Button size="sm" variant="destructive" onClick={deleteBudget}>
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
           </div>
-        </DialogHeader>
 
-        <Tabs defaultValue="items" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="items">Elementos</TabsTrigger>
-            <TabsTrigger value="summary">Resumen</TabsTrigger>
-            <TabsTrigger value="attachments">Archivos</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="items" className="space-y-6">
-            {/* Professional Budget Table */}
-            <div className="bg-white border rounded-lg overflow-hidden">
-              {/* Header */}
-              <div className="bg-gray-50 border-b p-4">
-                <div className="text-center">
-                  <h2 className="text-lg font-bold text-gray-900">{budgetData.name}</h2>
-                  <p className="text-sm text-gray-600">
-                    {budgetData.event_date && new Date(budgetData.event_date).toLocaleDateString('es-ES')} ({budgetData.city})
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">PRESUPUESTO NACIONAL / INTERNACIONAL</p>
-                </div>
+          {/* Content */}
+          <div className="flex-1 overflow-hidden">
+            <Tabs defaultValue="items" className="h-full flex flex-col">
+              <div className="border-b bg-background px-6 py-3 flex-shrink-0">
+                <TabsList className="grid w-full max-w-md grid-cols-3">
+                  <TabsTrigger value="items" className="flex items-center gap-2">
+                    <Calculator className="w-4 h-4" />
+                    Elementos
+                  </TabsTrigger>
+                  <TabsTrigger value="summary" className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Resumen
+                  </TabsTrigger>
+                  <TabsTrigger value="attachments" className="flex items-center gap-2">
+                    <File className="w-4 h-4" />
+                    Archivos
+                  </TabsTrigger>
+                </TabsList>
               </div>
 
-              {/* Main budget table */}
-              <div className="overflow-x-auto">
-                <Table className="text-xs">
-                  <TableHeader className="bg-gray-100">
-                    <TableRow className="border-b">
-                      <TableHead className="w-12 text-center font-bold bg-gray-800 text-white">SELECT</TableHead>
-                      <TableHead className="font-bold bg-gray-800 text-white">NOMBRE</TableHead>
-                      <TableHead className="font-bold bg-gray-800 text-white">CONCEPTO</TableHead>
-                      <TableHead className="w-20 text-center font-bold bg-gray-800 text-white">COSTE</TableHead>
-                      <TableHead className="w-16 text-center font-bold bg-gray-800 text-white">UNID.</TableHead>
-                      <TableHead className="w-16 text-center font-bold bg-gray-800 text-white">CANTIDAD</TableHead>
-                      <TableHead className="w-16 text-center font-bold bg-gray-800 text-white">% IVA</TableHead>
-                      <TableHead className="w-16 text-center font-bold bg-gray-800 text-white">IVA</TableHead>
-                      <TableHead className="w-16 text-center font-bold bg-gray-800 text-white">%IRPF</TableHead>
-                      <TableHead className="w-16 text-center font-bold bg-gray-800 text-white">IRPF</TableHead>
-                      <TableHead className="w-20 text-center font-bold bg-gray-800 text-white">TOTAL</TableHead>
-                      <TableHead className="w-24 text-center font-bold bg-gray-800 text-white">COMENTARIOS</TableHead>
-                      <TableHead className="w-20 text-center font-bold bg-gray-800 text-white">Nº FACTURA</TableHead>
-                      <TableHead className="w-12 text-center font-bold bg-gray-800 text-white">N / I</TableHead>
-                      <TableHead className="w-20 text-center font-bold bg-gray-800 text-white">ESTADO</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  
-                  <TableBody>
-                    {Object.entries(budgetCategories).map(([categoryKey, category]) => {
-                      const categoryItems = getCategoryItems(categoryKey);
-                      const categoryTotal = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
+              <TabsContent value="items" className="flex-1 overflow-hidden p-6 space-y-6">
+                {/* Professional Budget Table */}
+                <div className="card-moodita overflow-hidden h-full flex flex-col">
+                  {/* Table Header */}
+                  <div className="bg-gradient-primary text-white p-4 flex-shrink-0">
+                    <div className="text-center">
+                      <h2 className="text-lg font-bold">{budgetData.name}</h2>
+                      <p className="text-white/90 text-sm">
+                        {budgetData.event_date && new Date(budgetData.event_date).toLocaleDateString('es-ES')} ({budgetData.city})
+                      </p>
+                      <p className="text-white/70 text-xs mt-1">PRESUPUESTO {budgetData.budget_status?.toUpperCase()}</p>
+                    </div>
+                  </div>
+
+                  {/* Scrollable Table Content */}
+                  <div className="flex-1 overflow-auto">
+                    <Table className="text-sm">
+                      <TableHeader className="sticky top-0 bg-muted/50 backdrop-blur-sm border-b-2">
+                        <TableRow>
+                          <TableHead className="w-12 text-center font-semibold">✓</TableHead>
+                          <TableHead className="min-w-[200px] font-semibold">Nombre</TableHead>
+                          <TableHead className="min-w-[150px] font-semibold">Concepto</TableHead>
+                          <TableHead className="w-24 text-center font-semibold">Coste</TableHead>
+                          <TableHead className="w-16 text-center font-semibold">Unid.</TableHead>
+                          <TableHead className="w-20 text-center font-semibold">Cantidad</TableHead>
+                          <TableHead className="w-20 text-center font-semibold">% IVA</TableHead>
+                          <TableHead className="w-20 text-center font-semibold">IVA</TableHead>
+                          <TableHead className="w-20 text-center font-semibold">%IRPF</TableHead>
+                          <TableHead className="w-20 text-center font-semibold">IRPF</TableHead>
+                          <TableHead className="w-24 text-center font-semibold">Total</TableHead>
+                          <TableHead className="min-w-[150px] font-semibold">Comentarios</TableHead>
+                          <TableHead className="w-24 text-center font-semibold">Estado</TableHead>
+                          <TableHead className="w-24 text-center font-semibold">Acciones</TableHead>
+                        </TableRow>
+                      </TableHeader>
                       
-                      return (
-                        <>
-                          {/* Category Header */}
-                          <TableRow key={`${categoryKey}-header`} className="bg-gray-800">
-                             <TableCell colSpan={15} className="font-bold text-white text-center py-2">
-                               {category.title.toUpperCase()}
-                             </TableCell>
-                          </TableRow>
+                      <TableBody>
+                        {Object.entries(budgetCategories).map(([categoryKey, category]) => {
+                          const categoryItems = getCategoryItems(categoryKey);
+                          const IconComponent = category.icon;
                           
-                          {/* Category Items */}
-                          {categoryItems.map((item, index) => (
-                            <TableRow 
-                              key={item.id} 
-                              className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                            >
-                              <TableCell className="text-center">
-                                <Checkbox 
-                                  checked={true}
-                                  className="h-3 w-3"
-                                />
-                              </TableCell>
-                              <TableCell>
-                                {editingItem === item.id ? (
-                                  <Input
-                                    value={item.name}
-                                    onChange={(e) => setItems(prev => 
-                                      prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i)
-                                    )}
-                                    className="h-6 text-xs"
-                                  />
-                                ) : (
-                                  <div className="flex items-center gap-2">
-                                    <span>{item.name}</span>
-                                    <Button 
-                                      size="sm" 
-                                      variant="ghost" 
-                                      onClick={() => setEditingItem(item.id)}
-                                      className="h-4 w-4 p-0"
-                                    >
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
+                          return (
+                            <React.Fragment key={categoryKey}>
+                              {/* Category Header */}
+                              <TableRow className="bg-gradient-primary hover:bg-gradient-primary">
+                                <TableCell colSpan={14} className="font-bold text-white text-center py-3">
+                                  <div className="flex items-center justify-center gap-3">
+                                    <IconComponent className="w-5 h-5" />
+                                    {category.title.toUpperCase()}
                                   </div>
-                                )}
-                              </TableCell>
-                               <TableCell>
-                                 {editingItem === item.id ? (
-                                   <Input
-                                     value={item.subcategory || ''}
-                                     onChange={(e) => setItems(prev => 
-                                       prev.map(i => i.id === item.id ? { ...i, subcategory: e.target.value } : i)
-                                     )}
-                                     className="h-6 text-xs"
-                                   />
-                                 ) : (
-                                   <span className="text-xs">{item.subcategory || category.title}</span>
-                                 )}
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 {editingItem === item.id ? (
-                                   <Input
-                                     type="number"
-                                     value={item.unit_price}
-                                     onChange={(e) => setItems(prev => 
-                                       prev.map(i => i.id === item.id ? { ...i, unit_price: parseFloat(e.target.value) || 0 } : i)
-                                     )}
-                                     className="h-6 text-xs w-16"
-                                   />
-                                 ) : (
-                                   `${item.unit_price}€`
-                                 )}
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 <span className="text-xs">€</span>
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 {editingItem === item.id ? (
-                                   <Input
-                                     type="number"
-                                     value={item.quantity}
-                                     onChange={(e) => setItems(prev => 
-                                       prev.map(i => i.id === item.id ? { ...i, quantity: parseInt(e.target.value) || 1 } : i)
-                                     )}
-                                     className="h-6 text-xs w-12"
-                                   />
-                                 ) : (
-                                   item.quantity
-                                 )}
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 {editingItem === item.id ? (
-                                   <Input
-                                     type="number"
-                                     value={item.iva_percentage}
-                                     onChange={(e) => setItems(prev => 
-                                       prev.map(i => i.id === item.id ? { ...i, iva_percentage: parseFloat(e.target.value) || 21 } : i)
-                                     )}
-                                     className="h-6 text-xs w-12"
-                                   />
-                                 ) : (
-                                   `${item.iva_percentage}%`
-                                 )}
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 {((item.unit_price * item.quantity) * (item.iva_percentage / 100)).toFixed(0)}€
-                               </TableCell>
-                                <TableCell className="text-center">
-                                  {editingItem === item.id ? (
-                                    <Input
-                                      type="number"
-                                      value={item.irpf_percentage || 15}
-                                      onChange={(e) => setItems(prev => 
-                                        prev.map(i => i.id === item.id ? { ...i, irpf_percentage: parseFloat(e.target.value) || 15 } : i)
-                                      )}
-                                      className="h-6 text-xs w-12"
-                                    />
-                                  ) : (
-                                    `${item.irpf_percentage || 15}%`
-                                  )}
                                 </TableCell>
-                                <TableCell className="text-center">
-                                  {((item.unit_price * item.quantity) * ((item.irpf_percentage || 15) / 100)).toFixed(0)}€
-                                </TableCell>
-                               <TableCell className="text-center font-medium">
-                                 {calculateTotal(item).toFixed(0)}€
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 {editingItem === item.id ? (
-                                   <Input
-                                     value={item.observations}
-                                     onChange={(e) => setItems(prev => 
-                                       prev.map(i => i.id === item.id ? { ...i, observations: e.target.value } : i)
-                                     )}
-                                     className="h-6 text-xs"
-                                   />
-                                 ) : (
-                                   <span className="text-xs">{item.observations}</span>
-                                 )}
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 {editingItem === item.id ? (
-                                   <Input
-                                     value={item.invoice_link}
-                                     onChange={(e) => setItems(prev => 
-                                       prev.map(i => i.id === item.id ? { ...i, invoice_link: e.target.value } : i)
-                                     )}
-                                     className="h-6 text-xs"
-                                   />
-                                 ) : (
-                                   <span className="text-xs">{item.invoice_link}</span>
-                                 )}
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 <span className="text-xs">-100</span>
-                               </TableCell>
-                               <TableCell className="text-center">
-                                 <Badge 
-                                   variant="outline" 
-                                   className={`text-xs h-4 ${
-                                     item.billing_status === 'pagado' ? 'bg-green-100 text-green-800' :
-                                     item.billing_status === 'pendiente' ? 'bg-yellow-100 text-yellow-800' :
-                                     'bg-gray-100 text-gray-800'
-                                   }`}
-                                 >
-                                   {item.billing_status === 'pagado' ? 'Pendiente' :
-                                    item.billing_status === 'pendiente' ? 'Pendiente' :
-                                    'Pendiente'}
-                                 </Badge>
-                               </TableCell>
-                            </TableRow>
-                          ))}
-                          
-                          {editingItem && (
-                            <TableRow className="bg-blue-50">
-                               <TableCell colSpan={15} className="text-center">
-                                 <div className="flex gap-2 justify-center">
-                                  <Button 
-                                    size="sm" 
-                                    onClick={() => {
-                                      const item = items.find(i => i.id === editingItem);
-                                      if (item) updateItem(item);
-                                    }}
-                                  >
-                                    <Save className="w-4 h-4 mr-1" />
-                                    Guardar
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    onClick={() => setEditingItem(null)}
-                                  >
-                                    <X className="w-4 h-4 mr-1" />
-                                    Cancelar
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="destructive" 
-                                    onClick={() => {
-                                      if (editingItem) {
-                                        deleteItem(editingItem);
-                                        setEditingItem(null);
-                                      }
-                                    }}
-                                  >
-                                    <Trash2 className="w-4 h-4 mr-1" />
-                                    Eliminar
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          )}
-                          
-                           {/* Category Total */}
-                           {categoryItems.length > 0 && (
-                             <TableRow className="bg-gray-100 font-medium">
-                               <TableCell></TableCell>
-                               <TableCell className="font-bold">SUBTOTAL {category.title.toUpperCase()}</TableCell>
-                               <TableCell></TableCell>
-                               <TableCell></TableCell>
-                               <TableCell></TableCell>
-                               <TableCell></TableCell>
-                               <TableCell></TableCell>
-                               <TableCell></TableCell>
-                               <TableCell></TableCell>
-                               <TableCell></TableCell>
-                               <TableCell className="text-center font-bold">
-                                 {categoryTotal.toFixed(0)}€
-                               </TableCell>
-                               <TableCell></TableCell>
-                               <TableCell></TableCell>
-                               <TableCell></TableCell>
-                               <TableCell></TableCell>
-                             </TableRow>
-                           )}
-                          
-                          {/* Add new item row */}
-                          <TableRow className="bg-yellow-50 border-b-2">
-                            <TableCell colSpan={15}>
-                              <div className="flex items-center gap-2 py-2">
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  onClick={() => addItem(categoryKey)}
-                                  className="h-6 text-xs"
-                                >
-                                  <Plus className="w-3 h-3 mr-1" />
-                                  Agregar elemento a {category.title}
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        </>
-                      );
-                    })}
-                    
-                    {/* Grand Total */}
-                    <TableRow className="bg-gray-800 font-bold text-white">
-                      <TableCell></TableCell>
-                      <TableCell className="font-bold">COSTE NETO</TableCell>
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                      <TableCell className="text-center">
-                        {items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0).toFixed(0)}€
-                      </TableCell>
-                      <TableCell className="text-center">21%</TableCell>
-                      <TableCell className="text-center font-bold">
-                        {items.reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(0)}€
-                      </TableCell>
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                      <TableCell className="text-center">
-                        <Badge className="bg-green-600 text-white">MARGEN</Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="bg-green-600 text-white px-2 py-1 rounded text-xs">
-                          900€
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-              
-              {/* Bottom Summary */}
-              <div className="bg-gray-50 p-4 border-t">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>DIETES EXTRA</span>
-                      <span>1</span>
-                      <span>550€</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>NITS EXTRA</span>
-                      <span>0</span>
-                      <span>0€</span>
-                    </div>
-                    <div className="flex justify-between font-bold bg-gray-800 text-white px-2 py-1">
-                      <span>CALCULADORA XPRESS</span>
-                      <span>550€</span>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>COSTE REAL</span>
-                      <span className="font-bold">
-                        {(items.reduce((sum, item) => sum + calculateTotal(item), 0) + 550).toFixed(0)}€
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>CACHE</span>
-                      <span className="font-bold">{budgetData.fee?.toLocaleString() || 0}€</span>
-                    </div>
-                    <div className="border-t pt-2">
-                      <div className="flex justify-between">
-                        <span>IMPREVISTOS</span>
-                        <span>0€</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Buy Out</span>
-                        <span>0</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>SoldOut</span>
-                        <span>0€</span>
-                      </div>
-                      <div className="flex justify-between font-bold">
-                        <span>TOTAL</span>
-                        <span>820€</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="bg-green-100 p-2 rounded">
-                      <div className="flex justify-between">
-                        <span>INGRESOS MERCH</span>
-                        <span>0€</span>
-                      </div>
-                    </div>
-                    <div className="bg-gray-800 text-white p-2 rounded text-center">
-                      <div className="font-bold">SoldOut</div>
-                      <div>YES ☐</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="summary">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Diagrama Circular */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calculator className="w-5 h-5" />
-                    Distribución de Gastos
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {items.length > 0 ? (
-                    <div className="h-80">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={Object.entries(budgetCategories).map(([categoryKey, category]) => {
-                              const categoryItems = getCategoryItems(categoryKey);
-                              const categoryTotal = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
+                              </TableRow>
                               
-                              return {
-                                name: category.title,
-                                value: categoryTotal,
-                                categoryKey
-                              };
-                            }).filter(item => item.value > 0)}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ name, percent }) => 
-                              percent > 5 ? `${name}: ${(percent * 100).toFixed(0)}%` : ''
-                            }
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
-                          >
-                            {Object.entries(budgetCategories).map(([categoryKey, category], index) => {
-                              // Using yearly calendar colors
-                              const calendarColors = [
-                                '#e11d48', // Rose 600 - Equipo Artístico
-                                '#ea580c', // Orange 600 - Equipo Técnico  
-                                '#d97706', // Amber 600 - Transporte
-                                '#2563eb', // Blue 600 - Dietas
-                                '#c2410c', // Red 600 - Hospedaje
-                                '#9333ea', // Purple 600 - Promoción
-                                '#65a30d', // Lime 600 - Comisiones
-                                '#0891b2'  // Cyan 600 - Otros Gastos
-                              ];
-                              return (
-                                <Cell key={`cell-${index}`} fill={calendarColors[index % calendarColors.length]} />
-                              );
-                            })}
-                          </Pie>
-                          <Tooltip 
-                            formatter={(value: number) => [`${value.toFixed(2)}€`, 'Importe']}
-                            labelFormatter={(label) => `${label}`}
-                          />
-                          <Legend 
-                            verticalAlign="bottom" 
-                            height={36}
-                            iconType="circle"
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-80 flex items-center justify-center text-muted-foreground">
-                      No hay datos para mostrar el gráfico
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                              {/* Category Items */}
+                              {categoryItems.map((item, index) => (
+                                <TableRow 
+                                  key={item.id} 
+                                  className={`hover:bg-muted/30 transition-colors border-b ${
+                                    editingItem === item.id ? 'bg-blue-50' : index % 2 === 0 ? "bg-background" : "bg-muted/20"
+                                  }`}
+                                >
+                                  <TableCell className="text-center">
+                                    <Checkbox 
+                                      checked={true}
+                                      className="h-4 w-4"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    {editingItem === item.id ? (
+                                      <Input
+                                        value={item.name}
+                                        onChange={(e) => setItems(prev => 
+                                          prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i)
+                                        )}
+                                        className="h-8"
+                                      />
+                                    ) : (
+                                      <div className="font-medium">{item.name}</div>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {editingItem === item.id ? (
+                                      <Input
+                                        value={item.subcategory || ''}
+                                        onChange={(e) => setItems(prev => 
+                                          prev.map(i => i.id === item.id ? { ...i, subcategory: e.target.value } : i)
+                                        )}
+                                        className="h-8"
+                                      />
+                                    ) : (
+                                      <span className="text-muted-foreground">{item.subcategory || category.title}</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {editingItem === item.id ? (
+                                      <Input
+                                        type="number"
+                                        value={item.unit_price}
+                                        onChange={(e) => setItems(prev => 
+                                          prev.map(i => i.id === item.id ? { ...i, unit_price: parseFloat(e.target.value) || 0 } : i)
+                                        )}
+                                        className="h-8 w-20"
+                                      />
+                                    ) : (
+                                      <span className="font-medium">€{item.unit_price}</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-center text-muted-foreground">
+                                    €
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {editingItem === item.id ? (
+                                      <Input
+                                        type="number"
+                                        value={item.quantity}
+                                        onChange={(e) => setItems(prev => 
+                                          prev.map(i => i.id === item.id ? { ...i, quantity: parseInt(e.target.value) || 1 } : i)
+                                        )}
+                                        className="h-8 w-16"
+                                      />
+                                    ) : (
+                                      <span className="font-medium">{item.quantity}</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {editingItem === item.id ? (
+                                      <Input
+                                        type="number"
+                                        value={item.iva_percentage}
+                                        onChange={(e) => setItems(prev => 
+                                          prev.map(i => i.id === item.id ? { ...i, iva_percentage: parseFloat(e.target.value) || 21 } : i)
+                                        )}
+                                        className="h-8 w-16"
+                                      />
+                                    ) : (
+                                      <span>{item.iva_percentage}%</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <span className="text-accent font-medium">
+                                      €{((item.unit_price * item.quantity) * (item.iva_percentage / 100)).toFixed(2)}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {editingItem === item.id ? (
+                                      <Input
+                                        type="number"
+                                        value={item.irpf_percentage || 15}
+                                        onChange={(e) => setItems(prev => 
+                                          prev.map(i => i.id === item.id ? { ...i, irpf_percentage: parseFloat(e.target.value) || 15 } : i)
+                                        )}
+                                        className="h-8 w-16"
+                                      />
+                                    ) : (
+                                      <span>{item.irpf_percentage || 15}%</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <span className="text-red-600 font-medium">
+                                      €{((item.unit_price * item.quantity) * ((item.irpf_percentage || 15) / 100)).toFixed(2)}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <div className="badge-success">
+                                      €{calculateTotal(item).toFixed(2)}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {editingItem === item.id ? (
+                                      <Input
+                                        value={item.observations}
+                                        onChange={(e) => setItems(prev => 
+                                          prev.map(i => i.id === item.id ? { ...i, observations: e.target.value } : i)
+                                        )}
+                                        className="h-8"
+                                        placeholder="Comentarios..."
+                                      />
+                                    ) : (
+                                      <span className="text-muted-foreground text-sm">{item.observations || '-'}</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Badge 
+                                      variant="outline" 
+                                      className={getBillingStatusColor(item.billing_status)}
+                                    >
+                                      {item.billing_status}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <div className="flex gap-1 justify-center">
+                                      {editingItem === item.id ? (
+                                        <>
+                                          <Button 
+                                            size="sm" 
+                                            onClick={() => {
+                                              updateItem(item);
+                                            }}
+                                            className="h-8 w-8 p-0"
+                                          >
+                                            <Save className="w-3 h-3" />
+                                          </Button>
+                                          <Button 
+                                            size="sm" 
+                                            variant="outline" 
+                                            onClick={() => setEditingItem(null)}
+                                            className="h-8 w-8 p-0"
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </Button>
+                                        </>
+                                      ) : (
+                                        <Button 
+                                          size="sm" 
+                                          variant="ghost" 
+                                          onClick={() => setEditingItem(item.id)}
+                                          className="h-8 w-8 p-0"
+                                        >
+                                          <Edit className="w-3 h-3" />
+                                        </Button>
+                                      )}
+                                      <Button 
+                                        size="sm" 
+                                        variant="destructive" 
+                                        onClick={() => deleteItem(item.id)}
+                                        className="h-8 w-8 p-0"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                              
+                              {/* Add Item Button */}
+                              <TableRow className="hover:bg-muted/30">
+                                <TableCell colSpan={14} className="p-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => addItem(categoryKey)}
+                                    className="w-full border-dashed hover:bg-primary/5 hover:border-primary text-sm"
+                                  >
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Agregar elemento a {category.title}
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            </React.Fragment>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
 
-              {/* Resumen por Categorías */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calculator className="w-5 h-5" />
-                    Resumen por Categorías
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {Object.entries(budgetCategories).map(([categoryKey, category]) => {
-                      const categoryItems = getCategoryItems(categoryKey);
-                      if (categoryItems.length === 0) return null;
-                      
-                      const categoryTotal = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
-                      const totalBudget = items.reduce((sum, item) => sum + calculateTotal(item), 0);
-                      const percentage = totalBudget > 0 ? (categoryTotal / totalBudget) * 100 : 0;
-                      
-                      return (
-                        <div key={categoryKey} className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <category.icon className="w-4 h-4 text-primary" />
-                              <span className="font-medium">{category.title}</span>
-                            </div>
-                            <div className="text-right">
-                              <div className="font-bold">{categoryTotal.toFixed(2)}€</div>
-                              <div className="text-sm text-muted-foreground">{percentage.toFixed(1)}%</div>
-                            </div>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-primary h-2 rounded-full transition-all duration-300" 
-                              style={{ width: `${percentage}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    
-                    <Separator className="my-4" />
-                    
-                    <div className="space-y-3 pt-4">
-                      <div className="flex justify-between items-center text-lg font-bold">
-                        <span>TOTAL GASTOS:</span>
-                        <span>{items.reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(2)}€</span>
+                  {/* Summary Footer */}
+                  <div className="bg-muted/30 p-4 border-t flex-shrink-0">
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm text-muted-foreground">
+                        {items.length} elementos en el presupuesto
                       </div>
-                      
-                      {budgetData.fee > 0 && (
-                        <>
-                          <div className="flex justify-between items-center text-lg font-bold text-green-600">
-                            <span>FEE:</span>
-                            <span>+{budgetData.fee.toFixed(2)}€</span>
-                          </div>
-                          <Separator />
-                          <div className="flex justify-between items-center text-xl font-bold">
-                            <span>BENEFICIO/PÉRDIDA:</span>
-                            <span className={budgetData.fee - items.reduce((sum, item) => sum + calculateTotal(item), 0) >= 0 ? 'text-green-600' : 'text-red-600'}>
-                              {budgetData.fee >= 0 ? '+' : ''}{(budgetData.fee - items.reduce((sum, item) => sum + calculateTotal(item), 0)).toFixed(2)}€
-                            </span>
-                          </div>
-                        </>
-                      )}
+                      <div className="text-right">
+                        <div className="text-2xl font-bold">
+                          Total: <span className="text-primary">€{items.reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(2)}</span>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Subtotal: €{items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)} + 
+                          IVA: €{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * (item.iva_percentage / 100)), 0).toFixed(2)}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </TabsContent>
 
-            {/* Tabla detallada */}
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>Detalle de Elementos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[200px]">Concepto</TableHead>
-                        <TableHead>Categoría</TableHead>
-                        <TableHead className="text-right">Coste</TableHead>
-                        <TableHead className="text-center">Cant.</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                        <TableHead className="text-center">IVA %</TableHead>
-                        <TableHead className="text-right">€ + IVA</TableHead>
-                        <TableHead>Estado</TableHead>
-                        <TableHead>Observaciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {Object.entries(budgetCategories).map(([categoryKey, category]) => {
-                        const categoryItems = getCategoryItems(categoryKey);
-                        if (categoryItems.length === 0) return null;
-                        
-                        return categoryItems.map((item, index) => (
-                          <TableRow key={`${categoryKey}-${index}`}>
-                            <TableCell className="font-medium">{item.name}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                <category.icon className="w-4 h-4" />
-                                {category.title}
-                                {item.subcategory && ` - ${item.subcategory}`}
+              <TabsContent value="summary" className="flex-1 overflow-auto p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Summary Cards */}
+                  <Card className="card-moodita">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Calculator className="w-5 h-5" />
+                        Resumen Financiero
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span className="font-medium">€{items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>IVA Total:</span>
+                        <span className="font-medium text-accent">€{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * (item.iva_percentage / 100)), 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>IRPF Total:</span>
+                        <span className="font-medium text-red-600">-€{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * ((item.irpf_percentage || 15) / 100)), 0).toFixed(2)}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between text-lg font-bold">
+                        <span>Total:</span>
+                        <span className="text-primary">€{items.reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(2)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Category Breakdown */}
+                  <Card className="card-moodita">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="w-5 h-5" />
+                        Desglose por Categorías
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {Object.entries(budgetCategories).map(([categoryKey, category]) => {
+                          const categoryItems = getCategoryItems(categoryKey);
+                          const categoryTotal = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
+                          const IconComponent = category.icon;
+                          
+                          if (categoryItems.length === 0) return null;
+                          
+                          return (
+                            <div key={categoryKey} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                                  <IconComponent className="w-4 h-4 text-primary" />
+                                </div>
+                                <div>
+                                  <div className="font-medium">{category.title}</div>
+                                  <div className="text-sm text-muted-foreground">{categoryItems.length} elementos</div>
+                                </div>
                               </div>
-                            </TableCell>
-                            <TableCell className="text-right">{(item.unit_price || 0).toFixed(2)}€</TableCell>
-                            <TableCell className="text-center">{item.quantity || 1}</TableCell>
-                            <TableCell className="text-right">
-                              {((item.unit_price || 0) * (item.quantity || 1)).toFixed(2)}€
-                            </TableCell>
-                            <TableCell className="text-center">{item.iva_percentage || 21}%</TableCell>
-                            <TableCell className="text-right font-semibold">
-                              {calculateTotal(item).toFixed(2)}€
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={getBillingStatusColor(item.billing_status || "pendiente")}>
-                                {item.billing_status || "pendiente"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="max-w-[200px] truncate" title={item.observations}>
-                              {item.observations}
-                            </TableCell>
-                          </TableRow>
-                        ));
-                      })}
-                    </TableBody>
-                  </Table>
+                              <div className="text-right">
+                                <div className="font-medium">€{categoryTotal.toFixed(2)}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </TabsContent>
 
-          <TabsContent value="attachments">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <File className="w-5 h-5" />
-                  Archivos Adjuntos
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                  <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-4">
-                    Arrastra archivos aquí o haz clic para seleccionar
-                  </p>
-                  <Button variant="outline">
-                    Seleccionar archivos
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        <div className="flex justify-between pt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cerrar
-          </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={saveAsTemplate}>
-              <Save className="w-4 h-4 mr-1" />
-              Guardar como Plantilla
-            </Button>
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-1" />
-              Exportar PDF
-            </Button>
+              <TabsContent value="attachments" className="flex-1 overflow-auto p-6">
+                <Card className="card-moodita">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Upload className="w-5 h-5" />
+                      Archivos y Documentos
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
+                      <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-2">Arrastra archivos aquí o haz clic para subir</p>
+                      <p className="text-sm text-muted-foreground">PDF, DOCX, XLSX, imágenes</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
-
-        <SaveTemplateDialog
-          open={showTemplateDialog}
-          onOpenChange={setShowTemplateDialog}
-          onSave={handleSaveTemplate}
-          budgetName={budgetData?.name}
-        />
       </DialogContent>
+
+      {/* Template Dialog */}
+      <SaveTemplateDialog
+        open={showTemplateDialog}
+        onOpenChange={setShowTemplateDialog}
+        onSave={handleSaveTemplate}
+      />
     </Dialog>
   );
 }
