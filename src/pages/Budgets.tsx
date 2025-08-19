@@ -243,7 +243,7 @@ export default function Budgets() {
                   <TableHead className="font-semibold">Ubicación</TableHead>
                   <TableHead className="font-semibold">Fecha</TableHead>
                   <TableHead className="font-semibold">Hora</TableHead>
-                  <TableHead className="font-semibold">Fee</TableHead>
+                  <TableHead className="font-semibold">Presupuesto</TableHead>
                   <TableHead className="font-semibold">Estado</TableHead>
                   <TableHead className="font-semibold">Artista</TableHead>
                   <TableHead className="w-[100px] font-semibold">Acciones</TableHead>
