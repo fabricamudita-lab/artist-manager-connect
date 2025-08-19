@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Settings, Edit, Trash2, Folder, FolderPlus } from 'lucide-react';
+import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -323,100 +323,115 @@ export default function Booking() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Ofertas de Booking</h1>
-          <p className="text-muted-foreground">
-            Lista de ofertas de conciertos con información detallada
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={handleBackfillFolders}
-            variant="outline"
-            disabled={foldersLoading}
-            className="flex items-center gap-2"
-          >
-            <Folder className="h-4 w-4" />
-            Backfill Carpetas
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setShowTemplateDialog(true)}
-            className="flex items-center gap-2"
-          >
-            <Settings className="h-4 w-4" />
-            Editar plantilla
-          </Button>
-          <Button
-            onClick={() => setShowCreateDialog(true)}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Añadir nueva oferta
-          </Button>
+    <div className="container-moodita section-spacing space-y-8">
+      {/* Hero Header */}
+      <div className="card-moodita p-8 bg-gradient-accent text-white">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+              <Plus className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-playfair font-bold">Ofertas de Booking</h1>
+              <p className="text-white/90 mt-1">
+                Gestiona ofertas de conciertos con información detallada
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              onClick={handleBackfillFolders}
+              disabled={foldersLoading}
+              className="btn-secondary bg-white/20 hover:bg-white/30 text-white border-white/20"
+            >
+              <Folder className="h-4 w-4 mr-2" />
+              Backfill Carpetas
+            </Button>
+            <Button
+              onClick={() => setShowTemplateDialog(true)}
+              className="btn-secondary bg-white/20 hover:bg-white/30 text-white border-white/20"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Editar plantilla
+            </Button>
+            <Button
+              onClick={() => setShowCreateDialog(true)}
+              className="btn-primary bg-white/20 hover:bg-white/30 text-white border-white/20"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Añadir nueva oferta
+            </Button>
+          </div>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Ofertas de Booking</CardTitle>
-          <CardDescription>
-            Lista de ofertas de conciertos con información detallada
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* Contract Warning for Confirmed Events without Contracts */}
-          {offers.some(offer => offer.estado === 'confirmado' && offer.id && !contractStatus[offer.id]) && (
-            <Alert className="mb-4">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                <strong>Aviso:</strong> Hay eventos confirmados sin contrato subido. Revisa las ofertas marcadas.
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          <div className="overflow-x-auto">
+      {/* Contract Warning for Confirmed Events without Contracts */}
+      {offers.some(offer => offer.estado === 'confirmado' && offer.id && !contractStatus[offer.id]) && (
+        <Alert className="border-warning/20 bg-warning/10">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertDescription className="text-warning">
+            <strong>Aviso:</strong> Hay eventos confirmados sin contrato subido. Revisa las ofertas marcadas.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Offers Table Card */}
+      <div className="card-moodita overflow-hidden">
+        <CardContent className="p-0">
+          {offers.length === 0 ? (
+            <div className="p-16 text-center">
+              <div className="w-20 h-20 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Plus className="w-10 h-10 text-muted-foreground" />
+              </div>
+              <h3 className="text-xl font-semibold mb-3">No hay ofertas de booking</h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Crea tu primera oferta para comenzar a gestionar tus bookings
+              </p>
+              <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
+                <Plus className="w-4 h-4 mr-2" />
+                Crear Oferta
+              </Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Festival / Ciclo</TableHead>
-                  <TableHead>Ciudad</TableHead>
-                  <TableHead>Lugar</TableHead>
-                  <TableHead>Capacidad</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Oferta</TableHead>
-                  <TableHead>Formato</TableHead>
-                  <TableHead>Contacto</TableHead>
-                  <TableHead>Tour Manager</TableHead>
-                  <TableHead>Info / Comentarios</TableHead>
-                  <TableHead>Condiciones</TableHead>
-                   <TableHead>Link de venta</TableHead>
-                   <TableHead>Inicio venta</TableHead>
-                   <TableHead>Contratos</TableHead>
-                   <TableHead>Carpeta</TableHead>
-                   <TableHead>Recordatorios</TableHead>
-                   <TableHead>Alertas</TableHead>
-                   <TableHead className="text-right">Acciones</TableHead>
+              <TableHeader className="bg-muted/30">
+                <TableRow className="border-0">
+                  <TableHead className="font-semibold px-6">Fecha</TableHead>
+                  <TableHead className="font-semibold">Festival / Ciclo</TableHead>
+                  <TableHead className="font-semibold">Ciudad</TableHead>
+                  <TableHead className="font-semibold">Lugar</TableHead>
+                  <TableHead className="font-semibold">Capacidad</TableHead>
+                  <TableHead className="font-semibold">Estado</TableHead>
+                  <TableHead className="font-semibold">Oferta</TableHead>
+                  <TableHead className="font-semibold">Formato</TableHead>
+                  <TableHead className="font-semibold">Contacto</TableHead>
+                  <TableHead className="font-semibold">Tour Manager</TableHead>
+                  <TableHead className="font-semibold">Info / Comentarios</TableHead>
+                  <TableHead className="font-semibold">Condiciones</TableHead>
+                   <TableHead className="font-semibold">Link de venta</TableHead>
+                   <TableHead className="font-semibold">Inicio venta</TableHead>
+                   <TableHead className="font-semibold">Contratos</TableHead>
+                   <TableHead className="font-semibold">Carpeta</TableHead>
+                   <TableHead className="font-semibold">Recordatorios</TableHead>
+                   <TableHead className="font-semibold">Alertas</TableHead>
+                   <TableHead className="text-right font-semibold">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {offers.length === 0 ? (
-                  <TableRow>
-                     <TableCell 
-                       colSpan={19} 
-                       className="text-center py-8 text-muted-foreground"
-                     >
-                      No hay ofertas registradas. Crea la primera oferta.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  offers.map((offer) => (
-                    <TableRow key={offer.id} className="hover:bg-muted/50">
-                      <TableCell>
-                        {offer.fecha ? new Date(offer.fecha).toLocaleDateString('es-ES') : '-'}
+                {offers.map((offer) => (
+                  <TableRow key={offer.id} className="cursor-pointer hover:bg-muted/30 transition-colors border-0 group">
+                      <TableCell className="py-4 px-6">
+                        {offer.fecha ? (
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-accent" />
+                            <span className="text-sm font-medium">
+                              {new Date(offer.fecha).toLocaleDateString('es-ES')}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                        <TableCell>
                          <div className="flex items-center gap-2">
@@ -451,36 +466,38 @@ export default function Booking() {
                              </div>
                            )}
                          </div>
-                       </TableCell>
-                      <TableCell>{offer.ciudad || '-'}</TableCell>
-                      <TableCell>{offer.lugar || '-'}</TableCell>
-                      <TableCell>{offer.capacidad ? offer.capacidad.toLocaleString() : '-'}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={getStatusBadgeVariant(offer.estado)}
-                          >
-                            {offer.estado || 'Pendiente'}
-                          </Badge>
                         </TableCell>
-                      <TableCell className="max-w-32 truncate">{offer.oferta || '-'}</TableCell>
-                      <TableCell>{offer.formato || '-'}</TableCell>
-                      <TableCell>{offer.contacto || '-'}</TableCell>
-                      <TableCell>{offer.tour_manager || '-'}</TableCell>
-                       <TableCell className="max-w-32 truncate">{offer.info_comentarios || '-'}</TableCell>
-                       <TableCell className="max-w-32 truncate">{offer.condiciones || '-'}</TableCell>
-                       <TableCell>
-                         {offer.link_venta ? (
-                           <a 
-                             href={offer.link_venta} 
-                             target="_blank" 
-                             rel="noopener noreferrer"
-                             className="text-primary hover:underline"
+                       <TableCell className="py-4">{offer.ciudad || '-'}</TableCell>
+                       <TableCell className="py-4">{offer.lugar || '-'}</TableCell>
+                       <TableCell className="py-4">{offer.capacidad ? offer.capacidad.toLocaleString() : '-'}</TableCell>
+                         <TableCell className="py-4">
+                           <Badge 
+                             variant={getStatusBadgeVariant(offer.estado)}
                            >
-                             Ver enlace
-                           </a>
-                         ) : '-'}
-                       </TableCell>
-                        <TableCell>
+                             {offer.estado || 'Pendiente'}
+                           </Badge>
+                         </TableCell>
+                       <TableCell className="max-w-32 truncate py-4">{offer.oferta || '-'}</TableCell>
+                       <TableCell className="py-4">{offer.formato || '-'}</TableCell>
+                       <TableCell className="py-4">{offer.contacto || '-'}</TableCell>
+                       <TableCell className="py-4">{offer.tour_manager || '-'}</TableCell>
+                        <TableCell className="max-w-32 truncate py-4">{offer.info_comentarios || '-'}</TableCell>
+                        <TableCell className="max-w-32 truncate py-4">{offer.condiciones || '-'}</TableCell>
+                        <TableCell className="py-4">
+                          {offer.link_venta ? (
+                            <a 
+                              href={offer.link_venta} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline"
+                            >
+                              Ver enlace
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                         <TableCell className="py-4">
                           {offer.inicio_venta ? new Date(offer.inicio_venta).toLocaleDateString('es-ES') : '-'}
                         </TableCell>
                           <TableCell>
@@ -615,12 +632,13 @@ export default function Booking() {
                        </TableCell>
                     </TableRow>
                   ))
-                )}
+                }
               </TableBody>
             </Table>
-          </div>
+            </div>
+          )}
         </CardContent>
-      </Card>
+      </div>
 
       <CreateBookingOfferDialog
         open={showCreateDialog}
