@@ -738,7 +738,7 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
 
   const formatPageReference = (source: any) => {
     if (source.pageNumber) {
-      return `PDF p.${source.pageNumber}`;
+      return `p. ${source.pageNumber}`;
     }
     if (source.fileName.includes('.xlsx') || source.fileName.includes('.xls')) {
       return 'Hoja de cálculo';
@@ -747,6 +747,49 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
       return 'DOC sección';
     }
     return 'Archivo';
+  };
+
+  // Function to group sources by file and collapse consecutive pages
+  const groupSources = (sources: any[]) => {
+    const grouped = new Map();
+    
+    sources.forEach(source => {
+      const key = `${source.fileName}_${source.subfolder}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key).push(source);
+    });
+
+    return Array.from(grouped.entries()).map(([key, groupSources]) => {
+      const sortedSources = groupSources.sort((a, b) => (a.pageNumber || 0) - (b.pageNumber || 0));
+      
+      // Group consecutive pages
+      const pageGroups = [];
+      let currentGroup = [sortedSources[0]];
+      
+      for (let i = 1; i < sortedSources.length; i++) {
+        const current = sortedSources[i];
+        const previous = sortedSources[i - 1];
+        
+        if (current.pageNumber && previous.pageNumber && 
+            current.pageNumber === previous.pageNumber + 1) {
+          currentGroup.push(current);
+        } else {
+          pageGroups.push(currentGroup);
+          currentGroup = [current];
+        }
+      }
+      pageGroups.push(currentGroup);
+      
+      return {
+        fileName: sortedSources[0].fileName,
+        subfolder: sortedSources[0].subfolder,
+        type: sortedSources[0].type,
+        pageGroups,
+        firstPageNumber: sortedSources[0].pageNumber
+      };
+    });
   };
 
   const loadIndexStatus = async () => {
@@ -1479,62 +1522,78 @@ export function EventFolderDialog({ open, onOpenChange, offer }: EventFolderDial
                                }} 
                           />
                           
-                          {/* Sources (only for assistant messages with sources) */}
-                          {message.type === 'assistant' && message.sources && message.sources.length > 0 && citeSources && (
-                            <div className="mt-3 pt-3 border-t border-border/20">
-                              <div className="text-xs font-medium mb-2">📚 Fuentes:</div>
-                              <div className="space-y-2">
-                                {message.sources.map((source, sourceIndex) => (
-                                  <div key={sourceIndex} className="bg-background/50 rounded-md p-2 border border-border/30">
-                                    <div className="flex items-start justify-between gap-2 mb-1">
-                                      <div className="flex items-center gap-2 min-w-0">
-                                        <Badge 
-                                          variant="outline" 
-                                          className={`text-[10px] px-1 py-0.5 ${getFileTypeBadge(source.type)}`}
-                                        >
-                                          {source.type}
-                                        </Badge>
-                                        <span className="text-[11px] font-medium truncate">
-                                          {source.fileName}
-                                        </span>
-                                      </div>
-                                      <Badge variant="secondary" className="text-[10px] px-1 py-0.5 shrink-0">
-                                        {source.confidence}%
-                                      </Badge>
-                                    </div>
-                                    
-                                    <div className="text-[10px] text-muted-foreground mb-1">
-                                      {source.subfolder} — {formatPageReference(source)}
-                                    </div>
-                                    
-                                    {source.content && (
-                                      <div className="text-[10px] text-muted-foreground italic">
-                                        "{source.content}"
-                                      </div>
-                                    )}
-                                    
-                                    {/* View Document Button */}
-                                    {source.pageNumber && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-5 text-[10px] px-2 mt-1"
-                                        onClick={() => {
-                                          // TODO: Implement document viewer
-                                          toast({
-                                            title: "Visor de documentos",
-                                            description: "Funcionalidad próximamente disponible.",
-                                          });
-                                        }}
-                                      >
-                                        Ver en documento
-                                      </Button>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                           {/* Sources (only for assistant messages with sources) */}
+                           {message.type === 'assistant' && message.sources && message.sources.length > 0 && citeSources && (
+                             <div className="mt-3 pt-3 border-t border-border/20">
+                               <div className="text-xs font-medium mb-2">📚 Fuentes:</div>
+                               <div className="space-y-2">
+                                 {groupSources(message.sources).map((groupedSource, groupIndex) => (
+                                   <div key={groupIndex} className="bg-background/50 rounded-md p-2 border border-border/30">
+                                     <div className="flex items-start justify-between gap-2 mb-1">
+                                       <div className="flex items-center gap-2 min-w-0">
+                                         <Badge 
+                                           variant="outline" 
+                                           className={`text-[10px] px-1 py-0.5 ${getFileTypeBadge(groupedSource.type)}`}
+                                         >
+                                           {groupedSource.type}
+                                         </Badge>
+                                         <span className="text-[11px] font-medium truncate">
+                                           {groupedSource.fileName}
+                                           {groupedSource.subfolder === 'Contrato' && ' (Contrato)'}
+                                         </span>
+                                       </div>
+                                       <div className="flex gap-1">
+                                         {groupedSource.pageGroups.map((pageGroup, pageGroupIndex) => {
+                                           const firstPage = pageGroup[0]?.pageNumber;
+                                           const lastPage = pageGroup[pageGroup.length - 1]?.pageNumber;
+                                           const pageDisplay = firstPage ? 
+                                             (pageGroup.length > 1 && lastPage !== firstPage ? 
+                                               `p. ${firstPage}-${lastPage}` : 
+                                               `p. ${firstPage}`) : '';
+                                           
+                                           return pageDisplay ? (
+                                             <Badge key={pageGroupIndex} variant="secondary" className="text-[10px] px-1 py-0.5 shrink-0">
+                                               {pageDisplay}
+                                             </Badge>
+                                           ) : null;
+                                         })}
+                                       </div>
+                                     </div>
+                                     
+                                     <div className="text-[10px] text-muted-foreground mb-1">
+                                       {groupedSource.subfolder}
+                                     </div>
+                                     
+                                     {/* Show content from first source in group */}
+                                     {groupedSource.pageGroups[0] && groupedSource.pageGroups[0][0]?.content && (
+                                       <div className="text-[10px] text-muted-foreground italic mb-2">
+                                         "{groupedSource.pageGroups[0][0].content}"
+                                       </div>
+                                     )}
+                                     
+                                     {/* Ver contrato button for contract sources */}
+                                     {groupedSource.subfolder === 'Contrato' && groupedSource.firstPageNumber && (
+                                       <div className="flex justify-end">
+                                         <Button
+                                           variant="ghost"
+                                           size="sm"
+                                           className="h-6 text-[10px] px-2"
+                                           onClick={() => {
+                                             toast({
+                                               title: "Ver contrato",
+                                               description: `Abriendo ${groupedSource.fileName} en página ${groupedSource.firstPageNumber}`,
+                                             });
+                                           }}
+                                         >
+                                           📄 Ver contrato
+                                         </Button>
+                                       </div>
+                                     )}
+                                   </div>
+                                 ))}
+                               </div>
+                             </div>
+                           )}
                           
                           {/* Timestamp */}
                           <div className="text-[10px] opacity-70 mt-2">
