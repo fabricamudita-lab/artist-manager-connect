@@ -64,6 +64,145 @@ export default function ProjectDetail() {
   const [openSolicitud, setOpenSolicitud] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [openAddTask, setOpenAddTask] = useState(false);
+
+  // Tasks state
+  const [tasks, setTasks] = useState([
+    // Seed data for testing
+    {
+      id: "1",
+      etapa: "PREPARATIVOS",
+      nombre: "Confirmar disponibilidad de fechas",
+      categoria: "Planificación",
+      responsables: ["María García"],
+      prioridad: "Alta",
+      estado: "completada",
+      comentarios: ""
+    },
+    {
+      id: "2", 
+      etapa: "PREPARATIVOS",
+      nombre: "Solicitar riders técnicos",
+      categoria: "Documentación",
+      responsables: ["Juan López", "Ana Martín"],
+      prioridad: "Media",
+      estado: "en_progreso",
+      comentarios: ""
+    },
+    {
+      id: "3",
+      etapa: "PREPARATIVOS", 
+      nombre: "Contratar seguro del evento",
+      categoria: "Legal",
+      responsables: ["Carlos Ruiz"],
+      prioridad: "Alta",
+      estado: "pendiente",
+      comentarios: ""
+    },
+    {
+      id: "4",
+      etapa: "PRODUCCIÓN",
+      nombre: "Montaje del escenario",
+      categoria: "Técnico",
+      responsables: ["Equipo Técnico"],
+      prioridad: "Alta",
+      estado: "pendiente",
+      comentarios: ""
+    },
+    {
+      id: "5",
+      etapa: "PRODUCCIÓN",
+      nombre: "Prueba de sonido",
+      categoria: "Técnico", 
+      responsables: ["Técnico de sonido"],
+      prioridad: "Media",
+      estado: "bloqueada",
+      comentarios: ""
+    },
+    {
+      id: "6",
+      etapa: "CIERRE",
+      nombre: "Liquidación económica",
+      categoria: "Financiero",
+      responsables: ["Administración"],
+      prioridad: "Alta",
+      estado: "pendiente",
+      comentarios: ""
+    },
+    {
+      id: "7",
+      etapa: "CIERRE",
+      nombre: "Evaluación post-evento",
+      categoria: "Análisis",
+      responsables: ["Director de proyecto"],
+      prioridad: "Baja",
+      estado: "cancelada",
+      comentarios: ""
+    }
+  ]);
+
+  // Helper function to get status icon
+  const getStatusIcon = (estado) => {
+    switch (estado) {
+      case "pendiente": return "⚪";
+      case "en_progreso": return "🟡";
+      case "completada": return "✅";
+      case "bloqueada": return "🔴";
+      case "cancelada": return "⚫";
+      default: return "⚪";
+    }
+  };
+
+  // Helper function to calculate progress for each stage
+  const getStageProgress = (etapa) => {
+    const stageTasks = tasks.filter(task => task.etapa === etapa);
+    const completedTasks = stageTasks.filter(task => task.estado === "completada");
+    const total = stageTasks.length;
+    const completed = completedTasks.length;
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { completed, total, percentage };
+  };
+
+  // Helper function to render tasks for a stage
+  const renderStageTasks = (etapa) => {
+    const stageTasks = tasks.filter(task => task.etapa === etapa);
+    
+    if (stageTasks.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <p className="text-sm text-muted-foreground mb-4">No hay tareas en esta etapa</p>
+          <Button variant="secondary" size="sm" onClick={() => setOpenAddTask(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Añadir tarea
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        {stageTasks.map(task => (
+          <div key={task.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+            <span className="text-lg">{getStatusIcon(task.estado)}</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium">{task.nombre}</span>
+                <span className="text-muted-foreground">|</span>
+                <span className="text-muted-foreground">{task.categoria}</span>
+                <span className="text-muted-foreground">|</span>
+                <span className="text-muted-foreground">{task.responsables.join(", ")}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+        <div className="pt-2">
+          <Button variant="secondary" size="sm" onClick={() => setOpenAddTask(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Añadir tarea
+          </Button>
+        </div>
+      </div>
+    );
+  };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -147,7 +286,7 @@ export default function ProjectDetail() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getProjectStatusIcon = (status: string) => {
     switch (status) {
       case 'en_curso':
         return <Clock className="w-3 h-3" />;
@@ -207,7 +346,7 @@ export default function ProjectDetail() {
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold">{project.name}</h1>
               <Badge variant={getStatusVariant(project.status)} className="gap-1">
-                {getStatusIcon(project.status)}
+                {getProjectStatusIcon(project.status)}
                 {project.status.replace('_', ' ')}
               </Badge>
             </div>
@@ -346,19 +485,15 @@ export default function ProjectDetail() {
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center justify-between w-full mr-4">
                   <span className="font-medium">PREPARATIVOS</span>
-                  <span className="text-sm text-muted-foreground">(0/0 completadas · 0%)</span>
+                  <span className="text-sm text-muted-foreground">
+                    ({getStageProgress("PREPARATIVOS").completed}/{getStageProgress("PREPARATIVOS").total} completadas · {getStageProgress("PREPARATIVOS").percentage}%)
+                  </span>
                 </div>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-4">
                   <Separator />
-                  <div className="text-center py-8">
-                    <p className="text-sm text-muted-foreground mb-4">No hay tareas en esta etapa</p>
-                    <Button variant="secondary" size="sm" onClick={() => setOpenAddTask(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Añadir tarea
-                    </Button>
-                  </div>
+                  {renderStageTasks("PREPARATIVOS")}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -368,19 +503,15 @@ export default function ProjectDetail() {
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center justify-between w-full mr-4">
                   <span className="font-medium">PRODUCCIÓN</span>
-                  <span className="text-sm text-muted-foreground">(0/0 completadas · 0%)</span>
+                  <span className="text-sm text-muted-foreground">
+                    ({getStageProgress("PRODUCCIÓN").completed}/{getStageProgress("PRODUCCIÓN").total} completadas · {getStageProgress("PRODUCCIÓN").percentage}%)
+                  </span>
                 </div>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-4">
                   <Separator />
-                  <div className="text-center py-8">
-                    <p className="text-sm text-muted-foreground mb-4">No hay tareas en esta etapa</p>
-                    <Button variant="secondary" size="sm" onClick={() => setOpenAddTask(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Añadir tarea
-                    </Button>
-                  </div>
+                  {renderStageTasks("PRODUCCIÓN")}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -390,19 +521,15 @@ export default function ProjectDetail() {
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center justify-between w-full mr-4">
                   <span className="font-medium">CIERRE</span>
-                  <span className="text-sm text-muted-foreground">(0/0 completadas · 0%)</span>
+                  <span className="text-sm text-muted-foreground">
+                    ({getStageProgress("CIERRE").completed}/{getStageProgress("CIERRE").total} completadas · {getStageProgress("CIERRE").percentage}%)
+                  </span>
                 </div>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-4">
                   <Separator />
-                  <div className="text-center py-8">
-                    <p className="text-sm text-muted-foreground mb-4">No hay tareas en esta etapa</p>
-                    <Button variant="secondary" size="sm" onClick={() => setOpenAddTask(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Añadir tarea
-                    </Button>
-                  </div>
+                  {renderStageTasks("CIERRE")}
                 </div>
               </AccordionContent>
             </AccordionItem>
