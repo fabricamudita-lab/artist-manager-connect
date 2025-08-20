@@ -20,6 +20,7 @@ import DashboardLayout from "./components/DashboardLayout";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
 import Approvals from "./pages/Approvals";
+import ApprovalDetail from "./pages/ApprovalDetail";
 
 const queryClient = new QueryClient();
 
@@ -124,6 +125,13 @@ const App = () => (
               <ProtectedRoute projectId={window.location.pathname.split('/')[2]}>
                 <DashboardLayout>
                   <Approvals />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/approvals/:id" element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ApprovalDetail />
                 </DashboardLayout>
               </ProtectedRoute>
             } />

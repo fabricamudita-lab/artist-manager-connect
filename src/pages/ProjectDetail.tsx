@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { AddTeamMemberDialog } from "@/components/AddTeamMemberDialog";
 import { TeamMemberProfileDialog } from "@/components/TeamMemberProfileDialog";
+import { ApprovalsModule } from "@/components/ApprovalsModule";
 import { AuthzBreadcrumb } from "@/components/AuthzBreadcrumb";
 import { useAuthz, useConditionalRender } from "@/hooks/useAuthz";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1004,7 +1005,7 @@ export default function ProjectDetail() {
       <Card>
         <Tabs defaultValue="presupuestos" className="w-full">
           <CardHeader className="pb-4">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="presupuestos" className="text-xs sm:text-sm">
                 Presupuestos
                 {budgets.length > 0 && (
@@ -1036,6 +1037,9 @@ export default function ProjectDetail() {
                     {solicitudes.length}
                   </Badge>
                 )}
+              </TabsTrigger>
+              <TabsTrigger value="aprobaciones" className="text-xs sm:text-sm">
+                Aprobaciones
               </TabsTrigger>
               <TabsTrigger value="notas" className="text-xs sm:text-sm">Notas</TabsTrigger>
             </TabsList>
@@ -1200,6 +1204,15 @@ export default function ProjectDetail() {
                   ))}
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="aprobaciones" className="mt-0">
+              <ApprovalsModule 
+                projectId={id!}
+                workspace={workspace ? { id: workspace.id, name: workspace.name } : undefined}
+                artist={artist ? { id: artist.id, name: artist.name } : undefined}
+                project={project ? { id: project.id, name: project.name } : undefined}
+              />
             </TabsContent>
 
             <TabsContent value="notas" className="mt-0">

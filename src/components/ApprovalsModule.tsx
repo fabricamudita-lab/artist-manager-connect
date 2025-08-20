@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthz, useConditionalRender } from '@/hooks/useAuthz';
@@ -49,6 +50,7 @@ interface ApprovalsModuleProps {
 
 export function ApprovalsModule({ projectId, workspace, artist, project }: ApprovalsModuleProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const permissions = useAuthz({ projectId });
   const { renderIf } = useConditionalRender();
   
@@ -387,7 +389,12 @@ export function ApprovalsModule({ projectId, workspace, artist, project }: Appro
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
                     <div className="flex items-center space-x-3">
-                      <h3 className="text-lg font-semibold">{approval.title}</h3>
+                      <h3 
+                        className="text-lg font-semibold cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => navigate(`/approvals/${approval.id}`)}
+                      >
+                        {approval.title}
+                      </h3>
                       {getTypeBadge(approval.type)}
                       {getStatusBadge(approval.status)}
                     </div>
