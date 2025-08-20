@@ -763,6 +763,7 @@ export type Database = {
           due_anchor: Database["public"]["Enums"]["due_anchor"] | null
           due_days_offset: number | null
           id: string
+          owner_label_es: string | null
           section: string
           section_es: string | null
           sort_order: number
@@ -775,6 +776,7 @@ export type Database = {
           due_anchor?: Database["public"]["Enums"]["due_anchor"] | null
           due_days_offset?: number | null
           id?: string
+          owner_label_es?: string | null
           section: string
           section_es?: string | null
           sort_order?: number
@@ -787,6 +789,7 @@ export type Database = {
           due_anchor?: Database["public"]["Enums"]["due_anchor"] | null
           due_days_offset?: number | null
           id?: string
+          owner_label_es?: string | null
           section?: string
           section_es?: string | null
           sort_order?: number
