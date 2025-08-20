@@ -607,7 +607,6 @@ export default function ProjectDetail() {
     };
 
     load();
-    loadTeam();
     loadLinked();
   }, [id]);
 
