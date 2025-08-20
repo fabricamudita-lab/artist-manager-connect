@@ -14,6 +14,125 @@ export type Database = {
   }
   public: {
     Tables: {
+      artist_role_bindings: {
+        Row: {
+          artist_id: string
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["artist_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["artist_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["artist_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_role_bindings_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artists: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          metadata: Json | null
+          name: string
+          profile_id: string | null
+          stage_name: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          name: string
+          profile_id?: string | null
+          stage_name?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string
+          profile_id?: string | null
+          stage_name?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artists_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artists_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          actor_user_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          resource_id: string | null
+          resource_type: string
+        }
+        Insert: {
+          action: string
+          actor_user_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          resource_id?: string | null
+          resource_type: string
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          resource_id?: string | null
+          resource_type?: string
+        }
+        Relationships: []
+      }
       booking_offers: {
         Row: {
           artist_id: string | null
@@ -898,6 +1017,50 @@ export type Database = {
           },
         ]
       }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          role: Database["public"]["Enums"]["workspace_role"]
+          token: string
+          workspace_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          invited_by: string
+          role: Database["public"]["Enums"]["workspace_role"]
+          token: string
+          workspace_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          role?: Database["public"]["Enums"]["workspace_role"]
+          token?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -958,6 +1121,7 @@ export type Database = {
           team_contacts: string | null
           updated_at: string
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
           active_role?: Database["public"]["Enums"]["user_role"]
@@ -974,6 +1138,7 @@ export type Database = {
           team_contacts?: string | null
           updated_at?: string
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
           active_role?: Database["public"]["Enums"]["user_role"]
@@ -990,8 +1155,52 @@ export type Database = {
           team_contacts?: string | null
           updated_at?: string
           user_id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_role_bindings: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string
+          role: Database["public"]["Enums"]["project_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          role: Database["public"]["Enums"]["project_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          role?: Database["public"]["Enums"]["project_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_role_bindings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_team: {
         Row: {
@@ -1051,11 +1260,15 @@ export type Database = {
           end_date_estimada: string | null
           equipo_involucrado: string | null
           id: string
+          labels: string[] | null
+          metadata: Json | null
           name: string
           objective: string | null
+          project_type: Database["public"]["Enums"]["project_type"] | null
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"]
           updated_at: string
+          workspace_id: string | null
         }
         Insert: {
           artist_id?: string | null
@@ -1065,11 +1278,15 @@ export type Database = {
           end_date_estimada?: string | null
           equipo_involucrado?: string | null
           id?: string
+          labels?: string[] | null
+          metadata?: Json | null
           name: string
           objective?: string | null
+          project_type?: Database["public"]["Enums"]["project_type"] | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           updated_at?: string
+          workspace_id?: string | null
         }
         Update: {
           artist_id?: string | null
@@ -1079,11 +1296,15 @@ export type Database = {
           end_date_estimada?: string | null
           equipo_involucrado?: string | null
           id?: string
+          labels?: string[] | null
+          metadata?: Json | null
           name?: string
           objective?: string | null
+          project_type?: Database["public"]["Enums"]["project_type"] | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           updated_at?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -1091,6 +1312,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -1385,6 +1613,68 @@ export type Database = {
           },
         ]
       }
+      workspace_memberships: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["workspace_role"]
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["workspace_role"]
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["workspace_role"]
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_memberships_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspaces: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1398,8 +1688,38 @@ export type Database = {
         Args: { _user_id: string }
         Returns: string
       }
+      get_user_artist_roles: {
+        Args: { _user_id: string }
+        Returns: {
+          artist_id: string
+          role: Database["public"]["Enums"]["artist_role"]
+        }[]
+      }
+      get_user_project_roles: {
+        Args: { _user_id: string }
+        Returns: {
+          project_id: string
+          role: Database["public"]["Enums"]["project_role"]
+        }[]
+      }
+      get_user_workspace_roles: {
+        Args: { _user_id: string }
+        Returns: {
+          role: Database["public"]["Enums"]["workspace_role"]
+          workspace_id: string
+        }[]
+      }
+      user_has_workspace_permission: {
+        Args: {
+          _required_role: Database["public"]["Enums"]["workspace_role"]
+          _user_id: string
+          _workspace_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      artist_role: "ARTIST_MANAGER" | "ARTIST_OBSERVER"
       billing_status: "pendiente" | "pagado" | "facturado" | "cancelado"
       budget_status: "nacional" | "internacional"
       budget_type:
@@ -1409,7 +1729,9 @@ export type Database = {
         | "videoclip"
         | "otros"
       contract_status: "borrador" | "pendiente_firma" | "firmado"
+      project_role: "EDITOR" | "COMMENTER" | "VIEWER"
       project_status: "en_curso" | "finalizado" | "archivado"
+      project_type: "TOUR" | "SINGLE_RELEASE" | "VIDEO" | "CAMPAIGN"
       request_status:
         | "pendiente"
         | "aprobada"
@@ -1426,6 +1748,7 @@ export type Database = {
         | "otros"
       show_status: "confirmado" | "pendiente" | "cancelado"
       user_role: "artist" | "management"
+      workspace_role: "OWNER" | "TEAM_MANAGER"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1553,6 +1876,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      artist_role: ["ARTIST_MANAGER", "ARTIST_OBSERVER"],
       billing_status: ["pendiente", "pagado", "facturado", "cancelado"],
       budget_status: ["nacional", "internacional"],
       budget_type: [
@@ -1563,7 +1887,9 @@ export const Constants = {
         "otros",
       ],
       contract_status: ["borrador", "pendiente_firma", "firmado"],
+      project_role: ["EDITOR", "COMMENTER", "VIEWER"],
       project_status: ["en_curso", "finalizado", "archivado"],
+      project_type: ["TOUR", "SINGLE_RELEASE", "VIDEO", "CAMPAIGN"],
       request_status: [
         "pendiente",
         "aprobada",
@@ -1582,6 +1908,7 @@ export const Constants = {
       ],
       show_status: ["confirmado", "pendiente", "cancelado"],
       user_role: ["artist", "management"],
+      workspace_role: ["OWNER", "TEAM_MANAGER"],
     },
   },
 } as const
