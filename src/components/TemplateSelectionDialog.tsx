@@ -68,6 +68,7 @@ export function TemplateSelectionDialog({
   const fetchTemplates = async () => {
     setLoading(true);
     try {
+      console.log('Fetching templates...');
       // Fetch system templates
       const { data: systemData, error: systemError } = await supabase
         .from('checklist_templates')
@@ -75,7 +76,10 @@ export function TemplateSelectionDialog({
         .eq('is_system_template', true)
         .order('name_es');
 
-      if (systemError) throw systemError;
+      if (systemError) {
+        console.error('System templates error:', systemError);
+        throw systemError;
+      }
 
       // Fetch user templates (personal + workspace)
       const { data: userData, error: userError } = await supabase
@@ -84,8 +88,14 @@ export function TemplateSelectionDialog({
         .eq('is_system_template', false)
         .order('name_es');
 
-      if (userError) throw userError;
+      if (userError) {
+        console.error('User templates error:', userError);
+        throw userError;
+      }
 
+      console.log('System templates:', systemData);
+      console.log('User templates:', userData);
+      
       setSystemTemplates(systemData || []);
       setUserTemplates(userData || []);
     } catch (error) {
