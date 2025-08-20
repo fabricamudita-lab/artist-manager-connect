@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { AddTeamMemberDialog } from "@/components/AddTeamMemberDialog";
 import { TeamMemberProfileDialog } from "@/components/TeamMemberProfileDialog";
+import { AuthzBreadcrumb } from "@/components/AuthzBreadcrumb";
+import { useAuthz, useConditionalRender } from "@/hooks/useAuthz";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,12 +73,31 @@ interface Project {
   start_date?: string | null;
   end_date_estimada?: string | null;
   artist_name?: string | null;
+  workspace_id?: string | null;
+}
+
+interface Artist {
+  id: string;
+  name: string;
+  workspace_id: string;
+}
+
+interface Workspace {
+  id: string;
+  name: string;
 }
 
 export default function ProjectDetail() {
   const { id } = useParams();
   const { profile } = useAuth();
+  const { renderIf } = useConditionalRender();
+  
+  // Authorization check for this project
+  const permissions = useAuthz({ projectId: id });
+  
   const [project, setProject] = useState<Project | null>(null);
+  const [artist, setArtist] = useState<Artist | null>(null);
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [team, setTeam] = useState<{ id: string; full_name: string; role: string | null }[]>([]);
   const [budgets, setBudgets] = useState<any[]>([]);
   const [contracts, setContracts] = useState<any[]>([]);
@@ -561,11 +582,12 @@ export default function ProjectDetail() {
       try {
         const { data: proj, error } = await supabase
           .from('projects')
-          .select(`id, name, description, objective, status, artist_id, start_date, end_date_estimada, profiles:artist_id ( full_name )`)
+          .select('id, name, description, objective, status, artist_id, start_date, end_date_estimada, workspace_id')
           .eq('id', id)
           .maybeSingle();
         if (error) throw error;
         if (!proj) return;
+        
         const p: Project = {
           id: proj.id,
           name: proj.name,
@@ -575,9 +597,39 @@ export default function ProjectDetail() {
           artist_id: proj.artist_id,
           start_date: proj.start_date,
           end_date_estimada: proj.end_date_estimada,
-          artist_name: proj.profiles?.full_name ?? null,
+          workspace_id: proj.workspace_id,
+          artist_name: null,
         };
         setProject(p);
+        
+        // Fetch artist data separately if artist_id exists
+        if (proj.artist_id) {
+          const { data: artistData } = await supabase
+            .from('artists')
+            .select('id, name, workspace_id')
+            .eq('id', proj.artist_id)
+            .maybeSingle();
+          
+          if (artistData) {
+            setArtist(artistData);
+            p.artist_name = artistData.name;
+            setProject({ ...p });
+          }
+        }
+        
+        // Fetch workspace data separately if workspace_id exists
+        if (proj.workspace_id) {
+          const { data: workspaceData } = await supabase
+            .from('workspaces')
+            .select('id, name')
+            .eq('id', proj.workspace_id)
+            .maybeSingle();
+          
+          if (workspaceData) {
+            setWorkspace(workspaceData);
+          }
+        }
+        
         document.title = `${p.name} | Proyectos`;
       } catch (e) {
         console.error('Error project', e);
@@ -676,6 +728,13 @@ export default function ProjectDetail() {
 
   return (
     <div className="space-y-8">
+      {/* Breadcrumb Navigation */}
+      <AuthzBreadcrumb 
+        workspace={workspace || undefined}
+        artist={artist || undefined}
+        project={project ? { id: project.id, name: project.name } : undefined}
+      />
+      
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-primary/5 via-primary/10 to-transparent rounded-lg border p-6">
         <div className="flex items-start justify-between">
@@ -710,33 +769,37 @@ export default function ProjectDetail() {
             </div>
           </div>
           
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Crear nuevo
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => setOpenBudget(true)}>
-                <FileText className="w-4 h-4 mr-2" />
-                Presupuesto
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setOpenSolicitud(true)}>
-                <CalendarDays className="w-4 h-4 mr-2" />
-                Solicitud
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-                <Upload className="w-4 h-4 mr-2" />
-                Contrato (PDF)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {renderIf(permissions.canEdit, (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Crear nuevo
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setOpenBudget(true)}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Presupuesto
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setOpenSolicitud(true)}>
+                  <CalendarDays className="w-4 h-4 mr-2" />
+                  Solicitud
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Contrato (PDF)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ))}
           
-              <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) handleUploadContract(f);
-          }} />
+          {renderIf(permissions.canEdit, (
+            <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleUploadContract(f);
+            }} />
+          ))}
         </div>
       </div>
 

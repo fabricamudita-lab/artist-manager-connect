@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { ProtectedRoute, ForbiddenPage } from "@/components/ProtectedRoute";
+import { DevRoleSwitcher } from "@/components/DevRoleSwitcher";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -19,25 +21,6 @@ import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
 
 const queryClient = new QueryClient();
-
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  
-  console.log('ProtectedRoute - user:', user?.email, 'loading:', loading);
-  
-  if (loading) {
-    console.log('ProtectedRoute - Still loading...');
-    return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
-  }
-  
-  if (!user) {
-    console.log('ProtectedRoute - No user, redirecting to auth');
-    return <Navigate to="/auth" replace />;
-  }
-  
-  console.log('ProtectedRoute - User authenticated, rendering children');
-  return <>{children}</>;
-}
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -59,6 +42,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <DevRoleSwitcher />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={
@@ -71,6 +55,7 @@ const App = () => (
                 <Auth />
               </PublicRoute>
             } />
+            <Route path="/403" element={<ForbiddenPage />} />
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <DashboardLayout>
@@ -128,7 +113,7 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/projects/:id" element={
-              <ProtectedRoute>
+              <ProtectedRoute projectId={window.location.pathname.split('/')[2]}>
                 <DashboardLayout>
                   <ProjectDetail />
                 </DashboardLayout>
