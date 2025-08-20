@@ -49,6 +49,7 @@ export default function Projects() {
   const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [deleteProject, setDeleteProject] = useState<ProjectListItem | null>(null);
+  const [viewMode, setViewMode] = useState<'estados' | 'porcentajes'>('estados');
 
   // SEO: title, meta, canonical
   useEffect(() => {
@@ -206,6 +207,17 @@ export default function Projects() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="w-full md:w-40">
+              <Select value={viewMode} onValueChange={(value: 'estados' | 'porcentajes') => setViewMode(value)}>
+                <SelectTrigger className="bg-background/50 backdrop-blur-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="estados">Ver Estados</SelectItem>
+                  <SelectItem value="porcentajes">Ver Porcentajes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </header>
 
@@ -257,24 +269,17 @@ export default function Projects() {
                           <td className="py-4 px-6">
                             <div className="text-muted-foreground">{p.artist_name || '—'}</div>
                           </td>
-                          <td className="py-4 px-6">
-                            {p.status === 'en_curso' ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize bg-primary/10 text-primary cursor-help">
-                                    {p.status.replace('_', ' ')}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{calculateProgress(p.start_date, p.end_date_estimada)}%</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize bg-primary/10 text-primary">
-                                {p.status.replace('_', ' ')}
-                              </span>
-                            )}
-                          </td>
+                           <td className="py-4 px-6">
+                             {viewMode === 'porcentajes' ? (
+                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                                 {calculateProgress(p.start_date, p.end_date_estimada)}%
+                               </span>
+                             ) : (
+                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize bg-primary/10 text-primary">
+                                 {p.status.replace('_', ' ')}
+                               </span>
+                             )}
+                           </td>
                           <td className="py-4 px-6">
                             <div className="text-muted-foreground">{p.start_date || '—'}</div>
                           </td>
