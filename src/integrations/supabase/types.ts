@@ -757,6 +757,74 @@ export type Database = {
           },
         ]
       }
+      checklist_template_items: {
+        Row: {
+          created_at: string
+          id: string
+          section: string
+          sort_order: number
+          task: string
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          section: string
+          sort_order?: number
+          task: string
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          section?: string
+          sort_order?: number
+          task?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_checklist_template_items_template_id"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_templates: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_system_template: boolean
+          name: string
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_system_template?: boolean
+          name: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_system_template?: boolean
+          name?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       contacts: {
         Row: {
           artist_id: string | null

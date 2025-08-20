@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2, Plus, CheckCircle2 } from "lucide-react";
+import { Trash2, Plus, CheckCircle2, FileText, Save } from "lucide-react";
+import { TemplateSelectionDialog } from "./TemplateSelectionDialog";
+import { SaveTemplateDialog } from "./SaveAsTemplateDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +50,8 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   const [deleteConfirm, setDeleteConfirm] = useState<ChecklistItem | null>(null);
   const [clearAllConfirm, setClearAllConfirm] = useState(false);
   const [openAddDialog, setOpenAddDialog] = useState(false);
+  const [openTemplateDialog, setOpenTemplateDialog] = useState(false);
+  const [openSaveTemplateDialog, setOpenSaveTemplateDialog] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
 
@@ -219,7 +223,17 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
               Checklist del Proyecto
             </CardTitle>
             {canEdit && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                {items.length === 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setOpenTemplateDialog(true)}
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Crear desde plantilla
+                  </Button>
+                )}
                 <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
                   <DialogTrigger asChild>
                     <Button size="sm" variant="outline">
@@ -270,14 +284,24 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                   </DialogContent>
                 </Dialog>
                 {items.length > 0 && (
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => setClearAllConfirm(true)}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Vaciar todo
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setOpenSaveTemplateDialog(true)}
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      Guardar como plantilla
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => setClearAllConfirm(true)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Vaciar todo
+                    </Button>
+                  </>
                 )}
               </div>
             )}
@@ -376,6 +400,32 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Template Selection Dialog */}
+      <TemplateSelectionDialog
+        open={openTemplateDialog}
+        onOpenChange={setOpenTemplateDialog}
+        projectId={projectId}
+        onTemplateApplied={fetchChecklistItems}
+      />
+
+      {/* Save Template Dialog */}
+      <SaveTemplateDialog
+        open={openSaveTemplateDialog}
+        onOpenChange={setOpenSaveTemplateDialog}
+        checklistItems={items.map(item => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          sort_order: item.sort_order,
+        }))}
+        onTemplateSaved={() => {
+          toast({
+            title: "Plantilla guardada",
+            description: "La plantilla se ha guardado correctamente.",
+          });
+        }}
+      />
     </>
   );
 }
