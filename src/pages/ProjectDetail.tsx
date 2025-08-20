@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
@@ -7,6 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import BudgetDetailsDialog from "@/components/BudgetDetailsDialog";
@@ -27,7 +30,9 @@ import {
   User, 
   Paperclip, 
   Plus, 
-  MoreHorizontal, 
+  MoreHorizontal,
+  ChevronDown,
+  ChevronRight,
   Target, 
   Users,
   Download,
@@ -37,7 +42,6 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  ChevronDown,
   ListTodo,
   Filter,
   CalendarIcon,
@@ -52,7 +56,6 @@ import { MessageSquare, Activity, Send } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -89,7 +92,26 @@ export default function ProjectDetail() {
   const [showBlockedDialog, setShowBlockedDialog] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [showEventFolderSelector, setShowEventFolderSelector] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [showConfirmComplete, setShowConfirmComplete] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load collapsed sections from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('taskPanel-collapsedSections');
+    if (saved) {
+      setCollapsedSections(JSON.parse(saved));
+    }
+  }, []);
+
+  // Save collapsed sections to localStorage
+  const toggleSection = (section: string) => {
+    const newState = { ...collapsedSections, [section]: !collapsedSections[section] };
+    setCollapsedSections(newState);
+    localStorage.setItem('taskPanel-collapsedSections', JSON.stringify(newState));
+  };
 
   // Tasks state
   const [tasks, setTasks] = useState([
@@ -246,6 +268,29 @@ export default function ProjectDetail() {
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
     return { completed, total, percentage };
   };
+
+  // Debounce utility
+  function debounce(func: Function, wait: number) {
+    let timeout: NodeJS.Timeout;
+    return function executedFunction(...args: any[]) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  // Autosave with debounce
+  const autosaveTask = React.useCallback(
+    debounce((task: any) => {
+      const updatedTasks = tasks.map(t => t.id === task.id ? task : t);
+      setTasks(updatedTasks);
+      toast({ title: "Cambios guardados automáticamente" });
+    }, 1000),
+    [tasks]
+  );
 
   // Helper function to render tasks for a stage
   const renderStageTasks = (etapa) => {
@@ -1319,8 +1364,15 @@ export default function ProjectDetail() {
               </div>
 
               {/* Ejecución Section */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-medium">Ejecución</h3>
+              <Collapsible 
+                open={!collapsedSections.ejecucion} 
+                onOpenChange={() => toggleSection('ejecucion')}
+              >
+                <CollapsibleTrigger className="flex items-center justify-between w-full pt-4 border-t">
+                  <h3 className="text-sm font-medium">Ejecución</h3>
+                  {collapsedSections.ejecucion ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-2">
                 
                 {/* Definition of Done */}
                 <div className="space-y-2">
@@ -1409,7 +1461,29 @@ export default function ProjectDetail() {
                             newPasos[index] = { ...item, text: e.target.value };
                             const updatedTask = { ...selectedTask, pasos: newPasos };
                             setSelectedTask(updatedTask);
+                            autosaveTask(updatedTask);
+                          }}
+                          onBlur={(e) => {
+                            const newPasos = [...(selectedTask.pasos || [])];
+                            newPasos[index] = { ...item, text: e.target.value };
+                            const updatedTask = { ...selectedTask, pasos: newPasos };
                             handleUpdateTask(updatedTask);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              const newItem = { id: Date.now().toString(), text: "", completed: false };
+                              const newPasos = [...(selectedTask.pasos || []), newItem];
+                              const updatedTask = { ...selectedTask, pasos: newPasos };
+                              setSelectedTask(updatedTask);
+                              handleUpdateTask(updatedTask);
+                              // Focus the new input after a brief delay
+                              setTimeout(() => {
+                                const inputs = document.querySelectorAll('input[placeholder="Paso a seguir..."]');
+                                const lastInput = inputs[inputs.length - 1] as HTMLInputElement;
+                                lastInput?.focus();
+                              }, 50);
+                            }
                           }}
                           className="flex-1 text-sm"
                           placeholder="Paso a seguir..."
@@ -1613,11 +1687,19 @@ export default function ProjectDetail() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </CollapsibleContent>
+              </Collapsible>
 
               {/* Contexto Section */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-medium">Contexto</h3>
+              <Collapsible 
+                open={!collapsedSections.contexto} 
+                onOpenChange={() => toggleSection('contexto')}
+              >
+                <CollapsibleTrigger className="flex items-center justify-between w-full pt-4 border-t">
+                  <h3 className="text-sm font-medium">Contexto</h3>
+                  {collapsedSections.contexto ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-2">
                 
                 {/* Brief / Información adicional */}
                 <div className="space-y-2">
@@ -1627,6 +1709,10 @@ export default function ProjectDetail() {
                     onChange={(e) => {
                       const updatedTask = { ...selectedTask, brief: e.target.value };
                       setSelectedTask(updatedTask);
+                      autosaveTask(updatedTask);
+                    }}
+                    onBlur={(e) => {
+                      const updatedTask = { ...selectedTask, brief: e.target.value };
                       handleUpdateTask(updatedTask);
                     }}
                     placeholder="Información adicional sobre la tarea..."
@@ -1766,11 +1852,19 @@ export default function ProjectDetail() {
                     )}
                   </div>
                 </div>
-              </div>
+              </CollapsibleContent>
+              </Collapsible>
 
               {/* Archivos Section */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-medium">Archivos</h3>
+              <Collapsible 
+                open={!collapsedSections.archivos} 
+                onOpenChange={() => toggleSection('archivos')}
+              >
+                <CollapsibleTrigger className="flex items-center justify-between w-full pt-4 border-t">
+                  <h3 className="text-sm font-medium">Archivos</h3>
+                  {collapsedSections.archivos ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-2">
                 
                 {/* Upload and Link buttons */}
                 <div className="flex gap-2">
@@ -1893,7 +1987,8 @@ export default function ProjectDetail() {
                     ))
                   )}
                 </div>
-              </div>
+              </CollapsibleContent>
+              </Collapsible>
 
               {/* Botones de acción */}
               <div className="space-y-3 pt-4 border-t">
