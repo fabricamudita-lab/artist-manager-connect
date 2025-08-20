@@ -1856,6 +1856,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      user_is_workspace_owner: {
+        Args: { _user_id: string; _workspace_id: string }
+        Returns: boolean
+      }
       validate_approval_transition: {
         Args: { p_action: string; p_approval_id: string; p_user_id: string }
         Returns: Json
