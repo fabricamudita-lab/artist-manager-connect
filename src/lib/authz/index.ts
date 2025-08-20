@@ -66,7 +66,7 @@ roles:
   PROJECT:
     EDITOR:
       description: "Editor con permisos completos de gestión del proyecto"
-      allow: [VIEW_PROJECT, EDIT_PROJECT, CREATE_WORK_ITEM, EDIT_WORK_ITEM, SEND_BUDGET, CHANGE_STATUS, UPLOAD_FILES]
+      allow: [VIEW_PROJECT, EDIT_PROJECT, CREATE_WORK_ITEM, EDIT_WORK_ITEM, SEND_BUDGET, CHANGE_STATUS, UPLOAD_FILES, CREATE_APPROVAL, SUBMIT_APPROVAL]
       
     COMMENTER:
       description: "Colaborador con permisos de comentario y aprobación"
@@ -95,6 +95,8 @@ acciones_clave:
   - UPLOAD_FILES
   - COMMENT
   - APPROVE_IF_ASSIGNED
+  - CREATE_APPROVAL
+  - SUBMIT_APPROVAL
 `;
 
 const permissions: PermissionMatrix = yaml.load(PERMISSIONS_CONFIG) as PermissionMatrix;

@@ -14,6 +14,88 @@ export type Database = {
   }
   public: {
     Tables: {
+      approval_comments: {
+        Row: {
+          approval_id: string
+          author_id: string
+          comment: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          approval_id: string
+          author_id: string
+          comment: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          approval_id?: string
+          author_id?: string
+          comment?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_comments_approval_id_fkey"
+            columns: ["approval_id"]
+            isOneToOne: false
+            referencedRelation: "approvals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      approvals: {
+        Row: {
+          assigned_to_user_id: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          metadata: Json | null
+          project_id: string
+          status: Database["public"]["Enums"]["approval_status"]
+          title: string
+          type: Database["public"]["Enums"]["approval_type"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_to_user_id?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          project_id: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          title: string
+          type: Database["public"]["Enums"]["approval_type"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_to_user_id?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          project_id?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          title?: string
+          type?: Database["public"]["Enums"]["approval_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approvals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artist_role_bindings: {
         Row: {
           artist_id: string
@@ -1719,6 +1801,8 @@ export type Database = {
       }
     }
     Enums: {
+      approval_status: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED"
+      approval_type: "BUDGET" | "PR_REQUEST" | "LOGISTICS"
       artist_role: "ARTIST_MANAGER" | "ARTIST_OBSERVER"
       billing_status: "pendiente" | "pagado" | "facturado" | "cancelado"
       budget_status: "nacional" | "internacional"
@@ -1876,6 +1960,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      approval_status: ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"],
+      approval_type: ["BUDGET", "PR_REQUEST", "LOGISTICS"],
       artist_role: ["ARTIST_MANAGER", "ARTIST_OBSERVER"],
       billing_status: ["pendiente", "pagado", "facturado", "cancelado"],
       budget_status: ["nacional", "internacional"],

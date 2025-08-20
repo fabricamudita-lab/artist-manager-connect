@@ -19,6 +19,7 @@ import NotFound from "./pages/NotFound";
 import DashboardLayout from "./components/DashboardLayout";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
+import Approvals from "./pages/Approvals";
 
 const queryClient = new QueryClient();
 
@@ -116,6 +117,13 @@ const App = () => (
               <ProtectedRoute projectId={window.location.pathname.split('/')[2]}>
                 <DashboardLayout>
                   <ProjectDetail />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/projects/:id/approvals" element={
+              <ProtectedRoute projectId={window.location.pathname.split('/')[2]}>
+                <DashboardLayout>
+                  <Approvals />
                 </DashboardLayout>
               </ProtectedRoute>
             } />
