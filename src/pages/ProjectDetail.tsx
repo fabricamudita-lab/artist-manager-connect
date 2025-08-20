@@ -63,6 +63,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ProjectChecklistManager } from "@/components/ProjectChecklistManager";
 
 interface Project {
   id: string;
@@ -872,134 +873,10 @@ export default function ProjectDetail() {
       </div>
 
       {/* Checklist Section */}
-      <Card>
-        <Collapsible open={checklistOpen} onOpenChange={setChecklistOpen}>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 cursor-pointer hover:bg-muted/50 transition-colors">
-              <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <ListTodo className="w-5 h-5" />
-                Checklist
-                <ChevronDown className={`w-4 h-4 transition-transform ${checklistOpen ? 'rotate-180' : ''}`} />
-              </CardTitle>
-              
-              {/* Filter dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Filter className="w-4 h-4" />
-                    {activeFilters.size === 5 
-                      ? "Todos los estados" 
-                      : activeFilters.size === 1
-                        ? `1 estado activo`
-                        : `${activeFilters.size} estados activos`
-                    }
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <div className="px-2 py-1 text-xs text-muted-foreground border-b mb-1">
-                    Selecciona múltiples estados
-                  </div>
-                  {[
-                    { id: "pendiente", label: "Pendientes" },
-                    { id: "en_progreso", label: "En progreso" },
-                    { id: "completada", label: "Completadas" },
-                    { id: "bloqueada", label: "Bloqueadas" },
-                    { id: "cancelada", label: "Canceladas" }
-                  ].map(status => (
-                    <DropdownMenuCheckboxItem
-                      key={status.id}
-                      checked={activeFilters.has(status.id)}
-                      onCheckedChange={(checked) => {
-                        const newFilters = new Set(activeFilters);
-                        if (checked) {
-                          newFilters.add(status.id);
-                        } else {
-                          newFilters.delete(status.id);
-                        }
-                        setActiveFilters(newFilters);
-                        saveFiltersToStorage(newFilters);
-                      }}
-                    >
-                      {status.label}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                  <DropdownMenuItem
-                    onClick={() => {
-                      const defaultFilters = new Set(["pendiente", "en_progreso", "completada", "bloqueada", "cancelada"]);
-                      setActiveFilters(defaultFilters);
-                      saveFiltersToStorage(defaultFilters);
-                    }}
-                    className="border-t mt-1 pt-1"
-                  >
-                    Seleccionar todos
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </CardHeader>
-          </CollapsibleTrigger>
-          
-          <CollapsibleContent>
-            <CardContent>
-              <Accordion type="multiple" className="w-full">
-                {/* PREPARATIVOS */}
-                <AccordionItem value="preparativos">
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center justify-between w-full mr-4">
-                      <span className="font-medium">PREPARATIVOS</span>
-                      <span className="text-sm text-muted-foreground">
-                        ({getStageProgress("PREPARATIVOS").completed}/{getStageProgress("PREPARATIVOS").total} completadas · {getStageProgress("PREPARATIVOS").percentage}%)
-                      </span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-4">
-                      <Separator />
-                      {renderStageTasks("PREPARATIVOS")}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                {/* PRODUCCIÓN */}
-                <AccordionItem value="produccion">
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center justify-between w-full mr-4">
-                      <span className="font-medium">PRODUCCIÓN</span>
-                      <span className="text-sm text-muted-foreground">
-                        ({getStageProgress("PRODUCCIÓN").completed}/{getStageProgress("PRODUCCIÓN").total} completadas · {getStageProgress("PRODUCCIÓN").percentage}%)
-                      </span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-4">
-                      <Separator />
-                      {renderStageTasks("PRODUCCIÓN")}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                {/* CIERRE */}
-                <AccordionItem value="cierre">
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center justify-between w-full mr-4">
-                      <span className="font-medium">CIERRE</span>
-                      <span className="text-sm text-muted-foreground">
-                        ({getStageProgress("CIERRE").completed}/{getStageProgress("CIERRE").total} completadas · {getStageProgress("CIERRE").percentage}%)
-                      </span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-4">
-                      <Separator />
-                      {renderStageTasks("CIERRE")}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </CardContent>
-          </CollapsibleContent>
-        </Collapsible>
-      </Card>
+      <ProjectChecklistManager 
+        projectId={id || ""} 
+        canEdit={permissions.canEdit || false}
+      />
 
       {/* Content Tabs */}
       <Card>
