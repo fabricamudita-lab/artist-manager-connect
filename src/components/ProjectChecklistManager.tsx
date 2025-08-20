@@ -224,16 +224,14 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
             </CardTitle>
             {canEdit && (
               <div className="flex gap-2 flex-wrap">
-                {items.length === 0 && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setOpenTemplateDialog(true)}
-                  >
-                    <FileText className="w-4 h-4 mr-2" />
-                    Crear desde plantilla
-                  </Button>
-                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setOpenTemplateDialog(true)}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Crear desde plantilla
+                </Button>
                 <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
                   <DialogTrigger asChild>
                     <Button size="sm" variant="outline">
