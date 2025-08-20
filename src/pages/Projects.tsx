@@ -5,7 +5,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Filter, FolderOpen } from "lucide-react";
+import { Search, Filter, FolderOpen, Trash2, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/hooks/use-toast";
 import CreateProjectDialog from "@/components/CreateProjectDialog";
 
 interface ProjectListItem {
@@ -25,6 +42,7 @@ export default function Projects() {
   const [openCreate, setOpenCreate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [deleteProject, setDeleteProject] = useState<ProjectListItem | null>(null);
 
   // SEO: title, meta, canonical
   useEffect(() => {
@@ -91,6 +109,34 @@ export default function Projects() {
       it.name.toLowerCase().includes(q) || (it.artist_name || '').toLowerCase().includes(q)
     );
   }, [items, query]);
+
+  const handleDeleteProject = async () => {
+    if (!deleteProject) return;
+    
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', deleteProject.id);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Proyecto eliminado",
+        description: `El proyecto "${deleteProject.name}" ha sido eliminado correctamente.`,
+      });
+      
+      setRefreshKey(k => k + 1);
+      setDeleteProject(null);
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el proyecto. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <main className="space-y-8">
@@ -200,14 +246,32 @@ export default function Projects() {
                           <div className="text-muted-foreground">{p.end_date_estimada || '—'}</div>
                         </td>
                         <td className="py-4 px-6 text-right">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => navigate(`/projects/${p.id}`)}
-                            className="shadow-sm hover:shadow-md transition-shadow"
-                          >
-                            Ver detalle
-                          </Button>
+                          <div className="flex items-center gap-2 justify-end">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => navigate(`/projects/${p.id}`)}
+                              className="shadow-sm hover:shadow-md transition-shadow"
+                            >
+                              Ver detalle
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => setDeleteProject(p)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Eliminar
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -223,6 +287,26 @@ export default function Projects() {
         // Refrescar lista al crear
         setRefreshKey((k) => k + 1);
       }} />
+
+      <AlertDialog open={!!deleteProject} onOpenChange={() => setDeleteProject(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar proyecto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El proyecto "{deleteProject?.name}" y todos sus datos asociados serán eliminados permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProject}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
