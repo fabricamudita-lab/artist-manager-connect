@@ -96,6 +96,7 @@ export function SaveTemplateDialog({
           : 'GENERAL',
         task: item.title,
         task_es: item.title,
+        owner_label_es: 'Por definir',
         sort_order: index,
       }));
 

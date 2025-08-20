@@ -23,6 +23,7 @@ interface TemplateItem {
   section_es: string;
   task: string;
   task_es: string;
+  owner_label_es?: string;
   sort_order: number;
   due_anchor?: string;
   due_days_offset?: number;
@@ -102,7 +103,7 @@ export function TemplateSelectionDialog({
   const fetchTemplateItems = async (templateId: string): Promise<TemplateItem[]> => {
     const { data, error } = await supabase
       .from('checklist_template_items')
-      .select('id, section, section_es, task, task_es, sort_order, due_anchor, due_days_offset')
+      .select('id, section, section_es, task, task_es, owner_label_es, sort_order, due_anchor, due_days_offset')
       .eq('template_id', templateId)
       .order('sort_order');
 
@@ -306,7 +307,14 @@ export function TemplateSelectionDialog({
                               {items.map((item) => (
                                 <div key={item.id} className="flex items-start gap-2">
                                   <div className="w-2 h-2 rounded-full bg-muted-foreground mt-2 flex-shrink-0" />
-                                  <span className="text-sm">{item.task_es}</span>
+                                  <div className="flex-1">
+                                    <span className="text-sm">{item.task_es}</span>
+                                    {item.owner_label_es && (
+                                      <div className="text-xs text-muted-foreground mt-1">
+                                        Responsable: {item.owner_label_es}
+                                      </div>
+                                    )}
+                                  </div>
                                   {item.due_anchor && (
                                     <span className="text-xs text-muted-foreground ml-auto">
                                       {item.due_days_offset !== 0 ? 
