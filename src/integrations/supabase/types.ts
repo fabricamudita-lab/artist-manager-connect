@@ -760,26 +760,38 @@ export type Database = {
       checklist_template_items: {
         Row: {
           created_at: string
+          due_anchor: Database["public"]["Enums"]["due_anchor"] | null
+          due_days_offset: number | null
           id: string
           section: string
+          section_es: string | null
           sort_order: number
           task: string
+          task_es: string | null
           template_id: string
         }
         Insert: {
           created_at?: string
+          due_anchor?: Database["public"]["Enums"]["due_anchor"] | null
+          due_days_offset?: number | null
           id?: string
           section: string
+          section_es?: string | null
           sort_order?: number
           task: string
+          task_es?: string | null
           template_id: string
         }
         Update: {
           created_at?: string
+          due_anchor?: Database["public"]["Enums"]["due_anchor"] | null
+          due_days_offset?: number | null
           id?: string
           section?: string
+          section_es?: string | null
           sort_order?: number
           task?: string
+          task_es?: string | null
           template_id?: string
         }
         Relationships: [
@@ -797,9 +809,11 @@ export type Database = {
           created_at: string
           created_by: string
           description: string | null
+          description_es: string | null
           id: string
           is_system_template: boolean
           name: string
+          name_es: string | null
           updated_at: string
           workspace_id: string | null
         }
@@ -807,9 +821,11 @@ export type Database = {
           created_at?: string
           created_by: string
           description?: string | null
+          description_es?: string | null
           id?: string
           is_system_template?: boolean
           name: string
+          name_es?: string | null
           updated_at?: string
           workspace_id?: string | null
         }
@@ -817,9 +833,11 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string | null
+          description_es?: string | null
           id?: string
           is_system_template?: boolean
           name?: string
+          name_es?: string | null
           updated_at?: string
           workspace_id?: string | null
         }
@@ -1996,6 +2014,14 @@ export type Database = {
         | "videoclip"
         | "otros"
       contract_status: "borrador" | "pendiente_firma" | "firmado"
+      due_anchor:
+        | "SHOW_DAY"
+        | "PRESS_LAUNCH"
+        | "SHOOT_DAY"
+        | "PUBLISH_DAY"
+        | "RELEASE_DAY"
+        | "MEETING_DAY"
+        | "PAYRUN_DAY"
       project_role: "EDITOR" | "COMMENTER" | "VIEWER"
       project_status: "en_curso" | "finalizado" | "archivado"
       project_type: "TOUR" | "SINGLE_RELEASE" | "VIDEO" | "CAMPAIGN"
@@ -2165,6 +2191,15 @@ export const Constants = {
         "otros",
       ],
       contract_status: ["borrador", "pendiente_firma", "firmado"],
+      due_anchor: [
+        "SHOW_DAY",
+        "PRESS_LAUNCH",
+        "SHOOT_DAY",
+        "PUBLISH_DAY",
+        "RELEASE_DAY",
+        "MEETING_DAY",
+        "PAYRUN_DAY",
+      ],
       project_role: ["EDITOR", "COMMENTER", "VIEWER"],
       project_status: ["en_curso", "finalizado", "archivado"],
       project_type: ["TOUR", "SINGLE_RELEASE", "VIDEO", "CAMPAIGN"],
