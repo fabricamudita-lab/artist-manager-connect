@@ -17,22 +17,22 @@ export type Database = {
       approval_comments: {
         Row: {
           approval_id: string
-          author_id: string
-          comment: string
+          author_user_id: string
+          body: string
           created_at: string
           id: string
         }
         Insert: {
           approval_id: string
-          author_id: string
-          comment: string
+          author_user_id: string
+          body: string
           created_at?: string
           id?: string
         }
         Update: {
           approval_id?: string
-          author_id?: string
-          comment?: string
+          author_user_id?: string
+          body?: string
           created_at?: string
           id?: string
         }
@@ -46,8 +46,50 @@ export type Database = {
           },
         ]
       }
+      approval_events: {
+        Row: {
+          actor_user_id: string
+          approval_id: string
+          created_at: string
+          diff: Json | null
+          event_type: Database["public"]["Enums"]["approval_event_type"]
+          from_status: Database["public"]["Enums"]["approval_status"] | null
+          id: string
+          to_status: Database["public"]["Enums"]["approval_status"] | null
+        }
+        Insert: {
+          actor_user_id: string
+          approval_id: string
+          created_at?: string
+          diff?: Json | null
+          event_type: Database["public"]["Enums"]["approval_event_type"]
+          from_status?: Database["public"]["Enums"]["approval_status"] | null
+          id?: string
+          to_status?: Database["public"]["Enums"]["approval_status"] | null
+        }
+        Update: {
+          actor_user_id?: string
+          approval_id?: string
+          created_at?: string
+          diff?: Json | null
+          event_type?: Database["public"]["Enums"]["approval_event_type"]
+          from_status?: Database["public"]["Enums"]["approval_status"] | null
+          id?: string
+          to_status?: Database["public"]["Enums"]["approval_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_events_approval_id_fkey"
+            columns: ["approval_id"]
+            isOneToOne: false
+            referencedRelation: "approvals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approvals: {
         Row: {
+          amount: number | null
           assigned_to_user_id: string | null
           created_at: string
           created_by: string
@@ -59,8 +101,10 @@ export type Database = {
           title: string
           type: Database["public"]["Enums"]["approval_type"]
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
+          amount?: number | null
           assigned_to_user_id?: string | null
           created_at?: string
           created_by: string
@@ -72,8 +116,10 @@ export type Database = {
           title: string
           type: Database["public"]["Enums"]["approval_type"]
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
+          amount?: number | null
           assigned_to_user_id?: string | null
           created_at?: string
           created_by?: string
@@ -85,6 +131,7 @@ export type Database = {
           title?: string
           type?: Database["public"]["Enums"]["approval_type"]
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -1791,6 +1838,16 @@ export type Database = {
           workspace_id: string
         }[]
       }
+      log_approval_event: {
+        Args: {
+          p_approval_id: string
+          p_diff?: Json
+          p_event_type: Database["public"]["Enums"]["approval_event_type"]
+          p_from_status?: Database["public"]["Enums"]["approval_status"]
+          p_to_status?: Database["public"]["Enums"]["approval_status"]
+        }
+        Returns: undefined
+      }
       user_has_workspace_permission: {
         Args: {
           _required_role: Database["public"]["Enums"]["workspace_role"]
@@ -1799,8 +1856,20 @@ export type Database = {
         }
         Returns: boolean
       }
+      validate_approval_transition: {
+        Args: { p_action: string; p_approval_id: string; p_user_id: string }
+        Returns: Json
+      }
     }
     Enums: {
+      approval_event_type:
+        | "CREATED"
+        | "UPDATED"
+        | "SUBMITTED"
+        | "APPROVED"
+        | "REJECTED"
+        | "COMMENTED"
+        | "ASSIGN_CHANGED"
       approval_status: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED"
       approval_type: "BUDGET" | "PR_REQUEST" | "LOGISTICS"
       artist_role: "ARTIST_MANAGER" | "ARTIST_OBSERVER"
@@ -1960,6 +2029,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      approval_event_type: [
+        "CREATED",
+        "UPDATED",
+        "SUBMITTED",
+        "APPROVED",
+        "REJECTED",
+        "COMMENTED",
+        "ASSIGN_CHANGED",
+      ],
       approval_status: ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"],
       approval_type: ["BUDGET", "PR_REQUEST", "LOGISTICS"],
       artist_role: ["ARTIST_MANAGER", "ARTIST_OBSERVER"],
