@@ -1296,6 +1296,48 @@ export type Database = {
           },
         ]
       }
+      project_checklist_items: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_completed: boolean
+          project_id: string
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_completed?: boolean
+          project_id: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_completed?: boolean
+          project_id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       project_role_bindings: {
         Row: {
           created_at: string

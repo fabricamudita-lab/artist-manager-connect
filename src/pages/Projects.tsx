@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
 import CreateProjectDialog from "@/components/CreateProjectDialog";
+import { ProjectProgressDisplay } from "@/components/ProjectProgressDisplay";
 
 interface ProjectListItem {
   id: string;
@@ -117,21 +118,6 @@ export default function Projects() {
     );
   }, [items, query]);
 
-  const calculateProgress = (startDate: string | null, endDate: string | null): number => {
-    if (!startDate || !endDate) return 0;
-    
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const now = new Date();
-    
-    if (now < start) return 0;
-    if (now > end) return 100;
-    
-    const totalDuration = end.getTime() - start.getTime();
-    const elapsed = now.getTime() - start.getTime();
-    
-    return Math.round((elapsed / totalDuration) * 100);
-  };
 
   const handleDeleteProject = async () => {
     if (!deleteProject) return;
@@ -270,15 +256,11 @@ export default function Projects() {
                             <div className="text-muted-foreground">{p.artist_name || '—'}</div>
                           </td>
                            <td className="py-4 px-6">
-                             {viewMode === 'porcentajes' ? (
-                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                                 {calculateProgress(p.start_date, p.end_date_estimada)}%
-                               </span>
-                             ) : (
-                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize bg-primary/10 text-primary">
-                                 {p.status.replace('_', ' ')}
-                               </span>
-                             )}
+                             <ProjectProgressDisplay 
+                               projectId={p.id} 
+                               viewMode={viewMode} 
+                               status={p.status} 
+                             />
                            </td>
                           <td className="py-4 px-6">
                             <div className="text-muted-foreground">{p.start_date || '—'}</div>
