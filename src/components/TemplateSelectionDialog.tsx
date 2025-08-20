@@ -20,14 +20,20 @@ import { toast } from "@/hooks/use-toast";
 interface TemplateItem {
   id: string;
   section: string;
+  section_es: string;
   task: string;
+  task_es: string;
   sort_order: number;
+  due_anchor?: string;
+  due_days_offset?: number;
 }
 
 interface Template {
   id: string;
   name: string;
+  name_es: string;
   description: string | null;
+  description_es: string | null;
   is_system_template: boolean;
   workspace_id: string | null;
   items?: TemplateItem[];
@@ -64,18 +70,18 @@ export function TemplateSelectionDialog({
       // Fetch system templates
       const { data: systemData, error: systemError } = await supabase
         .from('checklist_templates')
-        .select('*')
+        .select('id, name, name_es, description, description_es, is_system_template, workspace_id')
         .eq('is_system_template', true)
-        .order('name');
+        .order('name_es');
 
       if (systemError) throw systemError;
 
       // Fetch user templates (personal + workspace)
       const { data: userData, error: userError } = await supabase
         .from('checklist_templates')
-        .select('*')
+        .select('id, name, name_es, description, description_es, is_system_template, workspace_id')
         .eq('is_system_template', false)
-        .order('name');
+        .order('name_es');
 
       if (userError) throw userError;
 
@@ -96,7 +102,7 @@ export function TemplateSelectionDialog({
   const fetchTemplateItems = async (templateId: string): Promise<TemplateItem[]> => {
     const { data, error } = await supabase
       .from('checklist_template_items')
-      .select('*')
+      .select('id, section, section_es, task, task_es, sort_order, due_anchor, due_days_offset')
       .eq('template_id', templateId)
       .order('sort_order');
 
@@ -131,8 +137,8 @@ export function TemplateSelectionDialog({
       // Group items by section and create checklist items
       const checklistItems = selectedTemplate.items.map((item, index) => ({
         project_id: projectId,
-        title: item.task,
-        description: `Sección: ${item.section}`,
+        title: item.task_es,
+        description: `Sección: ${item.section_es}`,
         sort_order: index,
         created_by: userId,
       }));
@@ -145,7 +151,7 @@ export function TemplateSelectionDialog({
 
       toast({
         title: "Plantilla aplicada",
-        description: `Se han añadido ${checklistItems.length} elementos desde la plantilla "${selectedTemplate.name}".`,
+        description: `Se han añadido ${checklistItems.length} elementos desde la plantilla "${selectedTemplate.name_es}".`,
       });
 
       onTemplateApplied();
@@ -166,10 +172,10 @@ export function TemplateSelectionDialog({
   const groupItemsBySection = (items: TemplateItem[]) => {
     const grouped: Record<string, TemplateItem[]> = {};
     items.forEach(item => {
-      if (!grouped[item.section]) {
-        grouped[item.section] = [];
+      if (!grouped[item.section_es]) {
+        grouped[item.section_es] = [];
       }
-      grouped[item.section].push(item);
+      grouped[item.section_es].push(item);
     });
     return grouped;
   };
@@ -183,7 +189,7 @@ export function TemplateSelectionDialog({
     >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-medium">{template.name}</CardTitle>
+          <CardTitle className="text-base font-medium">{template.name_es}</CardTitle>
           {template.is_system_template ? (
             <Badge variant="secondary" className="text-xs">
               <Crown className="w-3 h-3 mr-1" />
@@ -200,8 +206,8 @@ export function TemplateSelectionDialog({
             </Badge>
           )}
         </div>
-        {template.description && (
-          <p className="text-sm text-muted-foreground">{template.description}</p>
+        {template.description_es && (
+          <p className="text-sm text-muted-foreground">{template.description_es}</p>
         )}
       </CardHeader>
     </Card>
@@ -281,10 +287,10 @@ export function TemplateSelectionDialog({
                 {selectedTemplate ? (
                   <div className="space-y-4">
                     <div>
-                      <h4 className="font-medium text-lg">{selectedTemplate.name}</h4>
-                      {selectedTemplate.description && (
+                      <h4 className="font-medium text-lg">{selectedTemplate.name_es}</h4>
+                      {selectedTemplate.description_es && (
                         <p className="text-sm text-muted-foreground mt-1">
-                          {selectedTemplate.description}
+                          {selectedTemplate.description_es}
                         </p>
                       )}
                     </div>
@@ -300,7 +306,15 @@ export function TemplateSelectionDialog({
                               {items.map((item) => (
                                 <div key={item.id} className="flex items-start gap-2">
                                   <div className="w-2 h-2 rounded-full bg-muted-foreground mt-2 flex-shrink-0" />
-                                  <span className="text-sm">{item.task}</span>
+                                  <span className="text-sm">{item.task_es}</span>
+                                  {item.due_anchor && (
+                                    <span className="text-xs text-muted-foreground ml-auto">
+                                      {item.due_days_offset !== 0 ? 
+                                        `${item.due_days_offset > 0 ? '+' : ''}${item.due_days_offset}d` : 
+                                        'Día clave'
+                                      }
+                                    </span>
+                                  )}
                                 </div>
                               ))}
                             </div>

@@ -69,7 +69,9 @@ export function SaveTemplateDialog({
       // For now, we'll implement personal templates only
       const templateData = {
         name: name.trim(),
+        name_es: name.trim(),
         description: description.trim() || null,
+        description_es: description.trim() || null,
         is_system_template: false,
         workspace_id: templateType === "workspace" ? null : null, // TODO: Get actual workspace_id
         created_by: userId,
@@ -89,7 +91,11 @@ export function SaveTemplateDialog({
         section: item.description?.startsWith('Sección: ') 
           ? item.description.replace('Sección: ', '') 
           : 'GENERAL',
+        section_es: item.description?.startsWith('Sección: ') 
+          ? item.description.replace('Sección: ', '') 
+          : 'GENERAL',
         task: item.title,
+        task_es: item.title,
         sort_order: index,
       }));
 
