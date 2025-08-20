@@ -995,27 +995,37 @@ export type Database = {
       }
       project_team: {
         Row: {
+          contact_id: string | null
           created_at: string
           id: string
-          profile_id: string
+          profile_id: string | null
           project_id: string
           role: string | null
         }
         Insert: {
+          contact_id?: string | null
           created_at?: string
           id?: string
-          profile_id: string
+          profile_id?: string | null
           project_id: string
           role?: string | null
         }
         Update: {
+          contact_id?: string | null
           created_at?: string
           id?: string
-          profile_id?: string
+          profile_id?: string | null
           project_id?: string
           role?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "project_team_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_team_profile_id_fkey"
             columns: ["profile_id"]

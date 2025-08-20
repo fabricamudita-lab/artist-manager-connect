@@ -118,12 +118,18 @@ export function TeamMemberProfileDialog({
   const removeMemberFromTeam = async () => {
     setRemoving(true);
     try {
-      const { error } = await supabase
+      let query = supabase
         .from('project_team')
         .delete()
-        .eq('project_id', projectId)
-        .eq(memberType === 'profile' ? 'profile_id' : 'contact_id', memberId);
+        .eq('project_id', projectId);
       
+      if (memberType === 'profile') {
+        query = query.eq('profile_id', memberId);
+      } else {
+        query = query.eq('contact_id', memberId);
+      }
+      
+      const { error } = await query;
       if (error) throw error;
       
       const memberName = memberType === 'profile' ? profileData?.full_name : contactData?.name;

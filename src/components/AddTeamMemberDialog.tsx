@@ -134,6 +134,7 @@ export function AddTeamMemberDialog({
         .insert([{
           project_id: projectId,
           contact_id: contact.id,
+          profile_id: null,
           role: contact.role || 'Colaborador'
         }]);
       
@@ -185,6 +186,7 @@ export function AddTeamMemberDialog({
         .insert([{
           project_id: projectId,
           contact_id: contactData.id,
+          profile_id: null,
           role: newContact.role || 'Colaborador'
         }]);
       

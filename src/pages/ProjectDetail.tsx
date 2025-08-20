@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
+import { AddTeamMemberDialog } from "@/components/AddTeamMemberDialog";
+import { TeamMemberProfileDialog } from "@/components/TeamMemberProfileDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -85,6 +87,8 @@ export default function ProjectDetail() {
   const [openSolicitud, setOpenSolicitud] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [openAddTask, setOpenAddTask] = useState(false);
+  const [openAddMember, setOpenAddMember] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<{id: string, type: 'profile' | 'contact'} | null>(null);
   const [currentStage, setCurrentStage] = useState<"PREPARATIVOS" | "PRODUCCIÓN" | "CIERRE" | null>(null);
   const [checklistOpen, setChecklistOpen] = useState(true);
   const [selectedTask, setSelectedTask] = useState<any>(null);
@@ -580,18 +584,6 @@ export default function ProjectDetail() {
       }
     };
 
-    const loadTeam = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('project_team')
-          .select(`id, role, profile_id, profiles:profile_id ( full_name )`)
-          .eq('project_id', id);
-        if (error) throw error;
-        setTeam((data || []).map((t: any) => ({ id: t.id, role: t.role, full_name: t.profiles?.full_name || '—' })));
-      } catch (e) {
-        console.error('Error team', e);
-      }
-    };
 
     const loadLinked = async () => {
       try {
@@ -784,7 +776,7 @@ export default function ProjectDetail() {
               <div className="text-center py-6">
                 <Users className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
                 <p className="text-sm text-muted-foreground">Aún no hay miembros asignados</p>
-                <Button variant="outline" size="sm" className="mt-2">
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => setOpenAddMember(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Añadir miembro
                 </Button>
@@ -806,7 +798,7 @@ export default function ProjectDetail() {
                     </div>
                   </div>
                 ))}
-                <Button variant="outline" size="sm" className="w-full">
+                <Button variant="outline" size="sm" className="w-full" onClick={() => setOpenAddMember(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Añadir miembro
                 </Button>
@@ -1165,6 +1157,28 @@ export default function ProjectDetail() {
 
       <CreateBudgetDialog open={openBudget} onOpenChange={setOpenBudget} onSuccess={refreshBudgets} projectId={project.id} />
       <CreateSolicitudDialog open={openSolicitud} onOpenChange={setOpenSolicitud} onSolicitudCreated={() => {}} projectId={project.id} />
+      
+      <AddTeamMemberDialog 
+        open={openAddMember} 
+        onOpenChange={setOpenAddMember} 
+        projectId={project.id} 
+        onMemberAdded={() => {
+          window.location.reload();
+        }}
+      />
+      
+      {selectedMember && (
+        <TeamMemberProfileDialog
+          open={!!selectedMember}
+          onOpenChange={(open) => !open && setSelectedMember(null)}
+          memberId={selectedMember.id}
+          memberType={selectedMember.type}
+          projectId={project.id}
+          onMemberRemoved={() => {
+            window.location.reload();
+          }}
+        />
+      )}
       
       {selectedBudget && (
         <BudgetDetailsDialog 
