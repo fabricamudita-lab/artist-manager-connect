@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users } from "lucide-react";
+import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown } from "lucide-react";
 import { TemplateSelectionDialog } from "./TemplateSelectionDialog";
 import { SaveTemplateDialog } from "./SaveAsTemplateDialog";
 import {
@@ -62,6 +62,11 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   const [filterSection, setFilterSection] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterOwner, setFilterOwner] = useState<string>("all");
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    'PREPARATIVOS': true,
+    'PRODUCCION': true,
+    'CIERRE': true
+  });
 
   useEffect(() => {
     fetchChecklistItems();
@@ -494,62 +499,152 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                 </div>
               )}
 
-              {/* Grouped items by section */}
-              <div className="space-y-6">
-                {Object.entries(groupedItems).map(([section, sectionItems]) => (
-                  <div key={section} className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Badge 
-                        variant="secondary" 
-                        className={`${getSectionColor(section)} font-medium`}
+              {/* Collapsible sections with progress */}
+              <div className="space-y-4">
+                {['PREPARATIVOS', 'PRODUCCION', 'CIERRE'].map(section => {
+                  const sectionItems = groupedItems[section] || [];
+                  const sectionCompleted = sectionItems.filter(item => item.is_completed).length;
+                  const sectionTotal = sectionItems.length;
+                  const sectionProgress = sectionTotal > 0 ? Math.round((sectionCompleted / sectionTotal) * 100) : 0;
+                  const isExpanded = expandedSections[section];
+                  
+                  return (
+                    <div key={section} className="border rounded-lg">
+                      <button
+                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors text-left"
+                        onClick={() => setExpandedSections(prev => ({
+                          ...prev,
+                          [section]: !prev[section]
+                        }))}
                       >
-                        {getSectionDisplayName(section)}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {sectionItems.filter(item => item.is_completed).length} / {sectionItems.length} completados
-                      </span>
-                    </div>
-                    
-                    <div className="space-y-2 ml-4">
-                      {sectionItems.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-start gap-3 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
-                        >
-                          <Checkbox
-                            checked={item.is_completed}
-                            onCheckedChange={() => canEdit && toggleItemCompletion(item)}
-                            disabled={!canEdit}
-                            className="mt-0.5"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className={`font-medium ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
-                              {item.title}
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-semibold text-lg">
+                            {section}
+                          </h3>
+                          <span className="text-muted-foreground text-sm">
+                            ({sectionCompleted}/{sectionTotal} completadas · {sectionProgress}%)
+                          </span>
+                        </div>
+                        <ChevronDown
+                          className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                        />
+                      </button>
+                      
+                      {isExpanded && (
+                        <div className="px-4 pb-4">
+                          {sectionItems.length > 0 ? (
+                            <div className="space-y-2">
+                              {sectionItems.map((item) => (
+                                <div
+                                  key={item.id}
+                                  className="flex items-start gap-3 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
+                                >
+                                  <Checkbox
+                                    checked={item.is_completed}
+                                    onCheckedChange={() => canEdit && toggleItemCompletion(item)}
+                                    disabled={!canEdit}
+                                    className="mt-0.5"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className={`font-medium ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                                      {item.title}
+                                    </div>
+                                    {item.description && (
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <Users className="w-3 h-3 text-muted-foreground" />
+                                        <span className={`text-sm ${item.is_completed ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}>
+                                          {item.description}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {canEdit && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setDeleteConfirm(item)}
+                                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              ))}
                             </div>
-                            {item.description && (
-                              <div className="flex items-center gap-2 mt-1">
-                                <Users className="w-3 h-3 text-muted-foreground" />
-                                <span className={`text-sm ${item.is_completed ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}>
-                                  {item.description}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          {canEdit && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setDeleteConfirm(item)}
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                          ) : (
+                            <div className="text-center text-muted-foreground text-sm py-4">
+                              No hay tareas en esta sección
+                            </div>
                           )}
                         </div>
-                      ))}
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
+                
+                {/* Other sections */}
+                {Object.entries(groupedItems).map(([section, sectionItems]) => {
+                  if (['PREPARATIVOS', 'PRODUCCION', 'CIERRE'].includes(section)) return null;
+                  
+                  const sectionCompleted = sectionItems.filter(item => item.is_completed).length;
+                  const sectionTotal = sectionItems.length;
+                  const sectionProgress = sectionTotal > 0 ? Math.round((sectionCompleted / sectionTotal) * 100) : 0;
+
+                  return (
+                    <div key={section} className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant="secondary" 
+                          className={`${getSectionColor(section)} font-medium`}
+                        >
+                          {getSectionDisplayName(section)}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {sectionCompleted} / {sectionTotal} completados · {sectionProgress}%
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-2 ml-4">
+                        {sectionItems.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex items-start gap-3 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
+                          >
+                            <Checkbox
+                              checked={item.is_completed}
+                              onCheckedChange={() => canEdit && toggleItemCompletion(item)}
+                              disabled={!canEdit}
+                              className="mt-0.5"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className={`font-medium ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                                {item.title}
+                              </div>
+                              {item.description && (
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Users className="w-3 h-3 text-muted-foreground" />
+                                  <span className={`text-sm ${item.is_completed ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}>
+                                    {item.description}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            {canEdit && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setDeleteConfirm(item)}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {filteredItems.length === 0 && (
