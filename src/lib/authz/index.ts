@@ -57,7 +57,7 @@ roles:
   ARTIST:
     ARTIST_MANAGER:
       description: "Manager del artista con control total sobre sus proyectos"
-      allow: [SEE_ALL, CREATE_PROJECT, ASSIGN_PROJECT_ROLES, VIEW_SALES, VIEW_CALENDAR]
+      allow: [SEE_ALL, CREATE_PROJECT, ASSIGN_PROJECT_ROLES, VIEW_SALES, VIEW_CALENDAR, VIEW_PROJECT, EDIT_PROJECT]
       
     ARTIST_OBSERVER:
       description: "Observador del artista con acceso de solo lectura"
@@ -170,6 +170,8 @@ export async function can(
   resourceRef: ResourceRef
 ): Promise<boolean> {
   const userScopes = await resolveUserScopes(userId);
+  console.log('authz.can - userId:', userId, 'action:', action, 'resource:', resourceRef);
+  console.log('authz.can - userScopes:', userScopes);
   
   // Algorithm based on resourceRef.type
   switch (resourceRef.type) {
