@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical } from "lucide-react";
 import { TemplateSelectionDialog } from "./TemplateSelectionDialog";
 import { SaveTemplateDialog } from "./SaveAsTemplateDialog";
 import {
@@ -344,90 +345,44 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5" />
-              Checklist del Proyecto
+              Checklist
             </CardTitle>
             {canEdit && (
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setOpenTemplateDialog(true)}
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  Crear desde plantilla
-                </Button>
-                <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" variant="outline">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Añadir elemento
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Añadir elemento a la checklist</DialogTitle>
-                      <DialogDescription>
-                        Crea un nuevo elemento para la checklist del proyecto.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <label htmlFor="title" className="text-sm font-medium">
-                          Título
-                        </label>
-                        <Input
-                          id="title"
-                          value={newTitle}
-                          onChange={(e) => setNewTitle(e.target.value)}
-                          placeholder="Título del elemento"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="description" className="text-sm font-medium">
-                          Descripción (opcional)
-                        </label>
-                        <Textarea
-                          id="description"
-                          value={newDescription}
-                          onChange={(e) => setNewDescription(e.target.value)}
-                          placeholder="Descripción del elemento"
-                          rows={3}
-                        />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setOpenAddDialog(false)}>
-                        Cancelar
-                      </Button>
-                      <Button onClick={addChecklistItem} disabled={!newTitle.trim()}>
-                        Añadir
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setOpenSaveTemplateDialog(true)}
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Guardar como plantilla
-                </Button>
-                {items.length > 0 && (
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => setClearAllConfirm(true)}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Vaciar todo
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline">
+                    <MoreVertical className="w-4 h-4 mr-2" />
+                    Acciones
                   </Button>
-                )}
-              </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => setOpenTemplateDialog(true)}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Crear desde plantilla
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setOpenAddDialog(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Añadir elemento
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setOpenSaveTemplateDialog(true)}>
+                    <Save className="w-4 h-4 mr-2" />
+                    Guardar como plantilla
+                  </DropdownMenuItem>
+                  {items.length > 0 && (
+                    <DropdownMenuItem 
+                      onClick={() => setClearAllConfirm(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Vaciar todo
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
           {items.length > 0 && (
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between text-sm mt-3">
               <div className="text-muted-foreground">
                 {completedCount} de {items.length} completados ({progressPercentage}%)
               </div>
@@ -518,8 +473,8 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                         }))}
                       >
                         <div className="flex items-center gap-3">
-                          <h3 className="font-semibold text-lg">
-                            {section}
+                           <h3 className="font-medium text-base">
+                             {section}
                           </h3>
                           <span className="text-muted-foreground text-sm">
                             ({sectionCompleted}/{sectionTotal} completadas · {sectionProgress}%)
@@ -725,6 +680,51 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           });
         }}
       />
+
+      {/* Add Item Dialog */}
+      <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Añadir elemento a la checklist</DialogTitle>
+            <DialogDescription>
+              Crea un nuevo elemento para la checklist del proyecto.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="title" className="text-sm font-medium">
+                Título
+              </label>
+              <Input
+                id="title"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="Título del elemento"
+              />
+            </div>
+            <div>
+              <label htmlFor="description" className="text-sm font-medium">
+                Descripción (opcional)
+              </label>
+              <Textarea
+                id="description"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder="Descripción del elemento"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenAddDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={addChecklistItem} disabled={!newTitle.trim()}>
+              Añadir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
