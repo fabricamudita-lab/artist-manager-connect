@@ -97,6 +97,10 @@ export default function ProjectDetail() {
   // Authorization check for this project
   const permissions = useAuthz({ projectId: id });
   
+  // Debug permissions
+  console.log('ProjectDetail - ID:', id);
+  console.log('ProjectDetail - Permissions:', permissions);
+  
   const [project, setProject] = useState<Project | null>(null);
   const [artist, setArtist] = useState<Artist | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
