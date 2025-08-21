@@ -281,25 +281,23 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setOpenSaveTemplateDialog(true)}
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Guardar como plantilla
+                </Button>
                 {items.length > 0 && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setOpenSaveTemplateDialog(true)}
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      Guardar como plantilla
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => setClearAllConfirm(true)}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Vaciar todo
-                    </Button>
-                  </>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setClearAllConfirm(true)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Vaciar todo
+                  </Button>
                 )}
               </div>
             )}
