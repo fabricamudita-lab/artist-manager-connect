@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical } from "lucide-react";
 import { TemplateSelectionDialog } from "./TemplateSelectionDialog";
 import { SaveTemplateDialog } from "./SaveAsTemplateDialog";
@@ -32,11 +32,14 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
+type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'BLOCKED' | 'IN_REVIEW' | 'COMPLETED' | 'CANCELLED';
+
 interface ChecklistItem {
   id: string;
   title: string;
   description: string | null;
   is_completed: boolean;
+  status: TaskStatus;
   completed_by: string | null;
   completed_at: string | null;
   sort_order: number;
@@ -50,6 +53,24 @@ interface ProjectChecklistManagerProps {
   canEdit: boolean;
 }
 
+const STATUS_LABELS: Record<TaskStatus, string> = {
+  'PENDING': 'Pendientes',
+  'IN_PROGRESS': 'En progreso',
+  'BLOCKED': 'Bloqueadas',
+  'IN_REVIEW': 'En revisión',
+  'COMPLETED': 'Completadas',
+  'CANCELLED': 'Canceladas'
+};
+
+const STATUS_COLORS: Record<TaskStatus, string> = {
+  'PENDING': 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+  'IN_PROGRESS': 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-300',
+  'BLOCKED': 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-300',
+  'IN_REVIEW': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-300',
+  'COMPLETED': 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-300',
+  'CANCELLED': 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+};
+
 export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklistManagerProps) {
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +82,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [filterSection, setFilterSection] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [selectedStatuses, setSelectedStatuses] = useState<Set<TaskStatus>>(new Set());
   const [filterOwner, setFilterOwner] = useState<string>("all");
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     'PREPARATIVOS': true,
@@ -195,29 +216,43 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     }
   };
 
-  const toggleItemCompletion = async (item: ChecklistItem) => {
+  const updateTaskStatus = async (item: ChecklistItem, newStatus: TaskStatus) => {
     try {
       const user = await supabase.auth.getUser();
+      const updates: any = { status: newStatus };
+      
+      // Update legacy is_completed field for backwards compatibility
+      if (newStatus === 'COMPLETED') {
+        updates.is_completed = true;
+        updates.completed_by = user.data.user?.id;
+        updates.completed_at = new Date().toISOString();
+      } else {
+        updates.is_completed = false;
+        updates.completed_by = null;
+        updates.completed_at = null;
+      }
+
       const { error } = await supabase
         .from('project_checklist_items')
-        .update({
-          is_completed: !item.is_completed,
-          completed_by: !item.is_completed ? user.data.user?.id : null,
-          completed_at: !item.is_completed ? new Date().toISOString() : null,
-        })
+        .update(updates)
         .eq('id', item.id);
 
       if (error) throw error;
 
       fetchChecklistItems();
     } catch (error) {
-      console.error('Error toggling item completion:', error);
+      console.error('Error updating task status:', error);
       toast({
         title: "Error",
-        description: "No se pudo actualizar el estado del elemento.",
+        description: "No se pudo actualizar el estado de la tarea.",
         variant: "destructive",
       });
     }
+  };
+
+  const toggleItemCompletion = async (item: ChecklistItem) => {
+    const newStatus = item.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
+    await updateTaskStatus(item, newStatus);
   };
 
   const deleteItem = async () => {
@@ -290,7 +325,8 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     );
   }
 
-  const completedCount = items.filter(item => item.is_completed).length;
+  // Calculate progress based on COMPLETED status only
+  const completedCount = items.filter(item => item.status === 'COMPLETED').length;
   const progressPercentage = items.length > 0 ? Math.round((completedCount / items.length) * 100) : 0;
 
   // Get unique sections for filters
@@ -300,9 +336,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   // Filter items based on current filters
   const filteredItems = items.filter(item => {
     const sectionMatch = filterSection === 'all' || (item.section || 'Sin categoría') === filterSection;
-    const statusMatch = filterStatus === 'all' || 
-      (filterStatus === 'completed' && item.is_completed) ||
-      (filterStatus === 'pending' && !item.is_completed);
+    const statusMatch = selectedStatuses.size === 0 || selectedStatuses.has(item.status || 'PENDING');
     const ownerMatch = filterOwner === 'all' || (item.description || 'Sin asignar') === filterOwner;
     
     return sectionMatch && statusMatch && ownerMatch;
@@ -338,6 +372,13 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     return colorMap[section] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
   };
 
+  // Get status counts for filter labels
+  const statusCounts = items.reduce((acc, item) => {
+    const status = item.status || 'PENDING';
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {} as Record<TaskStatus, number>);
+
   return (
     <>
       <Card>
@@ -355,7 +396,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                     Acciones
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-56 bg-background border shadow-lg">
                   <DropdownMenuItem onClick={() => setOpenTemplateDialog(true)}>
                     <FileText className="w-4 h-4 mr-2" />
                     Crear desde plantilla
@@ -384,7 +425,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           {items.length > 0 && (
             <div className="flex items-center justify-between text-sm mt-3">
               <div className="text-muted-foreground">
-                {completedCount} de {items.length} completados ({progressPercentage}%)
+                {completedCount} completadas · {progressPercentage}%
               </div>
               <div className="h-2 bg-muted rounded-full w-32">
                 <div 
@@ -413,7 +454,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Por sección" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background border shadow-lg">
                     <SelectItem value="all">Todas las secciones</SelectItem>
                     {sections.map((section) => (
                       <SelectItem key={section} value={section}>
@@ -422,21 +463,48 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Por estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los estados</SelectItem>
-                    <SelectItem value="pending">Pendientes</SelectItem>
-                    <SelectItem value="completed">Completados</SelectItem>
-                  </SelectContent>
-                </Select>
+                
+                {/* Multi-select Status Filter */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="w-40 justify-between">
+                      <span>
+                        {selectedStatuses.size === 0 ? 'Todos los estados' : 
+                         selectedStatuses.size === 1 ? STATUS_LABELS[Array.from(selectedStatuses)[0]] :
+                         `${selectedStatuses.size} estados`}
+                      </span>
+                      <ChevronDown className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56 bg-background border shadow-lg">
+                    {Object.entries(STATUS_LABELS).map(([status, label]) => (
+                      <DropdownMenuCheckboxItem
+                        key={status}
+                        checked={selectedStatuses.has(status as TaskStatus)}
+                        onCheckedChange={(checked) => {
+                          const newStatuses = new Set(selectedStatuses);
+                          if (checked) {
+                            newStatuses.add(status as TaskStatus);
+                          } else {
+                            newStatuses.delete(status as TaskStatus);
+                          }
+                          setSelectedStatuses(newStatuses);
+                        }}
+                      >
+                        <Badge variant="secondary" className={`${STATUS_COLORS[status as TaskStatus]} mr-2`}>
+                          {label}
+                        </Badge>
+                        ({statusCounts[status as TaskStatus] || 0})
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 <Select value={filterOwner} onValueChange={setFilterOwner}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Por responsable" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background border shadow-lg">
                     <SelectItem value="all">Todos los responsables</SelectItem>
                     {owners.map((owner) => (
                       <SelectItem key={owner} value={owner}>
@@ -458,7 +526,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
               <div className="space-y-4">
                 {['PREPARATIVOS', 'PRODUCCION', 'CIERRE'].map(section => {
                   const sectionItems = groupedItems[section] || [];
-                  const sectionCompleted = sectionItems.filter(item => item.is_completed).length;
+                  const sectionCompleted = sectionItems.filter(item => item.status === 'COMPLETED').length;
                   const sectionTotal = sectionItems.length;
                   const sectionProgress = sectionTotal > 0 ? Math.round((sectionCompleted / sectionTotal) * 100) : 0;
                   const isExpanded = expandedSections[section];
@@ -473,7 +541,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                         }))}
                       >
                         <div className="flex items-center gap-3">
-                           <h3 className="font-medium text-base">
+                           <h3 className="font-medium text-sm">
                              {section}
                           </h3>
                           <span className="text-muted-foreground text-sm">
@@ -495,33 +563,55 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                   className="flex items-start gap-3 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
                                 >
                                   <Checkbox
-                                    checked={item.is_completed}
+                                    checked={item.status === 'COMPLETED'}
                                     onCheckedChange={() => canEdit && toggleItemCompletion(item)}
                                     disabled={!canEdit}
                                     className="mt-0.5"
                                   />
                                   <div className="flex-1 min-w-0">
-                                    <div className={`font-medium ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                                    <div className={`font-medium ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
                                       {item.title}
                                     </div>
-                                    {item.description && (
-                                      <div className="flex items-center gap-2 mt-1">
-                                        <Users className="w-3 h-3 text-muted-foreground" />
-                                        <span className={`text-sm ${item.is_completed ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}>
-                                          {item.description}
-                                        </span>
-                                      </div>
-                                    )}
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <Badge variant="secondary" className={`${STATUS_COLORS[item.status || 'PENDING']} text-xs`}>
+                                        {STATUS_LABELS[item.status || 'PENDING']}
+                                      </Badge>
+                                      {item.description && (
+                                        <>
+                                          <Users className="w-3 h-3 text-muted-foreground" />
+                                          <span className={`text-sm ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}>
+                                            {item.description}
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
                                   </div>
                                   {canEdit && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => setDeleteConfirm(item)}
-                                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
+                                    <div className="flex items-center gap-2">
+                                      <Select
+                                        value={item.status || 'PENDING'}
+                                        onValueChange={(value: TaskStatus) => updateTaskStatus(item, value)}
+                                      >
+                                        <SelectTrigger className="w-32 h-8 text-xs">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-background border shadow-lg">
+                                          {Object.entries(STATUS_LABELS).map(([status, label]) => (
+                                            <SelectItem key={status} value={status}>
+                                              {label}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => setDeleteConfirm(item)}
+                                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
                                   )}
                                 </div>
                               ))}
@@ -541,7 +631,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                 {Object.entries(groupedItems).map(([section, sectionItems]) => {
                   if (['PREPARATIVOS', 'PRODUCCION', 'CIERRE'].includes(section)) return null;
                   
-                  const sectionCompleted = sectionItems.filter(item => item.is_completed).length;
+                  const sectionCompleted = sectionItems.filter(item => item.status === 'COMPLETED').length;
                   const sectionTotal = sectionItems.length;
                   const sectionProgress = sectionTotal > 0 ? Math.round((sectionCompleted / sectionTotal) * 100) : 0;
 
@@ -566,33 +656,55 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                             className="flex items-start gap-3 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
                           >
                             <Checkbox
-                              checked={item.is_completed}
+                              checked={item.status === 'COMPLETED'}
                               onCheckedChange={() => canEdit && toggleItemCompletion(item)}
                               disabled={!canEdit}
                               className="mt-0.5"
                             />
                             <div className="flex-1 min-w-0">
-                              <div className={`font-medium ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                              <div className={`font-medium ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
                                 {item.title}
                               </div>
-                              {item.description && (
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Users className="w-3 h-3 text-muted-foreground" />
-                                  <span className={`text-sm ${item.is_completed ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}>
-                                    {item.description}
-                                  </span>
-                                </div>
-                              )}
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="secondary" className={`${STATUS_COLORS[item.status || 'PENDING']} text-xs`}>
+                                  {STATUS_LABELS[item.status || 'PENDING']}
+                                </Badge>
+                                {item.description && (
+                                  <>
+                                    <Users className="w-3 h-3 text-muted-foreground" />
+                                    <span className={`text-sm ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}>
+                                      {item.description}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                             </div>
                             {canEdit && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => setDeleteConfirm(item)}
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <Select
+                                  value={item.status || 'PENDING'}
+                                  onValueChange={(value: TaskStatus) => updateTaskStatus(item, value)}
+                                >
+                                  <SelectTrigger className="w-32 h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-background border shadow-lg">
+                                    {Object.entries(STATUS_LABELS).map(([status, label]) => (
+                                      <SelectItem key={status} value={status}>
+                                        {label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setDeleteConfirm(item)}
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
                             )}
                           </div>
                         ))}

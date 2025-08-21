@@ -1396,6 +1396,7 @@ export type Database = {
           is_completed: boolean
           project_id: string
           sort_order: number
+          status: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at: string
         }
@@ -1409,6 +1410,7 @@ export type Database = {
           is_completed?: boolean
           project_id: string
           sort_order?: number
+          status?: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at?: string
         }
@@ -1422,6 +1424,7 @@ export type Database = {
           is_completed?: boolean
           project_id?: string
           sort_order?: number
+          status?: Database["public"]["Enums"]["task_status"]
           title?: string
           updated_at?: string
         }
@@ -2043,6 +2046,13 @@ export type Database = {
         | "licencia"
         | "otros"
       show_status: "confirmado" | "pendiente" | "cancelado"
+      task_status:
+        | "PENDING"
+        | "IN_PROGRESS"
+        | "BLOCKED"
+        | "IN_REVIEW"
+        | "COMPLETED"
+        | "CANCELLED"
       user_role: "artist" | "management"
       workspace_role: "OWNER" | "TEAM_MANAGER"
     }
@@ -2223,6 +2233,14 @@ export const Constants = {
         "otros",
       ],
       show_status: ["confirmado", "pendiente", "cancelado"],
+      task_status: [
+        "PENDING",
+        "IN_PROGRESS",
+        "BLOCKED",
+        "IN_REVIEW",
+        "COMPLETED",
+        "CANCELLED",
+      ],
       user_role: ["artist", "management"],
       workspace_role: ["OWNER", "TEAM_MANAGER"],
     },
