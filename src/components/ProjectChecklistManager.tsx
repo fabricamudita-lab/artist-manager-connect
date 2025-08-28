@@ -328,7 +328,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   const selectAllVisible = () => {
     // We'll calculate filteredItems here when needed
     const visibleItems = items.filter(item => {
-      const sectionMatch = filterSection === 'all' || (item.section || 'Sin categoría') === filterSection;
+      const sectionMatch = filterSection === 'all' || (item.section || 'SIN_CATEGORIA') === filterSection;
       const statusMatch = selectedStatuses.size === 0 || selectedStatuses.has(item.status || 'PENDING');
       const ownerMatch = filterOwner === 'all' || (item.description || 'Sin asignar') === filterOwner;
       return sectionMatch && statusMatch && ownerMatch;
@@ -428,12 +428,12 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   const progressPercentage = items.length > 0 ? Math.round((completedCount / items.length) * 100) : 0;
 
   // Get unique sections for filters
-  const sections = Array.from(new Set(items.map(item => item.section || 'Sin categoría').filter(Boolean)));
+  const sections = Array.from(new Set(items.map(item => item.section || 'SIN_CATEGORIA').filter(Boolean)));
   const owners = Array.from(new Set(items.map(item => item.description || 'Sin asignar').filter(Boolean)));
 
   // Filter items based on current filters
   const filteredItems = items.filter(item => {
-    const sectionMatch = filterSection === 'all' || (item.section || 'Sin categoría') === filterSection;
+    const sectionMatch = filterSection === 'all' || (item.section || 'SIN_CATEGORIA') === filterSection;
     const statusMatch = selectedStatuses.size === 0 || selectedStatuses.has(item.status || 'PENDING');
     const ownerMatch = filterOwner === 'all' || (item.description || 'Sin asignar') === filterOwner;
     
@@ -442,7 +442,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
   // Group items by section
   const groupedItems = filteredItems.reduce((acc, item) => {
-    const section = item.section || 'Sin categoría';
+    const section = item.section || 'SIN_CATEGORIA';
     if (!acc[section]) {
       acc[section] = [];
     }
@@ -452,10 +452,10 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
   const getSectionDisplayName = (section: string) => {
     const sectionMap: Record<string, string> = {
-      'PREPARATIVOS': 'Preparativos',
-      'PRODUCCION': 'Producción', 
-      'CIERRE': 'Cierre',
-      'Sin categoría': 'Sin categoría'
+      'PREPARATIVOS': 'PREPARATIVOS',
+      'PRODUCCION': 'PRODUCCION', 
+      'CIERRE': 'CIERRE',
+      'SIN_CATEGORIA': 'SIN CATEGORIA'
     };
     return sectionMap[section] || section;
   };
@@ -465,7 +465,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       'PREPARATIVOS': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
       'PRODUCCION': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
       'CIERRE': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-      'Sin categoría': 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300'
+      'SIN_CATEGORIA': 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300'
     };
     return colorMap[section] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
   };
