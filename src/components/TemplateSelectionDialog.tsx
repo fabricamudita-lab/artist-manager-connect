@@ -149,7 +149,8 @@ export function TemplateSelectionDialog({
       const checklistItems = selectedTemplate.items.map((item, index) => ({
         project_id: projectId,
         title: item.task_es,
-        description: `Sección: ${item.section_es}`,
+        description: item.owner_label_es || null,
+        section: item.section_es,
         sort_order: index,
         created_by: userId,
       }));

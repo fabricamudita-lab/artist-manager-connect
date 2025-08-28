@@ -1395,6 +1395,7 @@ export type Database = {
           id: string
           is_completed: boolean
           project_id: string
+          section: string | null
           sort_order: number
           status: Database["public"]["Enums"]["task_status"]
           title: string
@@ -1409,6 +1410,7 @@ export type Database = {
           id?: string
           is_completed?: boolean
           project_id: string
+          section?: string | null
           sort_order?: number
           status?: Database["public"]["Enums"]["task_status"]
           title: string
@@ -1423,6 +1425,7 @@ export type Database = {
           id?: string
           is_completed?: boolean
           project_id?: string
+          section?: string | null
           sort_order?: number
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
