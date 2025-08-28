@@ -94,7 +94,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     fetchChecklistItems();
   }, [projectId]);
 
-  const fetchChecklistItems = async () => {
+  const fetchChecklistItems = async (skipDefaultTemplate = false) => {
     try {
       const { data, error } = await supabase
         .from('project_checklist_items')
@@ -107,8 +107,8 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       const checklistItems = data || [];
       setItems(checklistItems);
       
-      // If checklist is empty, load a default system template
-      if (checklistItems.length === 0 && canEdit) {
+      // If checklist is empty, load a default system template (unless explicitly skipped)
+      if (checklistItems.length === 0 && canEdit && !skipDefaultTemplate) {
         await loadDefaultTemplate();
       }
     } catch (error) {
@@ -293,7 +293,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       if (error) throw error;
 
       setClearAllConfirm(false);
-      fetchChecklistItems();
+      setItems([]); // Clear the items immediately
       
       toast({
         title: "Checklist vaciada",
