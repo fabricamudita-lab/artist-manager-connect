@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
-import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical } from "lucide-react";
+import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical, Clock, CheckCircle } from "lucide-react";
 import { TemplateSelectionDialog } from "./TemplateSelectionDialog";
 import { SaveTemplateDialog } from "./SaveAsTemplateDialog";
 import {
@@ -535,55 +535,6 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           )}
         </CardHeader>
         <CardContent>
-          {/* Selection toolbar */}
-          {canEdit && selectedItems.size > 0 && (
-            <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">
-                    {selectedItems.size} tareas seleccionadas
-                  </span>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={clearSelection}
-                    className="h-7 px-2 text-xs"
-                  >
-                    Deseleccionar todas
-                  </Button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => bulkUpdateStatus('COMPLETED')}
-                    className="h-7 px-2 text-xs"
-                  >
-                    <CheckCircle2 className="w-3 h-3 mr-1" />
-                    Completar
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => bulkUpdateStatus('PENDING')}
-                    className="h-7 px-2 text-xs"
-                  >
-                    Marcar pendiente
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="destructive" 
-                    onClick={bulkDelete}
-                    className="h-7 px-2 text-xs"
-                  >
-                    <Trash2 className="w-3 h-3 mr-1" />
-                    Eliminar
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {items.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               No hay elementos en la checklist.
@@ -591,84 +542,130 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
             </div>
           ) : (
             <>
-              <div className="flex gap-4 mb-6 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4" />
-                  <span className="text-sm font-medium">Filtros:</span>
-                </div>
-                {canEdit && (
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={selectAllVisible}
-                    className="h-8 px-3 text-xs"
-                  >
-                    Seleccionar visibles
-                  </Button>
-                )}
-                <Select value={filterSection} onValueChange={setFilterSection}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Por sección" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background border shadow-lg">
-                    <SelectItem value="all">Todas las secciones</SelectItem>
-                    {sections.map((section) => (
-                      <SelectItem key={section} value={section}>
-                        {getSectionDisplayName(section)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                {/* Multi-select Status Filter */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="w-40 justify-between">
-                      <span>
-                        {selectedStatuses.size === 0 ? 'Todos los estados' : 
-                         selectedStatuses.size === 1 ? STATUS_LABELS[Array.from(selectedStatuses)[0]] :
-                         `${selectedStatuses.size} estados`}
-                      </span>
-                      <ChevronDown className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56 bg-background border shadow-lg">
-                    {Object.entries(STATUS_LABELS).map(([status, label]) => (
-                      <DropdownMenuCheckboxItem
-                        key={status}
-                        checked={selectedStatuses.has(status as TaskStatus)}
+              {/* Gmail-style action bar */}
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg mb-6">
+                <div className="flex items-center gap-4">
+                  {/* Master checkbox */}
+                  {canEdit && (
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={selectedItems.size > 0 && selectedItems.size === filteredItems.length && filteredItems.length > 0}
                         onCheckedChange={(checked) => {
-                          const newStatuses = new Set(selectedStatuses);
                           if (checked) {
-                            newStatuses.add(status as TaskStatus);
+                            selectAllVisible();
                           } else {
-                            newStatuses.delete(status as TaskStatus);
+                            clearSelection();
                           }
-                          setSelectedStatuses(newStatuses);
                         }}
-                      >
-                        <Badge variant="secondary" className={`${STATUS_COLORS[status as TaskStatus]} mr-2`}>
-                          {label}
-                        </Badge>
-                        ({statusCounts[status as TaskStatus] || 0})
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                        className="border-2"
+                      />
+                      <span className="text-sm">
+                        {selectedItems.size > 0 ? `${selectedItems.size} seleccionadas` : 'Seleccionar todas'}
+                      </span>
+                    </div>
+                  )}
 
-                <Select value={filterOwner} onValueChange={setFilterOwner}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Por responsable" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background border shadow-lg">
-                    <SelectItem value="all">Todos los responsables</SelectItem>
-                    {owners.map((owner) => (
-                      <SelectItem key={owner} value={owner}>
-                        {owner}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  {/* Action buttons - always visible like Gmail */}
+                  {canEdit && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        onClick={() => bulkUpdateStatus('COMPLETED')}
+                        size="sm"
+                        variant="ghost"
+                        disabled={selectedItems.size === 0}
+                        title="Completar seleccionadas"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        onClick={() => bulkUpdateStatus('PENDING')}
+                        size="sm"
+                        variant="ghost"
+                        disabled={selectedItems.size === 0}
+                        title="Marcar como pendientes"
+                      >
+                        <Clock className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        onClick={bulkDelete}
+                        size="sm"
+                        variant="ghost"
+                        disabled={selectedItems.size === 0}
+                        title="Eliminar seleccionadas"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Filters */}
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  <Select value={filterSection} onValueChange={setFilterSection}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Por sección" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border shadow-lg">
+                      <SelectItem value="all">Todas las secciones</SelectItem>
+                      {sections.map((section) => (
+                        <SelectItem key={section} value={section}>
+                          {getSectionDisplayName(section)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* Multi-select Status Filter */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-40 justify-between">
+                        <span>
+                          {selectedStatuses.size === 0 ? 'Todos los estados' : 
+                           selectedStatuses.size === 1 ? STATUS_LABELS[Array.from(selectedStatuses)[0]] :
+                           `${selectedStatuses.size} estados`}
+                        </span>
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56 bg-background border shadow-lg">
+                      {Object.entries(STATUS_LABELS).map(([status, label]) => (
+                        <DropdownMenuCheckboxItem
+                          key={status}
+                          checked={selectedStatuses.has(status as TaskStatus)}
+                          onCheckedChange={(checked) => {
+                            const newStatuses = new Set(selectedStatuses);
+                            if (checked) {
+                              newStatuses.add(status as TaskStatus);
+                            } else {
+                              newStatuses.delete(status as TaskStatus);
+                            }
+                            setSelectedStatuses(newStatuses);
+                          }}
+                        >
+                          <Badge variant="secondary" className={`${STATUS_COLORS[status as TaskStatus]} mr-2`}>
+                            {label}
+                          </Badge>
+                          ({statusCounts[status as TaskStatus] || 0})
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <Select value={filterOwner} onValueChange={setFilterOwner}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Por responsable" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border shadow-lg">
+                      <SelectItem value="all">Todos los responsables</SelectItem>
+                      {owners.map((owner) => (
+                        <SelectItem key={owner} value={owner}>
+                          {owner}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Results count */}
@@ -718,19 +715,14 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                   key={item.id}
                                   className="flex items-start gap-3 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
                                  >
-                                   {/* Selection Circle */}
-                                   <div 
-                                     className={`w-5 h-5 rounded-full border-2 cursor-pointer flex items-center justify-center transition-colors ${
-                                       selectedItems.has(item.id) 
-                                         ? 'bg-primary border-primary text-primary-foreground' 
-                                         : 'border-muted-foreground hover:border-primary'
-                                     }`}
-                                     onClick={() => canEdit && toggleItemSelection(item.id)}
-                                   >
-                                     {selectedItems.has(item.id) && (
-                                       <CheckCircle2 className="w-3 h-3" />
-                                     )}
-                                   </div>
+                                   {/* Selection Checkbox */}
+                                   {canEdit && (
+                                     <Checkbox
+                                       checked={selectedItems.has(item.id)}
+                                       onCheckedChange={() => toggleItemSelection(item.id)}
+                                       className="border-2"
+                                     />
+                                   )}
                                    {/* Completion Status Indicator */}
                                    <div 
                                      className={`w-3 h-3 rounded-full ${
@@ -826,19 +818,14 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                             key={item.id}
                             className="flex items-start gap-3 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
                            >
-                             {/* Selection Circle */}
-                             <div 
-                               className={`w-5 h-5 rounded-full border-2 cursor-pointer flex items-center justify-center transition-colors ${
-                                 selectedItems.has(item.id) 
-                                   ? 'bg-primary border-primary text-primary-foreground' 
-                                   : 'border-muted-foreground hover:border-primary'
-                               }`}
-                               onClick={() => canEdit && toggleItemSelection(item.id)}
-                             >
-                               {selectedItems.has(item.id) && (
-                                 <CheckCircle2 className="w-3 h-3" />
-                               )}
-                             </div>
+                             {/* Selection Checkbox */}
+                             {canEdit && (
+                               <Checkbox
+                                 checked={selectedItems.has(item.id)}
+                                 onCheckedChange={() => toggleItemSelection(item.id)}
+                                 className="border-2"
+                               />
+                             )}
                              {/* Completion Status Indicator */}
                              <div 
                                className={`w-3 h-3 rounded-full ${
