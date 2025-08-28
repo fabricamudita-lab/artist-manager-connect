@@ -145,6 +145,34 @@ export function TemplateSelectionDialog({
 
       if (!userId) throw new Error('User not authenticated');
 
+      // First, check if there are existing items
+      const { data: existingItems, error: checkError } = await supabase
+        .from('project_checklist_items')
+        .select('id')
+        .eq('project_id', projectId);
+
+      if (checkError) throw checkError;
+
+      // If there are existing items, ask for confirmation to replace them
+      if (existingItems && existingItems.length > 0) {
+        const shouldReplace = confirm(
+          `Ya existen ${existingItems.length} elementos en este checklist. ¿Deseas reemplazarlos con la plantilla seleccionada?`
+        );
+        
+        if (!shouldReplace) {
+          setApplying(false);
+          return;
+        }
+
+        // Delete existing items
+        const { error: deleteError } = await supabase
+          .from('project_checklist_items')
+          .delete()
+          .eq('project_id', projectId);
+
+        if (deleteError) throw deleteError;
+      }
+
       // Group items by section and create checklist items
       const checklistItems = selectedTemplate.items.map((item, index) => ({
         project_id: projectId,
