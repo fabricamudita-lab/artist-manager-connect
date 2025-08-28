@@ -245,6 +245,12 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       if (selectedItems.has(item.id) && selectedItems.size > 1) {
         console.log('Updating multiple selected items:', Array.from(selectedItems));
         
+        // Show toast indicating bulk update is starting
+        toast({
+          title: "Actualizando tareas",
+          description: `Cambiando el estado de ${selectedItems.size} tareas seleccionadas a ${STATUS_LABELS[newStatus].toLowerCase()}...`,
+        });
+        
         const { error } = await supabase
           .from('project_checklist_items')
           .update(updates)
