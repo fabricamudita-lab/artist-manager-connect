@@ -233,14 +233,32 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         updates.completed_at = null;
       }
 
-      const { error } = await supabase
-        .from('project_checklist_items')
-        .update(updates)
-        .eq('id', item.id);
+      // If this item is selected and there are multiple selected items, update all selected
+      if (selectedItems.has(item.id) && selectedItems.size > 1) {
+        const { error } = await supabase
+          .from('project_checklist_items')
+          .update(updates)
+          .in('id', Array.from(selectedItems));
 
-      if (error) throw error;
+        if (error) throw error;
 
-      fetchChecklistItems();
+        fetchChecklistItems();
+        
+        toast({
+          title: "Tareas actualizadas",
+          description: `${selectedItems.size} tareas han sido marcadas como ${STATUS_LABELS[newStatus].toLowerCase()}.`,
+        });
+      } else {
+        // Update only the single item
+        const { error } = await supabase
+          .from('project_checklist_items')
+          .update(updates)
+          .eq('id', item.id);
+
+        if (error) throw error;
+
+        fetchChecklistItems();
+      }
     } catch (error) {
       console.error('Error updating task status:', error);
       toast({
