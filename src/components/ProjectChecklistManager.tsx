@@ -219,6 +219,14 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
   const updateTaskStatus = async (item: ChecklistItem, newStatus: TaskStatus) => {
     try {
+      console.log('Updating task status:', {
+        itemId: item.id,
+        newStatus,
+        selectedItems: Array.from(selectedItems),
+        isSelected: selectedItems.has(item.id),
+        selectedCount: selectedItems.size
+      });
+
       const user = await supabase.auth.getUser();
       const updates: any = { status: newStatus };
       
@@ -235,6 +243,8 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
       // If this item is selected and there are multiple selected items, update all selected
       if (selectedItems.has(item.id) && selectedItems.size > 1) {
+        console.log('Updating multiple selected items:', Array.from(selectedItems));
+        
         const { error } = await supabase
           .from('project_checklist_items')
           .update(updates)
@@ -249,6 +259,8 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           description: `${selectedItems.size} tareas han sido marcadas como ${STATUS_LABELS[newStatus].toLowerCase()}.`,
         });
       } else {
+        console.log('Updating single item');
+        
         // Update only the single item
         const { error } = await supabase
           .from('project_checklist_items')
