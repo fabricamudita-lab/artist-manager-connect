@@ -824,7 +824,7 @@ export default function ProjectDetail() {
                 <p className="text-sm leading-relaxed">{project.objective}</p>
               </div>
             )}
-            {project.description && (
+            {project.description && project.description !== project.objective && (
               <div className="space-y-2">
                 <div className="text-sm font-medium text-muted-foreground">Descripción</div>
                 <p className="text-sm leading-relaxed text-muted-foreground">{project.description}</p>
