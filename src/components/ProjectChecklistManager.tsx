@@ -326,9 +326,13 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   };
 
   const selectAllVisible = () => {
-    // We'll calculate filteredItems here when needed
+    // Calculate filtered items with normalized sections
     const visibleItems = items.filter(item => {
-      const sectionMatch = filterSection === 'all' || (item.section || 'SIN_CATEGORIA') === filterSection;
+      let itemSection = item.section || 'SIN_CATEGORIA';
+      if (itemSection === 'PRODUCCIÓN') itemSection = 'PRODUCCION';
+      if (itemSection === 'Sin categoría' || itemSection === null) itemSection = 'SIN_CATEGORIA';
+      
+      const sectionMatch = filterSection === 'all' || itemSection === filterSection;
       const statusMatch = selectedStatuses.size === 0 || selectedStatuses.has(item.status || 'PENDING');
       const ownerMatch = filterOwner === 'all' || (item.description || 'Sin asignar') === filterOwner;
       return sectionMatch && statusMatch && ownerMatch;
@@ -427,13 +431,22 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   const completedCount = items.filter(item => item.status === 'COMPLETED').length;
   const progressPercentage = items.length > 0 ? Math.round((completedCount / items.length) * 100) : 0;
 
-  // Get unique sections for filters
-  const sections = Array.from(new Set(items.map(item => item.section || 'SIN_CATEGORIA').filter(Boolean)));
+  // Get unique sections for filters (normalize them)
+  const sections = Array.from(new Set(items.map(item => {
+    let section = item.section || 'SIN_CATEGORIA';
+    if (section === 'PRODUCCIÓN') section = 'PRODUCCION';
+    if (section === 'Sin categoría' || section === null) section = 'SIN_CATEGORIA';
+    return section;
+  }).filter(Boolean)));
   const owners = Array.from(new Set(items.map(item => item.description || 'Sin asignar').filter(Boolean)));
 
   // Filter items based on current filters
   const filteredItems = items.filter(item => {
-    const sectionMatch = filterSection === 'all' || (item.section || 'SIN_CATEGORIA') === filterSection;
+    let itemSection = item.section || 'SIN_CATEGORIA';
+    if (itemSection === 'PRODUCCIÓN') itemSection = 'PRODUCCION';
+    if (itemSection === 'Sin categoría' || itemSection === null) itemSection = 'SIN_CATEGORIA';
+    
+    const sectionMatch = filterSection === 'all' || itemSection === filterSection;
     const statusMatch = selectedStatuses.size === 0 || selectedStatuses.has(item.status || 'PENDING');
     const ownerMatch = filterOwner === 'all' || (item.description || 'Sin asignar') === filterOwner;
     
@@ -442,7 +455,11 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
   // Group items by section
   const groupedItems = filteredItems.reduce((acc, item) => {
-    const section = item.section || 'SIN_CATEGORIA';
+    let section = item.section || 'SIN_CATEGORIA';
+    // Normalize section names - handle accented versions
+    if (section === 'PRODUCCIÓN') section = 'PRODUCCION';
+    if (section === 'Sin categoría' || section === null) section = 'SIN_CATEGORIA';
+    
     if (!acc[section]) {
       acc[section] = [];
     }
