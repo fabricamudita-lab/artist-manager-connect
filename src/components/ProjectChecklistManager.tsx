@@ -85,6 +85,11 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   const [selectedStatuses, setSelectedStatuses] = useState<Set<TaskStatus>>(new Set());
   const [filterOwner, setFilterOwner] = useState<string>("all");
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [bulkUpdateConfirm, setBulkUpdateConfirm] = useState<{
+    count: number;
+    status: TaskStatus;
+    items: Set<string>;
+  } | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     'PREPARATIVOS': true,
     'PRODUCCION': true,
@@ -241,32 +246,17 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         updates.completed_at = null;
       }
 
-      // If this item is selected and there are multiple selected items, update all selected
+      // If this item is selected and there are multiple selected items, show confirmation dialog
       if (selectedItems.has(item.id) && selectedItems.size > 1) {
         console.log('Updating multiple selected items:', Array.from(selectedItems));
         
-        // Ask for confirmation before bulk update
-        const confirmed = window.confirm(
-          `¿Estás seguro de que quieres cambiar el estado de ${selectedItems.size} tareas seleccionadas a "${STATUS_LABELS[newStatus]}"?`
-        );
-        
-        if (!confirmed) {
-          return; // User cancelled, don't proceed
-        }
-        
-        const { error } = await supabase
-          .from('project_checklist_items')
-          .update(updates)
-          .in('id', Array.from(selectedItems));
-
-        if (error) throw error;
-
-        fetchChecklistItems();
-        
-        toast({
-          title: "Tareas actualizadas",
-          description: `${selectedItems.size} tareas han sido marcadas como ${STATUS_LABELS[newStatus].toLowerCase()}.`,
+        // Set up bulk update confirmation
+        setBulkUpdateConfirm({
+          count: selectedItems.size,
+          status: newStatus,
+          items: new Set(selectedItems)
         });
+        return; // Exit here, the actual update will happen in the confirmation dialog
       } else {
         console.log('Updating single item');
         
@@ -1065,6 +1055,66 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Update Confirmation Dialog */}
+      <AlertDialog open={!!bulkUpdateConfirm} onOpenChange={() => setBulkUpdateConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar cambio masivo</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que quieres cambiar el estado de {bulkUpdateConfirm?.count} tareas seleccionadas a "{bulkUpdateConfirm?.status ? STATUS_LABELS[bulkUpdateConfirm.status] : ''}"?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!bulkUpdateConfirm) return;
+                
+                try {
+                  const user = await supabase.auth.getUser();
+                  const updates: any = { status: bulkUpdateConfirm.status };
+                  
+                  if (bulkUpdateConfirm.status === 'COMPLETED') {
+                    updates.is_completed = true;
+                    updates.completed_by = user.data.user?.id;
+                    updates.completed_at = new Date().toISOString();
+                  } else {
+                    updates.is_completed = false;
+                    updates.completed_by = null;
+                    updates.completed_at = null;
+                  }
+
+                  const { error } = await supabase
+                    .from('project_checklist_items')
+                    .update(updates)
+                    .in('id', Array.from(bulkUpdateConfirm.items));
+
+                  if (error) throw error;
+
+                  fetchChecklistItems();
+                  setSelectedItems(new Set());
+                  setBulkUpdateConfirm(null);
+                  
+                  toast({
+                    title: "Tareas actualizadas",
+                    description: `${bulkUpdateConfirm.count} tareas han sido marcadas como ${STATUS_LABELS[bulkUpdateConfirm.status].toLowerCase()}.`,
+                  });
+                } catch (error) {
+                  console.error('Error updating tasks:', error);
+                  toast({
+                    title: "Error",
+                    description: "No se pudieron actualizar las tareas seleccionadas.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            >
+              Aceptar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
