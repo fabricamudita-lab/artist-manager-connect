@@ -260,20 +260,40 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     if (!deleteConfirm) return;
 
     try {
-      const { error } = await supabase
-        .from('project_checklist_items')
-        .delete()
-        .eq('id', deleteConfirm.id);
+      // If this item is selected and there are multiple selected items, delete all selected
+      if (selectedItems.has(deleteConfirm.id) && selectedItems.size > 1) {
+        const { error } = await supabase
+          .from('project_checklist_items')
+          .delete()
+          .in('id', Array.from(selectedItems));
 
-      if (error) throw error;
+        if (error) throw error;
 
-      setDeleteConfirm(null);
-      fetchChecklistItems();
-      
-      toast({
-        title: "Elemento eliminado",
-        description: "El elemento se ha eliminado de la checklist.",
-      });
+        setSelectedItems(new Set());
+        setDeleteConfirm(null);
+        fetchChecklistItems();
+        
+        toast({
+          title: "Elementos eliminados",
+          description: `${selectedItems.size} elementos han sido eliminados de la checklist.`,
+        });
+      } else {
+        // Delete only the single item
+        const { error } = await supabase
+          .from('project_checklist_items')
+          .delete()
+          .eq('id', deleteConfirm.id);
+
+        if (error) throw error;
+
+        setDeleteConfirm(null);
+        fetchChecklistItems();
+        
+        toast({
+          title: "Elemento eliminado",
+          description: "El elemento se ha eliminado de la checklist.",
+        });
+      }
     } catch (error) {
       console.error('Error deleting item:', error);
       toast({
@@ -579,39 +599,18 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                       <span className="text-sm">
                         {selectedItems.size > 0 ? `${selectedItems.size} seleccionadas` : 'Seleccionar todas'}
                       </span>
-                    </div>
-                  )}
-
-                  {/* Action buttons - always visible like Gmail */}
-                  {canEdit && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        onClick={() => bulkUpdateStatus('COMPLETED')}
-                        size="sm"
-                        variant="ghost"
-                        disabled={selectedItems.size === 0}
-                        title="Completar seleccionadas"
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        onClick={() => bulkUpdateStatus('PENDING')}
-                        size="sm"
-                        variant="ghost"
-                        disabled={selectedItems.size === 0}
-                        title="Marcar como pendientes"
-                      >
-                        <Clock className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        onClick={bulkDelete}
-                        size="sm"
-                        variant="ghost"
-                        disabled={selectedItems.size === 0}
-                        title="Eliminar seleccionadas"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      
+                      {/* Deselect button - always integrated, only visible when items are selected */}
+                      {selectedItems.size > 0 && (
+                        <Button
+                          onClick={clearSelection}
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground"
+                        >
+                          Deseleccionar
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
