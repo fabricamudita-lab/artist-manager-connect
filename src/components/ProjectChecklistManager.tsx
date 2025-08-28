@@ -84,6 +84,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   const [filterSection, setFilterSection] = useState<string>("all");
   const [selectedStatuses, setSelectedStatuses] = useState<Set<TaskStatus>>(new Set());
   const [filterOwner, setFilterOwner] = useState<string>("all");
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     'PREPARATIVOS': true,
     'PRODUCCION': true,
@@ -309,6 +310,103 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     }
   };
 
+  // Selection functions
+  const toggleItemSelection = (itemId: string) => {
+    const newSelection = new Set(selectedItems);
+    if (newSelection.has(itemId)) {
+      newSelection.delete(itemId);
+    } else {
+      newSelection.add(itemId);
+    }
+    setSelectedItems(newSelection);
+  };
+
+  const clearSelection = () => {
+    setSelectedItems(new Set());
+  };
+
+  const selectAllVisible = () => {
+    // We'll calculate filteredItems here when needed
+    const visibleItems = items.filter(item => {
+      const sectionMatch = filterSection === 'all' || (item.section || 'Sin categoría') === filterSection;
+      const statusMatch = selectedStatuses.size === 0 || selectedStatuses.has(item.status || 'PENDING');
+      const ownerMatch = filterOwner === 'all' || (item.description || 'Sin asignar') === filterOwner;
+      return sectionMatch && statusMatch && ownerMatch;
+    });
+    const visibleItemIds = new Set(visibleItems.map(item => item.id));
+    setSelectedItems(visibleItemIds);
+  };
+
+  // Bulk actions
+  const bulkUpdateStatus = async (newStatus: TaskStatus) => {
+    if (selectedItems.size === 0) return;
+
+    try {
+      const user = await supabase.auth.getUser();
+      const updates: any = { status: newStatus };
+      
+      if (newStatus === 'COMPLETED') {
+        updates.is_completed = true;
+        updates.completed_by = user.data.user?.id;
+        updates.completed_at = new Date().toISOString();
+      } else {
+        updates.is_completed = false;
+        updates.completed_by = null;
+        updates.completed_at = null;
+      }
+
+      const { error } = await supabase
+        .from('project_checklist_items')
+        .update(updates)
+        .in('id', Array.from(selectedItems));
+
+      if (error) throw error;
+
+      setSelectedItems(new Set());
+      fetchChecklistItems();
+      
+      toast({
+        title: "Tareas actualizadas",
+        description: `${selectedItems.size} tareas han sido marcadas como ${STATUS_LABELS[newStatus].toLowerCase()}.`,
+      });
+    } catch (error) {
+      console.error('Error updating tasks:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron actualizar las tareas seleccionadas.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const bulkDelete = async () => {
+    if (selectedItems.size === 0) return;
+
+    try {
+      const { error } = await supabase
+        .from('project_checklist_items')
+        .delete()
+        .in('id', Array.from(selectedItems));
+
+      if (error) throw error;
+
+      setSelectedItems(new Set());
+      fetchChecklistItems();
+      
+      toast({
+        title: "Tareas eliminadas",
+        description: `${selectedItems.size} tareas han sido eliminadas.`,
+      });
+    } catch (error) {
+      console.error('Error deleting tasks:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron eliminar las tareas seleccionadas.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -437,6 +535,55 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           )}
         </CardHeader>
         <CardContent>
+          {/* Selection toolbar */}
+          {canEdit && selectedItems.size > 0 && (
+            <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">
+                    {selectedItems.size} tareas seleccionadas
+                  </span>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={clearSelection}
+                    className="h-7 px-2 text-xs"
+                  >
+                    Deseleccionar todas
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => bulkUpdateStatus('COMPLETED')}
+                    className="h-7 px-2 text-xs"
+                  >
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    Completar
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => bulkUpdateStatus('PENDING')}
+                    className="h-7 px-2 text-xs"
+                  >
+                    Marcar pendiente
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="destructive" 
+                    onClick={bulkDelete}
+                    className="h-7 px-2 text-xs"
+                  >
+                    <Trash2 className="w-3 h-3 mr-1" />
+                    Eliminar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {items.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               No hay elementos en la checklist.
@@ -444,12 +591,21 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
             </div>
           ) : (
             <>
-              {/* Filters */}
               <div className="flex gap-4 mb-6 flex-wrap">
                 <div className="flex items-center gap-2">
                   <Filter className="w-4 h-4" />
                   <span className="text-sm font-medium">Filtros:</span>
                 </div>
+                {canEdit && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={selectAllVisible}
+                    className="h-8 px-3 text-xs"
+                  >
+                    Seleccionar visibles
+                  </Button>
+                )}
                 <Select value={filterSection} onValueChange={setFilterSection}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Por sección" />
@@ -561,13 +717,28 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                 <div
                                   key={item.id}
                                   className="flex items-start gap-3 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
-                                >
-                                  <Checkbox
-                                    checked={item.status === 'COMPLETED'}
-                                    onCheckedChange={() => canEdit && toggleItemCompletion(item)}
-                                    disabled={!canEdit}
-                                    className="mt-0.5"
-                                  />
+                                 >
+                                   {/* Selection Circle */}
+                                   <div 
+                                     className={`w-5 h-5 rounded-full border-2 cursor-pointer flex items-center justify-center transition-colors ${
+                                       selectedItems.has(item.id) 
+                                         ? 'bg-primary border-primary text-primary-foreground' 
+                                         : 'border-muted-foreground hover:border-primary'
+                                     }`}
+                                     onClick={() => canEdit && toggleItemSelection(item.id)}
+                                   >
+                                     {selectedItems.has(item.id) && (
+                                       <CheckCircle2 className="w-3 h-3" />
+                                     )}
+                                   </div>
+                                   {/* Completion Status Indicator */}
+                                   <div 
+                                     className={`w-3 h-3 rounded-full ${
+                                       item.status === 'COMPLETED' 
+                                         ? 'bg-green-500' 
+                                         : 'bg-gray-300'
+                                     }`}
+                                   />
                                   <div className="flex-1 min-w-0">
                                     <div className={`font-medium ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
                                       {item.title}
@@ -654,13 +825,28 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                           <div
                             key={item.id}
                             className="flex items-start gap-3 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
-                          >
-                            <Checkbox
-                              checked={item.status === 'COMPLETED'}
-                              onCheckedChange={() => canEdit && toggleItemCompletion(item)}
-                              disabled={!canEdit}
-                              className="mt-0.5"
-                            />
+                           >
+                             {/* Selection Circle */}
+                             <div 
+                               className={`w-5 h-5 rounded-full border-2 cursor-pointer flex items-center justify-center transition-colors ${
+                                 selectedItems.has(item.id) 
+                                   ? 'bg-primary border-primary text-primary-foreground' 
+                                   : 'border-muted-foreground hover:border-primary'
+                               }`}
+                               onClick={() => canEdit && toggleItemSelection(item.id)}
+                             >
+                               {selectedItems.has(item.id) && (
+                                 <CheckCircle2 className="w-3 h-3" />
+                               )}
+                             </div>
+                             {/* Completion Status Indicator */}
+                             <div 
+                               className={`w-3 h-3 rounded-full ${
+                                 item.status === 'COMPLETED' 
+                                   ? 'bg-green-500' 
+                                   : 'bg-gray-300'
+                               }`}
+                             />
                             <div className="flex-1 min-w-0">
                               <div className={`font-medium ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
                                 {item.title}
