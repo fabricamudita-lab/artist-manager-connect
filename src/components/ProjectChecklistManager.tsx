@@ -1060,9 +1060,9 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       <AlertDialog open={!!bulkUpdateConfirm} onOpenChange={() => setBulkUpdateConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar cambio masivo</AlertDialogTitle>
+            <AlertDialogTitle>Cambiar estado de tareas</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Estás seguro de que quieres cambiar el estado de {bulkUpdateConfirm?.count} tareas seleccionadas a "{bulkUpdateConfirm?.status ? STATUS_LABELS[bulkUpdateConfirm.status] : ''}"?
+              Vas a cambiar el estado de {bulkUpdateConfirm?.count} tareas a "{bulkUpdateConfirm?.status ? STATUS_LABELS[bulkUpdateConfirm.status] : ''}".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
