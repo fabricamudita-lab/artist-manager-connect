@@ -21,8 +21,10 @@ import BudgetDetailsDialog from "@/components/BudgetDetailsDialog";
 import CreateBudgetDialog from "@/components/CreateBudgetDialog";
 import { CreateSolicitudDialog } from "@/components/CreateSolicitudDialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -61,7 +63,7 @@ import { MessageSquare, Activity, Send } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ProjectChecklistManager } from "@/components/ProjectChecklistManager";
 
@@ -128,6 +130,15 @@ export default function ProjectDetail() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Document upload state
+  const [showDocumentUpload, setShowDocumentUpload] = useState(false);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [newDocument, setNewDocument] = useState({
+    title: '',
+    category: '',
+    file: null as File | null
+  });
 
   // Load collapsed sections from localStorage
   useEffect(() => {
@@ -642,7 +653,6 @@ export default function ProjectDetail() {
       }
     };
 
-
     const loadLinked = async () => {
       try {
         const [bRes, cRes, dRes, sRes] = await Promise.all([
@@ -716,6 +726,84 @@ export default function ProjectDetail() {
     } catch (e) {
       console.error(e);
       toast({ title: 'Error', description: 'No se pudo subir el contrato', variant: 'destructive' });
+    }
+  };
+
+  // Document upload function
+  const handleDocumentUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newDocument.title || !newDocument.category || !newDocument.file) {
+      toast({
+        title: "Error",
+        description: "Por favor completa todos los campos y selecciona un archivo.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingDocument(true);
+
+    try {
+      const fileExt = newDocument.file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
+      const filePath = `${profile?.id}/${fileName}`;
+
+      // Upload file to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, newDocument.file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath);
+
+      // Save document metadata to database
+      const { error: dbError } = await supabase
+        .from('documents')
+        .insert({
+          title: newDocument.title,
+          category: newDocument.category,
+          file_type: newDocument.file.type,
+          file_size: newDocument.file.size,
+          file_url: publicUrl,
+          artist_id: artist?.id,
+          uploaded_by: profile?.id,
+          project_id: id,
+        });
+
+      if (dbError) throw dbError;
+
+      // Reset form and refresh documents
+      setNewDocument({ title: '', category: '', file: null });
+      setShowDocumentUpload(false);
+      
+      // Refresh documents list
+      const { data, error } = await supabase
+        .from('documents')
+        .select('id, title, file_url, category')
+        .eq('project_id', id)
+        .order('created_at', { ascending: false });
+      
+      if (!error) setDocuments(data || []);
+
+      toast({
+        title: "Documento subido",
+        description: "El documento se ha subido correctamente.",
+      });
+
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      toast({
+        title: "Error",
+        description: "Error al subir el documento. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingDocument(false);
     }
   };
 
@@ -976,7 +1064,7 @@ export default function ProjectDetail() {
                   <Paperclip className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
                   <h3 className="text-lg font-medium mb-2">No hay documentos</h3>
                   <p className="text-sm text-muted-foreground mb-4">Sube documentos relacionados con este proyecto</p>
-                  <Button variant="outline">
+                  <Button variant="outline" onClick={() => setShowDocumentUpload(true)}>
                     <Upload className="w-4 h-4 mr-2" />
                     Subir documento
                   </Button>
@@ -997,13 +1085,21 @@ export default function ProjectDetail() {
                             </Badge>
                           </div>
                         </div>
-                        <Button variant="outline" size="sm">
-                          <Eye className="w-4 h-4 mr-2" />
-                          Ver
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                            <Eye className="w-4 h-4 mr-2" />
+                            Ver
+                          </a>
                         </Button>
                       </div>
                     </Card>
                   ))}
+                  <div className="flex justify-center pt-4">
+                    <Button variant="outline" onClick={() => setShowDocumentUpload(true)}>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Subir otro documento
+                    </Button>
+                  </div>
                 </div>
               )}
             </TabsContent>
@@ -2062,6 +2158,71 @@ export default function ProjectDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Document Upload Dialog */}
+      <Dialog open={showDocumentUpload} onOpenChange={setShowDocumentUpload}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Subir Documento</DialogTitle>
+            <DialogDescription>
+              Añade un documento relacionado con este proyecto.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleDocumentUpload} className="space-y-4">
+            <div>
+              <Label htmlFor="title">Título del documento</Label>
+              <Input
+                id="title"
+                value={newDocument.title}
+                onChange={(e) => setNewDocument({ ...newDocument, title: e.target.value })}
+                placeholder="Ej: Contrato, Rider técnico, etc."
+                required
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="category">Categoría</Label>
+              <Select value={newDocument.category} onValueChange={(value) => setNewDocument({ ...newDocument, category: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="contrato">Contrato</SelectItem>
+                  <SelectItem value="rider">Rider Técnico</SelectItem>
+                  <SelectItem value="presupuesto">Presupuesto</SelectItem>
+                  <SelectItem value="factura">Factura</SelectItem>
+                  <SelectItem value="comunicacion">Comunicación</SelectItem>
+                  <SelectItem value="prensa">Prensa</SelectItem>
+                  <SelectItem value="otro">Otro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="file">Archivo</Label>
+              <Input
+                id="file"
+                type="file"
+                onChange={(e) => setNewDocument({ ...newDocument, file: e.target.files?.[0] || null })}
+                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.mp3,.wav,.mp4,.mov"
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Formatos soportados: PDF, DOC, DOCX, TXT, JPG, PNG, MP3, WAV, MP4, MOV
+              </p>
+            </div>
+            
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowDocumentUpload(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={uploadingDocument}>
+                {uploadingDocument ? 'Subiendo...' : 'Subir Documento'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
