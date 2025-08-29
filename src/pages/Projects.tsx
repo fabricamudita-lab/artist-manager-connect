@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Filter, FolderOpen, Trash2, MoreHorizontal } from "lucide-react";
+import { Search, Filter, FolderOpen, Trash2, MoreHorizontal, Calendar, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -207,103 +207,106 @@ export default function Projects() {
           </div>
         </header>
 
-        {/* Projects List */}
+        {/* Projects Grid */}
         <section>
-          <Card className="border shadow-sm">
-            <CardHeader className="border-b bg-muted/30">
-              <CardTitle className="text-lg font-semibold">Vista general</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="text-muted-foreground">Cargando proyectos...</div>
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-                    <FolderOpen className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="font-medium text-foreground mb-2">No hay proyectos</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {query ? 'No se encontraron proyectos con esos criterios.' : 'Crea tu primer proyecto para comenzar.'}
-                  </p>
-                  {!query && (
-                    <Button onClick={() => setOpenCreate(true)} size="sm">
-                      Crear proyecto
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b bg-muted/20">
-                        <th className="text-left font-medium text-muted-foreground py-4 px-6">Proyecto</th>
-                        <th className="text-left font-medium text-muted-foreground py-4 px-6">Artista</th>
-                        <th className="text-left font-medium text-muted-foreground py-4 px-6">Estado</th>
-                        <th className="text-left font-medium text-muted-foreground py-4 px-6">Inicio</th>
-                        <th className="text-left font-medium text-muted-foreground py-4 px-6">Fin estimado</th>
-                        <th className="text-right font-medium text-muted-foreground py-4 px-6">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {filtered.map((p) => (
-                        <tr key={p.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="py-4 px-6">
-                            <div className="font-semibold text-foreground">{p.name}</div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className="text-muted-foreground">{p.artist_name || '—'}</div>
-                          </td>
-                           <td className="py-4 px-6">
-                             <ProjectProgressDisplay 
-                               projectId={p.id} 
-                               viewMode={viewMode} 
-                               status={p.status} 
-                             />
-                           </td>
-                          <td className="py-4 px-6">
-                            <div className="text-muted-foreground">{p.start_date || '—'}</div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className="text-muted-foreground">{p.end_date_estimada || '—'}</div>
-                          </td>
-                          <td className="py-4 px-6 text-right">
-                            <div className="flex items-center gap-2 justify-end">
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => navigate(`/projects/${p.id}`)}
-                                className="shadow-sm hover:shadow-md transition-shadow"
-                              >
-                                Ver detalle
-                              </Button>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onClick={() => setDeleteProject(p)}
-                                    className="text-destructive focus:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Eliminar
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-muted-foreground">Cargando proyectos...</div>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
+                <FolderOpen className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="font-medium text-foreground mb-2">No hay proyectos</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                {query ? 'No se encontraron proyectos con esos criterios.' : 'Crea tu primer proyecto para comenzar.'}
+              </p>
+              {!query && (
+                <Button onClick={() => setOpenCreate(true)} size="sm">
+                  Crear proyecto
+                </Button>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filtered.map((p) => (
+                <Card 
+                  key={p.id} 
+                  className="border hover:border-primary/20 transition-all duration-200 hover:shadow-lg cursor-pointer group"
+                  onClick={() => navigate(`/projects/${p.id}`)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-lg font-semibold truncate group-hover:text-primary transition-colors">
+                          {p.name}
+                        </CardTitle>
+                        {p.artist_name && (
+                          <div className="flex items-center gap-1 mt-1 text-sm text-muted-foreground">
+                            <User className="w-3 h-3" />
+                            <span className="truncate">{p.artist_name}</span>
+                          </div>
+                        )}
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteProject(p);
+                            }}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="space-y-3">
+                      {/* Status */}
+                      <div className="flex items-center gap-2">
+                        <ProjectProgressDisplay 
+                          projectId={p.id} 
+                          viewMode={viewMode} 
+                          status={p.status} 
+                        />
+                      </div>
+                      
+                      {/* Dates */}
+                      <div className="space-y-2 text-sm">
+                        {p.start_date && (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Calendar className="w-3 h-3" />
+                            <span>Inicio: {new Date(p.start_date).toLocaleDateString('es-ES')}</span>
+                          </div>
+                        )}
+                        {p.end_date_estimada && (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Calendar className="w-3 h-3" />
+                            <span>Fin: {new Date(p.end_date_estimada).toLocaleDateString('es-ES')}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </section>
         
         <CreateProjectDialog open={openCreate} onOpenChange={setOpenCreate} onSuccess={() => {
