@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FileText, Crown, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -56,6 +57,7 @@ export function TemplateSelectionDialog({
   const [systemTemplates, setSystemTemplates] = useState<Template[]>([]);
   const [userTemplates, setUserTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
 
@@ -125,6 +127,8 @@ export function TemplateSelectionDialog({
     try {
       const items = await fetchTemplateItems(template.id);
       setSelectedTemplate({ ...template, items });
+      // Select all items by default
+      setSelectedItems(new Set(items.map(item => item.id)));
     } catch (error) {
       console.error('Error fetching template items:', error);
       toast({
@@ -133,6 +137,18 @@ export function TemplateSelectionDialog({
         variant: "destructive",
       });
     }
+  };
+
+  const toggleItemSelection = (itemId: string) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
   };
 
   const applyTemplate = async () => {
@@ -173,8 +189,9 @@ export function TemplateSelectionDialog({
         if (deleteError) throw deleteError;
       }
 
-      // Group items by section and create checklist items
-      const checklistItems = selectedTemplate.items.map((item, index) => ({
+      // Group items by section and create checklist items (only for selected items)
+      const selectedTemplateItems = selectedTemplate.items.filter(item => selectedItems.has(item.id));
+      const checklistItems = selectedTemplateItems.map((item, index) => ({
         project_id: projectId,
         title: item.task_es,
         description: item.owner_label_es || null,
@@ -197,6 +214,7 @@ export function TemplateSelectionDialog({
       onTemplateApplied();
       onOpenChange(false);
       setSelectedTemplate(null);
+      setSelectedItems(new Set());
     } catch (error) {
       console.error('Error applying template:', error);
       toast({
@@ -344,18 +362,30 @@ export function TemplateSelectionDialog({
                             </h5>
                             <div className="space-y-2 ml-4">
                               {items.map((item) => (
-                                <div key={item.id} className="flex items-start gap-2">
-                                  <div className="w-2 h-2 rounded-full bg-muted-foreground mt-2 flex-shrink-0" />
+                                <div 
+                                  key={item.id} 
+                                  className={`flex items-start gap-2 p-2 rounded cursor-pointer transition-colors hover:bg-muted/50 ${
+                                    selectedItems.has(item.id) ? 'bg-muted/30' : ''
+                                  }`}
+                                  onClick={() => toggleItemSelection(item.id)}
+                                >
+                                  <Checkbox 
+                                    checked={selectedItems.has(item.id)}
+                                    onChange={() => {}} // Controlled by the parent click
+                                    className="mt-1"
+                                  />
                                   <div className="flex-1">
-                                    <span className="text-sm">{item.task_es}</span>
+                                    <span className={`text-sm ${selectedItems.has(item.id) ? '' : 'opacity-50'}`}>
+                                      {item.task_es}
+                                    </span>
                                     {item.owner_label_es && (
-                                      <div className="text-xs text-muted-foreground mt-1">
+                                      <div className={`text-xs text-muted-foreground mt-1 ${selectedItems.has(item.id) ? '' : 'opacity-50'}`}>
                                         Responsable: {item.owner_label_es}
                                       </div>
                                     )}
                                   </div>
                                   {item.due_anchor && (
-                                    <span className="text-xs text-muted-foreground ml-auto">
+                                    <span className={`text-xs text-muted-foreground ml-auto ${selectedItems.has(item.id) ? '' : 'opacity-50'}`}>
                                       {item.due_days_offset !== 0 ? 
                                         `${item.due_days_offset > 0 ? '+' : ''}${item.due_days_offset}d` : 
                                         'Día clave'
@@ -391,9 +421,9 @@ export function TemplateSelectionDialog({
           </Button>
           <Button 
             onClick={applyTemplate} 
-            disabled={!selectedTemplate || applying}
+            disabled={!selectedTemplate || applying || selectedItems.size === 0}
           >
-            {applying ? "Aplicando..." : "Aplicar plantilla"}
+            {applying ? "Aplicando..." : `Aplicar plantilla (${selectedItems.size} tareas)`}
           </Button>
         </DialogFooter>
       </DialogContent>
