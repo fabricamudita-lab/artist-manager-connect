@@ -32,11 +32,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { TaskFlowManager } from "./TaskFlowManager";
 import { toast } from "@/hooks/use-toast";
 
-type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'BLOCKED' | 'IN_REVIEW' | 'COMPLETED' | 'CANCELLED';
+export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'BLOCKED' | 'IN_REVIEW' | 'COMPLETED' | 'CANCELLED';
 
-interface ChecklistItem {
+export interface ChecklistItem {
   id: string;
   title: string;
   description: string | null;
@@ -74,6 +75,7 @@ const STATUS_COLORS: Record<TaskStatus, string> = {
 };
 
 export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklistManagerProps) {
+  const [viewMode, setViewMode] = useState<'list' | 'flow'>('list');
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<ChecklistItem | null>(null);
@@ -1005,6 +1007,26 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
+              
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                <Button
+                  size="sm"
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  onClick={() => setViewMode('list')}
+                  className="h-7 px-3 text-xs"
+                >
+                  Lista
+                </Button>
+                <Button
+                  size="sm"
+                  variant={viewMode === 'flow' ? 'default' : 'ghost'}
+                  onClick={() => setViewMode('flow')}
+                  className="h-7 px-3 text-xs"
+                >
+                  Flujo
+                </Button>
+              </div>
             </div>
             {items.length > 0 && (
               <div className="flex items-center justify-between text-sm mt-3">
@@ -1030,6 +1052,19 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                 </div>
               ) : (
                 <>
+                  {viewMode === 'flow' ? (
+                    <TaskFlowManager
+                      items={items}
+                      projectId={projectId}
+                      canEdit={canEdit}
+                      onStatusUpdate={updateTaskStatus}
+                      onDelete={(item) => setDeleteConfirm(item)}
+                      getTasksThatBlockOthers={getTasksThatBlockOthers}
+                      extractBlockingInfo={extractBlockingInfo}
+                      fetchChecklistItems={fetchChecklistItems}
+                    />
+                  ) : (
+                    <>
                   {/* Gmail-style action bar */}
                   <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg mb-6">
                     <div className="flex items-center gap-4">
@@ -1300,6 +1335,8 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                       </div>
                     );
                   })}
+                    </>
+                  )}
                 </>
               )}
             </CardContent>
