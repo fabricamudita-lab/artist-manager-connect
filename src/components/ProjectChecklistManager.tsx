@@ -547,10 +547,10 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <Collapsible open={isChecklistExpanded} onOpenChange={setIsChecklistExpanded}>
+      <Collapsible open={isChecklistExpanded} onOpenChange={setIsChecklistExpanded}>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
                   <CardTitle className="flex items-center gap-2">
@@ -564,393 +564,364 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                   </CardTitle>
                 </Button>
               </CollapsibleTrigger>
-            {canEdit && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline">
-                    <MoreVertical className="w-4 h-4 mr-2" />
-                    Acciones
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-background border shadow-lg">
-                  <DropdownMenuItem onClick={() => setOpenTemplateDialog(true)}>
-                    <FileText className="w-4 h-4 mr-2" />
-                    Crear desde plantilla
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setOpenAddDialog(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Añadir elemento
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setOpenSaveTemplateDialog(true)}>
-                    <Save className="w-4 h-4 mr-2" />
-                    Guardar como plantilla
-                  </DropdownMenuItem>
-                  {items.length > 0 && (
-                    <DropdownMenuItem 
-                      onClick={() => setClearAllConfirm(true)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Vaciar todo
+              {canEdit && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="outline">
+                      <MoreVertical className="w-4 h-4 mr-2" />
+                      Acciones
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 bg-background border shadow-lg">
+                    <DropdownMenuItem onClick={() => setOpenTemplateDialog(true)}>
+                      <FileText className="w-4 h-4 mr-2" />
+                      Crear desde plantilla
                     </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-          {items.length > 0 && (
-            <div className="flex items-center justify-between text-sm mt-3">
-              <div className="text-muted-foreground">
-                {completedCount} completadas · {progressPercentage}%
-              </div>
-              <div className="h-2 bg-muted rounded-full w-32">
-                <div 
-                  className="h-2 bg-primary rounded-full transition-all duration-300" 
-                  style={{ width: `${progressPercentage}%` }}
-                />
-              </div>
-            </div>
-          )}
-        </CardHeader>
-        <CardContent>
-          {items.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              No hay elementos en la checklist.
-              {canEdit && " Se cargará automáticamente una plantilla predeterminada."}
-            </div>
-          ) : (
-            <>
-              {/* Gmail-style action bar */}
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg mb-6">
-                <div className="flex items-center gap-4">
-                  {/* Master checkbox */}
-                  {canEdit && (
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        checked={selectedItems.size > 0 && selectedItems.size === filteredItems.length && filteredItems.length > 0}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            selectAllVisible();
-                          } else {
-                            clearSelection();
-                          }
-                        }}
-                        className="border-2"
-                      />
-                      <span className="text-sm">
-                        {selectedItems.size > 0 ? `${selectedItems.size} seleccionadas` : 'Seleccionar todas'}
-                      </span>
-                      
-                      {/* Deselect button - always integrated, only visible when items are selected */}
-                      {selectedItems.size > 0 && (
-                        <Button
-                          onClick={clearSelection}
-                          size="sm"
-                          variant="ghost"
-                          className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground"
-                        >
-                          Deseleccionar
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Filters */}
-                <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  <Select value={filterSection} onValueChange={setFilterSection}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue placeholder="Por sección" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background border shadow-lg">
-                      <SelectItem value="all">Todas las secciones</SelectItem>
-                      {sections.map((section) => (
-                        <SelectItem key={section} value={section}>
-                          {getSectionDisplayName(section)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  
-                  {/* Multi-select Status Filter */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="w-40 justify-between">
-                        <span>
-                          {selectedStatuses.size === 0 ? 'Todos los estados' : 
-                           selectedStatuses.size === 1 ? STATUS_LABELS[Array.from(selectedStatuses)[0]] :
-                           `${selectedStatuses.size} estados`}
-                        </span>
-                        <ChevronDown className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 bg-background border shadow-lg">
-                      {Object.entries(STATUS_LABELS).map(([status, label]) => (
-                        <DropdownMenuCheckboxItem
-                          key={status}
-                          checked={selectedStatuses.has(status as TaskStatus)}
-                          onCheckedChange={(checked) => {
-                            const newStatuses = new Set(selectedStatuses);
-                            if (checked) {
-                              newStatuses.add(status as TaskStatus);
-                            } else {
-                              newStatuses.delete(status as TaskStatus);
-                            }
-                            setSelectedStatuses(newStatuses);
-                          }}
-                        >
-                          <Badge variant="secondary" className={`${STATUS_COLORS[status as TaskStatus]} mr-2`}>
-                            {label}
-                          </Badge>
-                          ({statusCounts[status as TaskStatus] || 0})
-                        </DropdownMenuCheckboxItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  <Select value={filterOwner} onValueChange={setFilterOwner}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue placeholder="Por responsable" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background border shadow-lg">
-                      <SelectItem value="all">Todos los responsables</SelectItem>
-                      {owners.map((owner) => (
-                        <SelectItem key={owner} value={owner}>
-                          {owner}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Results count */}
-              {filteredItems.length !== items.length && (
-                <div className="text-sm text-muted-foreground mb-4">
-                  Mostrando {filteredItems.length} de {items.length} elementos
-                </div>
-              )}
-
-              {/* Collapsible sections with progress */}
-              <div className="space-y-4">
-                {['PREPARATIVOS', 'PRODUCCION', 'CIERRE'].map(section => {
-                  const sectionItems = groupedItems[section] || [];
-                  const sectionCompleted = sectionItems.filter(item => item.status === 'COMPLETED').length;
-                  const sectionTotal = sectionItems.length;
-                  const sectionProgress = sectionTotal > 0 ? Math.round((sectionCompleted / sectionTotal) * 100) : 0;
-                  const isExpanded = expandedSections[section];
-                  
-                  return (
-                    <div key={section} className="border rounded-lg">
-                      <button
-                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors text-left"
-                        onClick={() => setExpandedSections(prev => ({
-                          ...prev,
-                          [section]: !prev[section]
-                        }))}
+                    <DropdownMenuItem onClick={() => setOpenAddDialog(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Añadir elemento
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setOpenSaveTemplateDialog(true)}>
+                      <Save className="w-4 h-4 mr-2" />
+                      Guardar como plantilla
+                    </DropdownMenuItem>
+                    {items.length > 0 && (
+                      <DropdownMenuItem 
+                        onClick={() => setClearAllConfirm(true)}
+                        className="text-destructive focus:text-destructive"
                       >
-                        <div className="flex items-center gap-3">
-                           <h3 className="font-medium text-sm">
-                             {section}
-                          </h3>
-                          <span className="text-muted-foreground text-sm">
-                            ({sectionCompleted}/{sectionTotal} completadas · {sectionProgress}%)
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Vaciar todo
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+            {items.length > 0 && (
+              <div className="flex items-center justify-between text-sm mt-3">
+                <div className="text-muted-foreground">
+                  {completedCount} completadas · {progressPercentage}%
+                </div>
+                <div className="h-2 bg-muted rounded-full w-32">
+                  <div 
+                    className="h-2 bg-primary rounded-full transition-all duration-300" 
+                    style={{ width: `${progressPercentage}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </CardHeader>
+          
+          <CollapsibleContent>
+            <CardContent>
+              {items.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">
+                  No hay elementos en la checklist.
+                  {canEdit && " Se cargará automáticamente una plantilla predeterminada."}
+                </div>
+              ) : (
+                <>
+                  {/* Gmail-style action bar */}
+                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg mb-6">
+                    <div className="flex items-center gap-4">
+                      {/* Master checkbox */}
+                      {canEdit && (
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            checked={selectedItems.size > 0 && selectedItems.size === filteredItems.length && filteredItems.length > 0}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                selectAllVisible();
+                              } else {
+                                clearSelection();
+                              }
+                            }}
+                            className="border-2"
+                          />
+                          <span className="text-sm">
+                            {selectedItems.size > 0 ? `${selectedItems.size} seleccionadas` : 'Seleccionar todas'}
                           </span>
-                        </div>
-                        <ChevronDown
-                          className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                        />
-                      </button>
-                      
-                      {isExpanded && (
-                        <div className="px-4 pb-4">
-                          {sectionItems.length > 0 ? (
-                            <div className="space-y-2">
-                              {sectionItems.map((item) => (
-                                <div
-                                  key={item.id}
-                                  className="flex items-start gap-3 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
-                                 >
-                                   {/* Selection Checkbox */}
-                                   {canEdit && (
-                                     <Checkbox
-                                       checked={selectedItems.has(item.id)}
-                                       onCheckedChange={() => toggleItemSelection(item.id)}
-                                       className="border-2"
-                                     />
-                                   )}
-                                   {/* Completion Status Indicator */}
-                                   <div 
-                                     className={`w-3 h-3 rounded-full ${
-                                       item.status === 'COMPLETED' 
-                                         ? 'bg-green-500' 
-                                         : 'bg-gray-300'
-                                     }`}
-                                   />
-                                  <div className="flex-1 min-w-0">
-                                    <div className={`font-medium ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
-                                      {item.title}
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <Badge variant="secondary" className={`${STATUS_COLORS[item.status || 'PENDING']} text-xs`}>
-                                        {STATUS_LABELS[item.status || 'PENDING']}
-                                      </Badge>
-                                      {item.description && (
-                                        <>
-                                          <Users className="w-3 h-3 text-muted-foreground" />
-                                          <span className={`text-sm ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}>
-                                            {item.description}
-                                          </span>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {canEdit && (
-                                    <div className="flex items-center gap-2">
-                                      <Select
-                                        value={item.status || 'PENDING'}
-                                        onValueChange={(value: TaskStatus) => updateTaskStatus(item, value)}
-                                      >
-                                        <SelectTrigger className="w-32 h-8 text-xs">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-background border shadow-lg">
-                                          {Object.entries(STATUS_LABELS).map(([status, label]) => (
-                                            <SelectItem key={status} value={status}>
-                                              {label}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => setDeleteConfirm(item)}
-                                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-center text-muted-foreground text-sm py-4">
-                              No hay tareas en esta sección
-                            </div>
+                          
+                          {/* Deselect button - always integrated, only visible when items are selected */}
+                          {selectedItems.size > 0 && (
+                            <Button
+                              onClick={clearSelection}
+                              size="sm"
+                              variant="ghost"
+                              className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground"
+                            >
+                              Deseleccionar
+                            </Button>
                           )}
                         </div>
                       )}
                     </div>
-                  );
-                })}
-                
-                {/* Other sections */}
-                {Object.entries(groupedItems).map(([section, sectionItems]) => {
-                  if (['PREPARATIVOS', 'PRODUCCION', 'CIERRE'].includes(section)) return null;
-                  
-                  const sectionCompleted = sectionItems.filter(item => item.status === 'COMPLETED').length;
-                  const sectionTotal = sectionItems.length;
-                  const sectionProgress = sectionTotal > 0 ? Math.round((sectionCompleted / sectionTotal) * 100) : 0;
 
-                  return (
-                    <div key={section} className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Badge 
-                          variant="secondary" 
-                          className={`${getSectionColor(section)} font-medium`}
-                        >
-                          {getSectionDisplayName(section)}
-                        </Badge>
-                        <span className="text-sm text-muted-foreground">
-                          {sectionCompleted} / {sectionTotal} completados · {sectionProgress}%
-                        </span>
-                      </div>
+                    {/* Filters */}
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      <Select value={filterSection} onValueChange={setFilterSection}>
+                        <SelectTrigger className="w-40">
+                          <SelectValue placeholder="Por sección" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-lg">
+                          <SelectItem value="all">Todas las secciones</SelectItem>
+                          {sections.map((section) => (
+                            <SelectItem key={section} value={section}>
+                              {getSectionDisplayName(section)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       
-                      <div className="space-y-2 ml-4">
-                        {sectionItems.map((item) => (
-                          <div
-                            key={item.id}
-                            className="flex items-start gap-3 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
-                           >
-                             {/* Selection Checkbox */}
-                             {canEdit && (
-                               <Checkbox
-                                 checked={selectedItems.has(item.id)}
-                                 onCheckedChange={() => toggleItemSelection(item.id)}
-                                 className="border-2"
-                               />
-                             )}
-                             {/* Completion Status Indicator */}
-                             <div 
-                               className={`w-3 h-3 rounded-full ${
-                                 item.status === 'COMPLETED' 
-                                   ? 'bg-green-500' 
-                                   : 'bg-gray-300'
-                               }`}
-                             />
-                            <div className="flex-1 min-w-0">
-                              <div className={`font-medium ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
-                                {item.title}
-                              </div>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="secondary" className={`${STATUS_COLORS[item.status || 'PENDING']} text-xs`}>
-                                  {STATUS_LABELS[item.status || 'PENDING']}
-                                </Badge>
-                                {item.description && (
-                                  <>
-                                    <Users className="w-3 h-3 text-muted-foreground" />
-                                    <span className={`text-sm ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}>
-                                      {item.description}
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                            {canEdit && (
-                              <div className="flex items-center gap-2">
-                                <Select
-                                  value={item.status || 'PENDING'}
-                                  onValueChange={(value: TaskStatus) => updateTaskStatus(item, value)}
+                      {/* Multi-select Status Filter */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="w-40 justify-between">
+                            <span>
+                              {selectedStatuses.size === 0 ? 'Todos los estados' : 
+                               selectedStatuses.size === 1 ? STATUS_LABELS[Array.from(selectedStatuses)[0]] :
+                               `${selectedStatuses.size} estados`}
+                            </span>
+                            <ChevronDown className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-56 bg-background border shadow-lg">
+                          {Object.entries(STATUS_LABELS).map(([status, label]) => (
+                            <DropdownMenuCheckboxItem
+                              key={status}
+                              checked={selectedStatuses.has(status as TaskStatus)}
+                              onCheckedChange={(checked) => {
+                                const newStatuses = new Set(selectedStatuses);
+                                if (checked) {
+                                  newStatuses.add(status as TaskStatus);
+                                } else {
+                                  newStatuses.delete(status as TaskStatus);
+                                }
+                                setSelectedStatuses(newStatuses);
+                              }}
+                            >
+                              <Badge variant="secondary" className={`${STATUS_COLORS[status as TaskStatus]} mr-2`}>
+                                {label}
+                              </Badge>
+                              ({statusCounts[status as TaskStatus] || 0})
+                            </DropdownMenuCheckboxItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      <Select value={filterOwner} onValueChange={setFilterOwner}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue placeholder="Por responsable" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-lg">
+                          <SelectItem value="all">Todos</SelectItem>
+                          {owners.map((owner) => (
+                            <SelectItem key={owner} value={owner}>
+                              {owner}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Bulk action bar - only visible when items are selected */}
+                  {selectedItems.size > 0 && canEdit && (
+                    <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">
+                          {selectedItems.size} elementos seleccionados
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="outline">
+                                Cambiar estado
+                                <ChevronDown className="w-4 h-4 ml-2" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="bg-background border shadow-lg">
+                              {Object.entries(STATUS_LABELS).map(([status, label]) => (
+                                <DropdownMenuItem
+                                  key={status}
+                                  onClick={() => {
+                                    setBulkUpdateConfirm({
+                                      count: selectedItems.size,
+                                      status: status as TaskStatus,
+                                      items: new Set(selectedItems)
+                                    });
+                                  }}
                                 >
-                                  <SelectTrigger className="w-32 h-8 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent className="bg-background border shadow-lg">
-                                    {Object.entries(STATUS_LABELS).map(([status, label]) => (
-                                      <SelectItem key={status} value={status}>
-                                        {label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => setDeleteConfirm(item)}
-                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                                  <Badge variant="secondary" className={`${STATUS_COLORS[status as TaskStatus]} mr-2`}>
+                                    {label}
+                                  </Badge>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              if (selectedItems.size > 0) {
+                                const firstSelectedItem = items.find(item => selectedItems.has(item.id));
+                                if (firstSelectedItem) {
+                                  setDeleteConfirm(firstSelectedItem);
+                                }
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Eliminar
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  )}
 
-              {filteredItems.length === 0 && (
-                <div className="text-center text-muted-foreground py-8">
-                  No hay elementos que coincidan con los filtros seleccionados.
-                </div>
+                  {/* Sections */}
+                  {Object.entries(groupedItems).map(([section, sectionItems]) => {
+                    const sectionCompleted = sectionItems.filter(item => item.status === 'COMPLETED').length;
+                    const sectionProgress = sectionItems.length > 0 ? Math.round((sectionCompleted / sectionItems.length) * 100) : 0;
+                    
+                    return (
+                      <div key={section} className="mb-6">
+                        <div 
+                          className="flex items-center justify-between p-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => setExpandedSections(prev => ({
+                            ...prev,
+                            [section]: !prev[section]
+                          }))}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Badge variant="secondary" className={getSectionColor(section)}>
+                              {getSectionDisplayName(section)}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              ({sectionCompleted}/{sectionItems.length} completadas · {sectionProgress}%)
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="h-2 bg-muted rounded-full w-24">
+                              <div 
+                                className="h-2 bg-primary rounded-full transition-all duration-300" 
+                                style={{ width: `${sectionProgress}%` }}
+                              />
+                            </div>
+                            {expandedSections[section] ? (
+                              <ChevronDown className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 transform -rotate-90" />
+                            )}
+                          </div>
+                        </div>
+
+                        {expandedSections[section] && (
+                          <div className="mt-2 space-y-2">
+                            {sectionItems.map((item) => (
+                              <div 
+                                key={item.id} 
+                                className={`p-3 rounded border hover:shadow-sm transition-all ${
+                                  selectedItems.has(item.id) ? 'bg-primary/5 border-primary/20' : 'bg-background'
+                                }`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  {canEdit && (
+                                    <Checkbox
+                                      checked={selectedItems.has(item.id)}
+                                      onCheckedChange={() => toggleItemSelection(item.id)}
+                                      className="mt-1"
+                                    />
+                                  )}
+                                  
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex-1">
+                                        <h4 className={`font-medium ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
+                                          {item.title}
+                                        </h4>
+                                        {item.description && (
+                                          <p className="text-sm text-muted-foreground mt-1">
+                                            {item.description}
+                                          </p>
+                                        )}
+                                      </div>
+                                      
+                                      <div className="flex items-center gap-2 flex-shrink-0">
+                                        {/* Status badge and quick actions */}
+                                        <div className="flex items-center gap-2">
+                                          {canEdit ? (
+                                            <DropdownMenu>
+                                              <DropdownMenuTrigger asChild>
+                                                <Button size="sm" variant="ghost" className="h-6 px-2">
+                                                  <Badge variant="secondary" className={STATUS_COLORS[item.status || 'PENDING']}>
+                                                    {STATUS_LABELS[item.status || 'PENDING']}
+                                                  </Badge>
+                                                  <ChevronDown className="w-3 h-3 ml-1" />
+                                                </Button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent className="bg-background border shadow-lg">
+                                                {Object.entries(STATUS_LABELS).map(([status, label]) => (
+                                                  <DropdownMenuItem
+                                                    key={status}
+                                                    onClick={() => updateTaskStatus(item, status as TaskStatus)}
+                                                  >
+                                                    <Badge variant="secondary" className={`${STATUS_COLORS[status as TaskStatus]} mr-2`}>
+                                                      {label}
+                                                    </Badge>
+                                                  </DropdownMenuItem>
+                                                ))}
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
+                                          ) : (
+                                            <Badge variant="secondary" className={STATUS_COLORS[item.status || 'PENDING']}>
+                                              {STATUS_LABELS[item.status || 'PENDING']}
+                                            </Badge>
+                                          )}
+                                        </div>
+
+                                        {canEdit && (
+                                          <div className="flex items-center gap-1">
+                                            {/* Quick toggle completed */}
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              onClick={() => toggleItemCompletion(item)}
+                                              className="h-6 w-6 p-0"
+                                            >
+                                              {item.status === 'COMPLETED' ? (
+                                                <CheckCircle className="w-4 h-4 text-green-600" />
+                                              ) : (
+                                                <Clock className="w-4 h-4 text-muted-foreground" />
+                                              )}
+                                            </Button>
+                                            
+                                            {/* Delete button */}
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              onClick={() => setDeleteConfirm(item)}
+                                              className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                            >
+                                              <Trash2 className="w-3 h-3" />
+                                            </Button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </>
               )}
-            </>
-          )}
             </CardContent>
           </CollapsibleContent>
         </Card>
@@ -977,14 +948,13 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Clear all items confirmation */}
+      {/* Clear all confirmation */}
       <AlertDialog open={clearAllConfirm} onOpenChange={setClearAllConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Vaciar toda la checklist?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. Todos los elementos de la checklist serán eliminados permanentemente.
-              ¿Estás seguro de que deseas continuar?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -999,39 +969,15 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Template Selection Dialog */}
-      <TemplateSelectionDialog
-        open={openTemplateDialog}
-        onOpenChange={setOpenTemplateDialog}
-        projectId={projectId}
-        onTemplateApplied={fetchChecklistItems}
-      />
+      {/* Template dialogs temporarily disabled - will be fixed in next update */}
 
-      {/* Save Template Dialog */}
-      <SaveTemplateDialog
-        open={openSaveTemplateDialog}
-        onOpenChange={setOpenSaveTemplateDialog}
-        checklistItems={items.map(item => ({
-          id: item.id,
-          title: item.title,
-          description: item.description,
-          sort_order: item.sort_order,
-        }))}
-        onTemplateSaved={() => {
-          toast({
-            title: "Plantilla guardada",
-            description: "La plantilla se ha guardado correctamente.",
-          });
-        }}
-      />
-
-      {/* Add Item Dialog */}
+      {/* Add new item dialog */}
       <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Añadir elemento a la checklist</DialogTitle>
             <DialogDescription>
-              Crea un nuevo elemento para la checklist del proyecto.
+              Agrega un nuevo elemento a la checklist del proyecto.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1055,7 +1001,6 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
                 placeholder="Descripción del elemento"
-                rows={3}
               />
             </div>
           </div>
@@ -1063,64 +1008,44 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
             <Button variant="outline" onClick={() => setOpenAddDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={addChecklistItem} disabled={!newTitle.trim()}>
-              Añadir
+            <Button onClick={addChecklistItem}>
+              Añadir elemento
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Bulk Update Confirmation Dialog */}
-      <AlertDialog open={!!bulkUpdateConfirm} onOpenChange={() => setBulkUpdateConfirm(null)}>
+      {/* Bulk update confirmation */}
+      <AlertDialog 
+        open={!!bulkUpdateConfirm} 
+        onOpenChange={() => setBulkUpdateConfirm(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Cambiar estado de tareas</AlertDialogTitle>
+            <AlertDialogTitle>¿Actualizar elementos seleccionados?</AlertDialogTitle>
             <AlertDialogDescription>
-              Vas a cambiar el estado de {bulkUpdateConfirm?.count} tareas a "{bulkUpdateConfirm?.status ? STATUS_LABELS[bulkUpdateConfirm.status] : ''}".
+              {bulkUpdateConfirm && (
+                <>
+                  Se actualizarán {bulkUpdateConfirm.count} elementos al estado "{STATUS_LABELS[bulkUpdateConfirm.status]}".
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
-                if (!bulkUpdateConfirm) return;
-                
-                try {
-                  const user = await supabase.auth.getUser();
-                  const updates: any = { status: bulkUpdateConfirm.status };
-                  
-                  if (bulkUpdateConfirm.status === 'COMPLETED') {
-                    updates.is_completed = true;
-                    updates.completed_by = user.data.user?.id;
-                    updates.completed_at = new Date().toISOString();
-                  } else {
-                    updates.is_completed = false;
-                    updates.completed_by = null;
-                    updates.completed_at = null;
+                if (bulkUpdateConfirm) {
+                  try {
+                    await bulkUpdateStatus(bulkUpdateConfirm.status);
+                    setBulkUpdateConfirm(null);
+                  } catch (error) {
+                    toast({
+                      title: "Error",
+                      description: "No se pudieron actualizar las tareas seleccionadas.",
+                      variant: "destructive",
+                    });
                   }
-
-                  const { error } = await supabase
-                    .from('project_checklist_items')
-                    .update(updates)
-                    .in('id', Array.from(bulkUpdateConfirm.items));
-
-                  if (error) throw error;
-
-                  fetchChecklistItems();
-                  setSelectedItems(new Set());
-                  setBulkUpdateConfirm(null);
-                  
-                  toast({
-                    title: "Tareas actualizadas",
-                    description: `${bulkUpdateConfirm.count} tareas han sido marcadas como ${STATUS_LABELS[bulkUpdateConfirm.status].toLowerCase()}.`,
-                  });
-                } catch (error) {
-                  console.error('Error updating tasks:', error);
-                  toast({
-                    title: "Error",
-                    description: "No se pudieron actualizar las tareas seleccionadas.",
-                    variant: "destructive",
-                  });
                 }
               }}
             >
