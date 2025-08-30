@@ -158,11 +158,17 @@ Generado desde el sistema de gestión de proyectos
   };
 
   const openLinkedItem = (item: LinkableItem) => {
-    // Show item details in a toast for now
-    toast({
-      title: `${item.type}: ${item.title}`,
-      description: `Estado: ${item.status} - ${item.description}`,
-    });
+    // Navigate to the appropriate page based on item type
+    if (item.type === 'Presupuesto') {
+      // Navigate to budgets page - you can customize this URL as needed
+      window.open(`/budgets`, '_blank');
+    } else {
+      // For other types, show details in toast
+      toast({
+        title: `${item.type}: ${item.title}`,
+        description: `Estado: ${item.status} - ${item.description}`,
+      });
+    }
   };
 
   const removeLink = (itemId: string) => {

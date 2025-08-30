@@ -1331,9 +1331,14 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                             <Button
                                               size="sm"
                                               variant="ghost"
-                                              onClick={item.status === 'COMPLETED' ? () => toggleItemCompletion(item) : () => {
-                                                setSelectedTaskForLink(item);
-                                                setLinkDialogOpen(true);
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (item.status === 'COMPLETED') {
+                                                  toggleItemCompletion(item);
+                                                } else {
+                                                  setSelectedTaskForLink(item);
+                                                  setLinkDialogOpen(true);
+                                                }
                                               }}
                                               className="h-6 w-6 p-0"
                                               title={item.status === 'COMPLETED' ? 'Marcar como pendiente' : 'Vincular con otros elementos'}
@@ -1349,7 +1354,10 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                             <Button
                                               size="sm"
                                               variant="ghost"
-                                              onClick={() => setDeleteConfirm(item)}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setDeleteConfirm(item);
+                                              }}
                                               className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                                             >
                                               <Trash2 className="w-3 h-3" />
