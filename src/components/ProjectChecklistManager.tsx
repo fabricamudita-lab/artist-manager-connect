@@ -116,6 +116,12 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     reason: string;
   } | null>(null);
 
+  // Helper function to check if task has linked items
+  const getLinkedItemsCount = (taskId: string) => {
+    const storedLinks = localStorage.getItem(`task_links_${taskId}`);
+    return storedLinks ? JSON.parse(storedLinks).length : 0;
+  };
+
   useEffect(() => {
     fetchChecklistItems();
   }, [projectId]);
@@ -1248,20 +1254,29 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                      />
                                    )}
                                   
-                                   <div className="flex-1 min-w-0">
-                                     <div className="flex items-start justify-between gap-3">
-                                       <div className="flex-1">
-                                         <div className="flex items-center gap-2">
-                                           <h4 className={`font-medium ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
-                                             {item.title}
-                                           </h4>
-                                           {getTasksThatBlockOthers().has(item.title) && (
-                                             <TriangleAlert className="w-4 h-4 text-orange-500 flex-shrink-0" aria-label="Esta tarea está bloqueando otras" />
-                                           )}
-                                           {extractBlockingInfo(item.description).wasUnblocked && item.status === 'PENDING' && (
-                                             <TriangleAlert className="w-4 h-4 text-green-500 flex-shrink-0" aria-label="Esta tarea fue desbloqueada recientemente" />
-                                           )}
-                                         </div>
+                                    <div 
+                                      className="flex-1 min-w-0 cursor-pointer" 
+                                      onClick={() => {
+                                        setSelectedTaskForDetail(item);
+                                        setTaskDetailOpen(true);
+                                      }}
+                                    >
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-2">
+                                            <h4 className={`font-medium ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
+                                              {item.title}
+                                            </h4>
+                                            {getLinkedItemsCount(item.id) > 0 && (
+                                              <Link className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                            )}
+                                            {getTasksThatBlockOthers().has(item.title) && (
+                                              <TriangleAlert className="w-4 h-4 text-orange-500 flex-shrink-0" aria-label="Esta tarea está bloqueando otras" />
+                                            )}
+                                            {extractBlockingInfo(item.description).wasUnblocked && item.status === 'PENDING' && (
+                                              <TriangleAlert className="w-4 h-4 text-green-500 flex-shrink-0" aria-label="Esta tarea fue desbloqueada recientemente" />
+                                            )}
+                                          </div>
                                           {item.description && (
                                             <p className="text-sm text-muted-foreground mt-0.5">
                                               {item.description}
