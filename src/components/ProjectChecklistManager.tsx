@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskFlowManager } from "./TaskFlowManager";
+import { LinkTaskDialog } from "./LinkTaskDialog";
 import { toast } from "@/hooks/use-toast";
 
 export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'BLOCKED' | 'IN_REVIEW' | 'COMPLETED' | 'CANCELLED';
@@ -83,6 +84,8 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openTemplateDialog, setOpenTemplateDialog] = useState(false);
   const [openSaveTemplateDialog, setOpenSaveTemplateDialog] = useState(false);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [selectedTaskForLink, setSelectedTaskForLink] = useState<ChecklistItem | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [filterSection, setFilterSection] = useState<string>("all");
@@ -1302,13 +1305,17 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                             <Button
                                               size="sm"
                                               variant="ghost"
-                                              onClick={() => toggleItemCompletion(item)}
+                                              onClick={item.status === 'COMPLETED' ? () => toggleItemCompletion(item) : () => {
+                                                setSelectedTaskForLink(item);
+                                                setLinkDialogOpen(true);
+                                              }}
                                               className="h-6 w-6 p-0"
+                                              title={item.status === 'COMPLETED' ? 'Marcar como pendiente' : 'Vincular con otros elementos'}
                                             >
                                               {item.status === 'COMPLETED' ? (
                                                 <CheckCircle className="w-4 h-4 text-green-600" />
                                               ) : (
-                                                <Clock className="w-4 h-4 text-muted-foreground" />
+                                                <Plus className="w-4 h-4 text-muted-foreground" />
                                               )}
                                             </Button>
                                             
@@ -1608,6 +1615,17 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           });
         }}
       />
+
+      {/* Link Task Dialog */}
+      {selectedTaskForLink && (
+        <LinkTaskDialog
+          open={linkDialogOpen}
+          onOpenChange={setLinkDialogOpen}
+          taskId={selectedTaskForLink.id}
+          taskTitle={selectedTaskForLink.title}
+          projectId={projectId}
+        />
+      )}
     </>
   );
 }
