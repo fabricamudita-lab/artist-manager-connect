@@ -103,6 +103,10 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     blockingTasks: string[];
     additionalInfo: string;
   } | null>(null);
+  const [reviewDialog, setReviewDialog] = useState<{
+    item: ChecklistItem;
+    reason: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchChecklistItems();
@@ -244,6 +248,16 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       return;
     }
 
+    // If changing to IN_REVIEW status, show the review dialog
+    if (newStatus === 'IN_REVIEW') {
+      console.log('Setting review dialog for IN_REVIEW status');
+      setReviewDialog({
+        item,
+        reason: ''
+      });
+      return;
+    }
+
     try {
       console.log('Updating task status:', {
         itemId: item.id,
@@ -348,6 +362,55 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       toast({
         title: "Tarea bloqueada",
         description: "La tarea ha sido marcada como bloqueada correctamente.",
+      });
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado de la tarea.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReviewConfirm = async () => {
+    if (!reviewDialog) return;
+
+    try {
+      const user = await supabase.auth.getUser();
+      const updates: any = { 
+        status: 'IN_REVIEW',
+        is_completed: false,
+        completed_by: null,
+        completed_at: null
+      };
+
+      // Add review reason to description
+      if (reviewDialog.reason.trim()) {
+        let description = reviewDialog.item.description || '';
+        const reviewInfo = `Motivo de revisión: ${reviewDialog.reason.trim()}`;
+        
+        if (description) {
+          description += ` | ${reviewInfo}`;
+        } else {
+          description = reviewInfo;
+        }
+        updates.description = description;
+      }
+
+      const { error } = await supabase
+        .from('project_checklist_items')
+        .update(updates)
+        .eq('id', reviewDialog.item.id);
+
+      if (error) throw error;
+
+      setReviewDialog(null);
+      fetchChecklistItems();
+      
+      toast({
+        title: "Tarea en revisión",
+        description: "La tarea ha sido marcada para revisión correctamente.",
       });
     } catch (error) {
       console.error('Error updating task status:', error);
@@ -839,13 +902,22 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
                         {expandedSections[section] && (
                           <div className="mt-2 space-y-2">
-                            {sectionItems.map((item) => (
-                              <div 
-                                key={item.id} 
-                                className={`p-3 rounded border hover:shadow-sm transition-all ${
-                                  selectedItems.has(item.id) ? 'bg-primary/5 border-primary/20' : 'bg-background'
-                                }`}
-                              >
+                            {sectionItems.map((item) => {
+                              // Define card background based on status
+                              let cardBackgroundClass = 'bg-background';
+                              if (item.status === 'COMPLETED') {
+                                cardBackgroundClass = 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800/50';
+                              } else if (item.status === 'CANCELLED') {
+                                cardBackgroundClass = 'bg-gray-100 border-gray-300 dark:bg-gray-800/50 dark:border-gray-600/50';
+                              }
+
+                              return (
+                                <div 
+                                  key={item.id} 
+                                  className={`p-3 rounded border hover:shadow-sm transition-all ${
+                                    selectedItems.has(item.id) ? 'bg-primary/5 border-primary/20' : cardBackgroundClass
+                                  }`}
+                                >
                                 <div className="flex items-start gap-3">
                                    {canEdit && (
                                      <SelectionCheckbox
@@ -931,10 +1003,11 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                       </div>
                                     </div>
                                   </div>
+                                 </div>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
+                              );
+                            })}
+                           </div>
                         )}
                       </div>
                     );
@@ -1146,6 +1219,44 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
             </Button>
             <Button onClick={handleBlockingConfirm} variant="destructive">
               Marcar como bloqueada
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Review dialog */}
+      <Dialog open={!!reviewDialog} onOpenChange={() => setReviewDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Marcar tarea en revisión</DialogTitle>
+            <DialogDescription>
+              Añade el motivo por el cual la tarea "{reviewDialog?.item.title}" necesita revisión.
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <label htmlFor="review-reason" className="text-sm font-medium mb-2 block">
+              Motivo de revisión (opcional)
+            </label>
+            <Textarea
+              id="review-reason"
+              value={reviewDialog?.reason || ''}
+              onChange={(e) => {
+                if (!reviewDialog) return;
+                setReviewDialog({
+                  ...reviewDialog,
+                  reason: e.target.value
+                });
+              }}
+              placeholder="Describe por qué esta tarea necesita revisión..."
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviewDialog(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleReviewConfirm} variant="secondary">
+              Marcar en revisión
             </Button>
           </DialogFooter>
         </DialogContent>
