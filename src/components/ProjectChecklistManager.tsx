@@ -231,8 +231,11 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   };
 
   const updateTaskStatus = async (item: ChecklistItem, newStatus: TaskStatus) => {
+    console.log('updateTaskStatus called with:', { itemId: item.id, newStatus, itemTitle: item.title });
+    
     // If changing to BLOCKED status, show the blocking dialog
     if (newStatus === 'BLOCKED') {
+      console.log('Setting blocking dialog for BLOCKED status');
       setBlockingDialog({
         item,
         blockingTasks: [],
