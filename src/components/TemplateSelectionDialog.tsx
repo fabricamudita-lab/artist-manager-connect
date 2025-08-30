@@ -152,13 +152,18 @@ export function TemplateSelectionDialog({
   };
 
   const applyTemplate = async () => {
-    if (!selectedTemplate?.items) return;
+    console.log('applyTemplate called', { selectedTemplate, selectedItems: Array.from(selectedItems) });
+    if (!selectedTemplate?.items) {
+      console.log('No selected template or items');
+      return;
+    }
 
     setApplying(true);
     try {
       const user = await supabase.auth.getUser();
       const userId = user.data.user?.id;
 
+      console.log('User ID:', userId);
       if (!userId) throw new Error('User not authenticated');
 
       // First, check if there are existing items
@@ -167,6 +172,7 @@ export function TemplateSelectionDialog({
         .select('id')
         .eq('project_id', projectId);
 
+      console.log('Existing items check:', { existingItems, checkError });
       if (checkError) throw checkError;
 
       // If there are existing items, ask for confirmation to replace them
@@ -186,11 +192,14 @@ export function TemplateSelectionDialog({
           .delete()
           .eq('project_id', projectId);
 
+        console.log('Delete result:', { deleteError });
         if (deleteError) throw deleteError;
       }
 
       // Group items by section and create checklist items (only for selected items)
       const selectedTemplateItems = selectedTemplate.items.filter(item => selectedItems.has(item.id));
+      console.log('Selected template items:', selectedTemplateItems);
+      
       const checklistItems = selectedTemplateItems.map((item, index) => ({
         project_id: projectId,
         title: item.task_es,
@@ -198,12 +207,16 @@ export function TemplateSelectionDialog({
         section: item.section_es,
         sort_order: index,
         created_by: userId,
+        status: 'PENDING' as const // Adding required status field
       }));
 
-      const { error } = await supabase
+      console.log('Checklist items to insert:', checklistItems);
+
+      const { error, data } = await supabase
         .from('project_checklist_items')
         .insert(checklistItems);
 
+      console.log('Insert result:', { error, data });
       if (error) throw error;
 
       toast({
@@ -219,7 +232,7 @@ export function TemplateSelectionDialog({
       console.error('Error applying template:', error);
       toast({
         title: "Error",
-        description: "No se pudo aplicar la plantilla.",
+        description: `No se pudo aplicar la plantilla: ${error.message}`,
         variant: "destructive",
       });
     } finally {
