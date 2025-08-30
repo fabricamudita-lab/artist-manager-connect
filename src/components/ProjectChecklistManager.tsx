@@ -728,59 +728,6 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                     </div>
                   </div>
 
-                  {/* Bulk action bar - only visible when items are selected */}
-                  {selectedItems.size > 0 && canEdit && (
-                    <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">
-                          {selectedItems.size} elementos seleccionados
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="sm" variant="outline">
-                                Cambiar estado
-                                <ChevronDown className="w-4 h-4 ml-2" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="bg-background border shadow-lg">
-                              {Object.entries(STATUS_LABELS).map(([status, label]) => (
-                                <DropdownMenuItem
-                                  key={status}
-                                  onClick={() => {
-                                    setBulkUpdateConfirm({
-                                      count: selectedItems.size,
-                                      status: status as TaskStatus,
-                                      items: new Set(selectedItems)
-                                    });
-                                  }}
-                                >
-                                  <Badge variant="secondary" className={`${STATUS_COLORS[status as TaskStatus]} mr-2`}>
-                                    {label}
-                                  </Badge>
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => {
-                              if (selectedItems.size > 0) {
-                                const firstSelectedItem = items.find(item => selectedItems.has(item.id));
-                                if (firstSelectedItem) {
-                                  setDeleteConfirm(firstSelectedItem);
-                                }
-                              }
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Eliminar
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Sections */}
                   {Object.entries(groupedItems).map(([section, sectionItems]) => {
