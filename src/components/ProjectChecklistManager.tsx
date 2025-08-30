@@ -1134,7 +1134,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                           {Object.entries(STATUS_LABELS).map(([status, label]) => (
                             <DropdownMenuCheckboxItem
                               key={status}
-                              checked={selectedStatuses.has(status as TaskStatus)}
+                              checked={!selectedStatuses.has(status as TaskStatus)}
                               onCheckedChange={(checked) => {
                                 const newStatuses = new Set(selectedStatuses);
                                 if (checked) {
