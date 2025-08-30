@@ -1150,6 +1150,28 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Template Selection Dialog */}
+      <TemplateSelectionDialog
+        open={openTemplateDialog}
+        onOpenChange={setOpenTemplateDialog}
+        projectId={projectId}
+        onTemplateApplied={fetchChecklistItems}
+      />
+
+      {/* Save Template Dialog */}
+      <SaveTemplateDialog
+        open={openSaveTemplateDialog}
+        onOpenChange={setOpenSaveTemplateDialog}
+        checklistItems={items}
+        onTemplateSaved={() => {
+          setOpenSaveTemplateDialog(false);
+          toast({
+            title: "Plantilla guardada",
+            description: "La plantilla se ha guardado correctamente.",
+          });
+        }}
+      />
     </>
   );
 }
