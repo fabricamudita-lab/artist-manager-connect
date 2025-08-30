@@ -7,7 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
-import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical, Clock, CheckCircle } from "lucide-react";
+import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical, Clock, CheckCircle, ChevronUp } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TemplateSelectionDialog } from "./TemplateSelectionDialog";
 import { SaveTemplateDialog } from "./SaveAsTemplateDialog";
 import {
@@ -95,6 +96,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     'PRODUCCION': true,
     'CIERRE': true
   });
+  const [isChecklistExpanded, setIsChecklistExpanded] = useState(true);
 
   useEffect(() => {
     fetchChecklistItems();
@@ -548,10 +550,20 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5" />
-              Checklist
-            </CardTitle>
+            <Collapsible open={isChecklistExpanded} onOpenChange={setIsChecklistExpanded}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5" />
+                    Checklist
+                    {isChecklistExpanded ? (
+                      <ChevronUp className="w-4 h-4 ml-2" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 ml-2" />
+                    )}
+                  </CardTitle>
+                </Button>
+              </CollapsibleTrigger>
             {canEdit && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -939,8 +951,10 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
               )}
             </>
           )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Delete single item confirmation */}
       <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
