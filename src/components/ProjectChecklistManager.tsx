@@ -114,34 +114,40 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
   // Helper functions for dependency management
   const extractBlockingInfo = (description: string | null) => {
-    if (!description) return { blockingTasks: [], additionalInfo: '', otherContent: '' };
+    if (!description) return { blockingTasks: [], additionalInfo: '', otherContent: '', wasUnblocked: false };
     
     const blockingTasksMatch = description.match(/Tareas bloqueantes: ([^|]+)/);
     const additionalInfoMatch = description.match(/Información adicional: ([^|]+)/);
     const reviewMatch = description.match(/Motivo de revisión: ([^|]+)/);
+    const unblockedMatch = description.match(/🎉 Esta tarea ya puede continuar - las dependencias se han completado/);
     
     let blockingTasks: string[] = [];
     let additionalInfo = '';
+    let wasUnblocked = !!unblockedMatch;
     let otherContent = description;
     
     if (blockingTasksMatch) {
       blockingTasks = blockingTasksMatch[1].split(', ').filter(task => task.trim());
-      otherContent = otherContent.replace(/Tareas bloqueantes: [^|]+(\|)?/g, '').trim();
+      otherContent = otherContent.replace(/Tareas bloqueantes: [^|]+(\s*\|\s*)?/g, '').trim();
     }
     
     if (additionalInfoMatch) {
       additionalInfo = additionalInfoMatch[1].trim();
-      otherContent = otherContent.replace(/Información adicional: [^|]+(\|)?/g, '').trim();
+      otherContent = otherContent.replace(/Información adicional: [^|]+(\s*\|\s*)?/g, '').trim();
     }
     
     if (reviewMatch) {
-      otherContent = otherContent.replace(/Motivo de revisión: [^|]+(\|)?/g, '').trim();
+      otherContent = otherContent.replace(/Motivo de revisión: [^|]+(\s*\|\s*)?/g, '').trim();
+    }
+    
+    if (unblockedMatch) {
+      otherContent = otherContent.replace(/🎉 Esta tarea ya puede continuar - las dependencias se han completado(\s*\|\s*)?/g, '').trim();
     }
     
     // Clean up any remaining separators
     otherContent = otherContent.replace(/^\s*\|\s*|\s*\|\s*$/g, '').trim();
     
-    return { blockingTasks, additionalInfo, otherContent };
+    return { blockingTasks, additionalInfo, otherContent, wasUnblocked };
   };
 
   const getTasksThatBlockOthers = () => {
@@ -158,19 +164,25 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   };
 
   const checkForUnblockedTasks = async () => {
+    console.log('Checking for unblocked tasks...');
     const tasksToUpdate: ChecklistItem[] = [];
     
     items.forEach(item => {
+      console.log(`Checking item: ${item.title}, status: ${item.status}`);
       if (item.status === 'BLOCKED') {
         const { blockingTasks, otherContent } = extractBlockingInfo(item.description);
+        console.log(`Blocking tasks for "${item.title}":`, blockingTasks);
         
         // Check if all blocking tasks are now completed or cancelled
-        const stillBlocked = blockingTasks.some(taskTitle => {
+        const stillBlockedTasks = blockingTasks.filter(taskTitle => {
           const blockingTask = items.find(t => t.title === taskTitle);
+          console.log(`Found blocking task "${taskTitle}":`, blockingTask?.status);
           return blockingTask && blockingTask.status !== 'COMPLETED' && blockingTask.status !== 'CANCELLED';
         });
         
-        if (!stillBlocked && blockingTasks.length > 0) {
+        console.log(`Still blocked tasks for "${item.title}":`, stillBlockedTasks);
+        
+        if (stillBlockedTasks.length === 0 && blockingTasks.length > 0) {
           // Task is no longer blocked, add notification
           let newDescription = otherContent;
           if (newDescription) {
@@ -178,6 +190,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           }
           newDescription += '🎉 Esta tarea ya puede continuar - las dependencias se han completado';
           
+          console.log(`Task "${item.title}" will be unblocked`);
           tasksToUpdate.push({
             ...item,
             description: newDescription,
@@ -187,15 +200,86 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       }
     });
     
+    console.log('Tasks to unblock:', tasksToUpdate.length);
+    
     // Update unblocked tasks
     for (const task of tasksToUpdate) {
-      await supabase
+      console.log(`Updating task "${task.title}" to PENDING`);
+      const { error } = await supabase
         .from('project_checklist_items')
         .update({ 
           description: task.description,
           status: 'PENDING'
         })
         .eq('id', task.id);
+        
+      if (error) {
+        console.error('Error updating unblocked task:', error);
+      }
+    }
+    
+    if (tasksToUpdate.length > 0) {
+      fetchChecklistItems();
+      toast({
+        title: "Tareas desbloqueadas",
+        description: `${tasksToUpdate.length} tarea(s) ya pueden continuar.`,
+      });
+    }
+  };
+
+  const checkForUnblockedTasksWithItems = async (currentItems: ChecklistItem[]) => {
+    console.log('Checking for unblocked tasks with fresh items...');
+    const tasksToUpdate: ChecklistItem[] = [];
+    
+    currentItems.forEach(item => {
+      console.log(`Checking item: ${item.title}, status: ${item.status}`);
+      if (item.status === 'BLOCKED') {
+        const { blockingTasks, otherContent } = extractBlockingInfo(item.description);
+        console.log(`Blocking tasks for "${item.title}":`, blockingTasks);
+        
+        // Check if all blocking tasks are now completed or cancelled
+        const stillBlockedTasks = blockingTasks.filter(taskTitle => {
+          const blockingTask = currentItems.find(t => t.title === taskTitle);
+          console.log(`Found blocking task "${taskTitle}":`, blockingTask?.status);
+          return blockingTask && blockingTask.status !== 'COMPLETED' && blockingTask.status !== 'CANCELLED';
+        });
+        
+        console.log(`Still blocked tasks for "${item.title}":`, stillBlockedTasks);
+        
+        if (stillBlockedTasks.length === 0 && blockingTasks.length > 0) {
+          // Task is no longer blocked, add notification
+          let newDescription = otherContent;
+          if (newDescription) {
+            newDescription += ' | ';
+          }
+          newDescription += '🎉 Esta tarea ya puede continuar - las dependencias se han completado';
+          
+          console.log(`Task "${item.title}" will be unblocked`);
+          tasksToUpdate.push({
+            ...item,
+            description: newDescription,
+            status: 'PENDING'
+          });
+        }
+      }
+    });
+    
+    console.log('Tasks to unblock:', tasksToUpdate.length);
+    
+    // Update unblocked tasks
+    for (const task of tasksToUpdate) {
+      console.log(`Updating task "${task.title}" to PENDING`);
+      const { error } = await supabase
+        .from('project_checklist_items')
+        .update({ 
+          description: task.description,
+          status: 'PENDING'
+        })
+        .eq('id', task.id);
+        
+      if (error) {
+        console.error('Error updating unblocked task:', error);
+      }
     }
     
     if (tasksToUpdate.length > 0) {
@@ -406,8 +490,21 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
         fetchChecklistItems();
         
-        // Check for tasks that might now be unblocked
-        setTimeout(() => checkForUnblockedTasks(), 500);
+        // Check for tasks that might now be unblocked after fetching fresh data
+        if (newStatus === 'COMPLETED' || newStatus === 'CANCELLED') {
+          setTimeout(async () => {
+            // Re-fetch items to get the latest state
+            const { data: latestItems } = await supabase
+              .from('project_checklist_items')
+              .select('*')
+              .eq('project_id', projectId)
+              .order('sort_order', { ascending: true });
+              
+            if (latestItems) {
+              await checkForUnblockedTasksWithItems(latestItems);
+            }
+          }, 1000);
+        }
       }
     } catch (error) {
       console.error('Error updating task status:', error);
@@ -1047,6 +1144,9 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                            </h4>
                                            {getTasksThatBlockOthers().has(item.title) && (
                                              <TriangleAlert className="w-4 h-4 text-orange-500 flex-shrink-0" aria-label="Esta tarea está bloqueando otras" />
+                                           )}
+                                           {extractBlockingInfo(item.description).wasUnblocked && item.status === 'PENDING' && (
+                                             <TriangleAlert className="w-4 h-4 text-green-500 flex-shrink-0" aria-label="Esta tarea fue desbloqueada recientemente" />
                                            )}
                                          </div>
                                          {item.description && (
