@@ -14,7 +14,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Clock, Trash2, TriangleAlert } from 'lucide-react';
+import { CheckCircle, Clock, Trash2, TriangleAlert, Plus } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -146,7 +146,7 @@ function TaskNode({ data }: TaskNodeProps) {
                 {item.status === 'COMPLETED' ? (
                   <CheckCircle className="w-3 h-3 text-green-600" />
                 ) : (
-                  <Clock className="w-3 h-3 text-muted-foreground" />
+                  <Plus className="w-3 h-3 text-muted-foreground" />
                 )}
               </Button>
               
