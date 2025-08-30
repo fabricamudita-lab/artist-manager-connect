@@ -8,7 +8,7 @@ import { SelectionCheckbox } from "@/components/ui/selection-checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
-import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical, Clock, CheckCircle, ChevronUp } from "lucide-react";
+import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical, Clock, CheckCircle, ChevronUp, TriangleAlert } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TemplateSelectionDialog } from "./TemplateSelectionDialog";
 import { SaveTemplateDialog } from "./SaveAsTemplateDialog";
@@ -111,6 +111,101 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   useEffect(() => {
     fetchChecklistItems();
   }, [projectId]);
+
+  // Helper functions for dependency management
+  const extractBlockingInfo = (description: string | null) => {
+    if (!description) return { blockingTasks: [], additionalInfo: '', otherContent: '' };
+    
+    const blockingTasksMatch = description.match(/Tareas bloqueantes: ([^|]+)/);
+    const additionalInfoMatch = description.match(/Información adicional: ([^|]+)/);
+    const reviewMatch = description.match(/Motivo de revisión: ([^|]+)/);
+    
+    let blockingTasks: string[] = [];
+    let additionalInfo = '';
+    let otherContent = description;
+    
+    if (blockingTasksMatch) {
+      blockingTasks = blockingTasksMatch[1].split(', ').filter(task => task.trim());
+      otherContent = otherContent.replace(/Tareas bloqueantes: [^|]+(\|)?/g, '').trim();
+    }
+    
+    if (additionalInfoMatch) {
+      additionalInfo = additionalInfoMatch[1].trim();
+      otherContent = otherContent.replace(/Información adicional: [^|]+(\|)?/g, '').trim();
+    }
+    
+    if (reviewMatch) {
+      otherContent = otherContent.replace(/Motivo de revisión: [^|]+(\|)?/g, '').trim();
+    }
+    
+    // Clean up any remaining separators
+    otherContent = otherContent.replace(/^\s*\|\s*|\s*\|\s*$/g, '').trim();
+    
+    return { blockingTasks, additionalInfo, otherContent };
+  };
+
+  const getTasksThatBlockOthers = () => {
+    const blockingTasks = new Set<string>();
+    
+    items.forEach(item => {
+      if (item.status === 'BLOCKED') {
+        const { blockingTasks: blocking } = extractBlockingInfo(item.description);
+        blocking.forEach(taskTitle => blockingTasks.add(taskTitle));
+      }
+    });
+    
+    return blockingTasks;
+  };
+
+  const checkForUnblockedTasks = async () => {
+    const tasksToUpdate: ChecklistItem[] = [];
+    
+    items.forEach(item => {
+      if (item.status === 'BLOCKED') {
+        const { blockingTasks, otherContent } = extractBlockingInfo(item.description);
+        
+        // Check if all blocking tasks are now completed or cancelled
+        const stillBlocked = blockingTasks.some(taskTitle => {
+          const blockingTask = items.find(t => t.title === taskTitle);
+          return blockingTask && blockingTask.status !== 'COMPLETED' && blockingTask.status !== 'CANCELLED';
+        });
+        
+        if (!stillBlocked && blockingTasks.length > 0) {
+          // Task is no longer blocked, add notification
+          let newDescription = otherContent;
+          if (newDescription) {
+            newDescription += ' | ';
+          }
+          newDescription += '🎉 Esta tarea ya puede continuar - las dependencias se han completado';
+          
+          tasksToUpdate.push({
+            ...item,
+            description: newDescription,
+            status: 'PENDING'
+          });
+        }
+      }
+    });
+    
+    // Update unblocked tasks
+    for (const task of tasksToUpdate) {
+      await supabase
+        .from('project_checklist_items')
+        .update({ 
+          description: task.description,
+          status: 'PENDING'
+        })
+        .eq('id', task.id);
+    }
+    
+    if (tasksToUpdate.length > 0) {
+      fetchChecklistItems();
+      toast({
+        title: "Tareas desbloqueadas",
+        description: `${tasksToUpdate.length} tarea(s) ya pueden continuar.`,
+      });
+    }
+  };
 
   const fetchChecklistItems = async (skipDefaultTemplate = false) => {
     try {
@@ -270,6 +365,12 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       const user = await supabase.auth.getUser();
       const updates: any = { status: newStatus };
       
+      // Clean blocking/review text when completing or cancelling
+      if (newStatus === 'COMPLETED' || newStatus === 'CANCELLED') {
+        const { otherContent } = extractBlockingInfo(item.description);
+        updates.description = otherContent || null;
+      }
+      
       // Update legacy is_completed field for backwards compatibility
       if (newStatus === 'COMPLETED') {
         updates.is_completed = true;
@@ -304,6 +405,9 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         if (error) throw error;
 
         fetchChecklistItems();
+        
+        // Check for tasks that might now be unblocked
+        setTimeout(() => checkForUnblockedTasks(), 500);
       }
     } catch (error) {
       console.error('Error updating task status:', error);
@@ -927,18 +1031,23 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                      />
                                    )}
                                   
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="flex-1">
-                                        <h4 className={`font-medium ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
-                                          {item.title}
-                                        </h4>
-                                        {item.description && (
-                                          <p className="text-sm text-muted-foreground mt-1">
-                                            {item.description}
-                                          </p>
-                                        )}
-                                      </div>
+                                   <div className="flex-1 min-w-0">
+                                     <div className="flex items-start justify-between gap-3">
+                                       <div className="flex-1">
+                                         <div className="flex items-center gap-2">
+                                           <h4 className={`font-medium ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
+                                             {item.title}
+                                           </h4>
+                                           {getTasksThatBlockOthers().has(item.title) && (
+                                             <TriangleAlert className="w-4 h-4 text-orange-500 flex-shrink-0" aria-label="Esta tarea está bloqueando otras" />
+                                           )}
+                                         </div>
+                                         {item.description && (
+                                           <p className="text-sm text-muted-foreground mt-1">
+                                             {item.description}
+                                           </p>
+                                         )}
+                                       </div>
                                       
                                       <div className="flex items-center gap-2 flex-shrink-0">
                                         {/* Status badge and quick actions */}
