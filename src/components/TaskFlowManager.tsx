@@ -323,8 +323,24 @@ export function TaskFlowManager({
 
         if (error) throw error;
 
-        // Refresh the data
-        fetchChecklistItems();
+        // Update only the moved task's position without full refresh
+        setNodes(prevNodes => {
+          return prevNodes.map(n => {
+            if (n.id === node.id && n.type === 'task') {
+              return {
+                ...n,
+                data: {
+                  ...n.data,
+                  item: {
+                    ...n.data.item,
+                    section: targetSection
+                  }
+                }
+              };
+            }
+            return n;
+          });
+        });
 
         toast({
           title: "Tarea movida",
