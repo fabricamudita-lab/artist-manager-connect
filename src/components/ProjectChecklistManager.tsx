@@ -1290,7 +1290,12 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                           {canEdit ? (
                                             <DropdownMenu>
                                               <DropdownMenuTrigger asChild>
-                                                <Button size="sm" variant="ghost" className="h-6 px-2">
+                                                <Button 
+                                                  size="sm" 
+                                                  variant="ghost" 
+                                                  className="h-6 px-2"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                >
                                                   <Badge variant="secondary" className={STATUS_COLORS[item.status || 'PENDING']}>
                                                     {STATUS_LABELS[item.status || 'PENDING']}
                                                   </Badge>
@@ -1301,7 +1306,10 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                                 {Object.entries(STATUS_LABELS).map(([status, label]) => (
                                                   <DropdownMenuItem
                                                     key={status}
-                                                    onClick={() => updateTaskStatus(item, status as TaskStatus)}
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      updateTaskStatus(item, status as TaskStatus);
+                                                    }}
                                                   >
                                                     <Badge variant="secondary" className={`${STATUS_COLORS[status as TaskStatus]} mr-2`}>
                                                       {label}
