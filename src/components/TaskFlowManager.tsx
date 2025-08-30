@@ -14,13 +14,14 @@ import {
 import '@xyflow/react/dist/style.css';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Clock, Trash2, TriangleAlert, Plus, ChevronDown } from 'lucide-react';
+import { CheckCircle, Clock, Trash2, TriangleAlert, Plus, ChevronDown, Link } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ChecklistItem, TaskStatus } from './ProjectChecklistManager';
 import { LinkTaskDialog } from './LinkTaskDialog';
+import { TaskDetailDialog } from './TaskDetailDialog';
 
 const STATUS_LABELS = {
   PENDING: 'Pendiente',
@@ -64,6 +65,13 @@ interface TaskNodeProps {
 function TaskNode({ data }: TaskNodeProps) {
   const { item, onStatusUpdate, onDelete, canEdit, getTasksThatBlockOthers, extractBlockingInfo, projectId } = data;
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [taskDetailOpen, setTaskDetailOpen] = useState(false);
+
+  // Check if task has linked items
+  const getLinkedItemsCount = (taskId: string) => {
+    const storedLinks = localStorage.getItem(`task_links_${taskId}`);
+    return storedLinks ? JSON.parse(storedLinks).length : 0;
+  };
 
   const toggleCompletion = () => {
     const newStatus = item.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
@@ -85,13 +93,19 @@ function TaskNode({ data }: TaskNodeProps) {
   }
 
   return (
-    <div className={`p-3 rounded-lg border-2 shadow-sm transition-all w-80 ${cardBackgroundClass}`}>
+    <div 
+      className={`p-3 rounded-lg border-2 shadow-sm transition-all w-80 cursor-pointer hover:shadow-md ${cardBackgroundClass}`}
+      onClick={() => setTaskDetailOpen(true)}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <h4 className={`font-medium text-sm ${item.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
               {item.title}
             </h4>
+            {getLinkedItemsCount(item.id) > 0 && (
+              <Link className="w-4 h-4 text-blue-600 flex-shrink-0" />
+            )}
             {getTasksThatBlockOthers().has(item.title) && (
               <TriangleAlert className="w-3 h-3 text-orange-500 flex-shrink-0" />
             )}
@@ -138,7 +152,7 @@ function TaskNode({ data }: TaskNodeProps) {
           )}
 
           {canEdit && (
-            <>
+            <div onClick={(e) => e.stopPropagation()}>
               {/* Quick toggle completed */}
               <Button
                 size="sm"
@@ -163,7 +177,7 @@ function TaskNode({ data }: TaskNodeProps) {
               >
                 <Trash2 className="w-2 h-2" />
               </Button>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -173,6 +187,13 @@ function TaskNode({ data }: TaskNodeProps) {
         onOpenChange={setLinkDialogOpen}
         taskId={item.id}
         taskTitle={item.title}
+        projectId={projectId}
+      />
+
+      <TaskDetailDialog
+        open={taskDetailOpen}
+        onOpenChange={setTaskDetailOpen}
+        task={item}
         projectId={projectId}
       />
     </div>

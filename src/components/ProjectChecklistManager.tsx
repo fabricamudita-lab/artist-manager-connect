@@ -8,7 +8,7 @@ import { SelectionCheckbox } from "@/components/ui/selection-checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
-import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical, Clock, CheckCircle, ChevronUp, TriangleAlert } from "lucide-react";
+import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical, Clock, CheckCircle, ChevronUp, TriangleAlert, Link } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TemplateSelectionDialog } from "./TemplateSelectionDialog";
 import { SaveTemplateDialog } from "./SaveAsTemplateDialog";
@@ -34,6 +34,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { TaskFlowManager } from "./TaskFlowManager";
 import { LinkTaskDialog } from "./LinkTaskDialog";
+import { TaskDetailDialog } from "./TaskDetailDialog";
 import { toast } from "@/hooks/use-toast";
 
 export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'BLOCKED' | 'IN_REVIEW' | 'COMPLETED' | 'CANCELLED';
@@ -86,6 +87,8 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   const [openSaveTemplateDialog, setOpenSaveTemplateDialog] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [selectedTaskForLink, setSelectedTaskForLink] = useState<ChecklistItem | null>(null);
+  const [taskDetailOpen, setTaskDetailOpen] = useState(false);
+  const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<ChecklistItem | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [filterSection, setFilterSection] = useState<string>("all");
@@ -1623,6 +1626,16 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           onOpenChange={setLinkDialogOpen}
           taskId={selectedTaskForLink.id}
           taskTitle={selectedTaskForLink.title}
+          projectId={projectId}
+        />
+      )}
+
+      {/* Task Detail Dialog */}
+      {selectedTaskForDetail && (
+        <TaskDetailDialog
+          open={taskDetailOpen}
+          onOpenChange={setTaskDetailOpen}
+          task={selectedTaskForDetail}
           projectId={projectId}
         />
       )}
