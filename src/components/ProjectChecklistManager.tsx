@@ -1117,7 +1117,10 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                 cardBackgroundClass = 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800/50';
                               } else if (item.status === 'CANCELLED') {
                                 cardBackgroundClass = 'bg-gray-100 border-gray-300 dark:bg-gray-800/50 dark:border-gray-600/50';
+                              } else if (item.status === 'IN_PROGRESS' || item.status === 'BLOCKED' || item.status === 'IN_REVIEW') {
+                                cardBackgroundClass = 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/50';
                               }
+                              // PENDING remains with default background (bg-background)
 
                               return (
                                 <div 
