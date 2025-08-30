@@ -1174,7 +1174,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                         </div>
 
                         {expandedSections[section] && (
-                          <div className="mt-2 space-y-2">
+                          <div className="mt-2 space-y-1">
                             {sectionItems.map((item) => {
                               // Define card background based on status
                               let cardBackgroundClass = 'bg-background';
@@ -1194,11 +1194,11 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                               return (
                                 <div 
                                   key={item.id} 
-                                  className={`p-3 rounded border hover:shadow-sm transition-all ${
+                                  className={`p-2 rounded border hover:shadow-sm transition-all ${
                                     selectedItems.has(item.id) ? 'bg-primary/5 border-primary/20' : cardBackgroundClass
                                   }`}
                                 >
-                                <div className="flex items-start gap-3">
+                                <div className="flex items-start gap-2">
                                    {canEdit && (
                                      <SelectionCheckbox
                                        checked={selectedItems.has(item.id)}
@@ -1221,11 +1221,11 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                              <TriangleAlert className="w-4 h-4 text-green-500 flex-shrink-0" aria-label="Esta tarea fue desbloqueada recientemente" />
                                            )}
                                          </div>
-                                         {item.description && (
-                                           <p className="text-sm text-muted-foreground mt-1">
-                                             {item.description}
-                                           </p>
-                                         )}
+                                          {item.description && (
+                                            <p className="text-sm text-muted-foreground mt-0.5">
+                                              {item.description}
+                                            </p>
+                                          )}
                                        </div>
                                       
                                       <div className="flex items-center gap-2 flex-shrink-0">
