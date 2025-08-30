@@ -98,6 +98,11 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     'CIERRE': true
   });
   const [isChecklistExpanded, setIsChecklistExpanded] = useState(true);
+  const [blockingDialog, setBlockingDialog] = useState<{
+    item: ChecklistItem;
+    blockingTasks: string[];
+    additionalInfo: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchChecklistItems();
@@ -226,6 +231,16 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   };
 
   const updateTaskStatus = async (item: ChecklistItem, newStatus: TaskStatus) => {
+    // If changing to BLOCKED status, show the blocking dialog
+    if (newStatus === 'BLOCKED') {
+      setBlockingDialog({
+        item,
+        blockingTasks: [],
+        additionalInfo: ''
+      });
+      return;
+    }
+
     try {
       console.log('Updating task status:', {
         itemId: item.id,
@@ -273,6 +288,64 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
         fetchChecklistItems();
       }
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado de la tarea.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBlockingConfirm = async () => {
+    if (!blockingDialog) return;
+
+    try {
+      const user = await supabase.auth.getUser();
+      const updates: any = { 
+        status: 'BLOCKED',
+        is_completed: false,
+        completed_by: null,
+        completed_at: null
+      };
+
+      // Add blocking information to description or a new field
+      let description = blockingDialog.item.description || '';
+      
+      // Append blocking information
+      if (blockingDialog.blockingTasks.length > 0 || blockingDialog.additionalInfo) {
+        const blockingInfo = [];
+        if (blockingDialog.blockingTasks.length > 0) {
+          blockingInfo.push(`Bloqueada por: ${blockingDialog.blockingTasks.join(', ')}`);
+        }
+        if (blockingDialog.additionalInfo) {
+          blockingInfo.push(`Info adicional: ${blockingDialog.additionalInfo}`);
+        }
+        
+        // Add blocking info to description
+        if (description) {
+          description += ` | ${blockingInfo.join(' | ')}`;
+        } else {
+          description = blockingInfo.join(' | ');
+        }
+        updates.description = description;
+      }
+
+      const { error } = await supabase
+        .from('project_checklist_items')
+        .update(updates)
+        .eq('id', blockingDialog.item.id);
+
+      if (error) throw error;
+
+      setBlockingDialog(null);
+      fetchChecklistItems();
+      
+      toast({
+        title: "Tarea bloqueada",
+        description: "La tarea ha sido marcada como bloqueada correctamente.",
+      });
     } catch (error) {
       console.error('Error updating task status:', error);
       toast({
@@ -997,6 +1070,83 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Blocking dialog */}
+      <Dialog open={!!blockingDialog} onOpenChange={() => setBlockingDialog(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Marcar tarea como bloqueada</DialogTitle>
+            <DialogDescription>
+              Proporciona información sobre qué está bloqueando esta tarea: "{blockingDialog?.item.title}"
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="blocking-tasks" className="text-sm font-medium mb-2 block">
+                ¿Hay alguna tarea que esté bloqueando esta?
+              </label>
+              <div className="space-y-2">
+                {items
+                  .filter(item => item.id !== blockingDialog?.item.id && item.status !== 'COMPLETED')
+                  .map((item) => (
+                    <div key={item.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`blocking-${item.id}`}
+                        checked={blockingDialog?.blockingTasks.includes(item.title) || false}
+                        onCheckedChange={(checked) => {
+                          if (!blockingDialog) return;
+                          const newBlockingTasks = checked
+                            ? [...blockingDialog.blockingTasks, item.title]
+                            : blockingDialog.blockingTasks.filter(t => t !== item.title);
+                          setBlockingDialog({
+                            ...blockingDialog,
+                            blockingTasks: newBlockingTasks
+                          });
+                        }}
+                      />
+                      <label htmlFor={`blocking-${item.id}`} className="text-sm">
+                        {item.title}
+                        <Badge variant="secondary" className={`${STATUS_COLORS[item.status || 'PENDING']} ml-2`}>
+                          {STATUS_LABELS[item.status || 'PENDING']}
+                        </Badge>
+                      </label>
+                    </div>
+                  ))}
+                {items.filter(item => item.id !== blockingDialog?.item.id && item.status !== 'COMPLETED').length === 0 && (
+                  <p className="text-sm text-muted-foreground">No hay otras tareas disponibles para seleccionar.</p>
+                )}
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="additional-info" className="text-sm font-medium mb-2 block">
+                Información adicional (opcional)
+              </label>
+              <Textarea
+                id="additional-info"
+                value={blockingDialog?.additionalInfo || ''}
+                onChange={(e) => {
+                  if (!blockingDialog) return;
+                  setBlockingDialog({
+                    ...blockingDialog,
+                    additionalInfo: e.target.value
+                  });
+                }}
+                placeholder="Describe qué está bloqueando esta tarea o proporciona información adicional..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBlockingDialog(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleBlockingConfirm} variant="destructive">
+              Marcar como bloqueada
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
