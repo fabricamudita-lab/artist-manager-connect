@@ -528,49 +528,114 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         completed_at: null
       };
 
-      // Add blocking information to description
-      const { otherContent } = extractBlockingInfo(blockingDialog.item.description);
-      let description = otherContent;
-      
-      // Remove duplicates and filter empty values from blocking tasks
-      const uniqueBlockingTasks = [...new Set(blockingDialog.blockingTasks.filter(task => task.trim()))];
-      
-      // Append blocking information
-      if (uniqueBlockingTasks.length > 0 || blockingDialog.additionalInfo.trim()) {
-        const blockingInfo = [];
-        if (uniqueBlockingTasks.length > 0) {
-          blockingInfo.push(`Tareas bloqueantes: ${uniqueBlockingTasks.join(', ')}`);
+      // Check if this item is selected and there are multiple selected items
+      const itemsToUpdate = selectedItems.has(blockingDialog.item.id) && selectedItems.size > 1 
+        ? Array.from(selectedItems) 
+        : [blockingDialog.item.id];
+
+      console.log('Blocking items:', itemsToUpdate, 'Selected items:', Array.from(selectedItems));
+
+      // For bulk blocking, we need to update each item individually to handle descriptions properly
+      if (itemsToUpdate.length > 1) {
+        // Get all items to update their descriptions individually
+        const { data: itemsData, error: fetchError } = await supabase
+          .from('project_checklist_items')
+          .select('*')
+          .in('id', itemsToUpdate);
+
+        if (fetchError) throw fetchError;
+
+        // Update each item with its own description + blocking info
+        for (const item of itemsData || []) {
+          const { otherContent } = extractBlockingInfo(item.description);
+          let description = otherContent;
+          
+          // Remove duplicates and filter empty values from blocking tasks
+          const uniqueBlockingTasks = [...new Set(blockingDialog.blockingTasks.filter(task => task.trim()))];
+          
+          // Append blocking information
+          if (uniqueBlockingTasks.length > 0 || blockingDialog.additionalInfo.trim()) {
+            const blockingInfo = [];
+            if (uniqueBlockingTasks.length > 0) {
+              blockingInfo.push(`Tareas bloqueantes: ${uniqueBlockingTasks.join(', ')}`);
+            }
+            if (blockingDialog.additionalInfo.trim()) {
+              blockingInfo.push(`Información adicional: ${blockingDialog.additionalInfo.trim()}`);
+            }
+            
+            // Add blocking info to description
+            if (description) {
+              description += ` | ${blockingInfo.join(' | ')}`;
+            } else {
+              description = blockingInfo.join(' | ');
+            }
+          }
+
+          const itemUpdates = {
+            ...updates,
+            description: description || null
+          };
+
+          const { error } = await supabase
+            .from('project_checklist_items')
+            .update(itemUpdates)
+            .eq('id', item.id);
+
+          if (error) throw error;
         }
-        if (blockingDialog.additionalInfo.trim()) {
-          blockingInfo.push(`Información adicional: ${blockingDialog.additionalInfo.trim()}`);
-        }
+
+        setSelectedItems(new Set());
         
-        // Add blocking info to description
-        if (description) {
-          description += ` | ${blockingInfo.join(' | ')}`;
-        } else {
-          description = blockingInfo.join(' | ');
-        }
-        updates.description = description;
+        toast({
+          title: "Tareas bloqueadas",
+          description: `${itemsToUpdate.length} tareas han sido marcadas como bloqueadas correctamente.`,
+        });
       } else {
-        // If no blocking info, just keep the original content
-        updates.description = description || null;
+        // Single item blocking
+        const { otherContent } = extractBlockingInfo(blockingDialog.item.description);
+        let description = otherContent;
+        
+        // Remove duplicates and filter empty values from blocking tasks
+        const uniqueBlockingTasks = [...new Set(blockingDialog.blockingTasks.filter(task => task.trim()))];
+        
+        // Append blocking information
+        if (uniqueBlockingTasks.length > 0 || blockingDialog.additionalInfo.trim()) {
+          const blockingInfo = [];
+          if (uniqueBlockingTasks.length > 0) {
+            blockingInfo.push(`Tareas bloqueantes: ${uniqueBlockingTasks.join(', ')}`);
+          }
+          if (blockingDialog.additionalInfo.trim()) {
+            blockingInfo.push(`Información adicional: ${blockingDialog.additionalInfo.trim()}`);
+          }
+          
+          // Add blocking info to description
+          if (description) {
+            description += ` | ${blockingInfo.join(' | ')}`;
+          } else {
+            description = blockingInfo.join(' | ');
+          }
+          updates.description = description;
+        } else {
+          // If no blocking info, just keep the original content
+          updates.description = description || null;
+        }
+
+        const { error } = await supabase
+          .from('project_checklist_items')
+          .update(updates)
+          .eq('id', blockingDialog.item.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Tarea bloqueada",
+          description: "La tarea ha sido marcada como bloqueada correctamente.",
+        });
       }
-
-      const { error } = await supabase
-        .from('project_checklist_items')
-        .update(updates)
-        .eq('id', blockingDialog.item.id);
-
-      if (error) throw error;
 
       setBlockingDialog(null);
       fetchChecklistItems();
       
-      toast({
-        title: "Tarea bloqueada",
-        description: "La tarea ha sido marcada como bloqueada correctamente.",
-      });
     } catch (error) {
       console.error('Error updating task status:', error);
       toast({
