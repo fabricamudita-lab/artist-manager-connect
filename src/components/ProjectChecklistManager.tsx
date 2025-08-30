@@ -1652,6 +1652,14 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           onOpenChange={setTaskDetailOpen}
           task={selectedTaskForDetail}
           projectId={projectId}
+          onUpdateTask={(updatedTask) => {
+            setItems(prevItems => 
+              prevItems.map(item => 
+                item.id === updatedTask.id ? updatedTask : item
+              )
+            );
+            setSelectedTaskForDetail(updatedTask);
+          }}
         />
       )}
     </>

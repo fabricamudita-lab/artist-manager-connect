@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChecklistItem } from "./ProjectChecklistManager";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChecklistItem, TaskStatus } from "./ProjectChecklistManager";
 import { 
   Link, 
   Copy, 
@@ -20,9 +21,11 @@ import {
   Edit3,
   Save,
   X,
-  Plus
+  Plus,
+  Edit
 } from 'lucide-react';
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TaskDetailDialogProps {
   open: boolean;
@@ -54,10 +57,20 @@ export const TaskDetailDialog = ({ open, onOpenChange, task, projectId, onUpdate
   const [notes, setNotes] = useState<TaskNote[]>([]);
   const [newNote, setNewNote] = useState('');
   const [isEditingNote, setIsEditingNote] = useState(false);
+  const [isEditingTask, setIsEditingTask] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(task.title);
+  const [editedDescription, setEditedDescription] = useState(task.description || '');
+  const [editedStatus, setEditedStatus] = useState<TaskStatus>(task.status);
 
   // Load linked items and notes from localStorage
   useEffect(() => {
     if (open && task) {
+      // Reset edit state when dialog opens
+      setIsEditingTask(false);
+      setEditedTitle(task.title);
+      setEditedDescription(task.description || '');
+      setEditedStatus(task.status);
+      
       const storedLinks = localStorage.getItem(`task_links_${task.id}`);
       const taskLinkedItems = storedLinks ? JSON.parse(storedLinks) : [];
       setLinkedItems(taskLinkedItems);
@@ -158,6 +171,55 @@ Generado desde el sistema de gestión de proyectos
     });
   };
 
+  const saveTaskChanges = async () => {
+    try {
+      const { error } = await supabase
+        .from('project_checklist_items')
+        .update({
+          title: editedTitle,
+          description: editedDescription || null,
+          status: editedStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', task.id);
+
+      if (error) throw error;
+
+      const updatedTask = {
+        ...task,
+        title: editedTitle,
+        description: editedDescription || null,
+        status: editedStatus
+      };
+
+      // Call the callback to update the parent component
+      if (onUpdateTask) {
+        onUpdateTask(updatedTask);
+      }
+
+      setIsEditingTask(false);
+      
+      toast({
+        title: "Tarea actualizada",
+        description: "Los cambios se han guardado correctamente",
+      });
+    } catch (error) {
+      console.error('Error updating task:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron guardar los cambios",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const cancelTaskEdit = () => {
+    setEditedTitle(task.title);
+    setEditedDescription(task.description || '');
+    setEditedStatus(task.status);
+    setIsEditingTask(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh]">
@@ -173,30 +235,104 @@ Generado desde el sistema de gestión de proyectos
             {/* Task Basic Info */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">{task.title}</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">
+                    {isEditingTask ? (
+                      <Input
+                        value={editedTitle}
+                        onChange={(e) => setEditedTitle(e.target.value)}
+                        className="text-lg font-semibold"
+                        placeholder="Título de la tarea"
+                      />
+                    ) : (
+                      task.title
+                    )}
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    {isEditingTask ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={cancelTaskEdit}
+                          className="flex items-center gap-2"
+                        >
+                          <X className="w-4 h-4" />
+                          Cancelar
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={saveTaskChanges}
+                          className="flex items-center gap-2"
+                        >
+                          <Save className="w-4 h-4" />
+                          Guardar
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsEditingTask(true)}
+                        className="flex items-center gap-2"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Editar
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium">Sección</Label>
-                    <p className="text-sm text-muted-foreground">{task.section}</p>
+                    <Label className="text-sm font-medium text-muted-foreground">Sección</Label>
+                    <p className="text-sm">{task.section}</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium">Estado</Label>
-                    <Badge variant="outline" className="ml-2">
-                      {task.status}
-                    </Badge>
+                    <Label className="text-sm font-medium text-muted-foreground">Estado</Label>
+                    {isEditingTask ? (
+                      <Select value={editedStatus} onValueChange={(value) => setEditedStatus(value as TaskStatus)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Seleccionar estado" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PENDING">PENDING</SelectItem>
+                          <SelectItem value="IN_PROGRESS">IN_PROGRESS</SelectItem>
+                          <SelectItem value="BLOCKED">BLOCKED</SelectItem>
+                          <SelectItem value="IN_REVIEW">IN_REVIEW</SelectItem>
+                          <SelectItem value="COMPLETED">COMPLETED</SelectItem>
+                          <SelectItem value="CANCELLED">CANCELLED</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge 
+                        variant={task.status === 'COMPLETED' ? 'default' : 
+                                 task.status === 'BLOCKED' ? 'destructive' :
+                                 task.status === 'IN_PROGRESS' ? 'secondary' : 'outline'}
+                        className="ml-0"
+                      >
+                        {task.status}
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 
-                {task.description && (
-                  <div>
-                    <Label className="text-sm font-medium">Descripción</Label>
-                    <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
-                  </div>
-                )}
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Descripción</Label>
+                  {isEditingTask ? (
+                    <Textarea
+                      value={editedDescription}
+                      onChange={(e) => setEditedDescription(e.target.value)}
+                      placeholder="Descripción de la tarea"
+                      className="mt-1"
+                    />
+                  ) : (
+                    <p className="text-sm mt-1">{task.description || 'Sin descripción'}</p>
+                  )}
+                </div>
 
-                <div className="flex gap-2 pt-2">
+                <div className="flex justify-end">
                   <Button
                     variant="outline"
                     size="sm"
@@ -352,3 +488,5 @@ Generado desde el sistema de gestión de proyectos
     </Dialog>
   );
 };
+
+export default TaskDetailDialog;
