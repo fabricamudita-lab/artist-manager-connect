@@ -56,12 +56,12 @@ interface ProjectChecklistManagerProps {
 }
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
-  'PENDING': 'Pendientes',
+  'PENDING': 'Pendiente',
   'IN_PROGRESS': 'En progreso',
-  'BLOCKED': 'Bloqueadas',
+  'BLOCKED': 'Bloqueada',
   'IN_REVIEW': 'En revisión',
-  'COMPLETED': 'Completadas',
-  'CANCELLED': 'Canceladas'
+  'COMPLETED': 'Completada',
+  'CANCELLED': 'Cancelada'
 };
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
