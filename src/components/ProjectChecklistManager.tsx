@@ -1054,7 +1054,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                 <>
                   {viewMode === 'flow' ? (
                     <TaskFlowManager
-                      items={items}
+                      items={filteredItems}
                       projectId={projectId}
                       canEdit={canEdit}
                       onStatusUpdate={updateTaskStatus}
