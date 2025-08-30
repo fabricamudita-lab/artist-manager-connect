@@ -1137,7 +1137,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                               checked={!selectedStatuses.has(status as TaskStatus)}
                               onCheckedChange={(checked) => {
                                 const newStatuses = new Set(selectedStatuses);
-                                if (checked) {
+                                if (!checked) {
                                   newStatuses.add(status as TaskStatus);
                                 } else {
                                   newStatuses.delete(status as TaskStatus);
