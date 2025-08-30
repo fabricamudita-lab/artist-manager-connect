@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SelectionCheckbox } from "@/components/ui/selection-checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
@@ -828,13 +829,13 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                 }`}
                               >
                                 <div className="flex items-start gap-3">
-                                  {canEdit && (
-                                    <Checkbox
-                                      checked={selectedItems.has(item.id)}
-                                      onCheckedChange={() => toggleItemSelection(item.id)}
-                                      className="mt-1"
-                                    />
-                                  )}
+                                   {canEdit && (
+                                     <SelectionCheckbox
+                                       checked={selectedItems.has(item.id)}
+                                       onCheckedChange={() => toggleItemSelection(item.id)}
+                                       className="mt-1"
+                                     />
+                                   )}
                                   
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-3">
