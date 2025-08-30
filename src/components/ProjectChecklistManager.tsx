@@ -799,7 +799,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       if (itemSection === 'Sin categoría' || itemSection === null) itemSection = 'SIN_CATEGORIA';
       
       const sectionMatch = filterSection === 'all' || itemSection === filterSection;
-      const statusMatch = selectedStatuses.size === 0 || selectedStatuses.has(item.status || 'PENDING');
+      const statusMatch = selectedStatuses.size === 0 || !selectedStatuses.has(item.status || 'PENDING');
       const ownerMatch = filterOwner === 'all' || (item.description || 'Sin asignar') === filterOwner;
       return sectionMatch && statusMatch && ownerMatch;
     });
@@ -913,7 +913,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     if (itemSection === 'Sin categoría' || itemSection === null) itemSection = 'SIN_CATEGORIA';
     
     const sectionMatch = filterSection === 'all' || itemSection === filterSection;
-    const statusMatch = selectedStatuses.size === 0 || selectedStatuses.has(item.status || 'PENDING');
+    const statusMatch = selectedStatuses.size === 0 || !selectedStatuses.has(item.status || 'PENDING');
     const ownerMatch = filterOwner === 'all' || (item.description || 'Sin asignar') === filterOwner;
     
     return sectionMatch && statusMatch && ownerMatch;
