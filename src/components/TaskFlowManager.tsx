@@ -290,44 +290,56 @@ export function TaskFlowManager({
   const onNodeDrag = useCallback(async (event: any, node: Node) => {
     if (node.type !== 'task') return;
 
+    // Get the current task's section
+    const currentTask = Object.values(groupedItems).flat().find(item => item.id === node.id);
+    if (!currentTask) return;
+
+    const currentSection = currentTask.section || 'SIN_CATEGORIA';
+    
     // Find which section this node is now in based on Y position
     const nodeY = node.position.y;
-    let targetSection = 'SIN_CATEGORIA';
+    let targetSection = currentSection; // Default to current section
     
-    // Calculate section boundaries based on current nodes
+    // Calculate section boundaries more precisely
     const sectionNodes = nodes.filter(n => n.id.startsWith('section-'));
+    
     sectionNodes.forEach(sectionNode => {
       const sectionY = sectionNode.position.y;
-      if (nodeY >= sectionY && nodeY < sectionY + 400) { // rough section height
+      const sectionHeight = 400; // Section height
+      
+      // Only change section if we've clearly moved into another section's area
+      if (nodeY >= sectionY + 60 && nodeY < sectionY + sectionHeight - 60) {
         targetSection = sectionNode.id.replace('section-', '');
       }
     });
 
-    // Update the task's section in the database
-    try {
-      const { error } = await supabase
-        .from('project_checklist_items')
-        .update({ section: targetSection })
-        .eq('id', node.id);
+    // Only update if the section has actually changed
+    if (targetSection !== currentSection) {
+      try {
+        const { error } = await supabase
+          .from('project_checklist_items')
+          .update({ section: targetSection })
+          .eq('id', node.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Refresh the data
-      fetchChecklistItems();
+        // Refresh the data
+        fetchChecklistItems();
 
-      toast({
-        title: "Tarea movida",
-        description: `La tarea ha sido movida a ${getSectionDisplayName(targetSection)}.`,
-      });
-    } catch (error) {
-      console.error('Error updating task section:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo mover la tarea.",
-        variant: "destructive",
-      });
+        toast({
+          title: "Tarea movida",
+          description: `La tarea ha sido movida a ${getSectionDisplayName(targetSection)}.`,
+        });
+      } catch (error) {
+        console.error('Error updating task section:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo mover la tarea.",
+          variant: "destructive",
+        });
+      }
     }
-  }, [nodes, fetchChecklistItems, getSectionDisplayName]);
+  }, [nodes, fetchChecklistItems, getSectionDisplayName, groupedItems]);
 
   return (
     <div className="h-[600px] w-full bg-background">
