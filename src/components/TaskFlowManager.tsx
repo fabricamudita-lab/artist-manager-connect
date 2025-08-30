@@ -75,6 +75,20 @@ function TaskNode({ data }: TaskNodeProps) {
 
   const toggleCompletion = () => {
     const newStatus = item.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
+    
+    // If changing from PENDING to COMPLETED, remove the unblocked message
+    if (item.status === 'PENDING' && newStatus === 'COMPLETED') {
+      const { wasUnblocked, otherContent } = extractBlockingInfo(item.description);
+      if (wasUnblocked) {
+        const updatedItem = {
+          ...item,
+          description: otherContent || null
+        };
+        onStatusUpdate(updatedItem, newStatus);
+        return;
+      }
+    }
+    
     onStatusUpdate(item, newStatus);
   };
 
@@ -136,7 +150,22 @@ function TaskNode({ data }: TaskNodeProps) {
                 {Object.entries(STATUS_LABELS).map(([status, label]) => (
                   <DropdownMenuItem
                     key={status}
-                    onClick={() => onStatusUpdate(item, status as TaskStatus)}
+            onClick={() => {
+              // If changing from PENDING to any other status, remove the unblocked message
+              if (item.status === 'PENDING' && status !== 'PENDING') {
+                const { wasUnblocked, otherContent } = extractBlockingInfo(item.description);
+                if (wasUnblocked) {
+                  // Create updated item with cleaned description
+                  const updatedItem = {
+                    ...item,
+                    description: otherContent || null
+                  };
+                  onStatusUpdate(updatedItem, status as TaskStatus);
+                  return;
+                }
+              }
+              onStatusUpdate(item, status as TaskStatus);
+            }}
                   >
                     <Badge variant="secondary" className={`${STATUS_COLORS[status as TaskStatus]} mr-2`}>
                       {label}
