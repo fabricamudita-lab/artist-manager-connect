@@ -157,6 +157,14 @@ Generado desde el sistema de gestión de proyectos
     }
   };
 
+  const openLinkedItem = (item: LinkableItem) => {
+    // Show item details in a toast for now
+    toast({
+      title: `${item.type}: ${item.title}`,
+      description: `Estado: ${item.status} - ${item.description}`,
+    });
+  };
+
   const removeLink = (itemId: string) => {
     const updatedLinks = linkedItems.filter(id => id !== itemId);
     setLinkedItems(updatedLinks);
@@ -385,6 +393,7 @@ Generado desde el sistema de gestión de proyectos
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => openLinkedItem(item)}
                             className="h-8 w-8 p-0"
                             title="Ver elemento"
                           >
