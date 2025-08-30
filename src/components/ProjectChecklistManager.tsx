@@ -133,7 +133,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     const blockingTasksMatch = description.match(/Tareas bloqueantes: ([^|]+)/);
     const additionalInfoMatch = description.match(/Información adicional: ([^|]+)/);
     const reviewMatch = description.match(/Motivo de revisión: ([^|]+)/);
-    const unblockedMatch = description.match(/🎉 Esta tarea ya puede continuar - las dependencias se han completado/);
+    const unblockedMatch = description.match(/Las dependencias se han completado!\s*🎉/);
     
     let blockingTasks: string[] = [];
     let additionalInfo = '';
@@ -155,7 +155,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     }
     
     if (unblockedMatch) {
-      otherContent = otherContent.replace(/🎉 Esta tarea ya puede continuar - las dependencias se han completado(\s*\|\s*)?/g, '').trim();
+      otherContent = otherContent.replace(/Las dependencias se han completado!\s*🎉(\s*\|\s*)?/g, '').trim();
     }
     
     // Clean up any remaining separators
@@ -202,7 +202,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           if (newDescription) {
             newDescription += ' | ';
           }
-          newDescription += '🎉 Esta tarea ya puede continuar - las dependencias se han completado';
+          newDescription += "Las dependencias se han completado! 🎉";
           
           console.log(`Task "${item.title}" will be unblocked`);
           tasksToUpdate.push({
@@ -266,7 +266,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           if (newDescription) {
             newDescription += ' | ';
           }
-          newDescription += '🎉 Esta tarea ya puede continuar - las dependencias se han completado';
+          newDescription += "Las dependencias se han completado! 🎉";
           
           console.log(`Task "${item.title}" will be unblocked`);
           tasksToUpdate.push({
