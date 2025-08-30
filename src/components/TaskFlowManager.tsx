@@ -14,12 +14,13 @@ import {
 import '@xyflow/react/dist/style.css';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Clock, Trash2, TriangleAlert, Plus } from 'lucide-react';
+import { CheckCircle, Clock, Trash2, TriangleAlert, Plus, ChevronDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { ChevronDown } from 'lucide-react';
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ChecklistItem, TaskStatus } from './ProjectChecklistManager';
+import { LinkTaskDialog } from './LinkTaskDialog';
 
 const STATUS_LABELS = {
   PENDING: 'Pendiente',
@@ -56,11 +57,13 @@ interface TaskNodeProps {
     canEdit: boolean;
     getTasksThatBlockOthers: () => Set<string>;
     extractBlockingInfo: (description: string | null) => { wasUnblocked: boolean; blockingTasks: string[]; additionalInfo: string; otherContent: string };
+    projectId: string;
   };
 }
 
 function TaskNode({ data }: TaskNodeProps) {
-  const { item, onStatusUpdate, onDelete, canEdit, getTasksThatBlockOthers, extractBlockingInfo } = data;
+  const { item, onStatusUpdate, onDelete, canEdit, getTasksThatBlockOthers, extractBlockingInfo, projectId } = data;
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
 
   const toggleCompletion = () => {
     const newStatus = item.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
@@ -140,8 +143,9 @@ function TaskNode({ data }: TaskNodeProps) {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={toggleCompletion}
+                onClick={item.status === 'COMPLETED' ? toggleCompletion : () => setLinkDialogOpen(true)}
                 className="h-6 w-6 p-0"
+                title={item.status === 'COMPLETED' ? 'Marcar como pendiente' : 'Vincular con otros elementos'}
               >
                 {item.status === 'COMPLETED' ? (
                   <CheckCircle className="w-3 h-3 text-green-600" />
@@ -163,6 +167,14 @@ function TaskNode({ data }: TaskNodeProps) {
           )}
         </div>
       </div>
+      
+      <LinkTaskDialog
+        open={linkDialogOpen}
+        onOpenChange={setLinkDialogOpen}
+        taskId={item.id}
+        taskTitle={item.title}
+        projectId={projectId}
+      />
     </div>
   );
 }
@@ -271,7 +283,8 @@ export function TaskFlowManager({
             onDelete,
             canEdit,
             getTasksThatBlockOthers,
-            extractBlockingInfo
+            extractBlockingInfo,
+            projectId
           }
         });
       });
