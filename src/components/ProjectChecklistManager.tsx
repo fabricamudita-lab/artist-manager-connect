@@ -431,17 +431,21 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         completed_at: null
       };
 
-      // Add blocking information to description or a new field
-      let description = blockingDialog.item.description || '';
+      // Add blocking information to description
+      const { otherContent } = extractBlockingInfo(blockingDialog.item.description);
+      let description = otherContent;
+      
+      // Remove duplicates and filter empty values from blocking tasks
+      const uniqueBlockingTasks = [...new Set(blockingDialog.blockingTasks.filter(task => task.trim()))];
       
       // Append blocking information
-      if (blockingDialog.blockingTasks.length > 0 || blockingDialog.additionalInfo) {
+      if (uniqueBlockingTasks.length > 0 || blockingDialog.additionalInfo.trim()) {
         const blockingInfo = [];
-        if (blockingDialog.blockingTasks.length > 0) {
-          blockingInfo.push(`Bloqueada por: ${blockingDialog.blockingTasks.join(', ')}`);
+        if (uniqueBlockingTasks.length > 0) {
+          blockingInfo.push(`Tareas bloqueantes: ${uniqueBlockingTasks.join(', ')}`);
         }
-        if (blockingDialog.additionalInfo) {
-          blockingInfo.push(`Info adicional: ${blockingDialog.additionalInfo}`);
+        if (blockingDialog.additionalInfo.trim()) {
+          blockingInfo.push(`Información adicional: ${blockingDialog.additionalInfo.trim()}`);
         }
         
         // Add blocking info to description
@@ -451,6 +455,9 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           description = blockingInfo.join(' | ');
         }
         updates.description = description;
+      } else {
+        // If no blocking info, just keep the original content
+        updates.description = description || null;
       }
 
       const { error } = await supabase
