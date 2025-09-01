@@ -770,7 +770,7 @@ export default function ProjectDetail() {
           file_type: newDocument.file.type,
           file_size: newDocument.file.size,
           file_url: publicUrl,
-          artist_id: artist?.id,
+          artist_id: project.artist_id,
           uploaded_by: profile?.id,
           project_id: id,
         });
