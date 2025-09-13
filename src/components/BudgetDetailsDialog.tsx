@@ -576,17 +576,90 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                           />
                                         </div>
                                       </div>
-                                      <div>
-                                        <Label className="text-sm font-medium text-gray-700">Comentarios</Label>
-                                        <Input
-                                          value={item.observations || ''}
-                                          onChange={(e) => setItems(prev => 
-                                            prev.map(i => i.id === item.id ? { ...i, observations: e.target.value } : i)
-                                          )}
-                                          placeholder="Observaciones opcionales..."
-                                          className="mt-1 bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                                        />
-                                      </div>
+                                       <div>
+                                         <Label className="text-sm font-medium text-gray-700">Comentarios</Label>
+                                         <Input
+                                           value={item.observations || ''}
+                                           onChange={(e) => setItems(prev => 
+                                             prev.map(i => i.id === item.id ? { ...i, observations: e.target.value } : i)
+                                           )}
+                                           placeholder="Observaciones opcionales..."
+                                           className="mt-1 bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                         />
+                                       </div>
+                                       <div>
+                                         <Label className="text-sm font-medium text-gray-700">Factura</Label>
+                                         <div className="mt-1 space-y-2">
+                                           {item.invoice_link ? (
+                                             <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                                               <FileText className="w-4 h-4 text-green-600" />
+                                               <span className="text-sm text-green-700 flex-1">Factura subida</span>
+                                               <Button
+                                                 size="sm"
+                                                 variant="outline"
+                                                 className="h-7 px-2 text-xs text-blue-600 border-blue-300 hover:bg-blue-50"
+                                                 onClick={(e) => {
+                                                   e.stopPropagation();
+                                                   window.open(item.invoice_link, '_blank');
+                                                 }}
+                                               >
+                                                 Ver
+                                               </Button>
+                                               <Button
+                                                 size="sm"
+                                                 variant="outline"
+                                                 className="h-7 px-2 text-xs text-red-600 border-red-300 hover:bg-red-50"
+                                                 onClick={(e) => {
+                                                   e.stopPropagation();
+                                                   removeFactura(item.id, item.invoice_link);
+                                                 }}
+                                               >
+                                                 Eliminar
+                                               </Button>
+                                             </div>
+                                           ) : (
+                                             <div className="relative">
+                                               <input
+                                                 type="file"
+                                                 accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                 onChange={(e) => {
+                                                   const file = e.target.files?.[0];
+                                                   if (file) {
+                                                     uploadFactura(file, item.id);
+                                                   }
+                                                   e.target.value = '';
+                                                 }}
+                                                 disabled={uploadingFactura === item.id}
+                                               />
+                                               <div className="flex items-center gap-2 p-2 border-2 border-dashed border-gray-300 rounded-md hover:border-blue-400 transition-colors">
+                                                 <Upload className="w-4 h-4 text-gray-400" />
+                                                 <span className="text-sm text-gray-500">
+                                                   {uploadingFactura === item.id ? 'Subiendo...' : 'Ningún archivo seleccionado'}
+                                                 </span>
+                                                 <Button
+                                                   size="sm"
+                                                   variant="outline"
+                                                   className="h-7 px-2 text-xs pointer-events-none"
+                                                   disabled={uploadingFactura === item.id}
+                                                 >
+                                                   {uploadingFactura === item.id ? (
+                                                     <>
+                                                       <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
+                                                       Subiendo...
+                                                     </>
+                                                   ) : (
+                                                     <>
+                                                       <Upload className="w-3 h-3 mr-1" />
+                                                       Subir factura
+                                                     </>
+                                                   )}
+                                                 </Button>
+                                               </div>
+                                             </div>
+                                           )}
+                                         </div>
+                                       </div>
                                       <div className="flex justify-end gap-2 pt-2">
                                         <Button
                                           onClick={() => updateItem(item)}
