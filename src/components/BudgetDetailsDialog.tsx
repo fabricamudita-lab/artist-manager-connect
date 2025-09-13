@@ -110,6 +110,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetData, setBudgetData] = useState(budget);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [uploadingFactura, setUploadingFactura] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && budget) {
@@ -245,6 +246,91 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const getCategoryItems = (categoryKey: string) => {
     return items.filter(item => item.category === categoryKey);
+  };
+
+  const uploadFactura = async (file: File, itemId: string) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "Debes estar autenticado para subir archivos",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setUploadingFactura(itemId);
+    
+    try {
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${budget.id}/${itemId}_${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('facturas')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('facturas')
+        .getPublicUrl(fileName);
+
+      // Update the budget item with the invoice link
+      const { error: updateError } = await supabase
+        .from('budget_items')
+        .update({ invoice_link: publicUrl })
+        .eq('id', itemId);
+
+      if (updateError) throw updateError;
+
+      await fetchBudgetItems();
+      toast({
+        title: "¡Éxito!",
+        description: "Factura subida y vinculada correctamente"
+      });
+    } catch (error) {
+      console.error('Error uploading factura:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo subir la factura",
+        variant: "destructive"
+      });
+    } finally {
+      setUploadingFactura(null);
+    }
+  };
+
+  const removeFactura = async (itemId: string, invoiceUrl: string) => {
+    try {
+      // Extract file path from URL
+      const urlParts = invoiceUrl.split('/facturas/');
+      if (urlParts.length > 1) {
+        const filePath = urlParts[1];
+        await supabase.storage.from('facturas').remove([filePath]);
+      }
+
+      // Remove the link from the budget item
+      const { error } = await supabase
+        .from('budget_items')
+        .update({ invoice_link: null })
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      await fetchBudgetItems();
+      toast({
+        title: "¡Éxito!",
+        description: "Factura eliminada correctamente"
+      });
+    } catch (error) {
+      console.error('Error removing factura:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la factura",
+        variant: "destructive"
+      });
+    }
   };
 
   const updateBudget = async () => {
@@ -533,6 +619,76 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                         {item.observations && (
                                           <p className="text-xs text-gray-500 mt-1">{item.observations}</p>
                                         )}
+                                        {/* Factura Status */}
+                                        <div className="mt-2 flex items-center gap-2">
+                                          {item.invoice_link ? (
+                                            <div className="flex items-center gap-2">
+                                              <span className="inline-flex items-center px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                                                ✓ Factura subida
+                                              </span>
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-6 px-2 text-xs text-blue-600 hover:text-blue-800"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  window.open(item.invoice_link, '_blank');
+                                                }}
+                                              >
+                                                Ver factura
+                                              </Button>
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-6 px-2 text-xs text-red-600 hover:text-red-800"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  removeFactura(item.id, item.invoice_link);
+                                                }}
+                                              >
+                                                Eliminar
+                                              </Button>
+                                            </div>
+                                          ) : (
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-xs text-gray-500">Facturar al acabar</span>
+                                              <label className="cursor-pointer">
+                                                <input
+                                                  type="file"
+                                                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                                  className="hidden"
+                                                  onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                      uploadFactura(file, item.id);
+                                                    }
+                                                    e.target.value = '';
+                                                  }}
+                                                  onClick={(e) => e.stopPropagation()}
+                                                />
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  className="h-6 px-2 text-xs text-blue-600 border-blue-300 hover:bg-blue-50"
+                                                  disabled={uploadingFactura === item.id}
+                                                  onClick={(e) => e.stopPropagation()}
+                                                >
+                                                  {uploadingFactura === item.id ? (
+                                                    <>
+                                                      <div className="animate-spin w-3 h-3 border border-blue-600 border-t-transparent rounded-full mr-1"></div>
+                                                      Subiendo...
+                                                    </>
+                                                  ) : (
+                                                    <>
+                                                      <Upload className="w-3 h-3 mr-1" />
+                                                      Subir factura
+                                                    </>
+                                                  )}
+                                                </Button>
+                                              </label>
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
                                       <div className="flex items-center gap-3">
                                         <span className="font-bold text-lg text-gray-900">
@@ -668,21 +824,82 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
               </TabsContent>
 
               <TabsContent value="attachments" className="flex-1 overflow-auto p-6">
-                <Card className="card-moodita">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Upload className="w-5 h-5" />
-                      Archivos y Documentos
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
-                      <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground mb-2">Arrastra archivos aquí o haz clic para subir</p>
-                      <p className="text-sm text-muted-foreground">PDF, DOCX, XLSX, imágenes</p>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="space-y-6">
+                  {/* Facturas vinculadas a elementos */}
+                  <Card className="card-moodita">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="w-5 h-5" />
+                        Facturas vinculadas a elementos
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {items.filter(item => item.invoice_link).length > 0 ? (
+                        <div className="space-y-3">
+                          {items
+                            .filter(item => item.invoice_link)
+                            .map((item) => (
+                              <div key={item.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                                    <FileText className="w-4 h-4 text-green-600" />
+                                  </div>
+                                  <div>
+                                    <div className="font-medium">{item.name}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      €{calculateTotal(item).toFixed(2)} - Factura disponible
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => window.open(item.invoice_link, '_blank')}
+                                  >
+                                    <Download className="w-4 h-4 mr-1" />
+                                    Ver factura
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-red-600 hover:text-red-800 border-red-300 hover:border-red-400"
+                                    onClick={() => removeFactura(item.id, item.invoice_link)}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>No hay facturas vinculadas aún</p>
+                          <p className="text-sm">Sube facturas desde cada elemento en la pestaña "Elementos"</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Área para subir documentos generales */}
+                  <Card className="card-moodita">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Upload className="w-5 h-5" />
+                        Documentos adicionales
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
+                        <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground mb-2">Arrastra archivos aquí o haz clic para subir</p>
+                        <p className="text-sm text-muted-foreground">PDF, DOCX, XLSX, imágenes</p>
+                        <p className="text-xs text-muted-foreground mt-2">Para documentos relacionados con el presupuesto completo</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               </TabsContent>
             </Tabs>
           </div>
