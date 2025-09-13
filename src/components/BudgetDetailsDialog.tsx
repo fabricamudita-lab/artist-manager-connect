@@ -652,11 +652,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                           ) : (
                                             <div className="flex items-center gap-2">
                                               <span className="text-xs text-gray-500">Facturar al acabar</span>
-                                              <label className="cursor-pointer">
+                                              <div className="relative">
                                                 <input
                                                   type="file"
                                                   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                                  className="hidden"
+                                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                                   onChange={(e) => {
                                                     const file = e.target.files?.[0];
                                                     if (file) {
@@ -664,14 +664,13 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                     }
                                                     e.target.value = '';
                                                   }}
-                                                  onClick={(e) => e.stopPropagation()}
+                                                  disabled={uploadingFactura === item.id}
                                                 />
                                                 <Button
                                                   size="sm"
                                                   variant="outline"
-                                                  className="h-6 px-2 text-xs text-blue-600 border-blue-300 hover:bg-blue-50"
+                                                  className="h-6 px-2 text-xs text-blue-600 border-blue-300 hover:bg-blue-50 relative z-10 pointer-events-none"
                                                   disabled={uploadingFactura === item.id}
-                                                  onClick={(e) => e.stopPropagation()}
                                                 >
                                                   {uploadingFactura === item.id ? (
                                                     <>
@@ -685,7 +684,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                     </>
                                                   )}
                                                 </Button>
-                                              </label>
+                                              </div>
                                             </div>
                                           )}
                                         </div>
