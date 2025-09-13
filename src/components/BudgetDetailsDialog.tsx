@@ -85,45 +85,20 @@ interface BudgetDetailsDialogProps {
 
 const budgetCategories = {
   'equipo_artistico': {
-    title: 'Equipo Artístico',
+    title: 'Promoción',
     icon: Music,
     subcategories: ['artista_principal', 'banda', 'coristas', 'bailarines', 'otros']
   },
   'equipo_tecnico': {
-    title: 'Equipo Técnico',
-    icon: Lightbulb,
+    title: 'Comisiones',
+    icon: Calculator,
     subcategories: ['tour_manager', 'tecnico_sonido', 'tecnico_luces', 'stage_manager', 'produccion_local', 'runner']
   },
   'transporte': {
-    title: 'Transporte',
-    icon: Car,
-    subcategories: ['avion', 'furgoneta', 'tren', 'ave', 'coche', 'equipaje_extra', 'seguro_medico']
-  },
-  'dietas': {
-    title: 'Dietas',
-    icon: Utensils,
-    subcategories: ['dieta_completa', 'media_dieta', 'desayuno']
-  },
-  'hospedaje': {
-    title: 'Hospedaje',
-    icon: Bed,
-    subcategories: ['habitacion', 'habitacion_extra', 'apartamento']
-  },
-  'promocion': {
-    title: 'Promoción',
-    icon: FileText,
-    subcategories: ['marketing', 'publicidad', 'merchandising', 'contenido']
-  },
-  'comisiones': {
-    title: 'Comisiones',
-    icon: Calculator,
-    subcategories: ['booking', 'management', 'otros_fees']
-  },
-  'otros_gastos': {
     title: 'Otros Gastos',
     icon: DollarSign,
-    subcategories: ['alquiler_material', 'visas', 'imprevistos', 'varios']
-  }
+    subcategories: ['avion', 'furgoneta', 'tren', 'ave', 'coche', 'equipaje_extra', 'seguro_medico']
+  },
 };
 
 export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpdate, onDelete }: BudgetDetailsDialogProps) {
@@ -135,19 +110,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetData, setBudgetData] = useState(budget);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [newItem, setNewItem] = useState<Partial<BudgetItem>>({
-    category: '',
-    subcategory: '',
-    name: '',
-    quantity: 1,
-    unit_price: 0,
-    iva_percentage: 21,
-    irpf_percentage: 15,
-    is_attendee: false,
-    billing_status: 'pendiente' as const,
-    invoice_link: '',
-    observations: ''
-  });
 
   useEffect(() => {
     if (open && budget) {
@@ -165,7 +127,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         .order('category', { ascending: true });
 
       if (error) throw error;
-      // Ensure irpf_percentage has a default value for existing records
       const itemsWithDefaults = (data || []).map(item => ({
         ...item,
         irpf_percentage: item.irpf_percentage ?? 15
@@ -184,43 +145,25 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   };
 
   const addItem = async (category: string) => {
-    // Permitir agregar elemento sin nombre (se podrá editar después)
-
     try {
       const { error } = await supabase
         .from('budget_items')
         .insert({
           budget_id: budget.id,
           category,
-          subcategory: newItem.subcategory || '',
-          name: newItem.name || 'Nuevo elemento',
-          quantity: newItem.quantity || 1,
-          unit_price: newItem.unit_price || 0,
-          iva_percentage: newItem.iva_percentage || 21,
-          irpf_percentage: newItem.irpf_percentage || 15,
-          is_attendee: newItem.is_attendee || false,
-          billing_status: (newItem.billing_status as 'pendiente' | 'pagado' | 'facturado' | 'cancelado') || 'pendiente',
-          invoice_link: newItem.invoice_link || '',
-          observations: newItem.observations || ''
+          subcategory: '',
+          name: 'Nuevo elemento',
+          quantity: 1,
+          unit_price: 0,
+          iva_percentage: 21,
+          irpf_percentage: 15,
+          is_attendee: false,
+          billing_status: 'pendiente',
+          invoice_link: '',
+          observations: ''
         });
 
       if (error) throw error;
-
-      // Reset form
-      setNewItem({
-        category: '',
-        subcategory: '',
-        name: '',
-        quantity: 1,
-        unit_price: 0,
-        iva_percentage: 21,
-        irpf_percentage: 15,
-        is_attendee: false,
-        billing_status: 'pendiente' as const,
-        invoice_link: '',
-        observations: ''
-      });
-
       await fetchBudgetItems();
       toast({
         title: "¡Éxito!",
@@ -247,14 +190,13 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           iva_percentage: item.iva_percentage,
           irpf_percentage: item.irpf_percentage,
           is_attendee: item.is_attendee,
-          billing_status: item.billing_status as 'pendiente' | 'pagado' | 'facturado' | 'cancelado',
+          billing_status: item.billing_status,
           invoice_link: item.invoice_link,
           observations: item.observations
         })
         .eq('id', item.id);
 
       if (error) throw error;
-
       setEditingItem(null);
       await fetchBudgetItems();
       toast({
@@ -279,7 +221,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         .eq('id', itemId);
 
       if (error) throw error;
-
       await fetchBudgetItems();
       toast({
         title: "¡Éxito!",
@@ -305,76 +246,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     return items.filter(item => item.category === categoryKey);
   };
 
-  const getBillingStatusColor = (status: string) => {
-    switch (status) {
-      case 'pagado': return 'bg-green-100 text-green-800';
-      case 'facturado': return 'bg-blue-100 text-blue-800';
-      case 'pendiente': return 'bg-yellow-100 text-yellow-800';
-      case 'cancelado': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const saveAsTemplate = () => {
-    if (!budget || items.length === 0) {
-      toast({
-        title: "Error",
-        description: "No hay elementos en el presupuesto para guardar como plantilla",
-        variant: "destructive"
-      });
-      return;
-    }
-    setShowTemplateDialog(true);
-  };
-
-  const handleSaveTemplate = async (name: string, description?: string) => {
-    if (!budget || !user) return;
-
-    try {
-      const { data: templateData, error: templateError } = await supabase
-        .from("budget_templates")
-        .insert({
-          name: name,
-          description: description || `Plantilla basada en ${budget.name}`,
-          created_by: user.id
-        })
-        .select()
-        .single();
-
-      if (templateError) throw templateError;
-
-      const templateItems = items.map(item => ({
-        template_id: templateData.id,
-        name: item.name,
-        category: item.category,
-        subcategory: item.subcategory,
-        unit_price: item.unit_price,
-        quantity: item.quantity,
-        iva_percentage: item.iva_percentage,
-        is_attendee: item.is_attendee,
-        observations: item.observations
-      }));
-
-      const { error: itemsError } = await supabase
-        .from("budget_template_items")
-        .insert(templateItems);
-
-      if (itemsError) throw itemsError;
-
-      toast({
-        title: "Éxito",
-        description: "Plantilla guardada exitosamente"
-      });
-    } catch (error) {
-      console.error("Error saving template:", error);
-      toast({
-        title: "Error",
-        description: "Error al guardar la plantilla",
-        variant: "destructive"
-      });
-    }
-  };
-
   const updateBudget = async () => {
     try {
       const { error } = await supabase
@@ -391,7 +262,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         .eq('id', budgetData.id);
 
       if (error) throw error;
-
       setEditingBudget(false);
       onUpdate();
       toast({
@@ -420,7 +290,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         .eq('id', budgetData.id);
 
       if (error) throw error;
-
       onDelete?.();
       onOpenChange(false);
       toast({
@@ -440,7 +309,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-black text-white border-gray-800">
           <div className="flex items-center justify-center p-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
@@ -451,130 +320,26 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${isFullscreen ? 'max-w-screen w-screen max-h-screen h-screen' : 'max-w-[95vw] w-full max-h-[95vh] h-full'} p-0`}>
-        <div className="flex flex-col h-full overflow-hidden">
+      <DialogContent className={`${isFullscreen ? 'max-w-screen w-screen max-h-screen h-screen' : 'max-w-[95vw] w-full max-h-[95vh] h-full'} p-0 bg-black text-white border-gray-800`}>
+        <div className="flex flex-col h-full overflow-hidden bg-black">
           {/* Header */}
-          <div className="bg-black text-white p-6 flex-shrink-0">
+          <div className="bg-black text-white p-6 flex-shrink-0 border-b border-gray-800">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                {editingBudget ? (
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-white/90">Nombre del evento</Label>
-                      <Input
-                        value={budgetData.name}
-                        onChange={(e) => setBudgetData(prev => ({ ...prev, name: e.target.value }))}
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-white/90">Ciudad</Label>
-                        <Input
-                          value={budgetData.city}
-                          onChange={(e) => setBudgetData(prev => ({ ...prev, city: e.target.value }))}
-                          className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-white/90">País</Label>
-                        <Input
-                          value={budgetData.country}
-                          onChange={(e) => setBudgetData(prev => ({ ...prev, country: e.target.value }))}
-                          className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-white/90">Lugar</Label>
-                      <Input
-                        value={budgetData.venue}
-                        onChange={(e) => setBudgetData(prev => ({ ...prev, venue: e.target.value }))}
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <Label className="text-white/90">Fecha</Label>
-                        <Input
-                          type="date"
-                          value={budgetData.event_date?.split('T')[0] || ''}
-                          onChange={(e) => setBudgetData(prev => ({ ...prev, event_date: e.target.value }))}
-                          className="bg-white/10 border-white/20 text-white"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-white/90">Hora</Label>
-                        <Input
-                          type="time"
-                          value={budgetData.event_time || ''}
-                          onChange={(e) => setBudgetData(prev => ({ ...prev, event_time: e.target.value }))}
-                          className="bg-white/10 border-white/20 text-white"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-white/90">Fee (€)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={budgetData.fee}
-                          onChange={(e) => setBudgetData(prev => ({ ...prev, fee: parseFloat(e.target.value) || 0 }))}
-                          className="bg-white/10 border-white/20 text-white"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={updateBudget} className="bg-white/20 hover:bg-white/30 text-white border-white/20">
-                        <Save className="w-4 h-4 mr-1" />
-                        Guardar
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => {
-                        setEditingBudget(false);
-                        setBudgetData(budget);
-                      }} className="bg-white/10 hover:bg-white/20 text-white border-white/20">
-                        <X className="w-4 h-4 mr-1" />
-                        Cancelar
-                      </Button>
-                    </div>
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                    <Calculator className="h-8 w-8 text-white" />
                   </div>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                        <Calculator className="h-8 w-8 text-white" />
-                      </div>
-                      <div>
-                        <DialogTitle className="text-3xl font-playfair font-bold text-white">{budgetData.name}</DialogTitle>
-                        <p className="text-white/90 text-lg">
-                          {budgetData.city}, {budgetData.country} • {budgetData.venue}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                      <Badge variant="outline" className="bg-white/10 text-white border-white/20 hover:bg-white/20">
-                        {budgetData.type}
-                      </Badge>
-                      {budgetData.event_date && (
-                        <Badge variant="outline" className="bg-white/10 text-white border-white/20 hover:bg-white/20">
-                          {new Date(budgetData.event_date).toLocaleDateString('es-ES')}
-                          {budgetData.event_time && ` - ${budgetData.event_time}`}
-                        </Badge>
-                      )}
-                      {budgetData.fee > 0 && (
-                        <Badge variant="outline" className="bg-white/10 text-white border-white/20 hover:bg-white/20">
-                          Fee: €{budgetData.fee.toLocaleString()}
-                        </Badge>
-                      )}
-                      <Badge className={`${
-                        budgetData.show_status === 'confirmado' ? 'bg-green-500/20 text-green-200 border-green-400/20' :
-                        budgetData.show_status === 'pendiente' ? 'bg-yellow-500/20 text-yellow-200 border-yellow-400/20' :
-                        'bg-red-500/20 text-red-200 border-red-400/20'
-                      }`}>
-                        {budgetData.show_status}
-                      </Badge>
-                    </div>
-                  </>
-                )}
+                  <div>
+                    <DialogTitle className="text-3xl font-bold text-white">{budgetData.name}</DialogTitle>
+                    <p className="text-gray-400 text-lg mt-1">PRESUPUESTO NACIONAL</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <div className="px-3 py-1 bg-yellow-600 text-black text-xs font-medium rounded-full">
+                    {budgetData.budget_status}
+                  </div>
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button 
@@ -585,20 +350,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 >
                   {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                 </Button>
-                {!editingBudget && (
-                  <>
-                    <Button size="sm" variant="outline" onClick={() => setEditingBudget(true)} className="bg-white/10 hover:bg-white/20 text-white border-white/20">
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" onClick={saveAsTemplate} className="bg-white/20 hover:bg-white/30 text-white border-white/20">
-                      <FileText className="w-4 h-4 mr-1" />
-                      Plantilla
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={deleteBudget} className="bg-red-500/20 hover:bg-red-500/30 text-red-200 border-red-400/20">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </>
-                )}
+                <Button size="sm" variant="outline" onClick={() => setEditingBudget(true)} className="bg-white/10 hover:bg-white/20 text-white border-white/20">
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button size="sm" variant="destructive" onClick={deleteBudget} className="bg-red-500/20 hover:bg-red-500/30 text-red-200 border-red-400/20">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
             </div>
           </div>
@@ -624,273 +381,146 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
               </div>
 
               <TabsContent value="items" className="flex-1 overflow-hidden p-0 m-0">
-                {/* Professional Budget Table */}
-                <div className="h-full flex flex-col">
-                  {/* Table Header */}
-                  <div className="bg-black text-white p-4 flex-shrink-0">
-                    <div className="text-center">
-                      <h2 className="text-lg font-bold">{budgetData.name}</h2>
-                      <p className="text-white/90 text-sm">
-                        {budgetData.event_date && new Date(budgetData.event_date).toLocaleDateString('es-ES')} ({budgetData.city})
-                      </p>
-                      <p className="text-white/70 text-xs mt-1">PRESUPUESTO {budgetData.budget_status?.toUpperCase()}</p>
-                    </div>
-                  </div>
-
-                  {/* Scrollable Table Content */}
-                  <div className="flex-1" style={{ overflow: 'auto', scrollBehavior: 'smooth' }}>
-                    <Table className="text-sm">
-                      <TableHeader className="sticky top-0 bg-muted/50 backdrop-blur-sm border-b-2">
-                        <TableRow>
-                          <TableHead className="w-12 text-center font-semibold">✓</TableHead>
-                          <TableHead className="min-w-[200px] font-semibold">Nombre</TableHead>
-                          <TableHead className="min-w-[150px] font-semibold">Concepto</TableHead>
-                          <TableHead className="w-24 text-center font-semibold">Coste</TableHead>
-                          <TableHead className="w-16 text-center font-semibold">Unid.</TableHead>
-                          <TableHead className="w-20 text-center font-semibold">Cantidad</TableHead>
-                          <TableHead className="w-20 text-center font-semibold">% IVA</TableHead>
-                          <TableHead className="w-20 text-center font-semibold">IVA</TableHead>
-                          <TableHead className="w-20 text-center font-semibold">%IRPF</TableHead>
-                          <TableHead className="w-20 text-center font-semibold">IRPF</TableHead>
-                          <TableHead className="w-24 text-center font-semibold">Total</TableHead>
-                          <TableHead className="min-w-[150px] font-semibold">Comentarios</TableHead>
-                          <TableHead className="w-24 text-center font-semibold">Estado</TableHead>
-                          <TableHead className="w-24 text-center font-semibold">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
+                {/* Professional Budget Layout */}
+                <div className="h-full flex flex-col bg-gradient-to-b from-black to-gray-900">
+                  {/* Categories Section */}
+                  <div className="flex-1 overflow-auto">
+                    {Object.entries(budgetCategories).map(([categoryKey, category]) => {
+                      const categoryItems = getCategoryItems(categoryKey);
+                      const IconComponent = category.icon;
                       
-                      <TableBody>
-                        {Object.entries(budgetCategories).map(([categoryKey, category]) => {
-                          const categoryItems = getCategoryItems(categoryKey);
-                          const IconComponent = category.icon;
+                      return (
+                        <div key={categoryKey} className="mb-6">
+                          {/* Category Header */}
+                          <div className="bg-black text-white p-4 flex items-center justify-between border-b border-gray-700">
+                            <div className="flex items-center gap-3">
+                              <IconComponent className="w-5 h-5" />
+                              <h3 className="text-lg font-bold tracking-wider">{category.title.toUpperCase()}</h3>
+                            </div>
+                          </div>
                           
-                          return (
-                            <React.Fragment key={categoryKey}>
-                              {/* Category Header */}
-                              <TableRow className="bg-black hover:bg-black">
-                                <TableCell colSpan={14} className="font-bold text-white text-center py-3">
-                                  <div className="flex items-center justify-center gap-3">
-                                    <IconComponent className="w-5 h-5" />
-                                    {category.title.toUpperCase()}
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                              
-                              {/* Category Items */}
-                              {categoryItems.map((item, index) => (
-                                <TableRow 
-                                  key={item.id} 
-                                  className={`hover:bg-muted/30 transition-colors border-b ${
-                                    editingItem === item.id ? 'bg-blue-50' : index % 2 === 0 ? "bg-background" : "bg-muted/20"
-                                  }`}
+                          {/* Category Items */}
+                          <div className="bg-gray-50 border-b border-gray-300">
+                            {categoryItems.length === 0 ? (
+                              <div className="p-8 text-center text-gray-500 bg-white">
+                                <p>No hay elementos en esta categoría</p>
+                                <Button
+                                  onClick={() => addItem(categoryKey)}
+                                  variant="ghost"
+                                  className="mt-2 text-gray-600 hover:text-gray-900"
                                 >
-                                  <TableCell className="text-center">
-                                    <Checkbox 
-                                      checked={true}
-                                      className="h-4 w-4"
-                                    />
-                                  </TableCell>
-                                  <TableCell>
-                                    {editingItem === item.id ? (
+                                  <Plus className="w-4 h-4 mr-1" />
+                                  Agregar elemento a {category.title}
+                                </Button>
+                              </div>
+                            ) : (
+                              categoryItems.map((item, index) => (
+                                <div 
+                                  key={item.id} 
+                                  className={`p-4 border-b border-gray-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}
+                                >
+                                  {editingItem === item.id ? (
+                                    <div className="grid grid-cols-4 gap-4">
                                       <Input
                                         value={item.name}
                                         onChange={(e) => setItems(prev => 
                                           prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i)
                                         )}
-                                        className="h-8"
+                                        placeholder="Nombre del elemento"
+                                        className="col-span-2"
                                       />
-                                    ) : (
-                                      <div className="font-medium">{item.name}</div>
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    {editingItem === item.id ? (
-                                      <Input
-                                        value={item.subcategory || ''}
-                                        onChange={(e) => setItems(prev => 
-                                          prev.map(i => i.id === item.id ? { ...i, subcategory: e.target.value } : i)
-                                        )}
-                                        className="h-8"
-                                      />
-                                    ) : (
-                                      <span className="text-muted-foreground">{item.subcategory || category.title}</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {editingItem === item.id ? (
                                       <Input
                                         type="number"
                                         value={item.unit_price}
                                         onChange={(e) => setItems(prev => 
                                           prev.map(i => i.id === item.id ? { ...i, unit_price: parseFloat(e.target.value) || 0 } : i)
                                         )}
-                                        className="h-8 w-20"
+                                        placeholder="Precio"
                                       />
-                                    ) : (
-                                      <span className="font-medium">€{item.unit_price}</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-center text-muted-foreground">
-                                    €
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {editingItem === item.id ? (
-                                      <Input
-                                        type="number"
-                                        value={item.quantity}
-                                        onChange={(e) => setItems(prev => 
-                                          prev.map(i => i.id === item.id ? { ...i, quantity: parseInt(e.target.value) || 1 } : i)
-                                        )}
-                                        className="h-8 w-16"
-                                      />
-                                    ) : (
-                                      <span className="font-medium">{item.quantity}</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {editingItem === item.id ? (
-                                      <Input
-                                        type="number"
-                                        value={item.iva_percentage}
-                                        onChange={(e) => setItems(prev => 
-                                          prev.map(i => i.id === item.id ? { ...i, iva_percentage: parseFloat(e.target.value) || 21 } : i)
-                                        )}
-                                        className="h-8 w-16"
-                                      />
-                                    ) : (
-                                      <span>{item.iva_percentage}%</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <span className="text-accent font-medium">
-                                      €{((item.unit_price * item.quantity) * (item.iva_percentage / 100)).toFixed(2)}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {editingItem === item.id ? (
-                                      <Input
-                                        type="number"
-                                        value={item.irpf_percentage || 15}
-                                        onChange={(e) => setItems(prev => 
-                                          prev.map(i => i.id === item.id ? { ...i, irpf_percentage: parseFloat(e.target.value) || 15 } : i)
-                                        )}
-                                        className="h-8 w-16"
-                                      />
-                                    ) : (
-                                      <span>{item.irpf_percentage || 15}%</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <span className="text-red-600 font-medium">
-                                      €{((item.unit_price * item.quantity) * ((item.irpf_percentage || 15) / 100)).toFixed(2)}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <div className="badge-success">
-                                      €{calculateTotal(item).toFixed(2)}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    {editingItem === item.id ? (
-                                      <Input
-                                        value={item.observations}
-                                        onChange={(e) => setItems(prev => 
-                                          prev.map(i => i.id === item.id ? { ...i, observations: e.target.value } : i)
-                                        )}
-                                        className="h-8"
-                                        placeholder="Comentarios..."
-                                      />
-                                    ) : (
-                                      <span className="text-muted-foreground text-sm">{item.observations || '-'}</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <Badge 
-                                      variant="outline" 
-                                      className={getBillingStatusColor(item.billing_status)}
-                                    >
-                                      {item.billing_status}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <div className="flex gap-1 justify-center">
-                                      {editingItem === item.id ? (
-                                        <>
-                                          <Button 
-                                            size="sm" 
-                                            onClick={() => {
-                                              updateItem(item);
-                                            }}
-                                            className="h-8 w-8 p-0"
-                                          >
-                                            <Save className="w-3 h-3" />
-                                          </Button>
-                                          <Button 
-                                            size="sm" 
-                                            variant="outline" 
-                                            onClick={() => setEditingItem(null)}
-                                            className="h-8 w-8 p-0"
-                                          >
-                                            <X className="w-3 h-3" />
-                                          </Button>
-                                        </>
-                                      ) : (
-                                        <Button 
-                                          size="sm" 
-                                          variant="ghost" 
-                                          onClick={() => setEditingItem(item.id)}
-                                          className="h-8 w-8 p-0"
+                                      <div className="flex gap-2">
+                                        <Button
+                                          onClick={() => updateItem(item)}
+                                          size="sm"
+                                          className="bg-green-600 hover:bg-green-700"
                                         >
-                                          <Edit className="w-3 h-3" />
+                                          <Save className="w-4 h-4" />
                                         </Button>
-                                      )}
-                                      <Button 
-                                        size="sm" 
-                                        variant="destructive" 
-                                        onClick={() => deleteItem(item.id)}
-                                        className="h-8 w-8 p-0"
-                                      >
-                                        <Trash2 className="w-3 h-3" />
-                                      </Button>
+                                        <Button
+                                          onClick={() => setEditingItem(null)}
+                                          size="sm"
+                                          variant="outline"
+                                        >
+                                          <X className="w-4 h-4" />
+                                        </Button>
+                                      </div>
                                     </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                              
-                              {/* Add Item Button */}
-                              <TableRow className="hover:bg-muted/30">
-                                <TableCell colSpan={14} className="p-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => addItem(categoryKey)}
-                                    className="w-full border-dashed hover:bg-primary/5 hover:border-primary text-sm"
-                                  >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Agregar elemento a {category.title}
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            </React.Fragment>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  {/* Summary Footer */}
-                  <div className="bg-muted/30 p-4 border-t flex-shrink-0">
-                    <div className="flex justify-between items-center">
-                      <div className="text-sm text-muted-foreground">
-                        {items.length} elementos en el presupuesto
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold">
-                          Total: <span className="text-primary">€{items.reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(2)}</span>
+                                  ) : (
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex-1">
+                                        <h4 className="font-medium text-gray-900">{item.name}</h4>
+                                        <p className="text-sm text-gray-600">
+                                          {item.quantity} × €{item.unit_price} = €{(item.quantity * item.unit_price).toFixed(2)}
+                                          {item.iva_percentage > 0 && ` + IVA (${item.iva_percentage}%)`}
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        <span className="font-bold text-lg text-gray-900">
+                                          €{calculateTotal(item).toFixed(2)}
+                                        </span>
+                                        <div className="flex gap-1">
+                                          <Button
+                                            onClick={() => setEditingItem(item.id)}
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-8 w-8 p-0"
+                                          >
+                                            <Edit className="w-4 h-4" />
+                                          </Button>
+                                          <Button
+                                            onClick={() => deleteItem(item.id)}
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-8 w-8 p-0 text-red-600 hover:text-red-800"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))
+                            )}
+                            {/* Add Item Button */}
+                            <div className="p-4 border-b border-gray-200 bg-white">
+                              <Button
+                                onClick={() => addItem(categoryKey)}
+                                variant="outline"
+                                className="w-full border-dashed hover:bg-primary/5 hover:border-primary text-sm text-gray-600"
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Agregar elemento a {category.title}
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          Subtotal: €{items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)} + 
-                          IVA: €{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * (item.iva_percentage / 100)), 0).toFixed(2)}
+                      );
+                    })}
+
+                    {/* Total Section */}
+                    <div className="bg-black text-white p-6 sticky bottom-0">
+                      <div className="flex justify-between items-center">
+                        <div className="text-sm text-gray-400">
+                          {items.length} elementos en el presupuesto
+                        </div>
+                        <div className="text-right">
+                          <div className="text-3xl font-bold">
+                            Total: <span className="text-green-400">€{items.reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(2)}</span>
+                          </div>
+                          <div className="text-sm text-gray-400 mt-1">
+                            Subtotal: €{items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)} + 
+                            IVA: €{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * (item.iva_percentage / 100)), 0).toFixed(2)}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -916,10 +546,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       <div className="flex justify-between">
                         <span>IVA Total:</span>
                         <span className="font-medium text-accent">€{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * (item.iva_percentage / 100)), 0).toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>IRPF Total:</span>
-                        <span className="font-medium text-red-600">-€{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * ((item.irpf_percentage || 15) / 100)), 0).toFixed(2)}</span>
                       </div>
                       <Separator />
                       <div className="flex justify-between text-lg font-bold">
@@ -995,7 +621,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       <SaveTemplateDialog
         open={showTemplateDialog}
         onOpenChange={setShowTemplateDialog}
-        onSave={handleSaveTemplate}
+        onSave={() => {}}
       />
     </Dialog>
   );
