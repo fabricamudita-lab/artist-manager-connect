@@ -2187,13 +2187,13 @@ export default function ProjectDetail() {
                   <SelectValue placeholder="Selecciona una categoría" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="contrato">Contrato</SelectItem>
-                  <SelectItem value="rider">Rider Técnico</SelectItem>
-                  <SelectItem value="presupuesto">Presupuesto</SelectItem>
-                  <SelectItem value="factura">Factura</SelectItem>
-                  <SelectItem value="comunicacion">Comunicación</SelectItem>
-                  <SelectItem value="prensa">Prensa</SelectItem>
-                  <SelectItem value="otro">Otro</SelectItem>
+                  <SelectItem value="contract">Contratos</SelectItem>
+                  <SelectItem value="rider">Riders Técnicos</SelectItem>
+                  <SelectItem value="setlist">Setlists</SelectItem>
+                  <SelectItem value="press">Material de Prensa</SelectItem>
+                  <SelectItem value="legal">Documentos Legales</SelectItem>
+                  <SelectItem value="financial">Documentos Financieros</SelectItem>
+                  <SelectItem value="other">Otros</SelectItem>
                 </SelectContent>
               </Select>
             </div>
