@@ -239,7 +239,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const calculateTotal = (item: BudgetItem) => {
     const subtotal = item.quantity * item.unit_price;
     const iva = subtotal * (item.iva_percentage / 100);
-    return subtotal + iva;
+    const irpf = subtotal * ((item.irpf_percentage || 15) / 100);
+    return subtotal + iva - irpf;
   };
 
   const getCategoryItems = (categoryKey: string) => {
@@ -420,59 +421,128 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   className={`p-4 border-b border-gray-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}
                                 >
                                   {editingItem === item.id ? (
-                                    <div className="grid grid-cols-4 gap-4">
-                                      <Input
-                                        value={item.name}
-                                        onChange={(e) => setItems(prev => 
-                                          prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i)
-                                        )}
-                                        placeholder="Nombre del elemento"
-                                        className="col-span-2"
-                                      />
-                                      <Input
-                                        type="number"
-                                        value={item.unit_price}
-                                        onChange={(e) => setItems(prev => 
-                                          prev.map(i => i.id === item.id ? { ...i, unit_price: parseFloat(e.target.value) || 0 } : i)
-                                        )}
-                                        placeholder="Precio"
-                                      />
-                                      <div className="flex gap-2">
+                                    <div className="space-y-3 p-4 bg-gray-100 rounded-lg">
+                                      <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                          <Label className="text-sm font-medium text-gray-700">Nombre</Label>
+                                          <Input
+                                            value={item.name}
+                                            onChange={(e) => setItems(prev => 
+                                              prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i)
+                                            )}
+                                            placeholder="Nombre del elemento"
+                                            className="mt-1"
+                                          />
+                                        </div>
+                                        <div>
+                                          <Label className="text-sm font-medium text-gray-700">Precio unitario (€)</Label>
+                                          <Input
+                                            type="number"
+                                            step="0.01"
+                                            value={item.unit_price}
+                                            onChange={(e) => setItems(prev => 
+                                              prev.map(i => i.id === item.id ? { ...i, unit_price: parseFloat(e.target.value) || 0 } : i)
+                                            )}
+                                            placeholder="0.00"
+                                            className="mt-1"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="grid grid-cols-3 gap-3">
+                                        <div>
+                                          <Label className="text-sm font-medium text-gray-700">Cantidad</Label>
+                                          <Input
+                                            type="number"
+                                            min="1"
+                                            value={item.quantity}
+                                            onChange={(e) => setItems(prev => 
+                                              prev.map(i => i.id === item.id ? { ...i, quantity: parseInt(e.target.value) || 1 } : i)
+                                            )}
+                                            className="mt-1"
+                                          />
+                                        </div>
+                                        <div>
+                                          <Label className="text-sm font-medium text-gray-700">IVA (%)</Label>
+                                          <Input
+                                            type="number"
+                                            step="0.1"
+                                            min="0"
+                                            max="100"
+                                            value={item.iva_percentage}
+                                            onChange={(e) => setItems(prev => 
+                                              prev.map(i => i.id === item.id ? { ...i, iva_percentage: parseFloat(e.target.value) || 0 } : i)
+                                            )}
+                                            className="mt-1"
+                                          />
+                                        </div>
+                                        <div>
+                                          <Label className="text-sm font-medium text-gray-700">IRPF (%)</Label>
+                                          <Input
+                                            type="number"
+                                            step="0.1"
+                                            min="0"
+                                            max="100"
+                                            value={item.irpf_percentage || 15}
+                                            onChange={(e) => setItems(prev => 
+                                              prev.map(i => i.id === item.id ? { ...i, irpf_percentage: parseFloat(e.target.value) || 15 } : i)
+                                            )}
+                                            className="mt-1"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <Label className="text-sm font-medium text-gray-700">Comentarios</Label>
+                                        <Input
+                                          value={item.observations || ''}
+                                          onChange={(e) => setItems(prev => 
+                                            prev.map(i => i.id === item.id ? { ...i, observations: e.target.value } : i)
+                                          )}
+                                          placeholder="Observaciones opcionales..."
+                                          className="mt-1"
+                                        />
+                                      </div>
+                                      <div className="flex justify-end gap-2 pt-2">
                                         <Button
                                           onClick={() => updateItem(item)}
                                           size="sm"
-                                          className="bg-green-600 hover:bg-green-700"
+                                          className="bg-green-600 hover:bg-green-700 text-white"
                                         >
-                                          <Save className="w-4 h-4" />
+                                          <Save className="w-4 h-4 mr-1" />
+                                          Guardar
                                         </Button>
                                         <Button
                                           onClick={() => setEditingItem(null)}
                                           size="sm"
                                           variant="outline"
                                         >
-                                          <X className="w-4 h-4" />
+                                          <X className="w-4 h-4 mr-1" />
+                                          Cancelar
                                         </Button>
                                       </div>
                                     </div>
                                   ) : (
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex items-center justify-between cursor-pointer" onClick={() => setEditingItem(item.id)}>
                                       <div className="flex-1">
                                         <h4 className="font-medium text-gray-900">{item.name}</h4>
                                         <p className="text-sm text-gray-600">
-                                          {item.quantity} × €{item.unit_price} = €{(item.quantity * item.unit_price).toFixed(2)}
+                                          {item.quantity} × €{item.unit_price.toFixed(2)} = €{(item.quantity * item.unit_price).toFixed(2)}
                                           {item.iva_percentage > 0 && ` + IVA (${item.iva_percentage}%)`}
+                                          {item.irpf_percentage > 0 && ` - IRPF (${item.irpf_percentage}%)`}
                                         </p>
+                                        {item.observations && (
+                                          <p className="text-xs text-gray-500 mt-1">{item.observations}</p>
+                                        )}
                                       </div>
                                       <div className="flex items-center gap-3">
                                         <span className="font-bold text-lg text-gray-900">
                                           €{calculateTotal(item).toFixed(2)}
                                         </span>
-                                        <div className="flex gap-1">
+                                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                                           <Button
                                             onClick={() => setEditingItem(item.id)}
                                             size="sm"
                                             variant="ghost"
-                                            className="h-8 w-8 p-0"
+                                            className="h-8 w-8 p-0 hover:bg-blue-100"
                                           >
                                             <Edit className="w-4 h-4" />
                                           </Button>
@@ -480,7 +550,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                             onClick={() => deleteItem(item.id)}
                                             size="sm"
                                             variant="ghost"
-                                            className="h-8 w-8 p-0 text-red-600 hover:text-red-800"
+                                            className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-100"
                                           >
                                             <Trash2 className="w-4 h-4" />
                                           </Button>
@@ -519,7 +589,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                           </div>
                           <div className="text-sm text-gray-400 mt-1">
                             Subtotal: €{items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)} + 
-                            IVA: €{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * (item.iva_percentage / 100)), 0).toFixed(2)}
+                            IVA: €{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * (item.iva_percentage / 100)), 0).toFixed(2)} - 
+                            IRPF: €{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * ((item.irpf_percentage || 15) / 100)), 0).toFixed(2)}
                           </div>
                         </div>
                       </div>
