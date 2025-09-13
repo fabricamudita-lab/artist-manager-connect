@@ -421,7 +421,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   className={`p-4 border-b border-gray-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}
                                 >
                                   {editingItem === item.id ? (
-                                    <div className="space-y-3 p-4 bg-gray-100 rounded-lg">
+                                    <div className="space-y-3 p-4 bg-white rounded-lg border border-gray-200">
                                       <div className="grid grid-cols-2 gap-3">
                                         <div>
                                           <Label className="text-sm font-medium text-gray-700">Nombre</Label>
@@ -431,7 +431,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                               prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i)
                                             )}
                                             placeholder="Nombre del elemento"
-                                            className="mt-1"
+                                            className="mt-1 bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                                           />
                                         </div>
                                         <div>
@@ -444,7 +444,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                               prev.map(i => i.id === item.id ? { ...i, unit_price: parseFloat(e.target.value) || 0 } : i)
                                             )}
                                             placeholder="0.00"
-                                            className="mt-1"
+                                            className="mt-1 bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                                           />
                                         </div>
                                       </div>
@@ -458,7 +458,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                             onChange={(e) => setItems(prev => 
                                               prev.map(i => i.id === item.id ? { ...i, quantity: parseInt(e.target.value) || 1 } : i)
                                             )}
-                                            className="mt-1"
+                                            className="mt-1 bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                                           />
                                         </div>
                                         <div>
@@ -472,7 +472,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                             onChange={(e) => setItems(prev => 
                                               prev.map(i => i.id === item.id ? { ...i, iva_percentage: parseFloat(e.target.value) || 0 } : i)
                                             )}
-                                            className="mt-1"
+                                            className="mt-1 bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                                           />
                                         </div>
                                         <div>
@@ -486,7 +486,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                             onChange={(e) => setItems(prev => 
                                               prev.map(i => i.id === item.id ? { ...i, irpf_percentage: parseFloat(e.target.value) || 15 } : i)
                                             )}
-                                            className="mt-1"
+                                            className="mt-1 bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                                           />
                                         </div>
                                       </div>
@@ -498,7 +498,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                             prev.map(i => i.id === item.id ? { ...i, observations: e.target.value } : i)
                                           )}
                                           placeholder="Observaciones opcionales..."
-                                          className="mt-1"
+                                          className="mt-1 bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                                         />
                                       </div>
                                       <div className="flex justify-end gap-2 pt-2">
@@ -514,6 +514,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                           onClick={() => setEditingItem(null)}
                                           size="sm"
                                           variant="outline"
+                                          className="bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                                         >
                                           <X className="w-4 h-4 mr-1" />
                                           Cancelar
