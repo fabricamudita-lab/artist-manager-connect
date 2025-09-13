@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import { SaveTemplateDialog } from './SaveTemplateDialog';
+import { InvoicePreviewDialog } from './InvoicePreviewDialog';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { 
   Plus, 
@@ -111,6 +112,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [budgetData, setBudgetData] = useState(budget);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [uploadingFactura, setUploadingFactura] = useState<string | null>(null);
+  const [previewInvoice, setPreviewInvoice] = useState<{ url: string; name: string } | null>(null);
 
   useEffect(() => {
     if (open && budget) {
@@ -598,10 +600,13 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                  size="sm"
                                                  variant="outline"
                                                  className="h-7 px-2 text-xs text-blue-600 border-blue-300 hover:bg-blue-50"
-                                                 onClick={(e) => {
-                                                   e.stopPropagation();
-                                                   window.open(item.invoice_link, '_blank');
-                                                 }}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setPreviewInvoice({ 
+                                                      url: item.invoice_link, 
+                                                      name: `${item.name}_factura` 
+                                                    });
+                                                  }}
                                                >
                                                  Ver
                                                </Button>
@@ -703,10 +708,13 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                 size="sm"
                                                 variant="ghost"
                                                 className="h-6 px-2 text-xs text-blue-600 hover:text-blue-800"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  window.open(item.invoice_link, '_blank');
-                                                }}
+                                                 onClick={(e) => {
+                                                   e.stopPropagation();
+                                                   setPreviewInvoice({ 
+                                                     url: item.invoice_link, 
+                                                     name: `${item.name}_factura` 
+                                                   });
+                                                 }}
                                               >
                                                 Ver factura
                                               </Button>
@@ -983,6 +991,14 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         open={showTemplateDialog}
         onOpenChange={setShowTemplateDialog}
         onSave={() => {}}
+      />
+
+      {/* Invoice Preview Dialog */}
+      <InvoicePreviewDialog
+        open={!!previewInvoice}
+        onOpenChange={() => setPreviewInvoice(null)}
+        invoiceUrl={previewInvoice?.url || ''}
+        invoiceName={previewInvoice?.name || 'Factura'}
       />
     </Dialog>
   );
