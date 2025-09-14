@@ -71,7 +71,7 @@ interface BudgetItem {
   id: string;
   budget_id: string;
   category: string;
-  subcategory: string;
+  subcategory?: string;
   name: string;
   quantity: number;
   unit_price: number;
@@ -79,10 +79,14 @@ interface BudgetItem {
   irpf_percentage: number;
   is_attendee: boolean;
   billing_status: 'pendiente' | 'pagado' | 'facturado' | 'cancelado';
-  invoice_link: string;
-  observations: string;
+  invoice_link?: string;
+  observations?: string;
   category_id?: string;
-  budget_categories?: BudgetCategory;
+  budget_categories?: {
+    id: string;
+    name: string;
+    icon_name: string;
+  };
 }
 
 interface BudgetCategory {
@@ -1531,27 +1535,29 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                 e.target.value = category.name; // Reset input
                                               } else {
                                                 // Update category directly
-                                                supabase
-                                                  .from('budget_categories')
-                                                  .update({ name: newTitle })
-                                                  .eq('id', category.id)
-                                                  .then(({ error }) => {
+                                                (async () => {
+                                                  try {
+                                                    const { error } = await supabase
+                                                      .from('budget_categories')
+                                                      .update({ name: newTitle })
+                                                      .eq('id', category.id);
+                                                    
                                                     if (error) throw error;
-                                                    fetchBudgetCategories();
-                                                    fetchBudgetItems();
+                                                    await fetchBudgetCategories();
+                                                    await fetchBudgetItems();
                                                     toast({
                                                       title: "¡Éxito!",
                                                       description: "Categoría actualizada correctamente"
                                                     });
-                                                  })
-                                                  .catch((error) => {
+                                                  } catch (error) {
                                                     console.error('Error updating category:', error);
                                                     toast({
                                                       title: "Error",
                                                       description: "No se pudo actualizar la categoría",
                                                       variant: "destructive"
                                                     });
-                                                  });
+                                                  }
+                                                })();
                                               }
                                             }
                                             setEditingCategory(null);
@@ -1593,27 +1599,29 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                           setConfirmDelete({ show: true, categoryId: category.id, step: 1 });
                                         } else {
                                           // Delete category directly
-                                          supabase
-                                            .from('budget_categories')
-                                            .delete()
-                                            .eq('id', category.id)
-                                            .then(({ error }) => {
+                                          (async () => {
+                                            try {
+                                              const { error } = await supabase
+                                                .from('budget_categories')
+                                                .delete()
+                                                .eq('id', category.id);
+                                              
                                               if (error) throw error;
-                                              fetchBudgetCategories();
-                                              fetchBudgetItems();
+                                              await fetchBudgetCategories();
+                                              await fetchBudgetItems();
                                               toast({
                                                 title: "¡Éxito!",
                                                 description: "Categoría eliminada correctamente"
                                               });
-                                            })
-                                            .catch((error) => {
+                                            } catch (error) {
                                               console.error('Error deleting category:', error);
                                               toast({
                                                 title: "Error",
                                                 description: "No se pudo eliminar la categoría",
                                                 variant: "destructive"
                                               });
-                                            });
+                                            }
+                                          })();
                                         }
                                       }}
                                     >
@@ -1806,31 +1814,30 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         cancelText="Cancelar"
         variant="warning"
         icon="warning"
-        onConfirm={() => {
-          // Update category
-          supabase
-            .from('budget_categories')
-            .update({ name: confirmModify.newTitle })
-            .eq('id', confirmModify.categoryId)
-            .then(({ error }) => {
-              if (error) throw error;
-              fetchBudgetCategories();
-              fetchBudgetItems();
-              setConfirmModify({ show: false, categoryId: '', newTitle: '', hasItems: false });
-              setEditingCategory(null);
-              toast({
-                title: "¡Éxito!",
-                description: "Categoría modificada correctamente"
-              });
-            })
-            .catch((error) => {
-              console.error('Error updating category:', error);
-              toast({
-                title: "Error",
-                description: "No se pudo actualizar la categoría",
-                variant: "destructive"
-              });
+        onConfirm={async () => {
+          try {
+            const { error } = await supabase
+              .from('budget_categories')
+              .update({ name: confirmModify.newTitle })
+              .eq('id', confirmModify.categoryId);
+            
+            if (error) throw error;
+            await fetchBudgetCategories();
+            await fetchBudgetItems();
+            setConfirmModify({ show: false, categoryId: '', newTitle: '', hasItems: false });
+            setEditingCategory(null);
+            toast({
+              title: "¡Éxito!",
+              description: "Categoría modificada correctamente"
             });
+          } catch (error) {
+            console.error('Error updating category:', error);
+            toast({
+              title: "Error",
+              description: "No se pudo actualizar la categoría",
+              variant: "destructive"
+            });
+          }
         }}
       />
 
