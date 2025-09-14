@@ -40,7 +40,8 @@ import {
   DollarSign,
   File,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Eye
 } from 'lucide-react';
 
 interface Budget {
@@ -734,10 +735,14 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           <div className="flex-1 overflow-hidden">
             <Tabs defaultValue="items" className="h-full flex flex-col">
               <div className="border-b bg-background px-6 py-3 flex-shrink-0">
-                <TabsList className="grid w-full max-w-md grid-cols-3">
+                <TabsList className="grid w-full max-w-lg grid-cols-4">
                   <TabsTrigger value="items" className="flex items-center gap-2">
                     <Calculator className="w-4 h-4" />
                     Elementos
+                  </TabsTrigger>
+                  <TabsTrigger value="overview" className="flex items-center gap-2">
+                    <Eye className="w-4 h-4" />
+                    Vista General
                   </TabsTrigger>
                   <TabsTrigger value="summary" className="flex items-center gap-2">
                     <FileText className="w-4 h-4" />
@@ -1114,6 +1119,109 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       </div>
                     </div>
                   </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="overview" className="flex-1 overflow-auto p-6">
+                <div className="space-y-4">
+                  {/* Search/Filter */}
+                  <div className="mb-6">
+                    <Input
+                      placeholder="Buscar elementos..."
+                      className="max-w-md"
+                      onChange={(e) => {
+                        const searchValue = e.target.value.toLowerCase();
+                        // Simple search highlighting could be added here
+                      }}
+                    />
+                  </div>
+
+                  {/* Compact view of all categories */}
+                  {Object.entries(budgetCategories).map(([categoryKey, category]) => {
+                    const categoryItems = getCategoryItems(categoryKey);
+                    
+                    if (categoryItems.length === 0) return null;
+                    
+                    const categoryTotal = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
+                    const IconComponent = category.icon;
+                    
+                    return (
+                      <Card key={categoryKey} className="overflow-hidden">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                                <IconComponent className="w-4 h-4 text-primary" />
+                              </div>
+                              {category.title}
+                            </CardTitle>
+                            <div className="text-right">
+                              <div className="font-bold text-lg">€{categoryTotal.toFixed(2)}</div>
+                              <div className="text-sm text-muted-foreground">{categoryItems.length} elementos</div>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                          <div className="grid gap-2">
+                            {categoryItems.map((item) => {
+                              const total = calculateTotal(item);
+                              return (
+                                <div key={item.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium truncate">{item.name}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {item.quantity} × €{item.unit_price} 
+                                      {item.observations && (
+                                        <span className="ml-2 italic">({item.observations})</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="text-right flex-shrink-0 ml-4">
+                                    <div className="font-medium">€{total.toFixed(2)}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      +IVA {item.iva_percentage}% -IRPF {item.irpf_percentage || 15}%
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+
+                  {/* Quick totals at bottom */}
+                  <Card className="mt-6 bg-muted/30">
+                    <CardContent className="p-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                        <div>
+                          <div className="text-2xl font-bold">
+                            €{items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Subtotal</div>
+                        </div>
+                        <div>
+                          <div className="text-2xl font-bold text-green-600">
+                            +€{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * (item.iva_percentage / 100)), 0).toFixed(2)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">IVA</div>
+                        </div>
+                        <div>
+                          <div className="text-2xl font-bold text-red-600">
+                            -€{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * ((item.irpf_percentage || 15) / 100)), 0).toFixed(2)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">IRPF</div>
+                        </div>
+                        <div>
+                          <div className="text-3xl font-bold text-primary">
+                            €{items.reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(2)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Total Final</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               </TabsContent>
 
