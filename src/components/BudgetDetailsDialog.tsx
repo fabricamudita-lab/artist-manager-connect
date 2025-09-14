@@ -41,7 +41,8 @@ import {
   File,
   Maximize2,
   Minimize2,
-  Eye
+  Eye,
+  ArrowRight
 } from 'lucide-react';
 
 interface Budget {
@@ -735,7 +736,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           <div className="flex-1 overflow-hidden">
             <Tabs defaultValue="items" className="h-full flex flex-col">
               <div className="border-b bg-background px-6 py-3 flex-shrink-0">
-                <TabsList className="grid w-full max-w-lg grid-cols-4">
+                <TabsList className="grid w-full max-w-2xl grid-cols-5">
                   <TabsTrigger value="items" className="flex items-center gap-2">
                     <Calculator className="w-4 h-4" />
                     Elementos
@@ -743,6 +744,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   <TabsTrigger value="overview" className="flex items-center gap-2">
                     <Eye className="w-4 h-4" />
                     Vista General
+                  </TabsTrigger>
+                  <TabsTrigger value="categories" className="flex items-center gap-2">
+                    <ArrowRight className="w-4 h-4" />
+                    Categorías
                   </TabsTrigger>
                   <TabsTrigger value="summary" className="flex items-center gap-2">
                     <FileText className="w-4 h-4" />
@@ -1220,6 +1225,99 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                           <div className="text-sm text-muted-foreground">Total Final</div>
                         </div>
                       </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="categories" className="flex-1 overflow-auto p-6">
+                <div className="space-y-6">
+                  <Card className="card-moodita">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <ArrowRight className="w-5 h-5" />
+                        Cambiar elementos de categoría
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Selecciona un elemento y muévelo a otra categoría
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      {items.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <p>No hay elementos en este presupuesto.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {items.map((item) => {
+                            const currentCategory = budgetCategories[item.category];
+                            return (
+                              <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/50">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                                    {currentCategory ? (
+                                      <currentCategory.icon className="w-4 h-4 text-primary" />
+                                    ) : (
+                                      <DollarSign className="w-4 h-4 text-primary" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <div className="font-medium">{item.name}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      Actualmente en: {currentCategory?.title || 'Sin categoría'}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="text-right">
+                                    <div className="font-medium">€{calculateTotal(item).toFixed(2)}</div>
+                                  </div>
+                                  <Select
+                                    value={item.category}
+                                    onValueChange={async (newCategory) => {
+                                      try {
+                                        const { error } = await supabase
+                                          .from('budget_items')
+                                          .update({ category: newCategory })
+                                          .eq('id', item.id);
+
+                                        if (error) throw error;
+                                        
+                                        await fetchBudgetItems();
+                                        toast({
+                                          title: "¡Éxito!",
+                                          description: `Elemento movido a ${budgetCategories[newCategory]?.title || 'nueva categoría'}`
+                                        });
+                                      } catch (error) {
+                                        console.error('Error moving item:', error);
+                                        toast({
+                                          title: "Error",
+                                          description: "No se pudo mover el elemento",
+                                          variant: "destructive"
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <SelectTrigger className="w-48">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {Object.entries(budgetCategories).map(([categoryKey, category]) => (
+                                        <SelectItem key={categoryKey} value={categoryKey}>
+                                          <div className="flex items-center gap-2">
+                                            <category.icon className="w-4 h-4" />
+                                            {category.title}
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
