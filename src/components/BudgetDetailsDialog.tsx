@@ -413,6 +413,14 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         return y + (lines.length * (fontSize * 0.35));
       };
 
+      // Helper function to add right-aligned text
+      const addRightText = (text: string, y: number, fontSize: number = 10) => {
+        pdf.setFontSize(fontSize);
+        const textWidth = pdf.getTextWidth(text);
+        pdf.text(text, pageWidth - margin - textWidth, y);
+        return y + (fontSize * 0.35);
+      };
+
       // Header
       pdf.setFontSize(20);
       pdf.setFont('helvetica', 'bold');
@@ -469,7 +477,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
           // Items
           categoryItems.forEach((item) => {
-            if (currentY > pageHeight - 30) {
+            if (currentY > pageHeight - 35) {
               pdf.addPage();
               currentY = margin;
             }
@@ -479,13 +487,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             const irpf = subtotal * ((item.irpf_percentage || 15) / 100);
             const total = subtotal + iva - irpf;
 
-            pdf.setFontSize(10);
-            currentY = addText(`• ${item.name}`, margin + 5, currentY, contentWidth - 10);
-            currentY = addText(`  Cantidad: ${item.quantity} | Precio unitario: €${item.unit_price} | Subtotal: €${subtotal.toFixed(2)}`, margin + 8, currentY + 2, contentWidth - 13, 9);
-            currentY = addText(`  IVA (${item.iva_percentage}%): €${iva.toFixed(2)} | IRPF (${item.irpf_percentage || 15}%): -€${irpf.toFixed(2)} | Total: €${total.toFixed(2)}`, margin + 8, currentY + 2, contentWidth - 13, 9);
+            // Item name (left-aligned)
+            pdf.setFontSize(11);
+            pdf.setFont('helvetica', 'bold');
+            currentY = addText(`• ${item.name}`, margin + 5, currentY, contentWidth * 0.7, 11);
+            
+            // Total amount (right-aligned)
+            pdf.setFont('helvetica', 'bold');
+            addRightText(`€${total.toFixed(2)}`, currentY - 4, 11);
+
+            // Details in smaller text (left-aligned)
+            pdf.setFontSize(9);
+            pdf.setFont('helvetica', 'normal');
+            const detailText = `${item.quantity} × €${item.unit_price} = €${subtotal.toFixed(2)} + IVA (${item.iva_percentage}%) - IRPF (${item.irpf_percentage || 15}%)`;
+            currentY = addText(detailText, margin + 8, currentY + 2, contentWidth * 0.7, 9);
             
             if (item.observations) {
-              currentY = addText(`  Observaciones: ${item.observations}`, margin + 8, currentY + 2, contentWidth - 13, 9);
+              currentY = addText(`Observaciones: ${item.observations}`, margin + 8, currentY + 2, contentWidth * 0.7, 9);
             }
             
             currentY += 8;
@@ -496,7 +514,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       });
 
       // Totals summary
-      if (currentY > pageHeight - 80) {
+      if (currentY > pageHeight - 100) {
         pdf.addPage();
         currentY = margin;
       }
@@ -506,22 +524,37 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       const grandIrpf = items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * ((item.irpf_percentage || 15) / 100)), 0);
       const grandTotal = grandSubtotal + grandIva - grandIrpf;
 
-      currentY += 10;
+      currentY += 15;
+      
+      // Summary header
       pdf.setFillColor(240, 240, 240);
-      pdf.rect(margin, currentY - 5, contentWidth, 40, 'F');
+      pdf.rect(margin, currentY - 5, contentWidth, 50, 'F');
       
-      pdf.setFontSize(12);
+      pdf.setFontSize(14);
       pdf.setFont('helvetica', 'bold');
-      currentY = addText('RESUMEN TOTAL', margin + 5, currentY, contentWidth - 10, 12);
+      currentY = addText('RESUMEN TOTAL', margin + 5, currentY, contentWidth - 10, 14);
       
-      pdf.setFontSize(10);
+      currentY += 5;
+      
+      // Summary items with right alignment
+      pdf.setFontSize(11);
       pdf.setFont('helvetica', 'normal');
-      currentY = addText(`Subtotal: €${grandSubtotal.toFixed(2)}`, margin + 5, currentY + 5, contentWidth - 10);
-      currentY = addText(`IVA Total: €${grandIva.toFixed(2)}`, margin + 5, currentY + 3, contentWidth - 10);
-      currentY = addText(`IRPF Total: -€${grandIrpf.toFixed(2)}`, margin + 5, currentY + 3, contentWidth - 10);
       
+      const summaryY = currentY;
+      addText(`Subtotal:`, margin + 5, summaryY, contentWidth - 10, 11);
+      addRightText(`€${grandSubtotal.toFixed(2)}`, summaryY, 11);
+      
+      addText(`IVA Total:`, margin + 5, summaryY + 6, contentWidth - 10, 11);
+      addRightText(`€${grandIva.toFixed(2)}`, summaryY + 6, 11);
+      
+      addText(`IRPF Total:`, margin + 5, summaryY + 12, contentWidth - 10, 11);
+      addRightText(`-€${grandIrpf.toFixed(2)}`, summaryY + 12, 11);
+      
+      // Final total with emphasis
       pdf.setFont('helvetica', 'bold');
-      currentY = addText(`TOTAL FINAL: €${grandTotal.toFixed(2)}`, margin + 5, currentY + 5, contentWidth - 10, 12);
+      pdf.setFontSize(14);
+      addText(`TOTAL FINAL:`, margin + 5, summaryY + 22, contentWidth - 10, 14);
+      addRightText(`€${grandTotal.toFixed(2)}`, summaryY + 22, 14);
 
       // Footer
       const fileName = `Presupuesto_${budgetData.name.replace(/[^a-zA-Z0-9]/g, '_')}_${downloadDate.replace(/\//g, '-')}.pdf`;
