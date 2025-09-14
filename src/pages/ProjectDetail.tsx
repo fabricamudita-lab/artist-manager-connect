@@ -58,6 +58,8 @@ import {
   Check,
   X,
   Link,
+  Home,
+  Folder,
 } from "lucide-react";
 import { MessageSquare, Activity, Send } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
@@ -139,6 +141,11 @@ export default function ProjectDetail() {
     category: '',
     file: null as File | null
   });
+
+  // Document folder state
+  const [currentDocumentFolder, setCurrentDocumentFolder] = useState<string | null>(null);
+  const [documentFolders, setDocumentFolders] = useState<Record<string, any[]>>({});
+  const [documentUploadProgress, setDocumentUploadProgress] = useState<Record<string, number>>({});
 
   // Load collapsed sections from localStorage
   useEffect(() => {
@@ -276,6 +283,35 @@ export default function ProjectDetail() {
       setActiveFilters(savedFilters);
     }
   }, [profile?.user_id, id]);
+
+  // Organize documents into folders when documents change
+  useEffect(() => {
+    const folders: Record<string, any[]> = {
+      'Contratos': [],
+      'Riders': [],
+      'Financiero': [],
+      'Prensa': [],
+      'Legal': [],
+      'Otros': []
+    };
+
+    documents.forEach((doc) => {
+      const categoryMapping = {
+        'contract': 'Contratos',
+        'rider': 'Riders', 
+        'financial': 'Financiero',
+        'press': 'Prensa',
+        'legal': 'Legal',
+        'other': 'Otros',
+        'setlist': 'Otros'
+      };
+      
+      const folderName = categoryMapping[doc.category] || 'Otros';
+      folders[folderName].push(doc);
+    });
+
+    setDocumentFolders(folders);
+  }, [documents]);
 
   // Helper function to get status icon
   const getStatusIcon = (estado) => {
@@ -1059,49 +1095,139 @@ export default function ProjectDetail() {
             </TabsContent>
 
             <TabsContent value="documentos" className="mt-0">
-              {documents.length === 0 ? (
-                <div className="text-center py-12">
-                  <Paperclip className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                  <h3 className="text-lg font-medium mb-2">No hay documentos</h3>
-                  <p className="text-sm text-muted-foreground mb-4">Sube documentos relacionados con este proyecto</p>
-                  <Button variant="outline" onClick={() => setShowDocumentUpload(true)}>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Subir documento
+              <div className="space-y-4">
+                {/* Folder Navigation */}
+                <div className="flex items-center gap-2 mb-4">
+                  <Button
+                    variant={currentDocumentFolder === null ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentDocumentFolder(null)}
+                    className="flex items-center gap-2"
+                  >
+                    <Home className="w-4 h-4" />
+                    Todos
                   </Button>
+                  {['Contratos', 'Riders', 'Financiero', 'Prensa', 'Legal', 'Otros'].map((folder) => (
+                    <Button
+                      key={folder}
+                      variant={currentDocumentFolder === folder ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentDocumentFolder(folder)}
+                      className="flex items-center gap-2"
+                    >
+                      <Folder className="w-4 h-4" />
+                      {folder}
+                      {documentFolders[folder]?.length > 0 && (
+                        <Badge variant="secondary" className="ml-1 h-5 text-xs">
+                          {documentFolders[folder].length}
+                        </Badge>
+                      )}
+                    </Button>
+                  ))}
                 </div>
-              ) : (
-                <div className="grid gap-4">
-                  {documents.map((doc) => (
-                    <Card key={doc.id} className="p-4 hover:shadow-md transition-shadow">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-muted rounded-md">
-                            <Paperclip className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <h4 className="font-medium">{doc.title}</h4>
-                            <Badge variant="outline" className="h-5 text-xs mt-1">
-                              {doc.category}
-                            </Badge>
-                          </div>
-                        </div>
-                        <Button variant="outline" size="sm" asChild>
-                          <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-                            <Eye className="w-4 h-4 mr-2" />
-                            Ver
-                          </a>
+
+                {/* Current folder breadcrumb */}
+                {currentDocumentFolder && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                    <Home className="w-4 h-4" />
+                    <ChevronRight className="w-4 h-4" />
+                    <Folder className="w-4 h-4" />
+                    <span className="font-medium">{currentDocumentFolder}</span>
+                  </div>
+                )}
+
+                {/* Documents List */}
+                {(() => {
+                  const filteredDocs = currentDocumentFolder 
+                    ? documents.filter(doc => {
+                        const categoryMapping = {
+                          'Contratos': ['contract'],
+                          'Riders': ['rider'],
+                          'Financiero': ['financial'],
+                          'Prensa': ['press'],
+                          'Legal': ['legal'],
+                          'Otros': ['other', 'setlist']
+                        };
+                        return categoryMapping[currentDocumentFolder]?.includes(doc.category) || false;
+                      })
+                    : documents;
+
+                  if (filteredDocs.length === 0) {
+                    return (
+                      <div className="text-center py-12">
+                        <Paperclip className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                        <h3 className="text-lg font-medium mb-2">
+                          {currentDocumentFolder ? `No hay documentos en ${currentDocumentFolder}` : 'No hay documentos'}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          {currentDocumentFolder 
+                            ? `Sube documentos a la carpeta ${currentDocumentFolder}` 
+                            : 'Sube documentos relacionados con este proyecto'
+                          }
+                        </p>
+                        <Button variant="outline" onClick={() => setShowDocumentUpload(true)}>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Subir documento
                         </Button>
                       </div>
-                    </Card>
-                  ))}
-                  <div className="flex justify-center pt-4">
-                    <Button variant="outline" onClick={() => setShowDocumentUpload(true)}>
-                      <Upload className="w-4 h-4 mr-2" />
-                      Subir otro documento
-                    </Button>
-                  </div>
-                </div>
-              )}
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="grid gap-4">
+                        {filteredDocs.map((doc) => (
+                          <Card key={doc.id} className="p-4 hover:shadow-md transition-shadow">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-muted rounded-md">
+                                  <Paperclip className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <h4 className="font-medium">{doc.title}</h4>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge variant="outline" className="h-5 text-xs">
+                                      {doc.category}
+                                    </Badge>
+                                    {!currentDocumentFolder && (
+                                      <Badge variant="secondary" className="h-5 text-xs">
+                                        {(() => {
+                                          const folderMapping = {
+                                            'contract': 'Contratos',
+                                            'rider': 'Riders',
+                                            'financial': 'Financiero',
+                                            'press': 'Prensa',
+                                            'legal': 'Legal',
+                                            'other': 'Otros',
+                                            'setlist': 'Otros'
+                                          };
+                                          return folderMapping[doc.category] || 'Otros';
+                                        })()}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <Button variant="outline" size="sm" asChild>
+                                <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  Ver
+                                </a>
+                              </Button>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                      <div className="flex justify-center pt-4">
+                        <Button variant="outline" onClick={() => setShowDocumentUpload(true)}>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Subir documento
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
             </TabsContent>
 
             <TabsContent value="contratos" className="mt-0">
