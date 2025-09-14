@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from '@/hooks/use-toast';
 import { SaveTemplateDialog } from './SaveTemplateDialog';
 import { InvoicePreviewDialog } from './InvoicePreviewDialog';
+import { ConfirmationDialog } from './ui/confirmation-dialog';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { 
   Plus, 
@@ -42,7 +43,9 @@ import {
   Maximize2,
   Minimize2,
   Eye,
-  ArrowRight
+  ArrowRight,
+  Settings,
+  Pencil
 } from 'lucide-react';
 
 interface Budget {
@@ -87,7 +90,7 @@ interface BudgetDetailsDialogProps {
   onDelete?: () => void;
 }
 
-const budgetCategories = {
+const defaultBudgetCategories = {
   'equipo_artistico': {
     title: 'Promoción',
     icon: Music,
@@ -116,6 +119,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [uploadingFactura, setUploadingFactura] = useState<string | null>(null);
   const [previewInvoice, setPreviewInvoice] = useState<{ url: string; name: string } | null>(null);
+  const [budgetCategories, setBudgetCategories] = useState(defaultBudgetCategories);
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState<{ show: boolean; categoryKey: string; step: number }>({ show: false, categoryKey: '', step: 1 });
 
   useEffect(() => {
     if (open && budget) {
@@ -1232,6 +1239,154 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
               <TabsContent value="categories" className="flex-1 overflow-auto p-6">
                 <div className="space-y-6">
+                  {/* Category Management Section */}
+                  <Card className="card-moodita">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Settings className="w-5 h-5" />
+                        Gestionar categorías
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Crear, modificar o eliminar categorías
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {/* Add new category */}
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Nombre de nueva categoría"
+                            value={newCategoryName}
+                            onChange={(e) => setNewCategoryName(e.target.value)}
+                          />
+                          <Button
+                            onClick={async () => {
+                              if (!newCategoryName.trim()) return;
+                              
+                              const newKey = newCategoryName.toLowerCase().replace(/\s+/g, '_');
+                              setBudgetCategories(prev => ({
+                                ...prev,
+                                [newKey]: {
+                                  title: newCategoryName.trim(),
+                                  icon: DollarSign,
+                                  subcategories: []
+                                }
+                              }));
+                              setNewCategoryName('');
+                              toast({
+                                title: "¡Éxito!",
+                                description: "Categoría creada correctamente"
+                              });
+                            }}
+                            disabled={!newCategoryName.trim()}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Crear
+                          </Button>
+                        </div>
+
+                        {/* Existing categories */}
+                        <div className="space-y-3">
+                          {Object.entries(budgetCategories).map(([categoryKey, category]) => {
+                            const categoryItems = getCategoryItems(categoryKey);
+                            const hasItems = categoryItems.length > 0;
+                            
+                            return (
+                              <div key={categoryKey} className="flex items-center justify-between p-4 border rounded-lg bg-card">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                                    <category.icon className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <div>
+                                    {editingCategory === categoryKey ? (
+                                      <Input
+                                        defaultValue={category.title}
+                                        onBlur={(e) => {
+                                          const target = e.target as HTMLInputElement;
+                                          const newTitle = target.value.trim();
+                                          if (newTitle && newTitle !== category.title) {
+                                            if (hasItems) {
+                                              const confirmed = window.confirm(
+                                                `Esta categoría tiene ${categoryItems.length} elemento(s). ¿Estás segura que quieres modificarla?`
+                                              );
+                                              if (!confirmed) {
+                                                target.value = category.title;
+                                                setEditingCategory(null);
+                                                return;
+                                              }
+                                            }
+                                            setBudgetCategories(prev => ({
+                                              ...prev,
+                                              [categoryKey]: { ...category, title: newTitle }
+                                            }));
+                                            toast({
+                                              title: "¡Éxito!",
+                                              description: "Categoría modificada correctamente"
+                                            });
+                                          }
+                                          setEditingCategory(null);
+                                        }}
+                                        onKeyDown={(e) => {
+                                          const target = e.target as HTMLInputElement;
+                                          if (e.key === 'Enter') {
+                                            target.blur();
+                                          }
+                                          if (e.key === 'Escape') {
+                                            target.value = category.title;
+                                            setEditingCategory(null);
+                                          }
+                                        }}
+                                        autoFocus
+                                      />
+                                    ) : (
+                                      <div>
+                                        <div className="font-medium">{category.title}</div>
+                                        <div className="text-sm text-muted-foreground">
+                                          {categoryItems.length} elemento(s)
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setEditingCategory(categoryKey)}
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => {
+                                      if (hasItems) {
+                                        setConfirmDelete({ show: true, categoryKey, step: 1 });
+                                      } else {
+                                        setBudgetCategories(prev => {
+                                          const newCategories = { ...prev };
+                                          delete newCategories[categoryKey];
+                                          return newCategories;
+                                        });
+                                        toast({
+                                          title: "¡Éxito!",
+                                          description: "Categoría eliminada correctamente"
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Move items section */}
                   <Card className="card-moodita">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
@@ -1487,6 +1642,68 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         invoiceUrl={previewInvoice?.url || ''}
         invoiceName={previewInvoice?.name || 'Factura'}
       />
+
+      {/* Confirmation dialogs for category deletion */}
+      <ConfirmationDialog
+      open={confirmDelete.show && confirmDelete.step === 1}
+      onOpenChange={(open) => !open && setConfirmDelete({ show: false, categoryKey: '', step: 1 })}
+      title="¿Estás segura que quieres eliminar esta categoría?"
+      description={`Esta acción eliminará la categoría "${budgetCategories[confirmDelete.categoryKey]?.title || ''}" y todos sus elementos (${getCategoryItems(confirmDelete.categoryKey).length} elementos).`}
+      confirmText="Continuar"
+      cancelText="Cancelar"
+      variant="warning"
+      icon="warning"
+      onConfirm={() => setConfirmDelete(prev => ({ ...prev, step: 2 }))}
+    />
+
+    <ConfirmationDialog
+      open={confirmDelete.show && confirmDelete.step === 2}
+      onOpenChange={(open) => !open && setConfirmDelete({ show: false, categoryKey: '', step: 1 })}
+      title="Confirmación final"
+      description="Una vez eliminados no podrás recuperar los elementos. ¿Estás seguro que quieres eliminarla?"
+      confirmText="Eliminar definitivamente"
+      cancelText="Cancelar"
+      variant="destructive"
+      icon="delete"
+      onConfirm={async () => {
+        const categoryKey = confirmDelete.categoryKey;
+        const categoryItems = getCategoryItems(categoryKey);
+        
+        try {
+          // Delete all items in the category
+          if (categoryItems.length > 0) {
+            const { error } = await supabase
+              .from('budget_items')
+              .delete()
+              .in('id', categoryItems.map(item => item.id));
+            
+            if (error) throw error;
+          }
+          
+          // Remove category from state
+          setBudgetCategories(prev => {
+            const newCategories = { ...prev };
+            delete newCategories[categoryKey];
+            return newCategories;
+          });
+          
+          await fetchBudgetItems();
+          setConfirmDelete({ show: false, categoryKey: '', step: 1 });
+          
+          toast({
+            title: "¡Éxito!",
+            description: `Categoría y ${categoryItems.length} elemento(s) eliminados correctamente`
+          });
+        } catch (error) {
+          console.error('Error deleting category:', error);
+          toast({
+            title: "Error",
+            description: "No se pudo eliminar la categoría",
+            variant: "destructive"
+          });
+        }
+      }}
+    />
     </Dialog>
   );
 }
