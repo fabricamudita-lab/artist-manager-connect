@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import jsPDF from 'jspdf';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -395,6 +396,151 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   };
 
+  const downloadPDF = () => {
+    try {
+      const pdf = new jsPDF('portrait', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
+      let currentY = margin;
+
+      // Helper function to add text with automatic line breaking
+      const addText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10) => {
+        pdf.setFontSize(fontSize);
+        const lines = pdf.splitTextToSize(text, maxWidth);
+        pdf.text(lines, x, y);
+        return y + (lines.length * (fontSize * 0.35));
+      };
+
+      // Header
+      pdf.setFontSize(20);
+      pdf.setFont('helvetica', 'bold');
+      currentY = addText(budgetData.name.toUpperCase(), margin, currentY, contentWidth, 20);
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      currentY = addText('PRESUPUESTO NACIONAL', margin, currentY + 5, contentWidth, 12);
+
+      // Date and basic info
+      currentY += 10;
+      pdf.setFontSize(10);
+      const downloadDate = new Date().toLocaleDateString('es-ES');
+      currentY = addText(`Fecha de descarga: ${downloadDate}`, margin, currentY, contentWidth);
+      
+      if (budgetData.city) {
+        currentY = addText(`Ciudad: ${budgetData.city}`, margin, currentY + 5, contentWidth);
+      }
+      if (budgetData.venue) {
+        currentY = addText(`Venue: ${budgetData.venue}`, margin, currentY + 5, contentWidth);
+      }
+      if (budgetData.event_date) {
+        const eventDate = new Date(budgetData.event_date).toLocaleDateString('es-ES');
+        currentY = addText(`Fecha del evento: ${eventDate}`, margin, currentY + 5, contentWidth);
+      }
+      if (budgetData.fee) {
+        currentY = addText(`Fee: €${budgetData.fee}`, margin, currentY + 5, contentWidth);
+      }
+
+      currentY += 15;
+
+      // Categories and items
+      Object.entries(budgetCategories).forEach(([categoryKey, category]) => {
+        const categoryItems = getCategoryItems(categoryKey);
+        
+        if (categoryItems.length > 0) {
+          // Check if we need a new page
+          if (currentY > pageHeight - 50) {
+            pdf.addPage();
+            currentY = margin;
+          }
+
+          // Category header
+          pdf.setFillColor(0, 0, 0);
+          pdf.rect(margin, currentY - 5, contentWidth, 10, 'F');
+          pdf.setTextColor(255, 255, 255);
+          pdf.setFontSize(12);
+          pdf.setFont('helvetica', 'bold');
+          currentY = addText(category.title.toUpperCase(), margin + 2, currentY, contentWidth - 4, 12);
+          
+          pdf.setTextColor(0, 0, 0);
+          pdf.setFont('helvetica', 'normal');
+          currentY += 5;
+
+          // Items
+          categoryItems.forEach((item) => {
+            if (currentY > pageHeight - 30) {
+              pdf.addPage();
+              currentY = margin;
+            }
+
+            const subtotal = item.quantity * item.unit_price;
+            const iva = subtotal * (item.iva_percentage / 100);
+            const irpf = subtotal * ((item.irpf_percentage || 15) / 100);
+            const total = subtotal + iva - irpf;
+
+            pdf.setFontSize(10);
+            currentY = addText(`• ${item.name}`, margin + 5, currentY, contentWidth - 10);
+            currentY = addText(`  Cantidad: ${item.quantity} | Precio unitario: €${item.unit_price} | Subtotal: €${subtotal.toFixed(2)}`, margin + 8, currentY + 2, contentWidth - 13, 9);
+            currentY = addText(`  IVA (${item.iva_percentage}%): €${iva.toFixed(2)} | IRPF (${item.irpf_percentage || 15}%): -€${irpf.toFixed(2)} | Total: €${total.toFixed(2)}`, margin + 8, currentY + 2, contentWidth - 13, 9);
+            
+            if (item.observations) {
+              currentY = addText(`  Observaciones: ${item.observations}`, margin + 8, currentY + 2, contentWidth - 13, 9);
+            }
+            
+            currentY += 8;
+          });
+
+          currentY += 5;
+        }
+      });
+
+      // Totals summary
+      if (currentY > pageHeight - 80) {
+        pdf.addPage();
+        currentY = margin;
+      }
+
+      const grandSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+      const grandIva = items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * (item.iva_percentage / 100)), 0);
+      const grandIrpf = items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * ((item.irpf_percentage || 15) / 100)), 0);
+      const grandTotal = grandSubtotal + grandIva - grandIrpf;
+
+      currentY += 10;
+      pdf.setFillColor(240, 240, 240);
+      pdf.rect(margin, currentY - 5, contentWidth, 40, 'F');
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      currentY = addText('RESUMEN TOTAL', margin + 5, currentY, contentWidth - 10, 12);
+      
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      currentY = addText(`Subtotal: €${grandSubtotal.toFixed(2)}`, margin + 5, currentY + 5, contentWidth - 10);
+      currentY = addText(`IVA Total: €${grandIva.toFixed(2)}`, margin + 5, currentY + 3, contentWidth - 10);
+      currentY = addText(`IRPF Total: -€${grandIrpf.toFixed(2)}`, margin + 5, currentY + 3, contentWidth - 10);
+      
+      pdf.setFont('helvetica', 'bold');
+      currentY = addText(`TOTAL FINAL: €${grandTotal.toFixed(2)}`, margin + 5, currentY + 5, contentWidth - 10, 12);
+
+      // Footer
+      const fileName = `Presupuesto_${budgetData.name.replace(/[^a-zA-Z0-9]/g, '_')}_${downloadDate.replace(/\//g, '-')}.pdf`;
+      pdf.save(fileName);
+
+      toast({
+        title: "¡Éxito!",
+        description: "Presupuesto descargado correctamente",
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo generar el PDF",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -531,6 +677,15 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                     className="bg-white/10 hover:bg-white/20 text-white border-white/20"
                   >
                     {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={downloadPDF}
+                    className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-200 border-blue-400/20"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Descargar PDF
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => setEditingBudget(true)} className="bg-white/10 hover:bg-white/20 text-white border-white/20">
                     <Edit className="w-4 h-4" />
