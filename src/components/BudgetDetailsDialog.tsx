@@ -415,37 +415,131 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           <div className="bg-black text-white p-6 flex-shrink-0 border-b border-gray-800">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                    <Calculator className="h-8 w-8 text-white" />
+                {editingBudget ? (
+                  // Edit Mode
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                        <Calculator className="h-8 w-8 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <Input
+                          value={budgetData.name}
+                          onChange={(e) => setBudgetData(prev => ({ ...prev, name: e.target.value }))}
+                          className="text-3xl font-bold bg-white/10 border-white/20 text-white placeholder-white/50"
+                          placeholder="Nombre del presupuesto"
+                        />
+                        <p className="text-gray-400 text-lg mt-1">PRESUPUESTO NACIONAL</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label className="text-white/80 text-sm">Ciudad</Label>
+                        <Input
+                          value={budgetData.city || ''}
+                          onChange={(e) => setBudgetData(prev => ({ ...prev, city: e.target.value }))}
+                          className="bg-white/10 border-white/20 text-white placeholder-white/50"
+                          placeholder="Ciudad"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-white/80 text-sm">Venue</Label>
+                        <Input
+                          value={budgetData.venue || ''}
+                          onChange={(e) => setBudgetData(prev => ({ ...prev, venue: e.target.value }))}
+                          className="bg-white/10 border-white/20 text-white placeholder-white/50"
+                          placeholder="Venue"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-white/80 text-sm">Fee (€)</Label>
+                        <Input
+                          type="number"
+                          value={budgetData.fee || 0}
+                          onChange={(e) => setBudgetData(prev => ({ ...prev, fee: parseFloat(e.target.value) || 0 }))}
+                          className="bg-white/10 border-white/20 text-white placeholder-white/50"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={updateBudget}
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        Guardar cambios
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setBudgetData(budget);
+                          setEditingBudget(false);
+                        }}
+                        size="sm"
+                        variant="outline"
+                        className="bg-white/10 hover:bg-white/20 text-white border-white/20"
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Cancelar
+                      </Button>
+                    </div>
                   </div>
+                ) : (
+                  // View Mode
                   <div>
-                    <DialogTitle className="text-3xl font-bold text-white">{budgetData.name}</DialogTitle>
-                    <p className="text-gray-400 text-lg mt-1">PRESUPUESTO NACIONAL</p>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                        <Calculator className="h-8 w-8 text-white" />
+                      </div>
+                      <div>
+                        <DialogTitle className="text-3xl font-bold text-white">{budgetData.name}</DialogTitle>
+                        <p className="text-gray-400 text-lg mt-1">PRESUPUESTO NACIONAL</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-sm text-white/80">
+                      {budgetData.city && (
+                        <span className="px-3 py-1 bg-white/10 rounded-full">
+                          📍 {budgetData.city}
+                        </span>
+                      )}
+                      {budgetData.venue && (
+                        <span className="px-3 py-1 bg-white/10 rounded-full">
+                          🏛️ {budgetData.venue}
+                        </span>
+                      )}
+                      {budgetData.fee && (
+                        <span className="px-3 py-1 bg-white/10 rounded-full">
+                          💰 €{budgetData.fee}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="flex flex-wrap gap-3">
+                )}
+                <div className="flex flex-wrap gap-3 mt-4">
                   <div className="px-3 py-1 bg-yellow-600 text-black text-xs font-medium rounded-full">
                     {budgetData.budget_status}
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => setIsFullscreen(!isFullscreen)} 
-                  className="bg-white/10 hover:bg-white/20 text-white border-white/20"
-                >
-                  {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setEditingBudget(true)} className="bg-white/10 hover:bg-white/20 text-white border-white/20">
-                  <Edit className="w-4 h-4" />
-                </Button>
-                <Button size="sm" variant="destructive" onClick={deleteBudget} className="bg-red-500/20 hover:bg-red-500/30 text-red-200 border-red-400/20">
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
+              {!editingBudget && (
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => setIsFullscreen(!isFullscreen)} 
+                    className="bg-white/10 hover:bg-white/20 text-white border-white/20"
+                  >
+                    {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setEditingBudget(true)} className="bg-white/10 hover:bg-white/20 text-white border-white/20">
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={deleteBudget} className="bg-red-500/20 hover:bg-red-500/30 text-red-200 border-red-400/20">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
