@@ -455,11 +455,39 @@ export type Database = {
           },
         ]
       }
+      budget_categories: {
+        Row: {
+          created_at: string
+          created_by: string
+          icon_name: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          icon_name?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          icon_name?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       budget_items: {
         Row: {
           billing_status: Database["public"]["Enums"]["billing_status"] | null
           budget_id: string
           category: string
+          category_id: string | null
           created_at: string
           id: string
           invoice_link: string | null
@@ -477,6 +505,7 @@ export type Database = {
           billing_status?: Database["public"]["Enums"]["billing_status"] | null
           budget_id: string
           category: string
+          category_id?: string | null
           created_at?: string
           id?: string
           invoice_link?: string | null
@@ -494,6 +523,7 @@ export type Database = {
           billing_status?: Database["public"]["Enums"]["billing_status"] | null
           budget_id?: string
           category?: string
+          category_id?: string | null
           created_at?: string
           id?: string
           invoice_link?: string | null
@@ -513,6 +543,13 @@ export type Database = {
             columns: ["budget_id"]
             isOneToOne: false
             referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "budget_categories"
             referencedColumns: ["id"]
           },
         ]

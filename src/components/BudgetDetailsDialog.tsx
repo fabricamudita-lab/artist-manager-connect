@@ -81,6 +81,17 @@ interface BudgetItem {
   billing_status: 'pendiente' | 'pagado' | 'facturado' | 'cancelado';
   invoice_link: string;
   observations: string;
+  category_id?: string;
+  budget_categories?: BudgetCategory;
+}
+
+interface BudgetCategory {
+  id: string;
+  name: string;
+  icon_name: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface BudgetDetailsDialogProps {
@@ -91,22 +102,19 @@ interface BudgetDetailsDialogProps {
   onDelete?: () => void;
 }
 
-const defaultBudgetCategories = {
-  'equipo_artistico': {
-    title: 'Promoción',
-    icon: Music,
-    subcategories: ['artista_principal', 'banda', 'coristas', 'bailarines', 'otros']
-  },
-  'equipo_tecnico': {
-    title: 'Comisiones',
-    icon: Calculator,
-    subcategories: ['tour_manager', 'tecnico_sonido', 'tecnico_luces', 'stage_manager', 'produccion_local', 'runner']
-  },
-  'transporte': {
-    title: 'Otros Gastos',
-    icon: DollarSign,
-    subcategories: ['avion', 'furgoneta', 'tren', 'ave', 'coche', 'equipaje_extra', 'seguro_medico']
-  },
+const iconMap = {
+  Music: Music,
+  Calculator: Calculator,
+  DollarSign: DollarSign,
+  Users: Users,
+  Car: Car,
+  UtensilsCrossed: UtensilsCrossed,
+  BedDouble: BedDouble,
+  CreditCard: CreditCard,
+  FileText: FileText,
+  Lightbulb: Lightbulb,
+  Utensils: Utensils,
+  Bed: Bed
 };
 
 export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpdate, onDelete }: BudgetDetailsDialogProps) {
@@ -120,11 +128,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [uploadingFactura, setUploadingFactura] = useState<string | null>(null);
   const [previewInvoice, setPreviewInvoice] = useState<{ url: string; name: string } | null>(null);
-  const [budgetCategories, setBudgetCategories] = useState(defaultBudgetCategories);
+  const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [confirmDelete, setConfirmDelete] = useState<{ show: boolean; categoryKey: string; step: number }>({ show: false, categoryKey: '', step: 1 });
-  const [confirmModify, setConfirmModify] = useState<{ show: boolean; categoryKey: string; newTitle: string; hasItems: boolean }>({ show: false, categoryKey: '', newTitle: '', hasItems: false });
+  const [confirmDelete, setConfirmDelete] = useState<{ show: boolean; categoryId: string; step: number }>({ show: false, categoryId: '', step: 1 });
+  const [confirmModify, setConfirmModify] = useState<{ show: boolean; categoryId: string; newTitle: string; hasItems: boolean }>({ show: false, categoryId: '', newTitle: '', hasItems: false });
   const [selectedItem, setSelectedItem] = useState<BudgetItem | null>(null);
   const [targetCategory, setTargetCategory] = useState('');
   const [showCategoryManagement, setShowCategoryManagement] = useState(false);
@@ -133,16 +141,35 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     if (open && budget) {
       setBudgetData(budget);
       fetchBudgetItems();
+      fetchBudgetCategories();
     }
   }, [open, budget]);
+
+  const fetchBudgetCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('budget_categories')
+        .select('*')
+        .eq('created_by', user?.id)
+        .order('name');
+
+      if (error) throw error;
+      setBudgetCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching budget categories:', error);
+    }
+  };
 
   const fetchBudgetItems = async () => {
     try {
       const { data, error } = await supabase
         .from('budget_items')
-        .select('*')
+        .select(`
+          *,
+          budget_categories(id, name, icon_name)
+        `)
         .eq('budget_id', budget.id)
-        .order('category', { ascending: true });
+        .order('name');
 
       if (error) throw error;
       const itemsWithDefaults = (data || []).map(item => ({
@@ -261,8 +288,20 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     return subtotal + iva - irpf;
   };
 
-  const getCategoryItems = (categoryKey: string) => {
-    return items.filter(item => item.category === categoryKey);
+  const getCategoryItems = (categoryId: string) => {
+    return items.filter(item => item.category_id === categoryId);
+  };
+
+  const getCategoryByLegacyName = (legacyCategory: string) => {
+    // Map legacy category names to current categories for backwards compatibility
+    const categoryMap: { [key: string]: string } = {
+      'equipo_artistico': 'Promoción',
+      'equipo_tecnico': 'Comisiones', 
+      'transporte': 'Otros Gastos'
+    };
+    
+    const categoryName = categoryMap[legacyCategory] || legacyCategory;
+    return budgetCategories.find(cat => cat.name === categoryName);
   };
 
   const uploadFactura = async (file: File, itemId: string) => {
@@ -512,7 +551,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           pdf.setTextColor(255, 255, 255);
           pdf.setFontSize(12);
           pdf.setFont('helvetica', 'bold');
-          currentY = addText(category.title.toUpperCase(), margin + 2, currentY, contentWidth - 4, 12);
+          currentY = addText(category.name.toUpperCase(), margin + 2, currentY, contentWidth - 4, 12);
           
           pdf.setTextColor(0, 0, 0);
           pdf.setFont('helvetica', 'normal');
@@ -806,17 +845,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 <div className="h-full flex flex-col bg-gradient-to-b from-black to-gray-900">
                   {/* Categories Section */}
                   <div className="flex-1 overflow-auto">
-                    {Object.entries(budgetCategories).map(([categoryKey, category]) => {
-                      const categoryItems = getCategoryItems(categoryKey);
-                      const IconComponent = category.icon;
+                    {budgetCategories.map((category) => {
+                      const categoryItems = getCategoryItems(category.id);
+                      const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
                       
                       return (
-                        <div key={categoryKey} className="mb-6">
+                        <div key={category.id} className="mb-6">
                           {/* Category Header */}
                           <div className="bg-black text-white p-4 flex items-center justify-between border-b border-gray-700">
                             <div className="flex items-center gap-3">
                               <IconComponent className="w-5 h-5" />
-                              <h3 className="text-lg font-bold tracking-wider">{category.title.toUpperCase()}</h3>
+                              <h3 className="text-lg font-bold tracking-wider">{category.name.toUpperCase()}</h3>
                             </div>
                           </div>
                           
@@ -826,12 +865,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                               <div className="p-8 text-center text-gray-500 bg-white">
                                 <p>No hay elementos en esta categoría</p>
                                 <Button
-                                  onClick={() => addItem(categoryKey)}
+                                  onClick={() => addItem(category.id)}
                                   variant="ghost"
                                   className="mt-2 text-gray-600 hover:text-gray-900"
                                 >
                                   <Plus className="w-4 h-4 mr-1" />
-                                  Agregar elemento a {category.title}
+                                  Agregar elemento a {category.name}
                                 </Button>
                               </div>
                             ) : (
@@ -1133,12 +1172,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                             {/* Add Item Button */}
                             <div className="p-4 border-b border-gray-200 bg-white">
                               <Button
-                                onClick={() => addItem(categoryKey)}
+                                onClick={() => addItem(category.id)}
                                 variant="outline"
                                 className="w-full border-dashed hover:bg-primary/5 hover:border-primary text-sm text-gray-600"
                               >
                                 <Plus className="w-4 h-4 mr-2" />
-                                Agregar elemento a {category.title}
+                                Agregar elemento a {category.name}
                               </Button>
                             </div>
                           </div>
@@ -1183,23 +1222,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   </div>
 
                   {/* Compact view of all categories */}
-                  {Object.entries(budgetCategories).map(([categoryKey, category]) => {
-                    const categoryItems = getCategoryItems(categoryKey);
+                  {budgetCategories.map((category) => {
+                    const categoryItems = getCategoryItems(category.id);
                     
                     if (categoryItems.length === 0) return null;
                     
                     const categoryTotal = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
-                    const IconComponent = category.icon;
+                    const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
                     
                     return (
-                      <Card key={categoryKey} className="overflow-hidden">
+                      <Card key={category.id} className="overflow-hidden">
                         <CardHeader className="pb-3">
                           <div className="flex items-center justify-between">
                             <CardTitle className="flex items-center gap-3">
                               <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
                                 <IconComponent className="w-4 h-4 text-primary" />
                               </div>
-                              {category.title}
+                              {category.name}
                             </CardTitle>
                             <div className="text-right">
                               <div className="font-bold text-lg">€{categoryTotal.toFixed(2)}</div>
@@ -1293,7 +1332,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                               <div>
                                 <h4 className="font-medium">{selectedItem.name}</h4>
                                 <p className="text-sm text-muted-foreground">
-                                  Categoría actual: {budgetCategories[selectedItem.category]?.title || selectedItem.category}
+                                  Categoría actual: {selectedItem.budget_categories?.name || 'Sin categoría'}
                                 </p>
                               </div>
                               <Button
@@ -1316,11 +1355,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   <SelectValue placeholder="Seleccionar nueva categoría" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {Object.entries(budgetCategories)
-                                    .filter(([key]) => key !== selectedItem.category)
-                                    .map(([key, category]) => (
-                                      <SelectItem key={key} value={key}>
-                                        {category.title}
+                                  {budgetCategories
+                                    .filter(cat => cat.id !== selectedItem.category_id)
+                                    .map((category) => (
+                                      <SelectItem key={category.id} value={category.id}>
+                                        {category.name}
                                       </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -1336,15 +1375,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                         )}
 
                         {/* Items by category */}
-                        {Object.entries(budgetCategories).map(([categoryKey, category]) => {
-                          const categoryItems = getCategoryItems(categoryKey);
+                        {budgetCategories.map((category) => {
+                          const categoryItems = getCategoryItems(category.id);
                           if (categoryItems.length === 0) return null;
 
+                          const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
+
                           return (
-                            <div key={categoryKey}>
+                            <div key={category.id}>
                               <h3 className="font-medium mb-2 flex items-center gap-2">
-                                <category.icon className="w-4 h-4" />
-                                {category.title}
+                                <IconComponent className="w-4 h-4" />
+                                {category.name}
                               </h3>
                               <div className="grid gap-2">
                                 {categoryItems.map((item) => (
@@ -1427,20 +1468,31 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                               onClick={async () => {
                                 if (!newCategoryName.trim()) return;
                                 
-                                const newKey = newCategoryName.toLowerCase().replace(/\s+/g, '_');
-                                setBudgetCategories(prev => ({
-                                  ...prev,
-                                  [newKey]: {
-                                    title: newCategoryName.trim(),
-                                    icon: DollarSign,
-                                    subcategories: []
-                                  }
-                                }));
-                                setNewCategoryName('');
-                                toast({
-                                  title: "¡Éxito!",
-                                  description: "Categoría creada correctamente"
-                                });
+                                try {
+                                  const { error } = await supabase
+                                    .from('budget_categories')
+                                    .insert([{
+                                      name: newCategoryName.trim(),
+                                      icon_name: 'DollarSign',
+                                      created_by: user?.id
+                                    }]);
+
+                                  if (error) throw error;
+                                  
+                                  await fetchBudgetCategories();
+                                  setNewCategoryName('');
+                                  toast({
+                                    title: "¡Éxito!",
+                                    description: "Categoría creada correctamente"
+                                  });
+                                } catch (error) {
+                                  console.error('Error creating category:', error);
+                                  toast({
+                                    title: "Error",
+                                    description: "No se pudo crear la categoría",
+                                    variant: "destructive"
+                                  });
+                                }
                               }}
                               disabled={!newCategoryName.trim()}
                             >
@@ -1451,52 +1503,65 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
                           {/* Existing categories */}
                           <div className="space-y-3">
-                            {Object.entries(budgetCategories).map(([categoryKey, category]) => {
-                              const categoryItems = getCategoryItems(categoryKey);
+                            {budgetCategories.map((category) => {
+                              const categoryItems = getCategoryItems(category.id);
                               const hasItems = categoryItems.length > 0;
+                              const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
                               
                               return (
-                                <div key={categoryKey} className="flex items-center justify-between p-4 border rounded-lg bg-card">
+                                <div key={category.id} className="flex items-center justify-between p-4 border rounded-lg bg-card">
                                   <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                                      <category.icon className="w-4 h-4 text-primary" />
+                                      <IconComponent className="w-4 h-4 text-primary" />
                                     </div>
                                     <div>
-                                      {editingCategory === categoryKey ? (
+                                      {editingCategory === category.id ? (
                                         <Input
-                                          defaultValue={category.title}
+                                          defaultValue={category.name}
                                           onBlur={(e) => {
-                                            const target = e.target as HTMLInputElement;
-                                            const newTitle = target.value.trim();
-                                            if (newTitle && newTitle !== category.title) {
+                                            const newTitle = e.target.value.trim();
+                                            if (newTitle && newTitle !== category.name) {
                                               if (hasItems) {
                                                 setConfirmModify({
                                                   show: true,
-                                                  categoryKey,
+                                                  categoryId: category.id,
                                                   newTitle,
                                                   hasItems
                                                 });
-                                                target.value = category.title; // Reset input
+                                                e.target.value = category.name; // Reset input
                                               } else {
-                                                setBudgetCategories(prev => ({
-                                                  ...prev,
-                                                  [categoryKey]: { ...category, title: newTitle }
-                                                }));
-                                                toast({
-                                                  title: "¡Éxito!",
-                                                  description: "Categoría modificada correctamente"
-                                                });
+                                                // Update category directly
+                                                supabase
+                                                  .from('budget_categories')
+                                                  .update({ name: newTitle })
+                                                  .eq('id', category.id)
+                                                  .then(({ error }) => {
+                                                    if (error) throw error;
+                                                    fetchBudgetCategories();
+                                                    fetchBudgetItems();
+                                                    toast({
+                                                      title: "¡Éxito!",
+                                                      description: "Categoría actualizada correctamente"
+                                                    });
+                                                  })
+                                                  .catch((error) => {
+                                                    console.error('Error updating category:', error);
+                                                    toast({
+                                                      title: "Error",
+                                                      description: "No se pudo actualizar la categoría",
+                                                      variant: "destructive"
+                                                    });
+                                                  });
                                               }
                                             }
                                             setEditingCategory(null);
                                           }}
                                           onKeyDown={(e) => {
-                                            const target = e.target as HTMLInputElement;
                                             if (e.key === 'Enter') {
-                                              target.blur();
+                                              e.currentTarget.blur();
                                             }
                                             if (e.key === 'Escape') {
-                                              target.value = category.title;
+                                              e.currentTarget.value = category.name;
                                               setEditingCategory(null);
                                             }
                                           }}
@@ -1504,7 +1569,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                         />
                                       ) : (
                                         <div>
-                                          <div className="font-medium">{category.title}</div>
+                                          <div className="font-medium">{category.name}</div>
                                           <div className="text-sm text-muted-foreground">
                                             {categoryItems.length} elemento(s)
                                           </div>
@@ -1516,7 +1581,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      onClick={() => setEditingCategory(categoryKey)}
+                                      onClick={() => setEditingCategory(category.id)}
                                     >
                                       <Pencil className="w-3 h-3" />
                                     </Button>
@@ -1525,17 +1590,30 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                       variant="destructive"
                                       onClick={() => {
                                         if (hasItems) {
-                                          setConfirmDelete({ show: true, categoryKey, step: 1 });
+                                          setConfirmDelete({ show: true, categoryId: category.id, step: 1 });
                                         } else {
-                                          setBudgetCategories(prev => {
-                                            const newCategories = { ...prev };
-                                            delete newCategories[categoryKey];
-                                            return newCategories;
-                                          });
-                                          toast({
-                                            title: "¡Éxito!",
-                                            description: "Categoría eliminada correctamente"
-                                          });
+                                          // Delete category directly
+                                          supabase
+                                            .from('budget_categories')
+                                            .delete()
+                                            .eq('id', category.id)
+                                            .then(({ error }) => {
+                                              if (error) throw error;
+                                              fetchBudgetCategories();
+                                              fetchBudgetItems();
+                                              toast({
+                                                title: "¡Éxito!",
+                                                description: "Categoría eliminada correctamente"
+                                              });
+                                            })
+                                            .catch((error) => {
+                                              console.error('Error deleting category:', error);
+                                              toast({
+                                                title: "Error",
+                                                description: "No se pudo eliminar la categoría",
+                                                variant: "destructive"
+                                              });
+                                            });
                                         }
                                       }}
                                     >
@@ -1590,21 +1668,21 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        {Object.entries(budgetCategories).map(([categoryKey, category]) => {
-                          const categoryItems = getCategoryItems(categoryKey);
+                        {budgetCategories.map((category) => {
+                          const categoryItems = getCategoryItems(category.id);
                           const categoryTotal = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
-                          const IconComponent = category.icon;
+                          const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
                           
                           if (categoryItems.length === 0) return null;
                           
                           return (
-                            <div key={categoryKey} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                            <div key={category.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
                                   <IconComponent className="w-4 h-4 text-primary" />
                                 </div>
                                 <div>
-                                  <div className="font-medium">{category.title}</div>
+                                  <div className="font-medium">{category.name}</div>
                                   <div className="text-sm text-muted-foreground">{categoryItems.length} elementos</div>
                                 </div>
                               </div>
@@ -1721,7 +1799,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       {/* Confirmation dialog for category modification */}
       <ConfirmationDialog
         open={confirmModify.show}
-        onOpenChange={(open) => !open && setConfirmModify({ show: false, categoryKey: '', newTitle: '', hasItems: false })}
+        onOpenChange={(open) => !open && setConfirmModify({ show: false, categoryId: '', newTitle: '', hasItems: false })}
         title="¿Estás segura que quieres modificar esta categoría?"
         description={`Esta categoría tiene elementos. ¿Estás segura que quieres modificarla?`}
         confirmText="Modificar"
@@ -1729,28 +1807,39 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         variant="warning"
         icon="warning"
         onConfirm={() => {
-          setBudgetCategories(prev => ({
-            ...prev,
-            [confirmModify.categoryKey]: { 
-              ...prev[confirmModify.categoryKey], 
-              title: confirmModify.newTitle 
-            }
-          }));
-          setConfirmModify({ show: false, categoryKey: '', newTitle: '', hasItems: false });
-          setEditingCategory(null);
-          toast({
-            title: "¡Éxito!",
-            description: "Categoría modificada correctamente"
-          });
+          // Update category
+          supabase
+            .from('budget_categories')
+            .update({ name: confirmModify.newTitle })
+            .eq('id', confirmModify.categoryId)
+            .then(({ error }) => {
+              if (error) throw error;
+              fetchBudgetCategories();
+              fetchBudgetItems();
+              setConfirmModify({ show: false, categoryId: '', newTitle: '', hasItems: false });
+              setEditingCategory(null);
+              toast({
+                title: "¡Éxito!",
+                description: "Categoría modificada correctamente"
+              });
+            })
+            .catch((error) => {
+              console.error('Error updating category:', error);
+              toast({
+                title: "Error",
+                description: "No se pudo actualizar la categoría",
+                variant: "destructive"
+              });
+            });
         }}
       />
 
       {/* Confirmation dialogs for category deletion */}
       <ConfirmationDialog
         open={confirmDelete.show && confirmDelete.step === 1}
-        onOpenChange={(open) => !open && setConfirmDelete({ show: false, categoryKey: '', step: 1 })}
+        onOpenChange={(open) => !open && setConfirmDelete({ show: false, categoryId: '', step: 1 })}
         title="¿Estás segura que quieres eliminar esta categoría?"
-        description={`Esta acción eliminará la categoría "${budgetCategories[confirmDelete.categoryKey]?.title || ''}" y todos sus elementos (${getCategoryItems(confirmDelete.categoryKey).length} elementos).`}
+        description={`Esta acción eliminará la categoría "${budgetCategories.find(c => c.id === confirmDelete.categoryId)?.name || ''}" y todos sus elementos (${getCategoryItems(confirmDelete.categoryId).length} elementos).`}
         confirmText="Continuar"
         cancelText="Cancelar"
         variant="warning"
@@ -1760,7 +1849,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
       <ConfirmationDialog
         open={confirmDelete.show && confirmDelete.step === 2}
-        onOpenChange={(open) => !open && setConfirmDelete({ show: false, categoryKey: '', step: 1 })}
+        onOpenChange={(open) => !open && setConfirmDelete({ show: false, categoryId: '', step: 1 })}
         title="Confirmación final"
         description="Una vez eliminados no podrás recuperar los elementos. ¿Estás seguro que quieres eliminarla?"
         confirmText="Eliminar definitivamente"
@@ -1768,8 +1857,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         variant="destructive"
         icon="delete"
         onConfirm={async () => {
-          const categoryKey = confirmDelete.categoryKey;
-          const categoryItems = getCategoryItems(categoryKey);
+          const categoryId = confirmDelete.categoryId;
+          const categoryItems = getCategoryItems(categoryId);
           
           try {
             // Delete all items in the category
@@ -1782,15 +1871,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
               if (error) throw error;
             }
             
-            // Remove category from state
-            setBudgetCategories(prev => {
-              const newCategories = { ...prev };
-              delete newCategories[categoryKey];
-              return newCategories;
-            });
+            // Delete the category
+            const { error: categoryError } = await supabase
+              .from('budget_categories')
+              .delete()
+              .eq('id', categoryId);
             
+            if (categoryError) throw categoryError;
+            
+            await fetchBudgetCategories();
             await fetchBudgetItems();
-            setConfirmDelete({ show: false, categoryKey: '', step: 1 });
+            setConfirmDelete({ show: false, categoryId: '', step: 1 });
             
             toast({
               title: "¡Éxito!",
