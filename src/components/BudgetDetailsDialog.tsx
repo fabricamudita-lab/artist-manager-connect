@@ -123,6 +123,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<{ show: boolean; categoryKey: string; step: number }>({ show: false, categoryKey: '', step: 1 });
+  const [confirmModify, setConfirmModify] = useState<{ show: boolean; categoryKey: string; newTitle: string; hasItems: boolean }>({ show: false, categoryKey: '', newTitle: '', hasItems: false });
 
   useEffect(() => {
     if (open && budget) {
@@ -1306,23 +1307,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                           const newTitle = target.value.trim();
                                           if (newTitle && newTitle !== category.title) {
                                             if (hasItems) {
-                                              const confirmed = window.confirm(
-                                                `Esta categoría tiene ${categoryItems.length} elemento(s). ¿Estás segura que quieres modificarla?`
-                                              );
-                                              if (!confirmed) {
-                                                target.value = category.title;
-                                                setEditingCategory(null);
-                                                return;
-                                              }
+                                              setConfirmModify({
+                                                show: true,
+                                                categoryKey,
+                                                newTitle,
+                                                hasItems
+                                              });
+                                              target.value = category.title; // Reset input
+                                            } else {
+                                              setBudgetCategories(prev => ({
+                                                ...prev,
+                                                [categoryKey]: { ...category, title: newTitle }
+                                              }));
+                                              toast({
+                                                title: "¡Éxito!",
+                                                description: "Categoría modificada correctamente"
+                                              });
                                             }
-                                            setBudgetCategories(prev => ({
-                                              ...prev,
-                                              [categoryKey]: { ...category, title: newTitle }
-                                            }));
-                                            toast({
-                                              title: "¡Éxito!",
-                                              description: "Categoría modificada correctamente"
-                                            });
                                           }
                                           setEditingCategory(null);
                                         }}
@@ -1643,67 +1644,94 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         invoiceName={previewInvoice?.name || 'Factura'}
       />
 
-      {/* Confirmation dialogs for category deletion */}
+      {/* Confirmation dialog for category modification */}
       <ConfirmationDialog
-      open={confirmDelete.show && confirmDelete.step === 1}
-      onOpenChange={(open) => !open && setConfirmDelete({ show: false, categoryKey: '', step: 1 })}
-      title="¿Estás segura que quieres eliminar esta categoría?"
-      description={`Esta acción eliminará la categoría "${budgetCategories[confirmDelete.categoryKey]?.title || ''}" y todos sus elementos (${getCategoryItems(confirmDelete.categoryKey).length} elementos).`}
-      confirmText="Continuar"
-      cancelText="Cancelar"
-      variant="warning"
-      icon="warning"
-      onConfirm={() => setConfirmDelete(prev => ({ ...prev, step: 2 }))}
-    />
-
-    <ConfirmationDialog
-      open={confirmDelete.show && confirmDelete.step === 2}
-      onOpenChange={(open) => !open && setConfirmDelete({ show: false, categoryKey: '', step: 1 })}
-      title="Confirmación final"
-      description="Una vez eliminados no podrás recuperar los elementos. ¿Estás seguro que quieres eliminarla?"
-      confirmText="Eliminar definitivamente"
-      cancelText="Cancelar"
-      variant="destructive"
-      icon="delete"
-      onConfirm={async () => {
-        const categoryKey = confirmDelete.categoryKey;
-        const categoryItems = getCategoryItems(categoryKey);
-        
-        try {
-          // Delete all items in the category
-          if (categoryItems.length > 0) {
-            const { error } = await supabase
-              .from('budget_items')
-              .delete()
-              .in('id', categoryItems.map(item => item.id));
-            
-            if (error) throw error;
-          }
-          
-          // Remove category from state
-          setBudgetCategories(prev => {
-            const newCategories = { ...prev };
-            delete newCategories[categoryKey];
-            return newCategories;
-          });
-          
-          await fetchBudgetItems();
-          setConfirmDelete({ show: false, categoryKey: '', step: 1 });
-          
+        open={confirmModify.show}
+        onOpenChange={(open) => !open && setConfirmModify({ show: false, categoryKey: '', newTitle: '', hasItems: false })}
+        title="¿Estás segura que quieres modificar esta categoría?"
+        description={`Esta categoría tiene elementos. ¿Estás segura que quieres modificarla?`}
+        confirmText="Modificar"
+        cancelText="Cancelar"
+        variant="warning"
+        icon="warning"
+        onConfirm={() => {
+          setBudgetCategories(prev => ({
+            ...prev,
+            [confirmModify.categoryKey]: { 
+              ...prev[confirmModify.categoryKey], 
+              title: confirmModify.newTitle 
+            }
+          }));
+          setConfirmModify({ show: false, categoryKey: '', newTitle: '', hasItems: false });
+          setEditingCategory(null);
           toast({
             title: "¡Éxito!",
-            description: `Categoría y ${categoryItems.length} elemento(s) eliminados correctamente`
+            description: "Categoría modificada correctamente"
           });
-        } catch (error) {
-          console.error('Error deleting category:', error);
-          toast({
-            title: "Error",
-            description: "No se pudo eliminar la categoría",
-            variant: "destructive"
-          });
-        }
-      }}
-    />
+        }}
+      />
+
+      {/* Confirmation dialogs for category deletion */}
+      <ConfirmationDialog
+        open={confirmDelete.show && confirmDelete.step === 1}
+        onOpenChange={(open) => !open && setConfirmDelete({ show: false, categoryKey: '', step: 1 })}
+        title="¿Estás segura que quieres eliminar esta categoría?"
+        description={`Esta acción eliminará la categoría "${budgetCategories[confirmDelete.categoryKey]?.title || ''}" y todos sus elementos (${getCategoryItems(confirmDelete.categoryKey).length} elementos).`}
+        confirmText="Continuar"
+        cancelText="Cancelar"
+        variant="warning"
+        icon="warning"
+        onConfirm={() => setConfirmDelete(prev => ({ ...prev, step: 2 }))}
+      />
+
+      <ConfirmationDialog
+        open={confirmDelete.show && confirmDelete.step === 2}
+        onOpenChange={(open) => !open && setConfirmDelete({ show: false, categoryKey: '', step: 1 })}
+        title="Confirmación final"
+        description="Una vez eliminados no podrás recuperar los elementos. ¿Estás seguro que quieres eliminarla?"
+        confirmText="Eliminar definitivamente"
+        cancelText="Cancelar"
+        variant="destructive"
+        icon="delete"
+        onConfirm={async () => {
+          const categoryKey = confirmDelete.categoryKey;
+          const categoryItems = getCategoryItems(categoryKey);
+          
+          try {
+            // Delete all items in the category
+            if (categoryItems.length > 0) {
+              const { error } = await supabase
+                .from('budget_items')
+                .delete()
+                .in('id', categoryItems.map(item => item.id));
+              
+              if (error) throw error;
+            }
+            
+            // Remove category from state
+            setBudgetCategories(prev => {
+              const newCategories = { ...prev };
+              delete newCategories[categoryKey];
+              return newCategories;
+            });
+            
+            await fetchBudgetItems();
+            setConfirmDelete({ show: false, categoryKey: '', step: 1 });
+            
+            toast({
+              title: "¡Éxito!",
+              description: `Categoría y ${categoryItems.length} elemento(s) eliminados correctamente`
+            });
+          } catch (error) {
+            console.error('Error deleting category:', error);
+            toast({
+              title: "Error",
+              description: "No se pudo eliminar la categoría",
+              variant: "destructive"
+            });
+          }
+        }}
+      />
     </Dialog>
   );
 }
