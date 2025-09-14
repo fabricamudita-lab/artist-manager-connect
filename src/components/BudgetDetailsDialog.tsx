@@ -293,7 +293,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   };
 
   const getCategoryItems = (categoryId: string) => {
-    return items.filter(item => item.category_id === categoryId);
+    // Handle both new category_id system and legacy category names
+    return items.filter(item => {
+      if (item.category_id === categoryId) {
+        return true;
+      }
+      // Fallback to legacy category mapping
+      const category = budgetCategories.find(c => c.id === categoryId);
+      if (category && item.category) {
+        const legacyMapping: Record<string, string[]> = {
+          'Promoción': ['equipo_artistico', 'rider_artistico'],
+          'Comisiones': ['porcentajes', 'equipo_tecnico'],
+          'Otros Gastos': ['transporte', 'hospedaje', 'otros_gastos', 'varios']
+        };
+        return legacyMapping[category.name]?.includes(item.category) || false;
+      }
+      return false;
+    });
   };
 
   const getCategoryByLegacyName = (legacyCategory: string) => {
