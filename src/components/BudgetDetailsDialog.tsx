@@ -717,8 +717,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                     onClick={downloadPDF}
                     className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-200 border-blue-400/20"
                   >
-                    <Download className="w-4 h-4 mr-2" />
-                    Descargar PDF
+                    <Download className="w-4 h-4" />
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => setEditingBudget(true)} className="bg-white/10 hover:bg-white/20 text-white border-white/20">
                     <Edit className="w-4 h-4" />
