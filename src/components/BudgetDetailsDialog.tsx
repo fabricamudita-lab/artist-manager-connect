@@ -151,12 +151,14 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const fetchBudgetCategories = async () => {
     try {
+      console.log('Fetching budget categories for user:', user?.id);
       const { data, error } = await supabase
         .from('budget_categories')
         .select('*')
         .eq('created_by', user?.id)
         .order('name');
 
+      console.log('Budget categories result:', { data, error });
       if (error) throw error;
       setBudgetCategories(data || []);
     } catch (error) {
@@ -166,6 +168,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const fetchBudgetItems = async () => {
     try {
+      console.log('Fetching budget items for budget:', budget.id);
       const { data, error } = await supabase
         .from('budget_items')
         .select(`
@@ -175,11 +178,13 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         .eq('budget_id', budget.id)
         .order('name');
 
+      console.log('Budget items query result:', { data, error });
       if (error) throw error;
       const itemsWithDefaults = (data || []).map(item => ({
         ...item,
         irpf_percentage: item.irpf_percentage ?? 15
       }));
+      console.log('Items with defaults:', itemsWithDefaults);
       setItems(itemsWithDefaults);
     } catch (error) {
       console.error('Error fetching budget items:', error);
@@ -295,8 +300,13 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const getCategoryItems = (categoryId: string) => {
     // Handle both new category_id system and legacy category names
-    return items.filter(item => {
+    console.log('Getting items for category:', categoryId);
+    console.log('All items:', items);
+    console.log('All categories:', budgetCategories);
+    
+    const filteredItems = items.filter(item => {
       if (item.category_id === categoryId) {
+        console.log('Item matched by category_id:', item);
         return true;
       }
       // Fallback to legacy category mapping
@@ -307,10 +317,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           'Comisiones': ['porcentajes', 'equipo_tecnico'],
           'Otros Gastos': ['transporte', 'hospedaje', 'otros_gastos', 'varios']
         };
-        return legacyMapping[category.name]?.includes(item.category) || false;
+        const matches = legacyMapping[category.name]?.includes(item.category) || false;
+        if (matches) {
+          console.log('Item matched by legacy mapping:', item, 'for category:', category.name);
+        }
+        return matches;
       }
       return false;
     });
+    
+    console.log('Filtered items for category', categoryId, ':', filteredItems);
+    return filteredItems;
   };
 
   const getCategoryByLegacyName = (legacyCategory: string) => {
