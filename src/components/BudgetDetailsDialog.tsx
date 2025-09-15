@@ -771,14 +771,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           <div className="flex-1 overflow-hidden">
             <Tabs defaultValue="items" className="h-full flex flex-col">
               <div className="border-b bg-background px-6 py-3 flex-shrink-0">
-                <TabsList className="grid w-full max-w-lg grid-cols-3">
+                <TabsList className="grid w-full max-w-lg grid-cols-2">
                   <TabsTrigger value="items" className="flex items-center gap-2">
                     <Calculator className="w-4 h-4" />
                     Elementos
-                  </TabsTrigger>
-                  <TabsTrigger value="resumen" className="flex items-center gap-2">
-                    <PieChartIcon className="w-4 h-4" />
-                    Resumen
                   </TabsTrigger>
                   <TabsTrigger value="overview" className="flex items-center gap-2">
                     <Eye className="w-4 h-4" />
@@ -1087,138 +1083,98 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 </div>
               </TabsContent>
 
-              <TabsContent value="resumen" className="flex-1 overflow-auto p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Gráfico circular */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Desglose por Categoría</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={getCategoryChartData()}
-                              cx="50%"
-                              cy="50%"
-                              labelLine={false}
-                              outerRadius={80}
-                              fill="#8884d8"
-                              dataKey="value"
-                              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
-                            >
-                              {getCategoryChartData().map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <Tooltip 
-                              formatter={(value, name) => [`€${Number(value).toFixed(2)}`, name]}
-                              labelFormatter={(label) => `Categoría: ${label}`}
-                              contentStyle={{
-                                backgroundColor: 'hsl(var(--card))',
-                                border: '1px solid hsl(var(--border))',
-                                borderRadius: '8px',
-                                color: 'hsl(var(--foreground))'
-                              }}
-                            />
-                            <Legend />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Tabla resumen */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Resumen por Categoría</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Categoría</TableHead>
-                            <TableHead className="text-center">Nº Elementos</TableHead>
-                            <TableHead className="text-right">Total (€)</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {getCategorySummaryData().map((category) => {
-                            const IconComponent = iconMap[category.icon as keyof typeof iconMap] || DollarSign;
-                            return (
-                              <TableRow key={category.id}>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <IconComponent className="h-4 w-4 text-primary" />
-                                    {category.name}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  {category.count}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  €{category.total.toFixed(2)}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
 
               <TabsContent value="overview" className="flex-1 overflow-auto p-6">
                 <div className="space-y-6">
-                  {/* Gráfico circular de categorías */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <PieChartIcon className="h-5 w-5" />
-                        Desglose por Categoría
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={getCategoryChartData()}
-                              cx="50%"
-                              cy="50%"
-                              labelLine={false}
-                              outerRadius={100}
-                              fill="#8884d8"
-                              dataKey="value"
-                              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
-                            >
-                              {getCategoryChartData().map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <Tooltip 
-                              formatter={(value: number) => [`€${value.toFixed(2)}`, 'Importe']}
-                              labelFormatter={(label) => `${label}`}
-                              contentStyle={{
-                                backgroundColor: 'hsl(var(--card))',
-                                border: '1px solid hsl(var(--border))',
-                                borderRadius: '8px',
-                                color: 'hsl(var(--foreground))'
-                              }}
-                            />
-                            <Legend />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {/* Grid con gráfico y resumen por categorías */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Gráfico circular de categorías */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <PieChartIcon className="h-5 w-5" />
+                          Desglose por Categoría
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-80">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={getCategoryChartData()}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                outerRadius={100}
+                                fill="#8884d8"
+                                dataKey="value"
+                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
+                              >
+                                {getCategoryChartData().map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                              </Pie>
+                              <Tooltip 
+                                formatter={(value: number) => [`€${value.toFixed(2)}`, 'Importe']}
+                                labelFormatter={(label) => `${label}`}
+                                contentStyle={{
+                                  backgroundColor: 'hsl(var(--card))',
+                                  border: '1px solid hsl(var(--border))',
+                                  borderRadius: '8px',
+                                  color: 'hsl(var(--foreground))'
+                                }}
+                              />
+                              <Legend />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Tabla resumen por categorías */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Resumen por Categoría</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Categoría</TableHead>
+                              <TableHead className="text-center">Nº Elementos</TableHead>
+                              <TableHead className="text-right">Total (€)</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {getCategorySummaryData().map((category) => {
+                              const IconComponent = iconMap[category.icon as keyof typeof iconMap] || DollarSign;
+                              return (
+                                <TableRow key={category.id}>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <IconComponent className="h-4 w-4 text-primary" />
+                                      {category.name}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {category.count}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    €{category.total.toFixed(2)}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  </div>
 
                   {/* Tabla detallada de elementos */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>Vista General de Elementos</CardTitle>
+                      <CardTitle>Vista Detallada de Elementos</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-x-auto">
