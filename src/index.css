@@ -303,4 +303,33 @@
     box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 8px hsl(var(--primary) / 0.4);
     transition: all 0.2s ease;
   }
+
+  /* Drag and Drop Styles */
+  .drag-item {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .drag-item:hover {
+    transform: translateY(-1px);
+  }
+
+  .drag-item.dragging {
+    opacity: 0.6;
+    transform: scale(1.02) translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+  }
+
+  .drag-item.drag-over {
+    transform: translateY(-1px);
+    box-shadow: 0 0 0 2px hsl(var(--accent) / 0.5);
+  }
+
+  .cursor-grab {
+    cursor: grab;
+  }
+
+  .cursor-grabbing {
+    cursor: grabbing;
+  }
 }

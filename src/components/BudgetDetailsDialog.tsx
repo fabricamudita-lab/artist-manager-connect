@@ -584,6 +584,51 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   };
 
+  const reorderCategories = async (draggedId: string, targetId: string) => {
+    try {
+      const draggedIndex = budgetCategories.findIndex(cat => cat.id === draggedId);
+      const targetIndex = budgetCategories.findIndex(cat => cat.id === targetId);
+      
+      if (draggedIndex === -1 || targetIndex === -1) return;
+
+      // Create new array with reordered categories
+      const newCategories = [...budgetCategories];
+      const [removed] = newCategories.splice(draggedIndex, 1);
+      newCategories.splice(targetIndex, 0, removed);
+
+      // Update sort_order for all affected categories
+      const updates = newCategories.map((category, index) => ({
+        id: category.id,
+        sort_order: index
+      }));
+
+      // Update in database
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('budget_categories')
+          .update({ sort_order: update.sort_order })
+          .eq('id', update.id);
+        
+        if (error) throw error;
+      }
+
+      // Refresh categories to get updated order
+      await fetchBudgetCategories();
+      
+      toast({
+        title: "Orden actualizado",
+        description: "Las categorías se han reordenado exitosamente"
+      });
+    } catch (error) {
+      console.error('Error reordering categories:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo reordenar las categorías",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -877,30 +922,56 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                    {showCategoryManagement && (
                      <div className="bg-gray-800 text-white p-4 border-b border-gray-600">
                        <h3 className="text-md font-bold mb-3">Gestión de Categorías</h3>
-                       <div className="space-y-3">
-                         {budgetCategories.map((category, index) => (
-                           <div 
-                             key={category.id}
-                             className="flex items-center justify-between p-3 bg-gray-700 rounded-lg"
-                             draggable
-                             onDragStart={() => setDraggedCategory(category.id)}
-                             onDragOver={(e) => {
-                               e.preventDefault();
-                               setDragOverCategory(category.id);
-                             }}
-                             onDrop={(e) => {
-                               e.preventDefault();
-                               // Handle reordering logic here
-                               setDraggedCategory(null);
-                               setDragOverCategory(null);
-                             }}
-                             style={{
-                               opacity: draggedCategory === category.id ? 0.5 : 1,
-                               backgroundColor: dragOverCategory === category.id ? '#374151' : '#374151'
-                             }}
-                           >
-                             <div className="flex items-center gap-3">
-                               <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                        <div className="space-y-3">
+                          {budgetCategories.map((category, index) => (
+                            <div 
+                              key={category.id}
+                              className={`flex items-center justify-between p-3 rounded-lg transition-all duration-200 cursor-move
+                                ${draggedCategory === category.id 
+                                  ? 'bg-gray-600 opacity-60 shadow-lg transform scale-105' 
+                                  : dragOverCategory === category.id 
+                                    ? 'bg-gray-600 shadow-md border-2 border-blue-400' 
+                                    : 'bg-gray-700 hover:bg-gray-650'
+                                }`}
+                              draggable
+                              onDragStart={(e) => {
+                                setDraggedCategory(category.id);
+                                e.dataTransfer.effectAllowed = 'move';
+                              }}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'move';
+                                if (draggedCategory && draggedCategory !== category.id) {
+                                  setDragOverCategory(category.id);
+                                }
+                              }}
+                              onDragLeave={(e) => {
+                                // Only clear if leaving the entire item, not just child elements
+                                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                                  setDragOverCategory(null);
+                                }
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                if (draggedCategory && dragOverCategory && draggedCategory !== dragOverCategory) {
+                                  reorderCategories(draggedCategory, dragOverCategory);
+                                }
+                                setDraggedCategory(null);
+                                setDragOverCategory(null);
+                              }}
+                              onDragEnd={() => {
+                                setDraggedCategory(null);
+                                setDragOverCategory(null);
+                              }}
+                            >
+                              <div className="flex items-center gap-3">
+                                <GripVertical 
+                                  className={`w-5 h-5 transition-colors duration-200 ${
+                                    draggedCategory === category.id 
+                                      ? 'text-blue-400 cursor-grabbing' 
+                                      : 'text-gray-400 hover:text-gray-200 cursor-grab'
+                                  }`} 
+                                />
                                {iconMap[category.icon_name as keyof typeof iconMap] && 
                                  React.createElement(iconMap[category.icon_name as keyof typeof iconMap], { 
                                    className: "w-4 h-4" 
