@@ -160,9 +160,81 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
       console.log('Budget categories result:', { data, error });
       if (error) throw error;
+      
+      // If no categories exist, create default ones
+      if (!data || data.length === 0) {
+        console.log('No categories found, creating default ones...');
+        await createDefaultCategories();
+        return;
+      }
+      
       setBudgetCategories(data || []);
     } catch (error) {
       console.error('Error fetching budget categories:', error);
+    }
+  };
+
+  const createDefaultCategories = async () => {
+    try {
+      console.log('Creating default categories...');
+      const defaultCategories = [
+        { name: 'Promoción', icon_name: 'Music' },
+        { name: 'Comisiones', icon_name: 'DollarSign' },
+        { name: 'Otros Gastos', icon_name: 'CreditCard' }
+      ];
+
+      const { data, error } = await supabase
+        .from('budget_categories')
+        .insert(defaultCategories.map(cat => ({
+          ...cat,
+          created_by: user?.id
+        })))
+        .select();
+
+      if (error) throw error;
+      console.log('Default categories created:', data);
+      setBudgetCategories(data || []);
+      
+      // After creating categories, update existing items
+      await updateExistingItemsWithCategories(data || []);
+    } catch (error) {
+      console.error('Error creating default categories:', error);
+    }
+  };
+
+  const updateExistingItemsWithCategories = async (categories: BudgetCategory[]) => {
+    try {
+      console.log('Updating existing items with categories...');
+      const legacyMapping: Record<string, string> = {
+        'equipo_artistico': 'Promoción',
+        'rider_artistico': 'Promoción',
+        'porcentajes': 'Comisiones',
+        'equipo_tecnico': 'Comisiones',
+        'transporte': 'Otros Gastos',
+        'hospedaje': 'Otros Gastos',
+        'otros_gastos': 'Otros Gastos',
+        'varios': 'Otros Gastos'
+      };
+
+      for (const item of items) {
+        if (item.category && !item.category_id) {
+          const targetCategoryName = legacyMapping[item.category] || 'Otros Gastos';
+          const targetCategory = categories.find(c => c.name === targetCategoryName);
+          
+          if (targetCategory) {
+            console.log(`Updating item ${item.name} to category ${targetCategory.name}`);
+            await supabase
+              .from('budget_items')
+              .update({ category_id: targetCategory.id })
+              .eq('id', item.id);
+          }
+        }
+      }
+      
+      // Refetch items to show the updated data
+      await fetchBudgetItems();
+    } catch (error) {
+      console.error('Error updating existing items:', error);
     }
   };
 
