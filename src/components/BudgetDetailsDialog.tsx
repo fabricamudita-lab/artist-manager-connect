@@ -46,7 +46,8 @@ import {
   ArrowRight,
   Settings,
   Pencil,
-  ChevronUp
+  ChevronUp,
+  GripVertical
 } from 'lucide-react';
 
 interface Budget {
@@ -96,6 +97,7 @@ interface BudgetCategory {
   created_by: string;
   created_at: string;
   updated_at: string;
+  sort_order: number;
 }
 
 interface BudgetDetailsDialogProps {
@@ -154,7 +156,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         .from('budget_categories')
         .select('*')
         .eq('created_by', user?.id)
-        .order('name');
+        .order('sort_order');
 
       console.log('Budget categories result:', { data, error });
       if (error) throw error;
@@ -183,9 +185,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
       const { data, error } = await supabase
         .from('budget_categories')
-        .insert(defaultCategories.map(cat => ({
+        .insert(defaultCategories.map((cat, index) => ({
           ...cat,
-          created_by: user?.id
+          created_by: user?.id,
+          sort_order: index
         })))
         .select();
 
@@ -277,7 +280,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         .insert([{
           name: newCategoryName.trim(),
           icon_name: 'DollarSign',
-          created_by: user?.id
+          created_by: user?.id,
+          sort_order: budgetCategories.length
         }]);
 
       if (error) throw error;
@@ -851,14 +855,30 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                     {showCategoryManagement && (
                       <div className="mt-4 p-4 bg-white/10 rounded-lg">
                         <h3 className="text-sm font-medium mb-3 text-white/80">Categorías Disponibles</h3>
+                        <p className="text-xs text-white/60 mb-3">🎯 Arrastra las categorías para reordenarlas</p>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           {budgetCategories.map((category) => {
                             const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
                             const categoryItems = getCategoryItems(category.id);
                             
                             return (
-                              <div key={category.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
+                              <div 
+                                key={category.id} 
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, category.id)}
+                                onDragOver={(e) => handleDragOver(e, category.id)}
+                                onDragLeave={handleDragLeave}
+                                onDrop={(e) => handleDrop(e, category.id)}
+                                className={`flex items-center justify-between p-3 rounded-lg border cursor-move transition-all duration-200 ${
+                                  draggedCategory === category.id 
+                                    ? 'bg-white/20 border-white/40 opacity-50 scale-95 shadow-lg' 
+                                    : dragOverCategory === category.id
+                                    ? 'bg-white/15 border-white/30 scale-105 animate-pulse shadow-md'
+                                    : 'bg-white/5 border-white/10 hover:bg-white/10 hover:scale-[1.02]'
+                                }`}
+                              >
                                 <div className="flex items-center gap-2">
+                                  <GripVertical className="w-3 h-3 text-white/40" />
                                   <IconComponent className="w-4 h-4 text-white/70" />
                                   <span className="text-sm text-white">{category.name}</span>
                                   <span className="text-xs text-white/60">({categoryItems.length})</span>
@@ -868,7 +888,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                     size="sm"
                                     variant="ghost"
                                     className="h-6 w-6 p-0 text-white/60 hover:text-white hover:bg-white/10"
-                                    onClick={() => setEditingCategory(category.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingCategory(category.id);
+                                    }}
                                   >
                                     <Pencil className="w-3 h-3" />
                                   </Button>
@@ -876,7 +899,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                     size="sm"
                                     variant="ghost"
                                     className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       if (categoryItems.length > 0) {
                                         if (window.confirm(`¿Eliminar categoría "${category.name}"? Se eliminarán también ${categoryItems.length} elementos.`)) {
                                           deleteCategory(category.id);
