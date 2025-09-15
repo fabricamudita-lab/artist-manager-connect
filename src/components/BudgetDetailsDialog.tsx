@@ -193,13 +193,14 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   };
 
-  const addItem = async (category: string) => {
+  const addItem = async (categoryId: string) => {
     try {
       const { error } = await supabase
         .from('budget_items')
         .insert({
           budget_id: budget.id,
-          category,
+          category_id: categoryId,
+          category: '', // Keep empty for legacy compatibility
           subcategory: '',
           name: 'Nuevo elemento',
           quantity: 1,
