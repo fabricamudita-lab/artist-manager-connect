@@ -140,6 +140,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [showCategoryManagement, setShowCategoryManagement] = useState(false);
   const [draggedCategory, setDraggedCategory] = useState<string | null>(null);
   const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
+  const [editingItemValues, setEditingItemValues] = useState<Partial<BudgetItem>>({});
+  const [newItem, setNewItem] = useState<{ categoryId: string; editing: boolean } | null>(null);
 
   useEffect(() => {
     if (open && budget) {
@@ -390,62 +392,53 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   };
 
-  const addItem = async (categoryId: string) => {
-    try {
-      const { error } = await supabase
-        .from('budget_items')
-        .insert({
-          budget_id: budget.id,
-          category_id: categoryId,
-          category: '', // Keep empty for legacy compatibility
-          subcategory: '',
-          name: 'Nuevo elemento',
-          quantity: 1,
-          unit_price: 0,
-          iva_percentage: 21,
-          irpf_percentage: 15,
-          is_attendee: false,
-          billing_status: 'pendiente',
-          invoice_link: '',
-          observations: ''
-        });
-
-      if (error) throw error;
-      await fetchBudgetItems();
-      toast({
-        title: "¡Éxito!",
-        description: "Elemento agregado correctamente"
-      });
-    } catch (error) {
-      console.error('Error adding item:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo agregar el elemento",
-        variant: "destructive"
-      });
-    }
+  const calculateTotal = (item: BudgetItem) => {
+    const subtotal = item.quantity * item.unit_price;
+    const iva = subtotal * (item.iva_percentage / 100);
+    const irpf = subtotal * ((item.irpf_percentage || 15) / 100);
+    return subtotal + iva - irpf;
   };
 
-  const updateItem = async (item: BudgetItem) => {
+  const calculateGrandTotals = () => {
+    const totals = items.reduce(
+      (acc, item) => {
+        const subtotal = item.quantity * item.unit_price;
+        const iva = subtotal * (item.iva_percentage / 100);
+        const irpf = subtotal * ((item.irpf_percentage || 15) / 100);
+        
+        acc.neto += subtotal;
+        acc.iva += iva;
+        acc.irpf += irpf;
+        acc.total += subtotal + iva - irpf;
+        
+        return acc;
+      },
+      { neto: 0, iva: 0, irpf: 0, total: 0 }
+    );
+    
+    return totals;
+  };
+
+  const startEditingItem = (item: BudgetItem) => {
+    setEditingItem(item.id);
+    setEditingItemValues(item);
+  };
+
+  const saveItemEdits = async () => {
+    if (!editingItem || !editingItemValues) return;
+
     try {
       const { error } = await supabase
         .from('budget_items')
-        .update({
-          name: item.name,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          iva_percentage: item.iva_percentage,
-          irpf_percentage: item.irpf_percentage,
-          is_attendee: item.is_attendee,
-          billing_status: item.billing_status,
-          invoice_link: item.invoice_link,
-          observations: item.observations
-        })
-        .eq('id', item.id);
+        .update(editingItemValues)
+        .eq('id', editingItem);
 
       if (error) throw error;
+      
       setEditingItem(null);
+      setEditingItemValues({});
       await fetchBudgetItems();
+      
       toast({
         title: "¡Éxito!",
         description: "Elemento actualizado correctamente"
@@ -460,34 +453,75 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   };
 
-  const deleteItem = async (itemId: string) => {
+  const cancelItemEdits = () => {
+    setEditingItem(null);
+    setEditingItemValues({});
+  };
+
+  const addNewItem = async (categoryId: string) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('budget_items')
-        .delete()
-        .eq('id', itemId);
+        .insert({
+          budget_id: budget.id,
+          category_id: categoryId,
+          category: '',
+          subcategory: '',
+          name: 'Nuevo elemento',
+          quantity: 1,
+          unit_price: 0,
+          iva_percentage: 21,
+          irpf_percentage: 15,
+          is_attendee: false,
+          billing_status: 'pendiente',
+          invoice_link: '',
+          observations: ''
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+      
       await fetchBudgetItems();
+      setEditingItem(data.id);
+      setEditingItemValues(data);
+      
       toast({
         title: "¡Éxito!",
-        description: "Elemento eliminado correctamente"
+        description: "Elemento agregado correctamente"
       });
     } catch (error) {
-      console.error('Error deleting item:', error);
+      console.error('Error adding item:', error);
       toast({
         title: "Error",
-        description: "No se pudo eliminar el elemento",
+        description: "No se pudo agregar el elemento",
         variant: "destructive"
       });
     }
   };
 
-  const calculateTotal = (item: BudgetItem) => {
-    const subtotal = item.quantity * item.unit_price;
-    const iva = subtotal * (item.iva_percentage / 100);
-    const irpf = subtotal * ((item.irpf_percentage || 15) / 100);
-    return subtotal + iva - irpf;
+  const updateItemCategory = async (itemId: string, newCategoryId: string) => {
+    try {
+      const { error } = await supabase
+        .from('budget_items')
+        .update({ category_id: newCategoryId })
+        .eq('id', itemId);
+
+      if (error) throw error;
+      
+      await fetchBudgetItems();
+      toast({
+        title: "¡Éxito!",
+        description: "Categoría actualizada correctamente"
+      });
+    } catch (error) {
+      console.error('Error updating category:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la categoría",
+        variant: "destructive"
+      });
+    }
   };
 
   const getCategoryItems = (categoryId: string) => {
@@ -521,86 +555,24 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     return filteredItems;
   };
 
-  const uploadFactura = async (file: File, itemId: string) => {
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "Debes estar autenticado para subir archivos",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setUploadingFactura(itemId);
-    
+  const deleteItem = async (itemId: string) => {
     try {
-      // Generate unique filename
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${budget.id}/${itemId}_${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('facturas')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('facturas')
-        .getPublicUrl(fileName);
-
-      // Update the budget item with the invoice link
-      const { error: updateError } = await supabase
-        .from('budget_items')
-        .update({ invoice_link: publicUrl })
-        .eq('id', itemId);
-
-      if (updateError) throw updateError;
-
-      await fetchBudgetItems();
-      toast({
-        title: "¡Éxito!",
-        description: "Factura subida y vinculada correctamente"
-      });
-    } catch (error) {
-      console.error('Error uploading factura:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo subir la factura",
-        variant: "destructive"
-      });
-    } finally {
-      setUploadingFactura(null);
-    }
-  };
-
-  const removeFactura = async (itemId: string, invoiceUrl: string) => {
-    try {
-      // Extract file path from URL
-      const urlParts = invoiceUrl.split('/facturas/');
-      if (urlParts.length > 1) {
-        const filePath = urlParts[1];
-        await supabase.storage.from('facturas').remove([filePath]);
-      }
-
-      // Remove the link from the budget item
       const { error } = await supabase
         .from('budget_items')
-        .update({ invoice_link: null })
+        .delete()
         .eq('id', itemId);
 
       if (error) throw error;
-
       await fetchBudgetItems();
       toast({
         title: "¡Éxito!",
-        description: "Factura eliminada correctamente"
+        description: "Elemento eliminado correctamente"
       });
     } catch (error) {
-      console.error('Error removing factura:', error);
+      console.error('Error deleting item:', error);
       toast({
         title: "Error",
-        description: "No se pudo eliminar la factura",
+        description: "No se pudo eliminar el elemento",
         variant: "destructive"
       });
     }
@@ -763,9 +735,26 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
                         <Calculator className="h-8 w-8 text-white" />
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <DialogTitle className="text-3xl font-bold text-white">{budgetData.name}</DialogTitle>
                         <p className="text-gray-400 text-lg mt-1">PRESUPUESTO NACIONAL</p>
+                        
+                        {/* Totales en tiempo real */}
+                        <div className="flex gap-6 mt-3 text-sm">
+                          {(() => {
+                            const totals = calculateGrandTotals();
+                            return (
+                              <>
+                                <div className="px-3 py-1 bg-green-600/20 rounded-full border border-green-500/30">
+                                  <span className="text-green-200 font-medium">Neto: €{totals.neto.toFixed(2)}</span>
+                                </div>
+                                <div className="px-3 py-1 bg-blue-600/20 rounded-full border border-blue-500/30">
+                                  <span className="text-blue-200 font-medium">Neto + IVA - IRPF: €{(totals.neto + totals.iva - totals.irpf).toFixed(2)}</span>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-3 text-sm text-white/80">
@@ -957,9 +946,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                             <div className="flex items-center gap-3">
                               <IconComponent className="w-5 h-5" />
                               <h3 className="text-lg font-bold tracking-wider">{category.name.toUpperCase()}</h3>
+                              <span className="text-sm text-white/60">({categoryItems.length} elementos)</span>
                             </div>
                             <Button
-                              onClick={() => addItem(category.id)}
+                              onClick={() => addNewItem(category.id)}
                               size="sm"
                               className="bg-blue-600 hover:bg-blue-700 text-white"
                             >
@@ -968,13 +958,13 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                             </Button>
                           </div>
                           
-                          {/* Category Items */}
-                          <div className="bg-gray-50 border-b border-gray-300">
+                          {/* Excel-style Table */}
+                          <div className="bg-white border-b border-gray-300 overflow-x-auto">
                             {categoryItems.length === 0 ? (
                               <div className="p-8 text-center text-gray-500 bg-white">
                                 <p>No hay elementos en esta categoría</p>
                                 <Button
-                                  onClick={() => addItem(category.id)}
+                                  onClick={() => addNewItem(category.id)}
                                   variant="ghost"
                                   className="mt-2 text-gray-600 hover:text-gray-900"
                                 >
@@ -983,132 +973,201 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                 </Button>
                               </div>
                             ) : (
-                              categoryItems.map((item, index) => (
-                                <div 
-                                  key={item.id} 
-                                  className={`p-4 border-b border-gray-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}
-                                >
-                                  {editingItem === item.id ? (
-                                    <div className="space-y-3 p-4 bg-white rounded-lg border border-gray-200">
-                                      <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                          <Label className="text-sm font-medium text-gray-700">Nombre</Label>
+                              <Table>
+                                <TableHeader>
+                                  <TableRow className="bg-gray-100 hover:bg-gray-100">
+                                    <TableHead className="font-bold text-black w-[200px]">Nombre</TableHead>
+                                    <TableHead className="font-bold text-black w-[100px] text-center">Cantidad</TableHead>
+                                    <TableHead className="font-bold text-black w-[120px] text-right">Precio Unit. (€)</TableHead>
+                                    <TableHead className="font-bold text-black w-[80px] text-center">IVA (%)</TableHead>
+                                    <TableHead className="font-bold text-black w-[80px] text-center">IRPF (%)</TableHead>
+                                    <TableHead className="font-bold text-black w-[120px] text-right">Total (€)</TableHead>
+                                    <TableHead className="font-bold text-black w-[120px] text-center">Categoría</TableHead>
+                                    <TableHead className="font-bold text-black w-[100px] text-center">Acciones</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {categoryItems.map((item, index) => (
+                                    <TableRow 
+                                      key={item.id} 
+                                      className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors border-b border-gray-200`}
+                                    >
+                                      {/* Nombre */}
+                                      <TableCell className="p-2">
+                                        {editingItem === item.id ? (
                                           <Input
-                                            value={item.name}
-                                            onChange={(e) => setItems(prev => 
-                                              prev.map(i => i.id === item.id ? { ...i, name: e.target.value } : i)
-                                            )}
-                                            placeholder="Nombre del elemento"
-                                            className="mt-1 bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                            value={editingItemValues.name || item.name}
+                                            onChange={(e) => setEditingItemValues(prev => ({ ...prev, name: e.target.value }))}
+                                            className="h-8 text-sm border-blue-300 focus:border-blue-500"
+                                            autoFocus
                                           />
-                                        </div>
-                                        <div>
-                                          <Label className="text-sm font-medium text-gray-700">Precio unitario (€)</Label>
-                                          <Input
-                                            type="number"
-                                            step="0.01"
-                                            value={item.unit_price}
-                                            onChange={(e) => setItems(prev => 
-                                              prev.map(i => i.id === item.id ? { ...i, unit_price: parseFloat(e.target.value) || 0 } : i)
-                                            )}
-                                            placeholder="0.00"
-                                            className="mt-1 bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                                          />
-                                        </div>
-                                      </div>
-                                      <div className="grid grid-cols-3 gap-3">
-                                        <div>
-                                          <Label className="text-sm font-medium text-gray-700">Cantidad</Label>
+                                        ) : (
+                                          <div 
+                                            className="h-8 flex items-center cursor-pointer hover:bg-blue-100 px-2 rounded"
+                                            onClick={() => startEditingItem(item)}
+                                          >
+                                            {item.name}
+                                          </div>
+                                        )}
+                                      </TableCell>
+                                      
+                                      {/* Cantidad */}
+                                      <TableCell className="p-2 text-center">
+                                        {editingItem === item.id ? (
                                           <Input
                                             type="number"
                                             min="1"
-                                            value={item.quantity}
-                                            onChange={(e) => setItems(prev => 
-                                              prev.map(i => i.id === item.id ? { ...i, quantity: parseInt(e.target.value) || 1 } : i)
-                                            )}
-                                            className="mt-1 bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                            value={editingItemValues.quantity || item.quantity}
+                                            onChange={(e) => setEditingItemValues(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                                            className="h-8 text-sm text-center border-blue-300 focus:border-blue-500"
                                           />
-                                        </div>
-                                        <div>
-                                          <Label className="text-sm font-medium text-gray-700">IVA (%)</Label>
-                                          <Input
-                                            type="number"
-                                            step="0.1"
-                                            min="0"
-                                            max="100"
-                                            value={item.iva_percentage}
-                                            onChange={(e) => setItems(prev => 
-                                              prev.map(i => i.id === item.id ? { ...i, iva_percentage: parseFloat(e.target.value) || 0 } : i)
-                                            )}
-                                            className="mt-1 bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                                          />
-                                        </div>
-                                        <div>
-                                          <Label className="text-sm font-medium text-gray-700">IRPF (%)</Label>
-                                          <Input
-                                            type="number"
-                                            step="0.1"
-                                            min="0"
-                                            max="100"
-                                            value={item.irpf_percentage || 15}
-                                            onChange={(e) => setItems(prev => 
-                                              prev.map(i => i.id === item.id ? { ...i, irpf_percentage: parseFloat(e.target.value) || 15 } : i)
-                                            )}
-                                            className="mt-1 bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                                          />
-                                        </div>
-                                      </div>
-                                      <div className="flex justify-end gap-2 pt-2">
-                                        <Button
-                                          onClick={() => updateItem(item)}
-                                          size="sm"
-                                          className="bg-green-600 hover:bg-green-700 text-white"
-                                        >
-                                          <Save className="w-4 h-4 mr-1" />
-                                          Guardar
-                                        </Button>
-                                        <Button
-                                          onClick={() => setEditingItem(null)}
-                                          size="sm"
-                                          variant="outline"
-                                          className="bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                                        >
-                                          <X className="w-4 h-4 mr-1" />
-                                          Cancelar
-                                        </Button>
-                                        <Button
-                                          onClick={() => deleteItem(item.id)}
-                                          size="sm"
-                                          variant="destructive"
-                                        >
-                                          <Trash2 className="w-4 h-4 mr-1" />
-                                          Eliminar
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center justify-between cursor-pointer" onClick={() => setEditingItem(item.id)}>
-                                      <div className="flex-1">
-                                        <h4 className="font-medium text-gray-900">{item.name}</h4>
-                                        <p className="text-sm text-gray-600">
-                                          {item.quantity} × €{item.unit_price.toFixed(2)} = €{(item.quantity * item.unit_price).toFixed(2)}
-                                          {item.iva_percentage > 0 && ` + IVA (${item.iva_percentage}%)`}
-                                          {item.irpf_percentage > 0 && ` - IRPF (${item.irpf_percentage}%)`}
-                                        </p>
-                                        {item.observations && (
-                                          <p className="text-xs text-gray-500 mt-1">{item.observations}</p>
+                                        ) : (
+                                          <div 
+                                            className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
+                                            onClick={() => startEditingItem(item)}
+                                          >
+                                            {item.quantity}
+                                          </div>
                                         )}
-                                      </div>
-                                      <div className="text-right">
-                                        <div className="text-lg font-bold text-gray-900">
-                                          €{calculateTotal(item).toFixed(2)}
+                                      </TableCell>
+                                      
+                                      {/* Precio Unitario */}
+                                      <TableCell className="p-2 text-right">
+                                        {editingItem === item.id ? (
+                                          <Input
+                                            type="number"
+                                            step="0.01"
+                                            value={editingItemValues.unit_price || item.unit_price}
+                                            onChange={(e) => setEditingItemValues(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
+                                            className="h-8 text-sm text-right border-blue-300 focus:border-blue-500"
+                                          />
+                                        ) : (
+                                          <div 
+                                            className="h-8 flex items-center justify-end cursor-pointer hover:bg-blue-100 px-2 rounded"
+                                            onClick={() => startEditingItem(item)}
+                                          >
+                                            €{item.unit_price.toFixed(2)}
+                                          </div>
+                                        )}
+                                      </TableCell>
+                                      
+                                      {/* IVA */}
+                                      <TableCell className="p-2 text-center">
+                                        {editingItem === item.id ? (
+                                          <Input
+                                            type="number"
+                                            step="0.1"
+                                            min="0"
+                                            max="100"
+                                            value={editingItemValues.iva_percentage || item.iva_percentage}
+                                            onChange={(e) => setEditingItemValues(prev => ({ ...prev, iva_percentage: parseFloat(e.target.value) || 0 }))}
+                                            className="h-8 text-sm text-center border-blue-300 focus:border-blue-500"
+                                          />
+                                        ) : (
+                                          <div 
+                                            className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
+                                            onClick={() => startEditingItem(item)}
+                                          >
+                                            {item.iva_percentage}%
+                                          </div>
+                                        )}
+                                      </TableCell>
+                                      
+                                      {/* IRPF */}
+                                      <TableCell className="p-2 text-center">
+                                        {editingItem === item.id ? (
+                                          <Input
+                                            type="number"
+                                            step="0.1"
+                                            min="0"
+                                            max="100"
+                                            value={editingItemValues.irpf_percentage || item.irpf_percentage || 15}
+                                            onChange={(e) => setEditingItemValues(prev => ({ ...prev, irpf_percentage: parseFloat(e.target.value) || 15 }))}
+                                            className="h-8 text-sm text-center border-blue-300 focus:border-blue-500"
+                                          />
+                                        ) : (
+                                          <div 
+                                            className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
+                                            onClick={() => startEditingItem(item)}
+                                          >
+                                            {item.irpf_percentage || 15}%
+                                          </div>
+                                        )}
+                                      </TableCell>
+                                      
+                                      {/* Total */}
+                                      <TableCell className="p-2 text-right">
+                                        <div className="h-8 flex items-center justify-end px-2 font-medium text-green-700">
+                                          €{calculateTotal(editingItem === item.id ? { ...item, ...editingItemValues } : item).toFixed(2)}
                                         </div>
-                                        <div className="text-xs text-gray-500">Total</div>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              ))
+                                      </TableCell>
+                                      
+                                      {/* Categoría */}
+                                      <TableCell className="p-2 text-center">
+                                        <Select
+                                          value={item.category_id || category.id}
+                                          onValueChange={(newCategoryId) => updateItemCategory(item.id, newCategoryId)}
+                                        >
+                                          <SelectTrigger className="h-8 text-xs">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {budgetCategories.map((cat) => (
+                                              <SelectItem key={cat.id} value={cat.id}>
+                                                {cat.name}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </TableCell>
+                                      
+                                      {/* Acciones */}
+                                      <TableCell className="p-2 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                          {editingItem === item.id ? (
+                                            <>
+                                              <Button
+                                                onClick={saveItemEdits}
+                                                size="sm"
+                                                className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700"
+                                              >
+                                                <Save className="w-3 h-3" />
+                                              </Button>
+                                              <Button
+                                                onClick={cancelItemEdits}
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-6 w-6 p-0"
+                                              >
+                                                <X className="w-3 h-3" />
+                                              </Button>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Button
+                                                onClick={() => startEditingItem(item)}
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-6 w-6 p-0 hover:bg-blue-100"
+                                              >
+                                                <Edit className="w-3 h-3" />
+                                              </Button>
+                                              <Button
+                                                onClick={() => deleteItem(item.id)}
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-6 w-6 p-0 hover:bg-red-100 text-red-600"
+                                              >
+                                                <Trash2 className="w-3 h-3" />
+                                              </Button>
+                                            </>
+                                          )}
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
                             )}
                           </div>
                         </div>
