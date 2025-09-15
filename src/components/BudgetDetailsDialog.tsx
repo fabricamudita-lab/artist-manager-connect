@@ -35,7 +35,8 @@ import {
   Eye,
   Settings,
   Pencil,
-  GripVertical
+  GripVertical,
+  PieChart as PieChartIcon
 } from 'lucide-react';
 
 interface Budget {
@@ -303,6 +304,37 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     
     console.log('📋 Filtered items for category', categoryId, ':', filteredItems.length);
     return filteredItems;
+  };
+
+  // Funciones para el gráfico y resumen
+  const getCategoryChartData = () => {
+    const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#f97316', '#06b6d4', '#84cc16'];
+    
+    return budgetCategories.map((category, index) => {
+      const categoryItems = getCategoryItems(category.id);
+      const total = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
+      
+      return {
+        name: category.name,
+        value: total,
+        color: colors[index % colors.length]
+      };
+    }).filter(item => item.value > 0);
+  };
+
+  const getCategorySummaryData = () => {
+    return budgetCategories.map(category => {
+      const categoryItems = getCategoryItems(category.id);
+      const total = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
+      
+      return {
+        id: category.id,
+        name: category.name,
+        icon: category.icon_name,
+        count: categoryItems.length,
+        total: total
+      };
+    }).filter(item => item.count > 0);
   };
 
   const createTestData = async () => {
@@ -739,10 +771,14 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           <div className="flex-1 overflow-hidden">
             <Tabs defaultValue="items" className="h-full flex flex-col">
               <div className="border-b bg-background px-6 py-3 flex-shrink-0">
-                <TabsList className="grid w-full max-w-lg grid-cols-2">
+                <TabsList className="grid w-full max-w-lg grid-cols-3">
                   <TabsTrigger value="items" className="flex items-center gap-2">
                     <Calculator className="w-4 h-4" />
                     Elementos
+                  </TabsTrigger>
+                  <TabsTrigger value="resumen" className="flex items-center gap-2">
+                    <PieChartIcon className="w-4 h-4" />
+                    Resumen
                   </TabsTrigger>
                   <TabsTrigger value="overview" className="flex items-center gap-2">
                     <Eye className="w-4 h-4" />
@@ -1048,6 +1084,89 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       );
                     })}
                   </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="resumen" className="flex-1 overflow-auto p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Gráfico circular */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Desglose por Categoría</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={getCategoryChartData()}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              outerRadius={80}
+                              fill="#8884d8"
+                              dataKey="value"
+                              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
+                            >
+                              {getCategoryChartData().map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              formatter={(value, name) => [`€${Number(value).toFixed(2)}`, name]}
+                              labelFormatter={(label) => `Categoría: ${label}`}
+                              contentStyle={{
+                                backgroundColor: 'hsl(var(--card))',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '8px',
+                                color: 'hsl(var(--foreground))'
+                              }}
+                            />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Tabla resumen */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Resumen por Categoría</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Categoría</TableHead>
+                            <TableHead className="text-center">Nº Elementos</TableHead>
+                            <TableHead className="text-right">Total (€)</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {getCategorySummaryData().map((category) => {
+                            const IconComponent = iconMap[category.icon as keyof typeof iconMap] || DollarSign;
+                            return (
+                              <TableRow key={category.id}>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <IconComponent className="h-4 w-4 text-primary" />
+                                    {category.name}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {category.count}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  €{category.total.toFixed(2)}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
                 </div>
               </TabsContent>
 
