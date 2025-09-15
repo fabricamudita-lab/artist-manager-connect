@@ -669,135 +669,135 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                     </div>
                   </div>
                   
-                  {/* 4-Block Financial Summary */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                    {(() => {
-                      const totals = calculateGrandTotals();
-                      const difference = budgetAmount > 0 ? totals.total - budgetAmount : 0;
-                      const percentageDiff = budgetAmount > 0 ? ((difference / budgetAmount) * 100) : 0;
-                      
-                      return (
-                        <>
-                          {/* 1. SUBTOTAL */}
-                          <div 
-                            className="text-center p-4 bg-blue-50/10 rounded-xl border border-blue-500/20 backdrop-blur-sm hover:bg-blue-50/15 transition-all"
-                            title="Base imponible sin impuestos"
-                          >
-                            <div className="text-xs font-medium text-blue-300 uppercase tracking-wider mb-1">
-                              SUBTOTAL
-                            </div>
-                            <div className="text-xl font-bold text-blue-200">
-                              €{totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </div>
-                            <div className="text-xs text-blue-400">
-                              Base imponible
-                            </div>
-                          </div>
+                   {/* 5-Block Compact Financial Summary */}
+                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+                     {(() => {
+                       const totals = calculateGrandTotals();
+                       const difference = budgetAmount > 0 ? totals.total - budgetAmount : 0;
+                       const percentageDiff = budgetAmount > 0 ? ((difference / budgetAmount) * 100) : 0;
+                       
+                       return (
+                         <>
+                           {/* 1. SUBTOTAL */}
+                           <div 
+                             className="text-center p-3 h-[100px] bg-gradient-to-br from-blue-500/15 to-blue-600/10 rounded-2xl border border-blue-500/25 backdrop-blur-sm hover:from-blue-500/20 hover:to-blue-600/15 transition-all duration-200 shadow-lg hover:shadow-xl"
+                             title="Base imponible sin impuestos"
+                           >
+                             <div className="text-[10px] font-semibold text-blue-300 uppercase tracking-wide mb-1">
+                               SUBTOTAL
+                             </div>
+                             <div className="text-lg font-bold text-blue-100 leading-tight">
+                               €{totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                             </div>
+                             <div className="text-[9px] text-blue-400 mt-1">
+                               Base imponible
+                             </div>
+                           </div>
 
-                          {/* 2. IVA/IRPF APILADOS */}
-                          <div className="space-y-2">
-                            {/* IVA */}
-                            <div 
-                              className="text-center p-2 bg-green-50/10 rounded-lg border border-green-500/20 backdrop-blur-sm hover:bg-green-50/15 transition-all"
-                              title="Impuesto sobre el valor añadido"
-                            >
-                              <div className="text-xs font-medium text-green-300 uppercase tracking-wider mb-0.5">
-                                + IVA
-                              </div>
-                              <div className="text-lg font-bold text-green-200">
-                                €{totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </div>
-                              <div className="text-xs text-green-400">
-                                Impuesto sobre el valor añadido
-                              </div>
-                            </div>
-                            
-                            {/* IRPF */}
-                            <div 
-                              className="text-center p-2 bg-red-50/10 rounded-lg border border-red-500/20 backdrop-blur-sm hover:bg-red-50/15 transition-all"
-                              title="Retención fiscal"
-                            >
-                              <div className="text-xs font-medium text-red-300 uppercase tracking-wider mb-0.5">
-                                - IRPF
-                              </div>
-                              <div className="text-lg font-bold text-red-200">
-                                €{totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </div>
-                              <div className="text-xs text-red-400">
-                                Retención fiscal
-                              </div>
-                            </div>
-                          </div>
+                           {/* 2. IVA/IRPF APILADOS */}
+                           <div className="space-y-1.5 h-[100px]">
+                             {/* IVA */}
+                             <div 
+                               className="text-center p-2 h-[47px] bg-gradient-to-br from-green-500/15 to-green-600/10 rounded-xl border border-green-500/25 backdrop-blur-sm hover:from-green-500/20 hover:to-green-600/15 transition-all duration-200 shadow-md hover:shadow-lg"
+                               title="Impuesto sobre el valor añadido"
+                             >
+                               <div className="text-[9px] font-semibold text-green-300 uppercase tracking-wide mb-0.5">
+                                 + IVA
+                               </div>
+                               <div className="text-sm font-bold text-green-100 leading-tight">
+                                 €{totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                               </div>
+                               <div className="text-[8px] text-green-400">
+                                 Impuesto añadido
+                               </div>
+                             </div>
+                             
+                             {/* IRPF */}
+                             <div 
+                               className="text-center p-2 h-[47px] bg-gradient-to-br from-red-500/15 to-red-600/10 rounded-xl border border-red-500/25 backdrop-blur-sm hover:from-red-500/20 hover:to-red-600/15 transition-all duration-200 shadow-md hover:shadow-lg"
+                               title="Retención fiscal"
+                             >
+                               <div className="text-[9px] font-semibold text-red-300 uppercase tracking-wide mb-0.5">
+                                 - IRPF
+                               </div>
+                               <div className="text-sm font-bold text-red-100 leading-tight">
+                                 €{totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                               </div>
+                               <div className="text-[8px] text-red-400">
+                                 Retención fiscal
+                               </div>
+                             </div>
+                           </div>
 
-                          {/* 3. TOTAL FINAL */}
-                          <div 
-                            className="text-center p-4 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl border-2 border-primary/30 backdrop-blur-sm hover:from-primary/25 hover:to-primary/15 transition-all"
-                            title="Importe final con IVA e IRPF aplicados"
-                          >
-                            <div className="text-xs font-semibold text-primary-foreground uppercase tracking-wider mb-1">
-                              TOTAL FINAL
-                            </div>
-                            <div className="text-xl font-black text-white">
-                              €{totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </div>
-                            <div className="text-xs text-primary-foreground/80">
-                              {items.length} elemento{items.length !== 1 ? 's' : ''}
-                            </div>
-                          </div>
+                           {/* 3. TOTAL FINAL */}
+                           <div 
+                             className="text-center p-3 h-[100px] bg-gradient-to-br from-primary/25 to-primary/15 rounded-2xl border-2 border-primary/35 backdrop-blur-sm hover:from-primary/30 hover:to-primary/20 transition-all duration-200 shadow-lg hover:shadow-xl"
+                             title="Importe final con IVA e IRPF aplicados"
+                           >
+                             <div className="text-[10px] font-semibold text-primary-foreground uppercase tracking-wide mb-1">
+                               TOTAL FINAL
+                             </div>
+                             <div className="text-lg font-black text-white leading-tight">
+                               €{totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                             </div>
+                             <div className="text-[9px] text-primary-foreground/80 mt-1">
+                               {items.length} elemento{items.length !== 1 ? 's' : ''}
+                             </div>
+                           </div>
 
-                          {/* 4. DIFERENCIA VS PRESUPUESTO */}
-                          <div 
-                            className={`text-center p-4 rounded-xl border backdrop-blur-sm transition-all ${
-                              budgetAmount === 0 
-                                ? 'bg-gray-50/10 border-gray-500/20 hover:bg-gray-50/15'
-                                : percentageDiff > 0 
-                                  ? 'bg-red-50/10 border-red-500/20 hover:bg-red-50/15'
-                                  : percentageDiff < 0 
-                                    ? 'bg-green-50/10 border-green-500/20 hover:bg-green-50/15'
-                                    : 'bg-gray-50/10 border-gray-500/20 hover:bg-gray-50/15'
-                            }`}
-                            title={budgetAmount > 0 ? `Diferencia: ${difference >= 0 ? '+' : ''}€${Math.abs(difference).toFixed(2)}` : 'Añade un presupuesto para ver la diferencia'}
-                          >
-                            <div className={`text-xs font-medium uppercase tracking-wider mb-1 ${
-                              budgetAmount === 0 
-                                ? 'text-gray-300'
-                                : percentageDiff > 0 
-                                  ? 'text-red-300'
-                                  : percentageDiff < 0 
-                                    ? 'text-green-300'
-                                    : 'text-gray-300'
-                            }`}>
-                              DIFERENCIA
-                            </div>
-                            <div className={`text-xl font-bold ${
-                              budgetAmount === 0 
-                                ? 'text-gray-200'
-                                : percentageDiff > 0 
-                                  ? 'text-red-200'
-                                  : percentageDiff < 0 
-                                    ? 'text-green-200'
-                                    : 'text-gray-200'
-                            }`}>
-                              {budgetAmount === 0 ? '—' : `${percentageDiff >= 0 ? '+' : ''}${percentageDiff.toFixed(1)}%`}
-                            </div>
-                            <div className={`text-xs ${
-                              budgetAmount === 0 
-                                ? 'text-gray-400'
-                                : percentageDiff > 0 
-                                  ? 'text-red-400'
-                                  : percentageDiff < 0 
-                                    ? 'text-green-400'
-                                    : 'text-gray-400'
-                            }`}>
-                              {budgetAmount === 0 
-                                ? 'Añade un presupuesto'
-                                : `Δ €${Math.abs(difference).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} vs presupuesto`
-                              }
-                            </div>
-                          </div>
-                        </>
-                      );
-                    })()}
+                           {/* 4. DIFERENCIA VS PRESUPUESTO */}
+                           <div 
+                             className={`text-center p-3 h-[100px] rounded-2xl border backdrop-blur-sm transition-all duration-200 shadow-lg hover:shadow-xl ${
+                               budgetAmount === 0 
+                                 ? 'bg-gradient-to-br from-gray-500/15 to-gray-600/10 border-gray-500/25 hover:from-gray-500/20 hover:to-gray-600/15'
+                                 : percentageDiff > 0 
+                                   ? 'bg-gradient-to-br from-red-500/15 to-red-600/10 border-red-500/25 hover:from-red-500/20 hover:to-red-600/15'
+                                   : percentageDiff < 0 
+                                     ? 'bg-gradient-to-br from-green-500/15 to-green-600/10 border-green-500/25 hover:from-green-500/20 hover:to-green-600/15'
+                                     : 'bg-gradient-to-br from-gray-500/15 to-gray-600/10 border-gray-500/25 hover:from-gray-500/20 hover:to-gray-600/15'
+                             }`}
+                             title={budgetAmount > 0 ? `Diferencia: ${difference >= 0 ? '+' : ''}€${Math.abs(difference).toFixed(2)}` : 'Añade un presupuesto para ver la diferencia'}
+                           >
+                             <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${
+                               budgetAmount === 0 
+                                 ? 'text-gray-300'
+                                 : percentageDiff > 0 
+                                   ? 'text-red-300'
+                                   : percentageDiff < 0 
+                                     ? 'text-green-300'
+                                     : 'text-gray-300'
+                             }`}>
+                               DIFERENCIA
+                             </div>
+                             <div className={`text-lg font-bold leading-tight ${
+                               budgetAmount === 0 
+                                 ? 'text-gray-100'
+                                 : percentageDiff > 0 
+                                   ? 'text-red-100'
+                                   : percentageDiff < 0 
+                                     ? 'text-green-100'
+                                     : 'text-gray-100'
+                             }`}>
+                               {budgetAmount === 0 ? '—' : `${percentageDiff >= 0 ? '+' : ''}${percentageDiff.toFixed(1)}%`}
+                             </div>
+                             <div className={`text-[9px] mt-1 ${
+                               budgetAmount === 0 
+                                 ? 'text-gray-400'
+                                 : percentageDiff > 0 
+                                   ? 'text-red-400'
+                                   : percentageDiff < 0 
+                                     ? 'text-green-400'
+                                     : 'text-gray-400'
+                             }`}>
+                               {budgetAmount === 0 
+                                 ? 'Añade presupuesto'
+                                 : `Δ €${Math.abs(difference).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                               }
+                             </div>
+                           </div>
+                         </>
+                       );
+                     })()}
                   </div>
                   
                   <div className="flex flex-wrap gap-3 text-sm text-white/80">
