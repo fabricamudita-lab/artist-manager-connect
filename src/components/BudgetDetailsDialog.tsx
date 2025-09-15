@@ -142,6 +142,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
   const [editingItemValues, setEditingItemValues] = useState<Partial<BudgetItem>>({});
   const [newItem, setNewItem] = useState<{ categoryId: string; editing: boolean } | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'amount' | 'status'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     if (open && budget) {
@@ -575,6 +578,57 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         description: "No se pudo eliminar el elemento",
         variant: "destructive"
       });
+    }
+  };
+
+  const getFilteredAndSortedItems = () => {
+    let filteredItems = items;
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      filteredItems = items.filter(item =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.observations?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.budget_categories?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Sort items
+    return filteredItems.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'amount':
+          const totalA = calculateTotal(a);
+          const totalB = calculateTotal(b);
+          comparison = totalA - totalB;
+          break;
+        case 'status':
+          comparison = a.billing_status.localeCompare(b.billing_status);
+          break;
+        default:
+          comparison = 0;
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pendiente':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'pagado':
+        return 'bg-green-100 text-green-800 border-green-300';
+      case 'facturado':
+        return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'cancelado':
+        return 'bg-red-100 text-red-800 border-red-300';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
@@ -1181,30 +1235,168 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 <div className="space-y-6">
                   <Card>
                     <CardHeader>
-                      <CardTitle>Totales por Categoría</CardTitle>
+                      <CardTitle className="flex items-center justify-between">
+                        Todos los Elementos del Presupuesto
+                        <div className="flex items-center gap-4">
+                          {/* Search */}
+                          <div className="relative">
+                            <Input
+                              placeholder="Buscar elementos..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="w-64 pr-4"
+                            />
+                          </div>
+                          
+                          {/* Sort Controls */}
+                          <div className="flex items-center gap-2">
+                            <Label className="text-sm font-medium">Ordenar por:</Label>
+                            <Select value={sortBy} onValueChange={(value: 'name' | 'amount' | 'status') => setSortBy(value)}>
+                              <SelectTrigger className="w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="name">Nombre</SelectItem>
+                                <SelectItem value="amount">Monto</SelectItem>
+                                <SelectItem value="status">Estado</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                              className="px-2"
+                            >
+                              {sortOrder === 'asc' ? '↑' : '↓'}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        {budgetCategories.map((category) => {
-                          const categoryItems = getCategoryItems(category.id);
-                          const total = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
-                          const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
-                          
-                          return (
-                            <div key={category.id} className="flex items-center justify-between p-4 border rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <IconComponent className="w-5 h-5 text-primary" />
-                                <div>
-                                  <div className="font-medium">{category.name}</div>
-                                  <div className="text-sm text-muted-foreground">{categoryItems.length} elementos</div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="font-bold">€{total.toFixed(2)}</div>
-                              </div>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[250px]">Concepto</TableHead>
+                              <TableHead className="w-[120px] text-center">Categoría</TableHead>
+                              <TableHead className="w-[80px] text-center">Cantidad</TableHead>
+                              <TableHead className="w-[120px] text-right">Precio Unit.</TableHead>
+                              <TableHead className="w-[80px] text-center">IVA</TableHead>
+                              <TableHead className="w-[80px] text-center">IRPF</TableHead>
+                              <TableHead className="w-[120px] text-right">Subtotal</TableHead>
+                              <TableHead className="w-[120px] text-right">Total</TableHead>
+                              <TableHead className="w-[100px] text-center">Estado</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {getFilteredAndSortedItems().map((item, index) => {
+                              const subtotal = item.quantity * item.unit_price;
+                              const iva = subtotal * (item.iva_percentage / 100);
+                              const irpf = subtotal * ((item.irpf_percentage || 15) / 100);
+                              const total = calculateTotal(item);
+                              
+                              return (
+                                <TableRow 
+                                  key={item.id}
+                                  className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`}
+                                >
+                                  <TableCell>
+                                    <div>
+                                      <div className="font-medium text-gray-900">{item.name}</div>
+                                      {item.observations && (
+                                        <div className="text-sm text-gray-500 mt-1">{item.observations}</div>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  
+                                  <TableCell className="text-center">
+                                    <div className="flex items-center justify-center gap-1">
+                                      {item.budget_categories?.icon_name && (() => {
+                                        const IconComponent = iconMap[item.budget_categories.icon_name as keyof typeof iconMap] || DollarSign;
+                                        return <IconComponent className="w-4 h-4 text-gray-600" />;
+                                      })()}
+                                      <span className="text-sm">{item.budget_categories?.name || 'Sin categoría'}</span>
+                                    </div>
+                                  </TableCell>
+                                  
+                                  <TableCell className="text-center font-medium">
+                                    {item.quantity}
+                                  </TableCell>
+                                  
+                                  <TableCell className="text-right">
+                                    €{item.unit_price.toFixed(2)}
+                                  </TableCell>
+                                  
+                                  <TableCell className="text-center">
+                                    {item.iva_percentage}%
+                                  </TableCell>
+                                  
+                                  <TableCell className="text-center">
+                                    {item.irpf_percentage || 15}%
+                                  </TableCell>
+                                  
+                                  <TableCell className="text-right">
+                                    €{subtotal.toFixed(2)}
+                                  </TableCell>
+                                  
+                                  <TableCell className="text-right font-bold text-green-700">
+                                    €{total.toFixed(2)}
+                                  </TableCell>
+                                  
+                                  <TableCell className="text-center">
+                                    <Badge 
+                                      variant="outline" 
+                                      className={`${getStatusColor(item.billing_status)} text-xs font-medium`}
+                                    >
+                                      {item.billing_status.charAt(0).toUpperCase() + item.billing_status.slice(1)}
+                                    </Badge>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                        
+                        {getFilteredAndSortedItems().length === 0 && (
+                          <div className="p-8 text-center text-gray-500">
+                            {searchTerm ? 
+                              `No se encontraron elementos que coincidan con "${searchTerm}"` : 
+                              'No hay elementos en este presupuesto'
+                            }
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Summary Footer */}
+                      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
+                          <div>
+                            <div className="text-lg font-bold text-gray-900">
+                              {getFilteredAndSortedItems().length}
                             </div>
-                          );
-                        })}
+                            <div className="text-sm text-gray-600">Elementos mostrados</div>
+                          </div>
+                          <div>
+                            <div className="text-lg font-bold text-blue-600">
+                              €{getFilteredAndSortedItems().reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}
+                            </div>
+                            <div className="text-sm text-gray-600">Subtotal</div>
+                          </div>
+                          <div>
+                            <div className="text-lg font-bold text-green-600">
+                              +€{getFilteredAndSortedItems().reduce((sum, item) => sum + ((item.quantity * item.unit_price) * (item.iva_percentage / 100)), 0).toFixed(2)}
+                            </div>
+                            <div className="text-sm text-gray-600">IVA Total</div>
+                          </div>
+                          <div>
+                            <div className="text-xl font-bold text-primary">
+                              €{getFilteredAndSortedItems().reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(2)}
+                            </div>
+                            <div className="text-sm text-gray-600">Total Final</div>
+                          </div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
