@@ -672,24 +672,24 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                       key={item.id} 
                                       className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors border-b border-gray-200`}
                                     >
-                                      {/* Nombre */}
-                                      <TableCell className="p-2">
-                                        {editingItem === item.id ? (
-                                          <Input
-                                            value={editingItemValues.name || item.name}
-                                            onChange={(e) => setEditingItemValues(prev => ({ ...prev, name: e.target.value }))}
-                                            className="h-8 text-sm border-blue-300 focus:border-blue-500"
-                                            autoFocus
-                                          />
-                                        ) : (
-                                          <div 
-                                            className="h-8 flex items-center cursor-pointer hover:bg-blue-100 px-2 rounded"
-                                            onClick={() => startEditingItem(item)}
-                                          >
-                                            {item.name}
-                                          </div>
-                                        )}
-                                      </TableCell>
+                                       {/* Nombre */}
+                                       <TableCell className="p-2">
+                                         {editingItem === item.id ? (
+                                           <Input
+                                             value={editingItemValues.name || item.name}
+                                             onChange={(e) => setEditingItemValues(prev => ({ ...prev, name: e.target.value }))}
+                                             className="h-8 text-sm border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
+                                             autoFocus
+                                           />
+                                         ) : (
+                                           <div 
+                                             className="h-8 flex items-center cursor-pointer hover:bg-blue-100 px-2 rounded text-gray-900"
+                                             onClick={() => startEditingItem(item)}
+                                           >
+                                             {item.name}
+                                           </div>
+                                         )}
+                                       </TableCell>
                                       
                                       {/* Estado de facturación */}
                                       <TableCell className="p-2 text-center">
@@ -727,69 +727,69 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                         )}
                                       </TableCell>
                                       
-                                      {/* Precio Unitario */}
-                                      <TableCell className="p-2 text-right">
-                                        {editingItem === item.id ? (
-                                          <Input
-                                            type="number"
-                                            step="0.01"
-                                            value={editingItemValues.unit_price || item.unit_price}
-                                            onChange={(e) => setEditingItemValues(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
-                                            className="h-8 text-sm text-right border-blue-300 focus:border-blue-500"
-                                          />
-                                        ) : (
-                                          <div 
-                                            className="h-8 flex items-center justify-end cursor-pointer hover:bg-blue-100 px-2 rounded"
-                                            onClick={() => startEditingItem(item)}
-                                          >
-                                            €{item.unit_price.toFixed(2)}
-                                          </div>
-                                        )}
-                                      </TableCell>
+                                       {/* Precio Unitario */}
+                                       <TableCell className="p-2 text-right">
+                                         {editingItem === item.id ? (
+                                           <Input
+                                             type="number"
+                                             step="0.01"
+                                             value={editingItemValues.unit_price || item.unit_price}
+                                             onChange={(e) => setEditingItemValues(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
+                                             className="h-8 text-sm text-right border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
+                                           />
+                                         ) : (
+                                           <div 
+                                             className="h-8 flex items-center justify-end cursor-pointer hover:bg-blue-100 px-2 rounded text-gray-900"
+                                             onClick={() => startEditingItem(item)}
+                                           >
+                                             €{item.unit_price.toFixed(2)}
+                                           </div>
+                                         )}
+                                       </TableCell>
                                       
-                                      {/* IVA */}
-                                      <TableCell className="p-2 text-center">
-                                        {editingItem === item.id ? (
-                                          <Input
-                                            type="number"
-                                            step="0.1"
-                                            min="0"
-                                            max="100"
-                                            value={editingItemValues.iva_percentage || item.iva_percentage}
-                                            onChange={(e) => setEditingItemValues(prev => ({ ...prev, iva_percentage: parseFloat(e.target.value) || 0 }))}
-                                            className="h-8 text-sm text-center border-blue-300 focus:border-blue-500"
-                                          />
-                                        ) : (
-                                          <div 
-                                            className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
-                                            onClick={() => startEditingItem(item)}
-                                          >
-                                            {item.iva_percentage}%
-                                          </div>
-                                        )}
-                                      </TableCell>
+                                       {/* IVA */}
+                                       <TableCell className="p-2 text-center">
+                                         {editingItem === item.id ? (
+                                           <Input
+                                             type="number"
+                                             step="0.1"
+                                             min="0"
+                                             max="100"
+                                             value={editingItemValues.iva_percentage || item.iva_percentage}
+                                             onChange={(e) => setEditingItemValues(prev => ({ ...prev, iva_percentage: parseFloat(e.target.value) || 0 }))}
+                                             className="h-8 text-sm text-center border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
+                                           />
+                                         ) : (
+                                           <div 
+                                             className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded text-gray-900"
+                                             onClick={() => startEditingItem(item)}
+                                           >
+                                             {item.iva_percentage}%
+                                           </div>
+                                         )}
+                                       </TableCell>
                                       
-                                      {/* IRPF */}
-                                      <TableCell className="p-2 text-center">
-                                        {editingItem === item.id ? (
-                                          <Input
-                                            type="number"
-                                            step="0.1"
-                                            min="0"
-                                            max="100"
-                                            value={editingItemValues.irpf_percentage || item.irpf_percentage || 15}
-                                            onChange={(e) => setEditingItemValues(prev => ({ ...prev, irpf_percentage: parseFloat(e.target.value) || 15 }))}
-                                            className="h-8 text-sm text-center border-blue-300 focus:border-blue-500"
-                                          />
-                                        ) : (
-                                          <div 
-                                            className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
-                                            onClick={() => startEditingItem(item)}
-                                          >
-                                            {item.irpf_percentage || 15}%
-                                          </div>
-                                        )}
-                                      </TableCell>
+                                       {/* IRPF */}
+                                       <TableCell className="p-2 text-center">
+                                         {editingItem === item.id ? (
+                                           <Input
+                                             type="number"
+                                             step="0.1"
+                                             min="0"
+                                             max="100"
+                                             value={editingItemValues.irpf_percentage || item.irpf_percentage || 15}
+                                             onChange={(e) => setEditingItemValues(prev => ({ ...prev, irpf_percentage: parseFloat(e.target.value) || 15 }))}
+                                             className="h-8 text-sm text-center border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
+                                           />
+                                         ) : (
+                                           <div 
+                                             className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded text-gray-900"
+                                             onClick={() => startEditingItem(item)}
+                                           >
+                                             {item.irpf_percentage || 15}%
+                                           </div>
+                                         )}
+                                       </TableCell>
                                       
                                       {/* Total */}
                                       <TableCell className="p-2 text-right">
