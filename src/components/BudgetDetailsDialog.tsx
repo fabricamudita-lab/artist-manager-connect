@@ -524,6 +524,66 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   };
 
+  const updateCategoryName = async (categoryId: string, newName: string) => {
+    try {
+      const { error } = await supabase
+        .from('budget_categories')
+        .update({ name: newName })
+        .eq('id', categoryId);
+
+      if (error) throw error;
+      
+      await fetchBudgetCategories();
+      setEditingCategory(null);
+      setNewCategoryName('');
+      
+      toast({
+        title: "¡Éxito!",
+        description: "Categoría actualizada correctamente"
+      });
+    } catch (error) {
+      console.error('Error updating category:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la categoría",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const addNewCategory = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('budget_categories')
+        .insert({
+          name: 'Nueva Categoría',
+          icon_name: 'DollarSign',
+          created_by: user?.id,
+          sort_order: budgetCategories.length
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      await fetchBudgetCategories();
+      setEditingCategory(data.id);
+      setNewCategoryName(data.name);
+      
+      toast({
+        title: "¡Éxito!",
+        description: "Nueva categoría creada"
+      });
+    } catch (error) {
+      console.error('Error creating category:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo crear la categoría",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -789,22 +849,145 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   <div className="bg-black text-white p-4 border-b border-gray-700">
                     <div className="flex items-center justify-between">
                       <h2 className="text-lg font-bold">Gestión de Elementos y Categorías</h2>
-                      <div className="flex gap-2">
-                        {items.length === 0 && (
-                          <Button
-                            onClick={createTestData}
-                            size="sm"
-                            variant="outline"
-                            className="bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-200 border-yellow-400/20"
-                          >
-                            🧪 Crear datos de prueba
-                          </Button>
-                        )}
-                      </div>
+                       <div className="flex gap-2">
+                         <Button
+                           onClick={() => setShowCategoryManagement(!showCategoryManagement)}
+                           size="sm"
+                           variant="outline"
+                           className="bg-gray-600/20 hover:bg-gray-600/30 text-gray-200 border-gray-400/20"
+                         >
+                           <Settings className="w-4 h-4 mr-1" />
+                           Gestionar Categorías
+                         </Button>
+                         {items.length === 0 && (
+                           <Button
+                             onClick={createTestData}
+                             size="sm"
+                             variant="outline"
+                             className="bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-200 border-yellow-400/20"
+                           >
+                             🧪 Crear datos de prueba
+                           </Button>
+                         )}
+                       </div>
                     </div>
-                  </div>
-                  
-                  {/* Categories Section */}
+                   </div>
+                   
+                   {/* Category Management Interface */}
+                   {showCategoryManagement && (
+                     <div className="bg-gray-800 text-white p-4 border-b border-gray-600">
+                       <h3 className="text-md font-bold mb-3">Gestión de Categorías</h3>
+                       <div className="space-y-3">
+                         {budgetCategories.map((category, index) => (
+                           <div 
+                             key={category.id}
+                             className="flex items-center justify-between p-3 bg-gray-700 rounded-lg"
+                             draggable
+                             onDragStart={() => setDraggedCategory(category.id)}
+                             onDragOver={(e) => {
+                               e.preventDefault();
+                               setDragOverCategory(category.id);
+                             }}
+                             onDrop={(e) => {
+                               e.preventDefault();
+                               // Handle reordering logic here
+                               setDraggedCategory(null);
+                               setDragOverCategory(null);
+                             }}
+                             style={{
+                               opacity: draggedCategory === category.id ? 0.5 : 1,
+                               backgroundColor: dragOverCategory === category.id ? '#374151' : '#374151'
+                             }}
+                           >
+                             <div className="flex items-center gap-3">
+                               <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                               {iconMap[category.icon_name as keyof typeof iconMap] && 
+                                 React.createElement(iconMap[category.icon_name as keyof typeof iconMap], { 
+                                   className: "w-4 h-4" 
+                                 })
+                               }
+                               {editingCategory === category.id ? (
+                                 <Input
+                                   value={newCategoryName}
+                                   onChange={(e) => setNewCategoryName(e.target.value)}
+                                   onKeyDown={(e) => {
+                                     if (e.key === 'Enter') {
+                                       // Save category name
+                                       updateCategoryName(category.id, newCategoryName);
+                                     } else if (e.key === 'Escape') {
+                                       setEditingCategory(null);
+                                       setNewCategoryName('');
+                                     }
+                                   }}
+                                   className="bg-gray-600 border-gray-500 text-white"
+                                   autoFocus
+                                 />
+                               ) : (
+                                 <span 
+                                   className="cursor-pointer hover:text-blue-300"
+                                   onClick={() => {
+                                     setEditingCategory(category.id);
+                                     setNewCategoryName(category.name);
+                                   }}
+                                 >
+                                   {category.name}
+                                 </span>
+                               )}
+                             </div>
+                             <div className="flex items-center gap-2">
+                               <span className="text-sm text-gray-300">
+                                 {getCategoryItems(category.id).length} elementos
+                               </span>
+                               {editingCategory === category.id ? (
+                                 <div className="flex gap-1">
+                                   <Button
+                                     onClick={() => updateCategoryName(category.id, newCategoryName)}
+                                     size="sm"
+                                     className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700"
+                                   >
+                                     <Save className="w-3 h-3" />
+                                   </Button>
+                                   <Button
+                                     onClick={() => {
+                                       setEditingCategory(null);
+                                       setNewCategoryName('');
+                                     }}
+                                     size="sm"
+                                     variant="outline"
+                                     className="h-6 w-6 p-0"
+                                   >
+                                     <X className="w-3 h-3" />
+                                   </Button>
+                                 </div>
+                               ) : (
+                                 <Button
+                                   onClick={() => {
+                                     setEditingCategory(category.id);
+                                     setNewCategoryName(category.name);
+                                   }}
+                                   size="sm"
+                                   variant="ghost"
+                                   className="h-6 w-6 p-0 hover:bg-gray-600"
+                                 >
+                                   <Pencil className="w-3 h-3" />
+                                 </Button>
+                               )}
+                             </div>
+                           </div>
+                         ))}
+                         <Button
+                           onClick={addNewCategory}
+                           variant="outline"
+                           className="w-full bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                         >
+                           <Plus className="w-4 h-4 mr-2" />
+                           Agregar Nueva Categoría
+                         </Button>
+                       </div>
+                     </div>
+                   )}
+                   
+                   {/* Categories Section */}
                   <div className="flex-1 overflow-auto">
                     {budgetCategories.map((category) => {
                       const categoryItems = getCategoryItems(category.id);
