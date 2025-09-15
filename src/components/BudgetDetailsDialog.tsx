@@ -131,6 +131,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [editingBudgetAmount, setEditingBudgetAmount] = useState(false);
   const [budgetAmount, setBudgetAmount] = useState<number>(budget.fee || 0);
+  const [expandedQuantity, setExpandedQuantity] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && budget) {
@@ -250,7 +251,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   };
 
   const calculateTotal = (item: BudgetItem) => {
-    const subtotal = item.unit_price; // Removed quantity since we no longer use it
+    const subtotal = item.unit_price * (item.quantity || 1);
     const iva = subtotal * (item.iva_percentage / 100);
     const irpf = subtotal * ((item.irpf_percentage || 15) / 100);
     return subtotal + iva - irpf;
@@ -259,7 +260,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const calculateGrandTotals = () => {
     const totals = items.reduce(
       (acc, item) => {
-        const subtotal = item.unit_price; // Removed quantity since we no longer use it
+        const subtotal = item.unit_price * (item.quantity || 1);
         const iva = subtotal * (item.iva_percentage / 100);
         const irpf = subtotal * ((item.irpf_percentage || 15) / 100);
         
@@ -813,16 +814,16 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                             ) : (
                               <Table>
                                 <TableHeader>
-                                  <TableRow className="bg-gray-100 hover:bg-gray-100">
-                                    <TableHead className="font-bold text-black w-[200px]">Nombre</TableHead>
-                                    <TableHead className="font-bold text-black w-[150px] text-center">Estado de facturación</TableHead>
-                                    <TableHead className="font-bold text-black w-[120px] text-right">Precio Unit. (€)</TableHead>
-                                    <TableHead className="font-bold text-black w-[80px] text-center">IVA (%)</TableHead>
-                                    <TableHead className="font-bold text-black w-[80px] text-center">IRPF (%)</TableHead>
-                                    <TableHead className="font-bold text-black w-[120px] text-right">Total (€)</TableHead>
-                                    <TableHead className="font-bold text-black w-[100px] text-center">Acciones</TableHead>
-                                  </TableRow>
-                                </TableHeader>
+                                   <TableRow className="bg-gray-100 hover:bg-gray-100">
+                                     <TableHead className="font-bold text-black w-[200px]">Nombre</TableHead>
+                                     <TableHead className="font-bold text-black w-[150px] text-center">Estado de facturación</TableHead>
+                                     <TableHead className="font-bold text-black w-[140px] text-right">Precio Unit. (€)</TableHead>
+                                     <TableHead className="font-bold text-black w-[80px] text-center">IVA (%)</TableHead>
+                                     <TableHead className="font-bold text-black w-[80px] text-center">IRPF (%)</TableHead>
+                                     <TableHead className="font-bold text-black w-[120px] text-right">Total (€)</TableHead>
+                                     <TableHead className="font-bold text-black w-[100px] text-center">Acciones</TableHead>
+                                   </TableRow>
+                                 </TableHeader>
                                 <TableBody>
                                   {categoryItems.map((item, index) => (
                                     <TableRow 
@@ -884,22 +885,58 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                         )}
                                       </TableCell>
                                       
-                                       {/* Precio Unitario */}
+                                       {/* Precio Unitario con botón + para cantidad */}
                                        <TableCell className="p-2 text-right">
                                          {editingItem === item.id ? (
-                                           <Input
-                                             type="number"
-                                             step="0.01"
-                                             value={editingItemValues.unit_price || item.unit_price}
-                                             onChange={(e) => setEditingItemValues(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
-                                             className="h-8 text-sm text-right border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
-                                           />
+                                           <div className="flex items-center gap-1">
+                                             <Input
+                                               type="number"
+                                               step="0.01"
+                                               value={editingItemValues.unit_price || item.unit_price}
+                                               onChange={(e) => setEditingItemValues(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
+                                               className="h-8 text-sm text-right border-blue-300 focus:border-blue-500 text-gray-900 bg-white flex-1"
+                                             />
+                                             {(expandedQuantity === item.id || (item.quantity && item.quantity > 1)) && (
+                                               <>
+                                                 <span className="text-gray-500 text-sm">×</span>
+                                                 <Input
+                                                   type="number"
+                                                   min="1"
+                                                   value={editingItemValues.quantity || item.quantity || 1}
+                                                   onChange={(e) => setEditingItemValues(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                                                   className="h-8 w-16 text-sm text-center border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
+                                                 />
+                                               </>
+                                             )}
+                                             <Button
+                                               size="sm"
+                                               variant="ghost"
+                                               onClick={() => setExpandedQuantity(expandedQuantity === item.id ? null : item.id)}
+                                               className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800"
+                                             >
+                                               <Plus className="w-3 h-3" />
+                                             </Button>
+                                           </div>
                                          ) : (
                                            <div 
-                                             className="h-8 flex items-center justify-end cursor-pointer hover:bg-blue-100 px-2 rounded text-gray-900"
+                                             className="h-8 flex items-center justify-end cursor-pointer hover:bg-blue-100 px-2 rounded text-gray-900 gap-1"
                                              onClick={() => startEditingItem(item)}
                                            >
-                                             €{item.unit_price.toFixed(2)}
+                                             <span>€{item.unit_price.toFixed(2)}</span>
+                                             {item.quantity && item.quantity > 1 && (
+                                               <span className="text-gray-500 text-sm">× {item.quantity}</span>
+                                             )}
+                                             <Button
+                                               size="sm"
+                                               variant="ghost"
+                                               onClick={(e) => {
+                                                 e.stopPropagation();
+                                                 setExpandedQuantity(expandedQuantity === item.id ? null : item.id);
+                                               }}
+                                               className="h-4 w-4 p-0 text-blue-600 hover:text-blue-800 ml-1"
+                                             >
+                                               <Plus className="w-2 h-2" />
+                                             </Button>
                                            </div>
                                          )}
                                        </TableCell>
