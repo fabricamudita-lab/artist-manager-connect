@@ -1404,36 +1404,97 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
               </TabsContent>
 
               <TabsContent value="summary" className="flex-1 overflow-auto p-6">
-                <div className="space-y-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Resumen Final</CardTitle>
+                <div className="min-h-full flex items-center justify-center">
+                  <Card className="w-full max-w-4xl mx-auto shadow-2xl border-2">
+                    <CardHeader className="text-center pb-8">
+                      <CardTitle className="text-3xl font-bold text-gray-900 mb-2">
+                        Resumen del Presupuesto
+                      </CardTitle>
+                      <div className="text-lg text-gray-600">
+                        {budgetData.name}
+                      </div>
                     </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-                        <div>
-                          <div className="text-2xl font-bold">
-                            €{items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}
+                    <CardContent className="px-8 pb-8">
+                      <div className="space-y-8">
+                        {/* Breakdown Details */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                          {/* Subtotal */}
+                          <div className="text-center p-6 bg-blue-50 rounded-2xl border border-blue-200">
+                            <div className="text-sm font-medium text-blue-600 uppercase tracking-wider mb-2">
+                              Subtotal
+                            </div>
+                            <div className="text-3xl font-bold text-blue-800">
+                              €{items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}
+                            </div>
+                            <div className="text-sm text-blue-600 mt-1">
+                              Base imponible
+                            </div>
                           </div>
-                          <div className="text-sm text-muted-foreground">Subtotal</div>
-                        </div>
-                        <div>
-                          <div className="text-2xl font-bold text-green-600">
-                            +€{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * (item.iva_percentage / 100)), 0).toFixed(2)}
+
+                          {/* IVA */}
+                          <div className="text-center p-6 bg-green-50 rounded-2xl border border-green-200">
+                            <div className="text-sm font-medium text-green-600 uppercase tracking-wider mb-2">
+                              + IVA
+                            </div>
+                            <div className="text-3xl font-bold text-green-800">
+                              €{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * (item.iva_percentage / 100)), 0).toFixed(2)}
+                            </div>
+                            <div className="text-sm text-green-600 mt-1">
+                              Impuesto sobre el valor añadido
+                            </div>
                           </div>
-                          <div className="text-sm text-muted-foreground">IVA</div>
-                        </div>
-                        <div>
-                          <div className="text-2xl font-bold text-red-600">
-                            -€{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * ((item.irpf_percentage || 15) / 100)), 0).toFixed(2)}
+
+                          {/* IRPF */}
+                          <div className="text-center p-6 bg-red-50 rounded-2xl border border-red-200">
+                            <div className="text-sm font-medium text-red-600 uppercase tracking-wider mb-2">
+                              - IRPF
+                            </div>
+                            <div className="text-3xl font-bold text-red-800">
+                              €{items.reduce((sum, item) => sum + ((item.quantity * item.unit_price) * ((item.irpf_percentage || 15) / 100)), 0).toFixed(2)}
+                            </div>
+                            <div className="text-sm text-red-600 mt-1">
+                              Retención fiscal
+                            </div>
                           </div>
-                          <div className="text-sm text-muted-foreground">IRPF</div>
                         </div>
-                        <div>
-                          <div className="text-3xl font-bold text-primary">
+
+                        {/* Separator */}
+                        <div className="relative">
+                          <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t-2 border-gray-300"></div>
+                          </div>
+                          <div className="relative flex justify-center text-sm">
+                            <span className="px-4 bg-white text-gray-500 font-medium">TOTAL FINAL</span>
+                          </div>
+                        </div>
+
+                        {/* Total Final */}
+                        <div className="text-center p-8 bg-gradient-to-br from-primary/10 to-primary/5 rounded-3xl border-2 border-primary/20 shadow-lg">
+                          <div className="text-lg font-semibold text-primary/80 uppercase tracking-wider mb-3">
+                            Importe Total
+                          </div>
+                          <div className="text-6xl font-black text-primary mb-3">
                             €{items.reduce((sum, item) => sum + calculateTotal(item), 0).toFixed(2)}
                           </div>
-                          <div className="text-sm text-muted-foreground">Total Final</div>
+                          <div className="text-sm text-primary/70 font-medium">
+                            {items.length} elemento{items.length !== 1 ? 's' : ''} incluido{items.length !== 1 ? 's' : ''}
+                          </div>
+                        </div>
+
+                        {/* Additional Info */}
+                        <div className="grid grid-cols-2 gap-6 mt-8 pt-6 border-t border-gray-200">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-gray-900">
+                              {budgetCategories.length}
+                            </div>
+                            <div className="text-sm text-gray-600">Categorías</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-gray-900">
+                              {items.length}
+                            </div>
+                            <div className="text-sm text-gray-600">Elementos totales</div>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
