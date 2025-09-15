@@ -67,7 +67,7 @@ interface BudgetItem {
   iva_percentage: number;
   irpf_percentage: number;
   is_attendee: boolean;
-  billing_status: 'pendiente' | 'pagado' | 'facturado' | 'cancelado';
+  billing_status: 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada';
   invoice_link?: string;
   observations?: string;
   category_id?: string;
@@ -199,7 +199,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       if (error) throw error;
       const itemsWithDefaults = (data || []).map(item => ({
         ...item,
-        irpf_percentage: item.irpf_percentage ?? 15
+        irpf_percentage: item.irpf_percentage ?? 15,
+        billing_status: item.billing_status === 'pagado' ? 'pagada' : 
+                       item.billing_status === 'facturado' ? 'factura_recibida' :
+                       item.billing_status === 'cancelado' ? 'pendiente' :
+                       (item.billing_status as 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada') || 'pendiente'
       }));
       console.log('✅ Items fetched:', itemsWithDefaults.length, itemsWithDefaults);
       setItems(itemsWithDefaults);
@@ -216,7 +220,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   };
 
   const calculateTotal = (item: BudgetItem) => {
-    const subtotal = item.quantity * item.unit_price;
+    const subtotal = item.unit_price; // Removed quantity since we no longer use it
     const iva = subtotal * (item.iva_percentage / 100);
     const irpf = subtotal * ((item.irpf_percentage || 15) / 100);
     return subtotal + iva - irpf;
@@ -225,7 +229,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const calculateGrandTotals = () => {
     const totals = items.reduce(
       (acc, item) => {
-        const subtotal = item.quantity * item.unit_price;
+        const subtotal = item.unit_price; // Removed quantity since we no longer use it
         const iva = subtotal * (item.iva_percentage / 100);
         const irpf = subtotal * ((item.irpf_percentage || 15) / 100);
         
@@ -370,7 +374,13 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       
       await fetchBudgetItems();
       setEditingItem(data.id);
-      setEditingItemValues(data);
+      setEditingItemValues({
+        ...data,
+        billing_status: data.billing_status === 'pagado' ? 'pagada' : 
+                       data.billing_status === 'facturado' ? 'factura_recibida' :
+                       data.billing_status === 'cancelado' ? 'pendiente' :
+                       (data.billing_status as 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada') || 'pendiente'
+      });
       
       toast({
         title: "¡Éxito!",
@@ -395,9 +405,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     if (!editingItem || !editingItemValues) return;
 
     try {
+      const updateData = {
+        ...editingItemValues,
+        billing_status: editingItemValues.billing_status === 'pagada' ? 'pagado' as const :
+                       editingItemValues.billing_status === 'factura_recibida' ? 'facturado' as const :
+                       editingItemValues.billing_status === 'factura_solicitada' ? 'pendiente' as const :
+                       'pendiente' as const
+      };
+      
       const { error } = await supabase
         .from('budget_items')
-        .update(editingItemValues)
+        .update(updateData)
         .eq('id', editingItem);
 
       if (error) throw error;
@@ -602,7 +620,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                 <TableHeader>
                                   <TableRow className="bg-gray-100 hover:bg-gray-100">
                                     <TableHead className="font-bold text-black w-[200px]">Nombre</TableHead>
-                                    <TableHead className="font-bold text-black w-[100px] text-center">Cantidad</TableHead>
+                                    <TableHead className="font-bold text-black w-[150px] text-center">Estado de facturación</TableHead>
                                     <TableHead className="font-bold text-black w-[120px] text-right">Precio Unit. (€)</TableHead>
                                     <TableHead className="font-bold text-black w-[80px] text-center">IVA (%)</TableHead>
                                     <TableHead className="font-bold text-black w-[80px] text-center">IRPF (%)</TableHead>
@@ -635,22 +653,38 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                         )}
                                       </TableCell>
                                       
-                                      {/* Cantidad */}
+                                      {/* Estado de facturación */}
                                       <TableCell className="p-2 text-center">
                                         {editingItem === item.id ? (
-                                          <Input
-                                            type="number"
-                                            min="1"
-                                            value={editingItemValues.quantity || item.quantity}
-                                            onChange={(e) => setEditingItemValues(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
-                                            className="h-8 text-sm text-center border-blue-300 focus:border-blue-500"
-                                          />
+                                          <Select
+                                            value={editingItemValues.billing_status || item.billing_status}
+                                            onValueChange={(value) => setEditingItemValues(prev => ({ ...prev, billing_status: value as any }))}
+                                          >
+                                            <SelectTrigger className="h-8 text-sm border-blue-300 focus:border-blue-500">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="pendiente">Pendiente</SelectItem>
+                                              <SelectItem value="factura_solicitada">Factura solicitada</SelectItem>
+                                              <SelectItem value="factura_recibida">Factura recibida</SelectItem>
+                                              <SelectItem value="pagada">Pagada</SelectItem>
+                                            </SelectContent>
+                                          </Select>
                                         ) : (
                                           <div 
                                             className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
                                             onClick={() => startEditingItem(item)}
                                           >
-                                            {item.quantity}
+                                            <Badge variant={
+                                              item.billing_status === 'pagada' ? 'default' :
+                                              item.billing_status === 'factura_recibida' ? 'secondary' :
+                                              item.billing_status === 'factura_solicitada' ? 'outline' : 'destructive'
+                                            }>
+                                              {item.billing_status === 'pendiente' ? 'Pendiente' :
+                                               item.billing_status === 'factura_solicitada' ? 'Factura solicitada' :
+                                               item.billing_status === 'factura_recibida' ? 'Factura recibida' :
+                                               item.billing_status === 'pagada' ? 'Pagada' : item.billing_status}
+                                            </Badge>
                                           </div>
                                         )}
                                       </TableCell>
