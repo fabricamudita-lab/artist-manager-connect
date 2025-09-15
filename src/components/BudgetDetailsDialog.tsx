@@ -136,6 +136,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showCategoryManagement, setShowCategoryManagement] = useState(false);
+  const [draggedCategory, setDraggedCategory] = useState<string | null>(null);
+  const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && budget) {
@@ -294,6 +296,70 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         variant: "destructive"
       });
     }
+  };
+
+  const updateCategoryOrder = async (categories: BudgetCategory[]) => {
+    try {
+      const updates = categories.map((category, index) => ({
+        id: category.id,
+        sort_order: index
+      }));
+
+      for (const update of updates) {
+        await supabase
+          .from('budget_categories')
+          .update({ sort_order: update.sort_order })
+          .eq('id', update.id);
+      }
+    } catch (error) {
+      console.error('Error updating category order:', error);
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, categoryId: string) => {
+    setDraggedCategory(categoryId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', categoryId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, categoryId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverCategory(categoryId);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverCategory(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetCategoryId: string) => {
+    e.preventDefault();
+    
+    if (!draggedCategory || draggedCategory === targetCategoryId) {
+      setDraggedCategory(null);
+      setDragOverCategory(null);
+      return;
+    }
+
+    const draggedIndex = budgetCategories.findIndex(cat => cat.id === draggedCategory);
+    const targetIndex = budgetCategories.findIndex(cat => cat.id === targetCategoryId);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const newCategories = [...budgetCategories];
+    const [draggedItem] = newCategories.splice(draggedIndex, 1);
+    newCategories.splice(targetIndex, 0, draggedItem);
+
+    setBudgetCategories(newCategories);
+    await updateCategoryOrder(newCategories);
+
+    setDraggedCategory(null);
+    setDragOverCategory(null);
+
+    toast({
+      title: "¡Éxito!",
+      description: "Orden de categorías actualizado"
+    });
   };
 
   const deleteCategory = async (categoryId: string) => {
