@@ -129,14 +129,44 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'amount' | 'status'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [editingBudgetAmount, setEditingBudgetAmount] = useState(false);
+  const [budgetAmount, setBudgetAmount] = useState<number>(budget.fee || 0);
 
   useEffect(() => {
     if (open && budget) {
       setBudgetData(budget);
+      setBudgetAmount(budget.fee || 0);
       fetchBudgetItems();
       fetchBudgetCategories();
     }
   }, [open, budget]);
+
+  const saveBudgetAmount = async () => {
+    try {
+      const { error } = await supabase
+        .from('budgets')
+        .update({ fee: budgetAmount })
+        .eq('id', budget.id);
+
+      if (error) throw error;
+      
+      setEditingBudgetAmount(false);
+      setBudgetData(prev => ({ ...prev, fee: budgetAmount }));
+      onUpdate();
+      
+      toast({
+        title: "¡Éxito!",
+        description: "Presupuesto actualizado correctamente"
+      });
+    } catch (error) {
+      console.error('Error updating budget amount:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el presupuesto",
+        variant: "destructive"
+      });
+    }
+  };
 
   const fetchBudgetCategories = async () => {
     try {
@@ -482,67 +512,194 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div>
-                  <div className="flex items-center gap-4 mb-4">
+                  <div className="flex items-center gap-4 mb-6">
                     <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
                       <Calculator className="h-8 w-8 text-white" />
                     </div>
                     <div className="flex-1">
-                      <DialogTitle className="text-3xl font-bold text-white">{budgetData.name}</DialogTitle>
-                      <p className="text-gray-400 text-lg mt-1">PRESUPUESTO NACIONAL</p>
+                      <div className="flex items-center gap-4 mb-2">
+                        <DialogTitle className="text-3xl font-bold text-white">{budgetData.name}</DialogTitle>
+                        
+                        {/* Presupuesto editable */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-400 text-sm">Presupuesto:</span>
+                          {editingBudgetAmount ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={budgetAmount}
+                                onChange={(e) => setBudgetAmount(parseFloat(e.target.value) || 0)}
+                                className="h-8 w-24 text-sm bg-white/10 border-white/20 text-white"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    saveBudgetAmount();
+                                  } else if (e.key === 'Escape') {
+                                    setEditingBudgetAmount(false);
+                                    setBudgetAmount(budget.fee || 0);
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <Button
+                                size="sm"
+                                onClick={saveBudgetAmount}
+                                className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700"
+                              >
+                                <Save className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingBudgetAmount(false);
+                                  setBudgetAmount(budget.fee || 0);
+                                }}
+                                className="h-6 w-6 p-0 bg-white/10 border-white/20 hover:bg-white/20"
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setEditingBudgetAmount(true)}
+                              className="text-white hover:text-blue-300 transition-colors"
+                              aria-label="Editar presupuesto"
+                            >
+                              {budgetAmount > 0 ? `€${budgetAmount.toFixed(2)}` : 'Sin definir'}
+                              <Pencil className="w-3 h-3 ml-1 inline" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-gray-400 text-lg">PRESUPUESTO NACIONAL</p>
                     </div>
                   </div>
                   
-                  {/* Summary Cards - moved from Resumen tab */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                  {/* 4-Block Financial Summary */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                     {(() => {
                       const totals = calculateGrandTotals();
+                      const difference = budgetAmount > 0 ? totals.total - budgetAmount : 0;
+                      const percentageDiff = budgetAmount > 0 ? ((difference / budgetAmount) * 100) : 0;
+                      
                       return (
                         <>
-                          <div className="text-center p-4 bg-blue-50/10 rounded-xl border border-blue-500/20 backdrop-blur-sm">
+                          {/* 1. SUBTOTAL */}
+                          <div 
+                            className="text-center p-4 bg-blue-50/10 rounded-xl border border-blue-500/20 backdrop-blur-sm hover:bg-blue-50/15 transition-all"
+                            title="Base imponible sin impuestos"
+                          >
                             <div className="text-xs font-medium text-blue-300 uppercase tracking-wider mb-1">
                               SUBTOTAL
                             </div>
-                            <div className="text-lg font-bold text-blue-200">
-                              €{totals.neto.toFixed(2)}
+                            <div className="text-xl font-bold text-blue-200">
+                              €{totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                             <div className="text-xs text-blue-400">
                               Base imponible
                             </div>
                           </div>
 
-                          <div className="text-center p-4 bg-green-50/10 rounded-xl border border-green-500/20 backdrop-blur-sm">
-                            <div className="text-xs font-medium text-green-300 uppercase tracking-wider mb-1">
-                              + IVA
+                          {/* 2. IVA/IRPF APILADOS */}
+                          <div className="space-y-2">
+                            {/* IVA */}
+                            <div 
+                              className="text-center p-2 bg-green-50/10 rounded-lg border border-green-500/20 backdrop-blur-sm hover:bg-green-50/15 transition-all"
+                              title="Impuesto sobre el valor añadido"
+                            >
+                              <div className="text-xs font-medium text-green-300 uppercase tracking-wider mb-0.5">
+                                + IVA
+                              </div>
+                              <div className="text-lg font-bold text-green-200">
+                                €{totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                              <div className="text-xs text-green-400">
+                                Impuesto sobre el valor añadido
+                              </div>
                             </div>
-                            <div className="text-lg font-bold text-green-200">
-                              €{totals.iva.toFixed(2)}
-                            </div>
-                            <div className="text-xs text-green-400">
-                              Impuesto sobre el valor añadido
+                            
+                            {/* IRPF */}
+                            <div 
+                              className="text-center p-2 bg-red-50/10 rounded-lg border border-red-500/20 backdrop-blur-sm hover:bg-red-50/15 transition-all"
+                              title="Retención fiscal"
+                            >
+                              <div className="text-xs font-medium text-red-300 uppercase tracking-wider mb-0.5">
+                                - IRPF
+                              </div>
+                              <div className="text-lg font-bold text-red-200">
+                                €{totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                              <div className="text-xs text-red-400">
+                                Retención fiscal
+                              </div>
                             </div>
                           </div>
 
-                          <div className="text-center p-4 bg-red-50/10 rounded-xl border border-red-500/20 backdrop-blur-sm">
-                            <div className="text-xs font-medium text-red-300 uppercase tracking-wider mb-1">
-                              - IRPF
-                            </div>
-                            <div className="text-lg font-bold text-red-200">
-                              €{totals.irpf.toFixed(2)}
-                            </div>
-                            <div className="text-xs text-red-400">
-                              Retención fiscal
-                            </div>
-                          </div>
-
-                          <div className="text-center p-4 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl border-2 border-primary/30 backdrop-blur-sm">
+                          {/* 3. TOTAL FINAL */}
+                          <div 
+                            className="text-center p-4 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl border-2 border-primary/30 backdrop-blur-sm hover:from-primary/25 hover:to-primary/15 transition-all"
+                            title="Importe final con IVA e IRPF aplicados"
+                          >
                             <div className="text-xs font-semibold text-primary-foreground uppercase tracking-wider mb-1">
                               TOTAL FINAL
                             </div>
                             <div className="text-xl font-black text-white">
-                              €{totals.total.toFixed(2)}
+                              €{totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                             <div className="text-xs text-primary-foreground/80">
                               {items.length} elemento{items.length !== 1 ? 's' : ''}
+                            </div>
+                          </div>
+
+                          {/* 4. DIFERENCIA VS PRESUPUESTO */}
+                          <div 
+                            className={`text-center p-4 rounded-xl border backdrop-blur-sm transition-all ${
+                              budgetAmount === 0 
+                                ? 'bg-gray-50/10 border-gray-500/20 hover:bg-gray-50/15'
+                                : percentageDiff > 0 
+                                  ? 'bg-red-50/10 border-red-500/20 hover:bg-red-50/15'
+                                  : percentageDiff < 0 
+                                    ? 'bg-green-50/10 border-green-500/20 hover:bg-green-50/15'
+                                    : 'bg-gray-50/10 border-gray-500/20 hover:bg-gray-50/15'
+                            }`}
+                            title={budgetAmount > 0 ? `Diferencia: ${difference >= 0 ? '+' : ''}€${Math.abs(difference).toFixed(2)}` : 'Añade un presupuesto para ver la diferencia'}
+                          >
+                            <div className={`text-xs font-medium uppercase tracking-wider mb-1 ${
+                              budgetAmount === 0 
+                                ? 'text-gray-300'
+                                : percentageDiff > 0 
+                                  ? 'text-red-300'
+                                  : percentageDiff < 0 
+                                    ? 'text-green-300'
+                                    : 'text-gray-300'
+                            }`}>
+                              DIFERENCIA
+                            </div>
+                            <div className={`text-xl font-bold ${
+                              budgetAmount === 0 
+                                ? 'text-gray-200'
+                                : percentageDiff > 0 
+                                  ? 'text-red-200'
+                                  : percentageDiff < 0 
+                                    ? 'text-green-200'
+                                    : 'text-gray-200'
+                            }`}>
+                              {budgetAmount === 0 ? '—' : `${percentageDiff >= 0 ? '+' : ''}${percentageDiff.toFixed(1)}%`}
+                            </div>
+                            <div className={`text-xs ${
+                              budgetAmount === 0 
+                                ? 'text-gray-400'
+                                : percentageDiff > 0 
+                                  ? 'text-red-400'
+                                  : percentageDiff < 0 
+                                    ? 'text-green-400'
+                                    : 'text-gray-400'
+                            }`}>
+                              {budgetAmount === 0 
+                                ? 'Añade un presupuesto'
+                                : `Δ €${Math.abs(difference).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} vs presupuesto`
+                              }
                             </div>
                           </div>
                         </>
