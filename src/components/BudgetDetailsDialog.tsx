@@ -617,6 +617,62 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     });
   };
 
+  const getCategoryChartData = () => {
+    const categoryTotals = budgetCategories.map((category) => {
+      const categoryItems = getCategoryItems(category.id);
+      const total = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
+      return {
+        name: category.name,
+        value: total,
+        icon: category.icon_name,
+        itemCount: categoryItems.length
+      };
+    }).filter(category => category.value > 0); // Solo mostrar categorías con valores
+
+    // Calcular el total general para los porcentajes
+    const grandTotal = categoryTotals.reduce((sum, cat) => sum + cat.value, 0);
+    
+    return categoryTotals.map((category, index) => ({
+      ...category,
+      percentage: grandTotal > 0 ? (category.value / grandTotal * 100) : 0,
+      color: getCategoryColor(index)
+    }));
+  };
+
+  const getCategoryColor = (index: number) => {
+    const colors = [
+      '#3B82F6', // blue
+      '#10B981', // emerald
+      '#F59E0B', // amber
+      '#EF4444', // red
+      '#8B5CF6', // violet
+      '#F97316', // orange
+      '#06B6D4', // cyan
+      '#84CC16', // lime
+      '#EC4899', // pink
+      '#6B7280'  // gray
+    ];
+    return colors[index % colors.length];
+  };
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-3 border rounded-lg shadow-lg">
+          <p className="font-medium text-gray-900">{data.name}</p>
+          <p className="text-sm text-gray-600">
+            €{data.value.toFixed(2)} ({data.percentage.toFixed(1)}%)
+          </p>
+          <p className="text-xs text-gray-500">
+            {data.itemCount} elemento{data.itemCount !== 1 ? 's' : ''}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pendiente':
@@ -1233,6 +1289,97 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
               <TabsContent value="overview" className="flex-1 overflow-auto p-6">
                 <div className="space-y-6">
+                  {/* Gráfico Circular */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Distribución por Categorías</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-80 w-full">
+                          {(() => {
+                            const chartData = getCategoryChartData();
+                            
+                            if (chartData.length === 0) {
+                              return (
+                                <div className="h-full flex items-center justify-center text-gray-500">
+                                  No hay datos para mostrar
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                  <Pie
+                                    data={chartData}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
+                                    outerRadius={100}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                  >
+                                    {chartData.map((entry, index) => (
+                                      <Cell key={`cell-${index}`} fill={entry.color} />
+                                    ))}
+                                  </Pie>
+                                  <Tooltip content={<CustomTooltip />} />
+                                  <Legend />
+                                </PieChart>
+                              </ResponsiveContainer>
+                            );
+                          })()}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Resumen por Categorías */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Resumen por Categorías</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {(() => {
+                            const chartData = getCategoryChartData();
+                            const grandTotal = chartData.reduce((sum, cat) => sum + cat.value, 0);
+                            
+                            return chartData
+                              .sort((a, b) => b.value - a.value)
+                              .map((category, index) => {
+                                const IconComponent = iconMap[category.icon as keyof typeof iconMap] || DollarSign;
+                                
+                                return (
+                                  <div key={category.name} className="flex items-center justify-between p-3 rounded-lg border">
+                                    <div className="flex items-center gap-3">
+                                      <div 
+                                        className="w-4 h-4 rounded-full" 
+                                        style={{ backgroundColor: category.color }}
+                                      ></div>
+                                      <IconComponent className="w-4 h-4 text-gray-600" />
+                                      <div>
+                                        <div className="font-medium text-sm">{category.name}</div>
+                                        <div className="text-xs text-gray-500">
+                                          {category.itemCount} elemento{category.itemCount !== 1 ? 's' : ''}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="font-bold text-sm">€{category.value.toFixed(2)}</div>
+                                      <div className="text-xs text-gray-500">{category.percentage.toFixed(1)}%</div>
+                                    </div>
+                                  </div>
+                                );
+                              });
+                          })()}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Tabla de todos los elementos */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center justify-between">
