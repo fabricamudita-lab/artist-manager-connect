@@ -36,8 +36,18 @@ import {
   Settings,
   Pencil,
   GripVertical,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  CalendarIcon,
+  Search,
+  Filter,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface Budget {
   id: string;
@@ -72,6 +82,7 @@ interface BudgetItem {
   invoice_link?: string;
   observations?: string;
   category_id?: string;
+  fecha_emision?: string;
   budget_categories?: {
     id: string;
     name: string;
@@ -128,8 +139,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
   const [editingItemValues, setEditingItemValues] = useState<Partial<BudgetItem>>({});
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'name' | 'amount' | 'status'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'amount' | 'fecha_emision' | 'status'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [editingBudgetAmount, setEditingBudgetAmount] = useState(false);
   const [budgetAmount, setBudgetAmount] = useState<number>(budget.fee || 0);
   const [expandedQuantity, setExpandedQuantity] = useState<string | null>(null);
@@ -306,6 +318,56 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     return filteredItems;
   };
 
+  const getFilteredAndSortedItems = (categoryId: string) => {
+    let categoryItems = getCategoryItems(categoryId);
+    
+    // Apply search filter
+    if (searchTerm) {
+      categoryItems = categoryItems.filter(item => 
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.unit_price.toString().includes(searchTerm) ||
+        (item.unit_price * item.quantity).toString().includes(searchTerm)
+      );
+    }
+    
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      categoryItems = categoryItems.filter(item => item.billing_status === statusFilter);
+    }
+    
+    // Apply sorting
+    categoryItems.sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case 'amount':
+          aValue = calculateTotal(a);
+          bValue = calculateTotal(b);
+          break;
+        case 'fecha_emision':
+          aValue = a.fecha_emision ? new Date(a.fecha_emision).getTime() : 0;
+          bValue = b.fecha_emision ? new Date(b.fecha_emision).getTime() : 0;
+          break;
+        case 'status':
+          aValue = a.billing_status;
+          bValue = b.billing_status;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return categoryItems;
+  };
+
   // Funciones para el gráfico y resumen
   const getCategoryChartData = () => {
     const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#f97316', '#06b6d4', '#84cc16'];
@@ -428,7 +490,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           is_attendee: false,
           billing_status: 'pendiente',
           invoice_link: '',
-          observations: ''
+          observations: '',
+          fecha_emision: null
         })
         .select()
         .single();
@@ -1099,17 +1162,18 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                               </div>
                             ) : (
                               <Table>
-                                <TableHeader>
-                                   <TableRow className="bg-gray-100 hover:bg-gray-100">
-                                     <TableHead className="font-bold text-black w-[200px]">Nombre</TableHead>
-                                     <TableHead className="font-bold text-black w-[150px] text-center">Estado de facturación</TableHead>
-                                     <TableHead className="font-bold text-black w-[140px] text-right">Precio Unit. (€)</TableHead>
-                                     <TableHead className="font-bold text-black w-[80px] text-center">IVA (%)</TableHead>
-                                     <TableHead className="font-bold text-black w-[80px] text-center">IRPF (%)</TableHead>
-                                     <TableHead className="font-bold text-black w-[120px] text-right">Total (€)</TableHead>
-                                     <TableHead className="font-bold text-black w-[100px] text-center">Acciones</TableHead>
-                                   </TableRow>
-                                 </TableHeader>
+                                 <TableHeader>
+                                    <TableRow className="bg-gray-100 hover:bg-gray-100">
+                                      <TableHead className="font-bold text-black w-[200px]">Nombre</TableHead>
+                                      <TableHead className="font-bold text-black w-[150px] text-center">Estado de facturación</TableHead>
+                                      <TableHead className="font-bold text-black w-[130px] text-center">Fecha Emisión</TableHead>
+                                      <TableHead className="font-bold text-black w-[140px] text-right">Precio Unit. (€)</TableHead>
+                                      <TableHead className="font-bold text-black w-[80px] text-center">IVA (%)</TableHead>
+                                      <TableHead className="font-bold text-black w-[80px] text-center">IRPF (%)</TableHead>
+                                      <TableHead className="font-bold text-black w-[120px] text-right">Total (€)</TableHead>
+                                      <TableHead className="font-bold text-black w-[100px] text-center">Acciones</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
                                 <TableBody>
                                   {categoryItems.map((item, index) => (
                                     <TableRow 
@@ -1167,11 +1231,47 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                item.billing_status === 'factura_recibida' ? 'Factura recibida' :
                                                item.billing_status === 'pagada' ? 'Pagada' : item.billing_status}
                                             </Badge>
-                                          </div>
-                                        )}
-                                      </TableCell>
-                                      
-                                       {/* Precio Unitario con botón + para cantidad */}
+                                           </div>
+                                         )}
+                                       </TableCell>
+                                       
+                                       {/* Fecha de emisión */}
+                                       <TableCell className="p-2 text-center">
+                                         {editingItem === item.id ? (
+                                           <Popover>
+                                             <PopoverTrigger asChild>
+                                               <Button
+                                                 variant="outline"
+                                                 className={cn(
+                                                   "h-8 w-[120px] justify-start text-left font-normal text-sm",
+                                                   !editingItemValues.fecha_emision && "text-muted-foreground"
+                                                 )}
+                                               >
+                                                 <CalendarIcon className="mr-2 h-3 w-3" />
+                                                 {editingItemValues.fecha_emision ? format(new Date(editingItemValues.fecha_emision), "dd/MM/yyyy") : <span>Fecha</span>}
+                                               </Button>
+                                             </PopoverTrigger>
+                                             <PopoverContent className="w-auto p-0" align="start">
+                                               <Calendar
+                                                 mode="single"
+                                                 selected={editingItemValues.fecha_emision ? new Date(editingItemValues.fecha_emision) : undefined}
+                                                 onSelect={(date) => setEditingItemValues(prev => ({ ...prev, fecha_emision: date ? format(date, 'yyyy-MM-dd') : undefined }))}
+                                                 initialFocus
+                                                 className="pointer-events-auto"
+                                               />
+                                             </PopoverContent>
+                                           </Popover>
+                                         ) : (
+                                           <div 
+                                             className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded text-gray-900"
+                                             onClick={() => startEditingItem(item)}
+                                           >
+                                             {item.fecha_emision ? format(new Date(item.fecha_emision), "dd/MM/yyyy") : "-"}
+                                           </div>
+                                         )}
+                                       </TableCell>
+                                       
+                                        {/* Precio Unitario con botón + para cantidad */}
                                        <TableCell className="p-2 text-right">
                                          {editingItem === item.id ? (
                                            <div className="flex items-center gap-1">
@@ -1428,63 +1528,240 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   {/* Tabla detallada de elementos */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>Vista Detallada de Elementos</CardTitle>
+                      <CardTitle>Vista General de Elementos</CardTitle>
+                      
+                      {/* Filters and Search */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mt-4">
+                        {/* Search Bar */}
+                        <div className="lg:col-span-2">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                            <Input
+                              placeholder="Buscar por concepto o importe..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="pl-10"
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Status Filter */}
+                        <div>
+                          <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Estado" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Todos los estados</SelectItem>
+                              <SelectItem value="pendiente">Pendiente</SelectItem>
+                              <SelectItem value="factura_solicitada">Factura solicitada</SelectItem>
+                              <SelectItem value="factura_recibida">Factura recibida</SelectItem>
+                              <SelectItem value="pagada">Pagada</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        {/* Sort By */}
+                        <div>
+                          <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Ordenar por" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="name">Nombre</SelectItem>
+                              <SelectItem value="amount">Importe</SelectItem>
+                              <SelectItem value="fecha_emision">Fecha emisión</SelectItem>
+                              <SelectItem value="status">Estado</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        {/* Sort Order */}
+                        <div>
+                          <Button
+                            variant="outline"
+                            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                            className="w-full justify-start"
+                          >
+                            {sortOrder === 'asc' ? (
+                              <ArrowUp className="h-4 w-4 mr-2" />
+                            ) : (
+                              <ArrowDown className="h-4 w-4 mr-2" />
+                            )}
+                            {sortOrder === 'asc' ? 'Ascendente' : 'Descendente'}
+                          </Button>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-x-auto">
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-[250px]">Concepto</TableHead>
+                              <TableHead className="w-[200px]">Concepto</TableHead>
                               <TableHead className="w-[120px] text-center">Categoría</TableHead>
                               <TableHead className="w-[80px] text-center">Cantidad</TableHead>
-                              <TableHead className="w-[120px] text-right">Precio Unit.</TableHead>
-                              <TableHead className="w-[120px] text-right">Total</TableHead>
+                              <TableHead className="w-[100px] text-right">Precio Unit.</TableHead>
+                              <TableHead className="w-[130px] text-center">Fecha Emisión</TableHead>
+                              <TableHead className="w-[140px] text-center">Estado</TableHead>
+                              <TableHead className="w-[100px] text-right">Total</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {items.map((item, index) => {
-                              const total = calculateTotal(item);
+                            {(() => {
+                              // Get all items from all categories and apply filters
+                              let allItems: BudgetItem[] = [];
+                              budgetCategories.forEach(category => {
+                                allItems = [...allItems, ...getFilteredAndSortedItems(category.id)];
+                              });
                               
-                              return (
-                                <TableRow 
-                                  key={item.id}
-                                  className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`}
-                                >
-                                  <TableCell>
-                                    <div className="font-medium text-gray-900">{item.name}</div>
-                                    {item.observations && (
-                                      <div className="text-sm text-gray-500 mt-1">{item.observations}</div>
-                                    )}
-                                  </TableCell>
-                                  
-                                  <TableCell className="text-center">
-                                    <span className="text-sm">{item.budget_categories?.name || 'Sin categoría'}</span>
-                                  </TableCell>
-                                  
-                                  <TableCell className="text-center font-medium">
-                                    {item.quantity}
-                                  </TableCell>
-                                  
-                                  <TableCell className="text-right">
-                                    €{item.unit_price.toFixed(2)}
-                                  </TableCell>
-                                  
-                                  <TableCell className="text-right font-bold text-green-700">
-                                    €{total.toFixed(2)}
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
+                              return allItems.map((item, index) => {
+                                const total = calculateTotal(item);
+                                
+                                return (
+                                  <TableRow 
+                                    key={item.id}
+                                    className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`}
+                                  >
+                                    <TableCell>
+                                      <div className="font-medium text-gray-900">{item.name}</div>
+                                      {item.observations && (
+                                        <div className="text-sm text-gray-500 mt-1">{item.observations}</div>
+                                      )}
+                                    </TableCell>
+                                    
+                                    <TableCell className="text-center">
+                                      <span className="text-sm">{item.budget_categories?.name || 'Sin categoría'}</span>
+                                    </TableCell>
+                                    
+                                    <TableCell className="text-center font-medium">
+                                      {item.quantity}
+                                    </TableCell>
+                                    
+                                    <TableCell className="text-right">
+                                      €{item.unit_price.toFixed(2)}
+                                    </TableCell>
+                                    
+                                    <TableCell className="text-center">
+                                      {editingItem === item.id ? (
+                                        <Popover>
+                                          <PopoverTrigger asChild>
+                                            <Button
+                                              variant="outline"
+                                              className={cn(
+                                                "w-[120px] justify-start text-left font-normal",
+                                                !editingItemValues.fecha_emision && "text-muted-foreground"
+                                              )}
+                                            >
+                                              <CalendarIcon className="mr-2 h-4 w-4" />
+                                              {editingItemValues.fecha_emision ? format(new Date(editingItemValues.fecha_emision), "dd/MM/yyyy") : <span>Fecha</span>}
+                                            </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar
+                                              mode="single"
+                                              selected={editingItemValues.fecha_emision ? new Date(editingItemValues.fecha_emision) : undefined}
+                                              onSelect={(date) => setEditingItemValues(prev => ({ ...prev, fecha_emision: date ? format(date, 'yyyy-MM-dd') : undefined }))}
+                                              initialFocus
+                                              className="pointer-events-auto"
+                                            />
+                                          </PopoverContent>
+                                        </Popover>
+                                      ) : (
+                                        <div 
+                                          className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded text-gray-900"
+                                          onClick={() => startEditingItem(item)}
+                                        >
+                                          {item.fecha_emision ? format(new Date(item.fecha_emision), "dd/MM/yyyy") : "-"}
+                                        </div>
+                                      )}
+                                    </TableCell>
+                                    
+                                    <TableCell className="text-center">
+                                      {editingItem === item.id ? (
+                                        <Select
+                                          value={editingItemValues.billing_status || item.billing_status}
+                                          onValueChange={(value) => setEditingItemValues(prev => ({ ...prev, billing_status: value as any }))}
+                                        >
+                                          <SelectTrigger className="h-8">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="pendiente">Pendiente</SelectItem>
+                                            <SelectItem value="factura_solicitada">Factura solicitada</SelectItem>
+                                            <SelectItem value="factura_recibida">Factura recibida</SelectItem>
+                                            <SelectItem value="pagada">Pagada</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      ) : (
+                                        <div 
+                                          className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
+                                          onClick={() => startEditingItem(item)}
+                                        >
+                                          <Badge 
+                                            variant={
+                                              item.billing_status === 'pagada' ? 'default' :
+                                              item.billing_status === 'factura_recibida' ? 'secondary' :
+                                              item.billing_status === 'factura_solicitada' ? 'outline' :
+                                              'destructive'
+                                            }
+                                          >
+                                            {item.billing_status === 'pendiente' ? 'Pendiente' :
+                                             item.billing_status === 'factura_solicitada' ? 'Factura solicitada' :
+                                             item.billing_status === 'factura_recibida' ? 'Factura recibida' :
+                                             'Pagada'}
+                                          </Badge>
+                                        </div>
+                                      )}
+                                    </TableCell>
+                                    
+                                    <TableCell className="text-right font-bold text-green-700">
+                                      €{total.toFixed(2)}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              });
+                            })()}
                           </TableBody>
                         </Table>
                         
-                        {items.length === 0 && (
-                          <div className="p-8 text-center text-gray-500">
-                            No hay elementos en este presupuesto
-                          </div>
-                        )}
+                        {(() => {
+                          let allItems: BudgetItem[] = [];
+                          budgetCategories.forEach(category => {
+                            allItems = [...allItems, ...getFilteredAndSortedItems(category.id)];
+                          });
+                          return allItems.length === 0 && (
+                            <div className="p-8 text-center text-gray-500">
+                              {searchTerm || statusFilter !== 'all' ? 'No se encontraron elementos con los filtros aplicados' : 'No hay elementos en este presupuesto'}
+                            </div>
+                          );
+                        })()}
                       </div>
+                      
+                      {/* Action Buttons for Editing */}
+                      {editingItem && (
+                        <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t">
+                          <Button
+                            onClick={saveItemEdits}
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <Save className="w-4 h-4 mr-1" />
+                            Guardar
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              setEditingItem(null);
+                              setEditingItemValues({});
+                            }}
+                            size="sm"
+                            variant="outline"
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>

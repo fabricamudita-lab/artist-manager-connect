@@ -492,6 +492,7 @@ export type Database = {
           category: string
           category_id: string | null
           created_at: string
+          fecha_emision: string | null
           id: string
           invoice_link: string | null
           irpf_percentage: number | null
@@ -510,6 +511,7 @@ export type Database = {
           category: string
           category_id?: string | null
           created_at?: string
+          fecha_emision?: string | null
           id?: string
           invoice_link?: string | null
           irpf_percentage?: number | null
@@ -528,6 +530,7 @@ export type Database = {
           category?: string
           category_id?: string | null
           created_at?: string
+          fecha_emision?: string | null
           id?: string
           invoice_link?: string | null
           irpf_percentage?: number | null
