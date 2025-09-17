@@ -1530,10 +1530,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                     <CardHeader>
                       <CardTitle>Vista General de Elementos</CardTitle>
                       
-                      {/* Filters and Search */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mt-4">
+                      {/* Unified Search and Filter */}
+                      <div className="flex flex-col sm:flex-row gap-4 mt-4">
                         {/* Search Bar */}
-                        <div className="lg:col-span-2">
+                        <div className="flex-1">
                           <div className="relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                             <Input
@@ -1545,51 +1545,41 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                           </div>
                         </div>
                         
-                        {/* Status Filter */}
-                        <div>
-                          <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">Todos los estados</SelectItem>
-                              <SelectItem value="pendiente">Pendiente</SelectItem>
-                              <SelectItem value="factura_solicitada">Factura solicitada</SelectItem>
-                              <SelectItem value="factura_recibida">Factura recibida</SelectItem>
-                              <SelectItem value="pagada">Pagada</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        {/* Sort By */}
-                        <div>
-                          <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Ordenar por" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="name">Nombre</SelectItem>
-                              <SelectItem value="amount">Importe</SelectItem>
-                              <SelectItem value="fecha_emision">Fecha emisión</SelectItem>
-                              <SelectItem value="status">Estado</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        {/* Sort Order */}
-                        <div>
-                          <Button
-                            variant="outline"
-                            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                            className="w-full justify-start"
+                        {/* Unified Filter Menu */}
+                        <div className="w-80">
+                          <Select 
+                            value={`${statusFilter}-${sortBy}-${sortOrder}`} 
+                            onValueChange={(value) => {
+                              const [status, sort, order] = value.split('-');
+                              setStatusFilter(status as any);
+                              setSortBy(sort as any);
+                              setSortOrder(order as any);
+                            }}
                           >
-                            {sortOrder === 'asc' ? (
-                              <ArrowUp className="h-4 w-4 mr-2" />
-                            ) : (
-                              <ArrowDown className="h-4 w-4 mr-2" />
-                            )}
-                            {sortOrder === 'asc' ? 'Ascendente' : 'Descendente'}
-                          </Button>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Filtros y ordenación" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-b">Estados</div>
+                              <SelectItem value="all-name-asc">Todos los estados</SelectItem>
+                              <SelectItem value="pendiente-name-asc">Pendiente</SelectItem>
+                              <SelectItem value="factura_solicitada-name-asc">Factura solicitada</SelectItem>
+                              <SelectItem value="factura_recibida-name-asc">Factura recibida</SelectItem>
+                              <SelectItem value="pagada-name-asc">Pagada</SelectItem>
+                              
+                              <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-b border-t mt-1">Ordenar por importe</div>
+                              <SelectItem value="all-amount-asc">Importe: menor a mayor</SelectItem>
+                              <SelectItem value="all-amount-desc">Importe: mayor a menor</SelectItem>
+                              
+                              <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-b border-t mt-1">Ordenar por fecha emisión</div>
+                              <SelectItem value="all-fecha_emision-asc">Fecha: más antiguo primero</SelectItem>
+                              <SelectItem value="all-fecha_emision-desc">Fecha: más reciente primero</SelectItem>
+                              
+                              <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-b border-t mt-1">Orden alfabético</div>
+                              <SelectItem value="all-name-asc">Concepto: A-Z</SelectItem>
+                              <SelectItem value="all-name-desc">Concepto: Z-A</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     </CardHeader>
