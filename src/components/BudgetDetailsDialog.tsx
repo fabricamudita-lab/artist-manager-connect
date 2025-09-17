@@ -42,7 +42,8 @@ import {
   Filter,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  ArrowRightLeft
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -137,6 +138,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [showCategoryManagement, setShowCategoryManagement] = useState(false);
   const [draggedCategory, setDraggedCategory] = useState<string | null>(null);
   const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
+  
+  // Element movement states
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
+  const [draggedElement, setDraggedElement] = useState<string | null>(null);
+  const [dragOverElement, setDragOverElement] = useState<string | null>(null);
   const [editingItemValues, setEditingItemValues] = useState<Partial<BudgetItem>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'amount' | 'fecha_emision' | 'status'>('name');
@@ -692,6 +699,103 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   };
 
+  // Element movement functions
+  const toggleItemSelection = (itemId: string) => {
+    const newSelection = new Set(selectedItems);
+    if (newSelection.has(itemId)) {
+      newSelection.delete(itemId);
+    } else {
+      newSelection.add(itemId);
+    }
+    setSelectedItems(newSelection);
+  };
+
+  const selectAllItemsInCategory = (categoryId: string) => {
+    const categoryItems = getCategoryItems(categoryId);
+    const newSelection = new Set(selectedItems);
+    categoryItems.forEach(item => newSelection.add(item.id));
+    setSelectedItems(newSelection);
+  };
+
+  const clearSelection = () => {
+    setSelectedItems(new Set());
+  };
+
+  const moveSelectedItems = async (targetCategoryId: string) => {
+    if (selectedItems.size === 0) return;
+
+    try {
+      // Update items in batch
+      const updates = Array.from(selectedItems).map(itemId => {
+        const currentItem = items.find(item => item.id === itemId);
+        if (!currentItem) return null;
+
+        return supabase
+          .from('budget_items')
+          .update({ category: budgetCategories.find(c => c.id === targetCategoryId)?.name || 'Sin categoría' })
+          .eq('id', itemId);
+      }).filter(Boolean);
+
+      await Promise.all(updates);
+
+      // Update local state
+      const updatedItems = items.map(item => {
+        if (selectedItems.has(item.id)) {
+          const targetCategory = budgetCategories.find(c => c.id === targetCategoryId);
+          return { ...item, category: targetCategory?.name || 'Sin categoría' };
+        }
+        return item;
+      });
+
+      setItems(updatedItems);
+      setSelectedItems(new Set());
+      setShowMoveDialog(false);
+
+      toast({
+        title: "Elementos movidos",
+        description: `${selectedItems.size} elemento(s) movidos exitosamente`,
+      });
+    } catch (error) {
+      console.error('Error moving items:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron mover los elementos",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const moveItemToCategory = async (itemId: string, targetCategoryId: string) => {
+    try {
+      const targetCategory = budgetCategories.find(c => c.id === targetCategoryId);
+      
+      await supabase
+        .from('budget_items')
+        .update({ category: targetCategory?.name || 'Sin categoría' })
+        .eq('id', itemId);
+
+      const updatedItems = items.map(item => 
+        item.id === itemId 
+          ? { ...item, category: targetCategory?.name || 'Sin categoría' }
+          : item
+      );
+
+      setItems(updatedItems);
+
+      toast({
+        title: "Elemento movido",
+        description: `Elemento movido a ${targetCategory?.name}`,
+      });
+    } catch (error) {
+      console.error('Error moving item:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo mover el elemento",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1068,10 +1172,20 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                  </span>
                                )}
                              </div>
-                             <div className="flex items-center gap-2">
-                               <span className="text-sm text-gray-300">
-                                 {getCategoryItems(category.id).length} elementos
-                               </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-300">
+                              {getCategoryItems(category.id).length} elementos
+                            </span>
+                            {getCategoryItems(category.id).length > 0 && (
+                              <Button
+                                onClick={() => selectAllItemsInCategory(category.id)}
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-xs text-blue-400 hover:text-blue-300 hover:bg-gray-600"
+                              >
+                                Seleccionar todos
+                              </Button>
+                            )}
                                {editingCategory === category.id ? (
                                  <div className="flex gap-1">
                                    <Button
@@ -1121,8 +1235,38 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                      </div>
                    )}
                    
-                   {/* Categories Section */}
-                  <div className="flex-1 overflow-auto">
+                    {/* Bulk actions bar */}
+                    {selectedItems.size > 0 && (
+                      <div className="bg-blue-600 text-white p-3 border-b border-blue-700">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">
+                            {selectedItems.size} elemento(s) seleccionado(s)
+                          </span>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => setShowMoveDialog(true)}
+                              size="sm"
+                              variant="outline"
+                              className="bg-blue-700 hover:bg-blue-800 text-white border-blue-500"
+                            >
+                              <ArrowRightLeft className="w-4 h-4 mr-1" />
+                              Mover a categoría
+                            </Button>
+                            <Button
+                              onClick={clearSelection}
+                              size="sm"
+                              variant="ghost"
+                              className="text-white hover:bg-blue-700"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Categories Section */}
+                   <div className="flex-1 overflow-auto">
                     {budgetCategories.map((category) => {
                       const categoryItems = getCategoryItems(category.id);
                       const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
@@ -1164,6 +1308,22 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                               <Table>
                                  <TableHeader>
                                     <TableRow className="bg-gray-100 hover:bg-gray-100">
+                                      <TableHead className="font-bold text-black w-[50px] text-center">
+                                        <input
+                                          type="checkbox"
+                                          className="rounded"
+                                          checked={categoryItems.length > 0 && categoryItems.every(item => selectedItems.has(item.id))}
+                                          onChange={(e) => {
+                                            if (e.target.checked) {
+                                              selectAllItemsInCategory(category.id);
+                                            } else {
+                                              const newSelection = new Set(selectedItems);
+                                              categoryItems.forEach(item => newSelection.delete(item.id));
+                                              setSelectedItems(newSelection);
+                                            }
+                                          }}
+                                        />
+                                      </TableHead>
                                       <TableHead className="font-bold text-black w-[200px]">Nombre</TableHead>
                                       <TableHead className="font-bold text-black w-[150px] text-center">Estado de facturación</TableHead>
                                       <TableHead className="font-bold text-black w-[130px] text-center">Fecha Emisión</TableHead>
@@ -1175,13 +1335,54 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                     </TableRow>
                                   </TableHeader>
                                 <TableBody>
-                                  {categoryItems.map((item, index) => (
-                                    <TableRow 
-                                      key={item.id} 
-                                      className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors border-b border-gray-200`}
-                                    >
-                                       {/* Nombre */}
-                                       <TableCell className="p-2">
+                                   {categoryItems.map((item, index) => (
+                                     <TableRow 
+                                       key={item.id} 
+                                       className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors border-b border-gray-200 ${
+                                         selectedItems.has(item.id) ? 'bg-blue-100 border-blue-300' : ''
+                                       } ${draggedElement === item.id ? 'opacity-50' : ''} ${
+                                         dragOverElement === item.id ? 'border-t-2 border-t-blue-500' : ''
+                                       }`}
+                                       draggable
+                                       onDragStart={(e) => {
+                                         setDraggedElement(item.id);
+                                         e.dataTransfer.effectAllowed = 'move';
+                                         e.dataTransfer.setData('text/plain', item.id);
+                                       }}
+                                       onDragOver={(e) => {
+                                         e.preventDefault();
+                                         e.dataTransfer.dropEffect = 'move';
+                                         setDragOverElement(item.id);
+                                       }}
+                                       onDragLeave={() => {
+                                         setDragOverElement(null);
+                                       }}
+                                       onDrop={(e) => {
+                                         e.preventDefault();
+                                         setDragOverElement(null);
+                                         setDraggedElement(null);
+                                       }}
+                                       onDragEnd={() => {
+                                         setDraggedElement(null);
+                                         setDragOverElement(null);
+                                       }}
+                                     >
+                                        {/* Checkbox */}
+                                        <TableCell className="p-2 text-center">
+                                          <div className="flex items-center justify-center gap-2">
+                                            <input
+                                              type="checkbox"
+                                              className="rounded"
+                                              checked={selectedItems.has(item.id)}
+                                              onChange={() => toggleItemSelection(item.id)}
+                                              onClick={(e) => e.stopPropagation()}
+                                            />
+                                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab hover:text-gray-600" />
+                                          </div>
+                                        </TableCell>
+
+                                        {/* Nombre */}
+                                        <TableCell className="p-2">
                                          {editingItem === item.id ? (
                                            <Input
                                              value={editingItemValues.name || item.name}
@@ -1381,23 +1582,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                       {/* Acciones */}
                                       <TableCell className="p-2 text-center">
                                         <div className="flex items-center justify-center gap-1">
-                                          {editingItem === item.id ? (
-                                            <>
-                                              <Button
-                                                onClick={saveItemEdits}
-                                                size="sm"
-                                                className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700"
-                                              >
-                                                <Save className="w-3 h-3" />
-                                              </Button>
-                                              <Button
-                                                onClick={() => {
-                                                  setEditingItem(null);
-                                                  setEditingItemValues({});
-                                                }}
-                                                size="sm"
-                                                variant="outline"
-                                                className="h-6 w-6 p-0"
+                                           {editingItem === item.id ? (
+                                             <>
+                                               <Button
+                                                 onClick={saveItemEdits}
+                                                 size="sm"
+                                                 className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700"
+                                               >
+                                                 <Save className="w-3 h-3" />
+                                               </Button>
+                                               <Button
+                                                 onClick={() => {
+                                                   setEditingItem(null);
+                                                   setEditingItemValues({});
+                                                 }}
+                                                 size="sm"
+                                                 variant="outline"
+                                                 className="h-6 w-6 p-0"
                                               >
                                                 <X className="w-3 h-3" />
                                               </Button>
