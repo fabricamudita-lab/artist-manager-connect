@@ -57,6 +57,8 @@ export default function Projects() {
   const [viewMode, setViewMode] = useState<'estados' | 'porcentajes'>('estados');
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [breadcrumb, setBreadcrumb] = useState<{ id: string; name: string }[]>([]);
+  const [draggedItem, setDraggedItem] = useState<ProjectListItem | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
 
   // SEO: title, meta, canonical
   useEffect(() => {
@@ -222,6 +224,74 @@ export default function Projects() {
     }
   };
 
+  const handleDragStart = (e: React.DragEvent, item: ProjectListItem) => {
+    setDraggedItem(item);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', item.id);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDragEnter = (e: React.DragEvent, targetId: string | null) => {
+    e.preventDefault();
+    setDropTarget(targetId);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDropTarget(null);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetFolderId: string | null) => {
+    e.preventDefault();
+    setDropTarget(null);
+    
+    if (!draggedItem) return;
+    
+    // Don't allow dropping into itself
+    if (draggedItem.id === targetFolderId) return;
+    
+    // Don't allow dropping into a child folder (would create circular reference)
+    if (draggedItem.is_folder && targetFolderId) {
+      // Check if target is a descendant of dragged folder
+      let checkId = targetFolderId;
+      while (checkId) {
+        if (checkId === draggedItem.id) return;
+        const parent = items.find(p => p.id === checkId);
+        checkId = parent?.parent_folder_id || null;
+      }
+    }
+
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ parent_folder_id: targetFolderId })
+        .eq('id', draggedItem.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Proyecto movido",
+        description: `"${draggedItem.name}" ha sido movido exitosamente.`,
+      });
+
+      setRefreshKey(k => k + 1);
+    } catch (error) {
+      console.error('Error moving project:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo mover el proyecto. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setDraggedItem(null);
+    }
+  };
+
   return (
     <TooltipProvider>
       <main className="space-y-8">
@@ -320,6 +390,23 @@ export default function Projects() {
           </nav>
         )}
 
+        {/* Drop Zone for Root */}
+        <div
+          className={`transition-all duration-200 ${
+            dropTarget === 'root' ? 'bg-primary/10 border-2 border-dashed border-primary rounded-lg p-4' : ''
+          }`}
+          onDragOver={handleDragOver}
+          onDragEnter={(e) => handleDragEnter(e, currentFolderId)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, currentFolderId)}
+        >
+          {dropTarget === 'root' && (
+            <div className="text-center text-primary font-medium">
+              Soltar aquí para mover a {currentFolderId ? 'esta carpeta' : 'la raíz'}
+            </div>
+          )}
+        </div>
+
         {/* Projects Grid */}
         <section>
           {loading ? (
@@ -346,10 +433,22 @@ export default function Projects() {
               {filtered.map((p) => (
                 <Card 
                   key={p.id} 
+                  draggable
                   className={`border hover:border-primary/20 transition-all duration-200 hover:shadow-lg cursor-pointer group ${
                     p.is_folder ? 'bg-muted/30' : ''
+                  } ${draggedItem?.id === p.id ? 'opacity-50' : ''} ${
+                    dropTarget === p.id && p.is_folder ? 'border-primary border-2 border-dashed bg-primary/5' : ''
                   }`}
-                  onClick={() => handleProjectClick(p)}
+                  onDragStart={(e) => handleDragStart(e, p)}
+                  onDragOver={p.is_folder ? handleDragOver : undefined}
+                  onDragEnter={p.is_folder ? (e) => handleDragEnter(e, p.id) : undefined}
+                  onDragLeave={p.is_folder ? handleDragLeave : undefined}
+                  onDrop={p.is_folder ? (e) => handleDrop(e, p.id) : undefined}
+                  onClick={(e) => {
+                    if (!draggedItem) {
+                      handleProjectClick(p);
+                    }
+                  }}
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
