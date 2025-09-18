@@ -731,7 +731,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
     try {
       // Update items in batch
-      const updates = Array.from(selectedItems).map(itemId => {
+      const updates = Array.from(selectedItems).map(async (itemId) => {
         const currentItem = items.find(item => item.id === itemId);
         if (!currentItem) {
           console.log('❌ Item not found:', itemId);
@@ -743,20 +743,38 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           itemId,
           currentItem: currentItem.name,
           targetCategoryId,
-          targetCategoryName: targetCategory?.name
+          targetCategoryName: targetCategory?.name,
+          currentCategoryId: currentItem.category_id,
+          currentCategory: currentItem.category
         });
 
-        return supabase
+        const { data, error } = await supabase
           .from('budget_items')
           .update({ 
             category_id: targetCategoryId,
             category: targetCategory?.name || 'Sin categoría' 
           })
-          .eq('id', itemId);
-      }).filter(Boolean);
+          .eq('id', itemId)
+          .select();
 
-      const results = await Promise.all(updates);
-      console.log('✅ Update results:', results);
+        if (error) {
+          console.error('❌ Error updating item:', itemId, error);
+          return { success: false, error, itemId };
+        }
+
+        console.log('✅ Successfully updated item:', itemId, data);
+        return { success: true, data, itemId };
+      });
+
+      const results = await Promise.all(updates.filter(Boolean));
+      console.log('✅ All update results:', results);
+
+      // Check if there were any errors
+      const errors = results.filter(r => r && !r.success);
+      if (errors.length > 0) {
+        console.error('❌ Some updates failed:', errors);
+        throw new Error(`Failed to update ${errors.length} items`);
+      }
 
       // Update local state
       const updatedItems = items.map(item => {
