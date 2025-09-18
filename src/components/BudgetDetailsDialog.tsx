@@ -141,7 +141,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   
   // Element movement states
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-  const [showMoveDialog, setShowMoveDialog] = useState(false);
   const [draggedElement, setDraggedElement] = useState<string | null>(null);
   const [dragOverElement, setDragOverElement] = useState<string | null>(null);
   const [editingItemValues, setEditingItemValues] = useState<Partial<BudgetItem>>({});
@@ -749,7 +748,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
       setItems(updatedItems);
       setSelectedItems(new Set());
-      setShowMoveDialog(false);
 
       toast({
         title: "Elementos movidos",
@@ -1242,16 +1240,30 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                           <span className="font-medium">
                             {selectedItems.size} elemento(s) seleccionado(s)
                           </span>
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => setShowMoveDialog(true)}
-                              size="sm"
-                              variant="outline"
-                              className="bg-blue-700 hover:bg-blue-800 text-white border-blue-500"
-                            >
-                              <ArrowRightLeft className="w-4 h-4 mr-1" />
-                              Mover a categoría
-                            </Button>
+                           <div className="flex gap-2">
+                             <Select 
+                               onValueChange={(categoryId) => moveSelectedItems(categoryId)}
+                             >
+                               <SelectTrigger className="bg-blue-700 hover:bg-blue-800 text-white border-blue-500 w-48">
+                                 <div className="flex items-center">
+                                   <ArrowRightLeft className="w-4 h-4 mr-2" />
+                                   <SelectValue placeholder="Mover a categoría..." />
+                                 </div>
+                               </SelectTrigger>
+                               <SelectContent>
+                                 {budgetCategories.map((category) => {
+                                   const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
+                                   return (
+                                     <SelectItem key={category.id} value={category.id}>
+                                       <div className="flex items-center gap-2">
+                                         <IconComponent className="w-4 h-4" />
+                                         {category.name}
+                                       </div>
+                                     </SelectItem>
+                                   );
+                                 })}
+                               </SelectContent>
+                             </Select>
                             <Button
                               onClick={clearSelection}
                               size="sm"
@@ -1579,52 +1591,54 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                         </div>
                                       </TableCell>
                                       
-                                      {/* Acciones */}
-                                      <TableCell className="p-2 text-center">
-                                        <div className="flex items-center justify-center gap-1">
-                                           {editingItem === item.id ? (
+                                       {/* Acciones */}
+                                       <TableCell className="p-2 text-center">
+                                         <div className="flex items-center justify-center gap-1">
+                                            {editingItem === item.id ? (
+                                              <>
+                                                <Button
+                                                  onClick={saveItemEdits}
+                                                  size="sm"
+                                                  className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700"
+                                                >
+                                                  <Save className="w-3 h-3" />
+                                                </Button>
+                                                <Button
+                                                  onClick={() => {
+                                                    setEditingItem(null);
+                                                    setEditingItemValues({});
+                                                  }}
+                                                  size="sm"
+                                                  variant="outline"
+                                                  className="h-6 w-6 p-0"
+                                               >
+                                                 <X className="w-3 h-3" />
+                                               </Button>
+                                             </>
+                                           ) : (
                                              <>
                                                <Button
-                                                 onClick={saveItemEdits}
+                                                 onClick={() => startEditingItem(item)}
                                                  size="sm"
-                                                 className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700"
+                                                 variant="ghost"
+                                                 className="h-6 w-6 p-0 hover:bg-blue-100"
                                                >
-                                                 <Save className="w-3 h-3" />
+                                                 <Edit className="w-3 h-3" />
                                                </Button>
-                                               <Button
-                                                 onClick={() => {
-                                                   setEditingItem(null);
-                                                   setEditingItemValues({});
-                                                 }}
-                                                 size="sm"
-                                                 variant="outline"
-                                                 className="h-6 w-6 p-0"
-                                              >
-                                                <X className="w-3 h-3" />
-                                              </Button>
-                                            </>
-                                          ) : (
-                                            <>
-                                              <Button
-                                                onClick={() => startEditingItem(item)}
-                                                size="sm"
-                                                variant="ghost"
-                                                className="h-6 w-6 p-0 hover:bg-blue-100"
-                                              >
-                                                <Edit className="w-3 h-3" />
-                                              </Button>
-                                              <Button
-                                                onClick={() => deleteItem(item.id)}
-                                                size="sm"
-                                                variant="ghost"
-                                                className="h-6 w-6 p-0 hover:bg-red-100 text-red-600"
-                                              >
-                                                <Trash2 className="w-3 h-3" />
-                                              </Button>
-                                            </>
-                                          )}
-                                        </div>
-                                      </TableCell>
+                                               {selectedItems.has(item.id) && (
+                                                 <Button
+                                                   onClick={() => deleteItem(item.id)}
+                                                   size="sm"
+                                                   variant="ghost"
+                                                   className="h-6 w-6 p-0 hover:bg-red-100 text-red-600"
+                                                 >
+                                                   <Trash2 className="w-3 h-3" />
+                                                 </Button>
+                                               )}
+                                             </>
+                                           )}
+                                         </div>
+                                       </TableCell>
                                     </TableRow>
                                   ))}
                                 </TableBody>
