@@ -536,6 +536,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const saveItemEdits = async () => {
     if (!editingItem || !editingItemValues) return;
 
+    console.log('💾 Saving item edits:', {
+      editingItem,
+      editingItemValues,
+      originalValues: items.find(item => item.id === editingItem)
+    });
+
     try {
       const updateData = {
         ...editingItemValues,
@@ -545,12 +551,20 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                        'pendiente' as const
       };
       
-      const { error } = await supabase
+      console.log('📝 Update data to send:', updateData);
+      
+      const { data, error } = await supabase
         .from('budget_items')
         .update(updateData)
-        .eq('id', editingItem);
+        .eq('id', editingItem)
+        .select();
 
-      if (error) throw error;
+      console.log('🔄 Supabase update response:', { data, error });
+
+      if (error) {
+        console.error('❌ Supabase error details:', error);
+        throw error;
+      }
       
       setEditingItem(null);
       setEditingItemValues({});
@@ -561,7 +575,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         description: "Elemento actualizado correctamente"
       });
     } catch (error) {
-      console.error('Error updating item:', error);
+      console.error('❌ Error updating item:', error);
       toast({
         title: "Error",
         description: "No se pudo actualizar el elemento",
