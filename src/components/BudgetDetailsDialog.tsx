@@ -543,8 +543,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     });
 
     try {
+      // Exclude relational fields that don't exist in the table
+      const { budget_categories, ...itemData } = editingItemValues;
+      
       const updateData = {
-        ...editingItemValues,
+        ...itemData,
         billing_status: editingItemValues.billing_status === 'pagada' ? 'pagado' as const :
                        editingItemValues.billing_status === 'factura_recibida' ? 'facturado' as const :
                        editingItemValues.billing_status === 'factura_solicitada' ? 'pendiente' as const :
