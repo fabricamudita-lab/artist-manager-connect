@@ -731,7 +731,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
         return supabase
           .from('budget_items')
-          .update({ category: budgetCategories.find(c => c.id === targetCategoryId)?.name || 'Sin categoría' })
+          .update({ 
+            category_id: targetCategoryId,
+            category: budgetCategories.find(c => c.id === targetCategoryId)?.name || 'Sin categoría' 
+          })
           .eq('id', itemId);
       }).filter(Boolean);
 
@@ -741,7 +744,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       const updatedItems = items.map(item => {
         if (selectedItems.has(item.id)) {
           const targetCategory = budgetCategories.find(c => c.id === targetCategoryId);
-          return { ...item, category: targetCategory?.name || 'Sin categoría' };
+          return { 
+            ...item, 
+            category_id: targetCategoryId,
+            category: targetCategory?.name || 'Sin categoría' 
+          };
         }
         return item;
       });
