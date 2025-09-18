@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute, ForbiddenPage } from "@/components/ProtectedRoute";
-import { GameTransition } from "@/components/GameTransition";
 import { DevRoleSwitcher } from "@/components/DevRoleSwitcher";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -47,8 +46,7 @@ const App = () => (
         <Sonner />
         <DevRoleSwitcher />
         <BrowserRouter>
-          <GameTransition>
-            <Routes>
+          <Routes>
             <Route path="/" element={
               <PublicRoute>
                 <Index />
@@ -139,8 +137,7 @@ const App = () => (
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
-            </Routes>
-          </GameTransition>
+          </Routes>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
