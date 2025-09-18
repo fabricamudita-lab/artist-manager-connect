@@ -161,11 +161,7 @@ export default function Solicitudes() {
     try {
       const { data, error } = await supabase
         .from('solicitudes')
-        .select(`
-          *,
-          profiles:artist_id(full_name),
-          project:project_id(id,name)
-        `)
+        .select(`*`)
         .order('fecha_creacion', { ascending: false });
 
       if (error) throw error;

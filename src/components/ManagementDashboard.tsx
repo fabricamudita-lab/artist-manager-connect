@@ -68,7 +68,7 @@ export default function ManagementDashboard() {
       const { data: artistsData } = await supabase
         .from('profiles')
         .select('id, full_name, email')
-        .in('active_role', ['artist'])
+        .eq('active_role', 'artist')
         .order('full_name');
 
       // Fetch events
@@ -80,7 +80,7 @@ export default function ManagementDashboard() {
         .from('events')
         .select(`
           *,
-          profiles!inner(full_name)
+          profiles!events_artist_id_fkey(full_name)
         `)
         .gte('start_date', startDate.toISOString())
         .lte('start_date', endDate.toISOString())

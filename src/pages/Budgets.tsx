@@ -53,10 +53,8 @@ export default function Budgets() {
       const {
         data,
         error
-      } = await supabase.from('budgets').select(`
-          *,
-          profiles!budgets_artist_id_fkey(full_name)
-        `).order('created_at', {
+      } = await supabase.from('budgets').select(`*`)
+        .order('created_at', {
         ascending: false
       });
       if (error) throw error;

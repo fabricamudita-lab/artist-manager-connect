@@ -88,7 +88,16 @@ export default function Projects() {
       try {
         let queryBuilder = supabase
           .from('projects')
-          .select(`id,name,status,start_date,end_date_estimada,is_folder,parent_folder_id, profiles:artist_id ( full_name )`)
+          .select(`
+            id,
+            name,
+            status,
+            start_date,
+            end_date_estimada,
+            is_folder,
+            parent_folder_id,
+            artist_id
+          `)
           .order('is_folder', { ascending: false })
           .order('created_at', { ascending: false });
 
@@ -112,7 +121,7 @@ export default function Projects() {
           status: p.status,
           start_date: p.start_date,
           end_date_estimada: p.end_date_estimada,
-          artist_name: p.profiles?.full_name ?? null,
+          artist_name: null, // Simplificamos por ahora
           is_folder: p.is_folder,
           parent_folder_id: p.parent_folder_id,
         }));
