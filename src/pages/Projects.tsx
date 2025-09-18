@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Filter, FolderOpen, Trash2, MoreHorizontal, Calendar, User } from "lucide-react";
+import { Search, Filter, FolderOpen, Trash2, MoreHorizontal, Calendar, User, Folder, Plus, ChevronRight } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +31,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import CreateProjectDialog from "@/components/CreateProjectDialog";
 import { ProjectProgressDisplay } from "@/components/ProjectProgressDisplay";
+import { CreateProjectFolderDialog } from "@/components/CreateProjectFolderDialog";
 
 interface ProjectListItem {
   id: string;
@@ -39,6 +40,8 @@ interface ProjectListItem {
   start_date: string | null;
   end_date_estimada: string | null;
   artist_name?: string | null;
+  is_folder: boolean;
+  parent_folder_id: string | null;
 }
 
 export default function Projects() {
@@ -47,10 +50,13 @@ export default function Projects() {
   const [status, setStatus] = useState<string>("todos");
   const [items, setItems] = useState<ProjectListItem[]>([]);
   const [openCreate, setOpenCreate] = useState(false);
+  const [openCreateFolder, setOpenCreateFolder] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [deleteProject, setDeleteProject] = useState<ProjectListItem | null>(null);
   const [viewMode, setViewMode] = useState<'estados' | 'porcentajes'>('estados');
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [breadcrumb, setBreadcrumb] = useState<{ id: string; name: string }[]>([]);
 
   // SEO: title, meta, canonical
   useEffect(() => {
@@ -80,7 +86,9 @@ export default function Projects() {
       try {
         let queryBuilder = supabase
           .from('projects')
-          .select(`id,name,status,start_date,end_date_estimada, profiles:artist_id ( full_name )`)
+          .select(`id,name,status,start_date,end_date_estimada,is_folder,parent_folder_id, profiles:artist_id ( full_name )`)
+          .eq('parent_folder_id', currentFolderId)
+          .order('is_folder', { ascending: false })
           .order('created_at', { ascending: false });
 
         if (status !== 'todos') {
@@ -97,6 +105,8 @@ export default function Projects() {
           start_date: p.start_date,
           end_date_estimada: p.end_date_estimada,
           artist_name: p.profiles?.full_name ?? null,
+          is_folder: p.is_folder,
+          parent_folder_id: p.parent_folder_id,
         }));
 
         setItems(mapped);
@@ -108,7 +118,50 @@ export default function Projects() {
     };
 
     fetchProjects();
-  }, [status, refreshKey]);
+  }, [status, refreshKey, currentFolderId]);
+
+  useEffect(() => {
+    const buildBreadcrumb = async () => {
+      if (!currentFolderId) {
+        setBreadcrumb([]);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('projects')
+          .select('id, name, parent_folder_id')
+          .eq('id', currentFolderId)
+          .single();
+
+        if (error) throw error;
+
+        const crumbs = [{ id: data.id, name: data.name }];
+        
+        // Build breadcrumb recursively if there's a parent
+        let parentId = data.parent_folder_id;
+        while (parentId) {
+          const { data: parentData, error: parentError } = await supabase
+            .from('projects')
+            .select('id, name, parent_folder_id')
+            .eq('id', parentId)
+            .single();
+
+          if (parentError) break;
+          
+          crumbs.unshift({ id: parentData.id, name: parentData.name });
+          parentId = parentData.parent_folder_id;
+        }
+
+        setBreadcrumb(crumbs);
+      } catch (e) {
+        console.error('Error building breadcrumb:', e);
+        setBreadcrumb([]);
+      }
+    };
+
+    buildBreadcrumb();
+  }, [currentFolderId]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -117,6 +170,22 @@ export default function Projects() {
       it.name.toLowerCase().includes(q) || (it.artist_name || '').toLowerCase().includes(q)
     );
   }, [items, query]);
+
+  const handleFolderClick = (folderId: string) => {
+    setCurrentFolderId(folderId);
+  };
+
+  const handleBreadcrumbClick = (folderId: string | null) => {
+    setCurrentFolderId(folderId);
+  };
+
+  const handleProjectClick = (project: ProjectListItem) => {
+    if (project.is_folder) {
+      handleFolderClick(project.id);
+    } else {
+      navigate(`/projects/${project.id}`);
+    }
+  };
 
 
   const handleDeleteProject = async () => {
@@ -163,9 +232,20 @@ export default function Projects() {
               <Button variant="outline" className="shadow-sm">
                 <Filter className="w-4 h-4 mr-2" /> Filtros
               </Button>
-              <Button onClick={() => setOpenCreate(true)} className="shadow-sm">
-                Nuevo proyecto
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setOpenCreateFolder(true)} 
+                  className="shadow-sm"
+                >
+                  <Folder className="w-4 h-4 mr-2" />
+                  Nueva carpeta
+                </Button>
+                <Button onClick={() => setOpenCreate(true)} className="shadow-sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nuevo proyecto
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -207,6 +287,33 @@ export default function Projects() {
           </div>
         </header>
 
+        {/* Breadcrumb Navigation */}
+        {(currentFolderId || breadcrumb.length > 0) && (
+          <nav className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleBreadcrumbClick(null)}
+              className="p-1 h-auto text-muted-foreground hover:text-foreground"
+            >
+              Proyectos
+            </Button>
+            {breadcrumb.map((crumb, index) => (
+              <div key={crumb.id} className="flex items-center gap-2">
+                <ChevronRight className="w-4 h-4" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleBreadcrumbClick(crumb.id)}
+                  className="p-1 h-auto text-muted-foreground hover:text-foreground"
+                >
+                  {crumb.name}
+                </Button>
+              </div>
+            ))}
+          </nav>
+        )}
+
         {/* Projects Grid */}
         <section>
           {loading ? (
@@ -233,13 +340,16 @@ export default function Projects() {
               {filtered.map((p) => (
                 <Card 
                   key={p.id} 
-                  className="border hover:border-primary/20 transition-all duration-200 hover:shadow-lg cursor-pointer group"
-                  onClick={() => navigate(`/projects/${p.id}`)}
+                  className={`border hover:border-primary/20 transition-all duration-200 hover:shadow-lg cursor-pointer group ${
+                    p.is_folder ? 'bg-muted/30' : ''
+                  }`}
+                  onClick={() => handleProjectClick(p)}
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <CardTitle className="text-lg font-semibold truncate group-hover:text-primary transition-colors">
+                        <CardTitle className="text-lg font-semibold truncate group-hover:text-primary transition-colors flex items-center gap-2">
+                          {p.is_folder && <Folder className="w-5 h-5 text-primary flex-shrink-0" />}
                           {p.name}
                         </CardTitle>
                         {p.artist_name && (
@@ -277,30 +387,38 @@ export default function Projects() {
                   </CardHeader>
                   <CardContent className="pt-0">
                     <div className="space-y-3">
-                      {/* Status */}
-                      <div className="flex items-center gap-2">
-                        <ProjectProgressDisplay 
-                          projectId={p.id} 
-                          viewMode={viewMode} 
-                          status={p.status} 
-                        />
-                      </div>
-                      
-                      {/* Dates */}
-                      <div className="space-y-2 text-sm">
-                        {p.start_date && (
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <Calendar className="w-3 h-3" />
-                            <span>Inicio: {new Date(p.start_date).toLocaleDateString('es-ES')}</span>
+                      {p.is_folder ? (
+                        <div className="text-sm text-muted-foreground">
+                          Carpeta de proyectos
+                        </div>
+                      ) : (
+                        <>
+                          {/* Status */}
+                          <div className="flex items-center gap-2">
+                            <ProjectProgressDisplay 
+                              projectId={p.id} 
+                              viewMode={viewMode} 
+                              status={p.status} 
+                            />
                           </div>
-                        )}
-                        {p.end_date_estimada && (
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <Calendar className="w-3 h-3" />
-                            <span>Fin: {new Date(p.end_date_estimada).toLocaleDateString('es-ES')}</span>
+                          
+                          {/* Dates */}
+                          <div className="space-y-2 text-sm">
+                            {p.start_date && (
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Calendar className="w-3 h-3" />
+                                <span>Inicio: {new Date(p.start_date).toLocaleDateString('es-ES')}</span>
+                              </div>
+                            )}
+                            {p.end_date_estimada && (
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Calendar className="w-3 h-3" />
+                                <span>Fin: {new Date(p.end_date_estimada).toLocaleDateString('es-ES')}</span>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
+                        </>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -309,10 +427,23 @@ export default function Projects() {
           )}
         </section>
         
-        <CreateProjectDialog open={openCreate} onOpenChange={setOpenCreate} onSuccess={() => {
-          // Refrescar lista al crear
-          setRefreshKey((k) => k + 1);
-        }} />
+        <CreateProjectDialog 
+          open={openCreate} 
+          onOpenChange={setOpenCreate} 
+          onSuccess={() => {
+            setRefreshKey((k) => k + 1);
+          }}
+          parentFolderId={currentFolderId}
+        />
+        
+        <CreateProjectFolderDialog
+          open={openCreateFolder}
+          onOpenChange={setOpenCreateFolder}
+          onSuccess={() => {
+            setRefreshKey((k) => k + 1);
+          }}
+          parentFolderId={currentFolderId}
+        />
 
         <AlertDialog open={!!deleteProject} onOpenChange={() => setDeleteProject(null)}>
           <AlertDialogContent>

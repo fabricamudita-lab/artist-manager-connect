@@ -16,9 +16,10 @@ interface Props {
   onSuccess: () => void;
   onCreated?: (projectId: string) => void;
   defaultArtistId?: string;
+  parentFolderId?: string | null;
 }
 
-export default function CreateProjectDialog({ open, onOpenChange, onSuccess, onCreated, defaultArtistId }: Props) {
+export default function CreateProjectDialog({ open, onOpenChange, onSuccess, onCreated, defaultArtistId, parentFolderId }: Props) {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -51,6 +52,8 @@ export default function CreateProjectDialog({ open, onOpenChange, onSuccess, onC
           description: form.description || null,
           objective: form.objective || null,
           created_by: profile?.user_id,
+          parent_folder_id: parentFolderId,
+          is_folder: false,
         })
         .select('id')
         .single();
