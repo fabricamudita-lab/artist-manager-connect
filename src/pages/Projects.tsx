@@ -87,9 +87,15 @@ export default function Projects() {
         let queryBuilder = supabase
           .from('projects')
           .select(`id,name,status,start_date,end_date_estimada,is_folder,parent_folder_id, profiles:artist_id ( full_name )`)
-          .eq('parent_folder_id', currentFolderId)
           .order('is_folder', { ascending: false })
           .order('created_at', { ascending: false });
+
+        // Filter by parent folder - handle null correctly
+        if (currentFolderId === null) {
+          queryBuilder = queryBuilder.is('parent_folder_id', null);
+        } else {
+          queryBuilder = queryBuilder.eq('parent_folder_id', currentFolderId);
+        }
 
         if (status !== 'todos') {
           queryBuilder = queryBuilder.eq('status', status as any);
