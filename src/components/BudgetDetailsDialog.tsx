@@ -1397,12 +1397,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                         />
                                       </TableHead>
                                       <TableHead className="font-bold text-black w-[200px]">Nombre</TableHead>
-                                      <TableHead className="font-bold text-black w-[150px] text-center">Estado de facturación</TableHead>
                                       <TableHead className="font-bold text-black w-[130px] text-center">Fecha Emisión</TableHead>
                                       <TableHead className="font-bold text-black w-[140px] text-right">Precio Unit. (€)</TableHead>
                                       <TableHead className="font-bold text-black w-[80px] text-center">IVA (%)</TableHead>
                                       <TableHead className="font-bold text-black w-[80px] text-center">IRPF (%)</TableHead>
                                       <TableHead className="font-bold text-black w-[120px] text-right">Total (€)</TableHead>
+                                      <TableHead className="font-bold text-black w-[150px] text-center">Estado de facturación</TableHead>
                                       <TableHead className="font-bold text-black w-[100px] text-center">Acciones</TableHead>
                                     </TableRow>
                                   </TableHeader>
@@ -1472,43 +1472,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                          )}
                                        </TableCell>
                                       
-                                      {/* Estado de facturación */}
-                                      <TableCell className="p-2 text-center">
-                                        {editingItem === item.id ? (
-                                          <Select
-                                            value={editingItemValues.billing_status || item.billing_status}
-                                            onValueChange={(value) => setEditingItemValues(prev => ({ ...prev, billing_status: value as any }))}
-                                          >
-                                            <SelectTrigger className="h-8 text-sm border-blue-300 focus:border-blue-500">
-                                              <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="pendiente">Pendiente</SelectItem>
-                                              <SelectItem value="factura_solicitada">Factura solicitada</SelectItem>
-                                              <SelectItem value="factura_recibida">Factura recibida</SelectItem>
-                                              <SelectItem value="pagada">Pagada</SelectItem>
-                                            </SelectContent>
-                                          </Select>
-                                        ) : (
-                                          <div 
-                                            className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
-                                            onClick={() => startEditingItem(item)}
-                                          >
-                                            <Badge variant={
-                                              item.billing_status === 'pagada' ? 'default' :
-                                              item.billing_status === 'factura_recibida' ? 'secondary' :
-                                              item.billing_status === 'factura_solicitada' ? 'outline' : 'destructive'
-                                            }>
-                                              {item.billing_status === 'pendiente' ? 'Pendiente' :
-                                               item.billing_status === 'factura_solicitada' ? 'Factura solicitada' :
-                                               item.billing_status === 'factura_recibida' ? 'Factura recibida' :
-                                               item.billing_status === 'pagada' ? 'Pagada' : item.billing_status}
-                                            </Badge>
-                                           </div>
-                                         )}
-                                       </TableCell>
-                                       
-                                       {/* Fecha de emisión */}
+                                        {/* Fecha de emisión */}
                                        <TableCell className="p-2 text-center">
                                          {editingItem === item.id ? (
                                            <Popover>
@@ -1644,14 +1608,50 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                          )}
                                        </TableCell>
                                       
-                                      {/* Total */}
-                                      <TableCell className="p-2 text-right">
-                                        <div className="h-8 flex items-center justify-end px-2 font-medium text-green-700">
-                                          €{calculateTotal(editingItem === item.id ? { ...item, ...editingItemValues } : item).toFixed(2)}
-                                        </div>
-                                      </TableCell>
-                                      
-                                       {/* Acciones */}
+                                       {/* Total */}
+                                       <TableCell className="p-2 text-right">
+                                         <div className="h-8 flex items-center justify-end px-2 font-medium text-green-700">
+                                           €{calculateTotal(editingItem === item.id ? { ...item, ...editingItemValues } : item).toFixed(2)}
+                                         </div>
+                                       </TableCell>
+
+                                       {/* Estado de facturación */}
+                                       <TableCell className="p-2 text-center">
+                                         {editingItem === item.id ? (
+                                           <Select
+                                             value={editingItemValues.billing_status || item.billing_status}
+                                             onValueChange={(value) => setEditingItemValues(prev => ({ ...prev, billing_status: value as any }))}
+                                           >
+                                             <SelectTrigger className="h-8 text-sm border-blue-300 focus:border-blue-500">
+                                               <SelectValue />
+                                             </SelectTrigger>
+                                             <SelectContent>
+                                               <SelectItem value="pendiente">Pendiente</SelectItem>
+                                               <SelectItem value="factura_solicitada">Factura solicitada</SelectItem>
+                                               <SelectItem value="factura_recibida">Factura recibida</SelectItem>
+                                               <SelectItem value="pagada">Pagada</SelectItem>
+                                             </SelectContent>
+                                           </Select>
+                                         ) : (
+                                           <div 
+                                             className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
+                                             onClick={() => startEditingItem(item)}
+                                           >
+                                             <Badge variant={
+                                               item.billing_status === 'pagada' ? 'default' :
+                                               item.billing_status === 'factura_recibida' ? 'secondary' :
+                                               item.billing_status === 'factura_solicitada' ? 'outline' : 'destructive'
+                                             }>
+                                               {item.billing_status === 'pendiente' ? 'Pendiente' :
+                                                item.billing_status === 'factura_solicitada' ? 'Factura solicitada' :
+                                                item.billing_status === 'factura_recibida' ? 'Factura recibida' :
+                                                item.billing_status === 'pagada' ? 'Pagada' : item.billing_status}
+                                             </Badge>
+                                            </div>
+                                          )}
+                                        </TableCell>
+                                       
+                                        {/* Acciones */}
                                        <TableCell className="p-2 text-center">
                                          <div className="flex items-center justify-center gap-1">
                                             {editingItem === item.id ? (
