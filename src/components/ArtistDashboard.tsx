@@ -152,12 +152,8 @@ export default function ArtistDashboard() {
         </div>
       </div>
 
-      <Tabs defaultValue="requests" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="requests" className="flex items-center gap-2">
-              <Bell className="w-4 h-4" />
-              Solicitudes
-            </TabsTrigger>
+      <Tabs defaultValue="calendar" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="calendar" className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
               Calendario
@@ -171,69 +167,6 @@ export default function ArtistDashboard() {
               Documentos
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="requests">
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Solicitudes Pendientes</h2>
-              {requests.length === 0 ? (
-                <Card>
-                  <CardContent className="text-center py-8">
-                    <p className="text-muted-foreground">No tienes solicitudes pendientes.</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid gap-4">
-                  {requests.map((request) => (
-                    <Card key={request.id}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-2xl">{getTypeIcon(request.type)}</span>
-                            <div>
-                              <CardTitle className="text-lg">{request.title}</CardTitle>
-                              <CardDescription>Tipo: {request.type}</CardDescription>
-                            </div>
-                          </div>
-                          <Badge className={getStatusColor(request.status)}>
-                            {request.status}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground mb-4">{request.description}</p>
-                        {request.due_date && (
-                          <p className="text-xs text-muted-foreground mb-4">
-                            Fecha límite: {new Date(request.due_date).toLocaleDateString()}
-                          </p>
-                        )}
-                        
-                        {request.status === 'pending' && (
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleUpdateRequestStatus(request.id, 'approved')}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              <Check className="w-4 h-4 mr-1" />
-                              Aprobar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleUpdateRequestStatus(request.id, 'rejected')}
-                            >
-                              <X className="w-4 h-4 mr-1" />
-                              Rechazar
-                            </Button>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          </TabsContent>
 
           <TabsContent value="calendar">
             <div className="space-y-4">
