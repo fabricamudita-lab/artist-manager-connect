@@ -723,22 +723,40 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const moveSelectedItems = async (targetCategoryId: string) => {
     if (selectedItems.size === 0) return;
 
+    console.log('🔄 moveSelectedItems called with:', {
+      targetCategoryId,
+      selectedItems: Array.from(selectedItems),
+      budgetCategories: budgetCategories.map(c => ({ id: c.id, name: c.name }))
+    });
+
     try {
       // Update items in batch
       const updates = Array.from(selectedItems).map(itemId => {
         const currentItem = items.find(item => item.id === itemId);
-        if (!currentItem) return null;
+        if (!currentItem) {
+          console.log('❌ Item not found:', itemId);
+          return null;
+        }
+
+        const targetCategory = budgetCategories.find(c => c.id === targetCategoryId);
+        console.log('📝 Updating item:', {
+          itemId,
+          currentItem: currentItem.name,
+          targetCategoryId,
+          targetCategoryName: targetCategory?.name
+        });
 
         return supabase
           .from('budget_items')
           .update({ 
             category_id: targetCategoryId,
-            category: budgetCategories.find(c => c.id === targetCategoryId)?.name || 'Sin categoría' 
+            category: targetCategory?.name || 'Sin categoría' 
           })
           .eq('id', itemId);
       }).filter(Boolean);
 
-      await Promise.all(updates);
+      const results = await Promise.all(updates);
+      console.log('✅ Update results:', results);
 
       // Update local state
       const updatedItems = items.map(item => {
@@ -761,7 +779,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         description: `${selectedItems.size} elemento(s) movidos exitosamente`,
       });
     } catch (error) {
-      console.error('Error moving items:', error);
+      console.error('❌ Error moving items:', error);
       toast({
         title: "Error",
         description: "No se pudieron mover los elementos",
