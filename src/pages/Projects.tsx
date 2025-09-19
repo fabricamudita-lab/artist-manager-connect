@@ -5,11 +5,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Filter, FolderOpen, Trash2, MoreHorizontal, Calendar, User, Folder, Plus, ChevronRight } from "lucide-react";
+import { Search, Filter, FolderOpen, Trash2, MoreHorizontal, Calendar, User, Folder, Plus, ChevronRight, Edit, Info, Copy } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -485,6 +486,51 @@ export default function Projects() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {p.is_folder ? (
+                            <>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // TODO: Open edit folder dialog
+                                  toast({
+                                    title: "Función en desarrollo",
+                                    description: "La edición de carpetas estará disponible pronto.",
+                                  });
+                                }}
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Editar carpeta
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // TODO: Show folder details dialog
+                                  toast({
+                                    title: "Función en desarrollo", 
+                                    description: "Los detalles de carpeta estarán disponibles pronto.",
+                                  });
+                                }}
+                              >
+                                <Info className="h-4 w-4 mr-2" />
+                                Ver detalles
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const folderUrl = `${window.location.origin}/projects?folder=${p.id}`;
+                                  navigator.clipboard.writeText(folderUrl);
+                                  toast({
+                                    title: "Enlace copiado",
+                                    description: "El enlace de la carpeta ha sido copiado al portapapeles.",
+                                  });
+                                }}
+                              >
+                                <Copy className="h-4 w-4 mr-2" />
+                                Copiar enlace
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                            </>
+                          ) : null}
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
