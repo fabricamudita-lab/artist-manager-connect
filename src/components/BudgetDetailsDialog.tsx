@@ -1099,71 +1099,79 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 const percentageDiff = budgetAmount > 0 ? ((difference / budgetAmount) * 100) : 0;
                 
                 return (
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
                     {/* SUBTOTAL */}
-                    <div className="text-center p-2 bg-gradient-to-br from-blue-500/15 to-blue-600/10 rounded-lg border border-blue-500/25">
-                      <div className="text-[10px] font-semibold text-blue-300 uppercase">SUBTOTAL</div>
-                      <div className="text-sm font-bold text-blue-100">
+                    <div className="flex flex-col justify-center items-center h-[100px] lg:h-[120px] p-4 bg-gradient-to-br from-card/80 to-card/60 rounded-xl border border-border shadow-md hover:shadow-lg transition-shadow duration-200">
+                      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">SUBTOTAL</div>
+                      <div className="text-2xl lg:text-[28px] font-bold text-foreground leading-none">
                         €{totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
 
-                    {/* IVA */}
-                    <div className="text-center p-2 bg-gradient-to-br from-green-500/15 to-green-600/10 rounded-lg border border-green-500/25">
-                      <div className="text-[10px] font-semibold text-green-300 uppercase">+ IVA</div>
-                      <div className="text-sm font-bold text-green-100">
-                        €{totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </div>
-                    </div>
-
-                    {/* IRPF */}
-                    <div className="text-center p-2 bg-gradient-to-br from-red-500/15 to-red-600/10 rounded-lg border border-red-500/25">
-                      <div className="text-[10px] font-semibold text-red-300 uppercase">- IRPF</div>
-                      <div className="text-sm font-bold text-red-100">
-                        €{totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {/* IVA/IRPF Combined */}
+                    <div className="flex flex-col justify-center items-center h-[100px] lg:h-[120px] p-4 bg-gradient-to-br from-card/80 to-card/60 rounded-xl border border-border shadow-md hover:shadow-lg transition-shadow duration-200">
+                      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">AJUSTES</div>
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="text-sm font-medium text-green-600 dark:text-green-400">
+                          +€{totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} IVA
+                        </div>
+                        <div className="text-sm font-medium text-red-600 dark:text-red-400">
+                          -€{totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} IRPF
+                        </div>
                       </div>
                     </div>
 
                     {/* TOTAL FINAL */}
-                    <div className="text-center p-2 bg-gradient-to-br from-primary/25 to-primary/15 rounded-lg border-2 border-primary/35">
-                      <div className="text-[10px] font-semibold text-primary-foreground uppercase">TOTAL FINAL</div>
-                      <div className="text-sm font-black text-white">
+                    <div className="flex flex-col justify-center items-center h-[100px] lg:h-[120px] p-4 bg-gradient-to-br from-primary/15 to-primary/10 rounded-xl border-2 border-primary/25 shadow-md hover:shadow-lg transition-shadow duration-200 col-span-2 md:col-span-1">
+                      <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">TOTAL FINAL</div>
+                      <div className="text-2xl lg:text-[28px] font-bold text-primary leading-none">
                         €{totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
 
                     {/* DIFERENCIA */}
-                    <div className={`text-center p-2 rounded-lg border ${
+                    <div className={`flex flex-col justify-center items-center h-[100px] lg:h-[120px] p-4 rounded-xl border shadow-md hover:shadow-lg transition-shadow duration-200 col-span-2 md:col-span-2 lg:col-span-2 ${
                       budgetAmount === 0 
-                        ? 'bg-gradient-to-br from-gray-500/15 to-gray-600/10 border-gray-500/25'
+                        ? 'bg-gradient-to-br from-muted/50 to-muted/30 border-border'
                         : percentageDiff > 0 
-                          ? 'bg-gradient-to-br from-red-500/15 to-red-600/10 border-red-500/25'
+                          ? 'bg-gradient-to-br from-destructive/15 to-destructive/10 border-destructive/25'
                           : percentageDiff < 0 
                             ? 'bg-gradient-to-br from-green-500/15 to-green-600/10 border-green-500/25'
-                            : 'bg-gradient-to-br from-gray-500/15 to-gray-600/10 border-gray-500/25'
+                            : 'bg-gradient-to-br from-muted/50 to-muted/30 border-border'
                     }`}>
-                      <div className={`text-[10px] font-semibold uppercase ${
+                      <div className={`text-xs font-semibold uppercase tracking-wider mb-2 ${
                         budgetAmount === 0 
-                          ? 'text-gray-300'
+                          ? 'text-muted-foreground'
                           : percentageDiff > 0 
-                            ? 'text-red-300'
+                            ? 'text-destructive'
                             : percentageDiff < 0 
-                              ? 'text-green-300'
-                              : 'text-gray-300'
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-muted-foreground'
                       }`}>
                         DIFERENCIA
                       </div>
-                      <div className={`text-sm font-bold ${
+                      <div className={`text-2xl lg:text-[28px] font-bold leading-none ${
                         budgetAmount === 0 
-                          ? 'text-gray-100'
+                          ? 'text-muted-foreground'
                           : percentageDiff > 0 
-                            ? 'text-red-100'
+                            ? 'text-destructive'
                             : percentageDiff < 0 
-                              ? 'text-green-100'
-                              : 'text-gray-100'
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-muted-foreground'
                       }`}>
                         {budgetAmount === 0 ? '—' : `${percentageDiff >= 0 ? '+' : ''}${percentageDiff.toFixed(1)}%`}
                       </div>
+                      {budgetAmount > 0 && (
+                        <div className={`text-xs font-medium mt-1 ${
+                          percentageDiff > 0 
+                            ? 'text-destructive/80'
+                            : percentageDiff < 0 
+                              ? 'text-green-600/80 dark:text-green-400/80'
+                              : 'text-muted-foreground/80'
+                        }`}>
+                          €{Math.abs(difference).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
