@@ -1211,6 +1211,36 @@ export type Database = {
           },
         ]
       }
+      epk_password_attempts: {
+        Row: {
+          created_at: string
+          epk_slug: string
+          failed_attempts: number
+          id: string
+          ip_address: unknown | null
+          last_attempt_at: string
+          locked_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          epk_slug: string
+          failed_attempts?: number
+          id?: string
+          ip_address?: unknown | null
+          last_attempt_at?: string
+          locked_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          epk_slug?: string
+          failed_attempts?: number
+          id?: string
+          ip_address?: unknown | null
+          last_attempt_at?: string
+          locked_until?: string | null
+        }
+        Relationships: []
+      }
       epk_videos: {
         Row: {
           creado_en: string | null
@@ -1257,6 +1287,7 @@ export type Database = {
       }
       epks: {
         Row: {
+          acceso_directo: boolean
           actualizado_en: string | null
           artista_proyecto: string
           bio_corta: string | null
@@ -1288,6 +1319,7 @@ export type Database = {
           vistas_unicas: number | null
         }
         Insert: {
+          acceso_directo?: boolean
           actualizado_en?: string | null
           artista_proyecto: string
           bio_corta?: string | null
@@ -1319,6 +1351,7 @@ export type Database = {
           vistas_unicas?: number | null
         }
         Update: {
+          acceso_directo?: boolean
           actualizado_en?: string | null
           artista_proyecto?: string
           bio_corta?: string | null
@@ -2326,6 +2359,14 @@ export type Database = {
         Args: { new_data: Json; old_data: Json }
         Returns: Json
       }
+      check_epk_password_attempts: {
+        Args: { client_ip?: unknown; epk_slug: string }
+        Returns: Json
+      }
+      generate_epk_slug: {
+        Args: { artista_proyecto: string }
+        Returns: string
+      }
       get_profile_id_by_user: {
         Args: { _user_id: string }
         Returns: string
@@ -2367,6 +2408,14 @@ export type Database = {
           p_from_status?: Database["public"]["Enums"]["approval_status"]
           p_to_status?: Database["public"]["Enums"]["approval_status"]
         }
+        Returns: undefined
+      }
+      record_failed_password_attempt: {
+        Args: { client_ip?: unknown; epk_slug: string }
+        Returns: Json
+      }
+      reset_password_attempts: {
+        Args: { client_ip?: unknown; epk_slug: string }
         Returns: undefined
       }
       user_has_workspace_permission: {
