@@ -8,7 +8,7 @@ import { SelectionCheckbox } from "@/components/ui/selection-checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
-import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical, Clock, CheckCircle, ChevronUp, TriangleAlert, Link } from "lucide-react";
+import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical, Clock, CheckCircle, ChevronUp, TriangleAlert, Link, Search } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TemplateSelectionDialog } from "./TemplateSelectionDialog";
 import { SaveTemplateDialog } from "./SaveAsTemplateDialog";
@@ -93,6 +93,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   const [newDescription, setNewDescription] = useState("");
   const [filterSection, setFilterSection] = useState<string>("all");
   const [selectedStatuses, setSelectedStatuses] = useState<Set<TaskStatus>>(new Set());
+  const [soloFilterStatus, setSoloFilterStatus] = useState<TaskStatus | null>(null);
   const [filterOwner, setFilterOwner] = useState<string>("all");
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [bulkUpdateConfirm, setBulkUpdateConfirm] = useState<{
@@ -925,7 +926,12 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     if (itemSection === 'Sin categoría' || itemSection === null) itemSection = 'SIN_CATEGORIA';
     
     const sectionMatch = filterSection === 'all' || itemSection === filterSection;
-    const statusMatch = selectedStatuses.size === 0 || !selectedStatuses.has(item.status || 'PENDING');
+    
+    // Solo filter takes precedence over multi-status filter
+    const statusMatch = soloFilterStatus 
+      ? (item.status || 'PENDING') === soloFilterStatus
+      : (selectedStatuses.size === 0 || !selectedStatuses.has(item.status || 'PENDING'));
+    
     const ownerMatch = filterOwner === 'all' || (item.description || 'Sin asignar') === filterOwner;
     
     return sectionMatch && statusMatch && ownerMatch;
@@ -1130,41 +1136,79 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                         </SelectContent>
                       </Select>
                       
-                      {/* Multi-select Status Filter */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" className="w-40 justify-between">
-                            <span>
-                              {selectedStatuses.size === 0 ? 'Todos los estados' : 
-                               selectedStatuses.size === 1 ? STATUS_LABELS[Array.from(selectedStatuses)[0]] :
-                               `${selectedStatuses.size} estados`}
-                            </span>
-                            <ChevronDown className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-56 bg-background border shadow-lg">
-                          {Object.entries(STATUS_LABELS).map(([status, label]) => (
-                            <DropdownMenuCheckboxItem
-                              key={status}
-                              checked={!selectedStatuses.has(status as TaskStatus)}
-                              onCheckedChange={(checked) => {
-                                const newStatuses = new Set(selectedStatuses);
-                                if (!checked) {
-                                  newStatuses.add(status as TaskStatus);
-                                } else {
-                                  newStatuses.delete(status as TaskStatus);
-                                }
-                                setSelectedStatuses(newStatuses);
-                              }}
-                            >
-                              <Badge variant="secondary" className={`${STATUS_COLORS[status as TaskStatus]} mr-2`}>
-                                {label}
-                              </Badge>
-                              ({statusCounts[status as TaskStatus] || 0})
-                            </DropdownMenuCheckboxItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                       {/* Multi-select Status Filter */}
+                       <DropdownMenu>
+                         <DropdownMenuTrigger asChild>
+                           <Button variant="outline" size="sm" className="w-40 justify-between">
+                             <span>
+                               {soloFilterStatus ? `Solo: ${STATUS_LABELS[soloFilterStatus]}` :
+                                selectedStatuses.size === 0 ? 'Todos los estados' : 
+                                selectedStatuses.size === 1 ? STATUS_LABELS[Array.from(selectedStatuses)[0]] :
+                                `${selectedStatuses.size} estados`}
+                             </span>
+                             <ChevronDown className="w-4 h-4" />
+                           </Button>
+                         </DropdownMenuTrigger>
+                         <DropdownMenuContent className="w-56 bg-background border shadow-lg z-50" onCloseAutoFocus={(e) => e.preventDefault()}>
+                           {Object.entries(STATUS_LABELS).map(([status, label]) => (
+                             <DropdownMenuCheckboxItem
+                               key={status}
+                               checked={soloFilterStatus ? false : !selectedStatuses.has(status as TaskStatus)}
+                               onCheckedChange={(checked) => {
+                                 // Clear solo filter when using multi-select
+                                 setSoloFilterStatus(null);
+                                 
+                                 const newStatuses = new Set(selectedStatuses);
+                                 if (!checked) {
+                                   newStatuses.add(status as TaskStatus);
+                                 } else {
+                                   newStatuses.delete(status as TaskStatus);
+                                 }
+                                 setSelectedStatuses(newStatuses);
+                               }}
+                               onSelect={(e) => e.preventDefault()}
+                             >
+                               <div className="flex items-center justify-between w-full">
+                                 <div className="flex items-center">
+                                   <Badge variant="secondary" className={`${STATUS_COLORS[status as TaskStatus]} mr-2`}>
+                                     {label}
+                                   </Badge>
+                                   ({statusCounts[status as TaskStatus] || 0})
+                                 </div>
+                                 <Button
+                                   size="sm"
+                                   variant="ghost"
+                                   className="h-6 w-6 p-0 hover:bg-muted"
+                                   onClick={(e) => {
+                                     e.preventDefault();
+                                     e.stopPropagation();
+                                     // Set solo filter
+                                     setSoloFilterStatus(status as TaskStatus);
+                                     setSelectedStatuses(new Set());
+                                   }}
+                                   title="Solo mostrar este estado"
+                                 >
+                                   <Search className="w-3 h-3" />
+                                 </Button>
+                               </div>
+                             </DropdownMenuCheckboxItem>
+                           ))}
+                           {(selectedStatuses.size > 0 || soloFilterStatus) && (
+                             <>
+                               <div className="border-t my-1" />
+                               <DropdownMenuItem
+                                 onClick={() => {
+                                   setSelectedStatuses(new Set());
+                                   setSoloFilterStatus(null);
+                                 }}
+                                 className="text-sm"
+                               >
+                                 Limpiar filtros
+                               </DropdownMenuItem>
+                             </>
+                           )}
+                         </DropdownMenuContent>
+                       </DropdownMenu>
 
                       <Select value={filterOwner} onValueChange={setFilterOwner}>
                         <SelectTrigger className="w-32">
