@@ -41,7 +41,9 @@ export default function EPKBuilder() {
     updateEPK,
     saveEPK,
     validateEPK,
-    generateSlug
+    generateSlug,
+    generateLink,
+    copyToClipboard
   } = useEPK(epkId);
 
   const [activeSection, setActiveSection] = useState<'basic' | 'content' | 'media' | 'contacts' | 'settings'>('basic');
@@ -105,13 +107,27 @@ export default function EPKBuilder() {
       return;
     }
 
-    const link = `${window.location.origin}/epk/${epk.slug}`;
-    await navigator.clipboard.writeText(link);
-    
-    toast({
-      title: "Enlace copiado",
-      description: "El enlace del EPK se ha copiado al portapapeles"
-    });
+    const result = await generateLink();
+    if (result.success && result.url) {
+      const copied = await copyToClipboard(result.url);
+      if (copied) {
+        toast({
+          title: "Enlace generado y copiado",
+          description: `El enlace del EPK se ha copiado al portapapeles: ${result.url}`
+        });
+      } else {
+        toast({
+          title: "Enlace generado",
+          description: `Enlace: ${result.url}`,
+        });
+      }
+    } else {
+      toast({
+        title: "Error",
+        description: result.error || "No se pudo generar el enlace",
+        variant: "destructive"
+      });
+    }
   };
 
   const sections = [

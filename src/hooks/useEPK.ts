@@ -7,20 +7,44 @@ type EPKDatabase = Database['public']['Tables']['epks']['Row'];
 type EPKInsert = Database['public']['Tables']['epks']['Insert'];
 type EPKUpdate = Database['public']['Tables']['epks']['Update'];
 
+export interface EPKData {
+  id: string;
+  titulo: string;
+  artista_proyecto: string;
+  tagline?: string;
+  bio_corta?: string;
+  imagen_portada?: string;
+  nota_prensa_pdf?: string;
+  visibilidad: 'publico' | 'privado' | 'protegido_password';
+  tema: 'claro' | 'oscuro' | 'auto';
+  etiquetas: string[];
+  permitir_zip: boolean;
+  rastrear_analiticas: boolean;
+  slug?: string;
+  password_hash?: string;
+  expira_el?: string;
+  acceso_directo: boolean;
+  vistas_totales?: number;
+  descargas_totales?: number;
+  ultima_vista_en?: string;
+  creado_por: string;
+  creado_en: string;
+  actualizado_en: string;
+  tour_manager: ContactInfo;
+  tour_production: ContactInfo;
+  coordinadora_booking: ContactInfo;
+  management: ContactInfo;
+  booking: ContactInfo;
+  proyecto_id?: string;
+  presupuesto_id?: string;
+}
+
 export interface ContactInfo {
   nombre: string;
   email: string;
   telefono: string;
   whatsapp: string;
   mostrar: boolean;
-}
-
-export interface EPKData extends Omit<EPKDatabase, 'tour_manager' | 'tour_production' | 'coordinadora_booking' | 'management' | 'booking'> {
-  tour_manager: ContactInfo;
-  tour_production: ContactInfo;
-  coordinadora_booking: ContactInfo;
-  management: ContactInfo;
-  booking: ContactInfo;
 }
 
 export interface EPKPhoto {
@@ -87,7 +111,6 @@ export const defaultEPKData: Partial<EPKData> = {
   rastrear_analiticas: true,
   etiquetas: [],
   vistas_totales: 0,
-  vistas_unicas: 0,
   descargas_totales: 0
 };
 
@@ -399,6 +422,53 @@ export const useEPK = (epkId?: string) => {
     };
   };
 
+  const generateLink = async (): Promise<{ success: boolean; slug?: string; url?: string; error?: string }> => {
+    if (!epk?.id || !epk?.artista_proyecto) {
+      return { success: false, error: 'EPK no válido' };
+    }
+
+    try {
+      // Generate slug using database function
+      const { data: slugData, error: slugError } = await supabase
+        .rpc('generate_epk_slug', { artista_proyecto: epk.artista_proyecto });
+
+      if (slugError) {
+        console.error('Error generating slug:', slugError);
+        return { success: false, error: 'Error al generar el slug' };
+      }
+
+      // Update EPK with the new slug
+      const { error: updateError } = await supabase
+        .from('epks')
+        .update({ slug: slugData })
+        .eq('id', epk.id);
+
+      if (updateError) {
+        console.error('Error updating EPK slug:', updateError);
+        return { success: false, error: 'Error al guardar el enlace' };
+      }
+
+      // Update local state
+      setEPK(prev => prev ? { ...prev, slug: slugData } : prev);
+
+      const fullUrl = `${window.location.origin}/epk/${slugData}`;
+      return { success: true, slug: slugData, url: fullUrl };
+    } catch (error) {
+      console.error('Error generating link:', error);
+      return { success: false, error: 'Error inesperado' };
+    }
+  };
+
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      return false;
+    }
+  };
+
   const generateSlug = (titulo: string): string => {
     return titulo
       .toLowerCase()
@@ -427,6 +497,8 @@ export const useEPK = (epkId?: string) => {
     addDocument,
     validateEPK,
     generateSlug,
+    generateLink,
+    copyToClipboard,
     setPhotos,
     setVideos,
     setAudios,

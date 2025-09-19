@@ -24,6 +24,7 @@ import Approvals from "./pages/Approvals";
 import ApprovalDetail from "./pages/ApprovalDetail";
 import EPKBuilder from "./pages/EPKBuilder";
 import { PublicEPKPage } from "./pages/PublicEPK";
+import { EPKPasswordProtectionPage } from "./pages/EPKPasswordProtection";
 
 const queryClient = new QueryClient();
 
@@ -153,8 +154,9 @@ const App = () => (
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
-              {/* Public EPK Route */}
+              {/* Public EPK Routes */}
               <Route path="/epk/:slug" element={<PublicEPKPage />} />
+              <Route path="/epk/:slug/password" element={<EPKPasswordProtectionPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

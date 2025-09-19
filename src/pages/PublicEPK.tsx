@@ -44,6 +44,8 @@ export const PublicEPKPage: React.FC<PublicEPKPageProps> = () => {
     }
   }, [slug]);
 
+  const isGuestMode = new URLSearchParams(window.location.search).has('guest');
+
   const fetchEPK = async (epkSlug: string) => {
     setLoading(true);
     try {
@@ -52,16 +54,40 @@ export const PublicEPKPage: React.FC<PublicEPKPageProps> = () => {
         .from('epks')
         .select('*')
         .eq('slug', epkSlug)
-        .eq('visibilidad', 'publico')
         .single();
 
       if (epkError) {
         if (epkError.code === 'PGRST116') {
-          setError('EPK no encontrado o no público');
+          setError('EPK no encontrado');
         } else {
           throw epkError;
         }
         return;
+      }
+
+      // Check expiration
+      if (epkData.expira_el && new Date(epkData.expira_el) < new Date()) {
+        setError('Este EPK ha expirado y ya no está disponible');
+        return;
+      }
+
+      // Check visibility and access rules
+      if (!isGuestMode) {
+        // For protected EPKs, check if user has authentication
+        if (epkData.visibilidad === 'protegido_password' && epkData.password_hash) {
+          const hasAuth = sessionStorage.getItem(`epk_auth_${epkSlug}`);
+          if (!hasAuth) {
+            // Redirect to password page
+            window.location.href = `/epk/${epkSlug}/password`;
+            return;
+          }
+        }
+        
+        // For private EPKs, only allow direct access (not indexed)
+        if (epkData.visibilidad === 'privado' && !epkData.acceso_directo) {
+          setError('EPK privado - acceso no permitido');
+          return;
+        }
       }
 
       // Parse JSON fields safely
@@ -358,8 +384,12 @@ export const PublicEPKPage: React.FC<PublicEPKPageProps> = () => {
         <meta name="twitter:description" content={epk.tagline || epk.bio_corta?.substring(0, 160) || `Electronic Press Kit para ${epk.artista_proyecto}`} />
         {epk.imagen_portada && <meta name="twitter:image" content={epk.imagen_portada} />}
         
-        {/* SEO */}
-        <meta name="robots" content="noindex, nofollow" />
+        {/* SEO - Dynamic robots meta based on visibility */}
+        <meta name="robots" content={
+          epk.visibilidad === 'publico' && !isGuestMode 
+            ? "index, follow" 
+            : "noindex, nofollow"
+        } />
         <link rel="canonical" href={window.location.href} />
       </Helmet>
 
