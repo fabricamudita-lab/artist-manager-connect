@@ -80,7 +80,7 @@ interface BudgetItem {
   iva_percentage: number;
   irpf_percentage: number;
   is_attendee: boolean;
-  billing_status: 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada';
+  billing_status: 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada' | 'cancelado';
   invoice_link?: string;
   observations?: string;
   category_id?: string;
@@ -123,6 +123,26 @@ const iconMap = {
   Lightbulb: Lightbulb,
   Utensils: Utensils,
   Bed: Bed
+};
+
+// Helper functions for billing status mapping
+const mapDbToFrontend = (dbStatus: string): 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada' | 'cancelado' => {
+  switch (dbStatus) {
+    case 'pagado': return 'pagada';
+    case 'facturado': return 'factura_recibida';
+    case 'cancelado': return 'cancelado';
+    default: return 'pendiente';
+  }
+};
+
+const mapFrontendToDb = (frontendStatus: string) => {
+  switch (frontendStatus) {
+    case 'pagada': return 'pagado';
+    case 'factura_recibida': return 'facturado';
+    case 'factura_solicitada': return 'pendiente';
+    case 'cancelado': return 'cancelado';
+    default: return 'pendiente';
+  }
 };
 
 export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpdate, onDelete }: BudgetDetailsDialogProps) {
@@ -251,10 +271,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       const itemsWithDefaults = (data || []).map(item => ({
         ...item,
         irpf_percentage: item.irpf_percentage ?? 15,
-        billing_status: item.billing_status === 'pagado' ? 'pagada' : 
-                       item.billing_status === 'facturado' ? 'factura_recibida' :
-                       item.billing_status === 'cancelado' ? 'pendiente' :
-                       (item.billing_status as 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada') || 'pendiente'
+        billing_status: mapDbToFrontend(item.billing_status || 'pendiente')
       }));
       console.log('✅ Items fetched:', itemsWithDefaults.length, itemsWithDefaults);
       setItems(itemsWithDefaults);
@@ -831,6 +848,60 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   };
 
+  const updateSelectedItemsBillingStatus = async (billingStatus: string) => {
+    if (selectedItems.size === 0) return;
+
+    console.log('🔄 updateSelectedItemsBillingStatus called with:', {
+      billingStatus,
+      selectedItems: Array.from(selectedItems)
+    });
+
+    try {
+      // Update items in batch
+      const updates = Array.from(selectedItems).map(async (itemId) => {
+        const { error } = await supabase
+          .from('budget_items')
+          .update({ billing_status: mapFrontendToDb(billingStatus) })
+          .eq('id', itemId);
+        
+        if (error) {
+          console.error('Error updating item billing status:', itemId, error);
+          throw error;
+        }
+      });
+
+      await Promise.all(updates);
+      
+      // Fetch fresh data to ensure consistency
+      await fetchBudgetItems();
+      
+      // Clear selection
+      setSelectedItems(new Set());
+
+      const statusLabels = {
+        'pendiente': 'Pendiente',
+        'factura_solicitada': 'Factura solicitada',
+        'factura_recibida': 'Factura recibida',
+        'pagada': 'Pagada',
+        'pagado': 'Pagada',
+        'facturado': 'Factura recibida',
+        'cancelado': 'Cancelado'
+      };
+
+      toast({
+        title: "Estado de facturación actualizado",
+        description: `${selectedItems.size} elemento(s) cambiados a "${statusLabels[billingStatus as keyof typeof statusLabels] || billingStatus}"`,
+      });
+    } catch (error) {
+      console.error('Error updating billing status:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado de facturación",
+        variant: "destructive"
+      });
+    }
+  };
+
   const moveItemToCategory = async (itemId: string, targetCategoryId: string) => {
     try {
       const targetCategory = budgetCategories.find(c => c.id === targetCategoryId);
@@ -1251,29 +1322,45 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                             {selectedItems.size} elemento(s) seleccionado(s)
                           </span>
                            <div className="flex gap-2">
-                             <Select 
-                               onValueChange={(categoryId) => moveSelectedItems(categoryId)}
-                             >
-                               <SelectTrigger className="bg-blue-700 hover:bg-blue-800 text-white border-blue-500 w-48">
-                                 <div className="flex items-center">
-                                   <ArrowRightLeft className="w-4 h-4 mr-2" />
-                                   <SelectValue placeholder="Mover a categoría..." />
-                                 </div>
-                               </SelectTrigger>
-                               <SelectContent>
-                                 {budgetCategories.map((category) => {
-                                   const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
-                                   return (
-                                     <SelectItem key={category.id} value={category.id}>
-                                       <div className="flex items-center gap-2">
-                                         <IconComponent className="w-4 h-4" />
-                                         {category.name}
-                                       </div>
-                                     </SelectItem>
-                                   );
-                                 })}
-                               </SelectContent>
-                             </Select>
+                              <Select 
+                                onValueChange={(categoryId) => moveSelectedItems(categoryId)}
+                              >
+                                <SelectTrigger className="bg-blue-700 hover:bg-blue-800 text-white border-blue-500 w-48">
+                                  <div className="flex items-center">
+                                    <ArrowRightLeft className="w-4 h-4 mr-2" />
+                                    <SelectValue placeholder="Mover a categoría..." />
+                                  </div>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {budgetCategories.map((category) => {
+                                    const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
+                                    return (
+                                      <SelectItem key={category.id} value={category.id}>
+                                        <div className="flex items-center gap-2">
+                                          <IconComponent className="w-4 h-4" />
+                                          {category.name}
+                                        </div>
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
+                              <Select 
+                                onValueChange={(billingStatus) => updateSelectedItemsBillingStatus(billingStatus)}
+                              >
+                                <SelectTrigger className="bg-blue-700 hover:bg-blue-800 text-white border-blue-500 w-56">
+                                  <div className="flex items-center">
+                                    <CreditCard className="w-4 h-4 mr-2" />
+                                    <SelectValue placeholder="Cambiar estado facturación..." />
+                                  </div>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pendiente">Pendiente</SelectItem>
+                                  <SelectItem value="factura_solicitada">Factura solicitada</SelectItem>
+                                  <SelectItem value="factura_recibida">Factura recibida</SelectItem>
+                                  <SelectItem value="pagada">Pagada</SelectItem>
+                                </SelectContent>
+                              </Select>
                             <Button
                               onClick={clearSelection}
                               size="sm"
@@ -1587,16 +1674,16 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                              className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
                                              onClick={() => startEditingItem(item)}
                                            >
-                                             <Badge variant={
-                                               item.billing_status === 'pagada' ? 'default' :
-                                               item.billing_status === 'factura_recibida' ? 'secondary' :
-                                               item.billing_status === 'factura_solicitada' ? 'outline' : 'destructive'
-                                             }>
-                                               {item.billing_status === 'pendiente' ? 'Pendiente' :
-                                                item.billing_status === 'factura_solicitada' ? 'Factura solicitada' :
-                                                item.billing_status === 'factura_recibida' ? 'Factura recibida' :
-                                                item.billing_status === 'pagada' ? 'Pagada' : item.billing_status}
-                                             </Badge>
+                                              <Badge variant={
+                                                item.billing_status === 'pagada' ? 'default' :
+                                                item.billing_status === 'factura_recibida' ? 'secondary' :
+                                                item.billing_status === 'factura_solicitada' ? 'outline' : 'destructive'
+                                              }>
+                                                {item.billing_status === 'pendiente' ? 'Pendiente' :
+                                                 item.billing_status === 'factura_solicitada' ? 'Factura solicitada' :
+                                                 item.billing_status === 'factura_recibida' ? 'Factura recibida' :
+                                                 item.billing_status === 'pagada' ? 'Pagada' : item.billing_status}
+                                              </Badge>
                                             </div>
                                           )}
                                         </TableCell>
