@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Search, Filter, Calendar, MapPin, User, Calculator, Trash2, Truck, MicIcon } from 'lucide-react';
+import { EPKStatusChip } from '@/components/EPKStatusChip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import CreateBudgetDialog from '@/components/CreateBudgetDialog';
@@ -29,6 +30,9 @@ interface Budget {
   fee: number;
   profiles?: {
     full_name: string;
+  };
+  artists?: {
+    name: string;
   };
 }
 export default function Budgets() {
@@ -53,7 +57,12 @@ export default function Budgets() {
       const {
         data,
         error
-      } = await supabase.from('budgets').select(`*`)
+      } = await supabase.from('budgets').select(`
+        *,
+        artists (
+          name
+        )
+      `)
         .order('created_at', {
         ascending: false
       });
@@ -244,6 +253,7 @@ export default function Budgets() {
                   <TableHead className="font-semibold">Presupuesto</TableHead>
                   <TableHead className="font-semibold">Estado</TableHead>
                   <TableHead className="font-semibold">Artista</TableHead>
+                  <TableHead className="font-semibold">EPK</TableHead>
                   <TableHead className="w-[100px] font-semibold">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -288,10 +298,21 @@ export default function Budgets() {
                       </Badge>
                     </TableCell>
                     <TableCell className="py-4">
-                      {budget.profiles ? <div className="flex items-center gap-2">
+                      {budget.artists?.name ? <div className="flex items-center gap-2">
                           <User className="w-4 h-4 text-primary" />
-                          <span className="text-sm font-medium">{budget.profiles.full_name}</span>
+                          <span className="text-sm font-medium">{budget.artists.name}</span>
                         </div> : <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <EPKStatusChip
+                        projectId={budget.id}
+                        artistId={budget.artist_id}
+                        projectName={budget.name}
+                        artistName={budget.artists?.name}
+                        onEPKCreated={() => {
+                          // Refresh budget data if needed
+                        }}
+                      />
                     </TableCell>
                     <TableCell className="py-4">
                       <Button size="sm" variant="ghost" onClick={e => {

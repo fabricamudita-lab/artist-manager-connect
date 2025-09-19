@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, Filter, FolderOpen, Trash2, MoreHorizontal, Calendar, User, Folder, Plus, ChevronRight, Edit, Info, Copy } from "lucide-react";
+import { EPKStatusChip } from '@/components/EPKStatusChip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +44,7 @@ interface ProjectListItem {
   start_date: string | null;
   end_date_estimada: string | null;
   artist_name?: string | null;
+  artist_id?: string | null;
   is_folder: boolean;
   parent_folder_id: string | null;
 }
@@ -137,6 +139,7 @@ export default function Projects() {
           start_date: p.start_date,
           end_date_estimada: p.end_date_estimada,
           artist_name: null, // Simplificamos por ahora
+          artist_id: p.artist_id,
           is_folder: p.is_folder,
           parent_folder_id: p.parent_folder_id,
         }));
@@ -570,6 +573,18 @@ export default function Projects() {
                             />
                           </div>
                           
+                          {/* EPK Status */}
+                          <div>
+                            <EPKStatusChip
+                              projectId={p.id}
+                              artistId={p.artist_id}
+                              projectName={p.name}
+                              onEPKCreated={() => {
+                                // Refresh could be added here if needed
+                              }}
+                            />
+                          </div>
+
                           {/* Dates */}
                           <div className="space-y-2 text-sm">
                             {p.start_date && (
