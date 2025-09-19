@@ -1,7 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/useCommon';
-import ArtistDashboard from '@/components/ArtistDashboard';
-import ManagementDashboard from '@/components/ManagementDashboard';
+import ComprehensiveDashboard from '@/components/ComprehensiveDashboard';
 import { Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -38,18 +37,13 @@ export default function Dashboard() {
 
   return (
     <div className="p-6">
-      <div className="card-professional p-6 mb-6 bg-gradient-hero text-white">
-        <h2 className="text-2xl font-playfair font-bold mb-2">
-          ¡Bienvenido a MOODITA! 🎵
-        </h2>
-        <p className="text-white/90">Perfil: {profile.full_name}</p>
-        <p className="text-white/80">Rol: {profile.active_role === 'artist' ? 'Artista' : 'Management'}</p>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Bienvenido, {profile.full_name} ({profile.active_role === 'artist' ? 'Artista' : 'Management'})
+        </p>
       </div>
-      {profile.active_role === 'artist' ? (
-        <ArtistDashboard />
-      ) : (
-        <ManagementDashboard />
-      )}
+      <ComprehensiveDashboard />
     </div>
   );
 }
