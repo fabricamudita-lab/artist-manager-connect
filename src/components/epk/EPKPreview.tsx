@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { EPKData, EPKPhoto, EPKVideo, EPKAudio, EPKDocument } from '@/hooks/useEPK';
 import { cn } from '@/lib/utils';
+import PressKitDownloader from './PressKitDownloader';
 
 interface EPKPreviewProps {
   epk: Partial<EPKData>;
@@ -22,6 +23,8 @@ interface EPKPreviewProps {
   videos: EPKVideo[];
   audios: EPKAudio[];
   documents: EPKDocument[];
+  onDownloadStart?: () => void;
+  onDownloadComplete?: () => void;
 }
 
 export const EPKPreview: React.FC<EPKPreviewProps> = ({
@@ -29,7 +32,9 @@ export const EPKPreview: React.FC<EPKPreviewProps> = ({
   photos,
   videos,
   audios,
-  documents
+  documents,
+  onDownloadStart,
+  onDownloadComplete
 }) => {
   const theme = epk.tema || 'auto';
   const isDark = theme === 'oscuro' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -271,25 +276,35 @@ export const EPKPreview: React.FC<EPKPreviewProps> = ({
         </Card>
       )}
 
-      {/* Press Kit PDF */}
-      {epk.nota_prensa_pdf && (
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Nota de Prensa</h3>
+      {/* Press Kit Downloads */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Press Kit</h3>
+            <PressKitDownloader
+              epk={epk}
+              photos={photos}
+              documents={documents}
+              onDownloadStart={onDownloadStart}
+              onDownloadComplete={onDownloadComplete}
+            />
+          </div>
+          
+          {epk.nota_prensa_pdf && (
             <div className="flex items-center gap-3 p-4 border rounded-lg">
               <FileText className="w-10 h-10 text-muted-foreground" />
               <div className="flex-1">
-                <p className="font-medium">Dossier de Prensa</p>
+                <p className="font-medium">Nota de Prensa</p>
                 <p className="text-sm text-muted-foreground">Documento PDF</p>
               </div>
-              <Button>
+              <Button size="sm" variant="outline">
                 <Download className="w-4 h-4 mr-2" />
                 Descargar
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {/* Contacts */}
       <Card>
