@@ -1053,6 +1053,326 @@ export type Database = {
           },
         ]
       }
+      epk_analytics: {
+        Row: {
+          accion: string | null
+          created_at: string | null
+          epk_id: string
+          id: string
+          ip_address: unknown | null
+          recurso: string | null
+          referrer: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          accion?: string | null
+          created_at?: string | null
+          epk_id: string
+          id?: string
+          ip_address?: unknown | null
+          recurso?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          accion?: string | null
+          created_at?: string | null
+          epk_id?: string
+          id?: string
+          ip_address?: unknown | null
+          recurso?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "epk_analytics_epk_id_fkey"
+            columns: ["epk_id"]
+            isOneToOne: false
+            referencedRelation: "epks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      epk_audios: {
+        Row: {
+          creado_en: string | null
+          epk_id: string
+          id: string
+          orden: number | null
+          titulo: string
+          url: string
+        }
+        Insert: {
+          creado_en?: string | null
+          epk_id: string
+          id?: string
+          orden?: number | null
+          titulo: string
+          url: string
+        }
+        Update: {
+          creado_en?: string | null
+          epk_id?: string
+          id?: string
+          orden?: number | null
+          titulo?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "epk_audios_epk_id_fkey"
+            columns: ["epk_id"]
+            isOneToOne: false
+            referencedRelation: "epks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      epk_documentos: {
+        Row: {
+          creado_en: string | null
+          epk_id: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          orden: number | null
+          tipo: string | null
+          titulo: string
+          url: string
+        }
+        Insert: {
+          creado_en?: string | null
+          epk_id: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          orden?: number | null
+          tipo?: string | null
+          titulo: string
+          url: string
+        }
+        Update: {
+          creado_en?: string | null
+          epk_id?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          orden?: number | null
+          tipo?: string | null
+          titulo?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "epk_documentos_epk_id_fkey"
+            columns: ["epk_id"]
+            isOneToOne: false
+            referencedRelation: "epks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      epk_fotos: {
+        Row: {
+          creado_en: string | null
+          descargable: boolean | null
+          epk_id: string
+          id: string
+          orden: number | null
+          titulo: string | null
+          url: string
+        }
+        Insert: {
+          creado_en?: string | null
+          descargable?: boolean | null
+          epk_id: string
+          id?: string
+          orden?: number | null
+          titulo?: string | null
+          url: string
+        }
+        Update: {
+          creado_en?: string | null
+          descargable?: boolean | null
+          epk_id?: string
+          id?: string
+          orden?: number | null
+          titulo?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "epk_fotos_epk_id_fkey"
+            columns: ["epk_id"]
+            isOneToOne: false
+            referencedRelation: "epks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      epk_videos: {
+        Row: {
+          creado_en: string | null
+          epk_id: string
+          id: string
+          orden: number | null
+          privado: boolean | null
+          tipo: Database["public"]["Enums"]["epk_video_type"]
+          titulo: string
+          url: string | null
+          video_id: string | null
+        }
+        Insert: {
+          creado_en?: string | null
+          epk_id: string
+          id?: string
+          orden?: number | null
+          privado?: boolean | null
+          tipo: Database["public"]["Enums"]["epk_video_type"]
+          titulo: string
+          url?: string | null
+          video_id?: string | null
+        }
+        Update: {
+          creado_en?: string | null
+          epk_id?: string
+          id?: string
+          orden?: number | null
+          privado?: boolean | null
+          tipo?: Database["public"]["Enums"]["epk_video_type"]
+          titulo?: string
+          url?: string | null
+          video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "epk_videos_epk_id_fkey"
+            columns: ["epk_id"]
+            isOneToOne: false
+            referencedRelation: "epks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      epks: {
+        Row: {
+          actualizado_en: string | null
+          artista_proyecto: string
+          bio_corta: string | null
+          booking: Json | null
+          coordinadora_booking: Json | null
+          creado_en: string | null
+          creado_por: string
+          descargas_totales: number | null
+          etiquetas: string[] | null
+          expira_el: string | null
+          id: string
+          imagen_portada: string | null
+          management: Json | null
+          nota_prensa_pdf: string | null
+          password_hash: string | null
+          permitir_zip: boolean | null
+          presupuesto_id: string | null
+          proyecto_id: string | null
+          rastrear_analiticas: boolean | null
+          slug: string
+          tagline: string | null
+          tema: Database["public"]["Enums"]["epk_theme"] | null
+          titulo: string
+          tour_manager: Json | null
+          tour_production: Json | null
+          ultima_vista_en: string | null
+          visibilidad: Database["public"]["Enums"]["epk_visibility"] | null
+          vistas_totales: number | null
+          vistas_unicas: number | null
+        }
+        Insert: {
+          actualizado_en?: string | null
+          artista_proyecto: string
+          bio_corta?: string | null
+          booking?: Json | null
+          coordinadora_booking?: Json | null
+          creado_en?: string | null
+          creado_por: string
+          descargas_totales?: number | null
+          etiquetas?: string[] | null
+          expira_el?: string | null
+          id?: string
+          imagen_portada?: string | null
+          management?: Json | null
+          nota_prensa_pdf?: string | null
+          password_hash?: string | null
+          permitir_zip?: boolean | null
+          presupuesto_id?: string | null
+          proyecto_id?: string | null
+          rastrear_analiticas?: boolean | null
+          slug: string
+          tagline?: string | null
+          tema?: Database["public"]["Enums"]["epk_theme"] | null
+          titulo: string
+          tour_manager?: Json | null
+          tour_production?: Json | null
+          ultima_vista_en?: string | null
+          visibilidad?: Database["public"]["Enums"]["epk_visibility"] | null
+          vistas_totales?: number | null
+          vistas_unicas?: number | null
+        }
+        Update: {
+          actualizado_en?: string | null
+          artista_proyecto?: string
+          bio_corta?: string | null
+          booking?: Json | null
+          coordinadora_booking?: Json | null
+          creado_en?: string | null
+          creado_por?: string
+          descargas_totales?: number | null
+          etiquetas?: string[] | null
+          expira_el?: string | null
+          id?: string
+          imagen_portada?: string | null
+          management?: Json | null
+          nota_prensa_pdf?: string | null
+          password_hash?: string | null
+          permitir_zip?: boolean | null
+          presupuesto_id?: string | null
+          proyecto_id?: string | null
+          rastrear_analiticas?: boolean | null
+          slug?: string
+          tagline?: string | null
+          tema?: Database["public"]["Enums"]["epk_theme"] | null
+          titulo?: string
+          tour_manager?: Json | null
+          tour_production?: Json | null
+          ultima_vista_en?: string | null
+          visibilidad?: Database["public"]["Enums"]["epk_visibility"] | null
+          vistas_totales?: number | null
+          vistas_unicas?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "epks_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "epks_presupuesto_id_fkey"
+            columns: ["presupuesto_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "epks_proyecto_id_fkey"
+            columns: ["proyecto_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_artists: {
         Row: {
           artist_id: string
@@ -2031,6 +2351,14 @@ export type Database = {
           workspace_id: string
         }[]
       }
+      increment_epk_download: {
+        Args: { epk_slug: string; recurso?: string }
+        Returns: undefined
+      }
+      increment_epk_view: {
+        Args: { epk_slug: string; is_unique?: boolean; visitor_ip?: unknown }
+        Returns: undefined
+      }
       log_approval_event: {
         Args: {
           p_approval_id: string
@@ -2070,7 +2398,12 @@ export type Database = {
       approval_status: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED"
       approval_type: "BUDGET" | "PR_REQUEST" | "LOGISTICS"
       artist_role: "ARTIST_MANAGER" | "ARTIST_OBSERVER"
-      billing_status: "pendiente" | "pagado" | "facturado" | "cancelado"
+      billing_status:
+        | "pendiente"
+        | "pagado"
+        | "facturado"
+        | "cancelado"
+        | "factura_solicitada"
       budget_status: "nacional" | "internacional"
       budget_type:
         | "concierto"
@@ -2087,6 +2420,9 @@ export type Database = {
         | "RELEASE_DAY"
         | "MEETING_DAY"
         | "PAYRUN_DAY"
+      epk_theme: "auto" | "claro" | "oscuro"
+      epk_video_type: "youtube" | "vimeo" | "archivo"
+      epk_visibility: "publico" | "privado" | "protegido_password"
       project_role: "EDITOR" | "COMMENTER" | "VIEWER"
       project_status: "en_curso" | "finalizado" | "archivado"
       project_type: "TOUR" | "SINGLE_RELEASE" | "VIDEO" | "CAMPAIGN"
@@ -2253,7 +2589,13 @@ export const Constants = {
       approval_status: ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"],
       approval_type: ["BUDGET", "PR_REQUEST", "LOGISTICS"],
       artist_role: ["ARTIST_MANAGER", "ARTIST_OBSERVER"],
-      billing_status: ["pendiente", "pagado", "facturado", "cancelado"],
+      billing_status: [
+        "pendiente",
+        "pagado",
+        "facturado",
+        "cancelado",
+        "factura_solicitada",
+      ],
       budget_status: ["nacional", "internacional"],
       budget_type: [
         "concierto",
@@ -2272,6 +2614,9 @@ export const Constants = {
         "MEETING_DAY",
         "PAYRUN_DAY",
       ],
+      epk_theme: ["auto", "claro", "oscuro"],
+      epk_video_type: ["youtube", "vimeo", "archivo"],
+      epk_visibility: ["publico", "privado", "protegido_password"],
       project_role: ["EDITOR", "COMMENTER", "VIEWER"],
       project_status: ["en_curso", "finalizado", "archivado"],
       project_type: ["TOUR", "SINGLE_RELEASE", "VIDEO", "CAMPAIGN"],
