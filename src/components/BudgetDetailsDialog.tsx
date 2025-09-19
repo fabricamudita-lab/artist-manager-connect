@@ -965,7 +965,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
               {/* Presupuesto editable compacto */}
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xs text-gray-400">Presupuesto:</div>
+                  <div className="text-xs text-gray-400">Presupuestado:</div>
                   {editingBudgetAmount ? (
                     <div className="flex items-center gap-1">
                       <Input
