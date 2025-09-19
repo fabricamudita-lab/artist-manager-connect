@@ -187,41 +187,100 @@ export const PublicEPKPage: React.FC<PublicEPKPageProps> = () => {
     }
   };
 
+  const generateVCard = (contacts: any[]) => {
+    const vCardData = contacts.map(contact => {
+      if (!contact.data?.mostrar) return '';
+      
+      const lines = [
+        'BEGIN:VCARD',
+        'VERSION:3.0',
+        `FN:${contact.data.nombre || contact.role}`,
+        `TITLE:${contact.role}`,
+        ...(contact.data.email ? [`EMAIL:${contact.data.email}`] : []),
+        ...(contact.data.telefono ? [`TEL:${contact.data.telefono}`] : []),
+        'END:VCARD'
+      ];
+      
+      return lines.join('\n');
+    }).filter(Boolean);
+    
+    return vCardData.join('\n\n');
+  };
+
+  const downloadContactsVCard = () => {
+    const contacts = [
+      { role: 'Tour Manager', data: epk?.tour_manager },
+      { role: 'Tour Production', data: epk?.tour_production },
+      { role: 'Coordinadora de Booking', data: epk?.coordinadora_booking },
+      { role: 'Management', data: epk?.management },
+      { role: 'Booking', data: epk?.booking }
+    ].filter(contact => contact.data?.mostrar);
+
+    if (contacts.length === 0) return;
+
+    const vCardContent = generateVCard(contacts);
+    const blob = new Blob([vCardContent], { type: 'text/vcard' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${epk?.artista_proyecto || 'contactos'}_contactos.vcf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Contactos descargados",
+      description: "Se ha descargado el archivo de contactos (.vcf)"
+    });
+  };
+
   const renderContactInfo = (contact: any, label: string) => {
-    if (!contact?.mostrar) return null;
+    if (!contact?.mostrar && !contact?.nombre && !contact?.email && !contact?.telefono) return null;
 
     return (
       <Card className="card-moodita">
         <CardContent className="p-6">
           <h4 className="font-semibold text-lg mb-4 text-gradient-primary">{label}</h4>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {contact.nombre && (
               <p className="text-foreground font-medium">{contact.nombre}</p>
             )}
-            <div className="flex flex-wrap gap-3">
+            <div className="space-y-2">
               {contact.email && (
-                <Button size="sm" variant="outline" className="h-9" asChild>
-                  <a href={`mailto:${contact.email}`}>
-                    <Mail className="w-4 h-4 mr-2" />
+                <div className="flex items-center gap-3">
+                  <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <a 
+                    href={`mailto:${contact.email}`}
+                    className="text-sm text-primary hover:underline truncate"
+                  >
                     {contact.email}
                   </a>
-                </Button>
+                </div>
               )}
               {contact.telefono && (
-                <Button size="sm" variant="outline" className="h-9" asChild>
-                  <a href={`tel:${contact.telefono}`}>
-                    <Phone className="w-4 h-4 mr-2" />
+                <div className="flex items-center gap-3">
+                  <Phone className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <a 
+                    href={`tel:${contact.telefono}`}
+                    className="text-sm text-primary hover:underline"
+                  >
                     {contact.telefono}
                   </a>
-                </Button>
+                </div>
               )}
               {contact.whatsapp && (
-                <Button size="sm" variant="outline" className="h-9" asChild>
-                  <a href={`https://wa.me/${contact.whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer">
-                    <MessageSquare className="w-4 h-4 mr-2" />
+                <div className="flex items-center gap-3">
+                  <MessageSquare className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <a 
+                    href={`https://wa.me/${contact.whatsapp.replace(/[^0-9]/g, '')}`}
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline"
+                  >
                     WhatsApp
                   </a>
-                </Button>
+                </div>
               )}
             </div>
           </div>
@@ -566,18 +625,31 @@ export const PublicEPKPage: React.FC<PublicEPKPageProps> = () => {
           )}
 
           {/* Contacts */}
-          <section className="section-spacing">
-            <h3 className="text-3xl font-bold mb-12 text-center text-gradient-primary">
-              Contacto
-            </h3>
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {renderContactInfo(epk.tour_manager, 'Tour Manager')}
-              {renderContactInfo(epk.tour_production, 'Producción de Tour')}
-              {renderContactInfo(epk.coordinadora_booking, 'Coordinadora de Booking')}
-              {renderContactInfo(epk.management, 'Management')}
-              {renderContactInfo(epk.booking, 'Booking')}
-            </div>
-          </section>
+          {(epk.tour_manager?.mostrar || epk.tour_production?.mostrar || epk.coordinadora_booking?.mostrar || epk.management?.mostrar || epk.booking?.mostrar ||
+            epk.tour_manager?.nombre || epk.tour_production?.nombre || epk.coordinadora_booking?.nombre || epk.management?.nombre || epk.booking?.nombre) && (
+            <section className="section-spacing">
+              <div className="text-center mb-12">
+                <h3 className="text-3xl font-bold mb-6 text-gradient-primary">
+                  Contactos
+                </h3>
+                <Button 
+                  variant="outline"
+                  onClick={downloadContactsVCard}
+                  className="mb-8"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Descargar contactos (.vcf)
+                </Button>
+              </div>
+              <div className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto">
+                {renderContactInfo(epk.tour_manager, 'Tour Manager')}
+                {renderContactInfo(epk.tour_production, 'Tour Production')}
+                {renderContactInfo(epk.coordinadora_booking, 'Coordinadora de Booking')}
+                {renderContactInfo(epk.management, 'Management')}
+                {renderContactInfo(epk.booking, 'Booking')}
+              </div>
+            </section>
+          )}
         </main>
 
         {/* Footer */}
