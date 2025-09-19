@@ -18,6 +18,7 @@ import {
   Edit, 
   Save, 
   X, 
+  ArrowLeft,
   Calculator,
   Music,
   DollarSign,
@@ -530,7 +531,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const startEditingItem = (item: BudgetItem) => {
     setEditingItem(item.id);
-    setEditingItemValues(item);
+    // Ensure all values are properly set with current item data
+    setEditingItemValues({
+      ...item,
+      billing_status: item.billing_status || 'pendiente'
+    });
   };
 
   const saveItemEdits = async () => {
@@ -1560,13 +1565,13 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                        {/* Estado de facturación */}
                                        <TableCell className="p-2 text-center">
                                          {editingItem === item.id ? (
-                                           <Select
-                                             value={editingItemValues.billing_status || item.billing_status}
-                                             onValueChange={(value) => setEditingItemValues(prev => ({ ...prev, billing_status: value as any }))}
-                                           >
-                                             <SelectTrigger className="h-8 text-sm border-blue-300 focus:border-blue-500">
-                                               <SelectValue />
-                                             </SelectTrigger>
+                                            <Select
+                                              value={editingItemValues.billing_status || item.billing_status || 'pendiente'}
+                                              onValueChange={(value) => setEditingItemValues(prev => ({ ...prev, billing_status: value as any }))}
+                                            >
+                                              <SelectTrigger className="h-8 text-sm border-blue-300 focus:border-blue-500">
+                                                <SelectValue placeholder="Seleccionar estado" />
+                                              </SelectTrigger>
                                              <SelectContent>
                                                <SelectItem value="pendiente">Pendiente</SelectItem>
                                                <SelectItem value="factura_solicitada">Factura solicitada</SelectItem>
@@ -1605,17 +1610,18 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                 >
                                                   <Save className="w-3 h-3" />
                                                 </Button>
-                                                <Button
-                                                  onClick={() => {
-                                                    setEditingItem(null);
-                                                    setEditingItemValues({});
-                                                  }}
-                                                  size="sm"
-                                                  variant="outline"
-                                                  className="h-6 w-6 p-0"
-                                               >
-                                                 <X className="w-3 h-3" />
-                                               </Button>
+                                                 <Button
+                                                   onClick={() => {
+                                                     setEditingItem(null);
+                                                     setEditingItemValues({});
+                                                   }}
+                                                   size="sm"
+                                                   variant="outline"
+                                                   className="h-6 w-6 p-0 hover:bg-gray-100"
+                                                   title="Cancelar edición"
+                                                >
+                                                  <ArrowLeft className="w-3 h-3" />
+                                                </Button>
                                              </>
                                            ) : (
                                              <>
@@ -1887,11 +1893,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                     <TableCell className="text-center">
                                       {editingItem === item.id ? (
                                         <Select
-                                          value={editingItemValues.billing_status || item.billing_status}
+                                          value={editingItemValues.billing_status || item.billing_status || 'pendiente'}
                                           onValueChange={(value) => setEditingItemValues(prev => ({ ...prev, billing_status: value as any }))}
                                         >
                                           <SelectTrigger className="h-8">
-                                            <SelectValue />
+                                            <SelectValue placeholder="Seleccionar estado" />
                                           </SelectTrigger>
                                           <SelectContent>
                                             <SelectItem value="pendiente">Pendiente</SelectItem>
@@ -1963,8 +1969,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                             }}
                             size="sm"
                             variant="outline"
+                            title="Cancelar edición"
                           >
-                            <X className="w-4 h-4 mr-1" />
+                            <ArrowLeft className="w-4 h-4 mr-1" />
                             Cancelar
                           </Button>
                         </div>
