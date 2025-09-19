@@ -15,8 +15,12 @@ import {
   Music, 
   FileText,
   Plus,
-  X
+  X,
+  Library
 } from 'lucide-react';
+import { MediaLibrary } from './MediaLibrary';
+import { useMediaLibrary } from '@/hooks/useMediaLibrary';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MediaSelectorProps {
   onClose: () => void;
@@ -29,6 +33,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState('photos');
   const [uploadType, setUploadType] = useState<'file' | 'url'>('file');
+  const [showLibrary, setShowLibrary] = useState(false);
+  const { checkDuplicate, addToLibrary } = useMediaLibrary();
   
   // Form states
   const [photoData, setPhotoData] = useState({
@@ -60,24 +66,92 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     file: null as File | null
   });
 
-  const handleFileUpload = (file: File, type: string) => {
-    // This would upload to Supabase Storage and return the URL
-    // For now, just create a placeholder URL
-    const url = URL.createObjectURL(file);
-    
-    switch (type) {
-      case 'photo':
-        setPhotoData(prev => ({ ...prev, file, url }));
-        break;
-      case 'video':
-        setVideoData(prev => ({ ...prev, file, url }));
-        break;
-      case 'audio':
-        setAudioData(prev => ({ ...prev, file, url }));
-        break;
-      case 'document':
-        setDocumentData(prev => ({ ...prev, file, url }));
-        break;
+  const handleFileUpload = async (file: File, type: string) => {
+    try {
+      // Check for duplicates
+      const duplicate = await checkDuplicate('', file.name);
+      if (duplicate) {
+        // Reuse existing file
+        const reuseData = {
+          type: duplicate.file_type === 'image' ? 'photo' : duplicate.file_type,
+          titulo: duplicate.title,
+          url: duplicate.file_url,
+          file: file,
+          fromLibrary: true,
+          libraryId: duplicate.id
+        };
+        
+        switch (type) {
+          case 'photo':
+            setPhotoData(prev => ({ ...prev, ...reuseData }));
+            break;
+          case 'video':
+            setVideoData(prev => ({ ...prev, ...reuseData }));
+            break;
+          case 'audio':
+            setAudioData(prev => ({ ...prev, ...reuseData }));
+            break;
+          case 'document':
+            setDocumentData(prev => ({ ...prev, ...reuseData }));
+            break;
+        }
+        return;
+      }
+      
+      // Upload new file to Supabase Storage
+      const bucket = type === 'photo' ? 'documents' : 'documents'; // Use existing bucket
+      const filePath = `media-library/${Date.now()}_${file.name}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file);
+        
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+      
+      const fileData = {
+        file,
+        url: publicUrl,
+        filePath,
+        bucket
+      };
+      
+      switch (type) {
+        case 'photo':
+          setPhotoData(prev => ({ ...prev, ...fileData }));
+          break;
+        case 'video':
+          setVideoData(prev => ({ ...prev, ...fileData }));
+          break;
+        case 'audio':
+          setAudioData(prev => ({ ...prev, ...fileData }));
+          break;
+        case 'document':
+          setDocumentData(prev => ({ ...prev, ...fileData }));
+          break;
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      // Fallback to blob URL for now
+      const url = URL.createObjectURL(file);
+      
+      switch (type) {
+        case 'photo':
+          setPhotoData(prev => ({ ...prev, file, url }));
+          break;
+        case 'video':
+          setVideoData(prev => ({ ...prev, file, url }));
+          break;
+        case 'audio':
+          setAudioData(prev => ({ ...prev, file, url }));
+          break;
+        case 'document':
+          setDocumentData(prev => ({ ...prev, file, url }));
+          break;
+      }
     }
   };
 
@@ -92,7 +166,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     return '';
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     let mediaData;
     
     switch (activeTab) {
@@ -130,7 +204,33 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
         break;
     }
     
+    // Add to library if it's a new upload (not from library)
+    if (mediaData && !mediaData.fromLibrary && mediaData.file) {
+      try {
+        await addToLibrary({
+          title: mediaData.titulo || mediaData.file.name,
+          file_url: mediaData.url,
+          file_path: mediaData.filePath || '',
+          file_bucket: mediaData.bucket || 'documents',
+          file_type: mediaData.type === 'photo' ? 'image' : mediaData.type,
+          file_size: mediaData.file.size,
+          mime_type: mediaData.file.type,
+          category: mediaData.type,
+          subcategory: mediaData.tipo || '',
+          tags: [],
+          usage_count: 1
+        });
+      } catch (error) {
+        console.error('Error adding to library:', error);
+      }
+    }
+    
     onSelect(mediaData);
+  };
+
+  const handleLibrarySelect = (item: any) => {
+    setShowLibrary(false);
+    onSelect(item);
   };
 
   const renderPhotoForm = () => (
@@ -444,11 +544,37 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     </div>
   );
 
+  if (showLibrary) {
+    return (
+      <Dialog open onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Librería de medios</DialogTitle>
+              <Button variant="outline" size="sm" onClick={() => setShowLibrary(false)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Subir nuevo
+              </Button>
+            </div>
+          </DialogHeader>
+          
+          <MediaLibrary onSelect={handleLibrarySelect} />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Añadir material multimedia</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Añadir material multimedia</DialogTitle>
+            <Button variant="outline" size="sm" onClick={() => setShowLibrary(true)}>
+              <Library className="w-4 h-4 mr-2" />
+              Librería
+            </Button>
+          </div>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>

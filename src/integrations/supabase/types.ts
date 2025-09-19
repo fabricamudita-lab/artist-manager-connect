@@ -1675,6 +1675,84 @@ export type Database = {
           },
         ]
       }
+      media_library: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          duration: number | null
+          file_bucket: string
+          file_path: string
+          file_size: number | null
+          file_type: string
+          file_url: string
+          height: number | null
+          id: string
+          last_used_at: string | null
+          mime_type: string | null
+          platform: string | null
+          subcategory: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          usage_count: number | null
+          video_id: string | null
+          width: number | null
+          workspace_id: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          duration?: number | null
+          file_bucket?: string
+          file_path: string
+          file_size?: number | null
+          file_type: string
+          file_url: string
+          height?: number | null
+          id?: string
+          last_used_at?: string | null
+          mime_type?: string | null
+          platform?: string | null
+          subcategory?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          usage_count?: number | null
+          video_id?: string | null
+          width?: number | null
+          workspace_id?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          duration?: number | null
+          file_bucket?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string
+          file_url?: string
+          height?: number | null
+          id?: string
+          last_used_at?: string | null
+          mime_type?: string | null
+          platform?: string | null
+          subcategory?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          usage_count?: number | null
+          video_id?: string | null
+          width?: number | null
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string

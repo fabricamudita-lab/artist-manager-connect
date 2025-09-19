@@ -223,47 +223,69 @@ export const EPKForm: React.FC<EPKFormProps> = ({
   const renderMediaForm = () => (
     <Card>
       <CardHeader>
-        <CardTitle>Material multimedia</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <ImageIcon className="w-5 h-5" />
+          Material multimedia
+        </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent 
+        className="space-y-6"
+        onDrop={(e) => {
+          e.preventDefault();
+          const data = e.dataTransfer.getData('application/json');
+          if (data) {
+            try {
+              const item = JSON.parse(data);
+              console.log('Dropped library item:', item);
+              // This would need to be handled by parent component
+            } catch (error) {
+              console.error('Error parsing dropped data:', error);
+            }
+          }
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        }}
+      >
         {/* Quick Add Buttons */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-4">
           <Button
             variant="outline"
-            size="sm"
             onClick={onShowMediaSelector}
-            className="flex items-center gap-2"
+            className="h-20 flex-col gap-2"
           >
-            <ImageIcon className="w-4 h-4" />
-            Añadir foto
+            <ImageIcon className="w-6 h-6" />
+            Añadir fotos
           </Button>
           <Button
             variant="outline"
-            size="sm"
             onClick={onShowMediaSelector}
-            className="flex items-center gap-2"
+            className="h-20 flex-col gap-2"
           >
-            <Video className="w-4 h-4" />
-            Añadir video
+            <Video className="w-6 h-6" />
+            Añadir videos
           </Button>
           <Button
             variant="outline"
-            size="sm"
             onClick={onShowMediaSelector}
-            className="flex items-center gap-2"
+            className="h-20 flex-col gap-2"
           >
-            <Music className="w-4 h-4" />
+            <Music className="w-6 h-6" />
             Añadir audio
           </Button>
           <Button
             variant="outline"
-            size="sm"
             onClick={onShowMediaSelector}
-            className="flex items-center gap-2"
+            className="h-20 flex-col gap-2"
           >
-            <FileText className="w-4 h-4" />
-            Añadir documento
+            <FileText className="w-6 h-6" />
+            Añadir documentos
           </Button>
+        </div>
+        
+        <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 border-2 border-dashed border-muted-foreground/25">
+          💡 <strong>Tip:</strong> Arrastra elementos desde la Librería aquí para reutilizarlos sin duplicar archivos.
         </div>
 
         <Separator />
