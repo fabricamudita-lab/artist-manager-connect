@@ -530,12 +530,14 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   };
 
   const startEditingItem = (item: BudgetItem) => {
+    console.log('🔧 Starting edit for item:', item.name, 'billing_status:', item.billing_status);
     setEditingItem(item.id);
     // Ensure all values are properly set with current item data
     setEditingItemValues({
       ...item,
       billing_status: item.billing_status || 'pendiente'
     });
+    console.log('✅ Edit values set:', { billing_status: item.billing_status || 'pendiente' });
   };
 
   const saveItemEdits = async () => {
@@ -553,10 +555,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       
       const updateData = {
         ...itemData,
-        billing_status: editingItemValues.billing_status === 'pagada' ? 'pagado' as const :
-                       editingItemValues.billing_status === 'factura_recibida' ? 'facturado' as const :
-                       editingItemValues.billing_status === 'factura_solicitada' ? 'pendiente' as const :
-                       'pendiente' as const
+        // Map frontend values to database values
+        billing_status: (editingItemValues.billing_status === 'pagada' ? 'pagado' :
+                        editingItemValues.billing_status === 'factura_recibida' ? 'facturado' :
+                        editingItemValues.billing_status === 'factura_solicitada' ? 'pendiente' :
+                        'pendiente') as 'pendiente' | 'pagado' | 'facturado' | 'cancelado'
       };
       
       console.log('📝 Update data to send:', updateData);
@@ -1598,55 +1601,58 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                           )}
                                         </TableCell>
                                        
-                                        {/* Acciones */}
-                                       <TableCell className="p-2 text-center">
-                                         <div className="flex items-center justify-center gap-1">
-                                            {editingItem === item.id ? (
+                                         {/* Acciones */}
+                                        <TableCell className="p-2 text-center">
+                                          <div className="flex items-center justify-center gap-1">
+                                             {editingItem === item.id ? (
+                                               <>
+                                                 <Button
+                                                   onClick={saveItemEdits}
+                                                   size="sm"
+                                                   className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700 text-white"
+                                                   title="Guardar cambios"
+                                                 >
+                                                   <Save className="w-3 h-3 text-white" />
+                                                 </Button>
+                                                  <Button
+                                                    onClick={() => {
+                                                      setEditingItem(null);
+                                                      setEditingItemValues({});
+                                                    }}
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-6 w-6 p-0 hover:bg-gray-100 border-gray-300"
+                                                    title="Cancelar edición"
+                                                 >
+                                                   <ArrowLeft className="w-3 h-3 text-gray-600" />
+                                                 </Button>
+                                              </>
+                                            ) : (
                                               <>
                                                 <Button
-                                                  onClick={saveItemEdits}
+                                                  onClick={() => startEditingItem(item)}
                                                   size="sm"
-                                                  className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700"
+                                                  variant="ghost"
+                                                  className="h-6 w-6 p-0 hover:bg-blue-100 text-blue-600"
+                                                  title="Editar elemento"
                                                 >
-                                                  <Save className="w-3 h-3" />
+                                                  <Edit className="w-3 h-3" />
                                                 </Button>
-                                                 <Button
-                                                   onClick={() => {
-                                                     setEditingItem(null);
-                                                     setEditingItemValues({});
-                                                   }}
-                                                   size="sm"
-                                                   variant="outline"
-                                                   className="h-6 w-6 p-0 hover:bg-gray-100"
-                                                   title="Cancelar edición"
-                                                >
-                                                  <ArrowLeft className="w-3 h-3" />
-                                                </Button>
-                                             </>
-                                           ) : (
-                                             <>
-                                               <Button
-                                                 onClick={() => startEditingItem(item)}
-                                                 size="sm"
-                                                 variant="ghost"
-                                                 className="h-6 w-6 p-0 hover:bg-blue-100"
-                                               >
-                                                 <Edit className="w-3 h-3" />
-                                               </Button>
-                                               {selectedItems.has(item.id) && (
-                                                 <Button
-                                                   onClick={() => deleteItem(item.id)}
-                                                   size="sm"
-                                                   variant="ghost"
-                                                   className="h-6 w-6 p-0 hover:bg-red-100 text-red-600"
-                                                 >
-                                                   <Trash2 className="w-3 h-3" />
-                                                 </Button>
-                                               )}
-                                             </>
-                                           )}
-                                         </div>
-                                       </TableCell>
+                                                {selectedItems.has(item.id) && (
+                                                  <Button
+                                                    onClick={() => deleteItem(item.id)}
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-6 w-6 p-0 hover:bg-red-100 text-red-600"
+                                                    title="Eliminar elemento"
+                                                  >
+                                                    <Trash2 className="w-3 h-3" />
+                                                  </Button>
+                                                )}
+                                              </>
+                                            )}
+                                          </div>
+                                        </TableCell>
                                     </TableRow>
                                   ))}
                                 </TableBody>
