@@ -50,6 +50,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import EnhancedBudgetItemsView from '@/components/EnhancedBudgetItemsView';
 
 interface Budget {
   id: string;
@@ -1757,16 +1758,21 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
               </TabsContent>
 
 
-              <TabsContent value="overview" className="flex-1 overflow-auto p-6">
-                <div className="space-y-6">
-                  {/* Grid con gráfico y resumen por categorías */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Gráfico circular de categorías */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <PieChartIcon className="h-5 w-5" />
-                          Desglose por Categoría
+              <TabsContent value="overview" className="flex-1 overflow-auto p-0 m-0">
+                <div className="h-full p-6">
+                  {/* Enhanced Budget Items View */}
+                  <EnhancedBudgetItemsView budgetId={budget.id} />
+                  
+                  {/* Original Overview Content */}
+                  <div className="space-y-6 mt-8">
+                    {/* Grid con gráfico y resumen por categorías */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Gráfico circular de categorías */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <PieChartIcon className="h-5 w-5" />
+                            Desglose por Categoría
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -2072,10 +2078,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                           </Button>
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
+                     </CardContent>
+                   </Card>
+                 </div>
+                 </div>
+               </TabsContent>
 
             </Tabs>
           </div>
