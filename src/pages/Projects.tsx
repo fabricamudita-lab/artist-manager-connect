@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, Filter, FolderOpen, Trash2, MoreHorizontal, Calendar, User, Folder, Plus, ChevronRight, Edit, Info, Copy } from "lucide-react";
 import {
@@ -33,6 +33,8 @@ import { toast } from "@/hooks/use-toast";
 import CreateProjectDialog from "@/components/CreateProjectDialog";
 import { ProjectProgressDisplay } from "@/components/ProjectProgressDisplay";
 import { CreateProjectFolderDialog } from "@/components/CreateProjectFolderDialog";
+import { EditProjectFolderDialog } from "@/components/EditProjectFolderDialog";
+import { FolderDetailsDialog } from "@/components/FolderDetailsDialog";
 
 interface ProjectListItem {
   id: string;
@@ -47,11 +49,15 @@ interface ProjectListItem {
 
 export default function Projects() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string>("todos");
   const [items, setItems] = useState<ProjectListItem[]>([]);
   const [openCreate, setOpenCreate] = useState(false);
   const [openCreateFolder, setOpenCreateFolder] = useState(false);
+  const [openEditFolder, setOpenEditFolder] = useState(false);
+  const [openFolderDetails, setOpenFolderDetails] = useState(false);
+  const [selectedFolderId, setSelectedFolderId] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [deleteProject, setDeleteProject] = useState<ProjectListItem | null>(null);
@@ -82,6 +88,14 @@ export default function Projects() {
     }
     canonical.setAttribute("href", window.location.href);
   }, []);
+
+  // Handle URL parameters for folder navigation
+  useEffect(() => {
+    const folderId = searchParams.get('folder');
+    if (folderId && folderId !== currentFolderId) {
+      handleFolderClick(folderId);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -491,11 +505,8 @@ export default function Projects() {
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // TODO: Open edit folder dialog
-                                  toast({
-                                    title: "Función en desarrollo",
-                                    description: "La edición de carpetas estará disponible pronto.",
-                                  });
+                                  setSelectedFolderId(p.id);
+                                  setOpenEditFolder(true);
                                 }}
                               >
                                 <Edit className="h-4 w-4 mr-2" />
@@ -504,11 +515,8 @@ export default function Projects() {
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // TODO: Show folder details dialog
-                                  toast({
-                                    title: "Función en desarrollo", 
-                                    description: "Los detalles de carpeta estarán disponibles pronto.",
-                                  });
+                                  setSelectedFolderId(p.id);
+                                  setOpenFolderDetails(true);
                                 }}
                               >
                                 <Info className="h-4 w-4 mr-2" />
@@ -624,6 +632,21 @@ export default function Projects() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <EditProjectFolderDialog
+          open={openEditFolder}
+          onOpenChange={setOpenEditFolder}
+          folderId={selectedFolderId}
+          onSuccess={() => {
+            setRefreshKey((k) => k + 1);
+          }}
+        />
+
+        <FolderDetailsDialog
+          open={openFolderDetails}
+          onOpenChange={setOpenFolderDetails}
+          folderId={selectedFolderId}
+        />
       </main>
     </TooltipProvider>
   );
