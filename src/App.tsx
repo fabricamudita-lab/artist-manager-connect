@@ -23,6 +23,7 @@ import ProjectDetail from "./pages/ProjectDetail";
 import Approvals from "./pages/Approvals";
 import ApprovalDetail from "./pages/ApprovalDetail";
 import EPKBuilder from "./pages/EPKBuilder";
+import EPKs from "./pages/EPKs";
 import { PublicEPKPage } from "./pages/PublicEPK";
 import { EPKPasswordProtectionPage } from "./pages/EPKPasswordProtection";
 
@@ -137,6 +138,13 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <ApprovalDetail />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/epks" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <EPKs />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
