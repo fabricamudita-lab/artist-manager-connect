@@ -431,27 +431,6 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   const updateTaskStatus = async (item: ChecklistItem, newStatus: TaskStatus) => {
     console.log('updateTaskStatus called with:', { itemId: item.id, newStatus, itemTitle: item.title });
     
-    // If changing to BLOCKED status, show the blocking dialog
-    if (newStatus === 'BLOCKED') {
-      console.log('Setting blocking dialog for BLOCKED status');
-      setBlockingDialog({
-        item,
-        blockingTasks: [],
-        additionalInfo: ''
-      });
-      return;
-    }
-
-    // If changing to IN_REVIEW status, show the review dialog
-    if (newStatus === 'IN_REVIEW') {
-      console.log('Setting review dialog for IN_REVIEW status');
-      setReviewDialog({
-        item,
-        reason: ''
-      });
-      return;
-    }
-
     try {
       console.log('Updating task status:', {
         itemId: item.id,
@@ -485,7 +464,28 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       if (selectedItems.has(item.id) && selectedItems.size > 1) {
         console.log('Updating multiple selected items:', Array.from(selectedItems));
         
-        // Set up bulk update confirmation
+        // For BLOCKED status with multiple items, handle special blocking dialog
+        if (newStatus === 'BLOCKED') {
+          console.log('Setting blocking dialog for BLOCKED status with multiple items');
+          setBlockingDialog({
+            item,
+            blockingTasks: [],
+            additionalInfo: ''
+          });
+          return;
+        }
+
+        // For IN_REVIEW status with multiple items, handle special review dialog
+        if (newStatus === 'IN_REVIEW') {
+          console.log('Setting review dialog for IN_REVIEW status with multiple items');
+          setReviewDialog({
+            item,
+            reason: ''
+          });
+          return;
+        }
+
+        // Set up bulk update confirmation for other statuses
         setBulkUpdateConfirm({
           count: selectedItems.size,
           status: newStatus,
@@ -494,6 +494,26 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         return; // Exit here, the actual update will happen in the confirmation dialog
       } else {
         console.log('Updating single item');
+        
+        // For single items with special statuses, show dialogs
+        if (newStatus === 'BLOCKED') {
+          console.log('Setting blocking dialog for BLOCKED status');
+          setBlockingDialog({
+            item,
+            blockingTasks: [],
+            additionalInfo: ''
+          });
+          return;
+        }
+
+        if (newStatus === 'IN_REVIEW') {
+          console.log('Setting review dialog for IN_REVIEW status');
+          setReviewDialog({
+            item,
+            reason: ''
+          });
+          return;
+        }
         
         // Update only the single item
         const { error } = await supabase
@@ -673,33 +693,79 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         completed_at: null
       };
 
-      // Add review reason to description
-      if (reviewDialog.reason.trim()) {
-        let description = reviewDialog.item.description || '';
-        const reviewInfo = `Motivo de revisión: ${reviewDialog.reason.trim()}`;
-        
-        if (description) {
-          description += ` | ${reviewInfo}`;
-        } else {
-          description = reviewInfo;
+      // Check if this item is selected and there are multiple selected items
+      const itemsToUpdate = selectedItems.has(reviewDialog.item.id) && selectedItems.size > 1 
+        ? Array.from(selectedItems) 
+        : [reviewDialog.item.id];
+
+      if (itemsToUpdate.length > 1) {
+        // Bulk update for multiple items
+        for (const itemId of itemsToUpdate) {
+          const item = items.find(i => i.id === itemId);
+          if (!item) continue;
+
+          let description = item.description || '';
+          
+          // Add review reason to description if provided
+          if (reviewDialog.reason.trim()) {
+            const reviewInfo = `Motivo de revisión: ${reviewDialog.reason.trim()}`;
+            if (description) {
+              description += ` | ${reviewInfo}`;
+            } else {
+              description = reviewInfo;
+            }
+          }
+
+          const itemUpdates = {
+            ...updates,
+            description: description || null
+          };
+
+          const { error } = await supabase
+            .from('project_checklist_items')
+            .update(itemUpdates)
+            .eq('id', itemId);
+
+          if (error) throw error;
         }
-        updates.description = description;
+
+        setSelectedItems(new Set());
+        
+        toast({
+          title: "Tareas en revisión",
+          description: `${itemsToUpdate.length} tareas han sido marcadas para revisión correctamente.`,
+        });
+      } else {
+        // Single item review
+        let description = reviewDialog.item.description || '';
+        
+        // Add review reason to description if provided
+        if (reviewDialog.reason.trim()) {
+          const reviewInfo = `Motivo de revisión: ${reviewDialog.reason.trim()}`;
+          if (description) {
+            description += ` | ${reviewInfo}`;
+          } else {
+            description = reviewInfo;
+          }
+          updates.description = description;
+        }
+
+        const { error } = await supabase
+          .from('project_checklist_items')
+          .update(updates)
+          .eq('id', reviewDialog.item.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Tarea en revisión",
+          description: "La tarea ha sido marcada para revisión correctamente.",
+        });
       }
-
-      const { error } = await supabase
-        .from('project_checklist_items')
-        .update(updates)
-        .eq('id', reviewDialog.item.id);
-
-      if (error) throw error;
 
       setReviewDialog(null);
       fetchChecklistItems();
       
-      toast({
-        title: "Tarea en revisión",
-        description: "La tarea ha sido marcada para revisión correctamente.",
-      });
     } catch (error) {
       console.error('Error updating task status:', error);
       toast({
