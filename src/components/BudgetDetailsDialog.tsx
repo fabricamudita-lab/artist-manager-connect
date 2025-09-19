@@ -128,8 +128,10 @@ const iconMap = {
 // Helper functions for billing status mapping
 const mapDbToFrontend = (dbStatus: string): 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada' | 'cancelado' => {
   switch (dbStatus) {
+    case 'pendiente': return 'pendiente';
     case 'pagado': return 'pagada';
     case 'facturado': return 'factura_recibida';
+    case 'factura_solicitada': return 'factura_solicitada';
     case 'cancelado': return 'cancelado';
     default: return 'pendiente';
   }
@@ -137,9 +139,10 @@ const mapDbToFrontend = (dbStatus: string): 'pendiente' | 'factura_solicitada' |
 
 const mapFrontendToDb = (frontendStatus: string) => {
   switch (frontendStatus) {
+    case 'pendiente': return 'pendiente';
     case 'pagada': return 'pagado';
     case 'factura_recibida': return 'facturado';
-    case 'factura_solicitada': return 'pendiente';
+    case 'factura_solicitada': return 'factura_solicitada';
     case 'cancelado': return 'cancelado';
     default: return 'pendiente';
   }
