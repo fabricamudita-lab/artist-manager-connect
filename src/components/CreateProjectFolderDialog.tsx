@@ -4,9 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SingleArtistSelector } from "@/components/SingleArtistSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Folder } from "lucide-react";
+import { Folder, Calendar as CalendarIcon, Copy } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface CreateProjectFolderDialogProps {
   open: boolean;
@@ -23,7 +28,12 @@ export function CreateProjectFolderDialog({
 }: CreateProjectFolderDialogProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
+  const [selectedArtistId, setSelectedArtistId] = useState<string>();
+  const [team, setTeam] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [folderUrl, setFolderUrl] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,18 +44,31 @@ export function CreateProjectFolderDialog({
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("User not authenticated");
 
-      const { error } = await supabase
+      const { data: insertedProject, error } = await supabase
         .from('projects')
         .insert({
           name: name.trim(),
           description: description.trim() || null,
+          start_date: startDate?.toISOString().split('T')[0] || null,
+          end_date_estimada: endDate?.toISOString().split('T')[0] || null,
+          artist_id: selectedArtistId || null,
+          equipo_involucrado: team.trim() || null,
           is_folder: true,
           parent_folder_id: parentFolderId,
           created_by: userData.user.id,
           status: 'en_curso'
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Generate folder URL
+      if (insertedProject) {
+        const baseUrl = window.location.origin;
+        const generatedUrl = `${baseUrl}/projects?folder=${insertedProject.id}`;
+        setFolderUrl(generatedUrl);
+      }
 
       toast({
         title: "Carpeta creada",
@@ -68,10 +91,31 @@ export function CreateProjectFolderDialog({
     }
   };
 
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(folderUrl);
+      toast({
+        title: "Enlace copiado",
+        description: "El enlace de la carpeta ha sido copiado al portapapeles.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo copiar el enlace.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       setName("");
       setDescription("");
+      setStartDate(undefined);
+      setEndDate(undefined);
+      setSelectedArtistId(undefined);
+      setTeam("");
+      setFolderUrl("");
     }
     onOpenChange(newOpen);
   };
@@ -108,6 +152,102 @@ export function CreateProjectFolderDialog({
               rows={3}
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Fecha de inicio</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, "PPP") : <span>Seleccionar fecha</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Fecha de cierre</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "PPP") : <span>Seleccionar fecha</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Artista asociado (opcional)</Label>
+            <SingleArtistSelector
+              value={selectedArtistId || null}
+              onValueChange={setSelectedArtistId}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="team">Equipo involucrado (opcional)</Label>
+            <Textarea
+              id="team"
+              value={team}
+              onChange={(e) => setTeam(e.target.value)}
+              placeholder="Describe el equipo involucrado en esta carpeta..."
+              rows={2}
+            />
+          </div>
+
+          {folderUrl && (
+            <div className="space-y-2">
+              <Label>Enlace de la carpeta</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={folderUrl}
+                  readOnly
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={copyToClipboard}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button
