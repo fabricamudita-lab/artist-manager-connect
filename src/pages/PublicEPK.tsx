@@ -19,9 +19,17 @@ import {
   ImageIcon,
   Music,
   FileDown,
-  Globe
+  Globe,
+  Sun,
+  Moon,
+  Monitor
 } from 'lucide-react';
 import { EPKData, EPKPhoto, EPKVideo, EPKAudio, EPKDocument } from '@/hooks/useEPK';
+import { EmbedErrorBoundary } from '@/components/EmbedErrorBoundary';
+import { useTheme } from '@/hooks/useTheme';
+import { useI18n } from '@/hooks/useI18n';
+import { useResponsiveTesting } from '@/hooks/useResponsiveTesting';
+import ZipRateLimiter from '@/utils/zipRateLimiter';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
@@ -37,6 +45,13 @@ export const PublicEPKPage: React.FC<PublicEPKPageProps> = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<EPKPhoto | null>(null);
+
+  // Hooks for enhanced functionality
+  const themeHook = useTheme();
+  const detectedLanguage = useI18n().detectLanguage();
+  const { t, language } = useI18n(detectedLanguage);
+  const { currentBreakpoint, deviceType } = useResponsiveTesting();
+  const rateLimiter = ZipRateLimiter.getInstance();
 
   useEffect(() => {
     if (slug) {
@@ -181,14 +196,14 @@ export const PublicEPKPage: React.FC<PublicEPKPageProps> = () => {
       window.URL.revokeObjectURL(downloadUrl);
       
       toast({
-        title: "Descarga iniciada",
-        description: `Descargando ${filename}`
+        title: t('epk.downloadStarted'),
+        description: `${t('common.download')} ${filename}`
       });
     } catch (error) {
       console.error('Error downloading file:', error);
       toast({
-        title: "Error",
-        description: "No se pudo descargar el archivo",
+        title: t('common.error'),
+        description: t('epk.downloadError'),
         variant: "destructive"
       });
     }
@@ -197,17 +212,45 @@ export const PublicEPKPage: React.FC<PublicEPKPageProps> = () => {
   const handleDownloadAll = async () => {
     if (!epk?.permitir_zip || photos.length === 0) return;
     
-    try {
-      // In a real implementation, you would call a backend service to create a ZIP
+    // Check rate limiting
+    const userIdentifier = `${epk.slug}_${Date.now().toString().slice(0, -6)}`; // Hour-based identifier
+    const rateLimitCheck = rateLimiter.canDownload(userIdentifier);
+    
+    if (!rateLimitCheck.allowed) {
+      const timeLeft = Math.ceil((rateLimitCheck.timeLeft || 0) / (1000 * 60)); // minutes
       toast({
-        title: "Preparando descarga",
-        description: "Se está preparando el archivo ZIP con todas las fotos"
+        title: t('epk.rateLimitExceeded'),
+        description: `${t('epk.rateLimitMessage')} ${timeLeft} ${t('common.minutes', 'minutos')}.`,
+        variant: "destructive"
       });
+      return;
+    }
+
+    try {
+      // Record the download attempt
+      const downloadRecorded = rateLimiter.recordDownload(userIdentifier);
+      if (!downloadRecorded) {
+        toast({
+          title: t('epk.rateLimitExceeded'),
+          description: t('epk.rateLimitMessage'),
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: t('epk.preparingZip'),
+        description: t('epk.zipDescription')
+      });
+      
+      // In a real implementation, you would call a backend service to create a ZIP
+      // For now, we'll simulate the process
+      
     } catch (error) {
       console.error('Error creating ZIP:', error);
       toast({
-        title: "Error",
-        description: "No se pudo crear el archivo ZIP",
+        title: t('common.error'),
+        description: t('epk.downloadError'),
         variant: "destructive"
       });
     }
@@ -362,8 +405,8 @@ export const PublicEPKPage: React.FC<PublicEPKPageProps> = () => {
     );
   }
 
-  const theme = epk.tema || 'auto';
-  const isDark = theme === 'oscuro' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const epkTheme = epk.tema || 'auto';
+  const isDark = epkTheme === 'oscuro' || (epkTheme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   return (
     <>
@@ -393,9 +436,27 @@ export const PublicEPKPage: React.FC<PublicEPKPageProps> = () => {
         <link rel="canonical" href={window.location.href} />
       </Helmet>
 
-      <div className={cn("min-h-screen bg-background", isDark ? "dark" : "")}>
+      <div className={cn("min-h-screen bg-background transition-colors duration-300", themeHook.resolvedTheme === 'dark' ? "dark" : "")}>
+        {/* Header with Theme Toggle */}
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={themeHook.toggleTheme}
+            className="bg-background/80 backdrop-blur-sm border-border/50"
+          >
+            {themeHook.resolvedTheme === 'dark' ? (
+              <Sun className="w-4 h-4" />
+            ) : themeHook.resolvedTheme === 'light' ? (
+              <Moon className="w-4 h-4" />
+            ) : (
+              <Monitor className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+
         {/* Header */}
-        <header className="relative overflow-hidden">
+        <header className="relative overflow-hidden">{""}
           <div className="absolute inset-0 bg-gradient-hero opacity-10"></div>
           <div className="relative container-moodita py-16 lg:py-24">
             <div className="text-center space-y-8 max-w-4xl mx-auto">
@@ -563,19 +624,25 @@ export const PublicEPKPage: React.FC<PublicEPKPageProps> = () => {
                   <Card key={video.id || index} className="card-moodita overflow-hidden">
                     <CardContent className="p-0">
                       <div className="aspect-video bg-muted relative">
-                        {getVideoEmbedUrl(video) ? (
-                          <iframe
-                            src={getVideoEmbedUrl(video)}
-                            title={video.titulo}
-                            className="w-full h-full"
-                            allowFullScreen
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Play className="w-16 h-16 text-muted-foreground" />
-                          </div>
-                        )}
+                        <EmbedErrorBoundary
+                          embedType={video.tipo as any}
+                          embedUrl={getVideoEmbedUrl(video)}
+                          className="w-full h-full"
+                        >
+                          {getVideoEmbedUrl(video) ? (
+                            <iframe
+                              src={getVideoEmbedUrl(video)}
+                              title={video.titulo}
+                              className="w-full h-full"
+                              allowFullScreen
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Play className="w-16 h-16 text-muted-foreground" />
+                            </div>
+                          )}
+                        </EmbedErrorBoundary>
                       </div>
                       <div className="p-6">
                         <h4 className="font-semibold text-lg mb-2">{video.titulo}</h4>
