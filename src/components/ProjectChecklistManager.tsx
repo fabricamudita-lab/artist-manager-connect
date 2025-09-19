@@ -327,7 +327,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       console.error('Error fetching checklist items:', error);
       toast({
         title: "Error",
-        description: "No se pudieron cargar los elementos de la checklist.",
+        description: "No se pudieron cargar las tareas.",
         variant: "destructive",
       });
     } finally {
@@ -415,14 +415,14 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       fetchChecklistItems();
       
       toast({
-        title: "Elemento añadido",
-        description: "El elemento se ha añadido a la checklist correctamente.",
+        title: "Tarea añadida",
+        description: "La tarea se ha añadido correctamente.",
       });
     } catch (error) {
       console.error('Error adding checklist item:', error);
       toast({
         title: "Error",
-        description: "No se pudo añadir el elemento a la checklist.",
+        description: "No se pudo añadir la tarea.",
         variant: "destructive",
       });
     }
@@ -733,8 +733,8 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         fetchChecklistItems();
         
         toast({
-          title: "Elementos eliminados",
-          description: `${selectedItems.size} elementos han sido eliminados de la checklist.`,
+          title: "Tareas eliminadas",
+          description: `${selectedItems.size} tareas han sido eliminadas.`,
         });
       } else {
         // Delete only the single item
@@ -749,15 +749,15 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         fetchChecklistItems();
         
         toast({
-          title: "Elemento eliminado",
-          description: "El elemento se ha eliminado de la checklist.",
+          title: "Tarea eliminada",
+          description: "La tarea se ha eliminado.",
         });
       }
     } catch (error) {
       console.error('Error deleting item:', error);
       toast({
         title: "Error",
-        description: "No se pudo eliminar el elemento de la checklist.",
+        description: "No se pudo eliminar la tarea.",
         variant: "destructive",
       });
     }
@@ -776,14 +776,14 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       setItems([]); // Clear the items immediately
       
       toast({
-        title: "Checklist vaciada",
-        description: "Todos los elementos han sido eliminados de la checklist.",
+        title: "Tareas vaciadas",
+        description: "Todas las tareas han sido eliminadas.",
       });
     } catch (error) {
       console.error('Error clearing checklist:', error);
       toast({
         title: "Error",
-        description: "No se pudo vaciar la checklist.",
+        description: "No se pudo vaciar las tareas.",
         variant: "destructive",
       });
     }
@@ -900,7 +900,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-muted-foreground">Cargando checklist...</div>
+          <div className="text-muted-foreground">Cargando tareas...</div>
         </CardContent>
       </Card>
     );
@@ -1441,7 +1441,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar elemento?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. El elemento "{deleteConfirm?.title}" será eliminado permanentemente de la checklist.
+              Esta acción no se puede deshacer. La tarea "{deleteConfirm?.title}" será eliminada permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1460,9 +1460,9 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       <AlertDialog open={clearAllConfirm} onOpenChange={setClearAllConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Vaciar toda la checklist?</AlertDialogTitle>
+            <AlertDialogTitle>¿Vaciar todas las tareas?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Todos los elementos de la checklist serán eliminados permanentemente.
+              Esta acción no se puede deshacer. Todas las tareas serán eliminadas permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1483,21 +1483,21 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Añadir elemento a la checklist</DialogTitle>
+            <DialogTitle>Añadir nueva tarea</DialogTitle>
             <DialogDescription>
-              Agrega un nuevo elemento a la checklist del proyecto.
+              Agrega una nueva tarea al proyecto.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <label htmlFor="title" className="text-sm font-medium">
-                Título
+                Título de la tarea
               </label>
               <Input
                 id="title"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="Título del elemento"
+                placeholder="Título de la tarea"
               />
             </div>
             <div>
@@ -1508,7 +1508,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                 id="description"
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
-                placeholder="Descripción del elemento"
+                placeholder="Descripción de la tarea"
               />
             </div>
           </div>
@@ -1517,7 +1517,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
               Cancelar
             </Button>
             <Button onClick={addChecklistItem}>
-              Añadir elemento
+              Añadir tarea
             </Button>
           </DialogFooter>
         </DialogContent>
