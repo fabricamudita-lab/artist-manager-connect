@@ -183,6 +183,42 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       setBudgetAmount(budget.fee || 0);
       fetchBudgetItems();
       fetchBudgetCategories();
+      
+      // Set up real-time subscription for budget items
+      const channel = supabase
+        .channel('budget-items-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+            schema: 'public',
+            table: 'budget_items',
+            filter: `budget_id=eq.${budget.id}`
+          },
+          (payload) => {
+            console.log('Real-time budget items change:', payload);
+            // Refresh items to update charts and tables
+            fetchBudgetItems();
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'budget_categories'
+          },
+          (payload) => {
+            console.log('Real-time budget categories change:', payload);
+            // Refresh categories to update order and data
+            fetchBudgetCategories();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [open, budget]);
 
@@ -398,22 +434,47 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   // Funciones para el gráfico y resumen
   const getCategoryChartData = () => {
-    const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#f97316', '#06b6d4', '#84cc16'];
+    const colors = [
+      '#3b82f6', // blue
+      '#ef4444', // red  
+      '#10b981', // emerald
+      '#f59e0b', // amber
+      '#8b5cf6', // violet
+      '#f97316', // orange
+      '#06b6d4', // cyan
+      '#84cc16', // lime
+      '#ec4899', // pink
+      '#6366f1'  // indigo
+    ];
     
-    return budgetCategories.map((category, index) => {
+    // Sort categories by their original order from fetchBudgetCategories
+    const sortedCategories = [...budgetCategories].sort((a, b) => {
+      // Use creation date as tie-breaker to maintain consistency
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
+    
+    const chartData = sortedCategories.map((category, index) => {
       const categoryItems = getCategoryItems(category.id);
       const total = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
       
       return {
         name: category.name,
         value: total,
-        color: colors[index % colors.length]
+        color: colors[index % colors.length],
+        count: categoryItems.length
       };
-    }).filter(item => item.value > 0);
+    }).filter(item => item.value > 0); // Only show categories with value
+    
+    return chartData;
   };
 
   const getCategorySummaryData = () => {
-    return budgetCategories.map(category => {
+    // Sort categories by their original order from fetchBudgetCategories
+    const sortedCategories = [...budgetCategories].sort((a, b) => {
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
+    
+    return sortedCategories.map(category => {
       const categoryItems = getCategoryItems(category.id);
       const total = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
       
@@ -424,7 +485,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         count: categoryItems.length,
         total: total
       };
-    }).filter(item => item.count > 0);
+    }); // Show all categories, even empty ones
   };
 
   const createTestData = async () => {
@@ -1794,13 +1855,21 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                 ))}
                               </Pie>
                               <Tooltip 
-                                formatter={(value: number) => [`€${value.toFixed(2)}`, 'Importe']}
-                                labelFormatter={(label) => `${label}`}
+                                formatter={(value: number, name: string, props: any) => {
+                                  const total = getCategoryChartData().reduce((sum, item) => sum + item.value, 0);
+                                  const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                  return [
+                                    `€${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`,
+                                    `${props.payload.name} (${percentage}%)`
+                                  ];
+                                }}
+                                labelFormatter={(label) => ''}
                                 contentStyle={{
                                   backgroundColor: 'hsl(var(--card))',
                                   border: '1px solid hsl(var(--border))',
                                   borderRadius: '8px',
-                                  color: 'hsl(var(--foreground))'
+                                  color: 'hsl(var(--foreground))',
+                                  fontSize: '14px'
                                 }}
                               />
                               <Legend />
@@ -1836,14 +1905,43 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                     </div>
                                   </TableCell>
                                   <TableCell className="text-center">
-                                    {category.count}
+                                    <Badge variant="outline" className="text-sm">
+                                      {category.count}
+                                    </Badge>
                                   </TableCell>
-                                  <TableCell className="text-right">
-                                    €{category.total.toFixed(2)}
+                                  <TableCell className="text-right font-medium">
+                                    <span className={category.total > 0 ? 'text-foreground' : 'text-muted-foreground'}>
+                                      €{category.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                                    </span>
                                   </TableCell>
                                 </TableRow>
                               );
                             })}
+                            {/* Total row */}
+                            {(() => {
+                              const summaryData = getCategorySummaryData();
+                              const totalElements = summaryData.reduce((sum, cat) => sum + cat.count, 0);
+                              const totalAmount = summaryData.reduce((sum, cat) => sum + cat.total, 0);
+                              
+                              return (
+                                <TableRow className="border-t-2 border-primary/20 bg-muted/30 font-semibold">
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <Calculator className="h-4 w-4 text-primary" />
+                                      <span className="font-bold">TOTAL</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Badge className="bg-primary text-primary-foreground">
+                                      {totalElements}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right font-bold text-primary">
+                                    €{totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })()}
                           </TableBody>
                         </Table>
                       </CardContent>
