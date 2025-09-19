@@ -1248,10 +1248,10 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                           }))}
                         >
                           <div className="flex items-center gap-3">
-                            <Badge variant="secondary" className={getSectionColor(section)}>
+                            <Badge variant="secondary" className={`${getSectionColor(section)} ${sectionProgress === 100 ? 'line-through' : ''}`}>
                               {getSectionDisplayName(section)}
                             </Badge>
-                            <span className="text-sm text-muted-foreground">
+                            <span className={`text-sm text-muted-foreground ${sectionProgress === 100 ? 'line-through' : ''}`}>
                               ({sectionCompleted}/{sectionItems.length} completadas · {sectionProgress}%)
                             </span>
                           </div>
