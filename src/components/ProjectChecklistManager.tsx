@@ -1178,15 +1178,21 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                                  <Button
                                    size="sm"
                                    variant="ghost"
-                                   className="h-6 w-6 p-0 hover:bg-muted"
+                                   className={`h-6 w-6 p-0 hover:bg-muted ${soloFilterStatus === status ? 'bg-primary/20 text-primary' : ''}`}
                                    onClick={(e) => {
                                      e.preventDefault();
                                      e.stopPropagation();
-                                     // Set solo filter
-                                     setSoloFilterStatus(status as TaskStatus);
-                                     setSelectedStatuses(new Set());
+                                     // Toggle solo filter
+                                     if (soloFilterStatus === status) {
+                                       // Turn off solo filter if it's already active for this status
+                                       setSoloFilterStatus(null);
+                                     } else {
+                                       // Set solo filter for this status
+                                       setSoloFilterStatus(status as TaskStatus);
+                                       setSelectedStatuses(new Set());
+                                     }
                                    }}
-                                   title="Solo mostrar este estado"
+                                   title={soloFilterStatus === status ? "Desactivar filtro solo" : "Solo mostrar este estado"}
                                  >
                                    <Search className="w-3 h-3" />
                                  </Button>
