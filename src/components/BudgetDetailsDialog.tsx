@@ -137,7 +137,7 @@ const mapDbToFrontend = (dbStatus: string): 'pendiente' | 'factura_solicitada' |
   }
 };
 
-const mapFrontendToDb = (frontendStatus: string) => {
+const mapFrontendToDb = (frontendStatus: string): 'pendiente' | 'pagado' | 'facturado' | 'cancelado' | 'factura_solicitada' => {
   switch (frontendStatus) {
     case 'pendiente': return 'pendiente';
     case 'pagada': return 'pagado';
@@ -864,7 +864,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       const updates = Array.from(selectedItems).map(async (itemId) => {
         const { error } = await supabase
           .from('budget_items')
-          .update({ billing_status: mapFrontendToDb(billingStatus) })
+          .update({ billing_status: mapFrontendToDb(billingStatus) as any })
           .eq('id', itemId);
         
         if (error) {
