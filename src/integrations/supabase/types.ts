@@ -933,42 +933,96 @@ export type Database = {
       }
       contacts: {
         Row: {
+          address: string | null
+          allergies: string | null
           artist_id: string | null
+          bank_info: string | null
+          category: string | null
+          city: string | null
+          clothing_size: string | null
           company: string | null
+          contract_url: string | null
+          country: string | null
           created_at: string
           created_by: string
           email: string | null
+          field_config: Json | null
+          iban: string | null
           id: string
+          is_public: boolean | null
+          legal_name: string | null
           name: string
           notes: string | null
           phone: string | null
+          preferred_hours: string | null
+          public_slug: string | null
           role: string | null
+          shared_with_users: string[] | null
+          shoe_size: string | null
+          special_needs: string | null
+          stage_name: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
+          allergies?: string | null
           artist_id?: string | null
+          bank_info?: string | null
+          category?: string | null
+          city?: string | null
+          clothing_size?: string | null
           company?: string | null
+          contract_url?: string | null
+          country?: string | null
           created_at?: string
           created_by: string
           email?: string | null
+          field_config?: Json | null
+          iban?: string | null
           id?: string
+          is_public?: boolean | null
+          legal_name?: string | null
           name: string
           notes?: string | null
           phone?: string | null
+          preferred_hours?: string | null
+          public_slug?: string | null
           role?: string | null
+          shared_with_users?: string[] | null
+          shoe_size?: string | null
+          special_needs?: string | null
+          stage_name?: string | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
+          allergies?: string | null
           artist_id?: string | null
+          bank_info?: string | null
+          category?: string | null
+          city?: string | null
+          clothing_size?: string | null
           company?: string | null
+          contract_url?: string | null
+          country?: string | null
           created_at?: string
           created_by?: string
           email?: string | null
+          field_config?: Json | null
+          iban?: string | null
           id?: string
+          is_public?: boolean | null
+          legal_name?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
+          preferred_hours?: string | null
+          public_slug?: string | null
           role?: string | null
+          shared_with_users?: string[] | null
+          shoe_size?: string | null
+          special_needs?: string | null
+          stage_name?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2482,6 +2536,10 @@ export type Database = {
       check_epk_password_attempts: {
         Args: { client_ip?: unknown; epk_slug: string }
         Returns: Json
+      }
+      generate_contact_slug: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       generate_epk_slug: {
         Args: { artista_proyecto: string }

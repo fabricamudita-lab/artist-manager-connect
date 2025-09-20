@@ -16,6 +16,7 @@ import Booking from "./pages/Booking";
 import Documents from "./pages/Documents";
 import Chat from "./pages/Chat";
 import Solicitudes from "./pages/Solicitudes";
+import Contacts from "./pages/Contacts";
 import NotFound from "./pages/NotFound";
 import DashboardLayout from "./components/DashboardLayout";
 import Projects from "./pages/Projects";
@@ -110,6 +111,13 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Solicitudes />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/contacts" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Contacts />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
