@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText } from 'lucide-react';
+import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText, FolderOpen, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -19,14 +19,17 @@ import { PermissionChip } from '@/components/PermissionChip';
 import { useAuthz } from '@/hooks/useAuthz';
 import { useGlobalSearch } from '@/hooks/useKeyboardShortcuts';
 import { GlobalSearchDialog } from '@/components/GlobalSearchDialog';
-import { FolderOpen, AlertTriangle } from 'lucide-react';
 import { EventFolderDialog } from '@/components/EventFolderDialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { BookingKanban } from '@/components/BookingKanban';
-import { PermissionChip } from '@/components/PermissionChip';
-import { PermissionWrapper } from '@/components/PermissionBoundary';
+import { ReminderBadge } from '@/components/ReminderBadge';
+import { AlertsBadge } from '@/components/AlertsBadge';
 import { exportToCSV } from '@/utils/exportUtils';
 import { EmptyState } from '@/components/ui/empty-state';
+import { validateBookingOffer, ValidationResult } from '@/lib/bookingValidations';
+import { useBookingReminders } from '@/hooks/useBookingReminders';
+import { useBookingFolders } from '@/hooks/useBookingFolders';
+import { getStatusBadgeVariant } from '@/lib/statusColors';
 
 interface BookingOffer {
   id: string;
@@ -92,6 +95,7 @@ export default function Booking() {
   const [selectedFolderOffer, setSelectedFolderOffer] = useState<BookingOffer | null>(null);
   const [contractStatus, setContractStatus] = useState<Record<string, boolean>>({});
   const [folderErrors, setFolderErrors] = useState<Record<string, string>>({});
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
 
   useEffect(() => {
     fetchOffers();
@@ -795,6 +799,7 @@ export default function Booking() {
         onOpenChange={setShowFolderDialog}
         offer={selectedFolderOffer}
       />
+      </div>
     </div>
   );
 }

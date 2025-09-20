@@ -49,7 +49,7 @@ export default function Budgets() {
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
-  const { hasPermission } = useAuthz();
+  const authz = useAuthz();
   const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
 
   useEffect(() => {
@@ -60,30 +60,31 @@ export default function Budgets() {
   const fetchBudgets = async () => {
     setLoading(true);
     try {
-      let query = supabase
+      // Build the query filters
+      const filters: any = {};
+      if (filterStatus !== 'all') {
+        filters.estado = filterStatus;
+      }
+      if (filterArtist !== 'all') {
+        filters.artist_id = filterArtist;
+      }
+
+      const { data, error } = await supabase
         .from('budgets')
         .select(`
           *,
           artists (
             nombre_artistico
           )
-        `);
-
-      if (filterStatus !== 'all') {
-        query = query.eq('estado', filterStatus);
-      }
-
-      if (filterArtist !== 'all') {
-        query = query.eq('artist_id', filterArtist);
-      }
-
-      const { data, error } = await query.order('created_at', { ascending: false });
+        `)
+        .match(filters)
+        .order('created_at', { ascending: false });
 
       if (error) {
         throw error;
       }
 
-      setBudgets(data || []);
+      setBudgets((data as any) || []);
     } catch (error) {
       console.error('Error fetching budgets:', error);
       toast({
@@ -298,7 +299,7 @@ export default function Budgets() {
                               {budget.fecha ? new Date(budget.fecha).toLocaleDateString() : '-'}
                             </TableCell>
                             <TableCell>
-                              <EPKStatusChip status={budget.estado || 'borrador'} />
+                              <Badge variant="outline">{budget.estado || 'borrador'}</Badge>
                             </TableCell>
                             <TableCell>
                               {budget.total_amount ? `€${budget.total_amount.toLocaleString()}` : '-'}</TableCell>
@@ -311,7 +312,7 @@ export default function Budgets() {
                                 >
                                   Ver
                                 </Button>
-                                <PermissionWrapper requiredPermission="deleteBudget">
+                                <PermissionWrapper requiredPermission="manage">
                                   <AlertDialog>
                                     <AlertDialogTrigger asChild>
                                       <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
@@ -362,13 +363,13 @@ export default function Budgets() {
         <CreateBudgetDialog
           open={showCreateDialog}
           onOpenChange={setShowCreateDialog}
-          onBudgetCreated={fetchBudgets}
+          onSuccess={fetchBudgets}
         />
 
         <CreateBudgetFromTemplateDialog
           open={showTemplateDialog}
           onOpenChange={setShowTemplateDialog}
-          onBudgetCreated={fetchBudgets}
+          onSuccess={fetchBudgets}
         />
 
         {selectedBudget && (
@@ -376,6 +377,7 @@ export default function Budgets() {
             open={showDetailsDialog}
             onOpenChange={setShowDetailsDialog}
             budget={selectedBudget}
+            onUpdate={fetchBudgets}
           />
         )}
         
