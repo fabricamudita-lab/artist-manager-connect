@@ -264,85 +264,127 @@ export type Database = {
       }
       booking_offers: {
         Row: {
+          adjuntos: Json | null
           artist_id: string | null
           capacidad: number | null
           ciudad: string | null
+          comision_euros: number | null
+          comision_porcentaje: number | null
           condiciones: string | null
           contacto: string | null
           contratos: string | null
           created_at: string
           created_by: string
+          es_cityzen: boolean | null
+          es_internacional: boolean | null
           estado: string | null
+          estado_facturacion: string | null
           event_id: string | null
           fecha: string | null
+          fee: number | null
           festival_ciclo: string | null
           folder_url: string | null
           formato: string | null
+          gastos_estimados: number | null
           hora: string | null
           id: string
           info_comentarios: string | null
           inicio_venta: string | null
           link_venta: string | null
           lugar: string | null
+          notas: string | null
           oferta: string | null
+          pais: string | null
+          phase: string | null
           project_id: string | null
+          promotor: string | null
+          sort_order: number | null
           tour_manager: string | null
           tour_manager_new: string | null
           updated_at: string
+          venue: string | null
         }
         Insert: {
+          adjuntos?: Json | null
           artist_id?: string | null
           capacidad?: number | null
           ciudad?: string | null
+          comision_euros?: number | null
+          comision_porcentaje?: number | null
           condiciones?: string | null
           contacto?: string | null
           contratos?: string | null
           created_at?: string
           created_by: string
+          es_cityzen?: boolean | null
+          es_internacional?: boolean | null
           estado?: string | null
+          estado_facturacion?: string | null
           event_id?: string | null
           fecha?: string | null
+          fee?: number | null
           festival_ciclo?: string | null
           folder_url?: string | null
           formato?: string | null
+          gastos_estimados?: number | null
           hora?: string | null
           id?: string
           info_comentarios?: string | null
           inicio_venta?: string | null
           link_venta?: string | null
           lugar?: string | null
+          notas?: string | null
           oferta?: string | null
+          pais?: string | null
+          phase?: string | null
           project_id?: string | null
+          promotor?: string | null
+          sort_order?: number | null
           tour_manager?: string | null
           tour_manager_new?: string | null
           updated_at?: string
+          venue?: string | null
         }
         Update: {
+          adjuntos?: Json | null
           artist_id?: string | null
           capacidad?: number | null
           ciudad?: string | null
+          comision_euros?: number | null
+          comision_porcentaje?: number | null
           condiciones?: string | null
           contacto?: string | null
           contratos?: string | null
           created_at?: string
           created_by?: string
+          es_cityzen?: boolean | null
+          es_internacional?: boolean | null
           estado?: string | null
+          estado_facturacion?: string | null
           event_id?: string | null
           fecha?: string | null
+          fee?: number | null
           festival_ciclo?: string | null
           folder_url?: string | null
           formato?: string | null
+          gastos_estimados?: number | null
           hora?: string | null
           id?: string
           info_comentarios?: string | null
           inicio_venta?: string | null
           link_venta?: string | null
           lugar?: string | null
+          notas?: string | null
           oferta?: string | null
+          pais?: string | null
+          phase?: string | null
           project_id?: string | null
+          promotor?: string | null
+          sort_order?: number | null
           tour_manager?: string | null
           tour_manager_new?: string | null
           updated_at?: string
+          venue?: string | null
         }
         Relationships: [
           {

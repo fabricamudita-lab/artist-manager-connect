@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar } from 'lucide-react';
+import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -21,6 +22,7 @@ import { useBookingFolders } from '@/hooks/useBookingFolders';
 import { FolderOpen, AlertTriangle } from 'lucide-react';
 import { EventFolderDialog } from '@/components/EventFolderDialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { BookingKanban } from '@/components/BookingKanban';
 
 interface BookingOffer {
   id: string;
@@ -329,12 +331,12 @@ export default function Booking() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-              <Plus className="h-8 w-8 text-white" />
+              <Kanban className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-playfair font-bold">Ofertas de Booking</h1>
+              <h1 className="text-3xl font-playfair font-bold">Booking</h1>
               <p className="text-white/90 mt-1">
-                Gestiona ofertas de conciertos con información detallada
+                Gestiona ofertas de conciertos por fases con reglas CityZen
               </p>
             </div>
           </div>
@@ -354,13 +356,6 @@ export default function Booking() {
               <Settings className="h-4 w-4 mr-2" />
               Editar plantilla
             </Button>
-            <Button
-              onClick={() => setShowCreateDialog(true)}
-              className="btn-primary bg-white/20 hover:bg-white/30 text-white border-white/20"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Añadir nueva oferta
-            </Button>
           </div>
         </div>
       </div>
@@ -375,93 +370,110 @@ export default function Booking() {
         </Alert>
       )}
 
-      {/* Offers Table Card */}
-      <div className="card-moodita overflow-hidden">
-        <CardContent className="p-0">
-          {offers.length === 0 ? (
-            <div className="p-16 text-center">
-              <div className="w-20 h-20 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Plus className="w-10 h-10 text-muted-foreground" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">No hay ofertas de booking</h3>
-              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                Crea tu primera oferta para comenzar a gestionar tus bookings
-              </p>
-              <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
-                <Plus className="w-4 h-4 mr-2" />
-                Crear Oferta
-              </Button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-muted/30">
-                <TableRow className="border-0">
-                  <TableHead className="font-semibold px-6">Fecha</TableHead>
-                  <TableHead className="font-semibold">Festival / Ciclo</TableHead>
-                  <TableHead className="font-semibold">Ciudad</TableHead>
-                  <TableHead className="font-semibold">Lugar</TableHead>
-                  <TableHead className="font-semibold">Capacidad</TableHead>
-                  <TableHead className="font-semibold">Estado</TableHead>
-                  <TableHead className="font-semibold">Oferta</TableHead>
-                  <TableHead className="font-semibold">Formato</TableHead>
-                  <TableHead className="font-semibold">Contacto</TableHead>
-                  <TableHead className="font-semibold">Tour Manager</TableHead>
-                  <TableHead className="font-semibold">Info / Comentarios</TableHead>
-                  <TableHead className="font-semibold">Condiciones</TableHead>
-                   <TableHead className="font-semibold">Link de venta</TableHead>
-                   <TableHead className="font-semibold">Inicio venta</TableHead>
-                   <TableHead className="font-semibold">Contratos</TableHead>
-                   <TableHead className="font-semibold">Carpeta</TableHead>
-                   <TableHead className="font-semibold">Recordatorios</TableHead>
-                   <TableHead className="font-semibold">Alertas</TableHead>
-                   <TableHead className="text-right font-semibold">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {offers.map((offer) => (
-                  <TableRow key={offer.id} className="cursor-pointer hover:bg-muted/30 transition-colors border-0 group">
-                      <TableCell className="py-4 px-6">
-                        {offer.fecha ? (
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-accent" />
-                            <span className="text-sm font-medium">
-                              {new Date(offer.fecha).toLocaleDateString('es-ES')}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                       <TableCell>
-                         <div className="flex items-center gap-2">
-                           {offer.folder_url ? (
-                             <>
-                               <button
-                                 onClick={() => handleOpenFolder(offer)}
-                                 className="text-primary hover:underline hover:text-primary/80 transition-colors cursor-pointer text-left font-medium"
-                                 title="Abrir carpeta del evento"
-                               >
-                                 {offer.festival_ciclo || '-'}
-                               </button>
-                               <Button
-                                 variant="ghost"
-                                 size="sm"
-                                 onClick={() => handleOpenFolder(offer)}
-                                 className="h-6 w-6 p-0 hover:bg-muted"
-                                 title="Abrir carpeta del evento"
-                               >
-                                 <FolderOpen className="h-3 w-3" />
-                               </Button>
-                             </>
-                           ) : (
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="kanban" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="kanban" className="flex items-center gap-2">
+            <Kanban className="h-4 w-4" />
+            Vista Kanban
+          </TabsTrigger>
+          <TabsTrigger value="table" className="flex items-center gap-2">
+            <List className="h-4 w-4" />
+            Vista Lista
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="kanban" className="mt-6">
+          <BookingKanban templateFields={templateFields} />
+        </TabsContent>
+
+        <TabsContent value="table" className="mt-6">
+          <div className="card-moodita overflow-hidden">
+            <CardContent className="p-0">
+              {offers.length === 0 ? (
+                <div className="p-16 text-center">
+                  <div className="w-20 h-20 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <Plus className="w-10 h-10 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3">No hay ofertas de booking</h3>
+                  <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                    Crea tu primera oferta para comenzar a gestionar tus bookings
+                  </p>
+                  <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Crear Oferta
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-muted/30">
+                    <TableRow className="border-0">
+                      <TableHead className="font-semibold px-6">Fecha</TableHead>
+                      <TableHead className="font-semibold">Festival / Ciclo</TableHead>
+                      <TableHead className="font-semibold">Ciudad</TableHead>
+                      <TableHead className="font-semibold">Lugar</TableHead>
+                      <TableHead className="font-semibold">Capacidad</TableHead>
+                      <TableHead className="font-semibold">Estado</TableHead>
+                      <TableHead className="font-semibold">Oferta</TableHead>
+                      <TableHead className="font-semibold">Formato</TableHead>
+                      <TableHead className="font-semibold">Contacto</TableHead>
+                      <TableHead className="font-semibold">Tour Manager</TableHead>
+                      <TableHead className="font-semibold">Info / Comentarios</TableHead>
+                      <TableHead className="font-semibold">Condiciones</TableHead>
+                       <TableHead className="font-semibold">Link de venta</TableHead>
+                       <TableHead className="font-semibold">Inicio venta</TableHead>
+                       <TableHead className="font-semibold">Contratos</TableHead>
+                       <TableHead className="font-semibold">Carpeta</TableHead>
+                       <TableHead className="font-semibold">Recordatorios</TableHead>
+                       <TableHead className="font-semibold">Alertas</TableHead>
+                       <TableHead className="text-right font-semibold">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {offers.map((offer) => (
+                      <TableRow key={offer.id} className="cursor-pointer hover:bg-muted/30 transition-colors border-0 group">
+                          <TableCell className="py-4 px-6">
+                            {offer.fecha ? (
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-accent" />
+                                <span className="text-sm font-medium">
+                                  {new Date(offer.fecha).toLocaleDateString('es-ES')}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                           <TableCell>
                              <div className="flex items-center gap-2">
-                               <FolderOpen className="h-3 w-3 text-muted-foreground/50" />
-                               <span>{offer.festival_ciclo || '-'}</span>
-                             </div>
-                           )}
-                           {offer.estado === 'confirmado' && offer.id && !contractStatus[offer.id] && (
-                             <div title="Sin contrato">
+                               {offer.folder_url ? (
+                                 <>
+                                   <button
+                                     onClick={() => handleOpenFolder(offer)}
+                                     className="text-primary hover:underline hover:text-primary/80 transition-colors cursor-pointer text-left font-medium"
+                                     title="Abrir carpeta del evento"
+                                   >
+                                     {offer.festival_ciclo || '-'}
+                                   </button>
+                                   <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     onClick={() => handleOpenFolder(offer)}
+                                     className="h-6 w-6 p-0 hover:bg-muted"
+                                     title="Abrir carpeta del evento"
+                                   >
+                                     <FolderOpen className="h-3 w-3" />
+                                   </Button>
+                                 </>
+                               ) : (
+                                 <div className="flex items-center gap-2">
+                                   <FolderOpen className="h-3 w-3 text-muted-foreground/50" />
+                                   <span>{offer.festival_ciclo || '-'}</span>
+                                 </div>
+                               )}
+                               {offer.estado === 'confirmado' && offer.id && !contractStatus[offer.id] && (
+                                 <div title="Sin contrato">
                                <AlertTriangle className="h-4 w-4 text-amber-500" />
                              </div>
                            )}
@@ -637,8 +649,10 @@ export default function Booking() {
             </Table>
             </div>
           )}
-        </CardContent>
+         </CardContent>
       </div>
+        </TabsContent>
+      </Tabs>
 
       <CreateBookingOfferDialog
         open={showCreateDialog}
