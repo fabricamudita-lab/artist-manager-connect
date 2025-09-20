@@ -68,14 +68,14 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
     <Card
       ref={setNodeRef}
       style={style}
-      className="cursor-pointer hover:shadow-md transition-all duration-200 bg-white border border-gray-200"
+      className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-card border border-border shadow-md"
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
               <Avatar className="h-8 w-8">
-                <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                <AvatarFallback className="text-xs bg-primary text-primary-foreground font-semibold">
                   {offer.promotor?.charAt(0)?.toUpperCase() || 'P'}
                 </AvatarFallback>
               </Avatar>
@@ -90,7 +90,7 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
                     if (error) throw error;
                   }}
                   placeholder="Sin promotor"
-                  className="text-sm font-medium truncate"
+                  className="text-sm font-semibold text-foreground truncate"
                 />
                 <InlineEdit
                   value={offer.venue || offer.lugar || ''}
@@ -102,7 +102,7 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
                     if (error) throw error;
                   }}
                   placeholder="Sin venue"
-                  className="text-xs text-muted-foreground truncate"
+                  className="text-xs text-muted-foreground/80 truncate"
                 />
               </div>
             </div>
@@ -121,9 +121,9 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
             </div>
             
             {offer.es_cityzen && (
-              <Badge className="bg-orange-100 text-orange-800 text-xs mb-2">
-                CityZen
-              </Badge>
+            <Badge className="bg-orange-500 text-white text-xs mb-2 font-medium">
+              CityZen
+            </Badge>
             )}
           </div>
           
@@ -167,18 +167,18 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
       <CardContent className="pt-0 space-y-3">
         {/* Location and Date */}
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <MapPin className="h-3 w-3" />
-            <span className="truncate">
+          <div className="flex items-center gap-2 text-xs text-foreground/70">
+            <MapPin className="h-3 w-3 text-muted-foreground" />
+            <span className="truncate font-medium">
               {offer.ciudad && offer.pais ? `${offer.ciudad}, ${offer.pais}` : 
                offer.ciudad || offer.pais || 'Sin ubicación'}
             </span>
           </div>
           
           {offer.fecha && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Calendar className="h-3 w-3" />
-              <span>
+            <div className="flex items-center gap-2 text-xs text-foreground/70">
+              <Calendar className="h-3 w-3 text-muted-foreground" />
+              <span className="font-medium">
                 {new Date(offer.fecha).toLocaleDateString('es-ES')}
               </span>
             </div>
@@ -186,24 +186,24 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
         </div>
 
         {/* Financial Info */}
-        <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+        <div className="bg-muted/30 rounded-lg p-3 space-y-2 border">
           <div className="flex justify-between items-center">
-            <span className="text-xs text-muted-foreground">Fee:</span>
-            <span className="text-sm font-medium">{formatCurrency(offer.fee)}</span>
+            <span className="text-xs text-foreground/60 font-medium">Fee:</span>
+            <span className="text-sm font-bold text-foreground">{formatCurrency(offer.fee)}</span>
           </div>
           
           {offer.gastos_estimados && (
             <div className="flex justify-between items-center">
-              <span className="text-xs text-muted-foreground">Gastos:</span>
-              <span className="text-sm">{formatCurrency(offer.gastos_estimados)}</span>
+              <span className="text-xs text-foreground/60 font-medium">Gastos:</span>
+              <span className="text-sm font-semibold text-foreground">{formatCurrency(offer.gastos_estimados)}</span>
             </div>
           )}
           
-          <div className="flex justify-between items-center border-t border-gray-200 pt-2">
-            <span className="text-xs text-muted-foreground">
+          <div className="flex justify-between items-center border-t border-border pt-2">
+            <span className="text-xs text-foreground/60 font-medium">
               Comisión ({offer.comision_porcentaje || 5}%):
             </span>
-            <span className="text-sm font-medium text-primary">
+            <span className="text-sm font-bold text-primary">
               {formatCurrency(offer.comision_euros)}
             </span>
           </div>
@@ -211,8 +211,8 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
 
         {/* Billing Status */}
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Facturación:</span>
-          <Badge className={`text-xs ${getStatusBadge(offer.estado_facturacion)}`}>
+          <span className="text-xs text-foreground/60 font-medium">Facturación:</span>
+          <Badge className={`text-xs font-medium ${getStatusBadge(offer.estado_facturacion)}`}>
             {offer.estado_facturacion === 'pendiente' ? 'Pendiente' :
              offer.estado_facturacion === 'facturado' ? 'Facturado' :
              offer.estado_facturacion === 'pagado' ? 'Pagado' : 'Vencido'}
@@ -246,7 +246,7 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
         )}
 
         {/* Last updated */}
-        <div className="text-xs text-muted-foreground text-center pt-2 border-t border-gray-100">
+        <div className="text-xs text-muted-foreground text-center pt-2 border-t border-border">
           Actualizado {formatDistanceToNow(new Date(offer.updated_at), { 
             addSuffix: true, 
             locale: es 
