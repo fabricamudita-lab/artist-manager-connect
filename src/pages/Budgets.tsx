@@ -230,7 +230,7 @@ export default function Budgets() {
               <Calculator className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-playfair font-bold">Presupuestos</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-white">Presupuestos</h1>
               <p className="text-white/90 mt-1">
                 Gestiona todos los presupuestos de la empresa
               </p>

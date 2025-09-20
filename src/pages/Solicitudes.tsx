@@ -936,7 +936,7 @@ const confirmStatusChange = async (comment: string) => {
       {/* Header estilo Gmail */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
-          <h1 className="text-3xl font-bold">Solicitudes</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Solicitudes</h1>
           <Badge variant="secondary" className="text-sm px-3 py-1 cursor-pointer" onClick={() => setFilterStatus('all')}>
             ver todas
           </Badge>

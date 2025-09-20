@@ -33,9 +33,20 @@ interface BookingOffer {
   fecha?: string;
   festival_ciclo?: string;
   ciudad?: string;
+  pais?: string;
   lugar?: string;
+  venue?: string;
   capacidad?: number;
   estado?: string;
+  phase?: string;
+  promotor?: string;
+  fee?: number;
+  gastos_estimados?: number;
+  comision_porcentaje?: number;
+  comision_euros?: number;
+  es_cityzen?: boolean;
+  es_internacional?: boolean;
+  estado_facturacion?: string;
   oferta?: string;
   formato?: string;
   contacto?: string;
@@ -406,7 +417,7 @@ export default function Booking() {
               <Kanban className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-playfair font-bold">Booking</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-white">Booking</h1>
               <p className="text-white/90 mt-1">
                 Gestiona ofertas de conciertos por fases con reglas CityZen
               </p>

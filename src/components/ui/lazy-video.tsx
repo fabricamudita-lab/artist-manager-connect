@@ -18,6 +18,7 @@ export function LazyVideo({
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const divRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -30,7 +31,9 @@ export function LazyVideo({
       { threshold: 0.1 }
     );
 
-    if (videoRef.current) {
+    if (divRef.current) {
+      observer.observe(divRef.current);
+    } else if (videoRef.current) {
       observer.observe(videoRef.current);
     }
 
@@ -39,7 +42,7 @@ export function LazyVideo({
 
   if (!isInView) {
     return (
-      <div ref={videoRef} className={cn("relative bg-muted rounded-lg overflow-hidden", className)}>
+      <div ref={divRef} className={cn("relative bg-muted rounded-lg overflow-hidden", className)}>
         <Skeleton className={cn("w-full h-full", skeletonClassName)} />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="bg-black/50 rounded-full p-3">
