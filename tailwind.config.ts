@@ -12,7 +12,7 @@ export default {
 	theme: {
 		container: {
 			center: true,
-			padding: '2rem',
+			padding: 'var(--space-3)',
 			screens: {
 				'2xl': '1400px'
 			}
@@ -20,7 +20,19 @@ export default {
 		extend: {
 			fontFamily: {
 				'inter': ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-				'playfair': ['Playfair Display', 'Georgia', 'serif'],
+				'sans': ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+			},
+			spacing: {
+				'1': 'var(--space-1)',
+				'2': 'var(--space-2)',
+				'3': 'var(--space-3)',
+				'4': 'var(--space-4)',
+				'5': 'var(--space-5)',
+				'6': 'var(--space-6)',
+				'8': 'var(--space-8)',
+				'10': 'var(--space-10)',
+				'12': 'var(--space-12)',
+				'16': 'var(--space-16)',
 			},
 			fontSize: {
 				'xs': ['0.75rem', { lineHeight: '1rem' }],
