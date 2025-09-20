@@ -21,6 +21,7 @@ import { CopyButton } from '@/components/ui/copy-button';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { useGlobalSearch } from '@/hooks/useKeyboardShortcuts';
 import { GlobalSearchDialog } from '@/components/GlobalSearchDialog';
+
 interface Budget {
   id: string;
   name: string;
@@ -43,11 +44,10 @@ interface Budget {
     name: string;
   };
 }
+
 export default function Budgets() {
   usePageTitle('Presupuestos');
-  const {
-    profile
-  } = useAuth();
+  const { profile } = useAuth();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -63,20 +63,19 @@ export default function Budgets() {
   useEffect(() => {
     fetchBudgets();
   }, []);
+
   const fetchBudgets = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('budgets').select(`
-        *,
-        artists (
-          name
-        )
-      `)
-        .order('created_at', {
-        ascending: false
-      });
+      const { data, error } = await supabase
+        .from('budgets')
+        .select(`
+          *,
+          artists (
+            name
+          )
+        `)
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
       setBudgets(data as any || []);
     } catch (error) {
@@ -90,14 +89,18 @@ export default function Budgets() {
       setLoading(false);
     }
   };
+
   const filteredAndSortedBudgets = budgets.filter(budget => {
-    const matchesSearch = budget.name.toLowerCase().includes(searchTerm.toLowerCase()) || budget.city?.toLowerCase().includes(searchTerm.toLowerCase()) || budget.venue?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = budget.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         budget.city?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         budget.venue?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || budget.type === filterType;
     const matchesStatus = filterStatus === 'all' || budget.show_status === filterStatus;
     return matchesSearch && matchesType && matchesStatus;
   }).sort((a, b) => {
     let aValue: string | Date;
     let bValue: string | Date;
+
     switch (sortBy) {
       case 'date':
         aValue = a.event_date ? new Date(a.event_date) : new Date('1900-01-01');
@@ -113,10 +116,12 @@ export default function Budgets() {
         bValue = new Date(b.created_at);
         break;
     }
+
     if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
     if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
     return 0;
   });
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmado':
@@ -129,6 +134,7 @@ export default function Budgets() {
         return 'bg-gray-100 text-gray-800';
     }
   };
+
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'concierto':
@@ -143,6 +149,7 @@ export default function Budgets() {
         return '🧩';
     }
   };
+
   const formatType = (type: string) => {
     const types = {
       'concierto': 'Concierto',
@@ -201,15 +208,20 @@ export default function Budgets() {
       });
     }
   };
+
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">
+    return (
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p>Cargando presupuestos...</p>
         </div>
-      </div>;
+      </div>
+    );
   }
-  return <div className="container-moodita section-spacing space-y-8">
+
+  return (
+    <div className="container-moodita section-spacing space-y-8">
       {/* Hero Header */}
       <div className="card-moodita p-8 bg-gradient-accent text-white">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
@@ -234,7 +246,10 @@ export default function Budgets() {
               Exportar CSV
             </Button>
             <PermissionWrapper requiredPermission="createBudget">
-              <Button onClick={() => setShowCreateDialog(true)} className="btn-primary bg-white/20 hover:bg-white/30 text-white border-white/20">
+              <Button 
+                onClick={() => setShowCreateDialog(true)} 
+                className="btn-primary bg-white/20 hover:bg-white/30 text-white border-white/20"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Nuevo Presupuesto
               </Button>
@@ -249,7 +264,12 @@ export default function Budgets() {
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input placeholder="Buscar por nombre, ciudad o lugar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input-modern pl-10" />
+              <Input 
+                placeholder="Buscar por nombre, ciudad o lugar..." 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)} 
+                className="input-modern pl-10" 
+              />
             </div>
             <Select value={filterType} onValueChange={setFilterType}>
               <SelectTrigger className="w-full lg:w-48 input-modern">
@@ -275,11 +295,14 @@ export default function Budgets() {
                 <SelectItem value="cancelado">Cancelado</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={`${sortBy}-${sortOrder}`} onValueChange={value => {
-            const [field, order] = value.split('-') as [typeof sortBy, typeof sortOrder];
-            setSortBy(field);
-            setSortOrder(order);
-          }}>
+            <Select 
+              value={`${sortBy}-${sortOrder}`} 
+              onValueChange={(value) => {
+                const [field, order] = value.split('-') as [typeof sortBy, typeof sortOrder];
+                setSortBy(field);
+                setSortOrder(order);
+              }}
+            >
               <SelectTrigger className="w-full lg:w-48 input-modern">
                 <SelectValue placeholder="Ordenar por" />
               </SelectTrigger>
@@ -342,7 +365,11 @@ export default function Budgets() {
               </TableHeader>
               <TableBody>
                 {filteredAndSortedBudgets.map((budget) => (
-                  <TableRow key={budget.id} className="cursor-pointer hover:bg-muted/30 transition-colors border-0 group" onClick={() => setSelectedBudget(budget)}>
+                  <TableRow 
+                    key={budget.id} 
+                    className="cursor-pointer hover:bg-muted/30 transition-colors border-0 group" 
+                    onClick={() => setSelectedBudget(budget)}
+                  >
                     <TableCell className="py-4">
                       <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
                         <div className="text-white">{getTypeIcon(budget.type)}</div>
@@ -355,26 +382,42 @@ export default function Budgets() {
                       </div>
                     </TableCell>
                     <TableCell className="py-4">
-                      {budget.city && budget.country ? <div className="flex items-center gap-2">
+                      {budget.city && budget.country ? (
+                        <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-secondary" />
                           <span className="text-sm">{budget.city}, {budget.country}</span>
-                        </div> : <span className="text-muted-foreground">-</span>}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell className="py-4">
-                      {budget.event_date ? <div className="flex items-center gap-2">
+                      {budget.event_date ? (
+                        <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-accent" />
                           <span className="text-sm font-medium">
                             {new Date(budget.event_date).toLocaleDateString()}
                           </span>
-                        </div> : <span className="text-muted-foreground">-</span>}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell className="py-4">
-                      {budget.event_time ? <span className="text-sm font-medium">{budget.event_time}</span> : <span className="text-muted-foreground">-</span>}
+                      {budget.event_time ? (
+                        <span className="text-sm font-medium">{budget.event_time}</span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell className="py-4">
-                      {budget.fee > 0 ? <div className="badge-success">
+                      {budget.fee > 0 ? (
+                        <div className="badge-success">
                           €{budget.fee.toLocaleString()}
-                        </div> : <span className="text-muted-foreground">-</span>}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell className="py-4">
                       <Badge className={getStatusColor(budget.show_status)}>
@@ -382,10 +425,14 @@ export default function Budgets() {
                       </Badge>
                     </TableCell>
                     <TableCell className="py-4">
-                      {budget.artists?.name ? <div className="flex items-center gap-2">
+                      {budget.artists?.name ? (
+                        <div className="flex items-center gap-2">
                           <User className="w-4 h-4 text-primary" />
                           <span className="text-sm font-medium">{budget.artists.name}</span>
-                        </div> : <span className="text-muted-foreground">-</span>}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell className="py-4">
                       <EPKStatusChip
@@ -399,10 +446,15 @@ export default function Budgets() {
                       />
                     </TableCell>
                     <TableCell className="py-4">
-                      <Button size="sm" variant="ghost" onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedBudget(budget);
-                      }} className="btn-ghost-modern">
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedBudget(budget);
+                        }} 
+                        className="btn-ghost-modern"
+                      >
                         Ver
                       </Button>
                     </TableCell>
@@ -415,7 +467,11 @@ export default function Budgets() {
       )}
 
       {/* Dialogs */}
-      <CreateBudgetDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} onSuccess={fetchBudgets} />
+      <CreateBudgetDialog 
+        open={showCreateDialog} 
+        onOpenChange={setShowCreateDialog} 
+        onSuccess={fetchBudgets} 
+      />
       
       {selectedBudget && (
         <BudgetDetailsDialog 
