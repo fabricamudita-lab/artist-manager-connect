@@ -615,7 +615,7 @@ export default function Calendar() {
                 <CalendarIcon className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-playfair font-bold">Calendario Profesional</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Calendario Profesional</h1>
                 <p className="text-white/90">Organiza y visualiza todos tus eventos</p>
               </div>
             </div>

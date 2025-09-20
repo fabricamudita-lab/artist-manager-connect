@@ -384,7 +384,7 @@ export default function Booking() {
               <Kanban className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-playfair font-bold">Booking</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Booking</h1>
               <p className="text-white/90 mt-1">
                 Gestiona ofertas de conciertos por fases con reglas CityZen
               </p>
