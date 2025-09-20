@@ -2,9 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/useCommon';
 import ComprehensiveDashboard from '@/components/ComprehensiveDashboard';
 import { PermissionChip } from '@/components/PermissionChip';
-import { Loader2, Calendar, PieChart, Music, Users, TrendingUp } from 'lucide-react';
-import { PageHeader, QuickAction } from '@/components/ui/page-header';
-import { PageContainer } from '@/components/ui/responsive-container';
+import { Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
   usePageTitle('Dashboard');
@@ -39,28 +37,19 @@ export default function Dashboard() {
   console.log('Dashboard - Rendering dashboard for role:', profile.active_role);
 
   return (
-    <PageContainer>
-      <PageHeader
-        title="Dashboard"
-        subtitle={`Bienvenido, ${profile.full_name} (${profile.active_role === 'artist' ? 'Artista' : 'Management'})`}
-        breadcrumbs={[
-          { label: 'Dashboard' }
-        ]}
-        actions={
-          <div className="flex items-center gap-3">
-            <PermissionChip />
-            <QuickAction icon={<Calendar className="h-4 w-4" />} variant="outline">
-              Nuevo Evento
-            </QuickAction>
-            <QuickAction icon={<PieChart className="h-4 w-4" />}>
-              Crear Presupuesto
-            </QuickAction>
+    <div className="p-6">
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground">
+              Bienvenido, {profile.full_name} ({profile.active_role === 'artist' ? 'Artista' : 'Management'})
+            </p>
           </div>
-        }
-      />
-      <div className="mt-8">
-        <ComprehensiveDashboard />
+          <PermissionChip />
+        </div>
       </div>
-    </PageContainer>
+      <ComprehensiveDashboard />
+    </div>
   );
 }

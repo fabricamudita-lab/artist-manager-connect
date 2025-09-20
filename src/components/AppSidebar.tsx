@@ -26,16 +26,20 @@ import { useState } from 'react';
 
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
+  { title: "Calendario", url: "/calendar", icon: Calendar },
   { title: "Presupuestos", url: "/budgets", icon: Calculator },
-  { title: "Booking", url: "/booking", icon: Calendar },
-  { title: "EPKs", url: "/epks", icon: Mic },
-  { title: "Contactos", url: "/contacts", icon: Users },
+  { title: "Booking", url: "/booking", icon: Mic },
+  { title: "Solicitudes", url: "/solicitudes", icon: ClipboardList },
+  { title: "Proyectos", url: "/projects", icon: Folder },
+  { title: "EPKs", url: "/epks", icon: FileImage },
+  { title: "Documentos", url: "/documents", icon: FileText },
+  { title: "Chat", url: "/chat", icon: MessageCircle },
 ];
 
 const managementItems = [
-  { title: "Proyectos", url: "/projects", icon: Folder },
-  { title: "Solicitudes", url: "/solicitudes", icon: ClipboardList },
-  { title: "Aprobaciones", url: "/approvals", icon: Send },
+  { title: "Solicitudes", url: "/dashboard?tab=requests", icon: Send },
+  { title: "Artistas", url: "/dashboard?tab=artists", icon: Users },
+  { title: "Finanzas", url: "/dashboard?tab=financial", icon: DollarSign },
 ];
 
 export function AppSidebar() {
@@ -61,18 +65,18 @@ export function AppSidebar() {
   };
 
   return (
-    <Card className={`h-screen border-r rounded-none ${isCollapsed ? 'w-16' : 'w-64'} transition-all duration-200 bg-sidebar border-sidebar-border`}>
+    <Card className={`h-screen border-r rounded-none ${isCollapsed ? 'w-16' : 'w-64'} transition-all duration-300`}>
       <CardContent className="p-0 h-full flex flex-col">
         {/* Header */}
-        <div className="p-4 border-b border-sidebar-border flex items-center justify-between">
+        <div className="p-4 border-b flex items-center justify-between bg-gradient-primary">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shadow-soft">
-              <Music className="w-5 h-5 text-primary-foreground" />
+            <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+              <Music className="w-5 h-5 text-white" />
             </div>
             {!isCollapsed && (
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-sidebar-foreground">MOODITA</h1>
-                <p className="text-xs text-sidebar-foreground/60">Gestión Artística</p>
+                <h1 className="text-lg font-bold font-playfair text-white">MOODITA</h1>
+                <p className="text-xs text-white/80">Gestión Artística</p>
               </div>
             )}
           </div>
@@ -80,7 +84,7 @@ export function AppSidebar() {
             variant="ghost"
             size="icon"
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="text-sidebar-foreground hover:bg-sidebar-accent"
+            className="text-white hover:bg-white/20"
           >
             <Menu className="w-4 h-4" />
           </Button>

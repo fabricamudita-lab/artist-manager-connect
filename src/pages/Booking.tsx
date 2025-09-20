@@ -6,7 +6,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { BookingOffer } from '@/types/booking';
 import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,7 +28,30 @@ import { PermissionWrapper } from '@/components/PermissionBoundary';
 import { exportToCSV } from '@/utils/exportUtils';
 import { EmptyState } from '@/components/ui/empty-state';
 
-// Using centralized BookingOffer interface from types/booking.ts
+interface BookingOffer {
+  id: string;
+  fecha?: string;
+  festival_ciclo?: string;
+  ciudad?: string;
+  lugar?: string;
+  capacidad?: number;
+  estado?: string;
+  oferta?: string;
+  formato?: string;
+  contacto?: string;
+  tour_manager?: string;
+  info_comentarios?: string;
+  condiciones?: string;
+  link_venta?: string;
+  inicio_venta?: string;
+  contratos?: string;
+  artist_id?: string;
+  project_id?: string;
+  event_id?: string;
+  hora?: string;
+  folder_url?: string;
+  created_at: string;
+}
 
 interface TemplateField {
   id: string;
@@ -384,7 +406,7 @@ export default function Booking() {
               <Kanban className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">Booking</h1>
+              <h1 className="text-3xl font-playfair font-bold">Booking</h1>
               <p className="text-white/90 mt-1">
                 Gestiona ofertas de conciertos por fases con reglas CityZen
               </p>

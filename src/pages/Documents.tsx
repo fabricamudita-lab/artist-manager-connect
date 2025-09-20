@@ -214,7 +214,7 @@ export default function Documents() {
             <FileText className="h-8 w-8 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Gestión de Documentos</h1>
+            <h1 className="text-3xl font-playfair font-bold">Gestión de Documentos</h1>
             <p className="text-white/90 mt-1">Organiza y accede a toda tu documentación profesional</p>
           </div>
         </div>

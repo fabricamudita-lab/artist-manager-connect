@@ -17,7 +17,6 @@ export function LazyVideo({
 }: LazyVideoProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -31,8 +30,8 @@ export function LazyVideo({
       { threshold: 0.1 }
     );
 
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
+    if (videoRef.current) {
+      observer.observe(videoRef.current);
     }
 
     return () => observer.disconnect();
@@ -40,7 +39,7 @@ export function LazyVideo({
 
   if (!isInView) {
     return (
-      <div ref={containerRef} className={cn("relative bg-muted rounded-xl overflow-hidden", className)}>
+      <div ref={videoRef} className={cn("relative bg-muted rounded-lg overflow-hidden", className)}>
         <Skeleton className={cn("w-full h-full", skeletonClassName)} />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="bg-black/50 rounded-full p-3">
