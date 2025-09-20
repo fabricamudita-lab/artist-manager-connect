@@ -17,6 +17,10 @@ import { PermissionChip } from '@/components/PermissionChip';
 import { PermissionWrapper } from '@/components/PermissionBoundary';
 import { exportToCSV } from '@/utils/exportUtils';
 import { EmptyState } from '@/components/ui/empty-state';
+import { CopyButton } from '@/components/ui/copy-button';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
+import { useGlobalSearch } from '@/hooks/useKeyboardShortcuts';
+import { GlobalSearchDialog } from '@/components/GlobalSearchDialog';
 interface Budget {
   id: string;
   name: string;
@@ -53,6 +57,9 @@ export default function Budgets() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
+  
+  const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
+  
   useEffect(() => {
     fetchBudgets();
   }, []);
@@ -316,6 +323,7 @@ export default function Budgets() {
           } : undefined}
         />
       ) : (
+        <div className="card-moodita">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/30">
@@ -333,7 +341,8 @@ export default function Budgets() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAndSortedBudgets.map(budget => <TableRow key={budget.id} className="cursor-pointer hover:bg-muted/30 transition-colors border-0 group" onClick={() => setSelectedBudget(budget)}>
+                {filteredAndSortedBudgets.map((budget) => (
+                  <TableRow key={budget.id} className="cursor-pointer hover:bg-muted/30 transition-colors border-0 group" onClick={() => setSelectedBudget(budget)}>
                     <TableCell className="py-4">
                       <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
                         <div className="text-white">{getTypeIcon(budget.type)}</div>
@@ -390,14 +399,15 @@ export default function Budgets() {
                       />
                     </TableCell>
                     <TableCell className="py-4">
-                      <Button size="sm" variant="ghost" onClick={e => {
-                  e.stopPropagation();
-                  setSelectedBudget(budget);
-                }} className="btn-ghost-modern">
+                      <Button size="sm" variant="ghost" onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedBudget(budget);
+                      }} className="btn-ghost-modern">
                         Ver
                       </Button>
                     </TableCell>
-                  </TableRow>)}
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </div>
@@ -419,6 +429,11 @@ export default function Budgets() {
           }} 
         />
       )}
+      
+      <GlobalSearchDialog 
+        open={showGlobalSearch} 
+        onOpenChange={setShowGlobalSearch} 
+      />
     </div>
   );
 }

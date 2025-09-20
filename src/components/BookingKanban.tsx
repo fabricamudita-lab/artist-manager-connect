@@ -14,6 +14,10 @@ import { CreateBookingOfferDialog } from './CreateBookingOfferDialog';
 import { exportToCSV, generateOfferNumber } from '@/utils/exportUtils';
 import { CopyButton } from '@/components/ui/copy-button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
+import { CardSkeleton } from '@/components/ui/card-skeleton';
+import { useGlobalSearch } from '@/hooks/useKeyboardShortcuts';
+import { GlobalSearchDialog } from '@/components/GlobalSearchDialog';
 
 export interface BookingOffer {
   id: string;
@@ -79,6 +83,8 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
   const [promoterFilter, setPromoterFilter] = useState<string>('all');
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  
+  const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
 
   useEffect(() => {
     fetchOffers();
@@ -322,12 +328,26 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
 
   if (loading) {
     return (
-      <EmptyState
-        icon={<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />}
-        title="Cargando ofertas..."
-        description="Obteniendo las ofertas de booking desde el servidor"
-        size="sm"
-      />
+      <div className="space-y-6">
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+          <div className="flex flex-wrap gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="w-40 h-10 bg-muted rounded animate-pulse" />
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <div className="w-32 h-10 bg-muted rounded animate-pulse" />
+            <div className="w-32 h-10 bg-muted rounded animate-pulse" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          {PHASES.map(phase => (
+            <Card key={phase.id} className={`${phase.color} border-2`}>
+              <CardSkeleton contentLines={3} />
+            </Card>
+          ))}
+        </div>
+      </div>
     );
   }
 
@@ -458,6 +478,11 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
         onOpenChange={setShowCreateDialog}
         onOfferCreated={fetchOffers}
         templateFields={templateFields}
+      />
+      
+      <GlobalSearchDialog 
+        open={showGlobalSearch} 
+        onOpenChange={setShowGlobalSearch} 
       />
     </div>
   );

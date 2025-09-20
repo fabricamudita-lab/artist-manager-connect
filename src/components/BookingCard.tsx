@@ -11,6 +11,9 @@ import { es } from 'date-fns/locale';
 import { BookingOffer } from './BookingKanban';
 import { generateOfferNumber } from '@/utils/exportUtils';
 import { CopyButton } from '@/components/ui/copy-button';
+import { InlineEdit } from '@/components/ui/inline-edit';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 interface BookingCardProps {
   offer: BookingOffer;
@@ -77,12 +80,30 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
                 </AvatarFallback>
               </Avatar>
               <div className="truncate">
-                <p className="text-sm font-medium truncate">
-                  {offer.promotor || 'Sin promotor'}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {offer.venue || offer.lugar || 'Sin venue'}
-                </p>
+                <InlineEdit
+                  value={offer.promotor || ''}
+                  onSave={async (newValue) => {
+                    const { error } = await supabase
+                      .from('booking_offers')
+                      .update({ promotor: newValue })
+                      .eq('id', offer.id);
+                    if (error) throw error;
+                  }}
+                  placeholder="Sin promotor"
+                  className="text-sm font-medium truncate"
+                />
+                <InlineEdit
+                  value={offer.venue || offer.lugar || ''}
+                  onSave={async (newValue) => {
+                    const { error } = await supabase
+                      .from('booking_offers')
+                      .update({ venue: newValue })
+                      .eq('id', offer.id);
+                    if (error) throw error;
+                  }}
+                  placeholder="Sin venue"
+                  className="text-xs text-muted-foreground truncate"
+                />
               </div>
             </div>
             
