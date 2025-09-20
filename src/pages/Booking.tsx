@@ -13,12 +13,12 @@ import { toast } from '@/hooks/use-toast';
 import { CreateBookingOfferDialog } from '@/components/CreateBookingOfferDialog';
 import { EditBookingTemplateDialog } from '@/components/EditBookingTemplateDialog';
 import { EditBookingOfferDialog } from '@/components/EditBookingOfferDialog';
-import { AlertsBadge } from '@/components/AlertsBadge';
-import { validateBookingOffer, ValidationResult } from '@/lib/bookingValidations';
-import { useBookingReminders } from '@/hooks/useBookingReminders';
-import { ReminderBadge } from '@/components/ReminderBadge';
-import { getStatusBadgeColor, getStatusBadgeVariant } from '@/lib/statusColors';
-import { useBookingFolders } from '@/hooks/useBookingFolders';
+import { usePageTitle } from '@/hooks/useCommon';
+import { PermissionBoundary, PermissionWrapper } from '@/components/PermissionBoundary';
+import { PermissionChip } from '@/components/PermissionChip';
+import { useAuthz } from '@/hooks/useAuthz';
+import { useGlobalSearch } from '@/hooks/useKeyboardShortcuts';
+import { GlobalSearchDialog } from '@/components/GlobalSearchDialog';
 import { FolderOpen, AlertTriangle } from 'lucide-react';
 import { EventFolderDialog } from '@/components/EventFolderDialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -75,6 +75,7 @@ interface TemplateField {
 }
 
 export default function Booking() {
+  usePageTitle('Booking');
   const { profile } = useAuth();
   const [offers, setOffers] = useState<BookingOffer[]>([]);
   const [templateFields, setTemplateFields] = useState<TemplateField[]>([]);
@@ -401,30 +402,28 @@ export default function Booking() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="container mx-auto p-4 space-y-6">
         <div className="text-lg">Cargando...</div>
       </div>
     );
   }
 
   return (
-    <div className="container-moodita section-spacing space-y-8">
-      {/* Hero Header */}
-      <div className="card-moodita p-8 bg-gradient-accent text-white">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-              <Kanban className="h-8 w-8 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
+      <div className="container-moodita section-spacing space-y-8">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-primary rounded-xl">
+              <Kanban className="h-6 w-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-white">Booking</h1>
-              <p className="text-white/90 mt-1">
-                Gestiona ofertas de conciertos por fases con reglas CityZen
-              </p>
+              <h1 className="text-3xl font-bold text-gradient-primary tracking-tight">Booking</h1>
+              <p className="text-muted-foreground">Gestiona ofertas de conciertos por fases con reglas CityZen</p>
             </div>
           </div>
+          
           <div className="flex items-center gap-3">
-            <PermissionChip className="bg-white/10 border-white/20 text-white" />
+            <PermissionChip />
             <div className="flex gap-3">
               <Button
                 onClick={() => handleExportCSV()}
@@ -446,7 +445,7 @@ export default function Booking() {
               <PermissionWrapper requiredPermission="edit">
                 <Button
                   onClick={() => setShowTemplateDialog(true)}
-                  className="btn-secondary bg-white/20 hover:bg-white/30 text-white border-white/20"
+                  className="btn-secondary"
                 >
                   <Settings className="h-4 w-4 mr-2" />
                   Editar plantilla
@@ -455,37 +454,36 @@ export default function Booking() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Contract Warning for Confirmed Events without Contracts */}
-      {offers.some(offer => offer.estado === 'confirmado' && offer.id && !contractStatus[offer.id]) && (
-        <Alert className="border-warning/20 bg-warning/10">
-          <AlertTriangle className="h-4 w-4 text-warning" />
-          <AlertDescription className="text-warning">
-            <strong>Aviso:</strong> Hay eventos confirmados sin contrato subido. Revisa las ofertas marcadas.
-          </AlertDescription>
-        </Alert>
-      )}
+        {/* Contract Warning for Confirmed Events without Contracts */}
+        {offers.some(offer => offer.estado === 'confirmado' && offer.id && !contractStatus[offer.id]) && (
+          <Alert className="border-warning/20 bg-warning/10">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            <AlertDescription className="text-warning">
+              <strong>Aviso:</strong> Hay eventos confirmados sin contrato subido. Revisa las ofertas marcadas.
+            </AlertDescription>
+          </Alert>
+        )}
 
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="kanban" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="kanban" className="flex items-center gap-2">
-            <Kanban className="h-4 w-4" />
-            Vista Kanban
-          </TabsTrigger>
-          <TabsTrigger value="table" className="flex items-center gap-2">
-            <List className="h-4 w-4" />
-            Vista Lista
-          </TabsTrigger>
-        </TabsList>
+        {/* Main Content Tabs */}
+        <Tabs defaultValue="kanban" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="kanban" className="flex items-center gap-2">
+              <Kanban className="h-4 w-4" />
+              Vista Kanban
+            </TabsTrigger>
+            <TabsTrigger value="table" className="flex items-center gap-2">
+              <List className="h-4 w-4" />
+              Vista Tabla
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="kanban" className="mt-6">
-          <BookingKanban templateFields={templateFields} />
-        </TabsContent>
+          <TabsContent value="kanban" className="space-y-6">
+            <BookingKanban templateFields={templateFields} />
+          </TabsContent>
 
-        <TabsContent value="table" className="mt-6">
-          <div className="card-moodita overflow-hidden">
+          <TabsContent value="table" className="space-y-6">
+            <div className="card-moodita overflow-hidden">
             <CardContent className="p-0">
               {offers.length === 0 ? (
                 <EmptyState
@@ -786,6 +784,11 @@ export default function Booking() {
           templateFields={templateFields}
         />
       )}
+
+      <GlobalSearchDialog 
+        open={showGlobalSearch} 
+        onOpenChange={setShowGlobalSearch} 
+      />
 
       <EventFolderDialog
         open={showFolderDialog}

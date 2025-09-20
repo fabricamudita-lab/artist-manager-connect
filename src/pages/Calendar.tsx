@@ -605,21 +605,18 @@ export default function Calendar() {
   }
 
   return (
-    <div className="container-moodita section-spacing space-y-8">
-      {/* Hero Header */}
-      <div className="card-moodita p-8 bg-gradient-hero text-white">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                <CalendarIcon className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight text-white">Calendario Profesional</h1>
-                <p className="text-white/90">Organiza y visualiza todos tus eventos</p>
-              </div>
-            </div>
+      <div className="container-moodita section-spacing space-y-8">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-primary rounded-xl">
+            <CalendarIcon className="h-6 w-6 text-primary-foreground" />
           </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gradient-primary tracking-tight">Calendario Profesional</h1>
+            <p className="text-muted-foreground">Organiza y visualiza todos tus eventos</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-between">
           <CreateEventDialog 
             onEventCreated={fetchEvents}
             shouldOpen={shouldOpenCreateDialog}
@@ -627,7 +624,6 @@ export default function Calendar() {
             prefilledData={prefilledData}
           />
         </div>
-      </div>
 
       {/* Artist Selector */}
       <div className="card-moodita hover-lift">

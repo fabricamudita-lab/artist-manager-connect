@@ -13,71 +13,77 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from '@/hooks/use-toast';
 import CreateBudgetDialog from '@/components/CreateBudgetDialog';
 import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
+import { CreateBudgetFromTemplateDialog } from '@/components/CreateBudgetFromTemplateDialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { PermissionBoundary, PermissionWrapper } from '@/components/PermissionBoundary';
 import { PermissionChip } from '@/components/PermissionChip';
-import { PermissionWrapper } from '@/components/PermissionBoundary';
-import { exportToCSV } from '@/utils/exportUtils';
-import { EmptyState } from '@/components/ui/empty-state';
-import { CopyButton } from '@/components/ui/copy-button';
-import { TableSkeleton } from '@/components/ui/table-skeleton';
+import { useAuthz } from '@/hooks/useAuthz';
 import { useGlobalSearch } from '@/hooks/useKeyboardShortcuts';
 import { GlobalSearchDialog } from '@/components/GlobalSearchDialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Budget {
   id: string;
   name: string;
-  type: 'concierto' | 'produccion_musical' | 'campana_promocional' | 'videoclip' | 'otros';
-  city: string;
-  country: string;
-  venue: string;
-  budget_status: 'nacional' | 'internacional';
-  show_status: 'confirmado' | 'pendiente' | 'cancelado';
-  internal_notes: string;
+  ciudad?: string;
+  lugar?: string;
+  fecha?: string;
+  estado?: string;
+  total_amount?: number;
+  artist_id?: string;
   created_at: string;
-  artist_id: string;
-  event_date: string;
-  event_time: string;
-  fee: number;
-  profiles?: {
-    full_name: string;
-  };
   artists?: {
-    name: string;
+    nombre_artistico: string;
   };
 }
 
 export default function Budgets() {
   usePageTitle('Presupuestos');
-  const { profile } = useAuth();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [sortBy, setSortBy] = useState<'date' | 'name' | 'created_at'>('created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [filterArtist, setFilterArtist] = useState('all');
+  const [artists, setArtists] = useState([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
-  
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [selectedBudget, setSelectedBudget] = useState(null);
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const { hasPermission } = useAuthz();
   const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
-  
+
   useEffect(() => {
     fetchBudgets();
+    fetchArtists();
   }, []);
 
   const fetchBudgets = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('budgets')
         .select(`
           *,
           artists (
-            name
+            nombre_artistico
           )
-        `)
-        .order('created_at', { ascending: false });
+        `);
 
-      if (error) throw error;
-      setBudgets(data as any || []);
+      if (filterStatus !== 'all') {
+        query = query.eq('estado', filterStatus);
+      }
+
+      if (filterArtist !== 'all') {
+        query = query.eq('artist_id', filterArtist);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      setBudgets(data || []);
     } catch (error) {
       console.error('Error fetching budgets:', error);
       toast({
@@ -90,406 +96,294 @@ export default function Budgets() {
     }
   };
 
-  const filteredAndSortedBudgets = budgets.filter(budget => {
-    const matchesSearch = budget.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         budget.city?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         budget.venue?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || budget.type === filterType;
-    const matchesStatus = filterStatus === 'all' || budget.show_status === filterStatus;
-    return matchesSearch && matchesType && matchesStatus;
-  }).sort((a, b) => {
-    let aValue: string | Date;
-    let bValue: string | Date;
+  const fetchArtists = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('artists')
+        .select('id, nombre_artistico')
+        .order('nombre_artistico', { ascending: true });
 
-    switch (sortBy) {
-      case 'date':
-        aValue = a.event_date ? new Date(a.event_date) : new Date('1900-01-01');
-        bValue = b.event_date ? new Date(b.event_date) : new Date('1900-01-01');
-        break;
-      case 'name':
-        aValue = a.name.toLowerCase();
-        bValue = b.name.toLowerCase();
-        break;
-      case 'created_at':
-      default:
-        aValue = new Date(a.created_at);
-        bValue = new Date(b.created_at);
-        break;
+      if (error) {
+        throw error;
+      }
+
+      setArtists(data || []);
+    } catch (error) {
+      console.error('Error fetching artists:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los artistas",
+        variant: "destructive"
+      });
     }
+  };
 
-    if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-    if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-    return 0;
+  const handleDeleteBudget = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('budgets')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Éxito",
+        description: "Presupuesto eliminado correctamente",
+      });
+
+      fetchBudgets();
+    } catch (error) {
+      console.error('Error deleting budget:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el presupuesto",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleViewBudget = (budget) => {
+    setSelectedBudget(budget);
+    setShowDetailsDialog(true);
+  };
+
+  const filteredBudgets = budgets.filter(budget => {
+    const searchTermLower = searchTerm.toLowerCase();
+    return (
+      budget.name.toLowerCase().includes(searchTermLower) ||
+      (budget.artists?.nombre_artistico?.toLowerCase().includes(searchTermLower)) ||
+      (budget.ciudad?.toLowerCase().includes(searchTermLower)) ||
+      (budget.lugar?.toLowerCase().includes(searchTermLower))
+    );
   });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmado':
-        return 'bg-green-100 text-green-800';
-      case 'pendiente':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'cancelado':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'concierto':
-        return <Truck className="w-4 h-4" />;
-      case 'produccion_musical':
-        return <MicIcon className="w-4 h-4" />;
-      case 'campana_promocional':
-        return '📣';
-      case 'videoclip':
-        return '🎬';
-      default:
-        return '🧩';
-    }
-  };
-
-  const formatType = (type: string) => {
-    const types = {
-      'concierto': 'Concierto',
-      'produccion_musical': 'Producción Musical',
-      'campana_promocional': 'Campaña Promocional',
-      'videoclip': 'Videoclip',
-      'otros': 'Otros'
-    };
-    return types[type as keyof typeof types] || type;
-  };
-
   const handleExportCSV = () => {
-    try {
-      const csvHeaders = {
-        name: 'Nombre',
-        type: 'Tipo',
-        city: 'Ciudad',
-        country: 'País',
-        venue: 'Venue',
-        event_date: 'Fecha evento',
-        event_time: 'Hora evento',
-        fee: 'Fee (€)',
-        budget_status: 'Estado presupuesto',
-        show_status: 'Estado show',
-        'artists.name': 'Artista',
-        created_at: 'Fecha creación'
-      };
-
-      const exportData = filteredAndSortedBudgets.map(budget => ({
-        name: budget.name,
-        type: formatType(budget.type),
-        city: budget.city || '',
-        country: budget.country || '',
-        venue: budget.venue || '',
-        event_date: budget.event_date ? new Date(budget.event_date).toLocaleDateString() : '',
-        event_time: budget.event_time || '',
-        fee: budget.fee || 0,
-        budget_status: budget.budget_status || '',
-        show_status: budget.show_status || '',
-        'artists.name': budget.artists?.name || '',
-        created_at: new Date(budget.created_at).toLocaleDateString()
-      }));
-
-      exportToCSV(exportData, 'presupuestos', csvHeaders);
-      
-      toast({
-        title: "Exportación exitosa",
-        description: "Los presupuestos se han exportado correctamente",
-      });
-    } catch (error) {
-      console.error('Error exporting budgets:', error);
-      toast({
-        title: "Error de exportación",
-        description: "No se pudieron exportar los presupuestos",
-        variant: "destructive",
-      });
-    }
+    // Implement your CSV export logic here
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Cargando presupuestos...</p>
-        </div>
+      <div className="container mx-auto p-4 space-y-6">
+        <div className="text-lg">Cargando...</div>
       </div>
     );
   }
 
   return (
-    <div className="container-moodita section-spacing space-y-8">
-      {/* Hero Header */}
-      <div className="card-moodita p-8 bg-gradient-accent text-white">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-              <Calculator className="h-8 w-8 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
+      <div className="container-moodita section-spacing space-y-8">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-primary rounded-xl">
+              <Calculator className="h-6 w-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-white">Presupuestos</h1>
-              <p className="text-white/90 mt-1">
-                Gestiona todos los presupuestos de la empresa
-              </p>
+              <h1 className="text-3xl font-bold text-gradient-primary tracking-tight">Presupuestos</h1>
+              <p className="text-muted-foreground">Gestiona todos los presupuestos de la empresa</p>
             </div>
           </div>
+          
           <div className="flex items-center gap-3">
-            <PermissionChip className="bg-white/10 border-white/20 text-white" />
-            <Button
-              onClick={() => handleExportCSV()}
-              className="btn-secondary bg-white/20 hover:bg-white/30 text-white border-white/20"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Exportar CSV
-            </Button>
-            <PermissionWrapper requiredPermission="createBudget">
-              <Button 
-                onClick={() => setShowCreateDialog(true)} 
-                className="btn-primary bg-white/20 hover:bg-white/30 text-white border-white/20"
+            <PermissionChip />
+            <div className="flex gap-3">
+              <Button
+                onClick={() => handleExportCSV()}
+                className="btn-secondary"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Nuevo Presupuesto
+                <Download className="w-4 h-4 mr-2" />
+                Exportar CSV
               </Button>
-            </PermissionWrapper>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="card-moodita hover-lift">
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input 
-                placeholder="Buscar por nombre, ciudad o lugar..." 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)} 
-                className="input-modern pl-10" 
-              />
+              <PermissionWrapper requiredPermission="createBudget">
+                <Button 
+                  onClick={() => setShowCreateDialog(true)} 
+                  className="btn-primary"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nuevo Presupuesto
+                </Button>
+              </PermissionWrapper>
             </div>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-full lg:w-48 input-modern">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los tipos</SelectItem>
-                <SelectItem value="concierto">Concierto</SelectItem>
-                <SelectItem value="produccion_musical">Producción Musical</SelectItem>
-                <SelectItem value="campana_promocional">Campaña Promocional</SelectItem>
-                <SelectItem value="videoclip">Videoclip</SelectItem>
-                <SelectItem value="otros">Otros</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full lg:w-48 input-modern">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los estados</SelectItem>
-                <SelectItem value="confirmado">Confirmado</SelectItem>
-                <SelectItem value="pendiente">Pendiente</SelectItem>
-                <SelectItem value="cancelado">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select 
-              value={`${sortBy}-${sortOrder}`} 
-              onValueChange={(value) => {
-                const [field, order] = value.split('-') as [typeof sortBy, typeof sortOrder];
-                setSortBy(field);
-                setSortOrder(order);
-              }}
-            >
-              <SelectTrigger className="w-full lg:w-48 input-modern">
-                <SelectValue placeholder="Ordenar por" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="created_at-desc">Más recientes</SelectItem>
-                <SelectItem value="created_at-asc">Más antiguos</SelectItem>
-                <SelectItem value="name-asc">Nombre A-Z</SelectItem>
-                <SelectItem value="name-desc">Nombre Z-A</SelectItem>
-                <SelectItem value="date-desc">Fecha evento (más reciente)</SelectItem>
-                <SelectItem value="date-asc">Fecha evento (más antiguo)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </div>
-
-      {/* Budgets Table */}
-      {filteredAndSortedBudgets.length === 0 ? (
-        <EmptyState
-          icon={<Calculator className="w-10 h-10 text-muted-foreground" />}
-          title={searchTerm || filterType !== 'all' || filterStatus !== 'all' 
-            ? "No se encontraron presupuestos" 
-            : "No hay presupuestos"
-          }
-          description={searchTerm || filterType !== 'all' || filterStatus !== 'all' 
-            ? "Intenta ajustar los filtros o términos de búsqueda para encontrar presupuestos."
-            : "Crea tu primer presupuesto para comenzar a organizar tus proyectos y gestionar costos de manera eficiente."
-          }
-          action={(!searchTerm && filterType === 'all' && filterStatus === 'all') ? {
-            label: "Crear Presupuesto",
-            onClick: () => setShowCreateDialog(true)
-          } : undefined}
-          secondaryAction={searchTerm || filterType !== 'all' || filterStatus !== 'all' ? {
-            label: "Limpiar filtros",
-            onClick: () => {
-              setSearchTerm('');
-              setFilterType('all');
-              setFilterStatus('all');
-            },
-            variant: "outline"
-          } : undefined}
-        />
-      ) : (
-        <div className="card-moodita">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-muted/30">
-                <TableRow className="border-0">
-                  <TableHead className="font-semibold w-[80px]">Tipo</TableHead>
-                  <TableHead className="font-semibold">Presupuesto</TableHead>
-                  <TableHead className="font-semibold">Ubicación</TableHead>
-                  <TableHead className="font-semibold">Fecha</TableHead>
-                  <TableHead className="font-semibold">Hora</TableHead>
-                  <TableHead className="font-semibold">Presupuesto</TableHead>
-                  <TableHead className="font-semibold">Estado</TableHead>
-                  <TableHead className="font-semibold">Artista</TableHead>
-                  <TableHead className="font-semibold">EPK</TableHead>
-                  <TableHead className="w-[100px] font-semibold">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAndSortedBudgets.map((budget) => (
-                  <TableRow 
-                    key={budget.id} 
-                    className="cursor-pointer hover:bg-muted/30 transition-colors border-0 group" 
-                    onClick={() => setSelectedBudget(budget)}
-                  >
-                    <TableCell className="py-4">
-                      <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
-                        <div className="text-white">{getTypeIcon(budget.type)}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium py-4">
-                      <div className="space-y-1">
-                        <p className="font-semibold group-hover:text-primary transition-colors">{budget.name}</p>
-                        {budget.venue && <p className="text-sm text-muted-foreground line-clamp-1">{budget.venue}</p>}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-4">
-                      {budget.city && budget.country ? (
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-secondary" />
-                          <span className="text-sm">{budget.city}, {budget.country}</span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-4">
-                      {budget.event_date ? (
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-accent" />
-                          <span className="text-sm font-medium">
-                            {new Date(budget.event_date).toLocaleDateString()}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-4">
-                      {budget.event_time ? (
-                        <span className="text-sm font-medium">{budget.event_time}</span>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-4">
-                      {budget.fee > 0 ? (
-                        <div className="badge-success">
-                          €{budget.fee.toLocaleString()}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-4">
-                      <Badge className={getStatusColor(budget.show_status)}>
-                        {budget.show_status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="py-4">
-                      {budget.artists?.name ? (
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-primary" />
-                          <span className="text-sm font-medium">{budget.artists.name}</span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-4">
-                      <EPKStatusChip
-                        projectId={budget.id}
-                        artistId={budget.artist_id}
-                        projectName={budget.name}
-                        artistName={budget.artists?.name}
-                        onEPKCreated={() => {
-                          // Refresh budget data if needed
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell className="py-4">
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedBudget(budget);
-                        }} 
-                        className="btn-ghost-modern"
-                      >
-                        Ver
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           </div>
         </div>
-      )}
 
-      {/* Dialogs */}
-      <CreateBudgetDialog 
-        open={showCreateDialog} 
-        onOpenChange={setShowCreateDialog} 
-        onSuccess={fetchBudgets} 
-      />
-      
-      {selectedBudget && (
-        <BudgetDetailsDialog 
-          open={!!selectedBudget} 
-          onOpenChange={(open) => !open && setSelectedBudget(null)} 
-          budget={selectedBudget} 
-          onUpdate={fetchBudgets} 
-          onDelete={() => {
-            setSelectedBudget(null);
-            fetchBudgets();
-          }} 
+        {/* Filters */}
+        <div className="card-moodita hover-lift">
+          <CardContent className="p-6">
+            <div className="flex flex-col lg:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input 
+                  placeholder="Buscar por nombre, ciudad o lugar..." 
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              <div className="flex gap-4">
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filtrar por estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los estados</SelectItem>
+                    <SelectItem value="borrador">Borrador</SelectItem>
+                    <SelectItem value="enviado">Enviado</SelectItem>
+                    <SelectItem value="aprobado">Aprobado</SelectItem>
+                    <SelectItem value="rechazado">Rechazado</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={filterArtist} onValueChange={setFilterArtist}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filtrar por artista" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los artistas</SelectItem>
+                    {artists.map((artist) => (
+                      <SelectItem key={artist.id} value={artist.id}>
+                        {artist.nombre_artistico}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </div>
+
+        {/* Budgets Table */}
+        <Card className="card-moodita">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <FileText className="h-5 w-5 text-primary" />
+              Lista de Presupuestos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {filteredBudgets.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No hay presupuestos que coincidan con los filtros
+              </div>
+            ) : (
+              <TooltipProvider>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Artista</TableHead>
+                      <TableHead>Ciudad</TableHead>
+                      <TableHead>Lugar</TableHead>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Importe</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredBudgets.map((budget) => (
+                      <Tooltip key={budget.id}>
+                        <TooltipTrigger asChild>
+                          <TableRow className="hover:bg-muted/50 cursor-pointer">
+                            <TableCell className="font-medium">{budget.name}</TableCell>
+                            <TableCell>
+                              {budget.artists?.nombre_artistico || 'Sin asignar'}
+                            </TableCell>
+                            <TableCell>{budget.ciudad || '-'}</TableCell>
+                            <TableCell>{budget.lugar || '-'}</TableCell>
+                            <TableCell>
+                              {budget.fecha ? new Date(budget.fecha).toLocaleDateString() : '-'}
+                            </TableCell>
+                            <TableCell>
+                              <EPKStatusChip status={budget.estado || 'borrador'} />
+                            </TableCell>
+                            <TableCell>
+                              {budget.total_amount ? `€${budget.total_amount.toLocaleString()}` : '-'}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleViewBudget(budget)}
+                                >
+                                  Ver
+                                </Button>
+                                <PermissionWrapper requiredPermission="deleteBudget">
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Eliminar presupuesto?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Esta acción no se puede deshacer. El presupuesto "{budget.name}" será eliminado permanentemente.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => handleDeleteBudget(budget.id)}
+                                          className="bg-destructive hover:bg-destructive/90"
+                                        >
+                                          Eliminar
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </PermissionWrapper>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs p-3">
+                          <div className="space-y-1 text-sm">
+                            <div><strong>Estado:</strong> {budget.estado || 'borrador'}</div>
+                            <div><strong>Importe:</strong> {budget.total_amount ? `€${budget.total_amount.toLocaleString()}` : 'No definido'}</div>
+                            <div><strong>Fecha de emisión:</strong> {new Date(budget.created_at).toLocaleDateString()}</div>
+                            <div><strong>Categoría:</strong> Presupuesto general</div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TooltipProvider>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Dialogs */}
+        <CreateBudgetDialog
+          open={showCreateDialog}
+          onOpenChange={setShowCreateDialog}
+          onBudgetCreated={fetchBudgets}
         />
-      )}
-      
-      <GlobalSearchDialog 
-        open={showGlobalSearch} 
-        onOpenChange={setShowGlobalSearch} 
-      />
+
+        <CreateBudgetFromTemplateDialog
+          open={showTemplateDialog}
+          onOpenChange={setShowTemplateDialog}
+          onBudgetCreated={fetchBudgets}
+        />
+
+        {selectedBudget && (
+          <BudgetDetailsDialog
+            open={showDetailsDialog}
+            onOpenChange={setShowDetailsDialog}
+            budget={selectedBudget}
+          />
+        )}
+        
+        <GlobalSearchDialog 
+          open={showGlobalSearch} 
+          onOpenChange={setShowGlobalSearch} 
+        />
+      </div>
     </div>
   );
 }

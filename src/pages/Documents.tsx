@@ -207,16 +207,13 @@ export default function Documents() {
 
   return (
     <div className="container-moodita section-spacing space-y-8">
-      {/* Hero Header */}
-      <div className="card-moodita p-8 bg-gradient-secondary text-white">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-            <FileText className="h-8 w-8 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">Gestión de Documentos</h1>
-            <p className="text-white/90 mt-1">Organiza y accede a toda tu documentación profesional</p>
-          </div>
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-gradient-primary rounded-xl">
+          <FileText className="h-6 w-6 text-primary-foreground" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold text-gradient-primary tracking-tight">Gestión de Documentos</h1>
+          <p className="text-muted-foreground">Organiza y accede a toda tu documentación profesional</p>
         </div>
       </div>
 
