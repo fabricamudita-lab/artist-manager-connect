@@ -203,6 +203,21 @@ export const EPKForm: React.FC<EPKFormProps> = ({
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="imagen_portada">Imagen de portada</Label>
+          <div className="flex gap-2">
+            <Input
+              id="imagen_portada"
+              value={epk.imagen_portada || ''}
+              onChange={(e) => onUpdate({ imagen_portada: e.target.value })}
+              placeholder="URL de la imagen de portada"
+            />
+            <Button variant="outline" size="sm">
+              <Upload className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="nota_prensa_pdf">Nota de prensa (PDF)</Label>
           <div className="flex gap-2">
             <Input
@@ -360,7 +375,6 @@ export const EPKForm: React.FC<EPKFormProps> = ({
             </div>
           )}
 
-          {/* Similar structures for audios and documents */}
           {(photos.length === 0 && videos.length === 0 && audios.length === 0 && documents.length === 0) && (
             <div className="text-center py-8 text-muted-foreground">
               <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-muted flex items-center justify-center">

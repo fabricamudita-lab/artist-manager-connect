@@ -22,7 +22,9 @@ import {
   Globe,
   Sun,
   Moon,
-  Monitor
+  Monitor,
+  Contact,
+  Eye
 } from 'lucide-react';
 import { EPKData, EPKPhoto, EPKVideo, EPKAudio, EPKDocument } from '@/hooks/useEPK';
 import { EmbedErrorBoundary } from '@/components/EmbedErrorBoundary';

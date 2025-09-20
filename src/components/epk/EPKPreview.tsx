@@ -11,11 +11,14 @@ import {
   ExternalLink,
   FileText,
   Calendar,
-  MapPin
+  MapPin,
+  Music,
+  Contact
 } from 'lucide-react';
 import { EPKData, EPKPhoto, EPKVideo, EPKAudio, EPKDocument } from '@/hooks/useEPK';
 import { cn } from '@/lib/utils';
 import PressKitDownloader from './PressKitDownloader';
+import { VCardDownload } from '../ui/vcard-download';
 
 interface EPKPreviewProps {
   epk: Partial<EPKData>;
@@ -280,29 +283,57 @@ export const EPKPreview: React.FC<EPKPreviewProps> = ({
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Press Kit</h3>
-            <PressKitDownloader
-              epk={epk}
-              photos={photos}
-              documents={documents}
-              onDownloadStart={onDownloadStart}
-              onDownloadComplete={onDownloadComplete}
-            />
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Download className="w-5 h-5" />
+              Press Kit Downloads
+            </h3>
           </div>
           
-          {epk.nota_prensa_pdf && (
-            <div className="flex items-center gap-3 p-4 border rounded-lg">
-              <FileText className="w-10 h-10 text-muted-foreground" />
-              <div className="flex-1">
-                <p className="font-medium">Nota de Prensa</p>
-                <p className="text-sm text-muted-foreground">Documento PDF</p>
-              </div>
-              <Button size="sm" variant="outline">
-                <Download className="w-4 h-4 mr-2" />
-                Descargar
-              </Button>
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <PressKitDownloader
+                epk={epk}
+                photos={photos}
+                documents={documents}
+                onDownloadStart={onDownloadStart}
+                onDownloadComplete={onDownloadComplete}
+              />
+              
+              {photos.length > 0 && (
+                <Button variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Descargar Fotos ({photos.length})
+                </Button>
+              )}
+              
+              <VCardDownload
+                contacts={[
+                  { role: 'Tour Manager', data: epk.tour_manager || { nombre: '', email: '', telefono: '', whatsapp: '', mostrar: false } },
+                  { role: 'Tour Production', data: epk.tour_production || { nombre: '', email: '', telefono: '', whatsapp: '', mostrar: false } },
+                  { role: 'Coordinadora de Booking', data: epk.coordinadora_booking || { nombre: '', email: '', telefono: '', whatsapp: '', mostrar: false } },
+                  { role: 'Management', data: epk.management || { nombre: '', email: '', telefono: '', whatsapp: '', mostrar: false } },
+                  { role: 'Booking', data: epk.booking || { nombre: '', email: '', telefono: '', whatsapp: '', mostrar: false } }
+                ]}
+                artistName={epk.artista_proyecto || ''}
+              />
             </div>
-          )}
+            
+            {epk.nota_prensa_pdf && (
+              <div className="flex items-center gap-3 p-4 border rounded-lg">
+                <FileText className="w-10 h-10 text-muted-foreground" />
+                <div className="flex-1">
+                  <p className="font-medium">Nota de Prensa</p>
+                  <p className="text-sm text-muted-foreground">Documento PDF</p>
+                </div>
+                <Button size="sm" variant="outline" asChild>
+                  <a href={epk.nota_prensa_pdf} target="_blank" rel="noopener noreferrer">
+                    <Download className="w-4 h-4 mr-2" />
+                    Ver/Descargar
+                  </a>
+                </Button>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -320,15 +351,27 @@ export const EPKPreview: React.FC<EPKPreviewProps> = ({
         </CardContent>
       </Card>
 
-      {/* Footer */}
-      <div className="text-center text-sm text-muted-foreground py-8">
-        <p>Electronic Press Kit • {new Date().getFullYear()}</p>
-        {epk.rastrear_analiticas && (
-          <p className="mt-1">
-            Vistas: {epk.vistas_totales || 0} • Descargas: {epk.descargas_totales || 0}
-          </p>
-        )}
-      </div>
+      {/* Analytics Footer */}
+      {epk.rastrear_analiticas && (
+        <div className="text-center text-sm text-muted-foreground py-8 border-t">
+          <p className="font-medium mb-2">Analytics</p>
+          <div className="flex justify-center items-center gap-6">
+            <div className="flex items-center gap-2">
+              <span>👁️</span>
+              <span>{epk.vistas_totales || 0} vistas totales</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>🌐</span>
+              <span>Visitantes únicos</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>⬇️</span>
+              <span>{epk.descargas_totales || 0} descargas</span>
+            </div>
+          </div>
+          <p className="mt-2">Electronic Press Kit • {epk.artista_proyecto}</p>
+        </div>
+      )}
     </div>
   );
 };

@@ -25,6 +25,7 @@ export interface EPKData {
   expira_el?: string;
   acceso_directo: boolean;
   vistas_totales?: number;
+  vistas_unicas?: number;
   descargas_totales?: number;
   ultima_vista_en?: string;
   creado_por: string;
