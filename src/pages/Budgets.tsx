@@ -13,6 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from '@/hooks/use-toast';
 import CreateBudgetDialog from '@/components/CreateBudgetDialog';
 import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
+import { PermissionChip } from '@/components/PermissionChip';
+import { PermissionWrapper } from '@/components/PermissionBoundary';
 interface Budget {
   id: string;
   name: string;
@@ -165,10 +167,15 @@ export default function Budgets() {
               </p>
             </div>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)} className="btn-primary bg-white/20 hover:bg-white/30 text-white border-white/20">
-            <Plus className="w-4 h-4 mr-2" />
-            Nuevo Presupuesto
-          </Button>
+          <div className="flex items-center gap-3">
+            <PermissionChip className="bg-white/10 border-white/20 text-white" />
+            <PermissionWrapper requiredPermission="createBudget">
+              <Button onClick={() => setShowCreateDialog(true)} className="btn-primary bg-white/20 hover:bg-white/30 text-white border-white/20">
+                <Plus className="w-4 h-4 mr-2" />
+                Nuevo Presupuesto
+              </Button>
+            </PermissionWrapper>
+          </div>
         </div>
       </div>
 

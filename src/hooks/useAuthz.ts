@@ -14,6 +14,10 @@ interface AuthzPermissions {
   canDelete: boolean;
   canComment: boolean;
   canManage: boolean;
+  canCreateBudget: boolean;
+  canCreateBooking: boolean;
+  canCreateEPK: boolean;
+  canManageUsers: boolean;
   loading: boolean;
 }
 
@@ -25,6 +29,10 @@ export function useAuthz({ projectId, artistId, workspaceId }: UseAuthzProps = {
     canDelete: false,
     canComment: false,
     canManage: false,
+    canCreateBudget: false,
+    canCreateBooking: false,
+    canCreateEPK: false,
+    canManageUsers: false,
     loading: true
   });
 
@@ -41,12 +49,19 @@ export function useAuthz({ projectId, artistId, workspaceId }: UseAuthzProps = {
         ]);
         console.log('useAuthz - Permission results:', results);
 
+        // Determine role-based permissions
+        const isOwnerOrManager = results[1]; // Edit permission indicates management access
+        
         setPermissions({
           canView: results[0],
           canEdit: results[1],
-          canDelete: results[1], // For now, edit implies delete
+          canDelete: results[1], // Edit implies delete
           canComment: results[0], // View implies comment
-          canManage: results[1], // Edit implies manage
+          canManage: isOwnerOrManager,
+          canCreateBudget: results[1], // Edit implies budget creation
+          canCreateBooking: results[1], // Edit implies booking creation
+          canCreateEPK: results[1], // Edit implies EPK creation
+          canManageUsers: isOwnerOrManager, // Only owners/managers can manage users
           loading: false
         });
       } catch (error) {

@@ -23,6 +23,8 @@ import { FolderOpen, AlertTriangle } from 'lucide-react';
 import { EventFolderDialog } from '@/components/EventFolderDialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { BookingKanban } from '@/components/BookingKanban';
+import { PermissionChip } from '@/components/PermissionChip';
+import { PermissionWrapper } from '@/components/PermissionBoundary';
 
 interface BookingOffer {
   id: string;
@@ -340,22 +342,29 @@ export default function Booking() {
               </p>
             </div>
           </div>
-          <div className="flex gap-3">
-            <Button
-              onClick={handleBackfillFolders}
-              disabled={foldersLoading}
-              className="btn-secondary bg-white/20 hover:bg-white/30 text-white border-white/20"
-            >
-              <Folder className="h-4 w-4 mr-2" />
-              Backfill Carpetas
-            </Button>
-            <Button
-              onClick={() => setShowTemplateDialog(true)}
-              className="btn-secondary bg-white/20 hover:bg-white/30 text-white border-white/20"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Editar plantilla
-            </Button>
+          <div className="flex items-center gap-3">
+            <PermissionChip className="bg-white/10 border-white/20 text-white" />
+            <div className="flex gap-3">
+              <PermissionWrapper requiredPermission="manage">
+                <Button
+                  onClick={handleBackfillFolders}
+                  disabled={foldersLoading}
+                  className="btn-secondary bg-white/20 hover:bg-white/30 text-white border-white/20"
+                >
+                  <Folder className="h-4 w-4 mr-2" />
+                  Backfill Carpetas
+                </Button>
+              </PermissionWrapper>
+              <PermissionWrapper requiredPermission="edit">
+                <Button
+                  onClick={() => setShowTemplateDialog(true)}
+                  className="btn-secondary bg-white/20 hover:bg-white/30 text-white border-white/20"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Editar plantilla
+                </Button>
+              </PermissionWrapper>
+            </div>
           </div>
         </div>
       </div>
@@ -399,10 +408,12 @@ export default function Booking() {
                   <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                     Crea tu primera oferta para comenzar a gestionar tus bookings
                   </p>
-                  <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Crear Oferta
-                  </Button>
+                  <PermissionWrapper requiredPermission="createBooking">
+                    <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Crear Oferta
+                    </Button>
+                  </PermissionWrapper>
                 </div>
               ) : (
                 <div className="overflow-x-auto">

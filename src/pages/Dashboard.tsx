@@ -1,6 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/useCommon';
 import ComprehensiveDashboard from '@/components/ComprehensiveDashboard';
+import { PermissionChip } from '@/components/PermissionChip';
 import { Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -38,10 +39,15 @@ export default function Dashboard() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Bienvenido, {profile.full_name} ({profile.active_role === 'artist' ? 'Artista' : 'Management'})
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground">
+              Bienvenido, {profile.full_name} ({profile.active_role === 'artist' ? 'Artista' : 'Management'})
+            </p>
+          </div>
+          <PermissionChip />
+        </div>
       </div>
       <ComprehensiveDashboard />
     </div>
