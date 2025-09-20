@@ -9,6 +9,8 @@ import { Calendar, MapPin, Euro, Users, FileText, MoreHorizontal, Copy, Download
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { BookingOffer } from './BookingKanban';
+import { generateOfferNumber } from '@/utils/exportUtils';
+import { CopyButton } from '@/components/ui/copy-button';
 
 interface BookingCardProps {
   offer: BookingOffer;
@@ -57,6 +59,8 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
     console.log('Generate PDF for offer:', offer.id);
   };
 
+  const offerNumber = generateOfferNumber(offer);
+
   return (
     <Card
       ref={setNodeRef}
@@ -80,6 +84,19 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
                   {offer.venue || offer.lugar || 'Sin venue'}
                 </p>
               </div>
+            </div>
+            
+            <div className="flex items-center gap-2 mb-2">
+              <Badge variant="outline" className="text-xs font-mono">
+                {offerNumber}
+              </Badge>
+              <CopyButton
+                text={offerNumber}
+                successMessage="Número de oferta copiado"
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6"
+              />
             </div>
             
             {offer.es_cityzen && (
@@ -112,6 +129,13 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
                 <DropdownMenuItem onClick={handleGeneratePDF}>
                   <Download className="h-3 w-3 mr-2" />
                   Generar PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  const totalFee = `€${offer.fee?.toLocaleString() || '0'}`;
+                  navigator.clipboard?.writeText(totalFee);
+                }}>
+                  <Euro className="h-3 w-3 mr-2" />
+                  Copiar fee
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Filter, Calendar, MapPin, User, Calculator, Trash2, Truck, MicIcon } from 'lucide-react';
+import { Plus, Search, Filter, Calendar, MapPin, User, Calculator, Trash2, Truck, MicIcon, Download, FileText } from 'lucide-react';
 import { EPKStatusChip } from '@/components/EPKStatusChip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
@@ -15,6 +15,8 @@ import CreateBudgetDialog from '@/components/CreateBudgetDialog';
 import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
 import { PermissionChip } from '@/components/PermissionChip';
 import { PermissionWrapper } from '@/components/PermissionBoundary';
+import { exportToCSV } from '@/utils/exportUtils';
+import { EmptyState } from '@/components/ui/empty-state';
 interface Budget {
   id: string;
   name: string;
@@ -144,6 +146,54 @@ export default function Budgets() {
     };
     return types[type as keyof typeof types] || type;
   };
+
+  const handleExportCSV = () => {
+    try {
+      const csvHeaders = {
+        name: 'Nombre',
+        type: 'Tipo',
+        city: 'Ciudad',
+        country: 'País',
+        venue: 'Venue',
+        event_date: 'Fecha evento',
+        event_time: 'Hora evento',
+        fee: 'Fee (€)',
+        budget_status: 'Estado presupuesto',
+        show_status: 'Estado show',
+        'artists.name': 'Artista',
+        created_at: 'Fecha creación'
+      };
+
+      const exportData = filteredAndSortedBudgets.map(budget => ({
+        name: budget.name,
+        type: formatType(budget.type),
+        city: budget.city || '',
+        country: budget.country || '',
+        venue: budget.venue || '',
+        event_date: budget.event_date ? new Date(budget.event_date).toLocaleDateString() : '',
+        event_time: budget.event_time || '',
+        fee: budget.fee || 0,
+        budget_status: budget.budget_status || '',
+        show_status: budget.show_status || '',
+        'artists.name': budget.artists?.name || '',
+        created_at: new Date(budget.created_at).toLocaleDateString()
+      }));
+
+      exportToCSV(exportData, 'presupuestos', csvHeaders);
+      
+      toast({
+        title: "Exportación exitosa",
+        description: "Los presupuestos se han exportado correctamente",
+      });
+    } catch (error) {
+      console.error('Error exporting budgets:', error);
+      toast({
+        title: "Error de exportación",
+        description: "No se pudieron exportar los presupuestos",
+        variant: "destructive",
+      });
+    }
+  };
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -169,6 +219,13 @@ export default function Budgets() {
           </div>
           <div className="flex items-center gap-3">
             <PermissionChip className="bg-white/10 border-white/20 text-white" />
+            <Button
+              onClick={() => handleExportCSV()}
+              className="btn-secondary bg-white/20 hover:bg-white/30 text-white border-white/20"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Exportar CSV
+            </Button>
             <PermissionWrapper requiredPermission="createBudget">
               <Button onClick={() => setShowCreateDialog(true)} className="btn-primary bg-white/20 hover:bg-white/30 text-white border-white/20">
                 <Plus className="w-4 h-4 mr-2" />
@@ -233,21 +290,32 @@ export default function Budgets() {
       </div>
 
       {/* Budgets Table */}
-      {filteredAndSortedBudgets.length === 0 ? <div className="card-moodita">
-          <CardContent className="p-16 text-center">
-            <div className="w-20 h-20 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <Calculator className="w-10 h-10 text-muted-foreground" />
-            </div>
-            <h3 className="text-xl font-semibold mb-3">No hay presupuestos</h3>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              {searchTerm || filterType !== 'all' || filterStatus !== 'all' ? "No se encontraron presupuestos con los filtros aplicados" : "Crea tu primer presupuesto para comenzar a organizar tus proyectos"}
-            </p>
-            {!searchTerm && filterType === 'all' && filterStatus === 'all' && <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
-                <Plus className="w-4 h-4 mr-2" />
-                Crear Presupuesto
-              </Button>}
-          </CardContent>
-        </div> : <div className="card-moodita overflow-hidden">
+      {filteredAndSortedBudgets.length === 0 ? (
+        <EmptyState
+          icon={<Calculator className="w-10 h-10 text-muted-foreground" />}
+          title={searchTerm || filterType !== 'all' || filterStatus !== 'all' 
+            ? "No se encontraron presupuestos" 
+            : "No hay presupuestos"
+          }
+          description={searchTerm || filterType !== 'all' || filterStatus !== 'all' 
+            ? "Intenta ajustar los filtros o términos de búsqueda para encontrar presupuestos."
+            : "Crea tu primer presupuesto para comenzar a organizar tus proyectos y gestionar costos de manera eficiente."
+          }
+          action={(!searchTerm && filterType === 'all' && filterStatus === 'all') ? {
+            label: "Crear Presupuesto",
+            onClick: () => setShowCreateDialog(true)
+          } : undefined}
+          secondaryAction={searchTerm || filterType !== 'all' || filterStatus !== 'all' ? {
+            label: "Limpiar filtros",
+            onClick: () => {
+              setSearchTerm('');
+              setFilterType('all');
+              setFilterStatus('all');
+            },
+            variant: "outline"
+          } : undefined}
+        />
+      ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/30">
@@ -333,14 +401,24 @@ export default function Budgets() {
               </TableBody>
             </Table>
           </div>
-        </div>}
+        </div>
+      )}
 
       {/* Dialogs */}
       <CreateBudgetDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} onSuccess={fetchBudgets} />
       
-      {selectedBudget && <BudgetDetailsDialog open={!!selectedBudget} onOpenChange={open => !open && setSelectedBudget(null)} budget={selectedBudget} onUpdate={fetchBudgets} onDelete={() => {
-      setSelectedBudget(null);
-      fetchBudgets();
-    }} />}
-    </div>;
+      {selectedBudget && (
+        <BudgetDetailsDialog 
+          open={!!selectedBudget} 
+          onOpenChange={(open) => !open && setSelectedBudget(null)} 
+          budget={selectedBudget} 
+          onUpdate={fetchBudgets} 
+          onDelete={() => {
+            setSelectedBudget(null);
+            fetchBudgets();
+          }} 
+        />
+      )}
+    </div>
+  );
 }

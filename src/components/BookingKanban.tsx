@@ -6,11 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter, Plus } from 'lucide-react';
+import { Search, Filter, Plus, Download, FileText, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { BookingCard } from './BookingCard';
 import { CreateBookingOfferDialog } from './CreateBookingOfferDialog';
+import { exportToCSV, generateOfferNumber } from '@/utils/exportUtils';
+import { CopyButton } from '@/components/ui/copy-button';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export interface BookingOffer {
   id: string;
@@ -263,11 +266,68 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
     return [...new Set(offers.map(offer => offer[field]).filter(Boolean).map(String))];
   };
 
+  const handleExportFiltered = () => {
+    try {
+      const csvHeaders = {
+        phase: 'Fase',
+        fecha: 'Fecha',
+        promotor: 'Promotor',
+        ciudad: 'Ciudad',
+        pais: 'País',
+        venue: 'Venue',
+        fee: 'Fee (€)',
+        gastos_estimados: 'Gastos Estimados (€)',
+        comision_porcentaje: 'Comisión (%)',
+        es_cityzen: 'CityZen',
+        es_internacional: 'Internacional',
+        estado_facturacion: 'Estado Facturación',
+        offer_number: 'Número Oferta'
+      };
+
+      const exportData = filteredOffers.map(offer => ({
+        phase: PHASES.find(p => p.id === offer.phase)?.label || offer.phase,
+        fecha: offer.fecha ? new Date(offer.fecha).toLocaleDateString() : '',
+        promotor: offer.promotor || '',
+        ciudad: offer.ciudad || '',
+        pais: offer.pais || '',
+        venue: offer.venue || '',
+        fee: offer.fee || 0,
+        gastos_estimados: offer.gastos_estimados || 0,
+        comision_porcentaje: offer.comision_porcentaje || 0,
+        es_cityzen: offer.es_cityzen ? 'Sí' : 'No',
+        es_internacional: offer.es_internacional ? 'Sí' : 'No',
+        estado_facturacion: offer.estado_facturacion || '',
+        offer_number: generateOfferNumber(offer)
+      }));
+
+      const filterSuffix = phaseFilter !== 'all' || countryFilter !== 'all' || promoterFilter !== 'all' || searchTerm 
+        ? '_filtrado' 
+        : '';
+      
+      exportToCSV(exportData, `kanban_booking${filterSuffix}`, csvHeaders);
+      
+      toast({
+        title: "Exportación exitosa",
+        description: `${exportData.length} ofertas exportadas correctamente`,
+      });
+    } catch (error) {
+      console.error('Error exporting offers:', error);
+      toast({
+        title: "Error de exportación",
+        description: "No se pudieron exportar las ofertas",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-lg">Cargando ofertas...</div>
-      </div>
+      <EmptyState
+        icon={<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />}
+        title="Cargando ofertas..."
+        description="Obteniendo las ofertas de booking desde el servidor"
+        size="sm"
+      />
     );
   }
 
@@ -329,10 +389,20 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
           </Select>
         </div>
 
-        <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva oferta
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleExportFiltered}
+            variant="outline"
+            size="sm"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Exportar CSV ({filteredOffers.length})
+          </Button>
+          <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva oferta
+          </Button>
+        </div>
       </div>
 
       {/* Kanban Board */}
@@ -369,7 +439,11 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
                   
                   {phaseOffers.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground text-sm">
-                      No hay ofertas en esta fase
+                      <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center mx-auto mb-2">
+                        <Plus className="w-4 h-4" />
+                      </div>
+                      <p>Sin ofertas</p>
+                      <p className="text-xs">Arrastra aquí para cambiar de fase</p>
                     </div>
                   )}
                 </CardContent>

@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List } from 'lucide-react';
+import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -25,6 +25,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { BookingKanban } from '@/components/BookingKanban';
 import { PermissionChip } from '@/components/PermissionChip';
 import { PermissionWrapper } from '@/components/PermissionBoundary';
+import { exportToCSV } from '@/utils/exportUtils';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface BookingOffer {
   id: string;
@@ -294,6 +296,74 @@ export default function Booking() {
     }
   };
 
+  const handleExportCSV = () => {
+    try {
+      const csvHeaders = {
+        fecha: 'Fecha',
+        festival_ciclo: 'Festival/Ciclo',
+        ciudad: 'Ciudad',
+        pais: 'País',
+        lugar: 'Lugar',
+        venue: 'Venue',
+        capacidad: 'Capacidad',
+        estado: 'Estado',
+        phase: 'Fase',
+        promotor: 'Promotor',
+        fee: 'Fee (€)',
+        gastos_estimados: 'Gastos Estimados (€)',
+        comision_porcentaje: 'Comisión (%)',
+        comision_euros: 'Comisión (€)',
+        es_cityzen: 'CityZen',
+        es_internacional: 'Internacional',
+        estado_facturacion: 'Estado Facturación',
+        oferta: 'Oferta',
+        formato: 'Formato',
+        contacto: 'Contacto',
+        tour_manager: 'Tour Manager',
+        created_at: 'Fecha Creación'
+      };
+
+      const exportData = offers.map(offer => ({
+        fecha: offer.fecha ? new Date(offer.fecha).toLocaleDateString() : '',
+        festival_ciclo: offer.festival_ciclo || '',
+        ciudad: offer.ciudad || '',
+        pais: offer.pais || '',
+        lugar: offer.lugar || '',
+        venue: offer.venue || '',
+        capacidad: offer.capacidad || '',
+        estado: offer.estado || '',
+        phase: offer.phase || '',
+        promotor: offer.promotor || '',
+        fee: offer.fee || 0,
+        gastos_estimados: offer.gastos_estimados || 0,
+        comision_porcentaje: offer.comision_porcentaje || 0,
+        comision_euros: offer.comision_euros || 0,
+        es_cityzen: offer.es_cityzen ? 'Sí' : 'No',
+        es_internacional: offer.es_internacional ? 'Sí' : 'No',
+        estado_facturacion: offer.estado_facturacion || '',
+        oferta: offer.oferta || '',
+        formato: offer.formato || '',
+        contacto: offer.contacto || '',
+        tour_manager: offer.tour_manager || '',
+        created_at: new Date(offer.created_at).toLocaleDateString()
+      }));
+
+      exportToCSV(exportData, 'ofertas_booking', csvHeaders);
+      
+      toast({
+        title: "Exportación exitosa",
+        description: "Las ofertas se han exportado correctamente",
+      });
+    } catch (error) {
+      console.error('Error exporting offers:', error);
+      toast({
+        title: "Error de exportación",
+        description: "No se pudieron exportar las ofertas",
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatValue = (value: any, fieldType: string) => {
     if (!value) return '-';
     
@@ -345,6 +415,13 @@ export default function Booking() {
           <div className="flex items-center gap-3">
             <PermissionChip className="bg-white/10 border-white/20 text-white" />
             <div className="flex gap-3">
+              <Button
+                onClick={() => handleExportCSV()}
+                className="btn-secondary bg-white/20 hover:bg-white/30 text-white border-white/20"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Exportar CSV
+              </Button>
               <PermissionWrapper requiredPermission="manage">
                 <Button
                   onClick={handleBackfillFolders}
@@ -400,21 +477,20 @@ export default function Booking() {
           <div className="card-moodita overflow-hidden">
             <CardContent className="p-0">
               {offers.length === 0 ? (
-                <div className="p-16 text-center">
-                  <div className="w-20 h-20 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <Plus className="w-10 h-10 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-3">No hay ofertas de booking</h3>
-                  <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                    Crea tu primera oferta para comenzar a gestionar tus bookings
-                  </p>
-                  <PermissionWrapper requiredPermission="createBooking">
-                    <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Crear Oferta
-                    </Button>
-                  </PermissionWrapper>
-                </div>
+                <EmptyState
+                  icon={<Kanban className="w-10 h-10 text-muted-foreground" />}
+                  title="No hay ofertas de booking"
+                  description="Crea tu primera oferta para comenzar a gestionar tus bookings y organizar conciertos de manera eficiente."
+                  action={{
+                    label: "Crear Oferta",
+                    onClick: () => setShowCreateDialog(true)
+                  }}
+                  secondaryAction={{
+                    label: "Ver documentación",
+                    onClick: () => window.open('/docs/booking', '_blank'),
+                    variant: "outline"
+                  }}
+                />
               ) : (
                 <div className="overflow-x-auto">
                 <Table>
