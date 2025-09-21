@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Edit, Trash2, Mail, MoreHorizontal, X, MapPin, AlignLeft, Calendar, GripHorizontal } from 'lucide-react';
@@ -42,8 +41,6 @@ export function EventDetailPopover({
   zIndex = 50,
   onBringToFront
 }: EventDetailPopoverProps) {
-  const clickOutsideRef = useRef<HTMLDivElement>(null);
-
   // Hook draggable
   const {
     position: currentPosition,
@@ -56,23 +53,6 @@ export function EventDetailPopover({
 
   console.log('EventDetailPopover rendering with event:', event);
   
-  // Cerrar al hacer clic fuera
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (clickOutsideRef.current && !clickOutsideRef.current.contains(event.target as Node)) {
-        onOpenChange(false);
-      }
-    };
-
-    if (open) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [open, onOpenChange]);
-
   // Early return DESPUÉS de todos los hooks
   if (!event || !open) return null;
 
@@ -98,10 +78,7 @@ export function EventDetailPopover({
 
   return (
     <div
-      ref={(node) => {
-        elementRef.current = node;
-        clickOutsideRef.current = node;
-      }}
+      ref={elementRef}
       className={`fixed w-80 bg-background border border-border/50 rounded-xl shadow-2xl transition-shadow ${
         isDragging ? 'shadow-3xl cursor-grabbing' : 'cursor-grab hover:shadow-3xl'
       }`}
