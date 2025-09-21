@@ -138,15 +138,33 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
     defaultValues: {
       artist_ids: profile?.id ? [profile.id] : [],
       title: prefilledData?.title || '',
-      event_type: prefilledData?.type || undefined,
+      event_type: prefilledData?.event_type || undefined,
       location: prefilledData?.location || '',
       description: prefilledData?.description || '',
-      start_time: prefilledData?.startDate ? format(new Date(prefilledData.startDate), 'HH:mm') : '09:00',
-      end_time: prefilledData?.startDate ? format(new Date(new Date(prefilledData.startDate).getTime() + 3600000), 'HH:mm') : '10:00',
-      start_date: prefilledData?.startDate ? new Date(prefilledData.startDate) : undefined,
-      end_date: prefilledData?.startDate ? new Date(prefilledData.startDate) : undefined,
+      start_time: prefilledData?.start_date ? format(new Date(prefilledData.start_date), 'HH:mm') : '09:00',
+      end_time: prefilledData?.end_date ? format(new Date(prefilledData.end_date), 'HH:mm') : '10:00',
+      start_date: prefilledData?.start_date ? new Date(prefilledData.start_date) : undefined,
+      end_date: prefilledData?.end_date ? new Date(prefilledData.end_date) : undefined,
     },
   });
+
+  // Update form when prefilledData changes
+  useEffect(() => {
+    if (prefilledData) {
+      console.log('Updating form with prefilledData:', prefilledData);
+      form.reset({
+        artist_ids: profile?.id ? [profile.id] : [],
+        title: prefilledData.title || '',
+        event_type: prefilledData.event_type || undefined,
+        location: prefilledData.location || '',
+        description: prefilledData.description || '',
+        start_time: prefilledData.start_date ? format(new Date(prefilledData.start_date), 'HH:mm') : '09:00',
+        end_time: prefilledData.end_date ? format(new Date(prefilledData.end_date), 'HH:mm') : '10:00',
+        start_date: prefilledData.start_date ? new Date(prefilledData.start_date) : undefined,
+        end_date: prefilledData.end_date ? new Date(prefilledData.end_date) : undefined,
+      });
+    }
+  }, [prefilledData, profile, form]);
 
   const selectedArtistIds = form.watch('artist_ids') || [];
 
