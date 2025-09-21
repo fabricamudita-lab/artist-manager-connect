@@ -15,6 +15,7 @@ import { YearlyCalendar } from '@/components/YearlyCalendar';
 import { EditEventDialog } from '@/components/EditEventDialog';
 import { useBookingReminders } from '@/hooks/useBookingReminders';
 import { ReminderBadge } from '@/components/ReminderBadge';
+import { EventDetailPopover } from '@/components/EventDetailPopover';
 
 interface Event {
   id: string;
@@ -48,6 +49,10 @@ export default function Calendar() {
   const [selectionStart, setSelectionStart] = useState<{ day: Date; hour: number } | null>(null);
   const [selectionEnd, setSelectionEnd] = useState<{ day: Date; hour: number } | null>(null);
   const [hasActiveSelection, setHasActiveSelection] = useState(false);
+  
+  // Event detail popup states
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [eventPopoverOpen, setEventPopoverOpen] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -319,6 +324,11 @@ export default function Calendar() {
     return `${startHour.toString().padStart(2, '0')}:00 - ${endHour.toString().padStart(2, '0')}:00`;
   };
 
+  const handleEventClick = (event: Event) => {
+    setSelectedEvent(event);
+    setEventPopoverOpen(true);
+  };
+
   const renderWeekView = () => {
     const weekDays = getWeekDays();
     const timeSlots = Array.from({ length: 24 }, (_, i) => i); // Show all 24 hours (0-23)
@@ -502,6 +512,10 @@ export default function Calendar() {
                             marginTop: `${eventIndex * 2}px` 
                           }}
                           onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEventClick(event);
+                          }}
                         >
                           <div className="flex flex-col h-full">
                             <div className="font-bold text-xs uppercase tracking-wide leading-tight mb-1">
@@ -899,6 +913,23 @@ export default function Calendar() {
           )}
         </div>
       )}
+
+      {/* Event Detail Popover */}
+      <EventDetailPopover
+        event={selectedEvent}
+        open={eventPopoverOpen}
+        onOpenChange={setEventPopoverOpen}
+        artistName="David Solans"
+        createdBy="Fabrica Mudita"
+        onEdit={(event) => {
+          // TODO: Implementar edición de evento
+          console.log('Edit event:', event);
+        }}
+        onDelete={(eventId) => {
+          // TODO: Implementar eliminación de evento
+          console.log('Delete event:', eventId);
+        }}
+      />
     </div>
   );
 }
