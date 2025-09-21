@@ -328,8 +328,10 @@ export default function Calendar() {
     console.log('Event clicked:', event);
     console.log('Event start_date:', event.start_date);
     console.log('Event end_date:', event.end_date);
+    console.log('Setting selectedEvent and opening popup');
     setSelectedEvent(event);
     setEventPopoverOpen(true);
+    console.log('Popup should now be open');
   };
 
   const renderWeekView = () => {
@@ -517,6 +519,7 @@ export default function Calendar() {
                           onMouseDown={(e) => e.stopPropagation()}
                           onClick={(e) => {
                             e.stopPropagation();
+                            console.log('Event card clicked, calling handleEventClick');
                             handleEventClick(event);
                           }}
                         >

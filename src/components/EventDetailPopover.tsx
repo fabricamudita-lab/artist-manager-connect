@@ -4,10 +4,9 @@ import { es } from 'date-fns/locale';
 import { Edit, Trash2, Mail, MoreHorizontal, X, MapPin, AlignLeft, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+  Dialog,
+  DialogContent,
+} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 
 console.log('EventDetailPopover component loaded');
@@ -67,15 +66,8 @@ export function EventDetailPopover({
   };
 
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <div />
-      </PopoverTrigger>
-      <PopoverContent 
-        className="w-80 p-0 shadow-2xl border-border/50" 
-        align="start"
-        side="right"
-      >
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md p-0 shadow-2xl border-border/50">
         {/* Header with actions */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
@@ -171,7 +163,7 @@ export function EventDetailPopover({
             </div>
           </div>
         </div>
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   );
 }
