@@ -53,6 +53,7 @@ export default function Calendar() {
   // Event detail popup states
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [eventPopoverOpen, setEventPopoverOpen] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     if (profile) {
@@ -324,11 +325,19 @@ export default function Calendar() {
     return `${startHour.toString().padStart(2, '0')}:00 - ${endHour.toString().padStart(2, '0')}:00`;
   };
 
-  const handleEventClick = (event: Event) => {
+  const handleEventClick = (event: Event, mouseEvent: React.MouseEvent) => {
     console.log('Event clicked:', event);
     console.log('Event start_date:', event.start_date);
     console.log('Event end_date:', event.end_date);
     console.log('Setting selectedEvent and opening popup');
+    
+    // Capturar la posición del clic
+    const rect = (mouseEvent.target as HTMLElement).getBoundingClientRect();
+    setPopoverPosition({
+      x: rect.right,
+      y: rect.top
+    });
+    
     setSelectedEvent(event);
     setEventPopoverOpen(true);
     console.log('Popup should now be open');
@@ -520,7 +529,7 @@ export default function Calendar() {
                           onClick={(e) => {
                             e.stopPropagation();
                             console.log('Event card clicked, calling handleEventClick');
-                            handleEventClick(event);
+                            handleEventClick(event, e);
                           }}
                         >
                           <div className="flex flex-col h-full">
@@ -925,6 +934,7 @@ export default function Calendar() {
         event={selectedEvent}
         open={eventPopoverOpen}
         onOpenChange={setEventPopoverOpen}
+        position={popoverPosition}
         artistName="David Solans"
         createdBy="Fabrica Mudita"
         onEdit={(event) => {
