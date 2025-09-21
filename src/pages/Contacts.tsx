@@ -209,7 +209,7 @@ export default function Contacts() {
           <SelectContent>
             <SelectItem value="">Todas las ciudades</SelectItem>
             {cities.map((city) => (
-              <SelectItem key={city} value={city}>
+              <SelectItem key={`city-${city}`} value={city || ""}>
                 {city}
               </SelectItem>
             ))}
