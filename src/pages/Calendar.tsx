@@ -454,27 +454,37 @@ export default function Calendar() {
                     return eventHour === hour;
                   });
 
+                  const isFirstSelectedHour = selectionStart && selectionEnd && 
+                    isSameDay(day, selectionStart.day) && 
+                    hour === Math.min(selectionStart.hour, selectionEnd.hour);
+                  
+                  const selectedHoursCount = selectionStart && selectionEnd && 
+                    isSameDay(day, selectionStart.day) 
+                    ? Math.abs(selectionEnd.hour - selectionStart.hour) + 1 
+                    : 0;
+
                   return (
                     <div 
                       key={hour} 
-                      className={`h-12 border-b border-muted/20 p-1 relative cursor-pointer hover:bg-muted/10 transition-colors select-none ${
-                        isTimeSlotSelected(day, hour) ? '' : ''
-                      }`}
+                      className={`h-12 border-b border-muted/20 p-1 relative cursor-pointer hover:bg-muted/10 transition-colors select-none`}
                       onMouseDown={(e) => {
                         e.preventDefault();
                         handleTimeSlotMouseDown(day, hour);
                       }}
                       onMouseEnter={() => handleTimeSlotMouseEnter(day, hour)}
                     >
-                      {/* Selection overlay */}
-                      {isTimeSlotSelected(day, hour) && (
-                        <div className="absolute inset-0 bg-primary/80 border-2 border-primary rounded-md flex items-center justify-center z-5">
-                          {/* Show "Sin título" text only on the first selected hour */}
-                          {selectionStart && hour === Math.min(selectionStart.hour, selectionEnd?.hour || selectionStart.hour) && (
-                            <span className="text-primary-foreground text-xs font-medium select-none">
-                              (Sin título)
-                            </span>
-                          )}
+                      {/* Single continuous selection overlay - only render on first selected hour */}
+                      {isFirstSelectedHour && (
+                        <div 
+                          className="absolute inset-x-1 bg-primary/90 border-2 border-primary rounded-lg flex items-center justify-center z-5 shadow-sm"
+                          style={{ 
+                            top: '4px',
+                            height: `${selectedHoursCount * 48 - 8}px`, // 48px per hour minus padding
+                          }}
+                        >
+                          <span className="text-primary-foreground text-sm font-medium select-none">
+                            (Sin título)
+                          </span>
                         </div>
                       )}
                       
