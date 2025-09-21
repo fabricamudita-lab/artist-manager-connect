@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { format, isSameDay, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, addDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Clock, MapPin, Plus, Filter, ChevronLeft, ChevronRight, Calendar as CalendarViewIcon } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, Plus, Filter, ChevronLeft, ChevronRight, Calendar as CalendarViewIcon, X } from 'lucide-react';
 import { CreateEventDialog } from '@/components/CreateEventDialog';
 import { ArtistSelector } from '@/components/ArtistSelector';
 import { YearlyCalendar } from '@/components/YearlyCalendar';
@@ -552,9 +552,9 @@ export default function Calendar() {
                   variant="ghost"
                   size="sm"
                   onClick={clearSelection}
-                  className="h-8 px-3 text-muted-foreground hover:text-foreground"
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/80"
                 >
-                  Cancelar
+                  <X className="h-4 w-4" />
                 </Button>
                 <Button
                   size="sm"
