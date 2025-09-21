@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 
+console.log('EventDetailPopover component loaded');
+
 interface Event {
   id: string;
   title: string;
@@ -40,7 +42,13 @@ export function EventDetailPopover({
   onEdit,
   onDelete 
 }: EventDetailPopoverProps) {
+  console.log('EventDetailPopover rendering with event:', event);
   if (!event) return null;
+
+  console.log('Event start_date:', event.start_date);
+  console.log('Event end_date:', event.end_date);
+  console.log('Parsed start date:', new Date(event.start_date));
+  console.log('Parsed end date:', new Date(event.end_date));
 
   const eventTypeLabels = {
     'concierto': 'Concierto',

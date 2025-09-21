@@ -325,6 +325,9 @@ export default function Calendar() {
   };
 
   const handleEventClick = (event: Event) => {
+    console.log('Event clicked:', event);
+    console.log('Event start_date:', event.start_date);
+    console.log('Event end_date:', event.end_date);
     setSelectedEvent(event);
     setEventPopoverOpen(true);
   };
