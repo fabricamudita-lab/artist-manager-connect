@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Edit, Trash2, Mail, MoreHorizontal, X, MapPin, AlignLeft, Calendar } from 'lucide-react';
+import { Edit, Trash2, Mail, MoreHorizontal, X, MapPin, AlignLeft, Calendar, GripHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useDraggable } from '@/hooks/useDraggable';
 
 interface Event {
   id: string;
@@ -25,6 +26,8 @@ interface EventDetailPopoverProps {
   onEdit?: (event: Event) => void;
   onDelete?: (eventId: string) => void;
   position?: { x: number; y: number };
+  zIndex?: number;
+  onBringToFront?: () => void;
 }
 
 export function EventDetailPopover({ 
@@ -35,16 +38,28 @@ export function EventDetailPopover({
   createdBy = "Fabrica Mudita",
   onEdit,
   onDelete,
-  position = { x: 0, y: 0 }
+  position = { x: 0, y: 0 },
+  zIndex = 50,
+  onBringToFront
 }: EventDetailPopoverProps) {
-  const popoverRef = useRef<HTMLDivElement>(null);
+  const clickOutsideRef = useRef<HTMLDivElement>(null);
+
+  // Hook draggable
+  const {
+    position: currentPosition,
+    isDragging,
+    elementRef,
+    handleMouseDown,
+  } = useDraggable({
+    initialPosition: position,
+  });
 
   console.log('EventDetailPopover rendering with event:', event);
   
-  // Cerrar al hacer clic fuera - siempre llamar hooks antes de early returns
+  // Cerrar al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+      if (clickOutsideRef.current && !clickOutsideRef.current.contains(event.target as Node)) {
         onOpenChange(false);
       }
     };
@@ -63,7 +78,7 @@ export function EventDetailPopover({
 
   console.log('Event start_date:', event.start_date);
   console.log('Event end_date:', event.end_date);
-  console.log('Position:', position);
+  console.log('Position:', currentPosition);
 
   const eventTypeLabels = {
     'concierto': 'Concierto',
@@ -83,17 +98,28 @@ export function EventDetailPopover({
 
   return (
     <div
-      ref={popoverRef}
-      className="fixed z-50 w-80 bg-background border border-border/50 rounded-xl shadow-2xl animate-scale-in"
+      ref={(node) => {
+        elementRef.current = node;
+        clickOutsideRef.current = node;
+      }}
+      className={`fixed w-80 bg-background border border-border/50 rounded-xl shadow-2xl transition-shadow ${
+        isDragging ? 'shadow-3xl cursor-grabbing' : 'cursor-grab hover:shadow-3xl'
+      }`}
       style={{
-        left: `${position.x + 10}px`,
-        top: `${position.y}px`,
+        left: `${currentPosition.x}px`,
+        top: `${currentPosition.y}px`,
         maxHeight: '400px',
+        zIndex: zIndex,
+      }}
+      onMouseDown={(e) => {
+        onBringToFront?.();
+        handleMouseDown(e);
       }}
     >
       {/* Header with actions */}
-      <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center justify-between p-4 border-b cursor-grab active:cursor-grabbing">
         <div className="flex items-center gap-2">
+          <GripHorizontal className="h-4 w-4 text-muted-foreground" />
           <Badge 
             variant="secondary" 
             className={`text-xs ${eventTypeColors[event.event_type as keyof typeof eventTypeColors] || eventTypeColors.other}`}

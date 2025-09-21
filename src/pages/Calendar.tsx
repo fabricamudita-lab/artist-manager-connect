@@ -50,10 +50,16 @@ export default function Calendar() {
   const [selectionEnd, setSelectionEnd] = useState<{ day: Date; hour: number } | null>(null);
   const [hasActiveSelection, setHasActiveSelection] = useState(false);
   
-  // Event detail popup states
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-  const [eventPopoverOpen, setEventPopoverOpen] = useState(false);
-  const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 });
+  // Event detail popup states - ahora múltiples popups
+  interface OpenEventPopup {
+    id: string;
+    event: Event;
+    position: { x: number; y: number };
+    zIndex: number;
+  }
+  
+  const [openEventPopups, setOpenEventPopups] = useState<OpenEventPopup[]>([]);
+  const [highestZIndex, setHighestZIndex] = useState(100);
 
   useEffect(() => {
     if (profile) {
@@ -329,18 +335,50 @@ export default function Calendar() {
     console.log('Event clicked:', event);
     console.log('Event start_date:', event.start_date);
     console.log('Event end_date:', event.end_date);
-    console.log('Setting selectedEvent and opening popup');
+    console.log('Opening popup for event');
+    
+    // Verificar si el evento ya está abierto
+    const existingPopup = openEventPopups.find(popup => popup.event.id === event.id);
+    if (existingPopup) {
+      // Si ya está abierto, solo traerlo al frente
+      bringPopupToFront(existingPopup.id);
+      return;
+    }
     
     // Capturar la posición del clic
     const rect = (mouseEvent.target as HTMLElement).getBoundingClientRect();
-    setPopoverPosition({
-      x: rect.right,
-      y: rect.top
-    });
+    const newZIndex = highestZIndex + 1;
+    setHighestZIndex(newZIndex);
     
-    setSelectedEvent(event);
-    setEventPopoverOpen(true);
-    console.log('Popup should now be open');
+    const newPopup: OpenEventPopup = {
+      id: `popup-${event.id}-${Date.now()}`,
+      event,
+      position: {
+        x: rect.right + 10,
+        y: rect.top
+      },
+      zIndex: newZIndex
+    };
+    
+    setOpenEventPopups(prev => [...prev, newPopup]);
+    console.log('Popup added for event:', event.title);
+  };
+
+  const bringPopupToFront = (popupId: string) => {
+    const newZIndex = highestZIndex + 1;
+    setHighestZIndex(newZIndex);
+    
+    setOpenEventPopups(prev => 
+      prev.map(popup => 
+        popup.id === popupId 
+          ? { ...popup, zIndex: newZIndex }
+          : popup
+      )
+    );
+  };
+
+  const closePopup = (popupId: string) => {
+    setOpenEventPopups(prev => prev.filter(popup => popup.id !== popupId));
   };
 
   const renderWeekView = () => {
@@ -929,23 +967,29 @@ export default function Calendar() {
         </div>
       )}
 
-      {/* Event Detail Popover */}
-      <EventDetailPopover
-        event={selectedEvent}
-        open={eventPopoverOpen}
-        onOpenChange={setEventPopoverOpen}
-        position={popoverPosition}
-        artistName="David Solans"
-        createdBy="Fabrica Mudita"
-        onEdit={(event) => {
-          // TODO: Implementar edición de evento
-          console.log('Edit event:', event);
-        }}
-        onDelete={(eventId) => {
-          // TODO: Implementar eliminación de evento
-          console.log('Delete event:', eventId);
-        }}
-      />
+      {/* Event Detail Popovers - Múltiples */}
+      {openEventPopups.map((popup) => (
+        <EventDetailPopover
+          key={popup.id}
+          event={popup.event}
+          open={true}
+          onOpenChange={() => closePopup(popup.id)}
+          position={popup.position}
+          zIndex={popup.zIndex}
+          onBringToFront={() => bringPopupToFront(popup.id)}
+          artistName="David Solans"
+          createdBy="Fabrica Mudita"
+          onEdit={(event) => {
+            // TODO: Implementar edición de evento
+            console.log('Edit event:', event);
+          }}
+          onDelete={(eventId) => {
+            // TODO: Implementar eliminación de evento
+            console.log('Delete event:', eventId);
+            closePopup(popup.id);
+          }}
+        />
+      ))}
     </div>
   );
 }
