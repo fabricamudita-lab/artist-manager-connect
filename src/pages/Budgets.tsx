@@ -33,7 +33,8 @@ interface Budget {
   artist_id?: string;
   created_at: string;
   artists?: {
-    nombre_artistico: string;
+    name: string;
+    stage_name?: string;
   };
 }
 
@@ -44,7 +45,7 @@ export default function Budgets() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterArtist, setFilterArtist] = useState('all');
-  const [artists, setArtists] = useState([]);
+  const [artists, setArtists] = useState<{ id: string; name: string; stage_name?: string; }[]>([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState(null);
@@ -74,7 +75,9 @@ export default function Budgets() {
         .select(`
           *,
           artists (
-            nombre_artistico
+            id,
+            name,
+            stage_name
           )
         `)
         .match(filters)
@@ -101,8 +104,8 @@ export default function Budgets() {
     try {
       const { data, error } = await supabase
         .from('artists')
-        .select('id, nombre_artistico')
-        .order('nombre_artistico', { ascending: true });
+        .select('id, name, stage_name')
+        .order('name', { ascending: true });
 
       if (error) {
         throw error;
@@ -155,7 +158,8 @@ export default function Budgets() {
     const searchTermLower = searchTerm.toLowerCase();
     return (
       budget.name.toLowerCase().includes(searchTermLower) ||
-      (budget.artists?.nombre_artistico?.toLowerCase().includes(searchTermLower)) ||
+      (budget.artists?.name?.toLowerCase().includes(searchTermLower)) ||
+      (budget.artists?.stage_name?.toLowerCase().includes(searchTermLower)) ||
       (budget.ciudad?.toLowerCase().includes(searchTermLower)) ||
       (budget.lugar?.toLowerCase().includes(searchTermLower))
     );
@@ -246,7 +250,7 @@ export default function Budgets() {
                     <SelectItem value="all">Todos los artistas</SelectItem>
                     {artists.map((artist) => (
                       <SelectItem key={artist.id} value={artist.id}>
-                        {artist.nombre_artistico}
+                        {artist.stage_name || artist.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -291,7 +295,7 @@ export default function Budgets() {
                           <TableRow className="hover:bg-muted/50 cursor-pointer">
                             <TableCell className="font-medium">{budget.name}</TableCell>
                             <TableCell>
-                              {budget.artists?.nombre_artistico || 'Sin asignar'}
+                              {budget.artists?.stage_name || budget.artists?.name || 'Sin asignar'}
                             </TableCell>
                             <TableCell>{budget.ciudad || '-'}</TableCell>
                             <TableCell>{budget.lugar || '-'}</TableCell>
