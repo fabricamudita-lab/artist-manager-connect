@@ -491,7 +491,7 @@ export default function Calendar() {
                       {dayEvents.map((event, eventIndex) => (
                         <div
                           key={event.id}
-                          className={`absolute inset-1 border rounded text-xs p-1 overflow-hidden hover:opacity-80 transition-all cursor-pointer z-10 ${
+                          className={`absolute inset-1 border rounded text-xs p-2 overflow-hidden hover:opacity-80 transition-all cursor-pointer z-10 ${
                             event.event_type === 'concierto' ? 'bg-blue-100 border-blue-300 text-blue-800' :
                             event.event_type === 'entrevista' ? 'bg-green-100 border-green-300 text-green-800' :
                             event.event_type === 'reunion' ? 'bg-purple-100 border-purple-300 text-purple-800' :
@@ -503,21 +503,24 @@ export default function Calendar() {
                           }}
                           onMouseDown={(e) => e.stopPropagation()}
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium truncate">
-                                {event.title}
-                              </div>
-                              <div className="text-muted-foreground truncate">
-                                {format(new Date(event.start_date), 'HH:mm')}
-                              </div>
+                          <div className="flex flex-col h-full">
+                            <div className="font-bold text-xs uppercase tracking-wide leading-tight mb-1">
+                              {event.title}
                             </div>
+                            <div className="text-xs opacity-80 leading-tight mb-1">
+                              {format(new Date(event.start_date), 'HH:mm')} - {format(new Date(event.end_date), 'HH:mm')}
+                            </div>
+                            {event.location && (
+                              <div className="text-xs opacity-70 leading-tight truncate">
+                                {event.location}
+                              </div>
+                            )}
                             {(() => {
                               const bookingOffer = bookingOffers.find(offer => offer.event_id === event.id);
                               if (bookingOffer) {
                                 const reminders = getRemindersForBooking(bookingOffer.id);
                                 return reminders.length > 0 ? (
-                                  <div className="ml-1 flex-shrink-0">
+                                  <div className="mt-auto pt-1">
                                     <ReminderBadge reminders={reminders} variant="compact" />
                                   </div>
                                 ) : null;
