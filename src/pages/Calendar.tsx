@@ -458,7 +458,7 @@ export default function Calendar() {
                     <div 
                       key={hour} 
                       className={`h-12 border-b border-muted/20 p-1 relative cursor-pointer hover:bg-muted/10 transition-colors select-none ${
-                        isTimeSlotSelected(day, hour) ? 'bg-primary/20 border-primary/40' : ''
+                        isTimeSlotSelected(day, hour) ? '' : ''
                       }`}
                       onMouseDown={(e) => {
                         e.preventDefault();
@@ -466,6 +466,18 @@ export default function Calendar() {
                       }}
                       onMouseEnter={() => handleTimeSlotMouseEnter(day, hour)}
                     >
+                      {/* Selection overlay */}
+                      {isTimeSlotSelected(day, hour) && (
+                        <div className="absolute inset-0 bg-primary/80 border-2 border-primary rounded-md flex items-center justify-center z-5">
+                          {/* Show "Sin título" text only on the first selected hour */}
+                          {selectionStart && hour === Math.min(selectionStart.hour, selectionEnd?.hour || selectionStart.hour) && (
+                            <span className="text-primary-foreground text-xs font-medium select-none">
+                              (Sin título)
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      
                       {dayEvents.map((event, eventIndex) => (
                         <div
                           key={event.id}
@@ -513,30 +525,33 @@ export default function Calendar() {
           </div>
         </div>
 
-        {/* Floating Create Event Button */}
+        {/* Floating Create Event Button - Google Calendar Style */}
         {hasActiveSelection && selectionStart && selectionEnd && (
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background border shadow-lg rounded-lg p-4 z-20">
-            <div className="flex items-center gap-3">
-              <div className="text-sm text-muted-foreground">
-                <div className="font-medium">
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background border border-border/50 shadow-2xl rounded-xl p-4 z-20 animate-scale-in">
+            <div className="flex items-center gap-4">
+              <div className="text-sm">
+                <div className="font-semibold text-foreground mb-1">
                   {format(selectionStart.day, 'dd MMM yyyy', { locale: es })}
                 </div>
-                <div>{getSelectionTimeRange()}</div>
+                <div className="text-muted-foreground text-xs">
+                  {getSelectionTimeRange()}
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={clearSelection}
+                  className="h-8 px-3 text-muted-foreground hover:text-foreground"
                 >
                   Cancelar
                 </Button>
                 <Button
                   size="sm"
                   onClick={createEventFromSelection}
-                  className="bg-primary hover:bg-primary/90"
+                  className="h-8 px-4 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
+                  <Plus className="h-3 w-3 mr-1.5" />
                   Crear evento
                 </Button>
               </div>
