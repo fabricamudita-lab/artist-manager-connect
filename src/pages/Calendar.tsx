@@ -1,6 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/useCommon';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,7 @@ export default function Calendar() {
   const [prefilledData, setPrefilledData] = useState<any>(null);
   const [bookingOffers, setBookingOffers] = useState<any[]>([]);
   const { getRemindersForBooking } = useBookingReminders(bookingOffers);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (profile) {
@@ -64,6 +65,14 @@ export default function Calendar() {
       fetchBookingOffers();
     }
   }, [profile, selectedArtists]);
+
+  // Scroll to 9 AM when week view is rendered
+  useEffect(() => {
+    if (viewMode === 'week' && scrollAreaRef.current) {
+      // Scroll to 9 AM (hour 9 = index 9, each hour is 48px tall)
+      scrollAreaRef.current.scrollTop = 9 * 48;
+    }
+  }, [viewMode, currentDate]);
 
   const fetchEvents = async () => {
     try {
@@ -220,7 +229,7 @@ export default function Calendar() {
 
   const renderWeekView = () => {
     const weekDays = getWeekDays();
-    const timeSlots = Array.from({ length: 15 }, (_, i) => i + 9); // Start at 9:00 AM, show 15 hours
+    const timeSlots = Array.from({ length: 24 }, (_, i) => i); // Show all 24 hours (0-23)
 
     return (
       <div className="calendar-week-view bg-background rounded-xl border shadow-soft overflow-hidden">
@@ -332,8 +341,8 @@ export default function Calendar() {
           })}
         </div>
 
-        {/* Calendar grid */}
-        <div className="h-96 overflow-y-auto">
+        {/* Calendar grid with scroll area and initial position at 9 AM */}
+        <div className="h-96 overflow-y-auto" ref={scrollAreaRef}>
           <div className="grid grid-cols-8">
             {/* Time column */}
             <div className="bg-muted/10">
