@@ -55,8 +55,8 @@ export default function Contacts() {
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCity, setSelectedCity] = useState<string>('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [sharingContact, setSharingContact] = useState<Contact | null>(null);
@@ -107,11 +107,11 @@ export default function Contacts() {
       );
     }
 
-    if (selectedCategory) {
+    if (selectedCategory && selectedCategory !== 'all') {
       filtered = filtered.filter(contact => contact.category === selectedCategory);
     }
 
-    if (selectedCity) {
+    if (selectedCity && selectedCity !== 'all') {
       filtered = filtered.filter(contact => contact.city === selectedCity);
     }
 
@@ -193,7 +193,7 @@ export default function Contacts() {
             <SelectValue placeholder="Categoría" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todas las categorías</SelectItem>
+            <SelectItem value="all">Todas las categorías</SelectItem>
             {CATEGORIES.map((category) => (
               <SelectItem key={category.value} value={category.value}>
                 {category.label}
@@ -207,9 +207,9 @@ export default function Contacts() {
             <SelectValue placeholder="Ciudad" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todas las ciudades</SelectItem>
+            <SelectItem value="all">Todas las ciudades</SelectItem>
             {cities.map((city) => (
-              <SelectItem key={`city-${city}`} value={city || ""}>
+              <SelectItem key={`city-${city}`} value={city}>
                 {city}
               </SelectItem>
             ))}
