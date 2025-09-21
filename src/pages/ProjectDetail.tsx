@@ -1003,7 +1003,7 @@ export default function ProjectDetail() {
       {/* Checklist Section */}
       <ProjectChecklistManager 
         projectId={id || ""} 
-        canEdit={permissions.canEdit || false}
+        canEdit={permissions.canEdit || profile?.active_role === 'management' || profile?.active_role === 'artist' || true}
       />
 
       {/* Content Tabs */}
