@@ -47,6 +47,7 @@ export default function Calendar() {
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<{ day: Date; hour: number } | null>(null);
   const [selectionEnd, setSelectionEnd] = useState<{ day: Date; hour: number } | null>(null);
+  const [hasActiveSelection, setHasActiveSelection] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -92,6 +93,11 @@ export default function Calendar() {
       document.removeEventListener('mouseup', handleGlobalMouseUp);
     };
   }, [isSelecting, selectionStart, selectionEnd]);
+
+  // Clear selection when view mode or current date changes
+  useEffect(() => {
+    clearSelection();
+  }, [viewMode, currentDate]);
 
   const fetchEvents = async () => {
     try {
@@ -261,6 +267,13 @@ export default function Calendar() {
 
   const handleTimeSlotMouseUp = () => {
     if (isSelecting && selectionStart && selectionEnd) {
+      setHasActiveSelection(true);
+    }
+    setIsSelecting(false);
+  };
+
+  const createEventFromSelection = () => {
+    if (selectionStart && selectionEnd) {
       const startHour = Math.min(selectionStart.hour, selectionEnd.hour);
       const endHour = Math.max(selectionStart.hour, selectionEnd.hour) + 1; // Add 1 to include the end hour
       
@@ -276,8 +289,12 @@ export default function Calendar() {
         event_type: 'reunion'
       });
       setShouldOpenCreateDialog(true);
+      clearSelection();
     }
-    
+  };
+
+  const clearSelection = () => {
+    setHasActiveSelection(false);
     setIsSelecting(false);
     setSelectionStart(null);
     setSelectionEnd(null);
@@ -291,6 +308,15 @@ export default function Calendar() {
     const maxHour = Math.max(selectionStart.hour, selectionEnd.hour);
     
     return hour >= minHour && hour <= maxHour;
+  };
+
+  const getSelectionTimeRange = () => {
+    if (!selectionStart || !selectionEnd) return '';
+    
+    const startHour = Math.min(selectionStart.hour, selectionEnd.hour);
+    const endHour = Math.max(selectionStart.hour, selectionEnd.hour) + 1;
+    
+    return `${startHour.toString().padStart(2, '0')}:00 - ${endHour.toString().padStart(2, '0')}:00`;
   };
 
   const renderWeekView = () => {
@@ -486,6 +512,37 @@ export default function Calendar() {
             ))}
           </div>
         </div>
+
+        {/* Floating Create Event Button */}
+        {hasActiveSelection && selectionStart && selectionEnd && (
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background border shadow-lg rounded-lg p-4 z-20">
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-muted-foreground">
+                <div className="font-medium">
+                  {format(selectionStart.day, 'dd MMM yyyy', { locale: es })}
+                </div>
+                <div>{getSelectionTimeRange()}</div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearSelection}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={createEventFromSelection}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Crear evento
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -710,10 +767,7 @@ export default function Calendar() {
               setShouldOpenCreateDialog(open);
               if (!open) {
                 setPrefilledData(null);
-                // Clear selection state when dialog closes
-                setIsSelecting(false);
-                setSelectionStart(null);
-                setSelectionEnd(null);
+                clearSelection();
               }
             }}
             prefilledData={prefilledData}
