@@ -89,10 +89,10 @@ export function EventDetailPopover({
         zIndex: zIndex,
       }}
       onMouseDown={(e) => {
-        // No permitir drag si se hace clic en un botón
-        if ((e.target as HTMLElement).closest('button')) {
-          e.stopPropagation();
-          return;
+        // No permitir drag si se hace clic en un botón o elemento interactivo
+        const target = e.target as HTMLElement;
+        if (target.closest('button') || target.closest('[role="button"]') || target.tagName === 'BUTTON') {
+          return; // No hacer nada, dejar que el click del botón funcione
         }
         onBringToFront?.();
         handleMouseDown(e);
@@ -109,7 +109,7 @@ export function EventDetailPopover({
             {eventTypeLabels[event.event_type as keyof typeof eventTypeLabels] || 'Evento'}
           </Badge>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 cursor-auto">
           {onEdit && (
             <Button
               variant="ghost"
