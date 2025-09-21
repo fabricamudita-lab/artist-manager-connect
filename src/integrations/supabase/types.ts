@@ -1904,6 +1904,7 @@ export type Database = {
           full_name: string
           id: string
           internal_notes: string | null
+          is_test_user: boolean | null
           phone: string | null
           roles: Database["public"]["Enums"]["user_role"][]
           team_contacts: string | null
@@ -1921,6 +1922,7 @@ export type Database = {
           full_name: string
           id?: string
           internal_notes?: string | null
+          is_test_user?: boolean | null
           phone?: string | null
           roles?: Database["public"]["Enums"]["user_role"][]
           team_contacts?: string | null
@@ -1938,6 +1940,7 @@ export type Database = {
           full_name?: string
           id?: string
           internal_notes?: string | null
+          is_test_user?: boolean | null
           phone?: string | null
           roles?: Database["public"]["Enums"]["user_role"][]
           team_contacts?: string | null

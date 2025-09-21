@@ -2,11 +2,22 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/useCommon';
 import ComprehensiveDashboard from '@/components/ComprehensiveDashboard';
 import { PermissionChip } from '@/components/PermissionChip';
+import TestUserSetup from '@/components/TestUserSetup';
 import { Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export default function Dashboard() {
   usePageTitle('Dashboard');
   const { profile, loading } = useAuth();
+  const [showTestSetup, setShowTestSetup] = useState(false);
+
+  // Show test setup if URL contains setup parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('setup') === 'test-users') {
+      setShowTestSetup(true);
+    }
+  }, []);
 
   console.log('Dashboard - Profile:', profile, 'Loading:', loading);
   console.log('Dashboard - Profile active role:', profile?.active_role);
@@ -49,6 +60,13 @@ export default function Dashboard() {
           <PermissionChip />
         </div>
       </div>
+      
+      {showTestSetup && (
+        <div className="mb-6">
+          <TestUserSetup onComplete={() => setShowTestSetup(false)} />
+        </div>
+      )}
+      
       <ComprehensiveDashboard />
     </div>
   );

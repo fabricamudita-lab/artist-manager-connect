@@ -35,3 +35,6 @@ verify_jwt = true
 
 [functions.search-event-ai]
 verify_jwt = false
+
+[functions.setup-test-users]
+verify_jwt = false
