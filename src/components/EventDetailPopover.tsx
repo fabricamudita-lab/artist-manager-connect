@@ -40,6 +40,25 @@ export function EventDetailPopover({
   const popoverRef = useRef<HTMLDivElement>(null);
 
   console.log('EventDetailPopover rendering with event:', event);
+  
+  // Cerrar al hacer clic fuera - siempre llamar hooks antes de early returns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        onOpenChange(false);
+      }
+    };
+
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [open, onOpenChange]);
+
+  // Early return DESPUÉS de todos los hooks
   if (!event || !open) return null;
 
   console.log('Event start_date:', event.start_date);
@@ -61,23 +80,6 @@ export function EventDetailPopover({
     'ensayo': 'bg-orange-100 text-orange-800',
     'other': 'bg-gray-100 text-gray-800'
   };
-
-  // Cerrar al hacer clic fuera
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-        onOpenChange(false);
-      }
-    };
-
-    if (open) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [open, onOpenChange]);
 
   return (
     <div
@@ -124,6 +126,11 @@ export function EventDetailPopover({
             variant="ghost"
             size="sm"
             className="h-8 w-8 p-0 hover:bg-muted"
+            onClick={() => {
+              // Simular envío de email
+              console.log('Enviando email sobre el evento:', event.title);
+              alert(`Enviando email sobre: ${event.title}`);
+            }}
           >
             <Mail className="h-4 w-4" />
           </Button>
@@ -131,6 +138,11 @@ export function EventDetailPopover({
             variant="ghost"
             size="sm"
             className="h-8 w-8 p-0 hover:bg-muted"
+            onClick={() => {
+              // Mostrar menú de opciones
+              console.log('Mostrando más opciones para:', event.title);
+              alert('Más opciones disponibles próximamente');
+            }}
           >
             <MoreHorizontal className="h-4 w-4" />
           </Button>
