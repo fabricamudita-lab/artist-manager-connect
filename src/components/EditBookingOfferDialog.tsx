@@ -323,6 +323,25 @@ export function EditBookingOfferDialog({
                 <AlertsBadge 
                   errors={validationResult.errors}
                   warnings={validationResult.warnings}
+                  showAttachButton={validationResult.errors.some(e => e.field === 'contratos' || e.field === 'contacto')}
+                  onAttachDocuments={() => {
+                    // Open file picker for documents
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.multiple = true;
+                    input.accept = '.pdf,.doc,.docx,.txt';
+                    input.onchange = (e) => {
+                      const files = (e.target as HTMLInputElement).files;
+                      if (files && files.length > 0) {
+                        toast({
+                          title: "Documentos adjuntados",
+                          description: `Se han seleccionado ${files.length} archivo(s)`,
+                        });
+                        // Here you would handle the file upload logic
+                      }
+                    };
+                    input.click();
+                  }}
                 />
                 <span className="text-sm font-medium">Estado de validación</span>
               </div>

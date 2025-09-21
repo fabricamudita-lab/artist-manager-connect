@@ -1,14 +1,17 @@
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { AlertTriangle, XCircle, CheckCircle } from 'lucide-react';
+import { AlertTriangle, XCircle, CheckCircle, Paperclip } from 'lucide-react';
 import { ValidationError, ValidationWarning } from '@/lib/bookingValidations';
 
 interface AlertsBadgeProps {
   errors: ValidationError[];
   warnings: ValidationWarning[];
+  onAttachDocuments?: () => void;
+  showAttachButton?: boolean;
 }
 
-export function AlertsBadge({ errors, warnings }: AlertsBadgeProps) {
+export function AlertsBadge({ errors, warnings, onAttachDocuments, showAttachButton }: AlertsBadgeProps) {
   if (errors.length === 0 && warnings.length === 0) {
     return (
       <Badge variant="outline" className="badge-success">
@@ -84,6 +87,20 @@ export function AlertsBadge({ errors, warnings }: AlertsBadgeProps) {
               </div>
             </div>
           ))}
+          
+          {showAttachButton && onAttachDocuments && (
+            <div className="pt-4 border-t">
+              <Button 
+                type="button"
+                variant="outline" 
+                onClick={onAttachDocuments}
+                className="w-full"
+              >
+                <Paperclip className="w-4 h-4 mr-2" />
+                Adjuntar documentos
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
