@@ -42,6 +42,11 @@ export default function Calendar() {
   const [bookingOffers, setBookingOffers] = useState<any[]>([]);
   const { getRemindersForBooking } = useBookingReminders(bookingOffers);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  
+  // Time selection states
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionStart, setSelectionStart] = useState<{ day: Date; hour: number } | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<{ day: Date; hour: number } | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -73,6 +78,20 @@ export default function Calendar() {
       scrollAreaRef.current.scrollTop = 9 * 48;
     }
   }, [viewMode, currentDate]);
+
+  // Add global mouseup listener for time selection
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isSelecting) {
+        handleTimeSlotMouseUp();
+      }
+    };
+
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => {
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isSelecting, selectionStart, selectionEnd]);
 
   const fetchEvents = async () => {
     try {
@@ -227,6 +246,53 @@ export default function Calendar() {
     return getEventsForDate(date).filter(event => !isAllDayEvent(event));
   };
 
+  // Time selection handlers
+  const handleTimeSlotMouseDown = (day: Date, hour: number) => {
+    setIsSelecting(true);
+    setSelectionStart({ day, hour });
+    setSelectionEnd({ day, hour });
+  };
+
+  const handleTimeSlotMouseEnter = (day: Date, hour: number) => {
+    if (isSelecting && selectionStart && isSameDay(day, selectionStart.day)) {
+      setSelectionEnd({ day, hour });
+    }
+  };
+
+  const handleTimeSlotMouseUp = () => {
+    if (isSelecting && selectionStart && selectionEnd) {
+      const startHour = Math.min(selectionStart.hour, selectionEnd.hour);
+      const endHour = Math.max(selectionStart.hour, selectionEnd.hour) + 1; // Add 1 to include the end hour
+      
+      const startDate = new Date(selectionStart.day);
+      startDate.setHours(startHour, 0, 0, 0);
+      
+      const endDate = new Date(selectionStart.day);
+      endDate.setHours(endHour, 0, 0, 0);
+      
+      setPrefilledData({
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
+        event_type: 'reunion'
+      });
+      setShouldOpenCreateDialog(true);
+    }
+    
+    setIsSelecting(false);
+    setSelectionStart(null);
+    setSelectionEnd(null);
+  };
+
+  const isTimeSlotSelected = (day: Date, hour: number) => {
+    if (!selectionStart || !selectionEnd) return false;
+    if (!isSameDay(day, selectionStart.day)) return false;
+    
+    const minHour = Math.min(selectionStart.hour, selectionEnd.hour);
+    const maxHour = Math.max(selectionStart.hour, selectionEnd.hour);
+    
+    return hour >= minHour && hour <= maxHour;
+  };
+
   const renderWeekView = () => {
     const weekDays = getWeekDays();
     const timeSlots = Array.from({ length: 24 }, (_, i) => i); // Show all 24 hours (0-23)
@@ -363,20 +429,31 @@ export default function Calendar() {
                   });
 
                   return (
-                    <div key={hour} className="h-12 border-b border-muted/20 p-1 relative">
+                    <div 
+                      key={hour} 
+                      className={`h-12 border-b border-muted/20 p-1 relative cursor-pointer hover:bg-muted/10 transition-colors select-none ${
+                        isTimeSlotSelected(day, hour) ? 'bg-primary/20 border-primary/40' : ''
+                      }`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleTimeSlotMouseDown(day, hour);
+                      }}
+                      onMouseEnter={() => handleTimeSlotMouseEnter(day, hour)}
+                    >
                       {dayEvents.map((event, eventIndex) => (
                         <div
                           key={event.id}
-                          className={`absolute inset-1 border rounded text-xs p-1 overflow-hidden hover:opacity-80 transition-all cursor-pointer ${
+                          className={`absolute inset-1 border rounded text-xs p-1 overflow-hidden hover:opacity-80 transition-all cursor-pointer z-10 ${
                             event.event_type === 'concierto' ? 'bg-blue-100 border-blue-300 text-blue-800' :
                             event.event_type === 'entrevista' ? 'bg-green-100 border-green-300 text-green-800' :
                             event.event_type === 'reunion' ? 'bg-purple-100 border-purple-300 text-purple-800' :
                             'bg-gray-100 border-gray-300 text-gray-800'
                           }`}
                           style={{ 
-                            zIndex: eventIndex + 1,
+                            zIndex: eventIndex + 10,
                             marginTop: `${eventIndex * 2}px` 
                           }}
+                          onMouseDown={(e) => e.stopPropagation()}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex-1 min-w-0">
@@ -629,7 +706,16 @@ export default function Calendar() {
           <CreateEventDialog 
             onEventCreated={fetchEvents}
             shouldOpen={shouldOpenCreateDialog}
-            onOpenChange={setShouldOpenCreateDialog}
+            onOpenChange={(open) => {
+              setShouldOpenCreateDialog(open);
+              if (!open) {
+                setPrefilledData(null);
+                // Clear selection state when dialog closes
+                setIsSelecting(false);
+                setSelectionStart(null);
+                setSelectionEnd(null);
+              }
+            }}
             prefilledData={prefilledData}
           />
         </div>
