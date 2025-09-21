@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, Filter, Plus, Download, FileText, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { BookingCard } from './BookingCard';
+import { CompactBookingCard } from './CompactBookingCard';
 import { CreateBookingOfferDialog } from './CreateBookingOfferDialog';
 import { exportToCSV, generateOfferNumber } from '@/utils/exportUtils';
 import { CopyButton } from '@/components/ui/copy-button';
@@ -61,12 +61,13 @@ export interface BookingOffer {
 }
 
 const PHASES = [
-  { id: 'lead', label: 'Lead', color: 'bg-gray-100 border-gray-200' },
-  { id: 'oferta_enviada', label: 'Oferta enviada', color: 'bg-blue-50 border-blue-200' },
-  { id: 'negociacion', label: 'Negociación', color: 'bg-yellow-50 border-yellow-200' },
+  { id: 'interes', label: 'Interés', color: 'bg-slate-50 border-slate-200' },
+  { id: 'oferta', label: 'Oferta', color: 'bg-blue-50 border-blue-200' },
+  { id: 'negociacion', label: 'Negociación', color: 'bg-amber-50 border-amber-200' },
   { id: 'confirmado', label: 'Confirmado', color: 'bg-green-50 border-green-200' },
-  { id: 'contratado', label: 'Contratado', color: 'bg-purple-50 border-purple-200' },
-  { id: 'cerrado_perdido', label: 'Cerrado (perdido)', color: 'bg-red-50 border-red-200' }
+  { id: 'facturado', label: 'Facturado', color: 'bg-emerald-50 border-emerald-200' },
+  { id: 'cerrado', label: 'Cerrado', color: 'bg-purple-50 border-purple-200' },
+  { id: 'cancelado', label: 'Cancelado (perdido)', color: 'bg-red-50 border-red-200' }
 ];
 
 interface BookingKanbanProps {
@@ -238,7 +239,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
       const { id, created_at, updated_at, ...offerData } = originalOffer;
       const duplicatedOffer = {
         ...offerData,
-        phase: 'lead',
+        phase: 'interes',
         sort_order: offers.length,
         created_by: offerData.created_by || 'unknown'
       };
@@ -431,24 +432,36 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-6 gap-4 min-h-[600px]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-7 gap-3 min-h-[600px]">
           {PHASES.map(phase => {
             const phaseOffers = getOffersByPhase(phase.id);
             
             return (
-              <Card key={phase.id} className={`${phase.color} border-2 transition-all duration-200`}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold flex items-center justify-between">
-                    {phase.label}
-                    <Badge variant="secondary" className="ml-2">
-                      {phaseOffers.length}
-                    </Badge>
-                  </CardTitle>
+              <Card key={phase.id} className={`${phase.color} border-2 transition-all duration-200 hover:shadow-sm`}>
+                <CardHeader className="pb-2 px-3 pt-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xs font-bold text-foreground">
+                      {phase.label}
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0.5 font-medium">
+                        {phaseOffers.length}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 hover:bg-primary/10"
+                        onClick={() => setShowCreateDialog(true)}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-2 px-3 pb-3">
                   <SortableContext items={phaseOffers.map(offer => offer.id)}>
                     {phaseOffers.map(offer => (
-                      <BookingCard
+                      <CompactBookingCard
                         key={offer.id}
                         offer={offer}
                         onDuplicate={duplicateOffer}
@@ -458,12 +471,12 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
                   </SortableContext>
                   
                   {phaseOffers.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
-                      <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center mx-auto mb-2">
-                        <Plus className="w-4 h-4" />
+                    <div className="text-center py-6 text-muted-foreground text-xs">
+                      <div className="w-6 h-6 bg-muted/50 rounded flex items-center justify-center mx-auto mb-1.5">
+                        <Plus className="w-3 h-3" />
                       </div>
-                      <p>Sin ofertas</p>
-                      <p className="text-xs">Arrastra aquí para cambiar de fase</p>
+                      <p className="font-medium">Sin ofertas</p>
+                      <p className="text-xs opacity-70 mt-0.5">Arrastra aquí</p>
                     </div>
                   )}
                 </CardContent>
