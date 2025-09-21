@@ -89,6 +89,11 @@ export function EventDetailPopover({
         zIndex: zIndex,
       }}
       onMouseDown={(e) => {
+        // No permitir drag si se hace clic en un botón
+        if ((e.target as HTMLElement).closest('button')) {
+          e.stopPropagation();
+          return;
+        }
         onBringToFront?.();
         handleMouseDown(e);
       }}
