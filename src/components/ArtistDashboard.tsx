@@ -152,12 +152,8 @@ export default function ArtistDashboard() {
         </div>
       </div>
 
-      <Tabs defaultValue="calendar" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="calendar" className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Calendario
-            </TabsTrigger>
+      <Tabs defaultValue="financial" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="financial" className="flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
               Finanzas
@@ -167,41 +163,6 @@ export default function ArtistDashboard() {
               Documentos
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="calendar">
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Próximos Eventos</h2>
-              {events.length === 0 ? (
-                <Card>
-                  <CardContent className="text-center py-8">
-                    <p className="text-muted-foreground">No tienes eventos programados.</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid gap-4">
-                  {events.map((event) => (
-                    <Card key={event.id}>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Calendar className="w-5 h-5" />
-                          {event.title}
-                        </CardTitle>
-                        <CardDescription>
-                          {new Date(event.start_date).toLocaleDateString()} - {event.event_type}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground mb-2">{event.description}</p>
-                        {event.location && (
-                          <p className="text-xs text-muted-foreground">Ubicación: {event.location}</p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          </TabsContent>
 
           <TabsContent value="financial">
             <div className="space-y-4">
