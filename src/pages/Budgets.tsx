@@ -25,17 +25,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 interface Budget {
   id: string;
   name: string;
-  ciudad?: string;
-  lugar?: string;
-  fecha?: string;
-  estado?: string;
-  total_amount?: number;
-  artist_id?: string;
+  city?: string;
+  venue?: string;
+  event_date?: string;
+  budget_status?: string;
+  show_status?: string;
+  fee?: number;
   created_at: string;
-  artists?: {
-    name: string;
-    stage_name?: string;
-  };
+  created_by: string;
 }
 
 export default function Budgets() {
@@ -72,14 +69,7 @@ export default function Budgets() {
 
       const { data, error } = await supabase
         .from('budgets')
-        .select(`
-          *,
-          artists (
-            id,
-            name,
-            stage_name
-          )
-        `)
+        .select('*')
         .match(filters)
         .order('created_at', { ascending: false });
 
@@ -158,10 +148,8 @@ export default function Budgets() {
     const searchTermLower = searchTerm.toLowerCase();
     return (
       budget.name.toLowerCase().includes(searchTermLower) ||
-      (budget.artists?.name?.toLowerCase().includes(searchTermLower)) ||
-      (budget.artists?.stage_name?.toLowerCase().includes(searchTermLower)) ||
-      (budget.ciudad?.toLowerCase().includes(searchTermLower)) ||
-      (budget.lugar?.toLowerCase().includes(searchTermLower))
+      (budget.city?.toLowerCase().includes(searchTermLower)) ||
+      (budget.venue?.toLowerCase().includes(searchTermLower))
     );
   });
 
@@ -279,9 +267,8 @@ export default function Budgets() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nombre</TableHead>
-                      <TableHead>Artista</TableHead>
                       <TableHead>Ciudad</TableHead>
-                      <TableHead>Lugar</TableHead>
+                      <TableHead>Venue</TableHead>
                       <TableHead>Fecha</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead>Importe</TableHead>
@@ -295,18 +282,18 @@ export default function Budgets() {
                           <TableRow className="hover:bg-muted/50 cursor-pointer">
                             <TableCell className="font-medium">{budget.name}</TableCell>
                             <TableCell>
-                              {budget.artists?.stage_name || budget.artists?.name || 'Sin asignar'}
+                              {budget.city || '-'}
                             </TableCell>
-                            <TableCell>{budget.ciudad || '-'}</TableCell>
-                            <TableCell>{budget.lugar || '-'}</TableCell>
+                            <TableCell>{budget.venue || '-'}</TableCell>
+                            <TableCell>{budget.venue || '-'}</TableCell>
                             <TableCell>
-                              {budget.fecha ? new Date(budget.fecha).toLocaleDateString() : '-'}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{budget.estado || 'borrador'}</Badge>
+                              {budget.event_date ? new Date(budget.event_date).toLocaleDateString() : '-'}
                             </TableCell>
                             <TableCell>
-                              {budget.total_amount ? `€${budget.total_amount.toLocaleString()}` : '-'}</TableCell>
+                              <Badge variant="outline">{budget.budget_status || budget.show_status || 'borrador'}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              {budget.fee ? `€${budget.fee.toLocaleString()}` : '-'}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
                                 <Button
@@ -348,8 +335,8 @@ export default function Budgets() {
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs p-3">
                           <div className="space-y-1 text-sm">
-                            <div><strong>Estado:</strong> {budget.estado || 'borrador'}</div>
-                            <div><strong>Importe:</strong> {budget.total_amount ? `€${budget.total_amount.toLocaleString()}` : 'No definido'}</div>
+                            <div><strong>Estado:</strong> {budget.budget_status || budget.show_status || 'borrador'}</div>
+                            <div><strong>Importe:</strong> {budget.fee ? `€${budget.fee.toLocaleString()}` : 'No definido'}</div>
                             <div><strong>Fecha de emisión:</strong> {new Date(budget.created_at).toLocaleDateString()}</div>
                             <div><strong>Categoría:</strong> Presupuesto general</div>
                           </div>
