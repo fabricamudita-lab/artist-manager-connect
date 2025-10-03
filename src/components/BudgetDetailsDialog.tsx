@@ -1851,12 +1851,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
               <TabsContent value="overview" className="flex-1 overflow-auto p-0 m-0">
                 <div className="h-full p-6">
-                  {/* Enhanced Budget Items View */}
-                  <EnhancedBudgetItemsView budgetId={budget.id} />
-                  
-                  {/* Original Overview Content */}
-                  <div className="space-y-6 mt-8">
-                    {/* Grid con gráfico y resumen por categorías */}
+                  {/* Grid con gráfico y resumen por categorías - MOVED TO TOP */}
+                  <div className="space-y-6 mb-8">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       {/* Gráfico circular de categorías */}
                       <Card>
@@ -1976,6 +1972,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                         </Table>
                       </CardContent>
                     </Card>
+                  </div>
+                  </div>
+                  
+                  {/* Enhanced Budget Items View - MOVED BELOW CHARTS */}
+                  <div className="mb-8">
+                    <EnhancedBudgetItemsView budgetId={budget.id} />
                   </div>
 
                   {/* Tabla detallada de elementos */}
@@ -2208,7 +2210,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       )}
                      </CardContent>
                    </Card>
-                 </div>
                  </div>
                </TabsContent>
 
