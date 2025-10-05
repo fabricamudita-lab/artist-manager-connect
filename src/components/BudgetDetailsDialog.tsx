@@ -1547,6 +1547,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                       <TableHead className="font-bold text-black w-[80px] text-center">IRPF (%)</TableHead>
                                       <TableHead className="font-bold text-black w-[120px] text-right">Total (€)</TableHead>
                                       <TableHead className="font-bold text-black w-[150px] text-center">Estado de facturación</TableHead>
+                                      <TableHead className="font-bold text-black w-[150px] text-center">Enlace Factura</TableHead>
                                       <TableHead className="font-bold text-black w-[100px] text-center">Acciones</TableHead>
                                     </TableRow>
                                   </TableHeader>
@@ -1794,7 +1795,39 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                             </div>
                                           )}
                                         </TableCell>
-                                       
+
+                                       {/* Enlace Factura */}
+                                       <TableCell className="p-2 text-center">
+                                         {editingItem === item.id ? (
+                                           <Input
+                                             type="text"
+                                             value={editingItemValues.invoice_link || item.invoice_link || ''}
+                                             onChange={(e) => setEditingItemValues(prev => ({ ...prev, invoice_link: e.target.value }))}
+                                             placeholder="URL de factura"
+                                             className="h-8 text-sm border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
+                                           />
+                                         ) : (
+                                           <div 
+                                             className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
+                                             onClick={() => startEditingItem(item)}
+                                           >
+                                             {item.invoice_link ? (
+                                               <a 
+                                                 href={item.invoice_link} 
+                                                 target="_blank" 
+                                                 rel="noopener noreferrer"
+                                                 className="text-blue-600 hover:text-blue-800 underline text-sm"
+                                                 onClick={(e) => e.stopPropagation()}
+                                               >
+                                                 Ver factura
+                                               </a>
+                                             ) : (
+                                               <span className="text-gray-400 text-sm">-</span>
+                                             )}
+                                           </div>
+                                         )}
+                                       </TableCell>
+                                        
                                          {/* Acciones */}
                                         <TableCell className="p-2 text-center">
                                           <div className="flex items-center justify-center gap-1">
