@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, X, Mail, Phone, Building2, MapPin, Contact }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
 interface Contact {
   id: string;
@@ -92,7 +93,14 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
       return name.charAt(0).toUpperCase() === letter;
     });
 
-    if (targetIndex === -1) return; // Letter not found
+    if (targetIndex === -1) {
+      // Letter not found - show subtle message
+      toast({
+        description: `No hay contactos que empiecen por "${letter}"`,
+        duration: 2000,
+      });
+      return;
+    }
 
     // Calculate shortest path
     const totalContacts = sortedContacts.length;
