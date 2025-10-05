@@ -215,8 +215,8 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
     const finalNombreSolicitante = formData.nombre_solicitante.trim() || generatedSubject;
 
     try {
-      if (!profile?.id) {
-        throw new Error('No se pudo obtener el perfil del usuario');
+      if (!profile?.user_id) {
+        throw new Error('No se pudo obtener el ID del usuario');
       }
 
       const solicitudData = {
@@ -226,7 +226,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
         telefono: formData.telefono || null,
         observaciones: formData.observaciones || null,
         notas_internas: formData.notas_internas || null,
-        created_by: profile.id, // Usar el ID del perfil, no el user_id
+        created_by: profile.user_id, // Debe ser el user_id de auth, no el profile.id
         artist_id: formData.artist_id || null,
         fecha_limite_respuesta: formData.fecha_limite_respuesta || null,
         project_id: projectId || null,
