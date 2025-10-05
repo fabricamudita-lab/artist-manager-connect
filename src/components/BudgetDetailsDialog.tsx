@@ -44,13 +44,15 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  ArrowRightLeft
+  ArrowRightLeft,
+  CheckCircle
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import EnhancedBudgetItemsView from '@/components/EnhancedBudgetItemsView';
+import LiquidarFacturasDialog from '@/components/LiquidarFacturasDialog';
 
 interface Budget {
   id: string;
@@ -176,6 +178,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [editingBudgetAmount, setEditingBudgetAmount] = useState(false);
   const [budgetAmount, setBudgetAmount] = useState<number>(budget.fee || 0);
   const [expandedQuantity, setExpandedQuantity] = useState<string | null>(null);
+  const [showLiquidarDialog, setShowLiquidarDialog] = useState(false);
 
   useEffect(() => {
     if (open && budget) {
@@ -1231,11 +1234,20 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
               <TabsContent value="items" className="flex-1 overflow-hidden p-0 m-0">
                 <div className="h-full flex flex-col bg-gradient-to-b from-black to-gray-900">
-                  {/* Category Management Header - Compact */}
+                   {/* Category Management Header - Compact */}
                   <div className="bg-black text-white p-3 border-b border-gray-700">
                     <div className="flex items-center justify-between">
                       <h2 className="text-base font-bold">Gestión de Elementos y Categorías</h2>
                        <div className="flex gap-2">
+                         <Button
+                           onClick={() => setShowLiquidarDialog(true)}
+                           size="sm"
+                           variant="outline"
+                           className="bg-green-600/20 hover:bg-green-600/30 text-green-200 border-green-400/20 text-xs"
+                         >
+                           <CheckCircle className="w-3 h-3 mr-1" />
+                           Liquidar Facturas
+                         </Button>
                          <Button
                            onClick={() => setShowCategoryManagement(!showCategoryManagement)}
                            size="sm"
@@ -2217,6 +2229,20 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           </div>
         </div>
       </DialogContent>
+
+      {/* Liquidar Facturas Dialog */}
+      <LiquidarFacturasDialog
+        open={showLiquidarDialog}
+        onOpenChange={setShowLiquidarDialog}
+        budgetId={budget.id}
+        onSuccess={() => {
+          fetchBudgetItems();
+          toast({
+            title: "Éxito",
+            description: "Facturas liquidadas correctamente",
+          });
+        }}
+      />
     </Dialog>
   );
 }
