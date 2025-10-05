@@ -34,6 +34,7 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<'next' | 'prev'>('next');
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const wheelTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
@@ -49,13 +50,25 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
   }, []);
 
   const handleNext = () => {
+    if (isTransitioning) return;
+    
+    setIsTransitioning(true);
     setDirection('next');
     setCurrentIndex((prev) => (prev + 1) % sortedContacts.length);
+    
+    // Reset transition lock after animation completes
+    setTimeout(() => setIsTransitioning(false), 300);
   };
 
   const handlePrev = () => {
+    if (isTransitioning) return;
+    
+    setIsTransitioning(true);
     setDirection('prev');
     setCurrentIndex((prev) => (prev - 1 + sortedContacts.length) % sortedContacts.length);
+    
+    // Reset transition lock after animation completes
+    setTimeout(() => setIsTransitioning(false), 300);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -67,17 +80,21 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     
+    if (isTransitioning) return;
+    
+    // Clear any existing timeout
     if (wheelTimeoutRef.current) {
       clearTimeout(wheelTimeoutRef.current);
     }
 
+    // Throttle wheel events to max 3 per second
     wheelTimeoutRef.current = setTimeout(() => {
       if (e.deltaY > 0) {
         handleNext();
       } else if (e.deltaY < 0) {
         handlePrev();
       }
-    }, 50);
+    }, 100);
   };
 
   if (sortedContacts.length === 0) return null;
