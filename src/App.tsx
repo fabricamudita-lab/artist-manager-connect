@@ -7,7 +7,6 @@ import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute, ForbiddenPage } from "@/components/ProtectedRoute";
 import { DevRoleSwitcher } from "@/components/DevRoleSwitcher";
-import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Calendar from "./pages/Calendar";
@@ -56,7 +55,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={
                 <PublicRoute>
-                  <Index />
+                  <Auth />
                 </PublicRoute>
               } />
               <Route path="/auth" element={
