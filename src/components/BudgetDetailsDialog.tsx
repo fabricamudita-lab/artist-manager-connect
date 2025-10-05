@@ -45,7 +45,9 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowRightLeft,
-  CheckCircle
+  CheckCircle,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -53,6 +55,9 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import EnhancedBudgetItemsView from '@/components/EnhancedBudgetItemsView';
 import LiquidarFacturasDialog from '@/components/LiquidarFacturasDialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Budget {
   id: string;
@@ -808,6 +813,144 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   };
 
+  // Función para generar PDF del presupuesto
+  const downloadPDF = () => {
+    const doc = new jsPDF();
+    const totals = calculateGrandTotals();
+    
+    // Título
+    doc.setFontSize(20);
+    doc.text(budgetData.name, 14, 22);
+    
+    // Información del presupuesto
+    doc.setFontSize(10);
+    doc.text(`Presupuestado: €${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`, 14, 32);
+    doc.text(`Total final: €${totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`, 14, 38);
+    
+    // Tabla de elementos
+    const tableData = items.map(item => [
+      item.name,
+      item.category,
+      item.quantity.toString(),
+      `€${item.unit_price.toFixed(2)}`,
+      `${item.iva_percentage}%`,
+      `${item.irpf_percentage || 15}%`,
+      `€${calculateTotal(item).toFixed(2)}`,
+      item.billing_status
+    ]);
+    
+    autoTable(doc, {
+      head: [['Nombre', 'Categoría', 'Cant.', 'Precio Unit.', 'IVA', 'IRPF', 'Total', 'Estado']],
+      body: tableData,
+      startY: 45,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [0, 0, 0] }
+    });
+    
+    doc.save(`${budgetData.name}.pdf`);
+    
+    toast({
+      title: "PDF descargado",
+      description: "El presupuesto se ha descargado correctamente",
+    });
+  };
+
+  // Función para generar Excel del presupuesto
+  const downloadExcel = () => {
+    const totals = calculateGrandTotals();
+    
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Nombre,Categoría,Cantidad,Precio Unitario,IVA %,IRPF %,Total,Estado,Fecha Emisión,Enlace Factura\n";
+    
+    items.forEach(item => {
+      const row = [
+        `"${item.name}"`,
+        `"${item.category}"`,
+        item.quantity,
+        item.unit_price.toFixed(2),
+        item.iva_percentage,
+        item.irpf_percentage || 15,
+        calculateTotal(item).toFixed(2),
+        item.billing_status,
+        item.fecha_emision || '',
+        `"${item.invoice_link || ''}"`
+      ].join(',');
+      csvContent += row + "\n";
+    });
+    
+    // Añadir totales
+    csvContent += "\n";
+    csvContent += `Total Neto,,,,,,,${totals.neto.toFixed(2)}\n`;
+    csvContent += `Total IVA,,,,,,,${totals.iva.toFixed(2)}\n`;
+    csvContent += `Total IRPF,,,,,,,${totals.irpf.toFixed(2)}\n`;
+    csvContent += `TOTAL FINAL,,,,,,,${totals.total.toFixed(2)}\n`;
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${budgetData.name}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "Excel descargado",
+      description: "El presupuesto se ha exportado a CSV",
+    });
+  };
+
+  // Función para descargar todas las facturas
+  const downloadAllInvoices = async () => {
+    const itemsWithInvoices = items.filter(item => item.invoice_link);
+    
+    if (itemsWithInvoices.length === 0) {
+      toast({
+        title: "Sin facturas",
+        description: "No hay facturas para descargar",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    itemsWithInvoices.forEach((item, index) => {
+      setTimeout(() => {
+        window.open(item.invoice_link, '_blank');
+      }, index * 500);
+    });
+    
+    toast({
+      title: "Descargando facturas",
+      description: `Se abrirán ${itemsWithInvoices.length} facturas`,
+    });
+  };
+
+  // Función para descargar facturas seleccionadas
+  const downloadSelectedInvoices = () => {
+    const selectedItemsWithInvoices = items.filter(item => 
+      selectedItems.has(item.id) && item.invoice_link
+    );
+    
+    if (selectedItemsWithInvoices.length === 0) {
+      toast({
+        title: "Sin facturas",
+        description: "Ningún elemento seleccionado tiene factura",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    selectedItemsWithInvoices.forEach((item, index) => {
+      setTimeout(() => {
+        window.open(item.invoice_link, '_blank');
+      }, index * 500);
+    });
+    
+    toast({
+      title: "Descargando facturas",
+      description: `Se abrirán ${selectedItemsWithInvoices.length} facturas`,
+    });
+  };
+
   // Element movement functions
   const toggleItemSelection = (itemId: string) => {
     const newSelection = new Set(selectedItems);
@@ -1083,14 +1226,52 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   )}
                 </div>
                 
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => setIsFullscreen(!isFullscreen)} 
-                  className="bg-white/10 hover:bg-white/20 text-white border-white/20 h-8 w-8 p-0"
-                >
-                  {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                </Button>
+                <div className="flex items-center gap-2">
+                  {/* Botón de Descargas */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="bg-white/10 hover:bg-white/20 text-white border-white/20 h-8"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Descargar
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem onClick={downloadPDF}>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Descargar PDF
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={downloadExcel}>
+                        <FileSpreadsheet className="w-4 h-4 mr-2" />
+                        Descargar Excel (CSV)
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={downloadAllInvoices}>
+                        <Download className="w-4 h-4 mr-2" />
+                        Descargar todas las facturas
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={downloadSelectedInvoices}
+                        disabled={selectedItems.size === 0}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Descargar facturas seleccionadas ({selectedItems.size})
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => setIsFullscreen(!isFullscreen)} 
+                    className="bg-white/10 hover:bg-white/20 text-white border-white/20 h-8 w-8 p-0"
+                  >
+                    {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                  </Button>
+                </div>
               </div>
             </div>
             
