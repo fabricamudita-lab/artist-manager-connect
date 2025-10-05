@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, X, Mail, Phone, Building2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +27,15 @@ interface RolodexViewProps {
 export function RolodexView({ contacts, onClose }: RolodexViewProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<'next' | 'prev'>('next');
+  const wheelTimeoutRef = useRef<NodeJS.Timeout>();
+
+  useEffect(() => {
+    return () => {
+      if (wheelTimeoutRef.current) {
+        clearTimeout(wheelTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleNext = () => {
     setDirection('next');
@@ -42,6 +51,24 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
     if (e.key === 'ArrowRight') handleNext();
     if (e.key === 'ArrowLeft') handlePrev();
     if (e.key === 'Escape') onClose();
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    
+    // Clear any existing timeout
+    if (wheelTimeoutRef.current) {
+      clearTimeout(wheelTimeoutRef.current);
+    }
+
+    // Debounce wheel events to prevent rapid scrolling
+    wheelTimeoutRef.current = setTimeout(() => {
+      if (e.deltaY > 0) {
+        handleNext();
+      } else if (e.deltaY < 0) {
+        handlePrev();
+      }
+    }, 50);
   };
 
   if (contacts.length === 0) return null;
@@ -65,8 +92,9 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
 
   return (
     <div
-      className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-hidden"
       onKeyDown={handleKeyDown}
+      onWheel={handleWheel}
       tabIndex={0}
     >
       <Button
