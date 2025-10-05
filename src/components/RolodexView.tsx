@@ -25,6 +25,13 @@ interface RolodexViewProps {
 }
 
 export function RolodexView({ contacts, onClose }: RolodexViewProps) {
+  // Sort contacts alphabetically by name
+  const sortedContacts = [...contacts].sort((a, b) => {
+    const nameA = (a.stage_name || a.name).toLowerCase();
+    const nameB = (b.stage_name || b.name).toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<'next' | 'prev'>('next');
   const wheelTimeoutRef = useRef<NodeJS.Timeout>();
@@ -39,12 +46,12 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
 
   const handleNext = () => {
     setDirection('next');
-    setCurrentIndex((prev) => (prev + 1) % contacts.length);
+    setCurrentIndex((prev) => (prev + 1) % sortedContacts.length);
   };
 
   const handlePrev = () => {
     setDirection('prev');
-    setCurrentIndex((prev) => (prev - 1 + contacts.length) % contacts.length);
+    setCurrentIndex((prev) => (prev - 1 + sortedContacts.length) % sortedContacts.length);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -71,19 +78,19 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
     }, 50);
   };
 
-  if (contacts.length === 0) return null;
+  if (sortedContacts.length === 0) return null;
 
-  const currentContact = contacts[currentIndex];
+  const currentContact = sortedContacts[currentIndex];
   const displayName = currentContact.stage_name || currentContact.name;
   const firstLetter = displayName.charAt(0).toUpperCase();
 
   // Get visible cards for stack effect
   const getVisibleCards = () => {
     const visible = [];
-    for (let i = 0; i < Math.min(5, contacts.length); i++) {
-      const index = (currentIndex + i) % contacts.length;
+    for (let i = 0; i < Math.min(5, sortedContacts.length); i++) {
+      const index = (currentIndex + i) % sortedContacts.length;
       visible.push({
-        contact: contacts[index],
+        contact: sortedContacts[index],
         offset: i,
       });
     }
@@ -110,10 +117,10 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
         {/* Navigation Info */}
         <div className="text-center mb-8">
           <p className="text-sm text-muted-foreground">
-            {currentIndex + 1} de {contacts.length} contactos
+            {currentIndex + 1} de {sortedContacts.length} contactos
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Usa ← → para navegar
+            Usa ← → o scroll para navegar
           </p>
         </div>
 
@@ -253,7 +260,7 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
 
         {/* Quick Jump Indicator */}
         <div className="flex justify-center gap-1 mt-6">
-          {contacts.slice(0, Math.min(20, contacts.length)).map((_, idx) => (
+          {sortedContacts.slice(0, Math.min(20, sortedContacts.length)).map((_, idx) => (
             <button
               key={idx}
               onClick={() => {
@@ -268,9 +275,9 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
               )}
             />
           ))}
-          {contacts.length > 20 && (
+          {sortedContacts.length > 20 && (
             <span className="text-xs text-muted-foreground ml-2">
-              +{contacts.length - 20}
+              +{sortedContacts.length - 20}
             </span>
           )}
         </div>
