@@ -215,6 +215,10 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
     const finalNombreSolicitante = formData.nombre_solicitante.trim() || generatedSubject;
 
     try {
+      if (!profile?.id) {
+        throw new Error('No se pudo obtener el perfil del usuario');
+      }
+
       const solicitudData = {
         tipo: formData.tipo as 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro',
         nombre_solicitante: finalNombreSolicitante,
@@ -222,7 +226,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
         telefono: formData.telefono || null,
         observaciones: formData.observaciones || null,
         notas_internas: formData.notas_internas || null,
-        created_by: profile?.user_id,
+        created_by: profile.id, // Usar el ID del perfil, no el user_id
         artist_id: formData.artist_id || null,
         fecha_limite_respuesta: formData.fecha_limite_respuesta || null,
         project_id: projectId || null,
@@ -252,11 +256,19 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
         }),
       };
 
-      const { error } = await supabase
-        .from('solicitudes')
-        .insert(solicitudData);
+      console.log('Creating solicitud with data:', solicitudData);
 
-      if (error) throw error;
+      const { data, error } = await supabase
+        .from('solicitudes')
+        .insert(solicitudData)
+        .select();
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      console.log('Solicitud created successfully:', data);
 
       toast({
         title: "Solicitud creada",
