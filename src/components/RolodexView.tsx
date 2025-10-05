@@ -48,6 +48,7 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
 
   const currentContact = contacts[currentIndex];
   const displayName = currentContact.stage_name || currentContact.name;
+  const firstLetter = displayName.charAt(0).toUpperCase();
 
   // Get visible cards for stack effect
   const getVisibleCards = () => {
@@ -208,7 +209,7 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
           
           <div className="px-6 py-2 bg-muted rounded-full">
             <span className="text-sm font-medium">
-              {String.fromCharCode(65 + (currentIndex % 26))}
+              {firstLetter}
             </span>
           </div>
 
