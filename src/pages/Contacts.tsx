@@ -50,6 +50,8 @@ const CATEGORIES = [
   { value: 'tecnicos', label: 'Técnicos', icon: UserCheck },
   { value: 'contables', label: 'Contables', icon: FileUser },
   { value: 'prensa', label: 'Prensa', icon: Camera },
+  { value: 'produccion', label: 'Producción', icon: Users },
+  { value: 'disenadores', label: 'Diseñadores', icon: Camera },
   { value: 'general', label: 'General', icon: Users },
 ];
 
@@ -100,15 +102,35 @@ export default function Contacts() {
     let filtered = contacts;
 
     if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(contact =>
-        contact.name.toLowerCase().includes(term) ||
-        contact.stage_name?.toLowerCase().includes(term) ||
-        contact.legal_name?.toLowerCase().includes(term) ||
-        contact.role?.toLowerCase().includes(term) ||
-        contact.city?.toLowerCase().includes(term) ||
-        contact.company?.toLowerCase().includes(term)
-      );
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(contact => {
+        // Search in all active fields
+        const searchableFields: string[] = [];
+        
+        // Always searchable
+        searchableFields.push(contact.name);
+        
+        // Conditionally searchable based on field_config
+        if (contact.stage_name) searchableFields.push(contact.stage_name);
+        if (contact.legal_name) searchableFields.push(contact.legal_name);
+        if (contact.role) searchableFields.push(contact.role);
+        if (contact.company && contact.field_config?.company) searchableFields.push(contact.company);
+        if (contact.email && contact.field_config?.email) searchableFields.push(contact.email);
+        if (contact.phone && contact.field_config?.phone) searchableFields.push(contact.phone);
+        if (contact.city) searchableFields.push(contact.city);
+        if (contact.country) searchableFields.push(contact.country);
+        if (contact.address && contact.field_config?.address) searchableFields.push(contact.address);
+        if (contact.notes && contact.field_config?.notes) searchableFields.push(contact.notes);
+        if (contact.bank_info && contact.field_config?.bank_info) searchableFields.push(contact.bank_info);
+        if (contact.iban && contact.field_config?.iban) searchableFields.push(contact.iban);
+        if (contact.allergies && contact.field_config?.allergies) searchableFields.push(contact.allergies);
+        if (contact.special_needs && contact.field_config?.special_needs) searchableFields.push(contact.special_needs);
+        
+        // Search across all fields
+        return searchableFields.some(field => 
+          field.toLowerCase().includes(term)
+        );
+      });
     }
 
     if (selectedCategory && selectedCategory !== 'all') {
