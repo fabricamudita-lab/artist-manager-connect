@@ -50,23 +50,23 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
     };
   }, []);
 
-  const handleNext = () => {
+  const handleNext = (steps: number = 1) => {
     if (isTransitioning) return;
     
     setIsTransitioning(true);
     setDirection('next');
-    setCurrentIndex((prev) => (prev + 1) % sortedContacts.length);
+    setCurrentIndex((prev) => (prev + steps) % sortedContacts.length);
     
     // Reset transition lock after animation completes - 150ms for faster navigation
     setTimeout(() => setIsTransitioning(false), 150);
   };
 
-  const handlePrev = () => {
+  const handlePrev = (steps: number = 1) => {
     if (isTransitioning) return;
     
     setIsTransitioning(true);
     setDirection('prev');
-    setCurrentIndex((prev) => (prev - 1 + sortedContacts.length) % sortedContacts.length);
+    setCurrentIndex((prev) => (prev - steps + sortedContacts.length) % sortedContacts.length);
     
     // Reset transition lock after animation completes - 150ms for faster navigation
     setTimeout(() => setIsTransitioning(false), 150);
@@ -128,12 +128,16 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
       clearTimeout(wheelTimeoutRef.current);
     }
 
+    // Detect scroll intensity - if deltaY is large (>100), advance by 3
+    const scrollIntensity = Math.abs(e.deltaY);
+    const steps = scrollIntensity > 100 ? 3 : 1;
+
     // Throttle wheel events to 50ms for faster navigation (6 per second max)
     wheelTimeoutRef.current = setTimeout(() => {
       if (e.deltaY > 0) {
-        handleNext();
+        handleNext(steps);
       } else if (e.deltaY < 0) {
-        handlePrev();
+        handlePrev(steps);
       }
     }, 50);
   };
@@ -351,7 +355,7 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
           <Button
             size="lg"
             variant="outline"
-            onClick={handlePrev}
+            onClick={() => handlePrev()}
             className="rounded-full w-16 h-16 shadow-lg hover:shadow-xl transition-shadow"
           >
             <ChevronLeft className="h-7 w-7" />
@@ -366,7 +370,7 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
           <Button
             size="lg"
             variant="outline"
-            onClick={handleNext}
+            onClick={() => handleNext()}
             className="rounded-full w-16 h-16 shadow-lg hover:shadow-xl transition-shadow"
           >
             <ChevronRight className="h-7 w-7" />
