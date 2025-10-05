@@ -56,8 +56,8 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
     setDirection('next');
     setCurrentIndex((prev) => (prev + 1) % sortedContacts.length);
     
-    // Reset transition lock after animation completes
-    setTimeout(() => setIsTransitioning(false), 300);
+    // Reset transition lock after animation completes - 150ms for faster navigation
+    setTimeout(() => setIsTransitioning(false), 150);
   };
 
   const handlePrev = () => {
@@ -67,8 +67,8 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
     setDirection('prev');
     setCurrentIndex((prev) => (prev - 1 + sortedContacts.length) % sortedContacts.length);
     
-    // Reset transition lock after animation completes
-    setTimeout(() => setIsTransitioning(false), 300);
+    // Reset transition lock after animation completes - 150ms for faster navigation
+    setTimeout(() => setIsTransitioning(false), 150);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -87,14 +87,14 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
       clearTimeout(wheelTimeoutRef.current);
     }
 
-    // Throttle wheel events to max 3 per second
+    // Throttle wheel events to 50ms for faster navigation (6 per second max)
     wheelTimeoutRef.current = setTimeout(() => {
       if (e.deltaY > 0) {
         handleNext();
       } else if (e.deltaY < 0) {
         handlePrev();
       }
-    }, 100);
+    }, 50);
   };
 
   if (sortedContacts.length === 0) return null;
