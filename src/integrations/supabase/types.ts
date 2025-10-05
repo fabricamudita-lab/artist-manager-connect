@@ -2599,6 +2599,10 @@ export type Database = {
         Args: { client_ip?: unknown; epk_slug: string }
         Returns: undefined
       }
+      safe_get_profile_id: {
+        Args: { _user_id: string }
+        Returns: string
+      }
       user_has_workspace_permission: {
         Args: {
           _required_role: Database["public"]["Enums"]["workspace_role"]
