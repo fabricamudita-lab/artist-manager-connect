@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Users, UserCheck, FileUser, Camera } from 'lucide-react';
+import { Plus, Search, Filter, Users, UserCheck, FileUser, Camera, LayoutGrid, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,6 +13,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { seedContacts } from '@/utils/seedContacts';
+import { RolodexView } from '@/components/RolodexView';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 interface Contact {
   id: string;
@@ -61,6 +63,7 @@ export default function Contacts() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [sharingContact, setSharingContact] = useState<Contact | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'rolodex'>('grid');
 
   const cities = Array.from(new Set(contacts.map(c => c.city).filter(Boolean))).sort();
 
@@ -242,9 +245,19 @@ export default function Contacts() {
             ))}
           </SelectContent>
         </Select>
+
+        <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'grid' | 'rolodex')}>
+          <ToggleGroupItem value="grid" aria-label="Vista en cuadrícula">
+            <LayoutGrid className="h-4 w-4" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="rolodex" aria-label="Vista Rolodex">
+            <CreditCard className="h-4 w-4" />
+          </ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {viewMode === 'grid' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredContacts.map((contact) => {
           const categoryInfo = getCategoryInfo(contact.category);
           const displayName = getContactDisplayName(contact);
@@ -331,7 +344,8 @@ export default function Contacts() {
             </Card>
           );
         })}
-      </div>
+        </div>
+      )}
 
       {filteredContacts.length === 0 && (
         <div className="text-center py-12">
@@ -371,6 +385,13 @@ export default function Contacts() {
           contact={sharingContact}
           open={!!sharingContact}
           onOpenChange={(open) => !open && setSharingContact(null)}
+        />
+      )}
+
+      {viewMode === 'rolodex' && filteredContacts.length > 0 && (
+        <RolodexView
+          contacts={filteredContacts}
+          onClose={() => setViewMode('grid')}
         />
       )}
     </div>
