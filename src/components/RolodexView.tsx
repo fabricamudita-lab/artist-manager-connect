@@ -176,19 +176,20 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
                 >
                   {/* Card Container */}
                   <div className="relative w-[400px]">
-                    {/* Alphabet Tab (visible on back cards) */}
-                    {offset > 0 && (
-                      <div 
-                        className="absolute -top-8 right-8 w-16 h-12 bg-gradient-to-b from-primary to-primary/80 rounded-t-lg flex items-center justify-center shadow-lg z-10"
-                        style={{
-                          transform: 'translateZ(20px)',
-                        }}
-                      >
-                        <span className="text-xl font-bold text-primary-foreground">
-                          {letter}
-                        </span>
-                      </div>
-                    )}
+                    {/* Alphabet Tab - visible on active and back cards */}
+                    <div 
+                      className={cn(
+                        "absolute right-8 w-16 h-12 bg-gradient-to-b from-primary to-primary/80 rounded-t-lg flex items-center justify-center shadow-lg z-10",
+                        isActive ? "-top-12" : "-top-8"
+                      )}
+                      style={{
+                        transform: isActive ? 'translateZ(30px)' : 'translateZ(20px)',
+                      }}
+                    >
+                      <span className="text-xl font-bold text-primary-foreground">
+                        {letter}
+                      </span>
+                    </div>
 
                     {/* Business Card */}
                     <div 
