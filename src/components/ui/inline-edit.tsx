@@ -29,7 +29,6 @@ export function InlineEdit({
   const [isSaving, setIsSaving] = useState(false);
   const [originalValue, setOriginalValue] = useState(value);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
-  const debounceRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     setEditValue(value);
@@ -64,30 +63,10 @@ export function InlineEdit({
     }
   }, [editValue, originalValue, onSave, isSaving]);
 
-  const debouncedSave = useCallback(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    debounceRef.current = setTimeout(handleSave, 500);
-  }, [handleSave]);
-
-  useEffect(() => {
-    if (isEditing && editValue !== originalValue && !isSaving) {
-      debouncedSave();
-    }
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, [editValue, originalValue, isEditing, isSaving, debouncedSave]);
 
   const handleCancel = () => {
     setEditValue(originalValue);
     setIsEditing(false);
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
