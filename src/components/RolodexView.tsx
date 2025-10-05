@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, X, Mail, Phone, Building2, MapPin } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Mail, Phone, Building2, MapPin, Contact } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -63,12 +63,10 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     
-    // Clear any existing timeout
     if (wheelTimeoutRef.current) {
       clearTimeout(wheelTimeoutRef.current);
     }
 
-    // Debounce wheel events to prevent rapid scrolling
     wheelTimeoutRef.current = setTimeout(() => {
       if (e.deltaY > 0) {
         handleNext();
@@ -84,14 +82,20 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
   const displayName = currentContact.stage_name || currentContact.name;
   const firstLetter = displayName.charAt(0).toUpperCase();
 
-  // Get visible cards for stack effect
+  // Get visible cards for stack effect - more cards for realistic effect
   const getVisibleCards = () => {
     const visible = [];
-    for (let i = 0; i < Math.min(5, sortedContacts.length); i++) {
+    const totalVisible = Math.min(15, sortedContacts.length);
+    
+    for (let i = 0; i < totalVisible; i++) {
       const index = (currentIndex + i) % sortedContacts.length;
+      const contact = sortedContacts[index];
+      const contactName = contact.stage_name || contact.name;
+      
       visible.push({
-        contact: sortedContacts[index],
+        contact,
         offset: i,
+        letter: contactName.charAt(0).toUpperCase(),
       });
     }
     return visible;
@@ -113,9 +117,13 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
         <X className="h-5 w-5" />
       </Button>
 
-      <div className="relative w-full max-w-2xl">
+      <div className="relative w-full max-w-4xl">
         {/* Navigation Info */}
         <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Contact className="h-5 w-5 text-primary" />
+            <h2 className="text-2xl font-bold">Fichero de Contactos</h2>
+          </div>
           <p className="text-sm text-muted-foreground">
             {currentIndex + 1} de {sortedContacts.length} contactos
           </p>
@@ -124,126 +132,169 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
           </p>
         </div>
 
-        {/* Card Stack */}
-        <div className="relative h-[500px] flex items-center justify-center perspective-1000">
-          {getVisibleCards().map(({ contact, offset }) => (
-            <div
-              key={contact.id}
-              className={cn(
-                "absolute w-full max-w-md transition-all duration-500 ease-out",
-                offset === 0 && "z-10",
-                offset > 0 && "pointer-events-none"
-              )}
-              style={{
-                transform: `
-                  translateY(${offset * 8}px)
-                  translateX(${offset * 4}px)
-                  rotateX(${offset * -2}deg)
-                  scale(${1 - offset * 0.05})
-                `,
-                opacity: offset > 3 ? 0 : 1 - offset * 0.2,
-                zIndex: 50 - offset,
-              }}
-            >
-              {/* Business Card */}
-              <div className="bg-card border-2 border-border rounded-lg shadow-2xl overflow-hidden">
-                {/* Card Header with gradient */}
-                <div className="h-3 bg-gradient-to-r from-primary via-primary/80 to-primary" />
-                
-                <div className="p-8 space-y-6">
-                  {/* Name Section */}
-                  <div className="border-b pb-4">
-                    <h2 className="text-3xl font-bold text-foreground">
-                      {displayName}
-                    </h2>
-                    {contact.stage_name && contact.name !== contact.stage_name && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {contact.name}
-                      </p>
-                    )}
-                  </div>
+        {/* Rolodex Container */}
+        <div className="relative h-[550px] flex items-center justify-center">
+          {/* Base/Stand */}
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-4 bg-gradient-to-b from-border to-border/50 rounded-full blur-sm" />
+          
+          {/* Card Stack with 3D perspective */}
+          <div className="relative w-full h-full flex items-center justify-center" style={{ perspective: '2000px' }}>
+            {getVisibleCards().map(({ contact, offset, letter }) => {
+              const isActive = offset === 0;
+              const displayName = contact.stage_name || contact.name;
+              
+              // Calculate rotation and position for rolodex effect
+              const rotationY = offset * -8; // Cards rotate back
+              const translateZ = -offset * 40; // Cards go back in depth
+              const translateY = offset * 3; // Slight downward tilt
+              const scale = 1 - offset * 0.03;
+              const opacity = Math.max(0.1, 1 - offset * 0.15);
 
-                  {/* Role & Company */}
-                  <div className="space-y-2">
-                    {contact.role && (
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-base px-3 py-1">
-                          {contact.role}
-                        </Badge>
-                      </div>
-                    )}
-                    {contact.company && contact.field_config?.company && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Building2 className="h-4 w-4" />
-                        <span className="text-sm">{contact.company}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Contact Info */}
-                  <div className="space-y-3 pt-2">
-                    {contact.email && contact.field_config?.email && (
-                      <div className="flex items-center gap-3">
-                        <Mail className="h-4 w-4 text-primary flex-shrink-0" />
-                        <a
-                          href={`mailto:${contact.email}`}
-                          className="text-sm hover:text-primary transition-colors truncate"
-                        >
-                          {contact.email}
-                        </a>
-                      </div>
-                    )}
-                    {contact.phone && contact.field_config?.phone && (
-                      <div className="flex items-center gap-3">
-                        <Phone className="h-4 w-4 text-primary flex-shrink-0" />
-                        <a
-                          href={`tel:${contact.phone}`}
-                          className="text-sm hover:text-primary transition-colors"
-                        >
-                          {contact.phone}
-                        </a>
-                      </div>
-                    )}
-                    {contact.city && (
-                      <div className="flex items-center gap-3">
-                        <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
-                        <span className="text-sm text-muted-foreground">
-                          {contact.city}{contact.country && `, ${contact.country}`}
+              return (
+                <div
+                  key={contact.id}
+                  className={cn(
+                    "absolute transition-all duration-500 ease-out",
+                    isActive ? "z-20" : "pointer-events-none",
+                  )}
+                  style={{
+                    transform: `
+                      translateY(${translateY}px)
+                      rotateY(${rotationY}deg)
+                      translateZ(${translateZ}px)
+                      scale(${scale})
+                    `,
+                    transformStyle: 'preserve-3d',
+                    opacity,
+                    zIndex: 100 - offset,
+                  }}
+                >
+                  {/* Card Container */}
+                  <div className="relative w-[400px]">
+                    {/* Alphabet Tab (visible on back cards) */}
+                    {offset > 0 && (
+                      <div 
+                        className="absolute -top-8 right-8 w-16 h-12 bg-gradient-to-b from-primary to-primary/80 rounded-t-lg flex items-center justify-center shadow-lg z-10"
+                        style={{
+                          transform: 'translateZ(20px)',
+                        }}
+                      >
+                        <span className="text-xl font-bold text-primary-foreground">
+                          {letter}
                         </span>
                       </div>
                     )}
-                  </div>
 
-                  {/* Notes */}
-                  {contact.notes && contact.field_config?.notes && (
-                    <div className="pt-4 border-t">
-                      <p className="text-xs text-muted-foreground italic">
-                        {contact.notes}
-                      </p>
+                    {/* Business Card */}
+                    <div 
+                      className={cn(
+                        "bg-card border-2 rounded-lg shadow-2xl overflow-hidden",
+                        isActive ? "border-primary" : "border-border"
+                      )}
+                      style={{
+                        boxShadow: isActive 
+                          ? '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 2px hsl(var(--primary))' 
+                          : '0 10px 30px -10px rgba(0, 0, 0, 0.3)',
+                      }}
+                    >
+                      {/* Card Header with gradient */}
+                      <div className="h-4 bg-gradient-to-r from-primary via-primary/80 to-primary" />
+                      
+                      <div className="p-8 space-y-5 bg-card min-h-[320px]">
+                        {/* Name Section */}
+                        <div className="border-b pb-4">
+                          <h2 className="text-2xl font-bold text-foreground leading-tight">
+                            {displayName}
+                          </h2>
+                          {contact.stage_name && contact.name !== contact.stage_name && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {contact.name}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Role & Company */}
+                        <div className="space-y-2">
+                          {contact.role && (
+                            <Badge variant="secondary" className="text-sm px-3 py-1">
+                              {contact.role}
+                            </Badge>
+                          )}
+                          {contact.company && contact.field_config?.company && (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Building2 className="h-4 w-4 flex-shrink-0" />
+                              <span className="text-sm">{contact.company}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Contact Info */}
+                        <div className="space-y-2.5">
+                          {contact.email && contact.field_config?.email && (
+                            <div className="flex items-center gap-2.5">
+                              <Mail className="h-4 w-4 text-primary flex-shrink-0" />
+                              <a
+                                href={`mailto:${contact.email}`}
+                                className="text-xs hover:text-primary transition-colors truncate"
+                              >
+                                {contact.email}
+                              </a>
+                            </div>
+                          )}
+                          {contact.phone && contact.field_config?.phone && (
+                            <div className="flex items-center gap-2.5">
+                              <Phone className="h-4 w-4 text-primary flex-shrink-0" />
+                              <a
+                                href={`tel:${contact.phone}`}
+                                className="text-xs hover:text-primary transition-colors"
+                              >
+                                {contact.phone}
+                              </a>
+                            </div>
+                          )}
+                          {contact.city && (
+                            <div className="flex items-center gap-2.5">
+                              <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                              <span className="text-xs text-muted-foreground">
+                                {contact.city}{contact.country && `, ${contact.country}`}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Notes */}
+                        {contact.notes && contact.field_config?.notes && isActive && (
+                          <div className="pt-3 border-t">
+                            <p className="text-xs text-muted-foreground italic line-clamp-2">
+                              {contact.notes}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Card Footer */}
+                      <div className="h-3 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20" />
                     </div>
-                  )}
+                  </div>
                 </div>
-
-                {/* Card Footer */}
-                <div className="h-2 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20" />
-              </div>
-            </div>
-          ))}
+              );
+            })}
+          </div>
         </div>
 
-        {/* Navigation Buttons */}
-        <div className="flex items-center justify-center gap-4 mt-8">
+        {/* Navigation Controls */}
+        <div className="flex items-center justify-center gap-6 mt-8">
           <Button
             size="lg"
             variant="outline"
             onClick={handlePrev}
-            className="rounded-full w-14 h-14"
+            className="rounded-full w-16 h-16 shadow-lg hover:shadow-xl transition-shadow"
           >
-            <ChevronLeft className="h-6 w-6" />
+            <ChevronLeft className="h-7 w-7" />
           </Button>
           
-          <div className="px-6 py-2 bg-muted rounded-full">
-            <span className="text-sm font-medium">
+          <div className="px-8 py-3 bg-primary text-primary-foreground rounded-full shadow-lg">
+            <span className="text-2xl font-bold">
               {firstLetter}
             </span>
           </div>
@@ -252,14 +303,14 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
             size="lg"
             variant="outline"
             onClick={handleNext}
-            className="rounded-full w-14 h-14"
+            className="rounded-full w-16 h-16 shadow-lg hover:shadow-xl transition-shadow"
           >
-            <ChevronRight className="h-6 w-6" />
+            <ChevronRight className="h-7 w-7" />
           </Button>
         </div>
 
-        {/* Quick Jump Indicator */}
-        <div className="flex justify-center gap-1 mt-6">
+        {/* Quick Jump Dots */}
+        <div className="flex justify-center gap-1.5 mt-6">
           {sortedContacts.slice(0, Math.min(20, sortedContacts.length)).map((_, idx) => (
             <button
               key={idx}
@@ -270,7 +321,7 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
               className={cn(
                 "w-2 h-2 rounded-full transition-all",
                 idx === currentIndex
-                  ? "bg-primary w-8"
+                  ? "bg-primary w-10"
                   : "bg-muted hover:bg-muted-foreground/50"
               )}
             />
