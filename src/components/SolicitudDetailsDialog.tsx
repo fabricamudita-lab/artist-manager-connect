@@ -40,6 +40,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import AssociateProjectDialog from '@/components/AssociateProjectDialog';
 import CreateProjectDialog from '@/components/CreateProjectDialog';
 import { useNavigate } from 'react-router-dom';
+import { InlineEdit } from '@/components/ui/inline-edit';
 
 interface SolicitudDetails {
   id: string;
@@ -440,10 +441,31 @@ const updateSolicitudToPending = async (comment?: string) => {
                   {getTipoIcon(solicitud.tipo)}
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-foreground mb-1">
-                    {solicitud.nombre_solicitante}
-                  </h3>
-                  <p className="text-muted-foreground capitalize mb-2">
+                  <InlineEdit
+                    value={solicitud.nombre_solicitante}
+                    onSave={async (newValue) => {
+                      const { error } = await supabase
+                        .from('solicitudes')
+                        .update({ nombre_solicitante: newValue, fecha_actualizacion: new Date().toISOString() })
+                        .eq('id', solicitud.id);
+                      
+                      if (error) throw error;
+                      
+                      setSolicitud(prev => prev ? { ...prev, nombre_solicitante: newValue } : prev);
+                      onUpdate?.();
+                      toast({
+                        title: "Asunto actualizado",
+                        description: "El nombre de la solicitud se ha actualizado correctamente",
+                      });
+                    }}
+                    displayComponent={(value) => (
+                      <h3 className="text-xl font-semibold text-foreground">
+                        {value}
+                      </h3>
+                    )}
+                    placeholder="Nombre de la solicitud"
+                  />
+                  <p className="text-muted-foreground capitalize mb-2 mt-1">
                     Solicitud de {solicitud.tipo.replace('_', ' ')}
                   </p>
                   {solicitud.profiles?.full_name && (
