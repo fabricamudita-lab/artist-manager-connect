@@ -37,7 +37,11 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
   const wheelTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
+    // Prevent background scrolling
+    document.body.style.overflow = 'hidden';
+    
     return () => {
+      document.body.style.overflow = 'unset';
       if (wheelTimeoutRef.current) {
         clearTimeout(wheelTimeoutRef.current);
       }
@@ -103,10 +107,11 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
 
   return (
     <div
-      className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-hidden"
+      className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onKeyDown={handleKeyDown}
       onWheel={handleWheel}
       tabIndex={0}
+      style={{ overflow: 'hidden' }}
     >
       <Button
         variant="ghost"
