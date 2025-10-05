@@ -72,9 +72,42 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowRight') handleNext();
-    if (e.key === 'ArrowLeft') handlePrev();
-    if (e.key === 'Escape') onClose();
+    if (e.key === 'ArrowRight') {
+      handleNext();
+    } else if (e.key === 'ArrowLeft') {
+      handlePrev();
+    } else if (e.key === 'Escape') {
+      onClose();
+    } else if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
+      // Jump to letter
+      const targetLetter = e.key.toUpperCase();
+      jumpToLetter(targetLetter);
+    }
+  };
+
+  const jumpToLetter = (letter: string) => {
+    // Find first contact that starts with this letter
+    const targetIndex = sortedContacts.findIndex(contact => {
+      const name = contact.stage_name || contact.name;
+      return name.charAt(0).toUpperCase() === letter;
+    });
+
+    if (targetIndex === -1) return; // Letter not found
+
+    // Calculate shortest path
+    const totalContacts = sortedContacts.length;
+    const forwardDistance = (targetIndex - currentIndex + totalContacts) % totalContacts;
+    const backwardDistance = (currentIndex - targetIndex + totalContacts) % totalContacts;
+
+    // Set direction based on shortest path
+    if (forwardDistance <= backwardDistance) {
+      setDirection('next');
+    } else {
+      setDirection('prev');
+    }
+
+    // Jump to the target index
+    setCurrentIndex(targetIndex);
   };
 
   const handleWheel = (e: React.WheelEvent) => {
