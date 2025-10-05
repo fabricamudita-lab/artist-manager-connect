@@ -217,16 +217,10 @@ export default function Contacts() {
             Gestiona tu agenda de contactos profesionales
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleSeedContacts}>
-            <Users className="w-4 h-4 mr-2" />
-            Generar Contactos de Prueba
-          </Button>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nuevo Contacto
-          </Button>
-        </div>
+        <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Nuevo Contacto
+        </Button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
