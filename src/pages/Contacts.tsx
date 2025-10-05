@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Users, UserCheck, FileUser, Camera, LayoutGrid, CreditCard } from 'lucide-react';
+import { Plus, Search, Filter, Users, UserCheck, FileUser, Camera, LayoutGrid, CreditCard, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,9 +12,9 @@ import { ContactShareDialog } from '@/components/ContactShareDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { seedContacts } from '@/utils/seedContacts';
 import { RolodexView } from '@/components/RolodexView';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { ManageContactGroupsDialog } from '@/components/ManageContactGroupsDialog';
 
 interface Contact {
   id: string;
@@ -62,20 +62,24 @@ export default function Contacts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedCity, setSelectedCity] = useState<string>('all');
+  const [selectedGroup, setSelectedGroup] = useState<string>('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [sharingContact, setSharingContact] = useState<Contact | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'rolodex'>('grid');
+  const [isManageGroupsOpen, setIsManageGroupsOpen] = useState(false);
+  const [groups, setGroups] = useState<Array<{ id: string; name: string; color: string }>>([]);
 
   const cities = Array.from(new Set(contacts.map(c => c.city).filter(Boolean))).sort();
 
   useEffect(() => {
     fetchContacts();
+    fetchGroups();
   }, []);
 
   useEffect(() => {
     filterContacts();
-  }, [contacts, searchTerm, selectedCategory, selectedCity]);
+  }, [contacts, searchTerm, selectedCategory, selectedCity, selectedGroup]);
 
   const fetchContacts = async () => {
     try {
@@ -98,19 +102,30 @@ export default function Contacts() {
     }
   };
 
-  const filterContacts = () => {
+  const fetchGroups = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('contact_groups')
+        .select('id, name, color')
+        .order('name');
+
+      if (error) throw error;
+      setGroups(data || []);
+    } catch (error) {
+      console.error('Error fetching groups:', error);
+    }
+  };
+
+  const filterContacts = async () => {
     let filtered = contacts;
 
     if (searchTerm) {
       const term = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(contact => {
-        // Search in all active fields
         const searchableFields: string[] = [];
         
-        // Always searchable
         searchableFields.push(contact.name);
         
-        // Conditionally searchable based on field_config
         if (contact.stage_name) searchableFields.push(contact.stage_name);
         if (contact.legal_name) searchableFields.push(contact.legal_name);
         if (contact.role) searchableFields.push(contact.role);
@@ -126,7 +141,6 @@ export default function Contacts() {
         if (contact.allergies && contact.field_config?.allergies) searchableFields.push(contact.allergies);
         if (contact.special_needs && contact.field_config?.special_needs) searchableFields.push(contact.special_needs);
         
-        // Search across all fields
         return searchableFields.some(field => 
           field.toLowerCase().includes(term)
         );
@@ -139,6 +153,22 @@ export default function Contacts() {
 
     if (selectedCity && selectedCity !== 'all') {
       filtered = filtered.filter(contact => contact.city === selectedCity);
+    }
+
+    if (selectedGroup && selectedGroup !== 'all') {
+      try {
+        const { data, error } = await supabase
+          .from('contact_group_members')
+          .select('contact_id')
+          .eq('group_id', selectedGroup);
+
+        if (error) throw error;
+        
+        const contactIdsInGroup = new Set(data.map(m => m.contact_id));
+        filtered = filtered.filter(contact => contactIdsInGroup.has(contact.id));
+      } catch (error) {
+        console.error('Error filtering by group:', error);
+      }
     }
 
     setFilteredContacts(filtered);
@@ -154,25 +184,6 @@ export default function Contacts() {
     setEditingContact(null);
   };
 
-  const handleSeedContacts = async () => {
-    try {
-      setLoading(true);
-      const result = await seedContacts();
-      toast({
-        title: "Contactos creados",
-        description: result.message,
-      });
-      await fetchContacts();
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No se pudieron generar los contactos de prueba",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getCategoryInfo = (category: string) => {
     return CATEGORIES.find(cat => cat.value === category) || CATEGORIES[4];
@@ -217,10 +228,16 @@ export default function Contacts() {
             Gestiona tu agenda de contactos profesionales
           </p>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nuevo Contacto
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsManageGroupsOpen(true)}>
+            <FolderOpen className="w-4 h-4 mr-2" />
+            Gestionar Grupos
+          </Button>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nuevo Contacto
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
@@ -257,6 +274,26 @@ export default function Contacts() {
             {cities.map((city) => (
               <SelectItem key={`city-${city}`} value={city}>
                 {city}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Grupo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los grupos</SelectItem>
+            {groups.map((group) => (
+              <SelectItem key={group.id} value={group.id}>
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: group.color || '#3b82f6' }}
+                  />
+                  {group.name}
+                </div>
               </SelectItem>
             ))}
           </SelectContent>
@@ -403,6 +440,11 @@ export default function Contacts() {
           onOpenChange={(open) => !open && setSharingContact(null)}
         />
       )}
+
+      <ManageContactGroupsDialog
+        open={isManageGroupsOpen}
+        onOpenChange={setIsManageGroupsOpen}
+      />
 
       {viewMode === 'rolodex' && filteredContacts.length > 0 && (
         <RolodexView

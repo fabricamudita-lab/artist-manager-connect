@@ -7,8 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { ContactGroupAssignment } from './ContactGroupAssignment';
 
 interface Contact {
   id: string;
@@ -319,6 +321,10 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
               {renderField('contract_url')}
               {renderField('preferred_hours', 'textarea')}
               {renderField('notes', 'textarea')}
+
+              <Separator className="my-6" />
+              
+              <ContactGroupAssignment contactId={contact.id} />
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
