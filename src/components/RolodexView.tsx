@@ -210,12 +210,33 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
               const isActive = offset === 0;
               const displayName = contact.stage_name || contact.name;
               
-              // Calculate rotation and position for rolodex effect
-              const rotationY = offset * -8; // Cards rotate back
-              const translateZ = -offset * 40; // Cards go back in depth
-              const translateY = offset * 3; // Slight downward tilt
+              // Calculate rotation and position for falling/rising effect
+              let rotationX = 0;
+              let translateY = 0;
+              let translateZ = 0;
+              
+              if (offset === 0) {
+                // Active card - centered
+                rotationX = 0;
+                translateY = 0;
+                translateZ = 0;
+              } else {
+                // Cards in stack - positioned based on direction
+                if (direction === 'next') {
+                  // Next cards fall forward from top
+                  rotationX = -60 + (offset * 5); // Start tilted back, gradually level
+                  translateY = -200 + (offset * 20); // Start high, come down
+                  translateZ = -100 - (offset * 30); // Go back in depth
+                } else {
+                  // Previous cards rise from bottom
+                  rotationX = 60 - (offset * 5); // Start tilted forward, gradually level
+                  translateY = 200 - (offset * 20); // Start low, come up
+                  translateZ = -100 - (offset * 30); // Go back in depth
+                }
+              }
+              
               const scale = 1 - offset * 0.03;
-              const opacity = Math.max(0.1, 1 - offset * 0.15);
+              const opacity = Math.max(0.05, 1 - offset * 0.2);
 
               return (
                 <div
@@ -227,7 +248,7 @@ export function RolodexView({ contacts, onClose }: RolodexViewProps) {
                   style={{
                     transform: `
                       translateY(${translateY}px)
-                      rotateY(${rotationY}deg)
+                      rotateX(${rotationX}deg)
                       translateZ(${translateZ}px)
                       scale(${scale})
                     `,
