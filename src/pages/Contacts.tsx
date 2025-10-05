@@ -12,6 +12,7 @@ import { ContactShareDialog } from '@/components/ContactShareDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { seedContacts } from '@/utils/seedContacts';
 
 interface Contact {
   id: string;
@@ -128,6 +129,26 @@ export default function Contacts() {
     setEditingContact(null);
   };
 
+  const handleSeedContacts = async () => {
+    try {
+      setLoading(true);
+      const result = await seedContacts();
+      toast({
+        title: "Contactos creados",
+        description: result.message,
+      });
+      await fetchContacts();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron generar los contactos de prueba",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getCategoryInfo = (category: string) => {
     return CATEGORIES.find(cat => cat.value === category) || CATEGORIES[4];
   };
@@ -171,10 +192,16 @@ export default function Contacts() {
             Gestiona tu agenda de contactos profesionales
           </p>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nuevo Contacto
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleSeedContacts}>
+            <Users className="w-4 h-4 mr-2" />
+            Generar Contactos de Prueba
+          </Button>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nuevo Contacto
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
