@@ -1,3 +1,4 @@
+import { CalendarExportDialog } from '@/components/CalendarExportDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/useCommon';
 import { useState, useEffect, useRef } from 'react';
@@ -509,7 +510,7 @@ export default function Calendar() {
                 </Button>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
               <Button
                 variant={viewMode === 'week' ? 'default' : 'outline'}
                 size="sm"
@@ -531,6 +532,8 @@ export default function Calendar() {
               >
                 Año
               </Button>
+              <div className="h-6 w-px bg-border mx-1" />
+              <CalendarExportDialog events={events} />
             </div>
           </div>
         </div>
@@ -769,7 +772,7 @@ export default function Calendar() {
                 </Button>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
               <Button
                 variant={viewMode === 'week' ? 'default' : 'outline'}
                 size="sm"
@@ -791,6 +794,8 @@ export default function Calendar() {
               >
                 Año
               </Button>
+              <div className="h-6 w-px bg-border mx-1" />
+              <CalendarExportDialog events={events} />
             </div>
           </div>
         </div>
@@ -882,7 +887,7 @@ export default function Calendar() {
                 {currentDate.getFullYear() + 1} →
               </Button>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
               <Button
                 variant={viewMode === 'week' ? 'default' : 'outline'}
                 size="sm"
@@ -904,6 +909,8 @@ export default function Calendar() {
               >
                 Año
               </Button>
+              <div className="h-6 w-px bg-border mx-1" />
+              <CalendarExportDialog events={events} />
             </div>
           </div>
           
