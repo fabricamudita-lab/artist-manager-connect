@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { format, isSameDay, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, addDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Clock, MapPin, Plus, Filter, ChevronLeft, ChevronRight, Calendar as CalendarViewIcon, X } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, Plus, Filter, ChevronLeft, ChevronRight, Calendar as CalendarViewIcon, X, FolderKanban, Users } from 'lucide-react';
 import { CreateEventDialog } from '@/components/CreateEventDialog';
 import { ArtistSelector } from '@/components/ArtistSelector';
 import { YearlyCalendar } from '@/components/YearlyCalendar';
@@ -17,6 +17,8 @@ import { useBookingReminders } from '@/hooks/useBookingReminders';
 import { ReminderBadge } from '@/components/ReminderBadge';
 import { EventDetailPopover } from '@/components/EventDetailPopover';
 import { GoogleCalendarSettings } from '@/components/GoogleCalendarSettings';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Event {
   id: string;
@@ -27,6 +29,7 @@ interface Event {
   event_type: string;
   location: string | null;
   artist_id: string;
+  project_id?: string | null;
 }
 
 export default function Calendar() {
@@ -38,6 +41,9 @@ export default function Calendar() {
   const [events, setEvents] = useState<Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
+  const [projects, setProjects] = useState<any[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [shouldOpenCreateDialog, setShouldOpenCreateDialog] = useState(false);
   const [prefilledData, setPrefilledData] = useState<any>(null);
@@ -82,8 +88,9 @@ export default function Calendar() {
     if (profile && selectedArtists.length > 0) {
       fetchEvents();
       fetchBookingOffers();
+      fetchProjects();
     }
-  }, [profile, selectedArtists]);
+  }, [profile, selectedArtists, selectedProjects, selectedDepartment]);
 
   // Scroll to 9 AM when week view is rendered
   useEffect(() => {
@@ -118,16 +125,23 @@ export default function Calendar() {
         const { data, error } = await supabase
           .from('events')
           .select('*')
-          .or(`created_by.eq.${profile.id},artist_id.in.(${selectedArtists.join(',')})`)
-          .order('start_date', { ascending: true });
+          .or(`created_by.eq.${profile.id},artist_id.in.(${selectedArtists.join(',')})`);
 
         if (error) {
           console.error('Error fetching events:', error);
         } else {
-          const filteredEvents = data?.filter(event => 
+          let filteredEvents = data?.filter(event => 
             selectedArtists.includes(event.artist_id) || 
             event.created_by === profile.id
           ) || [];
+
+          // Filtrar por proyectos si hay seleccionados
+          if (selectedProjects.length > 0) {
+            filteredEvents = filteredEvents.filter((event: any) => 
+              event.project_id && selectedProjects.includes(event.project_id)
+            );
+          }
+
           setEvents(filteredEvents);
         }
       } else {
@@ -142,13 +156,39 @@ export default function Calendar() {
         if (error) {
           console.error('Error fetching events:', error);
         } else {
-          setEvents(data || []);
+          let filteredEvents = data || [];
+          
+          // Filtrar por proyectos si hay seleccionados
+          if (selectedProjects.length > 0) {
+            filteredEvents = filteredEvents.filter((event: any) => 
+              event.project_id && selectedProjects.includes(event.project_id)
+            );
+          }
+
+          setEvents(filteredEvents);
         }
       }
     } catch (error) {
       console.error('Error fetching events:', error);
     } finally {
       setEventsLoading(false);
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name, artist_id')
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching projects:', error);
+      } else {
+        setProjects(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
     }
   };
 
@@ -873,26 +913,97 @@ export default function Calendar() {
       {/* Google Calendar Sync */}
       <GoogleCalendarSettings />
 
-      {/* Artist Selector */}
+      {/* Filters */}
       <div className="card-moodita hover-lift">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-3 text-xl">
             <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center">
               <Filter className="h-4 w-4 text-primary" />
             </div>
-            Filtrar por Artistas
+            Filtros
           </CardTitle>
           <CardDescription>
-            Selecciona los artistas cuyos eventos quieres ver
+            Selecciona cómo quieres filtrar los eventos del calendario
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ArtistSelector
-            selectedArtists={selectedArtists}
-            onSelectionChange={setSelectedArtists}
-            placeholder="Seleccionar artistas para mostrar sus eventos..."
-            showSelfOption={true}
-          />
+          <Tabs defaultValue="artists" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="artists">
+                <Users className="h-4 w-4 mr-2" />
+                Artistas
+              </TabsTrigger>
+              <TabsTrigger value="projects">
+                <FolderKanban className="h-4 w-4 mr-2" />
+                Proyectos
+              </TabsTrigger>
+              <TabsTrigger value="departments">
+                <Filter className="h-4 w-4 mr-2" />
+                Departamentos
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="artists" className="mt-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Selecciona los artistas cuyos eventos quieres ver
+                </p>
+                <ArtistSelector
+                  selectedArtists={selectedArtists}
+                  onSelectionChange={setSelectedArtists}
+                  placeholder="Seleccionar artistas..."
+                  showSelfOption={true}
+                />
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="projects" className="mt-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Filtra eventos por proyecto específico
+                </p>
+                <Select
+                  value={selectedProjects[0] || 'all'}
+                  onValueChange={(value) => setSelectedProjects(value === 'all' ? [] : [value])}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos los proyectos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los proyectos</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="departments" className="mt-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Filtra eventos por departamento
+                </p>
+                <Select
+                  value={selectedDepartment}
+                  onValueChange={setSelectedDepartment}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos los departamentos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los departamentos</SelectItem>
+                    <SelectItem value="booking">Booking</SelectItem>
+                    <SelectItem value="produccion">Producción</SelectItem>
+                    <SelectItem value="marketing">Marketing</SelectItem>
+                    <SelectItem value="administracion">Administración</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </div>
 
