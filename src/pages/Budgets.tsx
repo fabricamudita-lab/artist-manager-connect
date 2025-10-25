@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { usePageTitle } from '@/hooks/useCommon';
 import { useAuth } from '@/hooks/useAuth';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,6 +38,8 @@ interface Budget {
 
 export default function Budgets() {
   usePageTitle('Presupuestos');
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -54,6 +57,15 @@ export default function Budgets() {
     fetchBudgets();
     fetchArtists();
   }, []);
+
+  useEffect(() => {
+    if (id && budgets.length > 0) {
+      const budget = budgets.find(b => b.id === id);
+      if (budget) {
+        handleViewBudget(budget);
+      }
+    }
+  }, [id, budgets]);
 
   const fetchBudgets = async () => {
     setLoading(true);
@@ -366,7 +378,15 @@ export default function Budgets() {
         {selectedBudget && (
           <BudgetDetailsDialog
             open={showDetailsDialog}
-            onOpenChange={setShowDetailsDialog}
+            onOpenChange={(open) => {
+              setShowDetailsDialog(open);
+              if (!open) {
+                setSelectedBudget(null);
+                if (id) {
+                  navigate('/budgets');
+                }
+              }
+            }}
             budget={selectedBudget}
             onUpdate={fetchBudgets}
           />
