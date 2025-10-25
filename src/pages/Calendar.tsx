@@ -34,7 +34,7 @@ export default function Calendar() {
   const { profile, loading } = useAuth();
   const location = useLocation();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [viewMode, setViewMode] = useState<'week' | 'month' | 'year'>('week');
+  const [viewMode, setViewMode] = useState<'week' | 'month' | 'year'>('month');
   const [events, setEvents] = useState<Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
