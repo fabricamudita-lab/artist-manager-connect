@@ -16,6 +16,7 @@ import { EditEventDialog } from '@/components/EditEventDialog';
 import { useBookingReminders } from '@/hooks/useBookingReminders';
 import { ReminderBadge } from '@/components/ReminderBadge';
 import { EventDetailPopover } from '@/components/EventDetailPopover';
+import { GoogleCalendarSettings } from '@/components/GoogleCalendarSettings';
 
 interface Event {
   id: string;
@@ -868,6 +869,11 @@ export default function Calendar() {
             prefilledData={prefilledData}
           />
         </div>
+
+      {/* Google Calendar Sync */}
+      <GoogleCalendarSettings 
+        defaultUrl="https://calendar.google.com/calendar/ical/b26df3cf4e4853a651813616d4d56f297de2b51075f5dcc18f45d99b4d9a838e%40group.calendar.google.com/public/basic.ics"
+      />
 
       {/* Artist Selector */}
       <div className="card-moodita hover-lift">
