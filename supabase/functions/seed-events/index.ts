@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
         .select('id, name')
         .eq('name', artist.name)
         .eq('workspace_id', workspaceId)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         artists.push(existing);
@@ -78,18 +78,19 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Event types and templates
+    // Event templates - usar solo tipos permitidos: meeting, deadline, recording
     const eventTemplates = [
       { type: 'recording', title: 'Grabación de disco', duration: 3 },
-      { type: 'studio', title: 'Sesión de estudio', duration: 1 },
-      { type: 'concert', title: 'Concierto', duration: 1 },
-      { type: 'rehearsal', title: 'Ensayo', duration: 1 },
-      { type: 'interview', title: 'Entrevista', duration: 1 },
-      { type: 'photoshoot', title: 'Sesión de fotos', duration: 1 },
+      { type: 'recording', title: 'Sesión de estudio', duration: 1 },
+      { type: 'meeting', title: 'Concierto', duration: 1 },
+      { type: 'meeting', title: 'Ensayo', duration: 1 },
+      { type: 'meeting', title: 'Entrevista', duration: 1 },
+      { type: 'meeting', title: 'Sesión de fotos', duration: 1 },
       { type: 'meeting', title: 'Reunión', duration: 1 },
-      { type: 'soundcheck', title: 'Prueba de sonido', duration: 1 },
-      { type: 'radio', title: 'Programa de radio', duration: 1 },
-      { type: 'video', title: 'Grabación de videoclip', duration: 2 }
+      { type: 'meeting', title: 'Prueba de sonido', duration: 1 },
+      { type: 'meeting', title: 'Programa de radio', duration: 1 },
+      { type: 'recording', title: 'Grabación de videoclip', duration: 2 },
+      { type: 'deadline', title: 'Entrega de material', duration: 1 }
     ];
 
     const cities = ['Barcelona', 'Madrid', 'Valencia', 'Sevilla', 'Bilbao', 'Zaragoza', 'Girona', 'Tarragona'];
@@ -116,20 +117,13 @@ Deno.serve(async (req) => {
       endDate.setDate(endDate.getDate() + (template.duration - 1));
       endDate.setHours(startDate.getHours() + (template.duration === 1 ? Math.floor(Math.random() * 4) + 2 : 8));
 
-      const eventType = template.type === 'concert' ? 'concert' :
-                        template.type === 'recording' ? 'recording' :
-                        template.type === 'studio' ? 'studio' :
-                        template.type === 'interview' ? 'interview' :
-                        template.type === 'rehearsal' ? 'rehearsal' :
-                        template.type === 'meeting' ? 'meeting' : 'other';
-
       events.push({
         title: `${template.title} - ${artist.name}`,
-        event_type: eventType,
+        event_type: template.type,
         artist_id: artist.id,
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),
-        location: template.type === 'concert' ? `${venue}, ${city}` : city,
+        location: template.title === 'Concierto' ? `${venue}, ${city}` : city,
         description: `${template.title} con ${artist.name}`,
         created_by: user.id
       });
@@ -139,17 +133,21 @@ Deno.serve(async (req) => {
     const nov8 = new Date(now.getFullYear(), now.getMonth() + (now.getMonth() <= 10 ? 0 : 1), 8, 9, 0);
     if (nov8 > now) {
       const ritaPayes = artists.find(a => a.name === 'Rita Payés');
-      events.push({
-        title: 'Grabación de disco - Rita Payés',
-        event_type: 'recording',
-        artist_id: ritaPayes.id,
-        start_date: new Date(nov8).toISOString(),
-        end_date: new Date(nov8.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-        location: 'Estudios Blanch, Barcelona',
-        description: 'Grabación de nuevo disco con Rita Payés',
-        created_by: user.id
-      });
+      if (ritaPayes) {
+        events.push({
+          title: 'Grabación de disco - Rita Payés',
+          event_type: 'recording',
+          artist_id: ritaPayes.id,
+          start_date: new Date(nov8).toISOString(),
+          end_date: new Date(nov8.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+          location: 'Estudios Blanch, Barcelona',
+          description: 'Grabación de nuevo disco con Rita Payés',
+          created_by: user.id
+        });
+      }
     }
+
+    console.log('Inserting events:', events.length);
 
     // Insert events
     const { data: insertedEvents, error: eventsError } = await supabase
@@ -157,19 +155,25 @@ Deno.serve(async (req) => {
       .insert(events)
       .select();
 
-    if (eventsError) throw eventsError;
+    if (eventsError) {
+      console.error('Error inserting events:', eventsError);
+      throw eventsError;
+    }
+
+    console.log('Events inserted successfully:', insertedEvents?.length);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Created ${insertedEvents.length} events for ${artists.length} artists`,
+        message: `Created ${insertedEvents?.length} events for ${artists.length} artists`,
         artists: artists.map(a => a.name),
-        eventCount: insertedEvents.length
+        eventCount: insertedEvents?.length
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
+    console.error('Edge function error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
