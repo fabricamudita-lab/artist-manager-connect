@@ -116,12 +116,12 @@ Deno.serve(async (req) => {
       endDate.setDate(endDate.getDate() + (template.duration - 1));
       endDate.setHours(startDate.getHours() + (template.duration === 1 ? Math.floor(Math.random() * 4) + 2 : 8));
 
-      const eventType = template.type === 'concert' ? 'concierto' :
-                        template.type === 'recording' ? 'grabacion' :
-                        template.type === 'studio' ? 'estudio' :
-                        template.type === 'interview' ? 'entrevista' :
-                        template.type === 'rehearsal' ? 'ensayo' :
-                        template.type === 'meeting' ? 'reunion' : 'otro';
+      const eventType = template.type === 'concert' ? 'concert' :
+                        template.type === 'recording' ? 'recording' :
+                        template.type === 'studio' ? 'studio' :
+                        template.type === 'interview' ? 'interview' :
+                        template.type === 'rehearsal' ? 'rehearsal' :
+                        template.type === 'meeting' ? 'meeting' : 'other';
 
       events.push({
         title: `${template.title} - ${artist.name}`,
@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
       const ritaPayes = artists.find(a => a.name === 'Rita Payés');
       events.push({
         title: 'Grabación de disco - Rita Payés',
-        event_type: 'grabacion',
+        event_type: 'recording',
         artist_id: ritaPayes.id,
         start_date: new Date(nov8).toISOString(),
         end_date: new Date(nov8.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString(),
