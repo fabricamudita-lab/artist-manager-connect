@@ -19,6 +19,9 @@ import { EventDetailPopover } from '@/components/EventDetailPopover';
 import { GoogleCalendarSettings } from '@/components/GoogleCalendarSettings';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { seedEvents } from '@/utils/seedEvents';
+import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface Event {
   id: string;
@@ -45,6 +48,8 @@ export default function Calendar() {
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   const [projects, setProjects] = useState<any[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [isSeeding, setIsSeeding] = useState(false);
+  const { toast } = useToast();
   const [shouldOpenCreateDialog, setShouldOpenCreateDialog] = useState(false);
   const [prefilledData, setPrefilledData] = useState<any>(null);
   const [bookingOffers, setBookingOffers] = useState<any[]>([]);
@@ -189,6 +194,27 @@ export default function Calendar() {
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
+    }
+  };
+
+  const handleSeedEvents = async () => {
+    setIsSeeding(true);
+    try {
+      const result = await seedEvents();
+      toast({
+        title: "Eventos creados",
+        description: `Se crearon ${result.eventCount} eventos de prueba para ${result.artists.join(', ')}`,
+      });
+      fetchEvents();
+      fetchBookingOffers();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudieron crear los eventos de prueba",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSeeding(false);
     }
   };
 
@@ -895,7 +921,7 @@ export default function Calendar() {
           </div>
         </div>
         
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <CreateEventDialog 
             onEventCreated={fetchEvents}
             shouldOpen={shouldOpenCreateDialog}
@@ -908,6 +934,21 @@ export default function Calendar() {
             }}
             prefilledData={prefilledData}
           />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSeedEvents}
+            disabled={isSeeding}
+          >
+            {isSeeding ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Creando eventos...
+              </>
+            ) : (
+              'Crear eventos de prueba'
+            )}
+          </Button>
         </div>
 
       {/* Google Calendar Sync */}
