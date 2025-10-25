@@ -18,8 +18,12 @@ serve(async (req) => {
     // Fetch the iCal data from Google Calendar
     const response = await fetch(icalUrl);
     
+    console.log('Response status:', response.status, response.statusText);
+    
     if (!response.ok) {
-      throw new Error(`Failed to fetch calendar: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Failed to fetch calendar. Status:', response.status, 'Error:', errorText);
+      throw new Error(`Failed to fetch calendar: ${response.statusText}. Asegúrate de usar la URL privada del calendario.`);
     }
 
     const icalData = await response.text();

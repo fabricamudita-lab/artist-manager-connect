@@ -871,9 +871,7 @@ export default function Calendar() {
         </div>
 
       {/* Google Calendar Sync */}
-      <GoogleCalendarSettings 
-        defaultUrl="https://calendar.google.com/calendar/ical/b26df3cf4e4853a651813616d4d56f297de2b51075f5dcc18f45d99b4d9a838e%40group.calendar.google.com/public/basic.ics"
-      />
+      <GoogleCalendarSettings />
 
       {/* Artist Selector */}
       <div className="card-moodita hover-lift">

@@ -12,7 +12,7 @@ interface GoogleCalendarSettingsProps {
   defaultUrl?: string;
 }
 
-export const GoogleCalendarSettings = ({ defaultUrl = '' }: GoogleCalendarSettingsProps) => {
+export const GoogleCalendarSettings = ({ defaultUrl = 'https://calendar.google.com/calendar/ical/b26df3cf4e4853a651813616d4d56f297de2b51075f5dcc18f45d99b4d9a838e%40group.calendar.google.com/private-b924938f038b3859fd24329dcbf73591/basic.ics' }: GoogleCalendarSettingsProps) => {
   const [icalUrl, setIcalUrl] = useState(defaultUrl);
   const [autoSync, setAutoSync] = useState(true);
   const { syncGoogleCalendar, syncing, lastSync } = useGoogleCalendarSync();
@@ -38,15 +38,15 @@ export const GoogleCalendarSettings = ({ defaultUrl = '' }: GoogleCalendarSettin
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="ical-url">URL del calendario iCal</Label>
+          <Label htmlFor="ical-url">URL del calendario iCal (privada)</Label>
           <Input
             id="ical-url"
-            placeholder="https://calendar.google.com/calendar/ical/..."
+            placeholder="https://calendar.google.com/calendar/ical/.../private-.../basic.ics"
             value={icalUrl}
             onChange={(e) => setIcalUrl(e.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            Usa la URL pública (.ics) de tu Google Calendar
+            Usa la URL <strong>privada</strong> (.ics) de tu Google Calendar. Las URLs públicas no funcionan.
           </p>
         </div>
 
