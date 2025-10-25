@@ -10,12 +10,12 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const action = url.searchParams.get('action');
+    const body = await req.json();
+    const action = body.action;
 
     // Exchange code for tokens
     if (action === 'exchange') {
-      const { code, redirectUri } = await req.json();
+      const { code, redirectUri } = body;
 
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
@@ -42,7 +42,7 @@ serve(async (req) => {
 
     // Refresh access token
     if (action === 'refresh') {
-      const { refreshToken } = await req.json();
+      const { refreshToken } = body;
 
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
