@@ -85,6 +85,13 @@ const App = () => (
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
+              <Route path="/budgets/:id" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Budgets />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
               <Route path="/booking" element={
                 <ProtectedRoute>
                   <DashboardLayout>
