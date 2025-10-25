@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { useGoogleCalendarSync } from '@/hooks/useGoogleCalendarSync';
 import { RefreshCw, Calendar } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface GoogleCalendarSettingsProps {
   defaultUrl?: string;
@@ -17,7 +18,10 @@ export const GoogleCalendarSettings = ({ defaultUrl = '' }: GoogleCalendarSettin
   const { syncGoogleCalendar, syncing, lastSync } = useGoogleCalendarSync();
 
   const handleSync = async () => {
-    if (!icalUrl) return;
+    if (!icalUrl) {
+      toast.error('Por favor, introduce la URL del calendario');
+      return;
+    }
     await syncGoogleCalendar(icalUrl);
   };
 

@@ -40,13 +40,16 @@ export const useGoogleCalendarSync = () => {
   const syncGoogleCalendar = async (icalUrl: string, artistId: string | null = null) => {
     setSyncing(true);
     try {
-      // Fetch iCal data with CORS proxy if needed
-      const response = await fetch(icalUrl);
-      if (!response.ok) {
-        throw new Error('Failed to fetch calendar data');
+      // Use Edge Function to fetch iCal data (avoids CORS issues)
+      const response = await supabase.functions.invoke('sync-google-calendar', {
+        body: { icalUrl }
+      });
+      
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to fetch calendar data');
       }
       
-      const icalData = await response.text();
+      const { icalData } = response.data;
       const events = await parseICalEvents(icalData, artistId);
 
       // Get current user
