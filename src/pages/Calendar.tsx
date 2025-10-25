@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { format, isSameDay, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, addDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Clock, MapPin, Plus, Filter, ChevronLeft, ChevronRight, Calendar as CalendarViewIcon, X, FolderKanban, Users } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, Plus, Filter, ChevronLeft, ChevronRight, Calendar as CalendarViewIcon, X, FolderKanban, Users, Eye, EyeOff } from 'lucide-react';
 import { CreateEventDialog } from '@/components/CreateEventDialog';
 import { ArtistSelector } from '@/components/ArtistSelector';
 import { YearlyCalendar } from '@/components/YearlyCalendar';
@@ -19,6 +19,7 @@ import { ReminderBadge } from '@/components/ReminderBadge';
 import { EventDetailPopover } from '@/components/EventDetailPopover';
 import { GoogleCalendarSettings } from '@/components/GoogleCalendarSettings';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { seedEvents } from '@/utils/seedEvents';
 import { importCsvEvents } from '@/utils/importCsvEvents';
@@ -58,7 +59,8 @@ export default function Calendar() {
   const [bookingOffers, setBookingOffers] = useState<any[]>([]);
   const { getRemindersForBooking } = useBookingReminders(bookingOffers);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const [calendarFilter, setCalendarFilter] = useState<'all' | 'mine'>('mine');
+  const [showMyCalendar, setShowMyCalendar] = useState(true);
+  const [showAllEvents, setShowAllEvents] = useState(false);
   
   // Time selection states
   const [isSelecting, setIsSelecting] = useState(false);
@@ -99,7 +101,7 @@ export default function Calendar() {
       fetchBookingOffers();
       fetchProjects();
     }
-  }, [profile, selectedArtists, selectedProjects, selectedDepartment, calendarFilter]);
+  }, [profile, selectedArtists, selectedProjects, selectedDepartment, showMyCalendar, showAllEvents]);
 
   // Scroll to 9 AM when week view is rendered
   useEffect(() => {
@@ -144,11 +146,14 @@ export default function Calendar() {
             event.created_by === profile.id
           ) || [];
 
-          // Filtrar por "Mi Calendario" si está seleccionado
-          if (calendarFilter === 'mine') {
-            filteredEvents = filteredEvents.filter((event: any) => 
-              event.created_by === profile.id || event.artist_id === profile.id
-            );
+          // Aplicar filtros solo si "Ver todo" no está activo
+          if (!showAllEvents) {
+            // Filtrar por "Mi Calendario" si está activado
+            if (showMyCalendar) {
+              filteredEvents = filteredEvents.filter((event: any) => 
+                event.created_by === profile.id || event.artist_id === profile.id
+              );
+            }
           }
 
           // Filtrar por proyectos si hay seleccionados
@@ -174,11 +179,14 @@ export default function Calendar() {
         } else {
           let filteredEvents = data || [];
           
-          // Filtrar por "Mi Calendario" si está seleccionado
-          if (calendarFilter === 'mine') {
-            filteredEvents = filteredEvents.filter((event: any) => 
-              event.created_by === profile.id || event.artist_id === profile.id
-            );
+          // Aplicar filtros solo si "Ver todo" no está activo
+          if (!showAllEvents) {
+            // Filtrar por "Mi Calendario" si está activado
+            if (showMyCalendar) {
+              filteredEvents = filteredEvents.filter((event: any) => 
+                event.created_by === profile.id || event.artist_id === profile.id
+              );
+            }
           }
           
           // Filtrar por proyectos si hay seleccionados
@@ -1036,12 +1044,37 @@ export default function Calendar() {
       {/* Filters */}
       <div className="card-moodita hover-lift">
         <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-3 text-xl">
-            <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center">
-              <Filter className="h-4 w-4 text-primary" />
-            </div>
-            Filtros
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-3 text-xl">
+              <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center">
+                <Filter className="h-4 w-4 text-primary" />
+              </div>
+              Filtros
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setShowAllEvents(!showAllEvents);
+                if (!showAllEvents) {
+                  setShowMyCalendar(false);
+                }
+              }}
+              className="text-xs"
+            >
+              {showAllEvents ? (
+                <>
+                  <EyeOff className="h-3 w-3 mr-1" />
+                  Filtrado
+                </>
+              ) : (
+                <>
+                  <Eye className="h-3 w-3 mr-1" />
+                  Ver todo
+                </>
+              )}
+            </Button>
+          </div>
           <CardDescription>
             Selecciona cómo quieres filtrar los eventos del calendario
           </CardDescription>
@@ -1065,30 +1098,19 @@ export default function Calendar() {
             
             <TabsContent value="artists" className="mt-4">
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Selecciona qué eventos mostrar
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant={calendarFilter === 'all' ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCalendarFilter('all')}
-                      className="flex-1"
-                    >
-                      <CalendarViewIcon className="h-4 w-4 mr-2" />
-                      Ver Todo
-                    </Button>
-                    <Button
-                      variant={calendarFilter === 'mine' ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCalendarFilter('mine')}
-                      className="flex-1"
-                    >
-                      <CalendarIcon className="h-4 w-4 mr-2" />
-                      Mi Calendario
-                    </Button>
+                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">Mi Calendario</span>
                   </div>
+                  <Switch
+                    checked={showMyCalendar}
+                    onCheckedChange={(checked) => {
+                      setShowMyCalendar(checked);
+                      if (checked) setShowAllEvents(false);
+                    }}
+                    disabled={showAllEvents}
+                  />
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">
