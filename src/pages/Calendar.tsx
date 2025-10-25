@@ -58,6 +58,7 @@ export default function Calendar() {
   const [bookingOffers, setBookingOffers] = useState<any[]>([]);
   const { getRemindersForBooking } = useBookingReminders(bookingOffers);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [showMyCalendar, setShowMyCalendar] = useState(true);
   
   // Time selection states
   const [isSelecting, setIsSelecting] = useState(false);
@@ -98,7 +99,7 @@ export default function Calendar() {
       fetchBookingOffers();
       fetchProjects();
     }
-  }, [profile, selectedArtists, selectedProjects, selectedDepartment]);
+  }, [profile, selectedArtists, selectedProjects, selectedDepartment, showMyCalendar]);
 
   // Scroll to 9 AM when week view is rendered
   useEffect(() => {
@@ -143,6 +144,13 @@ export default function Calendar() {
             event.created_by === profile.id
           ) || [];
 
+          // Filtrar por "Mi Calendario" si está activado
+          if (showMyCalendar) {
+            filteredEvents = filteredEvents.filter((event: any) => 
+              event.created_by === profile.id || event.artist_id === profile.id
+            );
+          }
+
           // Filtrar por proyectos si hay seleccionados
           if (selectedProjects.length > 0) {
             filteredEvents = filteredEvents.filter((event: any) => 
@@ -165,6 +173,13 @@ export default function Calendar() {
           console.error('Error fetching events:', error);
         } else {
           let filteredEvents = data || [];
+          
+          // Filtrar por "Mi Calendario" si está activado
+          if (showMyCalendar) {
+            filteredEvents = filteredEvents.filter((event: any) => 
+              event.created_by === profile.id || event.artist_id === profile.id
+            );
+          }
           
           // Filtrar por proyectos si hay seleccionados
           if (selectedProjects.length > 0) {
@@ -1049,16 +1064,31 @@ export default function Calendar() {
             </TabsList>
             
             <TabsContent value="artists" className="mt-4">
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Selecciona los artistas cuyos eventos quieres ver
-                </p>
-                <ArtistSelector
-                  selectedArtists={selectedArtists}
-                  onSelectionChange={setSelectedArtists}
-                  placeholder="Seleccionar artistas..."
-                  showSelfOption={true}
-                />
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">Mi Calendario</span>
+                  </div>
+                  <Button
+                    variant={showMyCalendar ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowMyCalendar(!showMyCalendar)}
+                  >
+                    {showMyCalendar ? 'Mostrado' : 'Oculto'}
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Selecciona los artistas cuyos eventos quieres ver
+                  </p>
+                  <ArtistSelector
+                    selectedArtists={selectedArtists}
+                    onSelectionChange={setSelectedArtists}
+                    placeholder="Seleccionar artistas..."
+                    showSelfOption={true}
+                  />
+                </div>
               </div>
             </TabsContent>
             
