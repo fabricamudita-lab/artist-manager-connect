@@ -141,19 +141,26 @@ export default function Calendar() {
         if (error) {
           console.error('Error fetching events:', error);
         } else {
-          let filteredEvents = data?.filter(event => 
+          let filteredEvents = data || [];
+
+          // Si "Ver todo" está activo, mostrar todos los eventos sin filtros
+          if (showAllEvents) {
+            setEvents(filteredEvents);
+            return;
+          }
+
+          // Aplicar filtros solo cuando "Ver todo" está desactivado
+          // Filtrar por artistas seleccionados
+          filteredEvents = filteredEvents.filter(event => 
             selectedArtists.includes(event.artist_id) || 
             event.created_by === profile.id
-          ) || [];
+          );
 
-          // Aplicar filtros solo si "Ver todo" no está activo
-          if (!showAllEvents) {
-            // Filtrar por "Mi Calendario" si está activado
-            if (showMyCalendar) {
-              filteredEvents = filteredEvents.filter((event: any) => 
-                event.created_by === profile.id || event.artist_id === profile.id
-              );
-            }
+          // Filtrar por "Mi Calendario" si está activado
+          if (showMyCalendar) {
+            filteredEvents = filteredEvents.filter((event: any) => 
+              event.created_by === profile.id || event.artist_id === profile.id
+            );
           }
 
           // Filtrar por proyectos si hay seleccionados
@@ -179,14 +186,18 @@ export default function Calendar() {
         } else {
           let filteredEvents = data || [];
           
-          // Aplicar filtros solo si "Ver todo" no está activo
-          if (!showAllEvents) {
-            // Filtrar por "Mi Calendario" si está activado
-            if (showMyCalendar) {
-              filteredEvents = filteredEvents.filter((event: any) => 
-                event.created_by === profile.id || event.artist_id === profile.id
-              );
-            }
+          // Si "Ver todo" está activo, mostrar todos los eventos sin filtros
+          if (showAllEvents) {
+            setEvents(filteredEvents);
+            return;
+          }
+
+          // Aplicar filtros solo cuando "Ver todo" está desactivado
+          // Filtrar por "Mi Calendario" si está activado
+          if (showMyCalendar) {
+            filteredEvents = filteredEvents.filter((event: any) => 
+              event.created_by === profile.id || event.artist_id === profile.id
+            );
           }
           
           // Filtrar por proyectos si hay seleccionados
@@ -1054,12 +1065,7 @@ export default function Calendar() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
-                setShowAllEvents(!showAllEvents);
-                if (!showAllEvents) {
-                  setShowMyCalendar(false);
-                }
-              }}
+              onClick={() => setShowAllEvents(!showAllEvents)}
               className="text-xs"
             >
               {showAllEvents ? (
@@ -1105,11 +1111,7 @@ export default function Calendar() {
                   </div>
                   <Switch
                     checked={showMyCalendar}
-                    onCheckedChange={(checked) => {
-                      setShowMyCalendar(checked);
-                      if (checked) setShowAllEvents(false);
-                    }}
-                    disabled={showAllEvents}
+                    onCheckedChange={setShowMyCalendar}
                   />
                 </div>
                 <div className="space-y-2">
