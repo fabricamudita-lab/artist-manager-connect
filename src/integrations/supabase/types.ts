@@ -707,6 +707,7 @@ export type Database = {
           invitaciones: number | null
           name: string
           oferta: string | null
+          parent_folder_id: string | null
           project_id: string | null
           show_status: Database["public"]["Enums"]["show_status"] | null
           status_negociacion: string | null
@@ -734,6 +735,7 @@ export type Database = {
           invitaciones?: number | null
           name: string
           oferta?: string | null
+          parent_folder_id?: string | null
           project_id?: string | null
           show_status?: Database["public"]["Enums"]["show_status"] | null
           status_negociacion?: string | null
@@ -761,6 +763,7 @@ export type Database = {
           invitaciones?: number | null
           name?: string
           oferta?: string | null
+          parent_folder_id?: string | null
           project_id?: string | null
           show_status?: Database["public"]["Enums"]["show_status"] | null
           status_negociacion?: string | null
@@ -783,6 +786,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "budgets_parent_folder_id_fkey"
+            columns: ["parent_folder_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "budgets_project_id_fkey"
@@ -1232,7 +1242,7 @@ export type Database = {
           created_at: string | null
           epk_id: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           recurso: string | null
           referrer: string | null
           user_agent: string | null
@@ -1242,7 +1252,7 @@ export type Database = {
           created_at?: string | null
           epk_id: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           recurso?: string | null
           referrer?: string | null
           user_agent?: string | null
@@ -1252,7 +1262,7 @@ export type Database = {
           created_at?: string | null
           epk_id?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           recurso?: string | null
           referrer?: string | null
           user_agent?: string | null
@@ -1390,7 +1400,7 @@ export type Database = {
           epk_slug: string
           failed_attempts: number
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           last_attempt_at: string
           locked_until: string | null
         }
@@ -1399,7 +1409,7 @@ export type Database = {
           epk_slug: string
           failed_attempts?: number
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           last_attempt_at?: string
           locked_until?: string | null
         }
@@ -1408,7 +1418,7 @@ export type Database = {
           epk_slug?: string
           failed_attempts?: number
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           last_attempt_at?: string
           locked_until?: string | null
         }
@@ -2617,18 +2627,9 @@ export type Database = {
         Args: { client_ip?: unknown; epk_slug: string }
         Returns: Json
       }
-      generate_contact_slug: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_epk_slug: {
-        Args: { artista_proyecto: string }
-        Returns: string
-      }
-      get_profile_id_by_user: {
-        Args: { _user_id: string }
-        Returns: string
-      }
+      generate_contact_slug: { Args: never; Returns: string }
+      generate_epk_slug: { Args: { artista_proyecto: string }; Returns: string }
+      get_profile_id_by_user: { Args: { _user_id: string }; Returns: string }
       get_user_artist_roles: {
         Args: { _user_id: string }
         Returns: {
@@ -2676,10 +2677,7 @@ export type Database = {
         Args: { client_ip?: unknown; epk_slug: string }
         Returns: undefined
       }
-      safe_get_profile_id: {
-        Args: { _user_id: string }
-        Returns: string
-      }
+      safe_get_profile_id: { Args: { _user_id: string }; Returns: string }
       user_has_workspace_permission: {
         Args: {
           _required_role: Database["public"]["Enums"]["workspace_role"]

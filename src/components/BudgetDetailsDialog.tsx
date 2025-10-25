@@ -47,7 +47,9 @@ import {
   ArrowRightLeft,
   CheckCircle,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  FolderOpen,
+  ExternalLink
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -71,10 +73,12 @@ interface Budget {
   internal_notes: string;
   created_at: string;
   artist_id: string;
+  parent_folder_id?: string;
   event_date: string;
   event_time: string;
   fee: number;
   profiles?: { full_name: string };
+  projects?: { id: string; name: string };
 }
 
 interface BudgetItem {
@@ -1168,7 +1172,21 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   <Calculator className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <DialogTitle className="text-xl font-bold text-white">{budgetData.name}</DialogTitle>
+                  <div className="flex items-center gap-2">
+                    <DialogTitle className="text-xl font-bold text-white">{budgetData.name}</DialogTitle>
+                    {budgetData.parent_folder_id && budgetData.projects && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs text-blue-400 hover:text-blue-300 hover:bg-white/10"
+                        onClick={() => window.open(`/projects?folder=${budgetData.parent_folder_id}`, '_blank')}
+                      >
+                        <FolderOpen className="w-3 h-3 mr-1" />
+                        {budgetData.projects.name}
+                        <ExternalLink className="w-3 h-3 ml-1" />
+                      </Button>
+                    )}
+                  </div>
                   <p className="text-gray-400 text-sm">PRESUPUESTO NACIONAL</p>
                 </div>
               </div>

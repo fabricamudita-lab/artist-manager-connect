@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 interface CreateProjectFolderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
+  onSuccess?: (folderId?: string) => void;
   parentFolderId?: string | null;
 }
 
@@ -78,7 +78,7 @@ export function CreateProjectFolderDialog({
       setName("");
       setDescription("");
       onOpenChange(false);
-      onSuccess?.();
+      onSuccess?.(insertedProject?.id);
     } catch (error) {
       console.error('Error creating folder:', error);
       toast({

@@ -12,8 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import { SingleArtistSelector } from './SingleArtistSelector';
+import SingleProjectSelector from './SingleProjectSelector';
 import { CreateBudgetFromTemplateDialog } from './CreateBudgetFromTemplateDialog';
-import { Music, Mic, Megaphone, Video, Package, CalendarIcon } from 'lucide-react';
+import { CreateProjectFolderDialog } from './CreateProjectFolderDialog';
+import { Music, Mic, Megaphone, Video, Package, CalendarIcon, FolderPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -45,6 +47,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
     show_status: 'pendiente' as 'confirmado' | 'pendiente' | 'cancelado',
     internal_notes: '',
     artist_id: '',
+    parent_folder_id: '',
     event_date: undefined as Date | undefined,
     event_time: '',
     fee: 0,
@@ -58,6 +61,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
     invitaciones: '',
   });
   const [showFromTemplate, setShowFromTemplate] = useState(false);
+  const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
 
@@ -107,6 +111,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
           show_status: formData.show_status,
           internal_notes: formData.internal_notes,
           artist_id: formData.artist_id || null,
+          parent_folder_id: formData.parent_folder_id || null,
           event_date: formData.event_date?.toISOString().split('T')[0] || null,
           event_time: formData.event_time || null,
           fee: formData.fee,
@@ -144,6 +149,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
         show_status: 'pendiente',
         internal_notes: '',
         artist_id: '',
+        parent_folder_id: '',
         event_date: undefined,
         event_time: '',
         fee: 0,
@@ -183,6 +189,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
       show_status: 'pendiente',
       internal_notes: '',
       artist_id: '',
+      parent_folder_id: '',
       event_date: undefined,
       event_time: '',
       fee: 0,
@@ -386,6 +393,30 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
                 />
               </div>
 
+              <div className="md:col-span-2">
+                <Label htmlFor="parent_folder_id">Carpeta de Proyecto</Label>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <SingleProjectSelector
+                      value={formData.parent_folder_id}
+                      onValueChange={(value) => handleInputChange('parent_folder_id', value)}
+                      placeholder="Seleccionar carpeta..."
+                      onlyFolders={true}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowCreateFolderDialog(true)}
+                  >
+                    <FolderPlus className="w-4 h-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Selecciona una carpeta donde se guardará este presupuesto
+                </p>
+              </div>
+
               {/* Campos específicos para Actuación / Concierto */}
               {selectedType === 'concierto' && (
                 <>
@@ -512,6 +543,15 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
           onSuccess={() => {
             onSuccess();
             onOpenChange(false);
+          }}
+        />
+
+        <CreateProjectFolderDialog
+          open={showCreateFolderDialog}
+          onOpenChange={setShowCreateFolderDialog}
+          onSuccess={(folderId) => {
+            handleInputChange('parent_folder_id', folderId);
+            setShowCreateFolderDialog(false);
           }}
         />
       </DialogContent>

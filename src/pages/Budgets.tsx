@@ -81,7 +81,10 @@ export default function Budgets() {
 
       const { data, error } = await supabase
         .from('budgets')
-        .select('*')
+        .select(`
+          *,
+          projects:parent_folder_id(id, name)
+        `)
         .match(filters)
         .order('created_at', { ascending: false });
 

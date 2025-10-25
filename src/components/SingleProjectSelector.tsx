@@ -24,6 +24,7 @@ interface SingleProjectSelectorProps {
   placeholder?: string;
   className?: string;
   artistId?: string | null;
+  onlyFolders?: boolean;
 }
 
 export default function SingleProjectSelector({
@@ -32,6 +33,7 @@ export default function SingleProjectSelector({
   placeholder = "Selecciona un proyecto",
   className,
   artistId,
+  onlyFolders = false,
 }: SingleProjectSelectorProps) {
   const [open, setOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -49,9 +51,10 @@ export default function SingleProjectSelector({
         setLoading(true);
         let qb = supabase
           .from("projects")
-          .select("id,name")
+          .select("id,name,is_folder")
           .order("created_at", { ascending: false })
           .limit(50);
+        if (onlyFolders) qb = qb.eq("is_folder", true);
         if (artistId) qb = qb.eq("artist_id", artistId as any);
         if (search) qb = qb.ilike("name", `%${search}%`);
         const { data, error } = await qb;
@@ -64,7 +67,7 @@ export default function SingleProjectSelector({
       }
     };
     fetchProjects();
-  }, [open, artistId, search]);
+  }, [open, artistId, search, onlyFolders]);
 
   // Ensure we can display a selected project even if not in the current page of results
   useEffect(() => {
