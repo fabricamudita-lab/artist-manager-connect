@@ -41,10 +41,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { LocationMap } from './LocationMap';
+import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 
 const eventTypes = [
   { value: 'concert', label: 'Concierto' },
@@ -79,6 +81,7 @@ const formSchema = z.object({
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   description: z.string().optional(),
+  syncWithGoogle: z.boolean().default(false),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -97,6 +100,7 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
   const [loadingArtists, setLoadingArtists] = useState(true);
   const { profile } = useAuth();
   const { toast } = useToast();
+  const { isConnected: googleConnected, createEvent: createGoogleEvent } = useGoogleCalendar();
 
   console.log('CreateEventDialog - Rendering, profile:', profile);
 
@@ -250,9 +254,29 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
       }
 
       console.log('Event and artist associations created successfully');
+      
+      // Sync with Google Calendar if requested and connected
+      if (data.syncWithGoogle && googleConnected) {
+        const googleEvent = {
+          summary: data.title,
+          description: data.description || '',
+          location: data.location || '',
+          start: {
+            dateTime: startDateTime.toISOString(),
+            timeZone: 'Europe/Madrid',
+          },
+          end: {
+            dateTime: endDateTime.toISOString(),
+            timeZone: 'Europe/Madrid',
+          },
+        };
+        
+        await createGoogleEvent(googleEvent);
+      }
+      
       toast({
         title: "¡Éxito!",
-        description: `Evento "${data.title}" creado exitosamente con ${data.artist_ids.length} artista(s)`,
+        description: `Evento "${data.title}" creado exitosamente con ${data.artist_ids.length} artista(s)${data.syncWithGoogle && googleConnected ? ' y sincronizado con Google Calendar' : ''}`,
       });
       
       form.reset();
@@ -558,6 +582,31 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
                 </FormItem>
               )}
             />
+
+            {googleConnected && (
+              <FormField
+                control={form.control}
+                name="syncWithGoogle"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        Añadir a Google Calendar
+                      </FormLabel>
+                      <FormDescription>
+                        Sincronizar este evento con tu Google Calendar
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            )}
 
             <DialogFooter>
               <Button 

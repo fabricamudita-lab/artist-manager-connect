@@ -1,17 +1,24 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, ExternalLink } from 'lucide-react';
+import { Calendar, ExternalLink, CheckCircle, XCircle } from 'lucide-react';
+import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 
-interface GoogleCalendarSettingsProps {
-  defaultUrl?: string;
-}
+export const GoogleCalendarSettings = () => {
+  const { isConnected, loading, getAuthUrl, disconnect } = useGoogleCalendar();
 
-export const GoogleCalendarSettings = ({ defaultUrl = '' }: GoogleCalendarSettingsProps) => {
-  const [embedUrl, setEmbedUrl] = useState(defaultUrl || 'https://calendar.google.com/calendar/embed?src=b26df3cf4e4853a651813616d4d56f297de2b51075f5dcc18f45d99b4d9a838e%40group.calendar.google.com&ctz=Europe%2FMadrid');
-  const [showCalendar, setShowCalendar] = useState(false);
+  const handleConnect = () => {
+    window.location.href = getAuthUrl();
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="py-6">
+          <p className="text-center text-muted-foreground">Cargando...</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -21,56 +28,50 @@ export const GoogleCalendarSettings = ({ defaultUrl = '' }: GoogleCalendarSettin
           Google Calendar
         </CardTitle>
         <CardDescription>
-          Visualiza tu calendario de Google integrado en la aplicación
+          Conecta tu cuenta de Google para crear y sincronizar eventos
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="embed-url">URL de embed del calendario</Label>
-          <Input
-            id="embed-url"
-            placeholder="https://calendar.google.com/calendar/embed?src=..."
-            value={embedUrl}
-            onChange={(e) => setEmbedUrl(e.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">
-            Usa la URL de integración (embed) de tu Google Calendar
-          </p>
+        <div className="flex items-center justify-between p-4 border rounded-lg">
+          <div className="flex items-center gap-3">
+            {isConnected ? (
+              <CheckCircle className="h-5 w-5 text-green-500" />
+            ) : (
+              <XCircle className="h-5 w-5 text-muted-foreground" />
+            )}
+            <div>
+              <p className="font-medium">
+                {isConnected ? 'Conectado' : 'No conectado'}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {isConnected 
+                  ? 'Puedes crear eventos en Google Calendar'
+                  : 'Conecta tu cuenta para empezar'
+                }
+              </p>
+            </div>
+          </div>
+          
+          {isConnected ? (
+            <Button variant="outline" onClick={disconnect}>
+              Desconectar
+            </Button>
+          ) : (
+            <Button onClick={handleConnect}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Conectar con Google
+            </Button>
+          )}
         </div>
 
-        <Button
-          onClick={() => setShowCalendar(!showCalendar)}
-          className="w-full"
-          variant={showCalendar ? "secondary" : "default"}
-        >
-          <Calendar className="mr-2 h-4 w-4" />
-          {showCalendar ? 'Ocultar calendario' : 'Mostrar calendario'}
-        </Button>
-
-        {showCalendar && embedUrl && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Vista previa del calendario</Label>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => window.open(embedUrl.replace('/embed', '/r'), '_blank')}
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Abrir en Google
-              </Button>
-            </div>
-            <div className="border rounded-lg overflow-hidden">
-              <iframe
-                src={embedUrl}
-                style={{ border: 0 }}
-                width="100%"
-                height="600"
-                frameBorder="0"
-                scrolling="no"
-                title="Google Calendar"
-              />
-            </div>
+        {isConnected && (
+          <div className="text-sm text-muted-foreground p-3 bg-muted rounded-lg">
+            <p className="font-medium mb-1">✓ Funciones disponibles:</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>Crear eventos en Google Calendar desde Lovable</li>
+              <li>Los eventos se sincronizan automáticamente</li>
+              <li>Visualiza todos tus eventos en un solo lugar</li>
+            </ul>
           </div>
         )}
       </CardContent>

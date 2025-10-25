@@ -26,6 +26,7 @@ import EPKBuilder from "./pages/EPKBuilder";
 import EPKs from "./pages/EPKs";
 import { PublicEPKPage } from "./pages/PublicEPK";
 import { EPKPasswordProtectionPage } from "./pages/EPKPasswordProtection";
+import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 
 const queryClient = new QueryClient();
 
@@ -179,6 +180,8 @@ const App = () => (
               {/* Public EPK Routes */}
               <Route path="/epk/:slug" element={<PublicEPKPage />} />
               <Route path="/epk/:slug/password" element={<EPKPasswordProtectionPage />} />
+              {/* Google Calendar OAuth Callback */}
+              <Route path="/calendar/callback" element={<GoogleCalendarCallback />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
