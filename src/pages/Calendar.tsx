@@ -20,7 +20,8 @@ import { GoogleCalendarSettings } from '@/components/GoogleCalendarSettings';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { seedEvents } from '@/utils/seedEvents';
-import { Loader2 } from 'lucide-react';
+import { importCsvEvents } from '@/utils/importCsvEvents';
+import { Loader2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Event {
@@ -49,6 +50,7 @@ export default function Calendar() {
   const [projects, setProjects] = useState<any[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isSeeding, setIsSeeding] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const { toast } = useToast();
   const [shouldOpenCreateDialog, setShouldOpenCreateDialog] = useState(false);
   const [prefilledData, setPrefilledData] = useState<any>(null);
@@ -215,6 +217,33 @@ export default function Calendar() {
       });
     } finally {
       setIsSeeding(false);
+    }
+  };
+
+  const handleImportCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const csvContent = await file.text();
+      const result = await importCsvEvents(csvContent);
+      toast({
+        title: "Eventos importados",
+        description: `Se importaron ${result.eventCount} eventos desde el CSV`,
+      });
+      fetchEvents();
+      fetchBookingOffers();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudieron importar los eventos del CSV",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+      // Reset file input
+      event.target.value = '';
     }
   };
 
@@ -934,21 +963,49 @@ export default function Calendar() {
             }}
             prefilledData={prefilledData}
           />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSeedEvents}
-            disabled={isSeeding}
-          >
-            {isSeeding ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Creando eventos...
-              </>
-            ) : (
-              'Crear eventos de prueba'
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSeedEvents}
+              disabled={isSeeding || isImporting}
+            >
+              {isSeeding ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creando eventos...
+                </>
+              ) : (
+                'Crear eventos de prueba'
+              )}
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isImporting || isSeeding}
+              onClick={() => document.getElementById('csv-upload')?.click()}
+            >
+              {isImporting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Importando...
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Importar CSV
+                </>
+              )}
+            </Button>
+            <input
+              id="csv-upload"
+              type="file"
+              accept=".csv"
+              onChange={handleImportCsv}
+              className="hidden"
+            />
+          </div>
         </div>
 
       {/* Google Calendar Sync */}
