@@ -1304,7 +1304,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   <div className="grid grid-cols-5 gap-2">
                     {/* Presupuesto (neto) */}
                     <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-card/50 rounded-lg border border-border">
-                      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">PRESUPUESTO</div>
+                      <div className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-1">PRESUPUESTO</div>
                       <div className="text-xl font-bold text-foreground">
                         €{budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                       </div>
@@ -1312,7 +1312,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
                     {/* Costes finales (neto) */}
                     <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-card/50 rounded-lg border border-border">
-                      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">COSTES FINALES</div>
+                      <div className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-1">COSTES FINALES</div>
                       <div className="text-xl font-bold text-foreground">
                         €{totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                       </div>
