@@ -177,6 +177,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   
   // Element movement states
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
   const [draggedElement, setDraggedElement] = useState<string | null>(null);
   const [dragOverElement, setDragOverElement] = useState<string | null>(null);
   const [editingItemValues, setEditingItemValues] = useState<Partial<BudgetItem>>({});
@@ -278,6 +279,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       }
       
       setBudgetCategories(data || []);
+      setOpenCategories(new Set((data || []).map(c => c.id)));
     } catch (error) {
       console.error('Error fetching budget categories:', error);
     }
@@ -302,6 +304,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
       if (error) throw error;
       setBudgetCategories(data || []);
+      setOpenCategories(new Set((data || []).map(c => c.id)));
     } catch (error) {
       console.error('Error creating default categories:', error);
     }
@@ -1689,13 +1692,29 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       return (
                         <div key={category.id} className="mb-6">
                           {/* Category Header */}
-                          <div className="bg-black text-white p-4 flex items-center justify-between border-b border-gray-700">
+                          <div 
+                            className="bg-black text-white p-4 flex items-center justify-between border-b border-gray-700 cursor-pointer hover:bg-gray-900 transition-colors"
+                            onClick={() => {
+                              setOpenCategories(prev => {
+                                const newSet = new Set(prev);
+                                if (newSet.has(category.id)) {
+                                  newSet.delete(category.id);
+                                } else {
+                                  newSet.add(category.id);
+                                }
+                                return newSet;
+                              });
+                            }}
+                          >
                             <div className="flex items-center gap-3">
+                              <div className="transform transition-transform duration-200" style={{ transform: openCategories.has(category.id) ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+                                <ArrowRightLeft className="w-4 h-4 rotate-90" />
+                              </div>
                               <IconComponent className="w-5 h-5" />
                               <h3 className="text-lg font-bold tracking-wider">{category.name.toUpperCase()}</h3>
                               <span className="text-sm text-white/60">({categoryItems.length} elementos)</span>
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
                               <div className="flex gap-4 text-sm">
                                 <div className="text-right">
                                   <div className="text-xs text-white/50 mb-1">Neto</div>
@@ -1724,7 +1743,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                 </div>
                               </div>
                               <Button
-                                onClick={() => addNewItem(category.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  addNewItem(category.id);
+                                }}
                                 size="sm"
                                 className="bg-blue-600 hover:bg-blue-700 text-white"
                               >
@@ -1735,20 +1757,21 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                           </div>
                           
                           {/* Excel-style Table */}
-                          <div className="bg-white border-b border-gray-300 overflow-x-auto">
-                            {categoryItems.length === 0 ? (
-                              <div className="p-8 text-center text-gray-500 bg-white">
-                                <p>No hay elementos en esta categoría</p>
-                                <Button
-                                  onClick={() => addNewItem(category.id)}
-                                  variant="ghost"
-                                  className="mt-2 text-gray-600 hover:text-gray-900"
-                                >
-                                  <Plus className="w-4 h-4 mr-1" />
-                                  Agregar elemento a {category.name}
-                                </Button>
-                              </div>
-                            ) : (
+                          {openCategories.has(category.id) && (
+                            <div className="bg-white border-b border-gray-300 overflow-x-auto">
+                              {categoryItems.length === 0 ? (
+                                <div className="p-8 text-center text-gray-500 bg-white">
+                                  <p>No hay elementos en esta categoría</p>
+                                  <Button
+                                    onClick={() => addNewItem(category.id)}
+                                    variant="ghost"
+                                    className="mt-2 text-gray-600 hover:text-gray-900"
+                                  >
+                                    <Plus className="w-4 h-4 mr-1" />
+                                    Agregar elemento a {category.name}
+                                  </Button>
+                                </div>
+                              ) : (
                               <Table>
                                  <TableHeader>
                                     <TableRow className="bg-gray-100 hover:bg-gray-100">
@@ -2112,8 +2135,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   ))}
                                 </TableBody>
                               </Table>
-                            )}
-                          </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
