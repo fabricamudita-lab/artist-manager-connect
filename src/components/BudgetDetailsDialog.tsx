@@ -2357,6 +2357,27 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                 allItems = [...allItems, ...getFilteredAndSortedItems(category.id)];
                               });
                               
+                              // Only show items if there's a search term
+                              if (searchTerm && allItems.length === 0) {
+                                return (
+                                  <TableRow>
+                                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                      No se encontraron elementos que coincidan con "{searchTerm}"
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              }
+                              
+                              if (!searchTerm) {
+                                return (
+                                  <TableRow>
+                                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                      Usa el buscador para encontrar elementos
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              }
+                              
                               return allItems.map((item, index) => {
                                 const total = calculateTotal(item);
                                 
