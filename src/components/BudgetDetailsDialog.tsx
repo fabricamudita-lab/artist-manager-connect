@@ -1695,14 +1695,43 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                               <h3 className="text-lg font-bold tracking-wider">{category.name.toUpperCase()}</h3>
                               <span className="text-sm text-white/60">({categoryItems.length} elementos)</span>
                             </div>
-                            <Button
-                              onClick={() => addNewItem(category.id)}
-                              size="sm"
-                              className="bg-blue-600 hover:bg-blue-700 text-white"
-                            >
-                              <Plus className="w-4 h-4 mr-1" />
-                              Agregar
-                            </Button>
+                            <div className="flex items-center gap-4">
+                              <div className="flex gap-4 text-sm">
+                                <div className="text-right">
+                                  <div className="text-xs text-white/50 mb-1">Neto</div>
+                                  <div className="font-semibold">
+                                    €{categoryItems.reduce((sum, item) => {
+                                      const unitPrice = Number(item.unit_price) || 0;
+                                      const quantity = Number(item.quantity) || 1;
+                                      return sum + (unitPrice * quantity);
+                                    }, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-xs text-white/50 mb-1">Total</div>
+                                  <div className="font-semibold">
+                                    €{categoryItems.reduce((sum, item) => {
+                                      const unitPrice = Number(item.unit_price) || 0;
+                                      const quantity = Number(item.quantity) || 1;
+                                      const subtotal = unitPrice * quantity;
+                                      const ivaPercent = Number(item.iva_percentage) || 0;
+                                      const irpfPercent = Number(item.irpf_percentage) || 0;
+                                      const iva = subtotal * (ivaPercent / 100);
+                                      const irpf = subtotal * (irpfPercent / 100);
+                                      return sum + (subtotal + iva - irpf);
+                                    }, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                              </div>
+                              <Button
+                                onClick={() => addNewItem(category.id)}
+                                size="sm"
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                              >
+                                <Plus className="w-4 h-4 mr-1" />
+                                Agregar
+                              </Button>
+                            </div>
                           </div>
                           
                           {/* Excel-style Table */}
