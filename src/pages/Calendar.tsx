@@ -23,6 +23,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { seedEvents } from '@/utils/seedEvents';
 import { importCsvEvents } from '@/utils/importCsvEvents';
+import { importMarketingEvents } from '@/utils/importMarketingEvents';
 import { Loader2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -53,6 +54,7 @@ export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isSeeding, setIsSeeding] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isImportingMarketing, setIsImportingMarketing] = useState(false);
   const { toast } = useToast();
   const [shouldOpenCreateDialog, setShouldOpenCreateDialog] = useState(false);
   const [prefilledData, setPrefilledData] = useState<any>(null);
@@ -279,6 +281,30 @@ export default function Calendar() {
       setIsImporting(false);
       // Reset file input
       event.target.value = '';
+    }
+  };
+
+  const handleImportMarketingEvents = async () => {
+    setIsImportingMarketing(true);
+    try {
+      const result = await importMarketingEvents();
+      
+      toast({
+        title: "Éxito",
+        description: `Se han importado ${result.count} eventos de marketing`,
+      });
+      
+      // Refresh events
+      fetchEvents();
+    } catch (error) {
+      console.error('Error importing marketing events:', error);
+      toast({
+        variant: "destructive",
+        title: "Error al importar",
+        description: error instanceof Error ? error.message : "Hubo un problema al importar los eventos",
+      });
+    } finally {
+      setIsImportingMarketing(false);
     }
   };
 
@@ -1009,7 +1035,7 @@ export default function Calendar() {
               variant="outline"
               size="sm"
               onClick={handleSeedEvents}
-              disabled={isSeeding || isImporting}
+              disabled={isSeeding || isImporting || isImportingMarketing}
             >
               {isSeeding ? (
                 <>
@@ -1024,7 +1050,26 @@ export default function Calendar() {
             <Button
               variant="outline"
               size="sm"
-              disabled={isImporting || isSeeding}
+              onClick={handleImportMarketingEvents}
+              disabled={isSeeding || isImporting || isImportingMarketing}
+            >
+              {isImportingMarketing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Importando...
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Importar Plan Marketing 2025-2026
+                </>
+              )}
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isImporting || isSeeding || isImportingMarketing}
               onClick={() => document.getElementById('csv-upload')?.click()}
             >
               {isImporting ? (
