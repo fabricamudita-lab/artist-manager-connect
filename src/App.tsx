@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import Calendar from "./pages/Calendar";
 import Budgets from "./pages/Budgets";
 import Booking from "./pages/Booking";
+import Royalties from "./pages/Royalties";
 import Documents from "./pages/Documents";
 import Chat from "./pages/Chat";
 import Solicitudes from "./pages/Solicitudes";
@@ -97,6 +98,13 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Booking />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/royalties" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Royalties />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
