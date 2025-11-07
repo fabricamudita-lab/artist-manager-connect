@@ -2316,6 +2316,176 @@ export type Database = {
           },
         ]
       }
+      royalty_earnings: {
+        Row: {
+          amount: number
+          artist_id: string | null
+          created_at: string
+          created_by: string
+          id: string
+          metadata: Json | null
+          notes: string | null
+          period_end: string
+          period_start: string
+          platform: string
+          song_id: string
+          streams: number | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          artist_id?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          period_end: string
+          period_start: string
+          platform: string
+          song_id: string
+          streams?: number | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          artist_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          period_end?: string
+          period_start?: string
+          platform?: string
+          song_id?: string
+          streams?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "royalty_earnings_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "royalty_earnings_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      royalty_payments: {
+        Row: {
+          calculated_amount: number
+          created_at: string
+          created_by: string
+          id: string
+          notes: string | null
+          paid_amount: number | null
+          paid_at: string | null
+          payment_proof_url: string | null
+          period_end: string
+          period_start: string
+          split_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          calculated_amount?: number
+          created_at?: string
+          created_by: string
+          id?: string
+          notes?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
+          payment_proof_url?: string | null
+          period_end: string
+          period_start: string
+          split_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          calculated_amount?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          notes?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
+          payment_proof_url?: string | null
+          period_end?: string
+          period_start?: string
+          split_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "royalty_payments_split_id_fkey"
+            columns: ["split_id"]
+            isOneToOne: false
+            referencedRelation: "royalty_splits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      royalty_splits: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          percentage: number
+          role: string | null
+          song_id: string
+          updated_at: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          percentage: number
+          role?: string | null
+          song_id: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          percentage?: number
+          role?: string | null
+          song_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "royalty_splits_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "royalty_splits_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solicitud_decision_messages: {
         Row: {
           author_name: string | null
@@ -2548,6 +2718,50 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      songs: {
+        Row: {
+          artist_id: string | null
+          created_at: string
+          created_by: string
+          id: string
+          isrc: string | null
+          metadata: Json | null
+          release_date: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          artist_id?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          isrc?: string | null
+          metadata?: Json | null
+          release_date?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          isrc?: string | null
+          metadata?: Json | null
+          release_date?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "songs_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
             referencedColumns: ["id"]
           },
         ]
