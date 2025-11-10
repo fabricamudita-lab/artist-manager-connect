@@ -472,6 +472,7 @@ export async function importConcerts2025() {
     }
 
     const artistId = artist.id;
+    console.log('Using artist ID:', artistId, 'for artist:', artist.name);
     let inserted = 0;
     let updated = 0;
     let skipped = 0;
@@ -541,6 +542,7 @@ export async function importConcerts2025() {
         }
       } else {
         // Insert new event
+        console.log('Attempting to insert event with artist_id:', artistId);
         const { error: insertError } = await supabase
           .from('events')
           .insert({
@@ -555,9 +557,10 @@ export async function importConcerts2025() {
           });
 
         if (insertError) {
-          console.error('Error inserting event:', insertError);
+          console.error('Error inserting event for', title, ':', insertError);
           skipped++;
         } else {
+          console.log('Successfully inserted event:', title);
           inserted++;
         }
       }
