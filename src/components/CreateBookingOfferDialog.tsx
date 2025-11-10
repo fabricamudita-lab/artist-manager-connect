@@ -39,6 +39,9 @@ export function CreateBookingOfferDialog({
   onOfferCreated, 
   templateFields 
 }: CreateBookingOfferDialogProps) {
+  console.log('CreateBookingOfferDialog - open:', open);
+  console.log('CreateBookingOfferDialog - templateFields:', templateFields);
+  
   const { profile } = useAuth();
   const { syncBookingWithCalendar } = useBookingCalendarSync();
   const { createEventFolder } = useBookingFolders();

@@ -352,6 +352,9 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
     );
   }
 
+  console.log('BookingKanban - templateFields:', templateFields);
+  console.log('BookingKanban - showCreateDialog:', showCreateDialog);
+
   return (
     <div className="space-y-6">
       {/* Header with filters */}
