@@ -528,7 +528,7 @@ export async function importConcerts2025() {
             end_date: endDate,
             location,
             description,
-            event_type: 'Concierto',
+            event_type: 'show', // Using 'show' as the event type for concerts
             updated_at: new Date().toISOString()
           })
           .eq('id', existing.id);
@@ -549,7 +549,7 @@ export async function importConcerts2025() {
             end_date: endDate,
             location,
             description,
-            event_type: 'Concierto',
+            event_type: 'show', // Using 'show' as the event type for concerts
             artist_id: artistId,
             created_by: user.id
           });
