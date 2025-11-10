@@ -1321,9 +1321,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       </div>
                     </div>
 
-                    {/* Total (con IVA & IRPF) */}
+                    {/* Total a Facturar (con IVA & IRPF) */}
                     <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-primary/10 rounded-lg border border-primary/20">
-                      <div className="text-[10px] font-semibold text-primary uppercase tracking-wide mb-1">TOTAL FINAL</div>
+                      <div className="text-[10px] font-semibold text-primary uppercase tracking-wide mb-1">TOTAL A FACTURAR</div>
                       <div className="text-xl font-bold text-primary">
                         €{totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                       </div>
