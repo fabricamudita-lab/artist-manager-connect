@@ -1424,7 +1424,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   <span className="px-2 py-1 bg-white/10 rounded-md">📍 {budgetData.city}</span>
                 )}
                 {budgetData.venue && (
-                  <span className="px-2 py-1 bg-white/10 rounded-md">🏛️ {budgetData.venue}</span>
+                  <span className="px-2 py-1 bg-white/10 rounded-md">
+                    🏛️ {(() => {
+                      const match = budgetData.venue.match(/\(([^)]+)\)/);
+                      return match ? match[1] : budgetData.venue;
+                    })()}
+                  </span>
                 )}
               </div>
             )}
