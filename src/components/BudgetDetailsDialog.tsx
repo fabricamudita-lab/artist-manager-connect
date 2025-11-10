@@ -1405,15 +1405,40 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
               })()}
             </div>
             
-            {/* Location info compacto */}
-            {(budgetData.city || budgetData.venue) && (
-              <div className="flex gap-2 mt-3 text-xs text-white/70">
+            {/* Location and Event info compacto */}
+            {(budgetData.city || budgetData.venue || budgetData.event_date) && (
+              <div className="flex flex-wrap gap-2 mt-3 text-xs text-white/70">
+                {budgetData.event_date && (
+                  <span className="px-2 py-1 bg-blue-500/20 border border-blue-400/30 rounded-md flex items-center gap-1">
+                    <CalendarIcon className="w-3 h-3" />
+                    {new Date(budgetData.event_date).toLocaleDateString('es-ES', { 
+                      weekday: 'short', 
+                      year: 'numeric', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                    {budgetData.event_time && ` • ${budgetData.event_time}`}
+                  </span>
+                )}
                 {budgetData.city && (
                   <span className="px-2 py-1 bg-white/10 rounded-md">📍 {budgetData.city}</span>
                 )}
                 {budgetData.venue && (
                   <span className="px-2 py-1 bg-white/10 rounded-md">🏛️ {budgetData.venue}</span>
                 )}
+              </div>
+            )}
+            
+            {/* Recordatorio de solicitud de facturas */}
+            {budgetData.event_date && new Date(budgetData.event_date) > new Date() && (
+              <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-400/30 rounded-md text-xs text-yellow-200">
+                💡 Recuerda solicitar las facturas al día siguiente del evento ({
+                  new Date(new Date(budgetData.event_date).getTime() + 24 * 60 * 60 * 1000).toLocaleDateString('es-ES', { 
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                  })
+                })
               </div>
             )}
           </div>
