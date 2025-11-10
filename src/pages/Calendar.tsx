@@ -26,6 +26,7 @@ import { importCsvEvents } from '@/utils/importCsvEvents';
 import { importMarketingEvents } from '@/utils/importMarketingEvents';
 import { Loader2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ImportConcerts2025Dialog } from '@/components/ImportConcerts2025Dialog';
 
 interface Event {
   id: string;
@@ -1065,6 +1066,8 @@ export default function Calendar() {
                 </>
               )}
             </Button>
+            
+            <ImportConcerts2025Dialog />
             
             <Button
               variant="outline"
