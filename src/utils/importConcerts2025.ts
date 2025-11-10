@@ -447,20 +447,28 @@ export async function importConcerts2025() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('No user logged in');
 
-    // Get first artist (or Rita Payés if exists)
+    // Get first artist - try without filters to bypass RLS issues
     const { data: artists, error: artistError } = await supabase
       .from('artists')
       .select('id, name')
-      .order('created_at', { ascending: true });
+      .limit(10);
 
-    if (artistError) throw artistError;
-    if (!artists || artists.length === 0) throw new Error('No artists found. Please create an artist first.');
+    if (artistError) {
+      console.error('Error fetching artists:', artistError);
+      throw new Error(`Could not fetch artists: ${artistError.message}`);
+    }
+    
+    if (!artists || artists.length === 0) {
+      throw new Error('No artists found. Please create an artist first or check RLS policies.');
+    }
 
     // Try to find Rita Payés, otherwise use first artist
-    let artist = artists.find(a => a.name.toLowerCase().includes('rita'));
+    let artist = artists.find(a => a.name && a.name.toLowerCase().includes('rita'));
     if (!artist) {
       artist = artists[0];
       console.log(`Artist "Rita Payés" not found, using "${artist.name}" instead`);
+    } else {
+      console.log(`Found artist: ${artist.name}`);
     }
 
     const artistId = artist.id;
