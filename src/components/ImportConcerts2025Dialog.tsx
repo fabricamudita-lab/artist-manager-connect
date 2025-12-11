@@ -5,7 +5,6 @@ import { toast } from '@/hooks/use-toast';
 import { Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import { importConcerts2025 } from '@/utils/importConcerts2025';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-
 export function ImportConcerts2025Dialog() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -15,18 +14,15 @@ export function ImportConcerts2025Dialog() {
     skipped: number;
     total: number;
   } | null>(null);
-
   const handleImport = async () => {
     setLoading(true);
     setResult(null);
-    
     try {
       const importResult = await importConcerts2025();
       setResult(importResult);
-      
       toast({
         title: "¡Importación completada!",
-        description: `${importResult.inserted} nuevos, ${importResult.updated} actualizados, ${importResult.skipped} omitidos`,
+        description: `${importResult.inserted} nuevos, ${importResult.updated} actualizados, ${importResult.skipped} omitidos`
       });
     } catch (error) {
       console.error('Error importing concerts:', error);
@@ -39,14 +35,9 @@ export function ImportConcerts2025Dialog() {
       setLoading(false);
     }
   };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
+  return <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Upload className="w-4 h-4" />
-          Importar Conciertos 2025
-        </Button>
+        
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
@@ -57,8 +48,7 @@ export function ImportConcerts2025Dialog() {
         </DialogHeader>
 
         <div className="space-y-4">
-          {result && (
-            <Alert>
+          {result && <Alert>
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>
                 <div className="space-y-1 text-sm">
@@ -69,15 +59,10 @@ export function ImportConcerts2025Dialog() {
                   <div className="font-semibold mt-2">Total: {result.total} registros procesados</div>
                 </div>
               </AlertDescription>
-            </Alert>
-          )}
+            </Alert>}
 
           <div className="flex gap-2">
-            <Button
-              onClick={handleImport}
-              disabled={loading}
-              className="flex-1"
-            >
+            <Button onClick={handleImport} disabled={loading} className="flex-1">
               {loading ? 'Importando...' : result ? 'Volver a importar' : 'Importar ahora'}
             </Button>
             <Button variant="outline" onClick={() => setOpen(false)}>
@@ -93,6 +78,5 @@ export function ImportConcerts2025Dialog() {
           </Alert>
         </div>
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>;
 }

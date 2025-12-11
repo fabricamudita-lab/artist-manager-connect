@@ -818,22 +818,9 @@ export default function Calendar() {
         }
       }} prefilledData={prefilledData} />
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleSeedEvents} disabled={isSeeding || isImporting || isImportingMarketing}>
-              {isSeeding ? <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creando eventos...
-                </> : 'Crear eventos de prueba'}
-            </Button>
             
-            <Button variant="outline" size="sm" onClick={handleImportMarketingEvents} disabled={isSeeding || isImporting || isImportingMarketing}>
-              {isImportingMarketing ? <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Importando...
-                </> : <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Importar Plan Marketing 2025-2026
-                </>}
-            </Button>
+            
+            
             
             <ImportConcerts2025Dialog />
             
