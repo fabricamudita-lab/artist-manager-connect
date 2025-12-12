@@ -1,11 +1,12 @@
 import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/useCommon';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Select, 
   SelectContent, 
@@ -15,11 +16,27 @@ import {
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { FileText, Upload, Download, Eye, Filter, File, Image, Music, Video, ExternalLink, FolderOpen } from 'lucide-react';
+import { 
+  FileText, Upload, Download, Eye, Filter, File, Image, Music, Video, 
+  ExternalLink, FolderOpen, LayoutGrid, List, BarChart3, Plus, Trash2 
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArtistSelector } from '@/components/ArtistSelector';
+import { DocumentFilters, DocumentFiltersState } from '@/components/DocumentFilters';
+import { DocumentStats } from '@/components/DocumentStats';
+import { ContractGenerator } from '@/components/ContractGenerator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Document {
   id: string;
@@ -39,6 +56,16 @@ interface Artist {
   email: string;
 }
 
+const CATEGORIES = [
+  { value: 'contract', label: 'Contratos' },
+  { value: 'rider', label: 'Riders Técnicos' },
+  { value: 'setlist', label: 'Setlists' },
+  { value: 'press', label: 'Material de Prensa' },
+  { value: 'legal', label: 'Documentos Legales' },
+  { value: 'financial', label: 'Documentos Financieros' },
+  { value: 'other', label: 'Otros' },
+];
+
 export default function Documents() {
   usePageTitle('Documentos');
   const { profile } = useAuth();
@@ -48,7 +75,22 @@ export default function Documents() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [showUploadForm, setShowUploadForm] = useState(false);
+  const [showContractGenerator, setShowContractGenerator] = useState(false);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'stats'>('grid');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
+  
+  const [filters, setFilters] = useState<DocumentFiltersState>({
+    search: '',
+    category: 'all',
+    fileType: 'all',
+    dateFrom: undefined,
+    dateTo: undefined,
+    sortBy: 'date',
+    sortOrder: 'desc',
+  });
+
   const [newDocument, setNewDocument] = useState({
     title: '',
     category: '',
@@ -58,7 +100,6 @@ export default function Documents() {
 
   useEffect(() => {
     if (profile) {
-      // Initialize with current user selected
       setSelectedArtists([profile.id]);
       fetchArtists();
     }
@@ -84,7 +125,6 @@ export default function Documents() {
 
   const fetchDocuments = async () => {
     try {
-      // Fetch documents filtered by selected artists
       const { data: documentsData } = await supabase
         .from('documents')
         .select('*')
@@ -102,6 +142,68 @@ export default function Documents() {
       setLoading(false);
     }
   };
+
+  // Filter and sort documents
+  const filteredDocuments = useMemo(() => {
+    let result = [...documents];
+
+    // Search filter
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      result = result.filter(doc => 
+        doc.title.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Category filter
+    if (filters.category !== 'all') {
+      result = result.filter(doc => doc.category === filters.category);
+    }
+
+    // File type filter
+    if (filters.fileType !== 'all') {
+      result = result.filter(doc => {
+        if (filters.fileType === 'pdf') return doc.file_type?.includes('pdf');
+        if (filters.fileType === 'doc') return doc.file_type?.includes('word') || doc.file_type?.includes('doc');
+        if (filters.fileType === 'image') return doc.file_type?.startsWith('image/');
+        if (filters.fileType === 'audio') return doc.file_type?.startsWith('audio/');
+        if (filters.fileType === 'video') return doc.file_type?.startsWith('video/');
+        return true;
+      });
+    }
+
+    // Date filters
+    if (filters.dateFrom) {
+      result = result.filter(doc => new Date(doc.created_at) >= filters.dateFrom!);
+    }
+    if (filters.dateTo) {
+      result = result.filter(doc => new Date(doc.created_at) <= filters.dateTo!);
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      let comparison = 0;
+      if (filters.sortBy === 'name') {
+        comparison = a.title.localeCompare(b.title);
+      } else if (filters.sortBy === 'date') {
+        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      } else if (filters.sortBy === 'size') {
+        comparison = (a.file_size || 0) - (b.file_size || 0);
+      }
+      return filters.sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return result;
+  }, [documents, filters]);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (filters.category !== 'all') count++;
+    if (filters.fileType !== 'all') count++;
+    if (filters.dateFrom) count++;
+    if (filters.dateTo) count++;
+    return count;
+  }, [filters]);
 
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,19 +224,16 @@ export default function Documents() {
       const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
       const filePath = `${profile?.id}/${fileName}`;
 
-      // Upload file to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, newDocument.file);
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('documents')
         .getPublicUrl(filePath);
 
-      // Save document metadata to database
       const { error: dbError } = await supabase
         .from('documents')
         .insert({
@@ -173,11 +272,40 @@ export default function Documents() {
     }
   };
 
+  const handleDeleteDocument = async () => {
+    if (!documentToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .delete()
+        .eq('id', documentToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Documento eliminado",
+        description: "El documento ha sido eliminado correctamente.",
+      });
+
+      setDocuments(docs => docs.filter(d => d.id !== documentToDelete.id));
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el documento.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setDocumentToDelete(null);
+    }
+  };
+
   const getFileIcon = (fileType: string) => {
-    if (fileType.startsWith('image/')) return <Image className="w-5 h-5" />;
-    if (fileType.startsWith('audio/')) return <Music className="w-5 h-5" />;
-    if (fileType.startsWith('video/')) return <Video className="w-5 h-5" />;
-    if (fileType.includes('pdf')) return <FileText className="w-5 h-5" />;
+    if (fileType?.startsWith('image/')) return <Image className="w-5 h-5" />;
+    if (fileType?.startsWith('audio/')) return <Music className="w-5 h-5" />;
+    if (fileType?.startsWith('video/')) return <Video className="w-5 h-5" />;
+    if (fileType?.includes('pdf')) return <FileText className="w-5 h-5" />;
     return <File className="w-5 h-5" />;
   };
 
@@ -191,6 +319,10 @@ export default function Documents() {
       case 'financial': return 'bg-yellow-500';
       default: return 'bg-gray-500';
     }
+  };
+
+  const getCategoryLabel = (category: string) => {
+    return CATEGORIES.find(c => c.value === category)?.label || category;
   };
 
   const formatFileSize = (bytes: number) => {
@@ -207,249 +339,343 @@ export default function Documents() {
 
   return (
     <div className="container-moodita section-spacing space-y-8">
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-gradient-primary rounded-xl">
-          <FileText className="h-6 w-6 text-primary-foreground" />
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-primary rounded-xl">
+            <FileText className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gradient-primary tracking-tight">Gestión de Documentos</h1>
+            <p className="text-muted-foreground">Organiza y accede a toda tu documentación profesional</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-3xl font-bold text-gradient-primary tracking-tight">Gestión de Documentos</h1>
-          <p className="text-muted-foreground">Organiza y accede a toda tu documentación profesional</p>
+        
+        <div className="flex items-center gap-2">
+          {/* View mode toggle */}
+          <div className="flex items-center border rounded-lg p-1">
+            <Button
+              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('grid')}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'stats' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('stats')}
+            >
+              <BarChart3 className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Contract generator */}
+          <Button variant="outline" onClick={() => setShowContractGenerator(true)}>
+            <FileText className="h-4 w-4 mr-2" />
+            Generar Contrato
+          </Button>
+          
+          {/* Upload button */}
+          <Button onClick={() => setShowUploadForm(true)} className="btn-primary">
+            <Upload className="w-4 h-4 mr-2" />
+            Subir Documento
+          </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Artist Selector */}
-        <div className="card-moodita hover-lift">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-3 text-xl">
-              <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center">
-                <Filter className="h-4 w-4 text-primary" />
-              </div>
+      {/* Filters and Artist Selector */}
+      <div className="grid gap-6 md:grid-cols-3">
+        <div className="md:col-span-2 space-y-4">
+          <DocumentFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            categories={CATEGORIES}
+            activeFiltersCount={activeFiltersCount}
+          />
+        </div>
+        
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Filter className="h-4 w-4" />
               Filtrar por Artistas
             </CardTitle>
-            <CardDescription>
-              Selecciona los artistas cuyos documentos quieres ver
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <ArtistSelector
               selectedArtists={selectedArtists}
               onSelectionChange={setSelectedArtists}
-              placeholder="Seleccionar artistas para mostrar sus documentos..."
+              placeholder="Seleccionar artistas..."
               showSelfOption={true}
             />
           </CardContent>
-        </div>
-
-        {/* Material de Artistas - Drive Access */}
-        <div className="card-moodita hover-lift bg-gradient-card">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-3 text-xl">
-              <div className="w-8 h-8 bg-accent/10 rounded-xl flex items-center justify-center">
-                <FolderOpen className="h-4 w-4 text-accent" />
-              </div>
-              Material de Artistas
-            </CardTitle>
-            <CardDescription>
-              Accede a las carpetas de Drive donde cada artista tiene su material profesional
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-muted/50 p-4 rounded-xl">
-              <p className="text-sm text-muted-foreground">
-                Cada artista tiene una carpeta dedicada con fotos, videos, biografías, logos y material promocional.
-              </p>
-            </div>
-            <Button 
-              variant="outline" 
-              className="w-full hover-lift transition-swift"
-              onClick={() => window.open('https://drive.google.com', '_blank')}
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Acceder a Carpetas de Drive
-            </Button>
-          </CardContent>
-        </div>
+        </Card>
       </div>
 
-      {/* Upload Section */}
-      <div className="card-moodita hover-lift">
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-3 text-xl">
-            <div className="w-8 h-8 bg-secondary/10 rounded-xl flex items-center justify-center">
-              <Upload className="h-4 w-4 text-secondary" />
-            </div>
-            Subir Documento
-          </CardTitle>
-          <CardDescription>
-            Sube contratos, riders, setlists y documentos importantes
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Dialog open={showUploadForm} onOpenChange={setShowUploadForm}>
-            <DialogTrigger asChild>
-              <Button className="btn-primary">
-                <Upload className="w-4 h-4 mr-2" />
-                Subir Documento
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Subir Nuevo Documento</DialogTitle>
-                <DialogDescription>
-                  Sube contratos, riders, setlists y otros documentos importantes
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleFileUpload} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Título *</Label>
-                  <Input
-                    id="title"
-                    value={newDocument.title}
-                    onChange={(e) => setNewDocument({ ...newDocument, title: e.target.value })}
-                    placeholder="Nombre del documento"
-                    className="input-modern"
-                  />
-                </div>
+      {/* Stats View */}
+      {viewMode === 'stats' && (
+        <DocumentStats documents={documents} />
+      )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="category">Categoría *</Label>
-                  <Select
-                    value={newDocument.category}
-                    onValueChange={(value) => setNewDocument({ ...newDocument, category: value })}
-                  >
-                    <SelectTrigger className="input-modern">
-                      <SelectValue placeholder="Selecciona la categoría" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="contract">Contratos</SelectItem>
-                      <SelectItem value="rider">Riders Técnicos</SelectItem>
-                      <SelectItem value="setlist">Setlists</SelectItem>
-                      <SelectItem value="press">Material de Prensa</SelectItem>
-                      <SelectItem value="legal">Documentos Legales</SelectItem>
-                      <SelectItem value="financial">Documentos Financieros</SelectItem>
-                      <SelectItem value="other">Otros</SelectItem>
-                    </SelectContent>
-                  </Select>
+      {/* Documents Grid/List */}
+      {viewMode !== 'stats' && (
+        <>
+          {filteredDocuments.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-16">
+                <div className="w-20 h-20 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <FileText className="w-10 h-10 text-muted-foreground" />
                 </div>
-
-                {profile?.active_role === 'management' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="artist">Artista</Label>
-                    <Select
-                      value={newDocument.artist_id}
-                      onValueChange={(value) => setNewDocument({ ...newDocument, artist_id: value })}
-                    >
-                      <SelectTrigger className="input-modern">
-                        <SelectValue placeholder="Selecciona un artista" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {artists.map((artist) => (
-                          <SelectItem key={artist.id} value={artist.id}>
-                            {artist.full_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <h3 className="text-xl font-semibold mb-3">
+                  {documents.length === 0 ? 'No hay documentos' : 'Sin resultados'}
+                </h3>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                  {documents.length === 0 
+                    ? 'Sube tu primer documento para empezar a organizar tu biblioteca digital'
+                    : 'Prueba con otros filtros o términos de búsqueda'}
+                </p>
+                {documents.length === 0 && (
+                  <Button onClick={() => setShowUploadForm(true)} className="btn-primary">
+                    <Upload className="w-4 h-4 mr-2" />
+                    Subir Documento
+                  </Button>
                 )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="file">Archivo *</Label>
-                  <Input
-                    id="file"
-                    type="file"
-                    onChange={(e) => setNewDocument({ ...newDocument, file: e.target.files?.[0] || null })}
-                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.mp3,.wav,.mp4,.mov"
-                    className="input-modern"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Formatos soportados: PDF, DOC, DOCX, TXT, JPG, PNG, MP3, WAV, MP4, MOV
-                  </p>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={uploading} className="btn-primary">
-                    {uploading ? 'Subiendo...' : 'Subir Documento'}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setShowUploadForm(false)}>
-                    Cancelar
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </CardContent>
-      </div>
-
-      {/* Documents Grid */}
-      {documents.length === 0 ? (
-        <div className="card-moodita">
-          <CardContent className="text-center py-16">
-            <div className="w-20 h-20 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <FileText className="w-10 h-10 text-muted-foreground" />
+              </CardContent>
+            </Card>
+          ) : viewMode === 'grid' ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {filteredDocuments.map((document) => (
+                <Card key={document.id} className="card-interactive hover-glow group">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center flex-shrink-0 text-primary-foreground">
+                          {getFileIcon(document.file_type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg line-clamp-2 group-hover:text-primary transition-colors">
+                            {document.title}
+                          </CardTitle>
+                          <CardDescription className="mt-1">
+                            {artists.find(a => a.id === document.artist_id)?.full_name || 'Artista'}
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <Badge className={`${getCategoryColor(document.category)} text-white flex-shrink-0 ml-2`}>
+                        {getCategoryLabel(document.category)}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="bg-muted/50 p-3 rounded-lg space-y-1">
+                      <p className="text-sm font-medium">Tamaño: {formatFileSize(document.file_size)}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Subido: {format(new Date(document.created_at), 'PPP', { locale: es })}
+                      </p>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" asChild className="flex-1 hover-lift">
+                        <a href={document.file_url} target="_blank" rel="noopener noreferrer">
+                          <Eye className="w-4 h-4 mr-2" />
+                          Ver
+                        </a>
+                      </Button>
+                      <Button variant="outline" size="sm" asChild className="flex-1 hover-lift">
+                        <a href={document.file_url} download>
+                          <Download className="w-4 h-4 mr-2" />
+                          Descargar
+                        </a>
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setDocumentToDelete(document);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-            <h3 className="text-xl font-semibold mb-3">No hay documentos</h3>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Sube tu primer documento para empezar a organizar tu biblioteca digital profesional
-            </p>
-            <Button onClick={() => setShowUploadForm(true)} className="btn-primary">
-              <Upload className="w-4 h-4 mr-2" />
-              Subir Documento
-            </Button>
-          </CardContent>
-        </div>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {documents.map((document) => (
-            <div key={document.id} className="card-interactive hover-glow group">
-              <CardHeader className="pb-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center flex-shrink-0">
-                      {getFileIcon(document.file_type)}
+          ) : (
+            // List view
+            <Card>
+              <CardContent className="p-0">
+                <div className="divide-y">
+                  {filteredDocuments.map((document) => (
+                    <div 
+                      key={document.id} 
+                      className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center flex-shrink-0 text-primary-foreground">
+                        {getFileIcon(document.file_type)}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{document.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {artists.find(a => a.id === document.artist_id)?.full_name || 'Artista'} • 
+                          {formatFileSize(document.file_size)} • 
+                          {format(new Date(document.created_at), 'dd/MM/yyyy')}
+                        </p>
+                      </div>
+                      
+                      <Badge className={`${getCategoryColor(document.category)} text-white`}>
+                        {getCategoryLabel(document.category)}
+                      </Badge>
+                      
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" asChild>
+                          <a href={document.file_url} target="_blank" rel="noopener noreferrer">
+                            <Eye className="w-4 h-4" />
+                          </a>
+                        </Button>
+                        <Button variant="ghost" size="icon" asChild>
+                          <a href={document.file_url} download>
+                            <Download className="w-4 h-4" />
+                          </a>
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => {
+                            setDocumentToDelete(document);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-lg line-clamp-2 group-hover:text-primary transition-colors">
-                        {document.title}
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        {artists.find(a => a.id === document.artist_id)?.full_name || 'Artista'}
-                      </CardDescription>
-                    </div>
-                  </div>
-                  <Badge className={`${getCategoryColor(document.category)} flex-shrink-0 ml-2`}>
-                    {document.category}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="bg-muted/50 p-3 rounded-lg space-y-1">
-                  <p className="text-sm font-medium">Tamaño: {formatFileSize(document.file_size)}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Subido: {format(new Date(document.created_at), 'PPP', { locale: es })}
-                  </p>
-                </div>
-                
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" asChild className="flex-1 hover-lift">
-                    <a href={document.file_url} target="_blank" rel="noopener noreferrer">
-                      <Eye className="w-4 h-4 mr-2" />
-                      Ver
-                    </a>
-                  </Button>
-                  <Button variant="outline" size="sm" asChild className="flex-1 hover-lift">
-                    <a href={document.file_url} download>
-                      <Download className="w-4 h-4 mr-2" />
-                      Descargar
-                    </a>
-                  </Button>
+                  ))}
                 </div>
               </CardContent>
-            </div>
-          ))}
-        </div>
+            </Card>
+          )}
+        </>
       )}
+
+      {/* Upload Dialog */}
+      <Dialog open={showUploadForm} onOpenChange={setShowUploadForm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Subir Nuevo Documento</DialogTitle>
+            <DialogDescription>
+              Sube contratos, riders, setlists y otros documentos importantes
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleFileUpload} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Título *</Label>
+              <Input
+                id="title"
+                value={newDocument.title}
+                onChange={(e) => setNewDocument({ ...newDocument, title: e.target.value })}
+                placeholder="Nombre del documento"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="category">Categoría *</Label>
+              <Select
+                value={newDocument.category}
+                onValueChange={(value) => setNewDocument({ ...newDocument, category: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona la categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((cat) => (
+                    <SelectItem key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {profile?.active_role === 'management' && (
+              <div className="space-y-2">
+                <Label htmlFor="artist">Artista</Label>
+                <Select
+                  value={newDocument.artist_id}
+                  onValueChange={(value) => setNewDocument({ ...newDocument, artist_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un artista" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {artists.map((artist) => (
+                      <SelectItem key={artist.id} value={artist.id}>
+                        {artist.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="file">Archivo *</Label>
+              <Input
+                id="file"
+                type="file"
+                onChange={(e) => setNewDocument({ ...newDocument, file: e.target.files?.[0] || null })}
+                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.mp3,.wav,.mp4,.mov"
+              />
+              <p className="text-xs text-muted-foreground">
+                Formatos soportados: PDF, DOC, DOCX, TXT, JPG, PNG, MP3, WAV, MP4, MOV
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button type="submit" disabled={uploading} className="btn-primary">
+                {uploading ? 'Subiendo...' : 'Subir Documento'}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setShowUploadForm(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contract Generator Dialog */}
+      <ContractGenerator
+        open={showContractGenerator}
+        onOpenChange={setShowContractGenerator}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar documento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El documento "{documentToDelete?.title}" será eliminado permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteDocument} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
