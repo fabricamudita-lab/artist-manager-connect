@@ -5,6 +5,7 @@ import { DollarSign, Music, Users, TrendingUp } from 'lucide-react';
 import { useRoyaltiesStats } from '@/hooks/useRoyalties';
 import { SongSplitsManager } from '@/components/royalties/SongSplitsManager';
 import { PlatformEarningsManager } from '@/components/royalties/PlatformEarningsManager';
+import { EarningsDistribution } from '@/components/royalties/EarningsDistribution';
 
 export default function Royalties() {
   usePageTitle('Royalties');
@@ -71,6 +72,7 @@ export default function Royalties() {
         <TabsList>
           <TabsTrigger value="songs">Splits de Canciones</TabsTrigger>
           <TabsTrigger value="earnings">Ganancias por Plataforma</TabsTrigger>
+          <TabsTrigger value="distribution">Distribución</TabsTrigger>
         </TabsList>
 
         <TabsContent value="songs" className="space-y-4">
@@ -79,6 +81,10 @@ export default function Royalties() {
 
         <TabsContent value="earnings" className="space-y-4">
           <PlatformEarningsManager />
+        </TabsContent>
+
+        <TabsContent value="distribution" className="space-y-4">
+          <EarningsDistribution />
         </TabsContent>
       </Tabs>
     </div>

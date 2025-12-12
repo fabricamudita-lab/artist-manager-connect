@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Music, Plus, Trash2, Users } from 'lucide-react';
 import { useSongs, useSongSplits, useCreateSongSplit, useDeleteSongSplit, Song, SongSplit } from '@/hooks/useRoyalties';
 import { CreateSongDialog } from './CreateSongDialog';
+import { EditSongDialog } from './EditSongDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -140,7 +141,10 @@ function SongCard({ song }: { song: Song }) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div>
-            <CardTitle className="text-lg">{song.title}</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              {song.title}
+              <EditSongDialog song={song} />
+            </CardTitle>
             <CardDescription className="flex items-center gap-2 mt-1">
               {song.isrc && <span>ISRC: {song.isrc}</span>}
               {song.release_date && (
