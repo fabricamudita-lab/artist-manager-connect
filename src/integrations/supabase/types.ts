@@ -2293,6 +2293,56 @@ export type Database = {
         }
         Relationships: []
       }
+      project_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          file_url: string
+          folder_type: string
+          id: string
+          project_id: string
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url: string
+          folder_type?: string
+          id?: string
+          project_id: string
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string
+          folder_type?: string
+          id?: string
+          project_id?: string
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_role_bindings: {
         Row: {
           created_at: string
@@ -2393,6 +2443,9 @@ export type Database = {
           objective: string | null
           parent_folder_id: string | null
           project_type: Database["public"]["Enums"]["project_type"] | null
+          public_share_enabled: boolean | null
+          public_share_expires_at: string | null
+          public_share_token: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"]
           updated_at: string
@@ -2413,6 +2466,9 @@ export type Database = {
           objective?: string | null
           parent_folder_id?: string | null
           project_type?: Database["public"]["Enums"]["project_type"] | null
+          public_share_enabled?: boolean | null
+          public_share_expires_at?: string | null
+          public_share_token?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           updated_at?: string
@@ -2433,6 +2489,9 @@ export type Database = {
           objective?: string | null
           parent_folder_id?: string | null
           project_type?: Database["public"]["Enums"]["project_type"] | null
+          public_share_enabled?: boolean | null
+          public_share_expires_at?: string | null
+          public_share_token?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           updated_at?: string
@@ -3101,6 +3160,7 @@ export type Database = {
       check_pending_royalty_payments: { Args: never; Returns: undefined }
       generate_contact_slug: { Args: never; Returns: string }
       generate_epk_slug: { Args: { artista_proyecto: string }; Returns: string }
+      generate_project_share_token: { Args: never; Returns: string }
       get_profile_id_by_user: { Args: { _user_id: string }; Returns: string }
       get_user_artist_roles: {
         Args: { _user_id: string }
