@@ -29,16 +29,16 @@ import { useState } from 'react';
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Calendario", url: "/calendar", icon: Calendar },
-  { title: "Presupuestos", url: "/budgets", icon: Calculator },
   { title: "Booking", url: "/booking", icon: Mic },
-  { title: "Royalties", url: "/royalties", icon: TrendingUp },
-  { title: "Analytics", url: "/analytics", icon: DollarSign },
-  { title: "Solicitudes", url: "/solicitudes", icon: ClipboardList },
-  { title: "Contactos", url: "/contacts", icon: Contact },
   { title: "Proyectos", url: "/projects", icon: Folder },
-  { title: "EPKs", url: "/epks", icon: FileImage },
-  { title: "Documentos", url: "/documents", icon: FileText },
+  { title: "Finanzas", url: "/budgets", icon: Calculator },
+  { title: "Royalties", url: "/royalties", icon: TrendingUp },
+  { title: "Artistas & Equipo", url: "/contacts", icon: Users },
+  { title: "Solicitudes", url: "/solicitudes", icon: ClipboardList },
   { title: "Chat", url: "/chat", icon: MessageCircle },
+  { title: "Documentos", url: "/documents", icon: FileText },
+  { title: "EPKs", url: "/epks", icon: FileImage },
+  { title: "Analytics", url: "/analytics", icon: DollarSign },
 ];
 
 const managementItems = [
