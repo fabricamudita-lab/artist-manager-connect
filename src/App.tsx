@@ -14,6 +14,7 @@ import Budgets from "./pages/Budgets";
 import Booking from "./pages/Booking";
 import BookingDetail from "./pages/BookingDetail";
 import Royalties from "./pages/Royalties";
+import Analytics from "./pages/Analytics";
 import Documents from "./pages/Documents";
 import Chat from "./pages/Chat";
 import Solicitudes from "./pages/Solicitudes";
@@ -113,6 +114,13 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Royalties />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/analytics" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Analytics />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />

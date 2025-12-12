@@ -32,6 +32,7 @@ const navigationItems = [
   { title: "Presupuestos", url: "/budgets", icon: Calculator },
   { title: "Booking", url: "/booking", icon: Mic },
   { title: "Royalties", url: "/royalties", icon: TrendingUp },
+  { title: "Analytics", url: "/analytics", icon: DollarSign },
   { title: "Solicitudes", url: "/solicitudes", icon: ClipboardList },
   { title: "Contactos", url: "/contacts", icon: Contact },
   { title: "Proyectos", url: "/projects", icon: Folder },
