@@ -53,6 +53,8 @@ interface BookingOffer {
   inicio_venta?: string | null;
   folder_url?: string | null;
   notas?: string | null;
+  anunciado?: boolean | null;
+  es_privado?: boolean | null;
 }
 
 interface EditBookingDialogProps {
@@ -144,6 +146,8 @@ export function EditBookingDialog({
           inicio_venta: formData.inicio_venta,
           folder_url: formData.folder_url,
           notas: formData.notas,
+          anunciado: formData.anunciado,
+          es_privado: formData.es_privado,
         })
         .eq('id', booking.id);
 
@@ -278,6 +282,33 @@ export function EditBookingDialog({
                   onCheckedChange={(c) => updateField('es_cityzen', !!c)}
                 />
                 <Label htmlFor="es_cityzen">CityZen</Label>
+              </div>
+            </div>
+
+            {/* EPK Visibility Options */}
+            <div className="border-t pt-4 mt-4">
+              <p className="text-sm font-medium text-muted-foreground mb-3">Visibilidad en EPK</p>
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="anunciado"
+                    checked={formData.anunciado || false}
+                    onCheckedChange={(c) => updateField('anunciado', !!c)}
+                  />
+                  <Label htmlFor="anunciado" className="text-sm">
+                    Anunciado (mostrar en EPK público)
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="es_privado"
+                    checked={formData.es_privado || false}
+                    onCheckedChange={(c) => updateField('es_privado', !!c)}
+                  />
+                  <Label htmlFor="es_privado" className="text-sm">
+                    Privado (ocultar de vistas públicas)
+                  </Label>
+                </div>
               </div>
             </div>
           </TabsContent>

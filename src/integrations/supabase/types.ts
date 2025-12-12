@@ -415,6 +415,7 @@ export type Database = {
       booking_offers: {
         Row: {
           adjuntos: Json | null
+          anunciado: boolean | null
           artist_id: string | null
           capacidad: number | null
           ciudad: string | null
@@ -427,6 +428,7 @@ export type Database = {
           created_by: string
           es_cityzen: boolean | null
           es_internacional: boolean | null
+          es_privado: boolean | null
           estado: string | null
           estado_facturacion: string | null
           event_id: string | null
@@ -456,6 +458,7 @@ export type Database = {
         }
         Insert: {
           adjuntos?: Json | null
+          anunciado?: boolean | null
           artist_id?: string | null
           capacidad?: number | null
           ciudad?: string | null
@@ -468,6 +471,7 @@ export type Database = {
           created_by: string
           es_cityzen?: boolean | null
           es_internacional?: boolean | null
+          es_privado?: boolean | null
           estado?: string | null
           estado_facturacion?: string | null
           event_id?: string | null
@@ -497,6 +501,7 @@ export type Database = {
         }
         Update: {
           adjuntos?: Json | null
+          anunciado?: boolean | null
           artist_id?: string | null
           capacidad?: number | null
           ciudad?: string | null
@@ -509,6 +514,7 @@ export type Database = {
           created_by?: string
           es_cityzen?: boolean | null
           es_internacional?: boolean | null
+          es_privado?: boolean | null
           estado?: string | null
           estado_facturacion?: string | null
           event_id?: string | null
