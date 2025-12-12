@@ -9,25 +9,17 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { format, isSameDay, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, addDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Clock, MapPin, Plus, Filter, ChevronLeft, ChevronRight, Calendar as CalendarViewIcon, X, FolderKanban, Users, Eye, EyeOff, ChevronDown } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { CreateEventDialog } from '@/components/CreateEventDialog';
-import { ArtistSelector } from '@/components/ArtistSelector';
+import { CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, X, Plus } from 'lucide-react';
 import { YearlyCalendar } from '@/components/YearlyCalendar';
 import { EditEventDialog } from '@/components/EditEventDialog';
 import { useBookingReminders } from '@/hooks/useBookingReminders';
 import { ReminderBadge } from '@/components/ReminderBadge';
 import { EventDetailPopover } from '@/components/EventDetailPopover';
-import { GoogleCalendarSettings } from '@/components/GoogleCalendarSettings';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { seedEvents } from '@/utils/seedEvents';
 import { importCsvEvents } from '@/utils/importCsvEvents';
-import { importMarketingEvents } from '@/utils/importMarketingEvents';
-import { Loader2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { ImportConcerts2025Dialog } from '@/components/ImportConcerts2025Dialog';
+import { CalendarHeader } from '@/components/calendar/CalendarHeader';
+import { CalendarToolbar } from '@/components/calendar/CalendarToolbar';
+import { CreateEventDialogV2 } from '@/components/calendar/CreateEventDialogV2';
 interface Event {
   id: string;
   title: string;
@@ -47,7 +39,7 @@ export default function Calendar() {
   } = useAuth();
   const location = useLocation();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [viewMode, setViewMode] = useState<'week' | 'month' | 'year'>('month');
+  const [viewMode, setViewMode] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
   const [events, setEvents] = useState<Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
@@ -55,9 +47,7 @@ export default function Calendar() {
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   const [projects, setProjects] = useState<any[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [isSeeding, setIsSeeding] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [isImportingMarketing, setIsImportingMarketing] = useState(false);
   const {
     toast
   } = useToast();
@@ -230,26 +220,10 @@ export default function Calendar() {
       console.error('Error fetching projects:', error);
     }
   };
-  const handleSeedEvents = async () => {
-    setIsSeeding(true);
-    try {
-      const result = await seedEvents();
-      toast({
-        title: "Eventos creados",
-        description: `Se crearon ${result.eventCount} eventos de prueba para ${result.artists.join(', ')}`
-      });
-      fetchEvents();
-      fetchBookingOffers();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudieron crear los eventos de prueba",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSeeding(false);
-    }
+  const handleImportCsvClick = () => {
+    document.getElementById('csv-upload')?.click();
   };
+  
   const handleImportCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -271,31 +245,14 @@ export default function Calendar() {
       });
     } finally {
       setIsImporting(false);
-      // Reset file input
       event.target.value = '';
     }
   };
-  const handleImportMarketingEvents = async () => {
-    setIsImportingMarketing(true);
-    try {
-      const result = await importMarketingEvents();
-      toast({
-        title: "Éxito",
-        description: `Se han importado ${result.count} eventos de marketing`
-      });
-
-      // Refresh events
-      fetchEvents();
-    } catch (error) {
-      console.error('Error importing marketing events:', error);
-      toast({
-        variant: "destructive",
-        title: "Error al importar",
-        description: error instanceof Error ? error.message : "Hubo un problema al importar los eventos"
-      });
-    } finally {
-      setIsImportingMarketing(false);
-    }
+  
+  const handleNavigate = (direction: 'prev' | 'next') => {
+    if (viewMode === 'week') navigateWeek(direction);
+    else if (viewMode === 'month' || viewMode === 'quarter') navigateMonth(direction);
+    else navigateYear(direction);
   };
   const fetchBookingOffers = async () => {
     try {
@@ -821,92 +778,116 @@ export default function Calendar() {
         <div className="text-center">Error: No se pudo cargar el perfil</div>
       </div>;
   }
-  return <div className="container-moodita section-spacing space-y-8">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-primary rounded-xl">
-            <CalendarIcon className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gradient-primary tracking-tight">Calendario</h1>
-            <p className="text-muted-foreground">Organiza y visualiza todos tus eventos</p>
-          </div>
-        </div>
-        
-        <div className="flex items-center justify-between gap-2">
-          <CreateEventDialog onEventCreated={fetchEvents} shouldOpen={shouldOpenCreateDialog} onOpenChange={open => {
-        setShouldOpenCreateDialog(open);
-        if (!open) {
-          setPrefilledData(null);
-          clearSelection();
-        }
-      }} prefilledData={prefilledData} />
-          <div className="flex gap-2">
-            
-            
-            
-            
-            <ImportConcerts2025Dialog />
-            
-            <Button variant="outline" size="sm" disabled={isImporting || isSeeding || isImportingMarketing} onClick={() => document.getElementById('csv-upload')?.click()}>
-              {isImporting ? <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Importando...
-                </> : <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Importar CSV
-                </>}
-            </Button>
-            <input id="csv-upload" type="file" accept=".csv" onChange={handleImportCsv} className="hidden" />
-          </div>
-        </div>
+  return <div className="container-moodita py-4 space-y-4 min-h-screen flex flex-col">
+        {/* Compact Header */}
+        <CalendarHeader 
+          onCreateEvent={() => setShouldOpenCreateDialog(true)}
+          onImportCsv={handleImportCsvClick}
+          onSyncGoogle={() => {}}
+          isImporting={isImporting}
+        />
+        <input id="csv-upload" type="file" accept=".csv" onChange={handleImportCsv} className="hidden" />
 
-      {/* Google Calendar Sync - Collapsible */}
-      <Collapsible>
-        <Card>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <CalendarIcon className="h-5 w-5" />
-                  Conectar Calendario
-                </CardTitle>
-                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+        {/* Unified Toolbar */}
+        <CalendarToolbar
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          currentDate={currentDate}
+          onNavigate={handleNavigate}
+          showMyCalendar={showMyCalendar}
+          setShowMyCalendar={setShowMyCalendar}
+          selectedArtists={selectedArtists}
+          setSelectedArtists={setSelectedArtists}
+          selectedProjects={selectedProjects}
+          setSelectedProjects={setSelectedProjects}
+          selectedDepartment={selectedDepartment}
+          setSelectedDepartment={setSelectedDepartment}
+          projects={projects}
+        />
+
+        {/* Create Event Dialog V2 */}
+        <CreateEventDialogV2
+          open={shouldOpenCreateDialog}
+          onOpenChange={(open) => {
+            setShouldOpenCreateDialog(open);
+            if (!open) {
+              setPrefilledData(null);
+              clearSelection();
+            }
+          }}
+          onEventCreated={fetchEvents}
+          prefilledData={prefilledData}
+        />
+
+        {/* Calendar Views */}
+        <div className="flex-1">
+          {viewMode === 'year' ? renderYearView() : (
+            viewMode === 'week' ? renderWeekView() : renderMonthView()
+          )}
+
+        {/* Event Details */}
+        {selectedDate && <Card className="card-moodita mt-4">
+          <CardHeader>
+            <CardTitle>
+              Eventos para {format(selectedDate, 'PPPP', { locale: es })}
+            </CardTitle>
+            <CardDescription>
+              {getEventsForDate(selectedDate).length} evento(s) programado(s)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {getEventsForDate(selectedDate).length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No hay eventos programados para esta fecha
               </div>
-              <CardDescription>
-                Conecta tu cuenta de Google para crear y sincronizar eventos
-              </CardDescription>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent>
-              <GoogleCalendarSettings />
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
-
-      {/* Filters - Collapsible */}
-      <Collapsible>
-        <Card className="card-moodita hover-lift">
-          <CollapsibleTrigger asChild>
-            <CardHeader className="pb-4 cursor-pointer hover:bg-muted/30 transition-colors">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-3 text-xl">
-                  <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center">
-                    <Filter className="h-4 w-4 text-primary" />
+            ) : (
+              getEventsForDate(selectedDate).map(event => (
+                <div key={event.id} className="card-interactive p-4 space-y-2 hover-glow">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
+                        <CalendarIcon className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">{event.title}</h3>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {format(new Date(event.start_date), 'HH:mm')} - 
+                            {format(new Date(event.end_date), 'HH:mm')}
+                          </div>
+                          {event.location && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              {event.location}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{event.event_type}</Badge>
+                      {(() => {
+                        const bookingOffer = bookingOffers.find(offer => offer.event_id === event.id);
+                        if (bookingOffer) {
+                          const reminders = getRemindersForBooking(bookingOffer.id);
+                          return reminders.length > 0 ? <ReminderBadge reminders={reminders} /> : null;
+                        }
+                        return null;
+                      })()}
+                      <EditEventDialog event={event} onUpdated={fetchEvents} />
+                    </div>
                   </div>
-                  Filtros
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={(e) => {
-                    e.stopPropagation();
-                    setShowAllEvents(!showAllEvents);
-                  }} className="text-xs">
-                    {showAllEvents ? <>
-                        <EyeOff className="h-3 w-3 mr-1" />
-                        Filtrado
-                      </> : <>
-                        <Eye className="h-3 w-3 mr-1" />
+                  {event.description && (
+                    <p className="text-sm text-muted-foreground bg-muted/30 p-2 rounded">
+                      {event.description}
+                    </p>
+                  )}
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>}
                         Ver todo
                       </>}
                   </Button>
