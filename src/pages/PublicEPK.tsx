@@ -34,6 +34,7 @@ import { useResponsiveTesting } from '@/hooks/useResponsiveTesting';
 import ZipRateLimiter from '@/utils/zipRateLimiter';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { EPKTourSection } from '@/components/epk/EPKTourSection';
 
 interface PublicEPKPageProps {}
 
@@ -555,6 +556,11 @@ export const PublicEPKPage: React.FC<PublicEPKPageProps> = () => {
               </Card>
             </section>
           )}
+
+          {/* Tour Dates Section */}
+          <section className="section-spacing">
+            <EPKTourSection projectId={epk.proyecto_id} />
+          </section>
 
           {/* Photos Gallery */}
           {photos.length > 0 && (

@@ -19,6 +19,7 @@ import { EPKData, EPKPhoto, EPKVideo, EPKAudio, EPKDocument } from '@/hooks/useE
 import { cn } from '@/lib/utils';
 import PressKitDownloader from './PressKitDownloader';
 import { VCardDownload } from '../ui/vcard-download';
+import { EPKTourSection } from './EPKTourSection';
 
 interface EPKPreviewProps {
   epk: Partial<EPKData>;
@@ -28,6 +29,8 @@ interface EPKPreviewProps {
   documents: EPKDocument[];
   onDownloadStart?: () => void;
   onDownloadComplete?: () => void;
+  artistId?: string;
+  projectId?: string;
 }
 
 export const EPKPreview: React.FC<EPKPreviewProps> = ({
@@ -37,7 +40,9 @@ export const EPKPreview: React.FC<EPKPreviewProps> = ({
   audios,
   documents,
   onDownloadStart,
-  onDownloadComplete
+  onDownloadComplete,
+  artistId,
+  projectId
 }) => {
   const theme = epk.tema || 'auto';
   const isDark = theme === 'oscuro' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -145,6 +150,12 @@ export const EPKPreview: React.FC<EPKPreviewProps> = ({
           </CardContent>
         </Card>
       )}
+
+      {/* Tour Dates Section - MOODITA Style */}
+      <EPKTourSection 
+        artistId={artistId} 
+        projectId={projectId || epk.proyecto_id}
+      />
 
       {/* Photos */}
       {photos.length > 0 && (
