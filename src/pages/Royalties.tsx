@@ -1,11 +1,13 @@
 import { usePageTitle } from '@/hooks/useCommon';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DollarSign, Music, Users, TrendingUp } from 'lucide-react';
+import { DollarSign, Music, Users, TrendingUp, CreditCard, BarChart3 } from 'lucide-react';
 import { useRoyaltiesStats } from '@/hooks/useRoyalties';
 import { SongSplitsManager } from '@/components/royalties/SongSplitsManager';
 import { PlatformEarningsManager } from '@/components/royalties/PlatformEarningsManager';
 import { EarningsDistribution } from '@/components/royalties/EarningsDistribution';
+import { PaymentTracker } from '@/components/royalties/PaymentTracker';
+import { EarningsTrends } from '@/components/royalties/EarningsTrends';
 
 export default function Royalties() {
   usePageTitle('Royalties');
@@ -69,10 +71,27 @@ export default function Royalties() {
       </div>
 
       <Tabs defaultValue="songs" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="songs">Splits de Canciones</TabsTrigger>
-          <TabsTrigger value="earnings">Ganancias por Plataforma</TabsTrigger>
-          <TabsTrigger value="distribution">Distribución</TabsTrigger>
+        <TabsList className="flex-wrap h-auto gap-1">
+          <TabsTrigger value="songs">
+            <Music className="h-4 w-4 mr-1" />
+            Canciones
+          </TabsTrigger>
+          <TabsTrigger value="earnings">
+            <DollarSign className="h-4 w-4 mr-1" />
+            Ganancias
+          </TabsTrigger>
+          <TabsTrigger value="distribution">
+            <Users className="h-4 w-4 mr-1" />
+            Distribución
+          </TabsTrigger>
+          <TabsTrigger value="payments">
+            <CreditCard className="h-4 w-4 mr-1" />
+            Pagos
+          </TabsTrigger>
+          <TabsTrigger value="trends">
+            <BarChart3 className="h-4 w-4 mr-1" />
+            Tendencias
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="songs" className="space-y-4">
@@ -85,6 +104,14 @@ export default function Royalties() {
 
         <TabsContent value="distribution" className="space-y-4">
           <EarningsDistribution />
+        </TabsContent>
+
+        <TabsContent value="payments" className="space-y-4">
+          <PaymentTracker />
+        </TabsContent>
+
+        <TabsContent value="trends" className="space-y-4">
+          <EarningsTrends />
         </TabsContent>
       </Tabs>
     </div>

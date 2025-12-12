@@ -10,6 +10,7 @@ import { Music, Plus, Trash2, Users, Link } from 'lucide-react';
 import { useSongs, useSongSplits, useCreateSongSplit, useDeleteSongSplit, Song, SongSplit } from '@/hooks/useRoyalties';
 import { CreateSongDialog } from './CreateSongDialog';
 import { EditSongDialog } from './EditSongDialog';
+import { SongDetailDialog } from './SongDetailDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -144,6 +145,7 @@ function SongCard({ song }: { song: Song }) {
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
               {song.title}
+              <SongDetailDialog song={song} />
               <EditSongDialog song={song} />
             </CardTitle>
             <CardDescription className="flex items-center gap-2 mt-1">

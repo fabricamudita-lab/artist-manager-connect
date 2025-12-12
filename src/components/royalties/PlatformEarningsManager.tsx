@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, TrendingUp } from 'lucide-react';
+import { EditEarningDialog } from './EditEarningDialog';
 import { useSongs, usePlatformEarnings, useCreatePlatformEarning, useRoyaltiesStats } from '@/hooks/useRoyalties';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -272,15 +273,18 @@ export function PlatformEarningsManager() {
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-green-500">
-                        €{Number(earning.amount).toFixed(2)}
-                      </p>
-                      {earning.streams > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          {earning.streams.toLocaleString()} reproducciones
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-green-500">
+                          €{Number(earning.amount).toFixed(2)}
                         </p>
-                      )}
+                        {earning.streams > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            {earning.streams.toLocaleString()} reproducciones
+                          </p>
+                        )}
+                      </div>
+                      <EditEarningDialog earning={earning} />
                     </div>
                   </div>
                 );
