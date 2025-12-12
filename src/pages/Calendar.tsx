@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { format, isSameDay, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, addDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Clock, MapPin, Plus, Filter, ChevronLeft, ChevronRight, Calendar as CalendarViewIcon, X, FolderKanban, Users, Eye, EyeOff } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, Plus, Filter, ChevronLeft, ChevronRight, Calendar as CalendarViewIcon, X, FolderKanban, Users, Eye, EyeOff, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CreateEventDialog } from '@/components/CreateEventDialog';
 import { ArtistSelector } from '@/components/ArtistSelector';
 import { YearlyCalendar } from '@/components/YearlyCalendar';
@@ -360,9 +361,9 @@ export default function Calendar() {
       })
     });
   };
-  const getMonthWeeks = () => {
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(currentDate);
+  const getMonthWeeks = (date: Date = currentDate) => {
+    const monthStart = startOfMonth(date);
+    const monthEnd = endOfMonth(date);
     const calendarStart = startOfWeek(monthStart, {
       weekStartsOn: 1
     });
@@ -677,16 +678,70 @@ export default function Calendar() {
       </div>;
   };
   const renderMonthView = () => {
-    const monthWeeks = getMonthWeeks();
-    return <div className="calendar-month-view bg-background rounded-xl border shadow-soft overflow-hidden">
+    const currentMonthWeeks = getMonthWeeks(currentDate);
+    const nextMonth = addMonths(currentDate, 1);
+    const nextMonthWeeks = getMonthWeeks(nextMonth);
+
+    const renderSingleMonth = (monthDate: Date, monthWeeks: any[]) => (
+      <div className="flex-1 min-w-0">
+        {/* Month header */}
+        <div className="bg-muted/20 p-3 border-b text-center">
+          <h3 className="text-lg font-semibold capitalize">
+            {format(monthDate, 'MMMM yyyy', { locale: es })}
+          </h3>
+        </div>
+
+        {/* Days of week header */}
+        <div className="grid grid-cols-7 border-b bg-muted/10">
+          {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(day => (
+            <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground border-r last:border-r-0">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div className="grid grid-cols-7">
+          {monthWeeks.map((week, weekIndex) => week.map((day: Date, dayIndex: number) => {
+            const dayEvents = getEventsForDate(day);
+            const isCurrentMonth = isSameMonth(day, monthDate);
+            const isToday = isSameDay(day, new Date());
+            return (
+              <div 
+                key={`${weekIndex}-${dayIndex}`} 
+                className={`min-h-20 border-r border-b border-muted/30 p-1.5 cursor-pointer hover:bg-muted/10 transition-colors ${!isCurrentMonth ? 'bg-muted/5 text-muted-foreground' : ''}`} 
+                onClick={() => setSelectedDate(day)}
+              >
+                <div className={`text-xs font-medium mb-1 ${isToday ? 'bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  {format(day, 'd')}
+                </div>
+                <div className="space-y-0.5">
+                  {dayEvents.slice(0, 2).map(event => (
+                    <div key={event.id} className="text-[10px] bg-primary/10 text-primary px-1 py-0.5 rounded truncate">
+                      {event.title}
+                    </div>
+                  ))}
+                  {dayEvents.length > 2 && (
+                    <div className="text-[10px] text-muted-foreground">
+                      +{dayEvents.length - 2}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          }))}
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="calendar-month-view bg-background rounded-xl border shadow-soft overflow-hidden">
         {/* Header with navigation */}
         <div className="bg-muted/30 p-4 border-b">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <h2 className="text-xl font-semibold">
-                {format(currentDate, 'MMMM yyyy', {
-                locale: es
-              })}
+                {format(currentDate, 'MMMM', { locale: es })} - {format(nextMonth, 'MMMM yyyy', { locale: es })}
               </h2>
               <div className="flex gap-1">
                 <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')} className="h-8 w-8 p-0">
@@ -713,45 +768,13 @@ export default function Calendar() {
           </div>
         </div>
 
-        {/* Days of week header */}
-        <div className="grid grid-cols-7 border-b bg-muted/20">
-          {['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'].map(day => <div key={day} className="p-3 text-center text-xs font-medium text-muted-foreground border-r last:border-r-0">
-              {day}
-            </div>)}
+        {/* Two month grid */}
+        <div className="flex divide-x">
+          {renderSingleMonth(currentDate, currentMonthWeeks)}
+          {renderSingleMonth(nextMonth, nextMonthWeeks)}
         </div>
-
-        {/* Calendar grid */}
-        <div className="grid grid-cols-7">
-          {monthWeeks.map((week, weekIndex) => week.map((day, dayIndex) => {
-          const dayEvents = getEventsForDate(day);
-          const isCurrentMonth = isSameMonth(day, currentDate);
-          const isToday = isSameDay(day, new Date());
-          return <div key={`${weekIndex}-${dayIndex}`} className={`min-h-24 border-r border-b border-muted/30 p-2 cursor-pointer hover:bg-muted/10 transition-colors ${!isCurrentMonth ? 'bg-muted/5 text-muted-foreground' : ''}`} onClick={() => setSelectedDate(day)}>
-                  <div className={`text-sm font-medium mb-1 ${isToday ? 'text-primary' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'}`}>
-                    {format(day, 'd')}
-                  </div>
-                  <div className="space-y-1">
-                    {dayEvents.slice(0, 3).map(event => <div key={event.id} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded flex items-center justify-between">
-                        <span className="truncate">{event.title}</span>
-                        {(() => {
-                  const bookingOffer = bookingOffers.find(offer => offer.event_id === event.id);
-                  if (bookingOffer) {
-                    const reminders = getRemindersForBooking(bookingOffer.id);
-                    return reminders.length > 0 ? <div className="ml-1 flex-shrink-0">
-                                <ReminderBadge reminders={reminders} variant="compact" />
-                              </div> : null;
-                  }
-                  return null;
-                })()}
-                      </div>)}
-                    {dayEvents.length > 3 && <div className="text-xs text-muted-foreground">
-                        +{dayEvents.length - 3} más
-                      </div>}
-                  </div>
-                </div>;
-        }))}
-        </div>
-      </div>;
+      </div>
+    );
   };
   const renderYearView = () => {
     return <div className="card-moodita hover-lift">
@@ -837,109 +860,143 @@ export default function Calendar() {
           </div>
         </div>
 
-      {/* Google Calendar Sync */}
-      <GoogleCalendarSettings />
+      {/* Google Calendar Sync - Collapsible */}
+      <Collapsible>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarIcon className="h-5 w-5" />
+                  Conectar Calendario
+                </CardTitle>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+              </div>
+              <CardDescription>
+                Conecta tu cuenta de Google para crear y sincronizar eventos
+              </CardDescription>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <GoogleCalendarSettings />
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
-      {/* Filters */}
-      <div className="card-moodita hover-lift">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-3 text-xl">
-              <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center">
-                <Filter className="h-4 w-4 text-primary" />
-              </div>
-              Filtros
-            </CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => setShowAllEvents(!showAllEvents)} className="text-xs">
-              {showAllEvents ? <>
-                  <EyeOff className="h-3 w-3 mr-1" />
-                  Filtrado
-                </> : <>
-                  <Eye className="h-3 w-3 mr-1" />
-                  Ver todo
-                </>}
-            </Button>
-          </div>
-          <CardDescription>
-            Selecciona cómo quieres filtrar los eventos del calendario
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="artists" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="artists">
-                <Users className="h-4 w-4 mr-2" />
-                Artistas
-              </TabsTrigger>
-              <TabsTrigger value="projects">
-                <FolderKanban className="h-4 w-4 mr-2" />
-                Proyectos
-              </TabsTrigger>
-              <TabsTrigger value="departments">
-                <Filter className="h-4 w-4 mr-2" />
-                Departamentos
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="artists" className="mt-4">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
-                  <div className="flex items-center gap-2">
-                    <CalendarIcon className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium">Mi Calendario</span>
+      {/* Filters - Collapsible */}
+      <Collapsible>
+        <Card className="card-moodita hover-lift">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="pb-4 cursor-pointer hover:bg-muted/30 transition-colors">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-3 text-xl">
+                  <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center">
+                    <Filter className="h-4 w-4 text-primary" />
                   </div>
-                  <Switch checked={showMyCalendar} onCheckedChange={setShowMyCalendar} />
+                  Filtros
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={(e) => {
+                    e.stopPropagation();
+                    setShowAllEvents(!showAllEvents);
+                  }} className="text-xs">
+                    {showAllEvents ? <>
+                        <EyeOff className="h-3 w-3 mr-1" />
+                        Filtrado
+                      </> : <>
+                        <Eye className="h-3 w-3 mr-1" />
+                        Ver todo
+                      </>}
+                  </Button>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200" />
                 </div>
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    Selecciona los artistas cuyos eventos quieres ver
-                  </p>
-                  <ArtistSelector selectedArtists={selectedArtists} onSelectionChange={setSelectedArtists} placeholder="Seleccionar artistas..." showSelfOption={true} />
-                </div>
               </div>
-            </TabsContent>
-            
-            <TabsContent value="projects" className="mt-4">
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Filtra eventos por proyecto específico
-                </p>
-                <Select value={selectedProjects[0] || 'all'} onValueChange={value => setSelectedProjects(value === 'all' ? [] : [value])}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos los proyectos" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los proyectos</SelectItem>
-                    {projects.map(project => <SelectItem key={project.id} value={project.id}>
-                        {project.name}
-                      </SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="departments" className="mt-4">
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Filtra eventos por departamento
-                </p>
-                <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos los departamentos" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los departamentos</SelectItem>
-                    <SelectItem value="booking">Booking</SelectItem>
-                    <SelectItem value="produccion">Producción</SelectItem>
-                    <SelectItem value="marketing">Marketing</SelectItem>
-                    <SelectItem value="administracion">Administración</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </div>
+              <CardDescription>
+                Selecciona cómo quieres filtrar los eventos del calendario
+              </CardDescription>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <Tabs defaultValue="artists" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="artists">
+                    <Users className="h-4 w-4 mr-2" />
+                    Artistas
+                  </TabsTrigger>
+                  <TabsTrigger value="projects">
+                    <FolderKanban className="h-4 w-4 mr-2" />
+                    Proyectos
+                  </TabsTrigger>
+                  <TabsTrigger value="departments">
+                    <Filter className="h-4 w-4 mr-2" />
+                    Departamentos
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="artists" className="mt-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium">Mi Calendario</span>
+                      </div>
+                      <Switch checked={showMyCalendar} onCheckedChange={setShowMyCalendar} />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        Selecciona los artistas cuyos eventos quieres ver
+                      </p>
+                      <ArtistSelector selectedArtists={selectedArtists} onSelectionChange={setSelectedArtists} placeholder="Seleccionar artistas..." showSelfOption={true} />
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="projects" className="mt-4">
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Filtra eventos por proyecto específico
+                    </p>
+                    <Select value={selectedProjects[0] || 'all'} onValueChange={value => setSelectedProjects(value === 'all' ? [] : [value])}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todos los proyectos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos los proyectos</SelectItem>
+                        {projects.map(project => <SelectItem key={project.id} value={project.id}>
+                            {project.name}
+                          </SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="departments" className="mt-4">
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Filtra eventos por departamento
+                    </p>
+                    <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todos los departamentos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos los departamentos</SelectItem>
+                        <SelectItem value="booking">Booking</SelectItem>
+                        <SelectItem value="produccion">Producción</SelectItem>
+                        <SelectItem value="marketing">Marketing</SelectItem>
+                        <SelectItem value="administracion">Administración</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Calendar Views */}
       {viewMode === 'year' ? renderYearView() : <div className="space-y-6">
