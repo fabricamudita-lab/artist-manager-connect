@@ -1,0 +1,216 @@
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+import { 
+  Building2, 
+  User, 
+  Phone, 
+  FileText, 
+  Link as LinkIcon,
+  Save,
+  Music,
+  Clock
+} from 'lucide-react';
+
+interface BookingOverviewTabProps {
+  booking: {
+    id: string;
+    promotor?: string;
+    contacto?: string;
+    tour_manager?: string;
+    formato?: string;
+    condiciones?: string;
+    info_comentarios?: string;
+    oferta?: string;
+    link_venta?: string;
+    inicio_venta?: string;
+    es_cityzen?: boolean;
+    fee?: number;
+  };
+  onUpdate: () => void;
+}
+
+export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProps) {
+  const [artistNotes, setArtistNotes] = useState(booking.info_comentarios || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSaveNotes = async () => {
+    try {
+      setSaving(true);
+      const { error } = await supabase
+        .from('booking_offers')
+        .update({ info_comentarios: artistNotes })
+        .eq('id', booking.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Notas guardadas",
+        description: "Las notas del artista se han actualizado.",
+      });
+      onUpdate();
+    } catch (error) {
+      console.error('Error saving notes:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron guardar las notas.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-2 gap-6">
+      {/* Deal Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            Resumen del Deal
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Fee / Caché</p>
+              <p className="text-2xl font-bold text-primary">
+                {booking.fee ? `${booking.fee.toLocaleString()}€` : '-'}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Tipo de Oferta</p>
+              <p className="font-medium">{booking.oferta || 'Flat Fee'}</p>
+            </div>
+          </div>
+
+          {booking.formato && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                <Music className="h-3 w-3" />
+                Formato
+              </p>
+              <p className="font-medium">{booking.formato}</p>
+            </div>
+          )}
+
+          {booking.condiciones && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Condiciones</p>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{booking.condiciones}</p>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 pt-2">
+            {booking.es_cityzen && (
+              <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-300">
+                CityZen
+              </Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Buyer / Promoter Info */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-primary" />
+            Promotor / Buyer
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {booking.promotor && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Empresa</p>
+              <p className="font-medium">{booking.promotor}</p>
+            </div>
+          )}
+
+          {booking.contacto && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                <User className="h-3 w-3" />
+                Contacto
+              </p>
+              <p className="font-medium">{booking.contacto}</p>
+            </div>
+          )}
+
+          {booking.tour_manager && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                <Phone className="h-3 w-3" />
+                Tour Manager
+              </p>
+              <p className="font-medium">{booking.tour_manager}</p>
+            </div>
+          )}
+
+          {booking.link_venta && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                <LinkIcon className="h-3 w-3" />
+                Link de Venta
+              </p>
+              <a 
+                href={booking.link_venta} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary hover:underline text-sm"
+              >
+                {booking.link_venta}
+              </a>
+            </div>
+          )}
+
+          {booking.inicio_venta && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Inicio de Venta
+              </p>
+              <p className="font-medium">{booking.inicio_venta}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Artist Notes - Full Width */}
+      <Card className="col-span-2">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Notas del Artista
+            </span>
+            <Button 
+              size="sm" 
+              onClick={handleSaveNotes}
+              disabled={saving || artistNotes === booking.info_comentarios}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Notas visibles para el artista sobre este evento
+          </p>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            value={artistNotes}
+            onChange={(e) => setArtistNotes(e.target.value)}
+            placeholder="Añade notas sobre horarios, requerimientos especiales, información de acceso, etc."
+            className="min-h-[120px]"
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
