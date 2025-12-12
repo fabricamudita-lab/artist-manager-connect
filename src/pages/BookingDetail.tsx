@@ -27,6 +27,7 @@ import { BookingOverviewTab } from '@/components/booking-detail/BookingOverviewT
 import { BookingItineraryTab } from '@/components/booking-detail/BookingItineraryTab';
 import { BookingExpensesTab } from '@/components/booking-detail/BookingExpensesTab';
 import { BookingDocumentsTab } from '@/components/booking-detail/BookingDocumentsTab';
+import { EditBookingDialog } from '@/components/booking-detail/EditBookingDialog';
 
 interface BookingOffer {
   id: string;
@@ -69,6 +70,7 @@ export default function BookingDetail() {
   const navigate = useNavigate();
   const [booking, setBooking] = useState<BookingOffer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   
   usePageTitle(booking?.festival_ciclo || booking?.venue || 'Detalle Evento');
 
@@ -205,11 +207,19 @@ export default function BookingDetail() {
                 Carpeta
               </Button>
             )}
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => setShowEditDialog(true)}>
               <Edit className="h-4 w-4 mr-2" />
               Editar
             </Button>
           </div>
+
+          {/* Edit Dialog */}
+          <EditBookingDialog
+            open={showEditDialog}
+            onOpenChange={setShowEditDialog}
+            booking={booking}
+            onSuccess={handleBookingUpdate}
+          />
         </div>
 
         {/* Quick Stats Bar */}
@@ -296,7 +306,7 @@ export default function BookingDetail() {
           </TabsContent>
 
           <TabsContent value="expenses">
-            <BookingExpensesTab bookingId={booking.id} />
+            <BookingExpensesTab bookingId={booking.id} booking={booking} />
           </TabsContent>
 
           <TabsContent value="documents">

@@ -11,12 +11,15 @@ import {
   Plus, 
   Receipt,
   Trash2,
-  DollarSign
+  FileText,
+  CheckCircle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { EmptyState } from '@/components/ui/empty-state';
+import { GenerateInvoiceDialog } from './GenerateInvoiceDialog';
+import { MarkExpensesAsInvoicedDialog } from './MarkExpensesAsInvoicedDialog';
 
 interface ExpenseItem {
   id: string;
@@ -30,8 +33,18 @@ interface ExpenseItem {
   created_at: string;
 }
 
+interface BookingData {
+  id: string;
+  venue?: string | null;
+  ciudad?: string | null;
+  fecha?: string | null;
+  promotor?: string | null;
+  fee?: number | null;
+}
+
 interface BookingExpensesTabProps {
   bookingId: string;
+  booking?: BookingData;
 }
 
 const EXPENSE_CATEGORIES = [
@@ -49,11 +62,13 @@ const HANDLERS_PAYERS = [
   { value: 'artist', label: 'Artista' },
 ];
 
-export function BookingExpensesTab({ bookingId }: BookingExpensesTabProps) {
+export function BookingExpensesTab({ bookingId, booking }: BookingExpensesTabProps) {
   const { profile } = useAuth();
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
+  const [showMarkInvoicedDialog, setShowMarkInvoicedDialog] = useState(false);
   const [newExpense, setNewExpense] = useState({
     description: '',
     amount: 0,
@@ -215,13 +230,26 @@ export function BookingExpensesTab({ bookingId }: BookingExpensesTabProps) {
               Cenas, taxis, extras y otros gastos del evento
             </p>
           </div>
-          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Añadir Gasto
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            {expenses.length > 0 && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => setShowMarkInvoicedDialog(true)}>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Marcar Facturados
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowInvoiceDialog(true)}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Generar Factura
+                </Button>
+              </>
+            )}
+            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Añadir Gasto
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Añadir Gasto</DialogTitle>
@@ -324,6 +352,7 @@ export function BookingExpensesTab({ bookingId }: BookingExpensesTabProps) {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </CardHeader>
         <CardContent>
           {expenses.length === 0 ? (
@@ -390,6 +419,40 @@ export function BookingExpensesTab({ bookingId }: BookingExpensesTabProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Invoice Generation Dialog */}
+      {booking && (
+        <GenerateInvoiceDialog
+          open={showInvoiceDialog}
+          onOpenChange={setShowInvoiceDialog}
+          booking={booking}
+          expenses={expenses.map(e => ({
+            id: e.id,
+            description: e.description,
+            amount: e.amount,
+            category: e.category || null,
+            payer: e.payer,
+            handler: e.handler,
+            iva_percentage: e.iva_percentage,
+          }))}
+        />
+      )}
+
+      {/* Mark as Invoiced Dialog */}
+      <MarkExpensesAsInvoicedDialog
+        open={showMarkInvoicedDialog}
+        onOpenChange={setShowMarkInvoicedDialog}
+        expenses={expenses.map(e => ({
+          id: e.id,
+          description: e.description,
+          amount: e.amount,
+          category: e.category || null,
+          payer: e.payer,
+          handler: e.handler,
+          iva_percentage: e.iva_percentage,
+        }))}
+        onSuccess={fetchExpenses}
+      />
     </div>
   );
 }
