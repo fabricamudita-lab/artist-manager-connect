@@ -778,55 +778,58 @@ export default function Calendar() {
         <div className="text-center">Error: No se pudo cargar el perfil</div>
       </div>;
   }
-  return <div className="container-moodita py-4 space-y-4 min-h-screen flex flex-col">
-        {/* Compact Header */}
-        <CalendarHeader 
-          onCreateEvent={() => setShouldOpenCreateDialog(true)}
-          onImportCsv={handleImportCsvClick}
-          onSyncGoogle={() => {}}
-          isImporting={isImporting}
-        />
-        <input id="csv-upload" type="file" accept=".csv" onChange={handleImportCsv} className="hidden" />
+  return (
+    <div className="container-moodita py-4 space-y-4 min-h-screen flex flex-col">
+      {/* Compact Header */}
+      <CalendarHeader 
+        onCreateEvent={() => setShouldOpenCreateDialog(true)}
+        onImportCsv={handleImportCsvClick}
+        onSyncGoogle={() => {}}
+        isImporting={isImporting}
+      />
+      <input id="csv-upload" type="file" accept=".csv" onChange={handleImportCsv} className="hidden" />
 
-        {/* Unified Toolbar */}
-        <CalendarToolbar
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          currentDate={currentDate}
-          onNavigate={handleNavigate}
-          showMyCalendar={showMyCalendar}
-          setShowMyCalendar={setShowMyCalendar}
-          selectedArtists={selectedArtists}
-          setSelectedArtists={setSelectedArtists}
-          selectedProjects={selectedProjects}
-          setSelectedProjects={setSelectedProjects}
-          selectedDepartment={selectedDepartment}
-          setSelectedDepartment={setSelectedDepartment}
-          projects={projects}
-        />
+      {/* Unified Toolbar */}
+      <CalendarToolbar
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        currentDate={currentDate}
+        onNavigate={handleNavigate}
+        showMyCalendar={showMyCalendar}
+        setShowMyCalendar={setShowMyCalendar}
+        selectedArtists={selectedArtists}
+        setSelectedArtists={setSelectedArtists}
+        selectedProjects={selectedProjects}
+        setSelectedProjects={setSelectedProjects}
+        selectedDepartment={selectedDepartment}
+        setSelectedDepartment={setSelectedDepartment}
+        projects={projects}
+      />
 
-        {/* Create Event Dialog V2 */}
-        <CreateEventDialogV2
-          open={shouldOpenCreateDialog}
-          onOpenChange={(open) => {
-            setShouldOpenCreateDialog(open);
-            if (!open) {
-              setPrefilledData(null);
-              clearSelection();
-            }
-          }}
-          onEventCreated={fetchEvents}
-          prefilledData={prefilledData}
-        />
+      {/* Create Event Dialog V2 */}
+      <CreateEventDialogV2
+        open={shouldOpenCreateDialog}
+        onOpenChange={(open) => {
+          setShouldOpenCreateDialog(open);
+          if (!open) {
+            setPrefilledData(null);
+            clearSelection();
+          }
+        }}
+        onEventCreated={fetchEvents}
+        prefilledData={prefilledData}
+      />
 
-        {/* Calendar Views */}
-        <div className="flex-1">
-          {viewMode === 'year' ? renderYearView() : (
-            viewMode === 'week' ? renderWeekView() : renderMonthView()
-          )}
+      {/* Calendar Views */}
+      <div className="flex-1">
+        {viewMode === 'year' ? renderYearView() : (
+          viewMode === 'week' ? renderWeekView() : renderMonthView()
+        )}
+      </div>
 
-        {/* Event Details */}
-        {selectedDate && <Card className="card-moodita mt-4">
+      {/* Event Details */}
+      {selectedDate && (
+        <Card className="card-moodita">
           <CardHeader>
             <CardTitle>
               Eventos para {format(selectedDate, 'PPPP', { locale: es })}
@@ -887,167 +890,30 @@ export default function Calendar() {
               ))
             )}
           </CardContent>
-        </Card>}
-                        Ver todo
-                      </>}
-                  </Button>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200" />
-                </div>
-              </div>
-              <CardDescription>
-                Selecciona cómo quieres filtrar los eventos del calendario
-              </CardDescription>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent>
-              <Tabs defaultValue="artists" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="artists">
-                    <Users className="h-4 w-4 mr-2" />
-                    Artistas
-                  </TabsTrigger>
-                  <TabsTrigger value="projects">
-                    <FolderKanban className="h-4 w-4 mr-2" />
-                    Proyectos
-                  </TabsTrigger>
-                  <TabsTrigger value="departments">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Departamentos
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="artists" className="mt-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
-                      <div className="flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-medium">Mi Calendario</span>
-                      </div>
-                      <Switch checked={showMyCalendar} onCheckedChange={setShowMyCalendar} />
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">
-                        Selecciona los artistas cuyos eventos quieres ver
-                      </p>
-                      <ArtistSelector selectedArtists={selectedArtists} onSelectionChange={setSelectedArtists} placeholder="Seleccionar artistas..." showSelfOption={true} />
-                    </div>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="projects" className="mt-4">
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                      Filtra eventos por proyecto específico
-                    </p>
-                    <Select value={selectedProjects[0] || 'all'} onValueChange={value => setSelectedProjects(value === 'all' ? [] : [value])}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Todos los proyectos" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos los proyectos</SelectItem>
-                        {projects.map(project => <SelectItem key={project.id} value={project.id}>
-                            {project.name}
-                          </SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="departments" className="mt-4">
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                      Filtra eventos por departamento
-                    </p>
-                    <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Todos los departamentos" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos los departamentos</SelectItem>
-                        <SelectItem value="booking">Booking</SelectItem>
-                        <SelectItem value="produccion">Producción</SelectItem>
-                        <SelectItem value="marketing">Marketing</SelectItem>
-                        <SelectItem value="administracion">Administración</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </CollapsibleContent>
         </Card>
-      </Collapsible>
-
-      {/* Calendar Views */}
-      {viewMode === 'year' ? renderYearView() : <div className="space-y-6">
-          {viewMode === 'week' ? renderWeekView() : renderMonthView()}
-          
-          {/* Event Details */}
-          {selectedDate && <Card className="card-moodita">
-              <CardHeader>
-                <CardTitle>
-                  Eventos para {format(selectedDate, 'PPPP', {
-              locale: es
-            })}
-                </CardTitle>
-                <CardDescription>
-                  {getEventsForDate(selectedDate).length} evento(s) programado(s)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {getEventsForDate(selectedDate).length === 0 ? <div className="text-center py-8 text-muted-foreground">
-                    No hay eventos programados para esta fecha
-                  </div> : getEventsForDate(selectedDate).map(event => <div key={event.id} className="card-interactive p-4 space-y-2 hover-glow">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-                              <CalendarIcon className="h-4 w-4 text-white" />
-                            </div>
-                            <div>
-                              <h3 className="font-semibold">{event.title}</h3>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {format(new Date(event.start_date), 'HH:mm')} - 
-                                  {format(new Date(event.end_date), 'HH:mm')}
-                                </div>
-                                {event.location && <div className="flex items-center gap-1">
-                                    <MapPin className="h-3 w-3" />
-                                    {event.location}
-                                  </div>}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline">{event.event_type}</Badge>
-                            {(() => {
-                  const bookingOffer = bookingOffers.find(offer => offer.event_id === event.id);
-                  if (bookingOffer) {
-                    const reminders = getRemindersForBooking(bookingOffer.id);
-                    return reminders.length > 0 ? <ReminderBadge reminders={reminders} /> : null;
-                  }
-                  return null;
-                })()}
-                            <EditEventDialog event={event} onUpdated={fetchEvents} />
-                          </div>
-                        </div>
-                      {event.description && <p className="text-sm text-muted-foreground bg-muted/30 p-2 rounded">
-                          {event.description}
-                        </p>}
-                    </div>)}
-              </CardContent>
-            </Card>}
-        </div>}
+      )}
 
       {/* Event Detail Popovers - Múltiples */}
-      {openEventPopups.map(popup => <EventDetailPopover key={popup.id} event={popup.event} open={true} onOpenChange={() => closePopup(popup.id)} position={popup.position} zIndex={popup.zIndex} onBringToFront={() => bringPopupToFront(popup.id)} artistName="David Solans" createdBy="Fabrica Mudita" onEdit={event => {
-      // TODO: Implementar edición de evento
-      console.log('Edit event:', event);
-    }} onDelete={eventId => {
-      // TODO: Implementar eliminación de evento
-      console.log('Delete event:', eventId);
-      closePopup(popup.id);
-    }} />)}
-    </div>;
+      {openEventPopups.map(popup => (
+        <EventDetailPopover 
+          key={popup.id} 
+          event={popup.event} 
+          open={true} 
+          onOpenChange={() => closePopup(popup.id)} 
+          position={popup.position} 
+          zIndex={popup.zIndex} 
+          onBringToFront={() => bringPopupToFront(popup.id)} 
+          artistName="David Solans" 
+          createdBy="Fabrica Mudita" 
+          onEdit={event => {
+            console.log('Edit event:', event);
+          }} 
+          onDelete={eventId => {
+            console.log('Delete event:', eventId);
+            closePopup(popup.id);
+          }} 
+        />
+      ))}
+    </div>
+  );
 }
