@@ -70,14 +70,14 @@ export function BookingExpensesTab({ bookingId }: BookingExpensesTabProps) {
   const fetchExpenses = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('booking_expenses')
         .select('*')
         .eq('booking_id', bookingId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setExpenses(data || []);
+      setExpenses((data || []) as ExpenseItem[]);
     } catch (error) {
       console.error('Error fetching expenses:', error);
     } finally {
@@ -96,7 +96,7 @@ export function BookingExpensesTab({ bookingId }: BookingExpensesTabProps) {
     }
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('booking_expenses')
         .insert({
           booking_id: bookingId,
@@ -133,7 +133,7 @@ export function BookingExpensesTab({ bookingId }: BookingExpensesTabProps) {
 
   const handleDeleteExpense = async (expenseId: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('booking_expenses')
         .delete()
         .eq('id', expenseId);
