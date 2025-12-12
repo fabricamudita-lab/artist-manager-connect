@@ -5,7 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Edit, Trash2, Clock, CheckCircle, XCircle, Calendar, MessageSquare, Phone, Video, Mic, Music, HelpCircle, Info, FileText, Archive, ArchiveRestore } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Search, Edit, Trash2, Clock, CheckCircle, XCircle, Calendar, MessageSquare, Phone, Video, Mic, Music, HelpCircle, Info, FileText, Archive, ArchiveRestore, LayoutGrid, List, BarChart3 } from 'lucide-react';
+import { SolicitudesKanban } from '@/components/SolicitudesKanban';
+import { SolicitudesStats } from '@/components/SolicitudesStats';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -100,6 +103,7 @@ export default function Solicitudes() {
   const [profileSearchTerm, setProfileSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [viewMode, setViewMode] = useState<'list' | 'kanban' | 'stats'>('list');
   
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
@@ -932,8 +936,8 @@ const confirmStatusChange = async (comment: string) => {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      {/* Header estilo Gmail */}
+    <div className="container mx-auto p-6 max-w-7xl">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Solicitudes</h1>
@@ -942,34 +946,31 @@ const confirmStatusChange = async (comment: string) => {
           </Badge>
           <div className="hidden sm:flex gap-2 text-sm text-muted-foreground">
             <span
-              className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs cursor-pointer"
+              className="bg-warning/20 text-warning-foreground px-2 py-1 rounded-full text-xs cursor-pointer hover:bg-warning/30 transition-colors"
               onClick={() => setFilterStatus('pendiente')}
             >
               {pendientesCount} pendientes
             </span>
             <span
-              className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs cursor-pointer"
+              className="bg-success/20 text-success px-2 py-1 rounded-full text-xs cursor-pointer hover:bg-success/30 transition-colors"
               onClick={() => setFilterStatus('aprobada')}
             >
               {aprobadasCount} aprobadas
             </span>
             <span
-              className={`px-2 py-1 rounded-full text-xs cursor-pointer ${
+              className={`px-2 py-1 rounded-full text-xs cursor-pointer transition-colors ${
                 filterStatus === 'denegada' 
-                  ? 'bg-gray-100 text-gray-800' 
+                  ? 'bg-muted text-muted-foreground' 
                   : filterStatus === 'archivadas'
-                  ? 'bg-gray-100 text-gray-800'
-                  : 'bg-red-100 text-red-800'
+                  ? 'bg-muted text-muted-foreground'
+                  : 'bg-destructive/20 text-destructive'
               }`}
               onClick={() => {
                 if (filterStatus === 'denegada') {
-                  // Si estamos viendo denegadas, cambiar a archivadas
                   setFilterStatus('archivadas');
                 } else if (filterStatus === 'archivadas') {
-                  // Si estamos viendo archivadas, volver a denegadas
                   setFilterStatus('denegada');
                 } else {
-                  // Si no estamos en ninguno, ir a denegadas
                   setFilterStatus('denegada');
                 }
               }}
@@ -984,6 +985,33 @@ const confirmStatusChange = async (comment: string) => {
           </div>
         </div>
         <div className="flex gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex border rounded-lg p-1 bg-muted/30">
+            <Button
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+              className="h-8 px-3"
+            >
+              <List className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('kanban')}
+              className="h-8 px-3"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'stats' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('stats')}
+              className="h-8 px-3"
+            >
+              <BarChart3 className="w-4 h-4" />
+            </Button>
+          </div>
           <Button 
             onClick={() => setShowTemplateDialog(true)}
             className="bg-primary hover:bg-primary/90"
@@ -1064,25 +1092,48 @@ const confirmStatusChange = async (comment: string) => {
         </Select>
       </div>
 
-      {/* Vista tipo inbox de Gmail */}
-      {filteredSolicitudes.length === 0 ? (
-        <Card className="text-center py-8">
-          <CardContent>
-            <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No hay solicitudes</h3>
-            <p className="text-muted-foreground mb-4">
-              {searchTerm || filterStatus !== 'all' || filterType !== 'all'
-                ? 'No se encontraron solicitudes que coincidan con los filtros seleccionados.'
-                : 'Aún no tienes solicitudes. ¡Crea la primera!'}
-            </p>
-            <Button onClick={() => setShowTemplateDialog(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Crear Primera Solicitud
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="bg-card border rounded-lg overflow-hidden">
+      {/* Stats View */}
+      {viewMode === 'stats' && (
+        <SolicitudesStats solicitudes={solicitudes} />
+      )}
+
+      {/* Kanban View */}
+      {viewMode === 'kanban' && (
+        <SolicitudesKanban
+          solicitudes={solicitudes}
+          onRefresh={fetchSolicitudes}
+          onOpenDetails={(solicitud) => {
+            setSelectedSolicitudForDetails(solicitud);
+            setShowDetailsDialog(true);
+          }}
+          onStatusChange={(solicitudId, newStatus) => {
+            const currentSolicitud = solicitudes.find(s => s.id === solicitudId);
+            handleStatusChange(solicitudId, newStatus, currentSolicitud?.estado);
+          }}
+        />
+      )}
+
+      {/* List View */}
+      {viewMode === 'list' && (
+        <>
+          {filteredSolicitudes.length === 0 ? (
+            <Card className="text-center py-8">
+              <CardContent>
+                <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No hay solicitudes</h3>
+                <p className="text-muted-foreground mb-4">
+                  {searchTerm || filterStatus !== 'all' || filterType !== 'all'
+                    ? 'No se encontraron solicitudes que coincidan con los filtros seleccionados.'
+                    : 'Aún no tienes solicitudes. ¡Crea la primera!'}
+                </p>
+                <Button onClick={() => setShowTemplateDialog(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Crear Primera Solicitud
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="bg-card border rounded-lg overflow-hidden">
           {filteredSolicitudes.map((solicitud, index) => {
             const typeInfo = typeConfig[solicitud.tipo];
             const statusInfo = statusConfig[solicitud.estado];
@@ -1294,7 +1345,9 @@ const confirmStatusChange = async (comment: string) => {
               </div>
             );
           })}
-        </div>
+          </div>
+          )}
+        </>
       )}
 
       {/* Dialogs */}
