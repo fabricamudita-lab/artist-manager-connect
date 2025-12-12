@@ -10,7 +10,7 @@ import { Search, Filter, Plus, Download, FileText, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { CompactBookingCard } from './CompactBookingCard';
-import { CreateBookingOfferDialog } from './CreateBookingOfferDialog';
+import { CreateBookingWizard } from './CreateBookingWizard';
 import { exportToCSV, generateOfferNumber } from '@/utils/exportUtils';
 import { CopyButton } from '@/components/ui/copy-button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -83,7 +83,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
   const [countryFilter, setCountryFilter] = useState<string>('all');
   const [promoterFilter, setPromoterFilter] = useState<string>('all');
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showCreateWizard, setShowCreateWizard] = useState(false);
   
   const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
 
@@ -419,9 +419,9 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
             <Download className="h-4 w-4 mr-2" />
             Exportar CSV ({filteredOffers.length})
           </Button>
-          <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
+          <Button onClick={() => setShowCreateWizard(true)} className="btn-primary">
             <Plus className="h-4 w-4 mr-2" />
-            Nueva oferta
+            Nuevo Booking
           </Button>
         </div>
       </div>
@@ -451,7 +451,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
                         size="sm"
                         variant="ghost"
                         className="h-6 w-6 p-0 hover:bg-primary/10"
-                        onClick={() => setShowCreateDialog(true)}
+                        onClick={() => setShowCreateWizard(true)}
                       >
                         <Plus className="h-3 w-3" />
                       </Button>
@@ -486,11 +486,10 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
         </div>
       </DndContext>
 
-      <CreateBookingOfferDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
+      <CreateBookingWizard
+        open={showCreateWizard}
+        onOpenChange={setShowCreateWizard}
         onOfferCreated={fetchOffers}
-        templateFields={templateFields}
       />
       
       <GlobalSearchDialog 
