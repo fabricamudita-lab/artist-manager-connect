@@ -15,7 +15,9 @@ import {
   Plane,
   Receipt,
   Edit,
-  ExternalLink
+  ExternalLink,
+  Copy,
+  Share2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -197,6 +199,32 @@ export default function BookingDetail() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Copy Info Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const eventName = booking.festival_ciclo || booking.venue || 'Evento';
+                const info = [
+                  `📅 ${eventName}`,
+                  booking.fecha ? `Fecha: ${format(new Date(booking.fecha), "d 'de' MMMM, yyyy", { locale: es })}${booking.hora ? ` - ${booking.hora}` : ''}` : null,
+                  booking.venue ? `Venue: ${booking.venue}` : null,
+                  booking.ciudad ? `📍 ${[booking.ciudad, booking.pais].filter(Boolean).join(', ')}` : null,
+                  booking.promotor ? `Promotor: ${booking.promotor}` : null,
+                  booking.fee ? `Fee: ${booking.fee.toLocaleString()}€` : null,
+                  booking.formato ? `Formato: ${booking.formato}` : null,
+                ].filter(Boolean).join('\n');
+                
+                navigator.clipboard.writeText(info);
+                toast({
+                  title: "Copiado",
+                  description: "Información del evento copiada al portapapeles",
+                });
+              }}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copiar Info
+            </Button>
             {booking.folder_url && (
               <Button
                 variant="outline"
