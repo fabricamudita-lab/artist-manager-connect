@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { 
   DollarSign, 
   FileText, 
@@ -17,16 +18,26 @@ import {
   ExternalLink,
   Activity,
   Users,
-  Globe
+  Globe,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Music,
+  MessageSquare
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface DashboardStats {
   activeBudgets: number;
   publishedEPKs: number;
   monthlyIncome: number;
   upcomingEvents: number;
+  pendingSolicitudes: number;
+  totalSongs: number;
+  totalContacts: number;
 }
 
 interface Budget {
@@ -43,6 +54,22 @@ interface EPK {
   slug: string;
   creado_en: string;
   vistas_totales?: number;
+}
+
+interface Solicitud {
+  id: string;
+  nombre_solicitante: string;
+  tipo: string;
+  estado: string;
+  fecha_creacion: string;
+}
+
+interface UpcomingEvent {
+  id: string;
+  title: string;
+  start_date: string;
+  location?: string;
+  event_type: string;
 }
 
 interface DashboardCardProps {
@@ -174,10 +201,15 @@ export default function ComprehensiveDashboard() {
     activeBudgets: 0,
     publishedEPKs: 0,
     monthlyIncome: 0,
-    upcomingEvents: 0
+    upcomingEvents: 0,
+    pendingSolicitudes: 0,
+    totalSongs: 0,
+    totalContacts: 0
   });
   const [recentBudgets, setRecentBudgets] = useState<Budget[]>([]);
   const [recentEPKs, setRecentEPKs] = useState<EPK[]>([]);
+  const [pendingSolicitudes, setPendingSolicitudes] = useState<Solicitud[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -226,22 +258,59 @@ export default function ComprehensiveDashboard() {
         .select('id, titulo, slug, creado_en, vistas_totales')
         .order('creado_en', { ascending: false })
         .limit(5);
+
+      // Fetch pending solicitudes
+      const { data: solicitudesData, count: pendingSolicitudesCount } = await supabase
+        .from('solicitudes')
+        .select('id, nombre_solicitante, tipo, estado, fecha_creacion', { count: 'exact' })
+        .eq('estado', 'pendiente')
+        .order('fecha_creacion', { ascending: false })
+        .limit(5);
+
+      // Fetch upcoming events list
+      const { data: eventsData } = await supabase
+        .from('events')
+        .select('id, title, start_date, location, event_type')
+        .gte('start_date', new Date().toISOString())
+        .order('start_date', { ascending: true })
+        .limit(5);
+
+      // Fetch songs count
+      const { count: songsCount } = await supabase
+        .from('songs')
+        .select('*', { count: 'exact', head: true });
+
+      // Fetch contacts count
+      const { count: contactsCount } = await supabase
+        .from('contacts')
+        .select('*', { count: 'exact', head: true });
       
-      // Calculate monthly income (simplified - would need proper financial data)
+      // Calculate monthly income from platform_earnings
       const currentMonth = new Date();
       currentMonth.setDate(1);
       const nextMonth = new Date(currentMonth);
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       
-      // For now, just use a placeholder calculation
-      const monthlyIncome = 0; // Would calculate from actual financial data
+      const { data: earningsData } = await supabase
+        .from('platform_earnings')
+        .select('amount')
+        .gte('period_end', currentMonth.toISOString())
+        .lt('period_end', nextMonth.toISOString());
+      
+      const monthlyIncome = earningsData?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
 
       setStats({
         activeBudgets: activeBudgetsCount || 0,
         publishedEPKs: publishedEPKsCount || 0,
         monthlyIncome,
-        upcomingEvents: upcomingEventsCount || 0
+        upcomingEvents: upcomingEventsCount || 0,
+        pendingSolicitudes: pendingSolicitudesCount || 0,
+        totalSongs: songsCount || 0,
+        totalContacts: contactsCount || 0
       });
+      
+      setPendingSolicitudes(solicitudesData || []);
+      setUpcomingEvents(eventsData || []);
       
       // Process budgets with totals
       const processedBudgets = (budgetsData || []).map(budget => ({
@@ -332,32 +401,134 @@ export default function ComprehensiveDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         <DashboardCard
-          title="Presupuestos Activos"
+          title="Presupuestos"
           value={stats.activeBudgets}
-          description="En curso y pendientes"
+          description="Activos"
           icon={<FileText className="h-6 w-6 text-primary" />}
         />
         <DashboardCard
-          title="EPKs Publicados"
+          title="EPKs"
           value={stats.publishedEPKs}
-          description="Visibles públicamente"
+          description="Publicados"
           icon={<Globe className="h-6 w-6 text-primary" />}
         />
         <DashboardCard
-          title="Ingresos del Mes"
+          title="Ingresos"
           value={`€${stats.monthlyIncome.toLocaleString()}`}
-          description="Total del mes actual"
+          description="Este mes"
           icon={<DollarSign className="h-6 w-6 text-primary" />}
         />
         <DashboardCard
-          title="Próximos Eventos"
+          title="Eventos"
           value={stats.upcomingEvents}
-          description="Siguientes 30 días"
+          description="Próximos 30 días"
           icon={<Calendar className="h-6 w-6 text-primary" />}
         />
+        <DashboardCard
+          title="Solicitudes"
+          value={stats.pendingSolicitudes}
+          description="Pendientes"
+          icon={<Clock className="h-6 w-6 text-amber-500" />}
+        />
+        <DashboardCard
+          title="Canciones"
+          value={stats.totalSongs}
+          description="Registradas"
+          icon={<Music className="h-6 w-6 text-primary" />}
+        />
+        <DashboardCard
+          title="Contactos"
+          value={stats.totalContacts}
+          description="En rolodex"
+          icon={<Users className="h-6 w-6 text-primary" />}
+        />
       </div>
+
+      {/* Upcoming Events Widget */}
+      {upcomingEvents.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                Próximos Eventos
+              </CardTitle>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => navigate('/calendar')}
+            >
+              Ver calendario
+              <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {upcomingEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex-shrink-0 w-48 p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                >
+                  <p className="font-medium text-sm truncate">{event.title}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {format(new Date(event.start_date), "d MMM, HH:mm", { locale: es })}
+                  </p>
+                  {event.location && (
+                    <p className="text-xs text-muted-foreground truncate">{event.location}</p>
+                  )}
+                  <Badge variant="outline" className="mt-2 text-xs">
+                    {event.event_type}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pending Solicitudes Widget */}
+      {pendingSolicitudes.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/30 dark:bg-amber-950/10">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              <CardTitle className="text-lg">Solicitudes Pendientes</CardTitle>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => navigate('/solicitudes')}
+            >
+              Ver todas
+              <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {pendingSolicitudes.slice(0, 3).map((sol) => (
+                <div
+                  key={sol.id}
+                  className="flex items-center justify-between p-3 bg-background rounded-lg border cursor-pointer hover:bg-muted/50"
+                  onClick={() => navigate('/solicitudes')}
+                >
+                  <div>
+                    <p className="font-medium text-sm">{sol.nombre_solicitante}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {sol.tipo} • {format(new Date(sol.fecha_creacion), "d MMM", { locale: es })}
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                    Pendiente
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Lists */}
       <div className="grid gap-6 md:grid-cols-2">
