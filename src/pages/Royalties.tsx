@@ -15,7 +15,7 @@ export default function Royalties() {
   usePageTitle('Royalties');
   const [selectedArtist, setSelectedArtist] = useState('all');
   
-  const { totalEarnings, songsCount, collaboratorsCount, totalStreams } = useRoyaltiesStats();
+  const { totalEarnings, songsCount, collaboratorsCount, totalStreams } = useRoyaltiesStats(selectedArtist);
 
   return (
     <div className="p-6 space-y-6">
@@ -101,23 +101,23 @@ export default function Royalties() {
         </TabsList>
 
         <TabsContent value="songs" className="space-y-4">
-          <SongSplitsManager />
+          <SongSplitsManager artistId={selectedArtist} />
         </TabsContent>
 
         <TabsContent value="earnings" className="space-y-4">
-          <PlatformEarningsManager />
+          <PlatformEarningsManager artistId={selectedArtist} />
         </TabsContent>
 
         <TabsContent value="distribution" className="space-y-4">
-          <EarningsDistribution />
+          <EarningsDistribution artistId={selectedArtist} />
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">
-          <PaymentTracker />
+          <PaymentTracker artistId={selectedArtist} />
         </TabsContent>
 
         <TabsContent value="trends" className="space-y-4">
-          <EarningsTrends />
+          <EarningsTrends artistId={selectedArtist} />
         </TabsContent>
       </Tabs>
     </div>

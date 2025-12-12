@@ -6,13 +6,28 @@ import { DollarSign, Users } from 'lucide-react';
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
-export function EarningsDistribution() {
-  const { data: songs } = useSongs();
+interface EarningsDistributionProps {
+  artistId?: string;
+}
+
+export function EarningsDistribution({ artistId }: EarningsDistributionProps) {
+  const { data: songs } = useSongs(artistId);
   const { data: splits } = useSongSplits();
-  const { data: earnings } = usePlatformEarnings();
+  const { data: allEarnings } = usePlatformEarnings();
+
+  // Filter earnings by songs if artistId is set
+  const songIds = new Set(songs?.map(s => s.id) || []);
+  const earnings = artistId && artistId !== 'all' 
+    ? allEarnings?.filter(e => songIds.has(e.song_id)) 
+    : allEarnings;
 
   const distribution = useMemo(() => {
     if (!songs || !splits || !earnings) return [];
+
+    // Filter splits for songs we have
+    const filteredSplits = artistId && artistId !== 'all'
+      ? splits.filter(s => songIds.has(s.song_id))
+      : splits;
 
     // Calculate total earnings per song
     const songEarnings: Record<string, number> = {};
@@ -23,7 +38,7 @@ export function EarningsDistribution() {
     // Calculate distribution per collaborator
     const collaboratorEarnings: Record<string, number> = {};
     
-    splits.forEach(split => {
+    filteredSplits.forEach(split => {
       const songTotal = songEarnings[split.song_id] || 0;
       const collaboratorShare = (songTotal * split.percentage) / 100;
       collaboratorEarnings[split.collaborator_name] = 
