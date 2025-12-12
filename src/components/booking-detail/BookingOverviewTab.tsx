@@ -15,6 +15,7 @@ import {
   Music,
   Clock
 } from 'lucide-react';
+import { BookingNotes } from './BookingNotes';
 
 interface BookingOverviewTabProps {
   booking: {
@@ -181,8 +182,8 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
         </CardContent>
       </Card>
 
-      {/* Artist Notes - Full Width */}
-      <Card className="col-span-2">
+      {/* Artist Notes */}
+      <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center justify-between">
             <span className="flex items-center gap-2">
@@ -199,18 +200,21 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
             </Button>
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Notas visibles para el artista sobre este evento
+            Notas visibles para el artista
           </p>
         </CardHeader>
         <CardContent>
           <Textarea
             value={artistNotes}
             onChange={(e) => setArtistNotes(e.target.value)}
-            placeholder="Añade notas sobre horarios, requerimientos especiales, información de acceso, etc."
-            className="min-h-[120px]"
+            placeholder="Horarios, requerimientos, acceso..."
+            className="min-h-[100px]"
           />
         </CardContent>
       </Card>
+
+      {/* Internal Notes */}
+      <BookingNotes bookingId={booking.id} />
     </div>
   );
 }
