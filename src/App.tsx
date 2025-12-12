@@ -30,6 +30,7 @@ import EPKs from "./pages/EPKs";
 import { PublicEPKPage } from "./pages/PublicEPK";
 import { EPKPasswordProtectionPage } from "./pages/EPKPasswordProtection";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
+import SharedProject from "./pages/SharedProject";
 
 const queryClient = new QueryClient();
 
@@ -204,6 +205,8 @@ const App = () => (
               {/* Public EPK Routes */}
               <Route path="/epk/:slug" element={<PublicEPKPage />} />
               <Route path="/epk/:slug/password" element={<EPKPasswordProtectionPage />} />
+              {/* Public Shared Project Route */}
+              <Route path="/shared/project/:token" element={<SharedProject />} />
               {/* Google Calendar OAuth Callback */}
               <Route path="/calendar/callback" element={<GoogleCalendarCallback />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

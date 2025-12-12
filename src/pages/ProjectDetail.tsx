@@ -61,13 +61,15 @@ import {
   Home,
   Folder,
 } from "lucide-react";
-import { MessageSquare, Activity, Send } from "lucide-react";
+import { MessageSquare, Activity, Send, Share2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ProjectChecklistManager } from "@/components/ProjectChecklistManager";
+import { ProjectFilesManager } from "@/components/ProjectFilesManager";
+import { ProjectShareDialog } from "@/components/ProjectShareDialog";
 
 interface Project {
   id: string;
@@ -132,6 +134,7 @@ export default function ProjectDetail() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   
   // Document upload state
   const [showDocumentUpload, setShowDocumentUpload] = useState(false);
@@ -1010,47 +1013,60 @@ export default function ProjectDetail() {
       <Card>
         <Tabs defaultValue="presupuestos" className="w-full">
           <CardHeader className="pb-4">
-            <TabsList className="grid w-full grid-cols-6">
-              <TabsTrigger value="presupuestos" className="text-xs sm:text-sm">
-                Presupuestos
-                {budgets.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">
-                    {budgets.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="documentos" className="text-xs sm:text-sm">
-                Documentos
-                {documents.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">
-                    {documents.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="contratos" className="text-xs sm:text-sm">
-                Contratos
-                {contracts.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">
-                    {contracts.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="solicitudes" className="text-xs sm:text-sm">
-                Solicitudes
-                {solicitudes.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">
-                    {solicitudes.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="aprobaciones" className="text-xs sm:text-sm">
-                Aprobaciones
-              </TabsTrigger>
-              <TabsTrigger value="notas" className="text-xs sm:text-sm">Notas</TabsTrigger>
-            </TabsList>
+            <div className="flex items-center justify-between w-full">
+              <TabsList className="grid grid-cols-7 flex-1">
+                <TabsTrigger value="archivos" className="text-xs sm:text-sm">
+                  Archivos
+                </TabsTrigger>
+                <TabsTrigger value="presupuestos" className="text-xs sm:text-sm">
+                  Presupuestos
+                  {budgets.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">
+                      {budgets.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="documentos" className="text-xs sm:text-sm">
+                  Documentos
+                  {documents.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">
+                      {documents.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="contratos" className="text-xs sm:text-sm">
+                  Contratos
+                  {contracts.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">
+                      {contracts.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="solicitudes" className="text-xs sm:text-sm">
+                  Solicitudes
+                  {solicitudes.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">
+                      {solicitudes.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="aprobaciones" className="text-xs sm:text-sm">
+                  Aprobaciones
+                </TabsTrigger>
+                <TabsTrigger value="notas" className="text-xs sm:text-sm">Notas</TabsTrigger>
+              </TabsList>
+              <Button variant="outline" size="sm" onClick={() => setShowShareDialog(true)} className="ml-4">
+                <Share2 className="w-4 h-4 mr-2" />
+                Compartir
+              </Button>
+            </div>
           </CardHeader>
 
           <CardContent className="pt-0">
+            <TabsContent value="archivos" className="mt-0">
+              <ProjectFilesManager projectId={id || ""} projectName={project.name} />
+            </TabsContent>
+
             <TabsContent value="presupuestos" className="mt-0">
               {budgets.length === 0 ? (
                 <div className="text-center py-12">
@@ -2349,6 +2365,14 @@ export default function ProjectDetail() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Share Project Dialog */}
+      <ProjectShareDialog
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+        projectId={id || ""}
+        projectName={project.name}
+      />
     </div>
   );
 }
