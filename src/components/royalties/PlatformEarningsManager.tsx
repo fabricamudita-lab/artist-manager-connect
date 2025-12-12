@@ -9,6 +9,8 @@ import { Plus, TrendingUp } from 'lucide-react';
 import { useSongs, usePlatformEarnings, useCreatePlatformEarning, useRoyaltiesStats } from '@/hooks/useRoyalties';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { ImportEarningsDialog } from './ImportEarningsDialog';
+import { ExportRoyaltiesButton } from './ExportRoyaltiesButton';
 
 const PLATFORMS = [
   { value: 'spotify', label: 'Spotify', icon: '🎵', color: 'bg-green-500' },
@@ -184,14 +186,18 @@ export function PlatformEarningsManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-4">
         <div>
           <h3 className="font-semibold">Ganancias por Plataforma</h3>
           <p className="text-sm text-muted-foreground">
             Registra y visualiza tus ingresos de streaming
           </p>
         </div>
-        <AddEarningDialog />
+        <div className="flex gap-2">
+          <ImportEarningsDialog />
+          <ExportRoyaltiesButton />
+          <AddEarningDialog />
+        </div>
       </div>
 
       {/* Platform Summary */}
