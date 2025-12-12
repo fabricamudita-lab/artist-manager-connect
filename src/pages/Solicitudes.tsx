@@ -6,9 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Edit, Trash2, Clock, CheckCircle, XCircle, Calendar, MessageSquare, Phone, Video, Mic, Music, HelpCircle, Info, FileText, Archive, ArchiveRestore, LayoutGrid, List, BarChart3 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Clock, CheckCircle, XCircle, Calendar, MessageSquare, Phone, Video, Mic, Music, HelpCircle, Info, FileText, Archive, ArchiveRestore, LayoutGrid, List, BarChart3, Download, Zap, Keyboard } from 'lucide-react';
 import { SolicitudesKanban } from '@/components/SolicitudesKanban';
 import { SolicitudesStats } from '@/components/SolicitudesStats';
+import { SolicitudesExport } from '@/components/SolicitudesExport';
+import { SolicitudesBulkActions } from '@/components/SolicitudesBulkActions';
+import { ResponseTemplates } from '@/components/ResponseTemplates';
+import { useSolicitudesKeyboard } from '@/hooks/useSolicitudesKeyboard';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -25,6 +29,8 @@ import { ScheduleEncounterDialog } from '@/components/ScheduleEncounterDialog';
 import CreateProjectDialog from '@/components/CreateProjectDialog';
 import AssociateProjectDialog from '@/components/AssociateProjectDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Solicitud {
   id: string;
@@ -109,6 +115,9 @@ export default function Solicitudes() {
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showResponseTemplates, setShowResponseTemplates] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedSolicitud, setSelectedSolicitud] = useState<Solicitud | null>(null);
   const [selectedSolicitudForDetails, setSelectedSolicitudForDetails] = useState<Solicitud | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; solicitudId: string; nombre: string }>({
@@ -129,6 +138,13 @@ export default function Solicitudes() {
   const [showProfileSuggestions, setShowProfileSuggestions] = useState(false);
   const [associateDialog, setAssociateDialog] = useState<{ open: boolean; solicitud: Solicitud | null }>({ open: false, solicitud: null });
   const [createProjectForSolicitud, setCreateProjectForSolicitud] = useState<{ open: boolean; solicitud: Solicitud | null }>({ open: false, solicitud: null });
+
+  // Atajos de teclado
+  useSolicitudesKeyboard({
+    onNewSolicitud: () => setShowTemplateDialog(true),
+    onToggleView: setViewMode,
+    onExport: () => setShowExportDialog(true),
+  });
 
   useEffect(() => {
     fetchSolicitudes();
@@ -985,40 +1001,114 @@ const confirmStatusChange = async (comment: string) => {
           </div>
         </div>
         <div className="flex gap-2">
+          {/* Botón Exportar */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowExportDialog(true)}
+                  className="h-9"
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Exportar (Ctrl+E)</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Botón Plantillas */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowResponseTemplates(true)}
+                  className="h-9"
+                >
+                  <Zap className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Plantillas de respuesta</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           {/* View Mode Toggle */}
           <div className="flex border rounded-lg p-1 bg-muted/30">
-            <Button
-              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="h-8 px-3"
-            >
-              <List className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('kanban')}
-              className="h-8 px-3"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'stats' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('stats')}
-              className="h-8 px-3"
-            >
-              <BarChart3 className="w-4 h-4" />
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('list')}
+                    className="h-8 px-3"
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Vista Lista (Ctrl+1)</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('kanban')}
+                    className="h-8 px-3"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Vista Kanban (Ctrl+2)</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={viewMode === 'stats' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('stats')}
+                    className="h-8 px-3"
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Estadísticas (Ctrl+3)</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
-          <Button 
-            onClick={() => setShowTemplateDialog(true)}
-            className="bg-primary hover:bg-primary/90"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Nueva Solicitud
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  onClick={() => setShowTemplateDialog(true)}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nueva Solicitud
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Ctrl+N</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
@@ -1439,6 +1529,33 @@ const confirmStatusChange = async (comment: string) => {
             fetchSolicitudes();
           }
         }}
+      />
+
+      {/* Exportación */}
+      <SolicitudesExport
+        open={showExportDialog}
+        onOpenChange={setShowExportDialog}
+        solicitudes={solicitudes}
+      />
+
+      {/* Plantillas de respuesta */}
+      <ResponseTemplates
+        open={showResponseTemplates}
+        onOpenChange={setShowResponseTemplates}
+        onSelectTemplate={(content) => {
+          navigator.clipboard.writeText(content);
+          toast({
+            title: 'Plantilla copiada',
+            description: 'El contenido se ha copiado al portapapeles',
+          });
+        }}
+      />
+
+      {/* Acciones masivas */}
+      <SolicitudesBulkActions
+        selectedIds={selectedIds}
+        onClearSelection={() => setSelectedIds([])}
+        onUpdate={fetchSolicitudes}
       />
     </div>
   );
