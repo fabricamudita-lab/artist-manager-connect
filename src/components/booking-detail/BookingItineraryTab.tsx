@@ -84,14 +84,14 @@ export function BookingItineraryTab({ bookingId, eventDate }: BookingItineraryTa
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('booking_itinerary')
         .select('*')
         .eq('booking_id', bookingId)
         .order('sort_order', { ascending: true });
 
       if (error) throw error;
-      setItems(data || []);
+      setItems((data || []) as ItineraryItem[]);
     } catch (error) {
       console.error('Error fetching itinerary:', error);
     } finally {
@@ -110,7 +110,7 @@ export function BookingItineraryTab({ bookingId, eventDate }: BookingItineraryTa
     }
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('booking_itinerary')
         .insert({
           booking_id: bookingId,
@@ -151,7 +151,7 @@ export function BookingItineraryTab({ bookingId, eventDate }: BookingItineraryTa
 
   const handleDeleteItem = async (itemId: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('booking_itinerary')
         .delete()
         .eq('id', itemId);

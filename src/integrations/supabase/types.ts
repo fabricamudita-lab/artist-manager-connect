@@ -262,6 +262,156 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_documents: {
+        Row: {
+          booking_id: string
+          created_at: string
+          created_by: string | null
+          document_type: string
+          file_name: string
+          file_type: string | null
+          file_url: string
+          id: string
+          status: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          created_by?: string | null
+          document_type?: string
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          id?: string
+          status?: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          created_by?: string | null
+          document_type?: string
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_documents_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_expenses: {
+        Row: {
+          amount: number
+          booking_id: string
+          category: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          handler: string
+          id: string
+          iva_percentage: number | null
+          payer: string
+        }
+        Insert: {
+          amount?: number
+          booking_id: string
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description: string
+          handler?: string
+          id?: string
+          iva_percentage?: number | null
+          payer?: string
+        }
+        Update: {
+          amount?: number
+          booking_id?: string
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          handler?: string
+          id?: string
+          iva_percentage?: number | null
+          payer?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_expenses_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_itinerary: {
+        Row: {
+          booking_id: string
+          cost: number | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_time: string | null
+          handler: string | null
+          id: string
+          item_type: string
+          location: string | null
+          payer: string | null
+          sort_order: number
+          start_time: string | null
+          title: string
+        }
+        Insert: {
+          booking_id: string
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_time?: string | null
+          handler?: string | null
+          id?: string
+          item_type: string
+          location?: string | null
+          payer?: string | null
+          sort_order?: number
+          start_time?: string | null
+          title: string
+        }
+        Update: {
+          booking_id?: string
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_time?: string | null
+          handler?: string | null
+          id?: string
+          item_type?: string
+          location?: string | null
+          payer?: string | null
+          sort_order?: number
+          start_time?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_itinerary_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_offers: {
         Row: {
           adjuntos: Json | null

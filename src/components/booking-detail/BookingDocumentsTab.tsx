@@ -73,14 +73,14 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
   const fetchDocuments = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('booking_documents')
         .select('*')
         .eq('booking_id', booking.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDocuments(data || []);
+      setDocuments((data || []) as BookingDocument[]);
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
@@ -111,7 +111,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
         .getPublicUrl(fileName);
 
       // Create document record
-      const { error: dbError } = await supabase
+      const { error: dbError } = await (supabase as any)
         .from('booking_documents')
         .insert({
           booking_id: booking.id,
@@ -152,7 +152,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
       });
 
       // Create a placeholder contract record
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('booking_documents')
         .insert({
           booking_id: booking.id,
@@ -185,7 +185,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
 
   const handleUpdateStatus = async (docId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('booking_documents')
         .update({ status: newStatus })
         .eq('id', docId);
@@ -210,7 +210,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
 
   const handleDeleteDocument = async (docId: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('booking_documents')
         .delete()
         .eq('id', docId);
