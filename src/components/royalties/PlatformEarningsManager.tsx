@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ImportEarningsDialog } from './ImportEarningsDialog';
 import { ExportRoyaltiesButton } from './ExportRoyaltiesButton';
+import { EarningsFilters } from './EarningsFilters';
 
 const PLATFORMS = [
   { value: 'spotify', label: 'Spotify', icon: '🎵', color: 'bg-green-500' },
@@ -162,9 +163,17 @@ function AddEarningDialog() {
 }
 
 export function PlatformEarningsManager() {
-  const { data: earnings = [], isLoading } = usePlatformEarnings();
+  const [filters, setFilters] = useState<{ startDate?: string; endDate?: string }>({});
+  const { data: allEarnings = [], isLoading } = usePlatformEarnings();
   const { data: songs = [] } = useSongs();
   const { earningsByPlatform, totalEarnings } = useRoyaltiesStats();
+
+  // Apply date filters
+  const earnings = allEarnings.filter(e => {
+    if (filters.startDate && e.period_start < filters.startDate) return false;
+    if (filters.endDate && e.period_end > filters.endDate) return false;
+    return true;
+  });
 
   const getSongTitle = (songId: string) => {
     return songs.find(s => s.id === songId)?.title || 'Canción desconocida';
@@ -193,7 +202,8 @@ export function PlatformEarningsManager() {
             Registra y visualiza tus ingresos de streaming
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <EarningsFilters onFilterChange={setFilters} />
           <ImportEarningsDialog />
           <ExportRoyaltiesButton />
           <AddEarningDialog />
