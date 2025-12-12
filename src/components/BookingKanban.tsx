@@ -60,15 +60,23 @@ export interface BookingOffer {
   created_by?: string;
 }
 
-const PHASES = [
+// Main pipeline phases - displayed prominently
+const MAIN_PHASES = [
   { id: 'interes', label: 'Interés', color: 'bg-slate-50 border-slate-200' },
   { id: 'oferta', label: 'Oferta', color: 'bg-blue-50 border-blue-200' },
   { id: 'negociacion', label: 'Negociación', color: 'bg-amber-50 border-amber-200' },
   { id: 'confirmado', label: 'Confirmado', color: 'bg-green-50 border-green-200' },
   { id: 'facturado', label: 'Facturado', color: 'bg-emerald-50 border-emerald-200' },
-  { id: 'cerrado', label: 'Cerrado', color: 'bg-purple-50 border-purple-200' },
-  { id: 'cancelado', label: 'Cancelado (perdido)', color: 'bg-red-50 border-red-200' }
 ];
+
+// Archive phases - displayed in a compact section
+const ARCHIVE_PHASES = [
+  { id: 'cerrado', label: 'Cerrado', color: 'bg-purple-50 border-purple-200' },
+  { id: 'cancelado', label: 'Cancelado', color: 'bg-red-50 border-red-200' }
+];
+
+// Combined for filtering and other operations
+const PHASES = [...MAIN_PHASES, ...ARCHIVE_PHASES];
 
 interface BookingKanbanProps {
   templateFields: any[];
@@ -341,8 +349,8 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
             <div className="w-32 h-10 bg-muted rounded animate-pulse" />
           </div>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {PHASES.map(phase => (
+        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          {MAIN_PHASES.map(phase => (
             <Card key={phase.id} className={`${phase.color} border-2`}>
               <CardSkeleton contentLines={3} />
             </Card>
@@ -426,14 +434,14 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
         </div>
       </div>
 
-      {/* Kanban Board */}
+      {/* Kanban Board - Main Phases */}
       <DndContext
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-7 gap-3 min-h-[600px]">
-          {PHASES.map(phase => {
+        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-5 gap-3 min-h-[500px]">
+          {MAIN_PHASES.map(phase => {
             const phaseOffers = getOffersByPhase(phase.id);
             
             return (
@@ -483,6 +491,49 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
               </Card>
             );
           })}
+        </div>
+
+        {/* Archive Section - Cerrado & Cancelado */}
+        <div className="mt-6">
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">Archivo</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {ARCHIVE_PHASES.map(phase => {
+              const phaseOffers = getOffersByPhase(phase.id);
+              
+              return (
+                <Card key={phase.id} className={`${phase.color} border transition-all duration-200`}>
+                  <CardHeader className="pb-2 px-3 pt-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-xs font-bold text-foreground">
+                        {phase.label}
+                      </CardTitle>
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0.5 font-medium">
+                        {phaseOffers.length}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="px-3 pb-3">
+                    {phaseOffers.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        <SortableContext items={phaseOffers.map(offer => offer.id)}>
+                          {phaseOffers.map(offer => (
+                            <CompactBookingCard
+                              key={offer.id}
+                              offer={offer}
+                              onDuplicate={duplicateOffer}
+                              isDragging={draggedItem === offer.id}
+                            />
+                          ))}
+                        </SortableContext>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground text-center py-3">Sin eventos</p>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </div>
       </DndContext>
 
