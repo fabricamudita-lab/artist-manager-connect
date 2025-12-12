@@ -17,7 +17,8 @@ import {
   Edit,
   ExternalLink,
   Copy,
-  Share2
+  Share2,
+  Copy as Duplicate
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -30,6 +31,7 @@ import { BookingItineraryTab } from '@/components/booking-detail/BookingItinerar
 import { BookingExpensesTab } from '@/components/booking-detail/BookingExpensesTab';
 import { BookingDocumentsTab } from '@/components/booking-detail/BookingDocumentsTab';
 import { EditBookingDialog } from '@/components/booking-detail/EditBookingDialog';
+import { ShareBookingDialog } from '@/components/booking-detail/ShareBookingDialog';
 
 interface BookingOffer {
   id: string;
@@ -64,6 +66,7 @@ interface BookingOffer {
   project_id?: string;
   event_id?: string;
   folder_url?: string;
+  created_by?: string;
   created_at: string;
 }
 
@@ -73,6 +76,8 @@ export default function BookingDetail() {
   const [booking, setBooking] = useState<BookingOffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   
   usePageTitle(booking?.festival_ciclo || booking?.venue || 'Detalle Evento');
 
@@ -108,6 +113,47 @@ export default function BookingDetail() {
 
   const handleBookingUpdate = () => {
     fetchBooking();
+  };
+
+  const handleDuplicate = async () => {
+    if (!booking) return;
+    
+    setIsDuplicating(true);
+    try {
+      const { id, created_at, ...bookingData } = booking;
+      const duplicatedBooking = {
+        ...bookingData,
+        phase: 'interes',
+        created_by: bookingData.created_by || 'unknown'
+      };
+
+      const { data, error } = await supabase
+        .from('booking_offers')
+        .insert([duplicatedBooking])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Evento duplicado",
+        description: "El evento se ha duplicado correctamente. Redirigiendo...",
+      });
+
+      // Navigate to the new duplicated booking
+      if (data?.id) {
+        navigate(`/booking/${data.id}`);
+      }
+    } catch (error) {
+      console.error('Error duplicating booking:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo duplicar el evento.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDuplicating(false);
+    }
   };
 
   if (loading) {
@@ -225,6 +271,15 @@ export default function BookingDetail() {
               <Copy className="h-4 w-4 mr-2" />
               Copiar Info
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDuplicate}
+              disabled={isDuplicating}
+            >
+              <Duplicate className="h-4 w-4 mr-2" />
+              {isDuplicating ? 'Duplicando...' : 'Duplicar'}
+            </Button>
             {booking.folder_url && (
               <Button
                 variant="outline"
@@ -239,6 +294,10 @@ export default function BookingDetail() {
               <Edit className="h-4 w-4 mr-2" />
               Editar
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowShareDialog(true)}>
+              <Share2 className="h-4 w-4 mr-2" />
+              Compartir
+            </Button>
           </div>
 
           {/* Edit Dialog */}
@@ -247,6 +306,13 @@ export default function BookingDetail() {
             onOpenChange={setShowEditDialog}
             booking={booking}
             onSuccess={handleBookingUpdate}
+          />
+
+          {/* Share Dialog */}
+          <ShareBookingDialog
+            open={showShareDialog}
+            onOpenChange={setShowShareDialog}
+            booking={booking}
           />
         </div>
 

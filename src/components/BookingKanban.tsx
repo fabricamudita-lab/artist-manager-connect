@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Search, Filter, Plus, Download, FileText, Copy, CalendarIcon, X, Globe, Sparkles } from 'lucide-react';
+import { Search, Filter, Plus, Download, FileText, Copy, CalendarIcon, X, Globe, Sparkles, FileSpreadsheet, CheckSquare } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,6 +18,7 @@ import { toast } from '@/hooks/use-toast';
 import { CompactBookingCard } from './CompactBookingCard';
 import { CreateBookingWizard } from './CreateBookingWizard';
 import { exportToCSV, generateOfferNumber } from '@/utils/exportUtils';
+import { exportToExcel, generateBookingExportData, BOOKING_EXPORT_HEADERS } from '@/utils/excelExport';
 import { CopyButton } from '@/components/ui/copy-button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
@@ -25,6 +26,7 @@ import { CardSkeleton } from '@/components/ui/card-skeleton';
 import { useGlobalSearch } from '@/hooks/useKeyboardShortcuts';
 import { GlobalSearchDialog } from '@/components/GlobalSearchDialog';
 import { UpcomingEventsWidget } from './booking-detail/UpcomingEventsWidget';
+import { BulkActionsBar } from './booking-detail/BulkActionsBar';
 
 export interface BookingOffer {
   id: string;
@@ -104,6 +106,8 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectionMode, setSelectionMode] = useState(false);
   
   const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
 
@@ -329,6 +333,41 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
 
   const getUniqueValues = (field: keyof BookingOffer) => {
     return [...new Set(offers.map(offer => offer[field]).filter(Boolean).map(String))];
+  };
+
+  const toggleSelection = (offerId: string) => {
+    setSelectedIds(prev => 
+      prev.includes(offerId) 
+        ? prev.filter(id => id !== offerId)
+        : [...prev, offerId]
+    );
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
+    setSelectionMode(false);
+  };
+
+  const handleExportExcel = () => {
+    try {
+      const exportData = generateBookingExportData(filteredOffers, PHASES);
+      exportToExcel(exportData, {
+        filename: 'booking_kanban',
+        sheetName: 'Ofertas',
+        headers: BOOKING_EXPORT_HEADERS,
+      });
+      toast({
+        title: "Exportación exitosa",
+        description: `${exportData.length} ofertas exportadas a Excel`,
+      });
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo exportar a Excel",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleExportFiltered = () => {
@@ -560,12 +599,31 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
 
         <div className="flex gap-2">
           <Button 
+            variant={selectionMode ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => {
+              setSelectionMode(!selectionMode);
+              if (selectionMode) clearSelection();
+            }}
+          >
+            <CheckSquare className="h-4 w-4 mr-2" />
+            {selectionMode ? 'Cancelar' : 'Seleccionar'}
+          </Button>
+          <Button 
+            onClick={handleExportExcel}
+            variant="outline"
+            size="sm"
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Excel
+          </Button>
+          <Button 
             onClick={handleExportFiltered}
             variant="outline"
             size="sm"
           >
             <Download className="h-4 w-4 mr-2" />
-            Exportar CSV ({filteredOffers.length})
+            CSV ({filteredOffers.length})
           </Button>
           <Button onClick={() => setShowCreateWizard(true)} className="btn-primary">
             <Plus className="h-4 w-4 mr-2" />
@@ -655,6 +713,9 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
                         offer={offer}
                         onDuplicate={duplicateOffer}
                         isDragging={draggedItem === offer.id}
+                        selectionMode={selectionMode}
+                        isSelected={selectedIds.includes(offer.id)}
+                        onToggleSelect={toggleSelection}
                       />
                     ))}
                   </SortableContext>
@@ -703,6 +764,9 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
                               offer={offer}
                               onDuplicate={duplicateOffer}
                               isDragging={draggedItem === offer.id}
+                              selectionMode={selectionMode}
+                              isSelected={selectedIds.includes(offer.id)}
+                              onToggleSelect={toggleSelection}
                             />
                           ))}
                         </SortableContext>
@@ -732,6 +796,14 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
       <GlobalSearchDialog 
         open={showGlobalSearch} 
         onOpenChange={setShowGlobalSearch} 
+      />
+
+      {/* Bulk Actions Bar */}
+      <BulkActionsBar
+        selectedIds={selectedIds}
+        onClear={clearSelection}
+        onRefresh={fetchOffers}
+        phases={PHASES}
       />
     </div>
   );

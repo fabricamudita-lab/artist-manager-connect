@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Copy, Download, GripVertical, FileText, AlertTriangle } from 'lucide-react';
@@ -13,12 +14,18 @@ interface CompactBookingCardProps {
   offer: BookingOffer;
   onDuplicate: (id: string) => void;
   isDragging?: boolean;
+  selectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 export function CompactBookingCard({
   offer,
   onDuplicate,
-  isDragging
+  isDragging,
+  selectionMode = false,
+  isSelected = false,
+  onToggleSelect
 }: CompactBookingCardProps) {
   const navigate = useNavigate();
   const {
@@ -57,6 +64,15 @@ export function CompactBookingCard({
 
   const hasWarning = offer.es_internacional && offer.comision_porcentaje && offer.comision_porcentaje > 10;
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (selectionMode && onToggleSelect) {
+      e.stopPropagation();
+      onToggleSelect(offer.id);
+    } else {
+      handleNavigateToDetail();
+    }
+  };
+
   return (
     <TooltipProvider>
       <Tooltip>
@@ -64,12 +80,22 @@ export function CompactBookingCard({
           <Card 
             ref={setNodeRef} 
             style={style} 
-            className="cursor-pointer hover:shadow-md transition-all duration-150 bg-card border group relative" 
-            onClick={handleNavigateToDetail}
+            className={`cursor-pointer hover:shadow-md transition-all duration-150 bg-card border group relative ${
+              isSelected ? 'ring-2 ring-primary border-primary' : ''
+            }`}
+            onClick={handleCardClick}
           >
             <CardContent className="p-3 space-y-2">
-              {/* Main info - venue/festival name prominently */}
+              {/* Selection checkbox or main info */}
               <div className="flex items-center justify-between gap-2">
+                {selectionMode && (
+                  <Checkbox 
+                    checked={isSelected}
+                    onCheckedChange={() => onToggleSelect?.(offer.id)}
+                    onClick={e => e.stopPropagation()}
+                    className="mr-1"
+                  />
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-bold text-foreground leading-tight">
                     {offer.fecha ? new Date(offer.fecha).toLocaleDateString('es-ES', {
