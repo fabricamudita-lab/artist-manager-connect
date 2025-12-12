@@ -40,7 +40,7 @@ export function LiquidacionCalculator({ artistId }: LiquidacionCalculatorProps) 
     return songs.filter(s => s.artist_id === artistId);
   }, [songs, artistId]);
 
-  const songIds = filteredSongs.map(s => s.id);
+  const songIds = useMemo(() => filteredSongs.map(s => s.id), [filteredSongs]);
 
   const filteredSplits = useMemo(() => {
     return allSplits.filter(s => songIds.includes(s.song_id));

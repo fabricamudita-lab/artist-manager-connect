@@ -36,6 +36,7 @@ export const EPKTourSection: React.FC<EPKTourSectionProps> = ({
 
   useEffect(() => {
     fetchTourEvents();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artistId, projectId]);
 
   const fetchTourEvents = async () => {
@@ -43,10 +44,11 @@ export const EPKTourSection: React.FC<EPKTourSectionProps> = ({
     try {
       let query = supabase
         .from('booking_offers')
-        .select('id, fecha, hora, ciudad, pais, venue, festival_ciclo, link_venta, formato')
+        .select('id, fecha, hora, ciudad, pais, venue, festival_ciclo, link_venta, formato, artist_id, project_id')
         .eq('estado', 'confirmado') // Only confirmed events
         .eq('anunciado', true) // Only announced events
-        .eq('es_privado', false) // Exclude private events
+        .or('es_privado.is.null,es_privado.eq.false') // Exclude private events (handle null case)
+        .not('fecha', 'is', null) // Only events with dates
         .gte('fecha', new Date().toISOString().split('T')[0]) // Only future events
         .order('fecha', { ascending: true });
 

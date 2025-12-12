@@ -30,14 +30,20 @@ export function PaymentTracker({ artistId }: PaymentTrackerProps) {
   const [paidSplits, setPaidSplits] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
 
-  // Filter by artist
-  const songIds = new Set(songs.map(s => s.id));
-  const splits = artistId && artistId !== 'all'
-    ? allSplits.filter(s => songIds.has(s.song_id))
-    : allSplits;
-  const earnings = artistId && artistId !== 'all'
-    ? allEarnings.filter(e => songIds.has(e.song_id))
-    : allEarnings;
+  // Filter by artist - memoize for performance
+  const songIds = useMemo(() => new Set(songs.map(s => s.id)), [songs]);
+  const splits = useMemo(() => 
+    artistId && artistId !== 'all'
+      ? allSplits.filter(s => songIds.has(s.song_id))
+      : allSplits,
+    [allSplits, songIds, artistId]
+  );
+  const earnings = useMemo(() => 
+    artistId && artistId !== 'all'
+      ? allEarnings.filter(e => songIds.has(e.song_id))
+      : allEarnings,
+    [allEarnings, songIds, artistId]
+  );
 
   // Calculate pending payments
   const payments = useMemo(() => {
