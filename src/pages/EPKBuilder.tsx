@@ -14,13 +14,18 @@ import {
   Image as ImageIcon,
   Video,
   Music,
-  File
+  File,
+  Users,
+  Settings,
+  BarChart3
 } from 'lucide-react';
 import { useEPK } from '@/hooks/useEPK';
 import { toast } from '@/hooks/use-toast';
 import { EPKForm } from '@/components/epk/EPKForm';
 import { EPKPreview } from '@/components/epk/EPKPreview';
 import { MediaSelector } from '@/components/epk/MediaSelector';
+import { EPKAnalyticsCard } from '@/components/epk/EPKAnalyticsCard';
+import { EPKQuickActions } from '@/components/epk/EPKQuickActions';
 import { cn } from '@/lib/utils';
 
 export default function EPKBuilder() {
@@ -48,6 +53,7 @@ export default function EPKBuilder() {
 
   const [activeSection, setActiveSection] = useState<'basic' | 'content' | 'media' | 'contacts' | 'settings'>('basic');
   const [showMediaSelector, setShowMediaSelector] = useState(false);
+  const [rightPanelTab, setRightPanelTab] = useState<'preview' | 'analytics'>('preview');
 
   // Auto-generate slug when title changes
   useEffect(() => {
@@ -81,7 +87,7 @@ export default function EPKBuilder() {
     const savedId = await saveEPK();
     if (savedId && !epkId) {
       // Redirect to edit mode after creating
-      navigate(`/epk/${savedId}/edit`, { replace: true });
+      navigate(`/epk-builder/${savedId}`, { replace: true });
     }
   };
 
@@ -134,8 +140,8 @@ export default function EPKBuilder() {
     { id: 'basic', label: 'Información básica', icon: FileText },
     { id: 'content', label: 'Contenido', icon: FileText },
     { id: 'media', label: 'Material multimedia', icon: ImageIcon },
-    { id: 'contacts', label: 'Contactos', icon: FileText },
-    { id: 'settings', label: 'Configuración', icon: FileText }
+    { id: 'contacts', label: 'Contactos', icon: Users },
+    { id: 'settings', label: 'Configuración', icon: Settings }
   ];
 
   const getMediaCount = () => {
@@ -165,7 +171,7 @@ export default function EPKBuilder() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate(-1)}
+                onClick={() => navigate('/epks')}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -205,7 +211,7 @@ export default function EPKBuilder() {
                 disabled={!epk.slug}
               >
                 <Eye className="w-4 h-4 mr-2" />
-                Vista como invitado
+                Vista previa
               </Button>
               <Button
                 variant="outline"
@@ -214,7 +220,7 @@ export default function EPKBuilder() {
                 disabled={!epk.id}
               >
                 <Share2 className="w-4 h-4 mr-2" />
-                Generar enlace
+                Compartir
               </Button>
               <Button
                 size="sm"
@@ -293,43 +299,81 @@ export default function EPKBuilder() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Quick Actions (only when EPK is saved) */}
+            {epk.id && epk.slug && (
+              <EPKQuickActions
+                epkSlug={epk.slug}
+                epkTitle={epk.titulo || 'EPK'}
+                artistName={epk.artista_proyecto || 'Artista'}
+              />
+            )}
           </div>
 
-          {/* Right Panel - Preview */}
-          <div className="col-span-7 overflow-y-auto">
-            <Card className="h-full">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Vista previa</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      Tema: {epk.tema}
-                    </Badge>
-                    <Badge 
-                      variant={epk.visibilidad === 'publico' ? 'default' : 'secondary'}
-                      className="text-xs"
-                    >
-                      {epk.visibilidad}
-                    </Badge>
+          {/* Right Panel - Preview/Analytics */}
+          <div className="col-span-7 overflow-y-auto space-y-4">
+            {/* Tab Switcher */}
+            {epk.id && (
+              <div className="flex items-center gap-2 border rounded-lg p-1 w-fit">
+                <Button
+                  variant={rightPanelTab === 'preview' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setRightPanelTab('preview')}
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  Vista previa
+                </Button>
+                <Button
+                  variant={rightPanelTab === 'analytics' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setRightPanelTab('analytics')}
+                >
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Analytics
+                </Button>
+              </div>
+            )}
+
+            {rightPanelTab === 'preview' ? (
+              <Card className="h-full">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Vista previa</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        Tema: {epk.tema}
+                      </Badge>
+                      <Badge 
+                        variant={epk.visibilidad === 'publico' ? 'default' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {epk.visibilidad}
+                      </Badge>
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                <EPKPreview
-                  epk={epk}
-                  photos={photos}
-                  videos={videos}
-                  audios={audios}
-                  documents={documents}
-                  onDownloadStart={() => {
-                    console.log('Press kit download started');
-                  }}
-                  onDownloadComplete={() => {
-                    console.log('Press kit download completed');
-                  }}
-                />
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <EPKPreview
+                    epk={epk}
+                    photos={photos}
+                    videos={videos}
+                    audios={audios}
+                    documents={documents}
+                    onDownloadStart={() => {
+                      console.log('Press kit download started');
+                    }}
+                    onDownloadComplete={() => {
+                      console.log('Press kit download completed');
+                    }}
+                  />
+                </CardContent>
+              </Card>
+            ) : (
+              <EPKAnalyticsCard
+                epkId={epk.id!}
+                epkSlug={epk.slug}
+              />
+            )}
           </div>
         </div>
       </div>
