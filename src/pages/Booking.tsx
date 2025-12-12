@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { CreateBookingOfferDialog } from '@/components/CreateBookingOfferDialog';
+import { CreateBookingWizard } from '@/components/CreateBookingWizard';
 import { EditBookingTemplateDialog } from '@/components/EditBookingTemplateDialog';
 import { EditBookingOfferDialog } from '@/components/EditBookingOfferDialog';
 import { usePageTitle } from '@/hooks/useCommon';
@@ -84,6 +85,7 @@ export default function Booking() {
   const [templateFields, setTemplateFields] = useState<TemplateField[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedOffer, setSelectedOffer] = useState<BookingOffer | null>(null);
@@ -495,8 +497,8 @@ export default function Booking() {
                   title="No hay ofertas de booking"
                   description="Crea tu primera oferta para comenzar a gestionar tus bookings y organizar conciertos de manera eficiente."
                   action={{
-                    label: "Crear Oferta",
-                    onClick: () => setShowCreateDialog(true)
+                    label: "Crear Booking",
+                    onClick: () => setShowCreateWizard(true)
                   }}
                   secondaryAction={{
                     label: "Ver documentación",
@@ -753,6 +755,16 @@ export default function Booking() {
       </div>
         </TabsContent>
       </Tabs>
+
+      <CreateBookingWizard
+        open={showCreateWizard}
+        onOpenChange={setShowCreateWizard}
+        onOfferCreated={() => {
+          fetchOffers();
+          checkAllFolders();
+          checkAllContracts();
+        }}
+      />
 
       <CreateBookingOfferDialog
         open={showCreateDialog}
