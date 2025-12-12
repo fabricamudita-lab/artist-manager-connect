@@ -2130,6 +2130,56 @@ export type Database = {
           },
         ]
       }
+      platform_earnings: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          currency: string | null
+          id: string
+          period_end: string
+          period_start: string
+          platform: string
+          song_id: string
+          streams: number | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_by: string
+          currency?: string | null
+          id?: string
+          period_end: string
+          period_start: string
+          platform: string
+          song_id: string
+          streams?: number | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          currency?: string | null
+          id?: string
+          period_end?: string
+          period_start?: string
+          platform?: string
+          song_id?: string
+          streams?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_earnings_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active_role: Database["public"]["Enums"]["user_role"]
@@ -2868,6 +2918,63 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      song_splits: {
+        Row: {
+          collaborator_contact_id: string | null
+          collaborator_email: string | null
+          collaborator_name: string
+          created_at: string
+          created_by: string
+          id: string
+          payment_info: string | null
+          percentage: number
+          role: string
+          song_id: string
+          updated_at: string
+        }
+        Insert: {
+          collaborator_contact_id?: string | null
+          collaborator_email?: string | null
+          collaborator_name: string
+          created_at?: string
+          created_by: string
+          id?: string
+          payment_info?: string | null
+          percentage: number
+          role?: string
+          song_id: string
+          updated_at?: string
+        }
+        Update: {
+          collaborator_contact_id?: string | null
+          collaborator_email?: string | null
+          collaborator_name?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          payment_info?: string | null
+          percentage?: number
+          role?: string
+          song_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "song_splits_collaborator_contact_id_fkey"
+            columns: ["collaborator_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "song_splits_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
             referencedColumns: ["id"]
           },
         ]
