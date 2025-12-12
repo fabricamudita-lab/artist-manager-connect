@@ -19,12 +19,25 @@ interface PaymentRecord {
   isPaid: boolean;
 }
 
-export function PaymentTracker() {
-  const { data: songs = [] } = useSongs();
-  const { data: splits = [] } = useSongSplits();
-  const { data: earnings = [] } = usePlatformEarnings();
+interface PaymentTrackerProps {
+  artistId?: string;
+}
+
+export function PaymentTracker({ artistId }: PaymentTrackerProps) {
+  const { data: songs = [] } = useSongs(artistId);
+  const { data: allSplits = [] } = useSongSplits();
+  const { data: allEarnings = [] } = usePlatformEarnings();
   const [paidSplits, setPaidSplits] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
+
+  // Filter by artist
+  const songIds = new Set(songs.map(s => s.id));
+  const splits = artistId && artistId !== 'all'
+    ? allSplits.filter(s => songIds.has(s.song_id))
+    : allSplits;
+  const earnings = artistId && artistId !== 'all'
+    ? allEarnings.filter(e => songIds.has(e.song_id))
+    : allEarnings;
 
   // Calculate pending payments
   const payments = useMemo(() => {

@@ -163,19 +163,26 @@ function AddEarningDialog() {
   );
 }
 
-export function PlatformEarningsManager() {
+interface PlatformEarningsManagerProps {
+  artistId?: string;
+}
+
+export function PlatformEarningsManager({ artistId }: PlatformEarningsManagerProps) {
   const [filters, setFilters] = useState<{ startDate?: string; endDate?: string }>({});
   const { data: allEarnings = [], isLoading } = usePlatformEarnings();
-  const { data: songs = [] } = useSongs();
-  const { earningsByPlatform, totalEarnings } = useRoyaltiesStats();
+  const { data: songs = [] } = useSongs(artistId);
+  const { earningsByPlatform, totalEarnings } = useRoyaltiesStats(artistId);
 
-  // Apply date filters
+  // Get song IDs for this artist
+  const songIds = new Set(songs.map(s => s.id));
+
+  // Apply date filters and artist filter
   const earnings = allEarnings.filter(e => {
+    if (artistId && artistId !== 'all' && !songIds.has(e.song_id)) return false;
     if (filters.startDate && e.period_start < filters.startDate) return false;
     if (filters.endDate && e.period_end > filters.endDate) return false;
     return true;
   });
-
   const getSongTitle = (songId: string) => {
     return songs.find(s => s.id === songId)?.title || 'Canción desconocida';
   };

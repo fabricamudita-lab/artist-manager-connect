@@ -43,15 +43,20 @@ export interface PlatformEarning {
   updated_at: string;
 }
 
-export function useSongs() {
+export function useSongs(artistId?: string) {
   return useQuery({
-    queryKey: ['songs'],
+    queryKey: ['songs', artistId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('songs')
         .select('*')
         .order('created_at', { ascending: false });
       
+      if (artistId && artistId !== 'all') {
+        query = query.eq('artist_id', artistId);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data as Song[];
     },
@@ -211,16 +216,25 @@ export function useCreatePlatformEarning() {
   });
 }
 
-export function useRoyaltiesStats() {
-  const { data: songs } = useSongs();
+export function useRoyaltiesStats(artistId?: string) {
+  const { data: songs } = useSongs(artistId);
   const { data: splits } = useSongSplits();
   const { data: earnings } = usePlatformEarnings();
 
-  const totalEarnings = earnings?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
-  const totalStreams = earnings?.reduce((sum, e) => sum + (e.streams || 0), 0) || 0;
-  const uniqueCollaborators = new Set(splits?.map(s => s.collaborator_name) || []).size;
+  // Filter earnings by songs if artistId is set
+  const songIds = new Set(songs?.map(s => s.id) || []);
+  const filteredEarnings = artistId && artistId !== 'all' 
+    ? earnings?.filter(e => songIds.has(e.song_id)) 
+    : earnings;
+  const filteredSplits = artistId && artistId !== 'all'
+    ? splits?.filter(s => songIds.has(s.song_id))
+    : splits;
+
+  const totalEarnings = filteredEarnings?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+  const totalStreams = filteredEarnings?.reduce((sum, e) => sum + (e.streams || 0), 0) || 0;
+  const uniqueCollaborators = new Set(filteredSplits?.map(s => s.collaborator_name) || []).size;
   
-  const earningsByPlatform = earnings?.reduce((acc, e) => {
+  const earningsByPlatform = filteredEarnings?.reduce((acc, e) => {
     acc[e.platform] = (acc[e.platform] || 0) + Number(e.amount);
     return acc;
   }, {} as Record<string, number>) || {};

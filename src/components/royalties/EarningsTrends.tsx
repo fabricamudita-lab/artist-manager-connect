@@ -1,13 +1,24 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { usePlatformEarnings } from '@/hooks/useRoyalties';
+import { usePlatformEarnings, useSongs } from '@/hooks/useRoyalties';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { format, parseISO, startOfMonth, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
-export function EarningsTrends() {
-  const { data: earnings = [] } = usePlatformEarnings();
+interface EarningsTrendsProps {
+  artistId?: string;
+}
+
+export function EarningsTrends({ artistId }: EarningsTrendsProps) {
+  const { data: songs = [] } = useSongs(artistId);
+  const { data: allEarnings = [] } = usePlatformEarnings();
+
+  // Filter earnings by artist
+  const songIds = new Set(songs.map(s => s.id));
+  const earnings = artistId && artistId !== 'all'
+    ? allEarnings.filter(e => songIds.has(e.song_id))
+    : allEarnings;
 
   // Monthly earnings trend
   const monthlyData = useMemo(() => {

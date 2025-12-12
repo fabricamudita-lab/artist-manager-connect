@@ -219,8 +219,12 @@ function SongCard({ song }: { song: Song }) {
   );
 }
 
-export function SongSplitsManager() {
-  const { data: songs = [], isLoading } = useSongs();
+interface SongSplitsManagerProps {
+  artistId?: string;
+}
+
+export function SongSplitsManager({ artistId }: SongSplitsManagerProps) {
+  const { data: songs = [], isLoading } = useSongs(artistId);
 
   if (isLoading) {
     return (
