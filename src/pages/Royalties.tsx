@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { usePageTitle } from '@/hooks/useCommon';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,19 +9,24 @@ import { PlatformEarningsManager } from '@/components/royalties/PlatformEarnings
 import { EarningsDistribution } from '@/components/royalties/EarningsDistribution';
 import { PaymentTracker } from '@/components/royalties/PaymentTracker';
 import { EarningsTrends } from '@/components/royalties/EarningsTrends';
+import { ArtistFilter } from '@/components/royalties/ArtistFilter';
 
 export default function Royalties() {
   usePageTitle('Royalties');
+  const [selectedArtist, setSelectedArtist] = useState('all');
   
   const { totalEarnings, songsCount, collaboratorsCount, totalStreams } = useRoyaltiesStats();
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Royalties</h1>
-        <p className="text-muted-foreground">
-          Gestiona tus ganancias y splits de canciones
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Royalties</h1>
+          <p className="text-muted-foreground">
+            Gestiona tus ganancias y splits de canciones
+          </p>
+        </div>
+        <ArtistFilter value={selectedArtist} onChange={setSelectedArtist} />
       </div>
 
       {/* Stats Cards */}

@@ -3098,6 +3098,7 @@ export type Database = {
         Args: { client_ip?: unknown; epk_slug: string }
         Returns: Json
       }
+      check_pending_royalty_payments: { Args: never; Returns: undefined }
       generate_contact_slug: { Args: never; Returns: string }
       generate_epk_slug: { Args: { artista_proyecto: string }; Returns: string }
       get_profile_id_by_user: { Args: { _user_id: string }; Returns: string }
