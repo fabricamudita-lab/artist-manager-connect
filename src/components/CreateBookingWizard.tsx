@@ -243,6 +243,15 @@ export function CreateBookingWizard({
         }
       }
 
+      // Map estado to phase for Kanban compatibility
+      const estadoToPhase: Record<string, string> = {
+        'pendiente': 'interes',
+        'oferta': 'oferta',
+        'negociacion': 'negociacion',
+        'confirmado': 'confirmado',
+        'cancelado': 'cancelado',
+      };
+
       // Build offer data
       const offerData = {
         // General
@@ -266,6 +275,7 @@ export function CreateBookingWizard({
           ? `Door Split: ${dealData.door_split_percentage}%` 
           : dealData.oferta,
         estado: dealData.estado,
+        phase: estadoToPhase[dealData.estado] || 'interes',
         formato: dealData.formato,
         condiciones: dealData.condiciones,
         info_comentarios: dealData.info_comentarios,
