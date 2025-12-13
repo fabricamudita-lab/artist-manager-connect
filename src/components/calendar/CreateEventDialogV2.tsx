@@ -64,6 +64,15 @@ const personalCategories = [
   { value: 'other', label: 'Otros' }
 ] as const;
 
+const interviewFormats = [
+  { value: 'presencial', label: 'Presencial' },
+  { value: 'telefonica', label: 'Telefónica' },
+  { value: 'video', label: 'Videollamada' },
+  { value: 'escrita', label: 'Escrita' },
+  { value: 'radio', label: 'Radio' },
+  { value: 'tv', label: 'TV' },
+] as const;
+
 const formSchema = z.object({
   eventContext: z.enum(['project', 'personal']),
   project_id: z.string().optional(),
@@ -76,6 +85,13 @@ const formSchema = z.object({
   description: z.string().optional(),
   invitees: z.array(z.string()).default([]),
   syncWithGoogle: z.boolean().default(false),
+  // Interview-specific fields
+  interview_program: z.string().optional(),
+  interview_medio: z.string().optional(),
+  interview_formato: z.string().optional(),
+  interview_entrevistador: z.string().optional(),
+  interview_info_adicional: z.string().optional(),
+  interview_comentarios: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -128,11 +144,18 @@ export function CreateEventDialogV2({
       description: '',
       invitees: [],
       syncWithGoogle: false,
+      interview_program: '',
+      interview_medio: '',
+      interview_formato: '',
+      interview_entrevistador: '',
+      interview_info_adicional: '',
+      interview_comentarios: '',
     },
   });
 
   const eventContext = form.watch('eventContext');
   const selectedProjectId = form.watch('project_id');
+  const selectedEventType = form.watch('event_type');
 
   // Fetch projects
   useEffect(() => {
@@ -266,12 +289,27 @@ export function CreateEventDialogV2({
         }
       }
 
+      // Build description with interview data if applicable
+      let fullDescription = data.description || '';
+      if (data.event_type === 'interview') {
+        const interviewParts = [];
+        if (data.interview_program) interviewParts.push(`Programa: ${data.interview_program}`);
+        if (data.interview_medio) interviewParts.push(`Medio/Canal: ${data.interview_medio}`);
+        if (data.interview_formato) interviewParts.push(`Formato: ${data.interview_formato}`);
+        if (data.interview_entrevistador) interviewParts.push(`Entrevistador: ${data.interview_entrevistador}`);
+        if (data.interview_info_adicional) interviewParts.push(`Info adicional: ${data.interview_info_adicional}`);
+        if (data.interview_comentarios) interviewParts.push(`Comentarios: ${data.interview_comentarios}`);
+        if (interviewParts.length > 0) {
+          fullDescription = interviewParts.join('\n') + (fullDescription ? '\n\n' + fullDescription : '');
+        }
+      }
+
       const eventPayload = {
         title: data.title,
         event_type: data.event_type,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
-        description: data.description || null,
+        description: fullDescription || null,
         artist_id: artistId,
         created_by: profile.id,
         // Note: events table doesn't have project_id column
@@ -477,6 +515,120 @@ export function CreateEventDialogV2({
                 </FormItem>
               )}
             />
+
+            {/* Interview-specific fields */}
+            {selectedEventType === 'interview' && (
+              <div className="space-y-4 p-4 border border-primary/20 rounded-lg bg-primary/5">
+                <h4 className="text-sm font-semibold text-primary uppercase tracking-wide">
+                  Información Específica - Entrevista
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="interview_program"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Programa</FormLabel>
+                        <FormControl>
+                          <Input placeholder="La Ventana" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="interview_medio"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Medio / Canal</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Cadena SER" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="interview_formato"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Formato</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona formato" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {interviewFormats.map((format) => (
+                            <SelectItem key={format.value} value={format.value}>
+                              {format.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="interview_entrevistador"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre del entrevistador</FormLabel>
+                      <FormControl>
+                        <Input placeholder="María García" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="interview_info_adicional"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Información adicional</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Enlace, preguntas previstas, temática..." 
+                          className="resize-none h-20"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="interview_comentarios"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Comentarios de la solicitante</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Cualquier información adicional relevante" 
+                          className="resize-none h-20"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
 
             {/* Date & Time - Compact Row */}
             <div className="grid grid-cols-2 gap-3">
