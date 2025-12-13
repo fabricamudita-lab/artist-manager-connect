@@ -39,8 +39,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 
 const eventTypes = [
   { value: 'concert', label: 'Concierto' },
@@ -70,6 +72,7 @@ const formSchema = z.object({
   end_time: z.string().min(1, 'Hora requerida'),
   description: z.string().optional(),
   location: z.string().optional(),
+  syncWithGoogle: z.boolean().default(false),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -101,6 +104,7 @@ export function EditEventDialogControlled({ event, open, onOpenChange, onUpdated
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const { isConnected: googleConnected, createEvent: createGoogleEvent } = useGoogleCalendar();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -115,6 +119,7 @@ export function EditEventDialogControlled({ event, open, onOpenChange, onUpdated
       end_date: undefined,
       description: '',
       location: '',
+      syncWithGoogle: false,
     },
   });
 
@@ -160,6 +165,7 @@ export function EditEventDialogControlled({ event, open, onOpenChange, onUpdated
         end_time: format(end, 'HH:mm'),
         description: event.description || '',
         location: event.location || '',
+        syncWithGoogle: false,
       });
     }
   }, [event, open, form]);
@@ -192,6 +198,16 @@ export function EditEventDialogControlled({ event, open, onOpenChange, onUpdated
         .eq('id', event.id);
 
       if (error) throw error;
+
+      // Sync with Google if requested
+      if (data.syncWithGoogle && googleConnected) {
+        await createGoogleEvent({
+          summary: data.title,
+          description: data.description || '',
+          start: { dateTime: startDateTime.toISOString(), timeZone: 'Europe/Madrid' },
+          end: { dateTime: endDateTime.toISOString(), timeZone: 'Europe/Madrid' },
+        });
+      }
 
       toast({ 
         title: "Evento actualizado", 
@@ -443,6 +459,27 @@ export function EditEventDialogControlled({ event, open, onOpenChange, onUpdated
                 </FormItem>
               )}
             />
+
+            {/* Google Sync */}
+            {googleConnected && (
+              <FormField
+                control={form.control}
+                name="syncWithGoogle"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormLabel className="text-sm font-normal cursor-pointer">
+                      Sincronizar con Google Calendar
+                    </FormLabel>
+                  </FormItem>
+                )}
+              />
+            )}
 
             <DialogFooter>
               <Button 
