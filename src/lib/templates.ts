@@ -1,0 +1,8 @@
+// Plantillas básicas de contratos para el generador
+// Clave: nombre visible en el selector, Valor: texto del contrato con placeholders {{campo}}
+
+export const templates: Record<string, string> = {
+  "Contrato estándar": `CONTRATO DE PRESTACIÓN DE SERVICIOS ARTÍSTICOS\n\nEntre {{nombre_artista}} con NIF {{nif_artista}} y domicilio en {{direccion_artista}} (en adelante, EL ARTISTA) y {{nombre_promotor}} con NIF {{nif_promotor}} y domicilio en {{direccion_promotor}} (en adelante, EL PROMOTOR), se acuerda lo siguiente:\n\n1. OBJETO\nEl artista se compromete a la realización de la actuación denominada {{nombre_evento}} el día {{fecha_evento}} en {{lugar_evento}}.\n\n2. HONORARIOS\nLos honorarios pactados ascienden a {{importe_cache}} euros más impuestos aplicables.\n\n3. PAGO\nEl pago se realizará mediante {{forma_pago}} en la fecha {{fecha_pago}}.\n\n4. OTRAS CLÁUSULAS\n{{otras_clausulas}}\n\nEn prueba de conformidad, ambas partes firman el presente contrato.`,
+
+  "Contrato festival": `CONTRATO DE ACTUACIÓN EN FESTIVAL\n\nEntre {{nombre_artista}} con NIF {{nif_artista}} y {{nombre_promotor}} con NIF {{nif_promotor}}, para la participación en el festival {{nombre_festival}} que tendrá lugar en {{lugar_evento}} los días {{fecha_evento}}.\n\n1. DURACIÓN DEL SHOW\nLa actuación tendrá una duración aproximada de {{duracion_show}} minutos.\n\n2. CONDICIONES TÉCNICAS\nEl promotor facilitará el backline y condiciones técnicas descritas en el rider adjunto.\n\n3. CONTRAPRESTACIÓN ECONÓMICA\nSe acuerda un fee total de {{importe_cache}} euros más impuestos.\n\n4. OTRAS CONDICIONES\n{{otras_clausulas}}\n\nFirmado en {{lugar_firma}} a {{fecha_firma}}.`,
+};
