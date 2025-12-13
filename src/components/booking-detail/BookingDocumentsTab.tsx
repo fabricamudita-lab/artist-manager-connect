@@ -35,7 +35,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ContractGenerator } from '@/components/ContractGenerator';
 import jsPDF from 'jspdf';
-
+import cityzenLogo from "@/assets/cityzen-logo.png";
 interface BookingDocument {
   id: string;
   booking_id: string;
@@ -231,7 +231,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
     });
   };
 
-  // Download contract as PDF
+  // Download contract as PDF with Cityzen logo
   const handleDownloadPDF = (doc: BookingDocument) => {
     const content = contractContents[doc.id];
     if (!content) {
@@ -249,26 +249,59 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
     const maxWidth = pageWidth - margin * 2;
     const lineHeight = 5;
     
+    // Add logo to page
+    const addLogo = () => {
+      try {
+        const logoWidth = 40;
+        const logoHeight = 15;
+        const logoX = (pageWidth - logoWidth) / 2;
+        pdf.addImage(cityzenLogo, 'PNG', logoX, 10, logoWidth, logoHeight);
+        return 30; // Return starting Y position after logo
+      } catch {
+        return margin;
+      }
+    };
+    
+    let y = addLogo();
+    let pageNumber = 1;
+    
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(10);
     
     const lines = pdf.splitTextToSize(content, maxWidth);
-    let y = margin;
+    
+    const addPageNumber = () => {
+      pdf.setFontSize(8);
+      pdf.text(String(pageNumber), pageWidth / 2, pageHeight - 10, { align: 'center' });
+      pdf.setFontSize(10);
+    };
     
     lines.forEach((line: string) => {
-      if (y + lineHeight > pageHeight - margin) {
+      if (y + lineHeight > pageHeight - 20) {
+        addPageNumber();
         pdf.addPage();
-        y = margin;
+        pageNumber++;
+        y = addLogo();
       }
-      if (line.includes("═") || (line.length < 60 && line === line.toUpperCase() && line.trim().length > 0)) {
+      
+      // Check for section headers
+      const isSectionHeader = /^\d+\./.test(line.trim()) || 
+        (line.length < 70 && line === line.toUpperCase() && line.trim().length > 0 && !line.includes('-'));
+      
+      if (isSectionHeader) {
         pdf.setFont("helvetica", "bold");
+        if (/^\d+\./.test(line.trim()) && !line.includes('.1') && !line.includes('.2') && !line.includes('.3')) {
+          y += 3;
+        }
       } else {
         pdf.setFont("helvetica", "normal");
       }
+      
       pdf.text(line, margin, y);
       y += lineHeight;
     });
     
+    addPageNumber();
     pdf.save(doc.file_name.replace(/\.[^/.]+$/, '') + '.pdf');
     toast({ description: "PDF descargado correctamente" });
   };

@@ -39,6 +39,7 @@ import {
 } from "@/lib/contractTemplates";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import cityzenLogo from "@/assets/cityzen-logo.png";
 
 type ContractGeneratorProps = {
   open: boolean;
@@ -504,13 +505,18 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
   const renderLegalStep = () => (
     <div className="space-y-4">
       {[
-        { key: 'propiedadIntelectual', label: 'Propiedad Intelectual' },
-        { key: 'grabaciones', label: 'Grabaciones' },
-        { key: 'publicidad', label: 'Publicidad' },
-        { key: 'patrocinios', label: 'Patrocinios' },
-        { key: 'cancelacion', label: 'Cancelación' },
-        { key: 'fuerzaMayor', label: 'Fuerza Mayor' },
-        { key: 'jurisdiccion', label: 'Jurisdicción' },
+        { key: 'propiedadIntelectual', label: '1. Propiedad Intelectual' },
+        { key: 'grabaciones', label: '1.2 Grabaciones' },
+        { key: 'publicidad', label: '2. Publicidad' },
+        { key: 'patrocinios', label: '2.2 Patrocinios' },
+        { key: 'merchandising', label: '2.3 Entrevistas y promoción' },
+        { key: 'recinto', label: '3. Recinto, escenario y camerinos' },
+        { key: 'riders', label: '4. Riders técnico y hospitality' },
+        { key: 'obligaciones', label: '5. Otras obligaciones' },
+        { key: 'cancelacion', label: '5.2 Cancelación' },
+        { key: 'fuerzaMayor', label: '5.3 Fuerza Mayor' },
+        { key: 'confidencialidad', label: '7. Confidencialidad' },
+        { key: 'jurisdiccion', label: '8. Ley y Jurisdicción' },
       ].map(item => (
         <div key={item.key} className="space-y-2">
           <Label>{item.label}</Label>
@@ -533,7 +539,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     </div>
   );
 
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     const content = generateContract();
     const doc = new jsPDF();
     
@@ -543,21 +549,51 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     const maxWidth = pageWidth - margin * 2;
     const lineHeight = 5;
     
+    // Add logo to first page
+    const addLogo = () => {
+      try {
+        const logoWidth = 40;
+        const logoHeight = 15;
+        const logoX = (pageWidth - logoWidth) / 2;
+        doc.addImage(cityzenLogo, 'PNG', logoX, 10, logoWidth, logoHeight);
+        return 30; // Return starting Y position after logo
+      } catch {
+        return margin;
+      }
+    };
+    
+    let y = addLogo();
+    let pageNumber = 1;
+    
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     
     const lines = doc.splitTextToSize(content, maxWidth);
-    let y = margin;
+    
+    const addPageNumber = () => {
+      doc.setFontSize(8);
+      doc.text(String(pageNumber), pageWidth / 2, pageHeight - 10, { align: 'center' });
+      doc.setFontSize(10);
+    };
     
     lines.forEach((line: string) => {
-      if (y + lineHeight > pageHeight - margin) {
+      if (y + lineHeight > pageHeight - 20) {
+        addPageNumber();
         doc.addPage();
-        y = margin;
+        pageNumber++;
+        // Add logo to each page
+        y = addLogo();
       }
       
-      // Check for headers (lines with === or all caps short lines)
-      if (line.includes("═") || (line.length < 60 && line === line.toUpperCase() && line.trim().length > 0)) {
+      // Check for section headers (numbered sections like "1.", "2.", etc. or all caps)
+      const isSectionHeader = /^\d+\./.test(line.trim()) || 
+        (line.length < 70 && line === line.toUpperCase() && line.trim().length > 0 && !line.includes('-'));
+      
+      if (isSectionHeader) {
         doc.setFont("helvetica", "bold");
+        if (/^\d+\./.test(line.trim()) && !line.includes('.1') && !line.includes('.2') && !line.includes('.3')) {
+          y += 3; // Add extra spacing before main sections
+        }
       } else {
         doc.setFont("helvetica", "normal");
       }
@@ -565,6 +601,9 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
       doc.text(line, margin, y);
       y += lineHeight;
     });
+    
+    // Add page number to last page
+    addPageNumber();
     
     const fileName = `Contrato_${conditions.artista.replace(/\s+/g, "_")}_${conditions.evento || conditions.ciudad || "booking"}.pdf`;
     doc.save(fileName);
