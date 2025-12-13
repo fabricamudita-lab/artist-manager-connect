@@ -274,7 +274,7 @@ export function CreateEventDialogV2({
         description: data.description || null,
         artist_id: artistId,
         created_by: profile.id,
-        project_id: data.eventContext === 'project' ? data.project_id : null,
+        // Note: events table doesn't have project_id column
       };
 
       const { data: eventData, error: eventError } = await supabase
