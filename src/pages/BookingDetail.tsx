@@ -37,6 +37,7 @@ interface BookingOffer {
   id: string;
   fecha?: string;
   hora?: string;
+  duracion?: string;
   festival_ciclo?: string;
   ciudad?: string;
   pais?: string;
@@ -47,6 +48,7 @@ interface BookingOffer {
   phase?: string;
   promotor?: string;
   fee?: number;
+  pvp?: number;
   gastos_estimados?: number;
   comision_porcentaje?: number;
   comision_euros?: number;
@@ -62,6 +64,10 @@ interface BookingOffer {
   link_venta?: string;
   inicio_venta?: string;
   contratos?: string;
+  logistica?: string;
+  publico?: string;
+  invitaciones?: number;
+  notas?: string;
   artist_id?: string;
   project_id?: string;
   event_id?: string;

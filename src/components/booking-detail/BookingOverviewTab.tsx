@@ -31,6 +31,13 @@ interface BookingOverviewTabProps {
     inicio_venta?: string;
     es_cityzen?: boolean;
     fee?: number;
+    pvp?: number;
+    duracion?: string;
+    invitaciones?: number;
+    logistica?: string;
+    contratos?: string;
+    publico?: string;
+    capacidad?: number;
   };
   onUpdate: () => void;
 }
@@ -79,26 +86,66 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Fee / Caché</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Oferta / Fee</p>
               <p className="text-2xl font-bold text-primary">
                 {booking.fee ? `${booking.fee.toLocaleString()}€` : '-'}
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Tipo de Oferta</p>
-              <p className="font-medium">{booking.oferta || 'Flat Fee'}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">PVP Entradas</p>
+              <p className="font-medium">{booking.pvp ? `${booking.pvp.toLocaleString()}€` : '-'}</p>
             </div>
           </div>
 
-          {booking.formato && (
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                <Music className="h-3 w-3" />
-                Formato
-              </p>
-              <p className="font-medium">{booking.formato}</p>
-            </div>
-          )}
+          <div className="grid grid-cols-3 gap-4">
+            {booking.formato && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <Music className="h-3 w-3" />
+                  Formato
+                </p>
+                <p className="font-medium">{booking.formato}</p>
+              </div>
+            )}
+            {booking.duracion && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  Duración
+                </p>
+                <p className="font-medium">{booking.duracion}</p>
+              </div>
+            )}
+            {booking.publico && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Público</p>
+                <p className="font-medium capitalize">{booking.publico.replace('_', ' ')}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            {booking.capacidad && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Capacidad</p>
+                <p className="font-medium">{booking.capacidad.toLocaleString()}</p>
+              </div>
+            )}
+            {booking.invitaciones !== undefined && booking.invitaciones !== null && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Invitaciones</p>
+                <p className="font-medium">{booking.invitaciones}</p>
+              </div>
+            )}
+            {booking.contratos && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Contrato</p>
+                <Badge variant={booking.contratos === 'firmado' ? 'default' : 'secondary'}>
+                  {booking.contratos === 'por_hacer' ? 'Por Hacer' : booking.contratos === 'enviado' ? 'Enviado' : 'Firmado'}
+                </Badge>
+              </div>
+            )}
+          </div>
 
           {booking.condiciones && (
             <div className="space-y-1">
@@ -181,6 +228,21 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
           )}
         </CardContent>
       </Card>
+
+      {/* Logistics */}
+      {booking.logistica && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Logística
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{booking.logistica}</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Artist Notes */}
       <Card>

@@ -33,10 +33,12 @@ interface BookingOffer {
   lugar?: string | null;
   venue?: string | null;
   capacidad?: number | null;
+  duracion?: string | null;
   estado?: string | null;
   phase?: string | null;
   promotor?: string | null;
   fee?: number | null;
+  pvp?: number | null;
   gastos_estimados?: number | null;
   comision_porcentaje?: number | null;
   comision_euros?: number | null;
@@ -53,6 +55,10 @@ interface BookingOffer {
   inicio_venta?: string | null;
   folder_url?: string | null;
   notas?: string | null;
+  logistica?: string | null;
+  contratos?: string | null;
+  publico?: string | null;
+  invitaciones?: number | null;
   anunciado?: boolean | null;
   es_privado?: boolean | null;
 }
@@ -93,6 +99,18 @@ const FORMAT_OPTIONS = [
   'Live Set',
 ];
 
+const CONTRACT_STATUS_OPTIONS = [
+  'por_hacer',
+  'enviado',
+  'firmado',
+];
+
+const AUDIENCE_OPTIONS = [
+  'sentado',
+  'de_pie',
+  'mix',
+];
+
 export function EditBookingDialog({
   open,
   onOpenChange,
@@ -120,6 +138,7 @@ export function EditBookingDialog({
         .update({
           fecha: formData.fecha,
           hora: formData.hora,
+          duracion: formData.duracion,
           festival_ciclo: formData.festival_ciclo,
           ciudad: formData.ciudad,
           pais: formData.pais,
@@ -130,6 +149,7 @@ export function EditBookingDialog({
           phase: formData.phase,
           promotor: formData.promotor,
           fee: formData.fee,
+          pvp: formData.pvp,
           gastos_estimados: formData.gastos_estimados,
           comision_porcentaje: formData.comision_porcentaje,
           comision_euros: formData.comision_euros,
@@ -146,6 +166,10 @@ export function EditBookingDialog({
           inicio_venta: formData.inicio_venta,
           folder_url: formData.folder_url,
           notas: formData.notas,
+          logistica: formData.logistica,
+          contratos: formData.contratos,
+          publico: formData.publico,
+          invitaciones: formData.invitaciones,
           anunciado: formData.anunciado,
           es_privado: formData.es_privado,
         })
@@ -200,7 +224,7 @@ export function EditBookingDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label>Fecha</Label>
                 <Input
@@ -218,12 +242,59 @@ export function EditBookingDialog({
                 />
               </div>
               <div className="space-y-2">
+                <Label>Duración</Label>
+                <Input
+                  value={formData.duracion || ''}
+                  onChange={(e) => updateField('duracion', e.target.value)}
+                  placeholder="ej: 1h 30min"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label>Capacidad</Label>
                 <Input
                   type="number"
                   value={formData.capacidad || ''}
                   onChange={(e) => updateField('capacidad', parseInt(e.target.value) || null)}
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Público</Label>
+                <Select
+                  value={formData.publico || ''}
+                  onValueChange={(v) => updateField('publico', v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AUDIENCE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt} value={opt}>
+                        {opt === 'sentado' ? 'Sentado' : opt === 'de_pie' ? 'De pie' : 'Mix'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Contrato</Label>
+                <Select
+                  value={formData.contratos || ''}
+                  onValueChange={(v) => updateField('contratos', v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Estado contrato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CONTRACT_STATUS_OPTIONS.map((opt) => (
+                      <SelectItem key={opt} value={opt}>
+                        {opt === 'por_hacer' ? 'Por Hacer' : opt === 'enviado' ? 'Enviado' : 'Firmado'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -353,13 +424,21 @@ export function EditBookingDialog({
 
           {/* Financial Tab */}
           <TabsContent value="financial" className="space-y-4 pt-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Fee (€)</Label>
+                <Label>Oferta / Fee (€)</Label>
                 <Input
                   type="number"
                   value={formData.fee || ''}
                   onChange={(e) => updateField('fee', parseFloat(e.target.value) || null)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>PVP Entradas (€)</Label>
+                <Input
+                  type="number"
+                  value={formData.pvp || ''}
+                  onChange={(e) => updateField('pvp', parseFloat(e.target.value) || null)}
                 />
               </div>
               <div className="space-y-2">
@@ -433,7 +512,7 @@ export function EditBookingDialog({
 
           {/* Details Tab */}
           <TabsContent value="details" className="space-y-4 pt-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Promotor</Label>
                 <Input
@@ -448,14 +527,24 @@ export function EditBookingDialog({
                   onChange={(e) => updateField('contacto', e.target.value)}
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Tour Manager</Label>
+                <Input
+                  value={formData.tour_manager || ''}
+                  onChange={(e) => updateField('tour_manager', e.target.value)}
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Tour Manager</Label>
-              <Input
-                value={formData.tour_manager || ''}
-                onChange={(e) => updateField('tour_manager', e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Invitaciones</Label>
+                <Input
+                  type="number"
+                  value={formData.invitaciones || ''}
+                  onChange={(e) => updateField('invitaciones', parseInt(e.target.value) || null)}
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -488,7 +577,17 @@ export function EditBookingDialog({
             </div>
 
             <div className="space-y-2">
-              <Label>Notas Internas</Label>
+              <Label>Logística</Label>
+              <Textarea
+                value={formData.logistica || ''}
+                onChange={(e) => updateField('logistica', e.target.value)}
+                placeholder="Detalles de logística, transporte, hospedaje..."
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Comentarios / Notas Internas</Label>
               <Textarea
                 value={formData.notas || ''}
                 onChange={(e) => updateField('notas', e.target.value)}
