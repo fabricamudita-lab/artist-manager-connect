@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { ChevronLeft, ChevronRight, Users, FolderKanban, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, FolderKanban, Filter, UserCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArtistSelector } from '@/components/ArtistSelector';
@@ -21,11 +21,17 @@ interface CalendarToolbarProps {
   setSelectedArtists: (artists: string[]) => void;
   selectedProjects: string[];
   setSelectedProjects: (projects: string[]) => void;
+  selectedTeam: string;
+  setSelectedTeam: (team: string) => void;
   selectedDepartment: string;
   setSelectedDepartment: (dept: string) => void;
   projects: {
     id: string;
     name: string;
+  }[];
+  teamMembers: {
+    id: string;
+    full_name: string;
   }[];
 }
 export function CalendarToolbar({
@@ -39,9 +45,12 @@ export function CalendarToolbar({
   setSelectedArtists,
   selectedProjects,
   setSelectedProjects,
+  selectedTeam,
+  setSelectedTeam,
   selectedDepartment,
   setSelectedDepartment,
-  projects
+  projects,
+  teamMembers
 }: CalendarToolbarProps) {
   const getDateLabel = () => {
     switch (viewMode) {
@@ -64,7 +73,7 @@ export function CalendarToolbar({
         });
     }
   };
-  const activeFiltersCount = (selectedArtists.length > 0 ? 1 : 0) + (selectedProjects.length > 0 ? 1 : 0) + (selectedDepartment !== 'all' ? 1 : 0);
+  const activeFiltersCount = (selectedArtists.length > 0 ? 1 : 0) + (selectedProjects.length > 0 ? 1 : 0) + (selectedTeam !== 'all' ? 1 : 0) + (selectedDepartment !== 'all' ? 1 : 0);
   return <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-card border rounded-lg">
       {/* Left: Filters */}
       <div className="flex items-center gap-3">
@@ -104,6 +113,24 @@ export function CalendarToolbar({
                     <SelectItem value="all">Todos los proyectos</SelectItem>
                     {projects.map(project => <SelectItem key={project.id} value={project.id}>
                         {project.name}
+                      </SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Team Members */}
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <UserCircle className="h-3 w-3" /> Equipo
+                </label>
+                <Select value={selectedTeam} onValueChange={setSelectedTeam}>
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="Todos los miembros" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los miembros</SelectItem>
+                    {teamMembers.map(member => <SelectItem key={member.id} value={member.id}>
+                        {member.full_name}
                       </SelectItem>)}
                   </SelectContent>
                 </Select>

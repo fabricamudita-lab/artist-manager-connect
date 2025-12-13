@@ -44,8 +44,10 @@ export default function Calendar() {
   const [eventsLoading, setEventsLoading] = useState(true);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   const [projects, setProjects] = useState<any[]>([]);
+  const [teamMembers, setTeamMembers] = useState<{id: string; full_name: string}[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isImporting, setIsImporting] = useState(false);
   const {
@@ -104,6 +106,7 @@ export default function Calendar() {
       fetchEvents();
       fetchBookingOffers();
       fetchProjects();
+      fetchTeamMembers();
     }
   }, [profile, selectedArtists, selectedProjects, selectedDepartment, showMyCalendar, showAllEvents]);
 
@@ -219,6 +222,21 @@ export default function Calendar() {
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
+    }
+  };
+  const fetchTeamMembers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .order('full_name', { ascending: true });
+      if (error) {
+        console.error('Error fetching team members:', error);
+      } else {
+        setTeamMembers(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching team members:', error);
     }
   };
   const handleImportCsvClick = () => {
@@ -802,9 +820,12 @@ export default function Calendar() {
         setSelectedArtists={setSelectedArtists}
         selectedProjects={selectedProjects}
         setSelectedProjects={setSelectedProjects}
+        selectedTeam={selectedTeam}
+        setSelectedTeam={setSelectedTeam}
         selectedDepartment={selectedDepartment}
         setSelectedDepartment={setSelectedDepartment}
         projects={projects}
+        teamMembers={teamMembers}
       />
 
       {/* Create Event Dialog V2 */}
