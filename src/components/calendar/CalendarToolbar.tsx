@@ -159,9 +159,7 @@ export function CalendarToolbar({
         {/* My Calendar Toggle - Compact inline */}
         <div className="flex items-center gap-2 text-sm">
           <Switch id="my-calendar" checked={showMyCalendar} onCheckedChange={setShowMyCalendar} className="data-[state=checked]:bg-primary" />
-          <label htmlFor="my-calendar" className="text-muted-foreground cursor-pointer whitespace-nowrap">
-            Mi Calendario
-          </label>
+          
         </div>
       </div>
 
