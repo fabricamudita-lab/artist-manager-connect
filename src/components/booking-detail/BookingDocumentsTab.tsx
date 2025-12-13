@@ -4,6 +4,19 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { 
   FileText, 
   Upload,
   Download,
@@ -12,13 +25,16 @@ import {
   Link as LinkIcon,
   CheckCircle,
   Edit3,
-  Eye
+  Eye,
+  MoreHorizontal,
+  Pencil
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ContractGenerator } from '@/components/ContractGenerator';
+import jsPDF from 'jspdf';
 
 interface BookingDocument {
   id: string;
@@ -68,6 +84,9 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [showContractGenerator, setShowContractGenerator] = useState(false);
+  const [editingContract, setEditingContract] = useState<BookingDocument | null>(null);
+  const [viewingContract, setViewingContract] = useState<BookingDocument | null>(null);
+  const [contractContents, setContractContents] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchDocuments();
@@ -143,38 +162,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
     }
   };
 
-  const handleContractSave = async (contract: { title: string; content: string; pdfUrl?: string }) => {
-    try {
-      const { error } = await (supabase as any)
-        .from('booking_documents')
-        .insert({
-          booking_id: booking.id,
-          file_name: `${contract.title}.pdf`,
-          file_url: 'generated',
-          file_type: 'application/pdf',
-          document_type: 'contract',
-          status: 'draft',
-          created_by: profile?.user_id,
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Contrato guardado",
-        description: "El contrato se ha guardado. Usa el botón de ver/descargar para obtener el PDF.",
-      });
-
-      setShowContractGenerator(false);
-      fetchDocuments();
-    } catch (error) {
-      console.error('Error saving contract:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo guardar el contrato.",
-        variant: "destructive",
-      });
-    }
-  };
+  // Old handleContractSave removed - now using the new one defined below
 
   const handleUpdateStatus = async (docId: string, newStatus: string) => {
     try {
@@ -234,6 +222,117 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
     });
   };
 
+  // Download contract as PDF
+  const handleDownloadPDF = (doc: BookingDocument) => {
+    const content = contractContents[doc.id];
+    if (!content) {
+      // If no generated content, just open the file URL
+      if (doc.file_url && doc.file_url !== 'generated') {
+        window.open(doc.file_url, '_blank');
+      }
+      return;
+    }
+    
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 20;
+    const maxWidth = pageWidth - margin * 2;
+    const lineHeight = 5;
+    
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+    
+    const lines = pdf.splitTextToSize(content, maxWidth);
+    let y = margin;
+    
+    lines.forEach((line: string) => {
+      if (y + lineHeight > pageHeight - margin) {
+        pdf.addPage();
+        y = margin;
+      }
+      if (line.includes("═") || (line.length < 60 && line === line.toUpperCase() && line.trim().length > 0)) {
+        pdf.setFont("helvetica", "bold");
+      } else {
+        pdf.setFont("helvetica", "normal");
+      }
+      pdf.text(line, margin, y);
+      y += lineHeight;
+    });
+    
+    pdf.save(doc.file_name.replace(/\.[^/.]+$/, '') + '.pdf');
+    toast({ description: "PDF descargado correctamente" });
+  };
+
+  // View contract in a dialog
+  const handleViewContract = (doc: BookingDocument) => {
+    if (doc.file_url && doc.file_url !== 'generated') {
+      window.open(doc.file_url, '_blank');
+    } else {
+      setViewingContract(doc);
+    }
+  };
+
+  // Edit contract (only if not signed)
+  const handleEditContract = (doc: BookingDocument) => {
+    if (doc.status === 'signed') {
+      toast({
+        title: "No se puede editar",
+        description: "Los contratos firmados no se pueden editar.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setEditingContract(doc);
+    setShowContractGenerator(true);
+  };
+
+  // Save contract content when generated
+  const handleContractSave = async (contract: { title: string; content: string }) => {
+    try {
+      if (editingContract) {
+        // Update existing
+        await (supabase as any)
+          .from('booking_documents')
+          .update({ file_name: contract.title + '.pdf' })
+          .eq('id', editingContract.id);
+        
+        setContractContents(prev => ({ ...prev, [editingContract.id]: contract.content }));
+        setEditingContract(null);
+      } else {
+        // Create new
+        const { data, error } = await (supabase as any)
+          .from('booking_documents')
+          .insert({
+            booking_id: booking.id,
+            file_name: contract.title + '.pdf',
+            file_url: 'generated',
+            file_type: 'application/pdf',
+            document_type: 'contract',
+            status: 'draft',
+            created_by: profile?.user_id,
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        if (data) {
+          setContractContents(prev => ({ ...prev, [data.id]: contract.content }));
+        }
+      }
+      
+      fetchDocuments();
+      toast({ description: "Contrato guardado correctamente" });
+    } catch (error) {
+      console.error('Error saving contract:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar el contrato.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Pre-fill contract data from booking
   const getBookingDataForContract = () => ({
     artista: '', // Will be filled by the contract generator or user
@@ -269,10 +368,43 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
       {/* Contract Generator Dialog */}
       <ContractGenerator
         open={showContractGenerator}
-        onOpenChange={setShowContractGenerator}
+        onOpenChange={(open) => {
+          setShowContractGenerator(open);
+          if (!open) setEditingContract(null);
+        }}
         bookingData={getBookingDataForContract()}
         onSave={handleContractSave}
       />
+
+      {/* Contract Viewer Dialog */}
+      <Dialog open={!!viewingContract} onOpenChange={(open) => !open && setViewingContract(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              {viewingContract?.file_name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="bg-muted/50 rounded-lg p-4 max-h-[60vh] overflow-y-auto">
+            <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
+              {viewingContract && contractContents[viewingContract.id] 
+                ? contractContents[viewingContract.id]
+                : 'No hay contenido disponible para este contrato. Puede que haya sido subido externamente.'}
+            </pre>
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            {viewingContract && contractContents[viewingContract.id] && (
+              <Button variant="outline" onClick={() => viewingContract && handleDownloadPDF(viewingContract)}>
+                <Download className="h-4 w-4 mr-2" />
+                Descargar PDF
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setViewingContract(null)}>
+              Cerrar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Contract Section */}
       <Card>
@@ -358,44 +490,43 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
                         </SelectContent>
                       </Select>
 
-                      {isGenerated ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setShowContractGenerator(true)}
-                          title="Abrir generador para ver/descargar"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      ) : doc.file_url ? (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => window.open(doc.file_url, '_blank')}
-                            title="Descargar"
-                          >
-                            <Download className="h-4 w-4" />
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleCopyLink(doc.file_url)}
-                            title="Copiar enlace"
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewContract(doc)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Ver contrato
+                          </DropdownMenuItem>
+                          {doc.status !== 'signed' && (
+                            <DropdownMenuItem onClick={() => handleEditContract(doc)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Editar contrato
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => handleDownloadPDF(doc)}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Descargar PDF
+                          </DropdownMenuItem>
+                          {doc.file_url && doc.file_url !== 'generated' && (
+                            <DropdownMenuItem onClick={() => handleCopyLink(doc.file_url)}>
+                              <LinkIcon className="h-4 w-4 mr-2" />
+                              Copiar enlace
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteDocument(doc.id)}
+                            className="text-destructive focus:text-destructive"
                           >
-                            <LinkIcon className="h-4 w-4" />
-                          </Button>
-                        </>
-                      ) : null}
-
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive opacity-0 group-hover:opacity-100"
-                        onClick={() => handleDeleteDocument(doc.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 );
