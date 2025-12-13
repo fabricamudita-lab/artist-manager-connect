@@ -27,6 +27,7 @@ interface EventDetailPopoverProps {
   position?: { x: number; y: number };
   zIndex?: number;
   onBringToFront?: () => void;
+  onPositionChange?: (position: { x: number; y: number }) => void;
 }
 
 export function EventDetailPopover({ 
@@ -39,7 +40,8 @@ export function EventDetailPopover({
   onDelete,
   position = { x: 0, y: 0 },
   zIndex = 50,
-  onBringToFront
+  onBringToFront,
+  onPositionChange
 }: EventDetailPopoverProps) {
   // Hook draggable
   const {
@@ -49,6 +51,7 @@ export function EventDetailPopover({
     handleMouseDown,
   } = useDraggable({
     initialPosition: position,
+    onPositionChange,
   });
 
   console.log('EventDetailPopover rendering with event:', event);

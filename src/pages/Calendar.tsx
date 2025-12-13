@@ -91,6 +91,7 @@ export default function Calendar() {
   }
   const [openEventPopups, setOpenEventPopups] = useState<OpenEventPopup[]>([]);
   const [highestZIndex, setHighestZIndex] = useState(100);
+  const [savedPopupPositions, setSavedPopupPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   useEffect(() => {
     if (profile) {
@@ -448,19 +449,25 @@ export default function Calendar() {
     // Verificar si el evento ya está abierto
     const existingPopup = openEventPopups.find(popup => popup.event.id === event.id);
     if (existingPopup) {
+      // Guardar la posición actual antes de cerrar
+      setSavedPopupPositions(prev => ({
+        ...prev,
+        [event.id]: existingPopup.position
+      }));
       // Si ya está abierto, cerrarlo (toggle)
       setOpenEventPopups(prev => prev.filter(popup => popup.id !== existingPopup.id));
       return;
     }
 
-    // Capturar la posición del clic
+    // Usar la posición guardada si existe, si no usar la posición del clic
     const rect = (mouseEvent.target as HTMLElement).getBoundingClientRect();
+    const savedPosition = savedPopupPositions[event.id];
     const newZIndex = highestZIndex + 1;
     setHighestZIndex(newZIndex);
     const newPopup: OpenEventPopup = {
       id: `popup-${event.id}-${Date.now()}`,
       event,
-      position: {
+      position: savedPosition || {
         x: rect.right + 10,
         y: rect.top
       },
@@ -478,7 +485,20 @@ export default function Calendar() {
     } : popup));
   };
   const closePopup = (popupId: string) => {
-    setOpenEventPopups(prev => prev.filter(popup => popup.id !== popupId));
+    const popup = openEventPopups.find(p => p.id === popupId);
+    if (popup) {
+      setSavedPopupPositions(prev => ({
+        ...prev,
+        [popup.event.id]: popup.position
+      }));
+    }
+    setOpenEventPopups(prev => prev.filter(p => p.id !== popupId));
+  };
+
+  const updatePopupPosition = (popupId: string, newPosition: { x: number; y: number }) => {
+    setOpenEventPopups(prev => prev.map(popup => 
+      popup.id === popupId ? { ...popup, position: newPosition } : popup
+    ));
   };
   const renderWeekView = () => {
     const weekDays = getWeekDays();
@@ -863,7 +883,7 @@ export default function Calendar() {
         </Card>}
 
       {/* Event Detail Popovers - Múltiples */}
-      {openEventPopups.map(popup => <EventDetailPopover key={popup.id} event={popup.event} open={true} onOpenChange={() => closePopup(popup.id)} position={popup.position} zIndex={popup.zIndex} onBringToFront={() => bringPopupToFront(popup.id)} artistName="David Solans" createdBy="Fabrica Mudita" onEdit={event => {
+      {openEventPopups.map(popup => <EventDetailPopover key={popup.id} event={popup.event} open={true} onOpenChange={() => closePopup(popup.id)} position={popup.position} zIndex={popup.zIndex} onBringToFront={() => bringPopupToFront(popup.id)} onPositionChange={(newPos) => updatePopupPosition(popup.id, newPos)} artistName="David Solans" createdBy="Fabrica Mudita" onEdit={event => {
       setEditingEvent(event);
     }} onDelete={eventId => {
       console.log('Delete event:', eventId);
