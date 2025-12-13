@@ -1,20 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { FileText } from "lucide-react";
-import { useState } from "react";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -28,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { FileText, Check, ChevronRight, ChevronLeft, ClipboardCopy, Eye } from "lucide-react";
 
 type ContractGeneratorProps = {
   open: boolean;
@@ -37,33 +29,52 @@ type ContractGeneratorProps = {
   initialData?: Record<string, string>;
 };
 
+interface WizardStep {
+  id: string;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+}
+
+const WIZARD_STEPS: WizardStep[] = [
+  {
+    id: 'template',
+    title: 'Plantilla',
+    description: 'Selecciona el tipo de contrato',
+    icon: <FileText className="h-5 w-5" />
+  },
+  {
+    id: 'data',
+    title: 'Datos',
+    description: 'Rellena la información del contrato',
+    icon: <ClipboardCopy className="h-5 w-5" />
+  },
+  {
+    id: 'preview',
+    title: 'Vista Previa',
+    description: 'Revisa y guarda el contrato',
+    icon: <Eye className="h-5 w-5" />
+  }
+];
+
 const ContractGenerator: React.FC<ContractGeneratorProps> = ({
   open,
   onOpenChange,
   onSave,
   initialData,
 }) => {
-  const [step, setStep] = useState<"template" | "data" | "preview">("template");
-  const [selectedTemplate, setSelectedTemplate] = useState(
-    Object.keys(templates)[0]
-  );
-  const [formData, setFormData] = useState<Record<string, string>>(
-    initialData || {}
-  );
+  const [currentStep, setCurrentStep] = useState(0);
+  const [selectedTemplate, setSelectedTemplate] = useState(Object.keys(templates)[0]);
+  const [formData, setFormData] = useState<Record<string, string>>(initialData || {});
 
-  const handleTemplateChange = (templateName: string) => {
-    setSelectedTemplate(templateName);
-    setStep("data");
+  const getTemplateFields = () => {
+    const matches = templates[selectedTemplate]?.match(/{{(.*?)}}/g) || [];
+    return [...new Set(matches.map(m => m.replace(/{{|}}/g, "")))];
   };
 
-  const handleInputChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = event.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const generateContractText = () => {
@@ -78,9 +89,15 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
   const handleSave = async () => {
     const content = generateContractText();
     if (onSave) {
-      await onSave({ title: "Contrato generado", content });
+      await onSave({ title: `Contrato - ${selectedTemplate}`, content });
     }
     onOpenChange(false);
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setCurrentStep(0);
+    setFormData({});
   };
 
   const copyToClipboard = () => {
@@ -88,122 +105,185 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     toast({ description: "Contrato copiado al portapapeles" });
   };
 
+  const canProceed = () => {
+    if (currentStep === 0) {
+      return !!selectedTemplate;
+    }
+    if (currentStep === 1) {
+      const fields = getTemplateFields();
+      return fields.every(field => formData[field]?.trim());
+    }
+    return true;
+  };
+
+  const handleNext = () => {
+    if (currentStep < WIZARD_STEPS.length - 1) {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
+
+  const renderStepIndicator = () => (
+    <div className="flex items-center justify-center mb-8">
+      {WIZARD_STEPS.map((step, index) => (
+        <div key={step.id} className="flex items-center">
+          <button
+            onClick={() => index < currentStep && setCurrentStep(index)}
+            disabled={index > currentStep}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-full transition-all",
+              index === currentStep && "bg-primary text-primary-foreground",
+              index < currentStep && "bg-primary/20 text-primary cursor-pointer hover:bg-primary/30",
+              index > currentStep && "bg-muted text-muted-foreground cursor-not-allowed"
+            )}
+          >
+            <span className="flex items-center justify-center w-6 h-6 rounded-full border-2 border-current">
+              {index < currentStep ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <span className="text-sm font-medium">{index + 1}</span>
+              )}
+            </span>
+            <span className="hidden sm:inline font-medium">{step.title}</span>
+          </button>
+          {index < WIZARD_STEPS.length - 1 && (
+            <ChevronRight className={cn(
+              "h-5 w-5 mx-2",
+              index < currentStep ? "text-primary" : "text-muted-foreground"
+            )} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderTemplateStep = () => (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Tipo de contrato</Label>
+        <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Selecciona una plantilla" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.keys(templates).map((templateName) => (
+              <SelectItem key={templateName} value={templateName}>
+                {templateName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+
+  const renderDataStep = () => {
+    const fields = getTemplateFields();
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {fields.map((field) => (
+            <div key={field} className="space-y-2">
+              <Label htmlFor={field}>
+                {field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                <span className="text-destructive ml-1">*</span>
+              </Label>
+              <Input
+                id={field}
+                name={field}
+                value={formData[field] || ""}
+                onChange={handleInputChange}
+                placeholder={`Introduce ${field.replace(/_/g, ' ')}`}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderPreviewStep = () => (
+    <div className="space-y-4">
+      <div className="bg-muted/50 rounded-lg p-4 max-h-[40vh] overflow-y-auto">
+        <pre className="whitespace-pre-wrap text-sm font-mono">
+          {generateContractText()}
+        </pre>
+      </div>
+      <div className="flex justify-center">
+        <Button variant="outline" onClick={copyToClipboard}>
+          <ClipboardCopy className="h-4 w-4 mr-2" />
+          Copiar al portapapeles
+        </Button>
+      </div>
+    </div>
+  );
+
+  const renderCurrentStep = () => {
+    switch (currentStep) {
+      case 0:
+        return renderTemplateStep();
+      case 1:
+        return renderDataStep();
+      case 2:
+        return renderPreviewStep();
+      default:
+        return null;
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Generador de Contratos
-            <Badge variant="outline" className="ml-2">
-              {step === "template" && "Paso 1: Plantilla"}
-              {step === "data" && "Paso 2: Datos"}
-              {step === "preview" && "Paso 3: Vista previa"}
-            </Badge>
-          </DialogTitle>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      onOpenChange(isOpen);
+      if (!isOpen) resetForm();
+    }}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-2xl">Generador de Contratos</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 overflow-y-auto pr-4">
-          {step === "template" && (
-            <div>
-              <h2 className="text-lg font-semibold mb-4">
-                Selecciona una plantilla:
-              </h2>
-              <Select onValueChange={handleTemplateChange}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Selecciona una plantilla" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.keys(templates).map((templateName) => (
-                    <SelectItem key={templateName} value={templateName}>
-                      {templateName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+        {renderStepIndicator()}
 
-          {step === "data" && (
-            <div>
-              <h2 className="text-lg font-semibold mb-4">
-                Introduce los datos:
-              </h2>
-              <Accordion type="single" collapsible>
-                {Object.keys(
-                  templates[selectedTemplate].match(/{{(.*?)}}/g)?.reduce(
-                    (acc: Record<string, boolean>, match) => {
-                      const key = match.replace(/{{|}}/g, "");
-                      acc[key] = true;
-                      return acc;
-                    },
-                    {}
-                  ) || {}
-                ).map((key) => (
-                  <AccordionItem value={key} key={key}>
-                    <AccordionTrigger>
-                      {key}
-                      <span
-                        className={cn(
-                          "ml-auto text-xs text-muted-foreground"
-                        )}
-                      >
-                        (requerido)
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="grid gap-2">
-                        <Label htmlFor={key}>{key}</Label>
-                        <Input
-                          type="text"
-                          id={key}
-                          name={key}
-                          value={formData[key] || ""}
-                          onChange={handleInputChange}
-                        />
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-              <Button
-                className="mt-4"
-                onClick={() => setStep("preview")}
-                disabled={
-                  Object.keys(
-                    templates[selectedTemplate].match(/{{(.*?)}}/g)?.reduce(
-                      (acc: Record<string, boolean>, match) => {
-                        const key = match.replace(/{{|}}/g, "");
-                        acc[key] = true;
-                        return acc;
-                      },
-                      {}
-                    ) || {}
-                  ).length > Object.keys(formData).length
-                }
-              >
-                Vista previa
-              </Button>
-            </div>
-          )}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {WIZARD_STEPS[currentStep].icon}
+              {WIZARD_STEPS[currentStep].title}
+            </CardTitle>
+            <CardDescription>{WIZARD_STEPS[currentStep].description}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {renderCurrentStep()}
+          </CardContent>
+        </Card>
 
-          {step === "preview" && (
-            <div>
-              <h2 className="text-lg font-semibold mb-4">Vista previa:</h2>
-              <div className="whitespace-pre-line">
-                {generateContractText()}
-              </div>
-            </div>
-          )}
-        </ScrollArea>
-
-        <div className="mt-4 flex justify-end gap-2 flex-shrink-0">
-          {step === "preview" && (
-            <Button variant="secondary" onClick={copyToClipboard}>
-              Copiar al portapapeles
+        <div className="flex justify-between pt-4">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={currentStep === 0 ? () => onOpenChange(false) : handleBack}
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            {currentStep === 0 ? 'Cancelar' : 'Anterior'}
+          </Button>
+          
+          {currentStep < WIZARD_STEPS.length - 1 ? (
+            <Button 
+              onClick={handleNext}
+              disabled={!canProceed()}
+            >
+              Siguiente
+              <ChevronRight className="h-4 w-4 ml-2" />
+            </Button>
+          ) : (
+            <Button onClick={handleSave}>
+              Guardar Contrato
             </Button>
           )}
-          <Button onClick={handleSave}>Guardar</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -212,4 +292,3 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
 
 export { ContractGenerator };
 export default ContractGenerator;
-
