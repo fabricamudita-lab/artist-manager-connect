@@ -164,12 +164,8 @@ export function CalendarToolbar({
           Hoy
         </Button>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onNavigate('prev')}>
-            
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onNavigate('next')}>
-            
-          </Button>
+          
+          
         </div>
         
       </div>
