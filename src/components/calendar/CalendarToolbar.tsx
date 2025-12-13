@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, Users, FolderKanban, Filter, UserCircle } from 'lucide-react';
+import { Users, FolderKanban, Filter, UserCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArtistSelector } from '@/components/ArtistSelector';
@@ -165,15 +165,13 @@ export function CalendarToolbar({
         </Button>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onNavigate('prev')}>
-            <ChevronLeft className="h-4 w-4" />
+            
           </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onNavigate('next')}>
-            <ChevronRight className="h-4 w-4" />
+            
           </Button>
         </div>
-        <span className="text-sm font-medium min-w-[180px] text-center capitalize">
-          {getDateLabel()}
-        </span>
+        
       </div>
     </div>;
 }
