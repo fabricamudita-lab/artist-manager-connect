@@ -12,6 +12,7 @@ interface CalendarToolbarProps {
   setViewMode: (mode: 'week' | 'month' | 'quarter' | 'year') => void;
   currentDate: Date;
   onNavigate: (direction: 'prev' | 'next') => void;
+  onGoToToday: () => void;
 
   // Filters
   showMyCalendar: boolean;
@@ -38,6 +39,7 @@ export function CalendarToolbar({
   setViewMode,
   currentDate,
   onNavigate,
+  onGoToToday,
   showMyCalendar,
   setShowMyCalendar,
   selectedArtists,
@@ -157,6 +159,21 @@ export function CalendarToolbar({
       </div>
 
       {/* Right: Views & Navigation */}
-      
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={onGoToToday}>
+          Hoy
+        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onNavigate('prev')}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onNavigate('next')}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <span className="text-sm font-medium min-w-[180px] text-center capitalize">
+          {getDateLabel()}
+        </span>
+      </div>
     </div>;
 }
