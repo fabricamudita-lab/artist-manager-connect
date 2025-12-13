@@ -6,11 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText, FolderOpen, AlertTriangle } from 'lucide-react';
+import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText, FolderOpen, AlertTriangle, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
-import { CreateBookingOfferDialog } from '@/components/CreateBookingOfferDialog';
+import { CreateBookingDialog } from '@/components/CreateBookingDialog';
 import { CreateBookingWizard } from '@/components/CreateBookingWizard';
 import { EditBookingTemplateDialog } from '@/components/EditBookingTemplateDialog';
 import { EditBookingOfferDialog } from '@/components/EditBookingOfferDialog';
@@ -31,6 +31,7 @@ import { validateBookingOffer, ValidationResult } from '@/lib/bookingValidations
 import { useBookingReminders } from '@/hooks/useBookingReminders';
 import { useBookingFolders } from '@/hooks/useBookingFolders';
 import { getStatusBadgeVariant } from '@/lib/statusColors';
+import { BookingTableColumns, useBookingColumns, ColumnConfig } from '@/components/BookingTableColumns';
 
 interface BookingOffer {
   id: string;
@@ -41,10 +42,12 @@ interface BookingOffer {
   lugar?: string;
   venue?: string;
   capacidad?: number;
+  duracion?: string;
   estado?: string;
   phase?: string;
   promotor?: string;
   fee?: number;
+  pvp?: number;
   gastos_estimados?: number;
   comision_porcentaje?: number;
   comision_euros?: number;
@@ -54,12 +57,16 @@ interface BookingOffer {
   oferta?: string;
   formato?: string;
   contacto?: string;
+  invitaciones?: number;
   tour_manager?: string;
   info_comentarios?: string;
   condiciones?: string;
   link_venta?: string;
   inicio_venta?: string;
   contratos?: string;
+  publico?: string;
+  logistica?: string;
+  notas?: string;
   artist_id?: string;
   project_id?: string;
   event_id?: string;
@@ -98,6 +105,7 @@ export default function Booking() {
   const [contractStatus, setContractStatus] = useState<Record<string, boolean>>({});
   const [folderErrors, setFolderErrors] = useState<Record<string, string>>({});
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
+  const { columns, setColumns, visibleColumns, getColumnVisibility } = useBookingColumns();
 
   useEffect(() => {
     fetchOffers();
@@ -489,6 +497,20 @@ export default function Booking() {
           </TabsContent>
 
           <TabsContent value="table" className="space-y-6">
+            {/* Column selector */}
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-muted-foreground">
+                {offers.length} {offers.length === 1 ? 'booking' : 'bookings'}
+              </div>
+              <div className="flex gap-2">
+                <BookingTableColumns columns={columns} onColumnsChange={setColumns} />
+                <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Nuevo Booking
+                </Button>
+              </div>
+            </div>
+            
             <div className="card-moodita overflow-hidden">
             <CardContent className="p-0">
               {offers.length === 0 ? (
@@ -498,7 +520,7 @@ export default function Booking() {
                   description="Crea tu primera oferta para comenzar a gestionar tus bookings y organizar conciertos de manera eficiente."
                   action={{
                     label: "Crear Booking",
-                    onClick: () => setShowCreateWizard(true)
+                    onClick: () => setShowCreateDialog(true)
                   }}
                   secondaryAction={{
                     label: "Ver documentación",
@@ -511,30 +533,35 @@ export default function Booking() {
                 <Table>
                   <TableHeader className="bg-muted/30">
                     <TableRow className="border-0">
-                      <TableHead className="font-semibold px-6">Fecha</TableHead>
-                      <TableHead className="font-semibold">Festival / Ciclo</TableHead>
-                      <TableHead className="font-semibold">Ciudad</TableHead>
-                      <TableHead className="font-semibold">Lugar</TableHead>
-                      <TableHead className="font-semibold">Capacidad</TableHead>
-                      <TableHead className="font-semibold">Estado</TableHead>
-                      <TableHead className="font-semibold">Oferta</TableHead>
-                      <TableHead className="font-semibold">Formato</TableHead>
-                      <TableHead className="font-semibold">Contacto</TableHead>
-                      <TableHead className="font-semibold">Tour Manager</TableHead>
-                      <TableHead className="font-semibold">Info / Comentarios</TableHead>
-                      <TableHead className="font-semibold">Condiciones</TableHead>
-                       <TableHead className="font-semibold">Link de venta</TableHead>
-                       <TableHead className="font-semibold">Inicio venta</TableHead>
-                       <TableHead className="font-semibold">Contratos</TableHead>
-                       <TableHead className="font-semibold">Carpeta</TableHead>
-                       <TableHead className="font-semibold">Recordatorios</TableHead>
-                       <TableHead className="font-semibold">Alertas</TableHead>
-                       <TableHead className="text-right font-semibold">Acciones</TableHead>
+                      {/* Default columns */}
+                      {getColumnVisibility('fecha') && <TableHead className="font-semibold px-6">FECHA</TableHead>}
+                      {getColumnVisibility('festival_ciclo') && <TableHead className="font-semibold">FESTIVAL</TableHead>}
+                      {getColumnVisibility('ciudad') && <TableHead className="font-semibold">CIUDAD</TableHead>}
+                      {getColumnVisibility('lugar') && <TableHead className="font-semibold">LUGAR</TableHead>}
+                      {getColumnVisibility('estado') && <TableHead className="font-semibold">STATUS</TableHead>}
+                      {getColumnVisibility('fee') && <TableHead className="font-semibold">OFERTA</TableHead>}
+                      {getColumnVisibility('contratos') && <TableHead className="font-semibold">CONTRATO</TableHead>}
+                      {/* Secondary columns */}
+                      {getColumnVisibility('hora') && <TableHead className="font-semibold">HORA</TableHead>}
+                      {getColumnVisibility('capacidad') && <TableHead className="font-semibold">CAPACIDAD</TableHead>}
+                      {getColumnVisibility('duracion') && <TableHead className="font-semibold">DURACIÓN</TableHead>}
+                      {getColumnVisibility('formato') && <TableHead className="font-semibold">FORMATO</TableHead>}
+                      {getColumnVisibility('pvp') && <TableHead className="font-semibold">PVP</TableHead>}
+                      {getColumnVisibility('contacto') && <TableHead className="font-semibold">CONTACTO</TableHead>}
+                      {getColumnVisibility('invitaciones') && <TableHead className="font-semibold">INVITACIONES</TableHead>}
+                      {getColumnVisibility('inicio_venta') && <TableHead className="font-semibold">INICIO VENTA</TableHead>}
+                      {getColumnVisibility('link_venta') && <TableHead className="font-semibold">LINK VENTA</TableHead>}
+                      {getColumnVisibility('publico') && <TableHead className="font-semibold">PÚBLICO</TableHead>}
+                      {getColumnVisibility('logistica') && <TableHead className="font-semibold">LOGÍSTICA</TableHead>}
+                      {getColumnVisibility('notas') && <TableHead className="font-semibold">COMENTARIOS</TableHead>}
+                      <TableHead className="text-right font-semibold">ACCIONES</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {offers.map((offer) => (
                       <TableRow key={offer.id} className="cursor-pointer hover:bg-muted/30 transition-colors border-0 group">
+                        {/* FECHA */}
+                        {getColumnVisibility('fecha') && (
                           <TableCell className="py-4 px-6">
                             {offer.fecha ? (
                               <div className="flex items-center gap-2">
@@ -547,188 +574,206 @@ export default function Booking() {
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
-                           <TableCell>
-                             <div className="flex items-center gap-2">
-                               {offer.folder_url ? (
-                                 <>
-                                   <button
-                                     onClick={() => handleOpenFolder(offer)}
-                                     className="text-primary hover:underline hover:text-primary/80 transition-colors cursor-pointer text-left font-medium"
-                                     title="Abrir carpeta del evento"
-                                   >
-                                     {offer.festival_ciclo || '-'}
-                                   </button>
-                                   <Button
-                                     variant="ghost"
-                                     size="sm"
-                                     onClick={() => handleOpenFolder(offer)}
-                                     className="h-6 w-6 p-0 hover:bg-muted"
-                                     title="Abrir carpeta del evento"
-                                   >
-                                     <FolderOpen className="h-3 w-3" />
-                                   </Button>
-                                 </>
-                               ) : (
-                                 <div className="flex items-center gap-2">
-                                   <FolderOpen className="h-3 w-3 text-muted-foreground/50" />
-                                   <span>{offer.festival_ciclo || '-'}</span>
-                                 </div>
-                               )}
-                               {offer.estado === 'confirmado' && offer.id && !contractStatus[offer.id] && (
-                                 <div title="Sin contrato">
-                               <AlertTriangle className="h-4 w-4 text-amber-500" />
-                             </div>
-                           )}
-                         </div>
-                        </TableCell>
-                       <TableCell className="py-4">{offer.ciudad || '-'}</TableCell>
-                       <TableCell className="py-4">{offer.lugar || '-'}</TableCell>
-                       <TableCell className="py-4">{offer.capacidad ? offer.capacidad.toLocaleString() : '-'}</TableCell>
-                         <TableCell className="py-4">
-                           <Badge 
-                             variant={getStatusBadgeVariant(offer.estado)}
-                           >
-                             {offer.estado || 'Pendiente'}
-                           </Badge>
-                         </TableCell>
-                       <TableCell className="max-w-32 truncate py-4">{offer.oferta || '-'}</TableCell>
-                       <TableCell className="py-4">{offer.formato || '-'}</TableCell>
-                       <TableCell className="py-4">{offer.contacto || '-'}</TableCell>
-                       <TableCell className="py-4">{offer.tour_manager || '-'}</TableCell>
-                        <TableCell className="max-w-32 truncate py-4">{offer.info_comentarios || '-'}</TableCell>
-                        <TableCell className="max-w-32 truncate py-4">{offer.condiciones || '-'}</TableCell>
-                        <TableCell className="py-4">
-                          {offer.link_venta ? (
-                            <a 
-                              href={offer.link_venta} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline"
-                            >
-                              Ver enlace
-                            </a>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                         <TableCell className="py-4">
-                          {offer.inicio_venta ? new Date(offer.inicio_venta).toLocaleDateString('es-ES') : '-'}
-                        </TableCell>
-                          <TableCell>
-                            {offer.contratos ? (
-                              <a 
-                                href={offer.contratos} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-primary hover:underline text-sm"
-                              >
-                                📄 Ver contrato
-                              </a>
-                            ) : '-'}
-                          </TableCell>
+                        )}
+                        
+                        {/* FESTIVAL */}
+                        {getColumnVisibility('festival_ciclo') && (
                           <TableCell>
                             <div className="flex items-center gap-2">
                               {offer.folder_url ? (
-                                <Badge variant="default" className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-100 dark:border-green-700">
-                                  OK
-                                </Badge>
+                                <button
+                                  onClick={() => handleOpenFolder(offer)}
+                                  className="text-primary hover:underline hover:text-primary/80 transition-colors cursor-pointer text-left font-medium"
+                                  title="Abrir carpeta del evento"
+                                >
+                                  {offer.festival_ciclo || '-'}
+                                </button>
                               ) : (
-                                <div className="flex items-center gap-2">
-                                  {folderErrors[offer.id] ? (
-                                    <>
-                                      <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-100 dark:border-red-700">
-                                        Error
-                                      </Badge>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleCreateMissingFolder(offer)}
-                                        disabled={foldersLoading}
-                                        title={`Reintentar - ${folderErrors[offer.id]}`}
-                                        className="h-6 w-6 p-0 text-amber-600 hover:text-amber-700"
-                                      >
-                                        <FolderPlus className="h-3 w-3" />
-                                      </Button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-100 dark:border-orange-700">
-                                        Falta
-                                      </Badge>
-                                      {offer.fecha && offer.ciudad && offer.festival_ciclo && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleCreateMissingFolder(offer)}
-                                          disabled={foldersLoading}
-                                          title="Crear carpeta"
-                                          className="h-6 w-6 p-0"
-                                        >
-                                          <FolderPlus className="h-3 w-3" />
-                                        </Button>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
+                                <span>{offer.festival_ciclo || '-'}</span>
                               )}
                             </div>
                           </TableCell>
-                         <TableCell>
-                           <ReminderBadge reminders={getRemindersForBooking(offer.id)} variant="compact" />
-                         </TableCell>
-                        <TableCell>
-                          {offer.id && validationResults[offer.id] && (
-                            <AlertsBadge 
-                              errors={validationResults[offer.id].errors}
-                              warnings={validationResults[offer.id].warnings}
-                            />
-                          )}
-                        </TableCell>
-                       <TableCell className="text-right">
-                         <div className="flex gap-2 justify-end">
-                           <DropdownMenu>
-                             <DropdownMenuTrigger asChild>
-                               <Button variant="ghost" size="sm">
-                                 <Edit className="h-4 w-4" />
-                               </Button>
-                             </DropdownMenuTrigger>
-                             <DropdownMenuContent align="end" className="bg-background border shadow-md">
-                               <DropdownMenuItem 
-                                 onClick={() => {
-                                   setSelectedOffer(offer);
-                                   setShowEditDialog(true);
-                                 }}
-                               >
-                                   <Edit className="h-4 w-4 mr-2" />
-                                   Editar
-                                 </DropdownMenuItem>
-                                  {!offer.folder_url && offer.fecha && offer.ciudad && offer.festival_ciclo && (
+                        )}
+                        
+                        {/* CIUDAD */}
+                        {getColumnVisibility('ciudad') && (
+                          <TableCell className="py-4">{offer.ciudad || '-'}</TableCell>
+                        )}
+                        
+                        {/* LUGAR */}
+                        {getColumnVisibility('lugar') && (
+                          <TableCell className="py-4">{offer.lugar || '-'}</TableCell>
+                        )}
+                        
+                        {/* STATUS */}
+                        {getColumnVisibility('estado') && (
+                          <TableCell className="py-4">
+                            <Badge variant={getStatusBadgeVariant(offer.estado)}>
+                              {offer.estado === 'confirmado' ? 'Confirmado' : 
+                               offer.estado === 'cancelado' ? 'Cancelado' : 'Pendiente'}
+                            </Badge>
+                          </TableCell>
+                        )}
+                        
+                        {/* OFERTA (fee) */}
+                        {getColumnVisibility('fee') && (
+                          <TableCell className="py-4 font-medium">
+                            {offer.fee ? `${offer.fee.toLocaleString('es-ES')} €` : '-'}
+                          </TableCell>
+                        )}
+                        
+                        {/* CONTRATO */}
+                        {getColumnVisibility('contratos') && (
+                          <TableCell>
+                            {offer.contratos ? (
+                              <Badge variant={
+                                offer.contratos === 'firmado' ? 'default' :
+                                offer.contratos === 'enviado' ? 'secondary' : 'outline'
+                              }>
+                                {offer.contratos === 'ctto_por_hacer' ? 'Por Hacer' :
+                                 offer.contratos === 'enviado' ? 'Enviado' :
+                                 offer.contratos === 'firmado' ? 'Firmado' : offer.contratos}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">Por Hacer</Badge>
+                            )}
+                          </TableCell>
+                        )}
+                        
+                        {/* HORA */}
+                        {getColumnVisibility('hora') && (
+                          <TableCell className="py-4">{offer.hora || '-'}</TableCell>
+                        )}
+                        
+                        {/* CAPACIDAD */}
+                        {getColumnVisibility('capacidad') && (
+                          <TableCell className="py-4">
+                            {offer.capacidad ? offer.capacidad.toLocaleString() : '-'}
+                          </TableCell>
+                        )}
+                        
+                        {/* DURACIÓN */}
+                        {getColumnVisibility('duracion') && (
+                          <TableCell className="py-4">{offer.duracion || '-'}</TableCell>
+                        )}
+                        
+                        {/* FORMATO */}
+                        {getColumnVisibility('formato') && (
+                          <TableCell className="py-4">{offer.formato || '-'}</TableCell>
+                        )}
+                        
+                        {/* PVP */}
+                        {getColumnVisibility('pvp') && (
+                          <TableCell className="py-4">
+                            {offer.pvp ? `${offer.pvp} €` : '-'}
+                          </TableCell>
+                        )}
+                        
+                        {/* CONTACTO */}
+                        {getColumnVisibility('contacto') && (
+                          <TableCell className="py-4">{offer.contacto || '-'}</TableCell>
+                        )}
+                        
+                        {/* INVITACIONES */}
+                        {getColumnVisibility('invitaciones') && (
+                          <TableCell className="py-4">{offer.invitaciones || '-'}</TableCell>
+                        )}
+                        
+                        {/* INICIO VENTA */}
+                        {getColumnVisibility('inicio_venta') && (
+                          <TableCell className="py-4">
+                            {offer.inicio_venta ? new Date(offer.inicio_venta).toLocaleDateString('es-ES') : '-'}
+                          </TableCell>
+                        )}
+                        
+                        {/* LINK VENTA */}
+                        {getColumnVisibility('link_venta') && (
+                          <TableCell className="py-4">
+                            {offer.link_venta ? (
+                              <a 
+                                href={offer.link_venta} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline inline-flex items-center gap-1"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                Ver
+                              </a>
+                            ) : '-'}
+                          </TableCell>
+                        )}
+                        
+                        {/* PÚBLICO */}
+                        {getColumnVisibility('publico') && (
+                          <TableCell className="py-4">{offer.publico || '-'}</TableCell>
+                        )}
+                        
+                        {/* LOGÍSTICA */}
+                        {getColumnVisibility('logistica') && (
+                          <TableCell className="py-4 max-w-40 truncate" title={offer.logistica || ''}>
+                            {offer.logistica || '-'}
+                          </TableCell>
+                        )}
+                        
+                        {/* COMENTARIOS */}
+                        {getColumnVisibility('notas') && (
+                          <TableCell className="py-4 max-w-40 truncate" title={offer.notas || ''}>
+                            {offer.notas || '-'}
+                          </TableCell>
+                        )}
+                        
+                        {/* ACCIONES */}
+                        <TableCell className="text-right">
+                          <div className="flex gap-2 justify-end">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="bg-background border shadow-md">
+                                <DropdownMenuItem 
+                                  onClick={() => {
+                                    setSelectedOffer(offer);
+                                    setShowEditDialog(true);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
+                                {offer.folder_url && (
+                                  <DropdownMenuItem onClick={() => handleOpenFolder(offer)}>
+                                    <FolderOpen className="h-4 w-4 mr-2" />
+                                    Abrir carpeta
+                                  </DropdownMenuItem>
+                                )}
+                                {!offer.folder_url && offer.fecha && offer.ciudad && offer.festival_ciclo && (
+                                  <DropdownMenuItem 
+                                    onClick={() => handleCreateMissingFolder(offer)}
+                                    disabled={foldersLoading}
+                                  >
+                                    <FolderPlus className="h-4 w-4 mr-2" />
+                                    {folderErrors[offer.id] ? 'Reintentar carpeta' : 'Crear carpeta'}
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
                                     <DropdownMenuItem 
-                                      onClick={() => handleCreateMissingFolder(offer)}
-                                      disabled={foldersLoading}
+                                      onSelect={(e) => e.preventDefault()}
+                                      className="text-destructive focus:text-destructive"
                                     >
-                                      <FolderPlus className="h-4 w-4 mr-2" />
-                                      {folderErrors[offer.id] ? 'Reintentar carpeta' : 'Crear carpeta'}
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Eliminar
                                     </DropdownMenuItem>
-                                  )}
-                                  <DropdownMenuSeparator />
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <DropdownMenuItem 
-                                        onSelect={(e) => e.preventDefault()}
-                                        className="text-destructive focus:text-destructive"
-                                      >
-                                        <Trash2 className="h-4 w-4 mr-2" />
-                                        Eliminar
-                                      </DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>¿Seguro que quieres eliminarlo?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Esta acción no se puede deshacer. Si quieres mantener la información, puedes marcar el evento como cancelado.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>¿Seguro que quieres eliminarlo?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta acción no se puede deshacer. Si quieres mantener la información, puedes marcar el evento como cancelado.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
                                     <AlertDialogFooter>
                                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                       <AlertDialogAction 
@@ -740,19 +785,18 @@ export default function Booking() {
                                     </AlertDialogFooter>
                                   </AlertDialogContent>
                                 </AlertDialog>
-                             </DropdownMenuContent>
-                           </DropdownMenu>
-                         </div>
-                       </TableCell>
-                    </TableRow>
-                  ))
-                }
-              </TableBody>
-            </Table>
-            </div>
-          )}
-         </CardContent>
-      </div>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                </div>
+              )}
+            </CardContent>
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -766,15 +810,14 @@ export default function Booking() {
         }}
       />
 
-      <CreateBookingOfferDialog
+      <CreateBookingDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
-        onOfferCreated={() => {
+        onBookingCreated={() => {
           fetchOffers();
           checkAllFolders();
           checkAllContracts();
         }}
-        templateFields={templateFields}
       />
 
       <EditBookingTemplateDialog
