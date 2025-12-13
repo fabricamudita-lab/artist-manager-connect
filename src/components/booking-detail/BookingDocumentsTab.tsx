@@ -236,15 +236,16 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
 
   // Pre-fill contract data from booking
   const getBookingDataForContract = () => ({
-    eventName: booking.festival_ciclo || '',
-    eventVenue: booking.venue || '',
-    eventCity: booking.ciudad || '',
-    eventDate: booking.fecha || '',
-    eventTime: booking.hora || '',
-    eventCapacity: booking.capacidad?.toString() || '',
-    fee: booking.fee?.toString() || '',
-    setDuration: booking.duracion || '',
-    promoterName: booking.promotor || '',
+    artista: '', // Will be filled by the contract generator or user
+    ciudad: booking.ciudad || '',
+    venue: booking.venue || '',
+    fecha: booking.fecha || '',
+    hora: booking.hora || '',
+    fee: booking.fee || undefined,
+    aforo: booking.capacidad || undefined,
+    duracion: booking.duracion || '',
+    promotor: booking.promotor || '',
+    festival_ciclo: booking.festival_ciclo || '',
   });
 
   if (loading) {
