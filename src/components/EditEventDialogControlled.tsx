@@ -1,11 +1,78 @@
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect, useMemo } from "react";
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { CalendarIcon, Clock, Users, FolderKanban, User } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+const eventTypes = [
+  { value: 'concert', label: 'Concierto' },
+  { value: 'recording', label: 'Ensayo' },
+  { value: 'meeting', label: 'Reunión' },
+  { value: 'interview', label: 'Entrevista' },
+  { value: 'deadline', label: 'Compromiso' },
+  { value: 'other', label: 'Otros' }
+] as const;
+
+const personalCategories = [
+  { value: 'meeting', label: 'Reunión' },
+  { value: 'medical', label: 'Médico' },
+  { value: 'personal', label: 'Personal' },
+  { value: 'travel', label: 'Viaje' },
+  { value: 'other', label: 'Otros' }
+] as const;
+
+const formSchema = z.object({
+  eventContext: z.enum(['project', 'personal']),
+  project_id: z.string().optional(),
+  title: z.string().min(1, 'El título es requerido'),
+  event_type: z.string().min(1, 'Selecciona un tipo'),
+  start_date: z.date({ required_error: 'La fecha es requerida' }),
+  start_time: z.string().min(1, 'Hora requerida'),
+  end_date: z.date({ required_error: 'La fecha es requerida' }),
+  end_time: z.string().min(1, 'Hora requerida'),
+  description: z.string().optional(),
+  location: z.string().optional(),
+});
+
+type FormData = z.infer<typeof formSchema>;
 
 interface Event {
   id: string;
@@ -14,6 +81,12 @@ interface Event {
   end_date: string;
   location: string | null;
   description: string | null;
+  event_type?: string;
+}
+
+interface Project {
+  id: string;
+  name: string;
 }
 
 interface EditEventDialogControlledProps {
@@ -23,73 +96,118 @@ interface EditEventDialogControlledProps {
   onUpdated?: () => void;
 }
 
-function toLocalDateInputValue(d: Date) {
-  const tzOffset = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10);
-}
-
-function toLocalTimeInputValue(d: Date) {
-  return d.toTimeString().slice(0, 5);
-}
-
 export function EditEventDialogControlled({ event, open, onOpenChange, onUpdated }: EditEventDialogControlledProps) {
   const { toast } = useToast();
-  const [title, setTitle] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [location, setLocation] = useState("");
-  const [description, setDescription] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      eventContext: 'personal',
+      project_id: '',
+      title: '',
+      event_type: '',
+      start_time: '09:00',
+      end_time: '10:00',
+      start_date: undefined,
+      end_date: undefined,
+      description: '',
+      location: '',
+    },
+  });
+
+  const eventContext = form.watch('eventContext');
+
+  // Fetch projects
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('projects')
+          .select('id, name')
+          .order('name');
+
+        if (error) throw error;
+        setProjects(data || []);
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+
+    if (open) {
+      fetchProjects();
+    }
+  }, [open]);
 
   // Reset form when event changes
   useEffect(() => {
-    if (event) {
+    if (event && open) {
       const start = new Date(event.start_date);
       const end = new Date(event.end_date);
-      setTitle(event.title);
-      setStartDate(toLocalDateInputValue(start));
-      setStartTime(toLocalTimeInputValue(start));
-      setEndDate(toLocalDateInputValue(end));
-      setEndTime(toLocalTimeInputValue(end));
-      setLocation(event.location || "");
-      setDescription(event.description || "");
+      
+      form.reset({
+        eventContext: 'personal',
+        project_id: '',
+        title: event.title,
+        event_type: event.event_type || 'other',
+        start_date: start,
+        end_date: end,
+        start_time: format(start, 'HH:mm'),
+        end_time: format(end, 'HH:mm'),
+        description: event.description || '',
+        location: event.location || '',
+      });
     }
-  }, [event]);
+  }, [event, open, form]);
 
-  const handleSave = async () => {
-    if (!event || !title || !startDate || !startTime || !endDate || !endTime) {
-      toast({ title: "Faltan datos", description: "Completa título, fechas y horas", variant: "destructive" });
-      return;
-    }
+  const onSubmit = async (data: FormData) => {
+    if (!event) return;
 
-    const newStart = new Date(`${startDate}T${startTime}`);
-    const newEnd = new Date(`${endDate}T${endTime}`);
+    setIsSubmitting(true);
 
     try {
-      setSaving(true);
+      // Combine date and time
+      const startDateTime = new Date(data.start_date);
+      const [startHours, startMinutes] = data.start_time.split(':').map(Number);
+      startDateTime.setHours(startHours, startMinutes, 0, 0);
+
+      const endDateTime = new Date(data.end_date);
+      const [endHours, endMinutes] = data.end_time.split(':').map(Number);
+      endDateTime.setHours(endHours, endMinutes, 0, 0);
+
       const { error } = await supabase
         .from('events')
         .update({
-          title,
-          start_date: newStart.toISOString(),
-          end_date: newEnd.toISOString(),
-          location: location || null,
-          description: description || null,
+          title: data.title,
+          event_type: data.event_type,
+          start_date: startDateTime.toISOString(),
+          end_date: endDateTime.toISOString(),
+          description: data.description || null,
+          location: data.location || null,
         })
         .eq('id', event.id);
 
       if (error) throw error;
 
-      toast({ title: "Evento actualizado", description: "Los cambios se guardaron correctamente" });
+      toast({ 
+        title: "Evento actualizado", 
+        description: "Los cambios se guardaron correctamente" 
+      });
       onOpenChange(false);
       onUpdated?.();
     } catch (e: any) {
       console.error(e);
-      toast({ title: "Error", description: e?.message || 'No se pudo actualizar el evento', variant: "destructive" });
+      toast({ 
+        title: "Error", 
+        description: e?.message || 'No se pudo actualizar el evento', 
+        variant: "destructive" 
+      });
     } finally {
-      setSaving(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -99,52 +217,247 @@ export function EditEventDialogControlled({ event, open, onOpenChange, onUpdated
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Editar evento</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <CalendarIcon className="h-5 w-5 text-primary" />
+            Editar Evento
+          </DialogTitle>
+          <DialogDescription>
+            Modifica los detalles del evento
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Título</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
-          </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+            {/* Context Selector */}
+            <FormField
+              control={form.control}
+              name="eventContext"
+              render={({ field }) => (
+                <FormItem>
+                  <Tabs value={field.value} onValueChange={field.onChange} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="project" className="gap-2">
+                        <FolderKanban className="h-4 w-4" />
+                        Vinculado a Proyecto
+                      </TabsTrigger>
+                      <TabsTrigger value="personal" className="gap-2">
+                        <User className="h-4 w-4" />
+                        Evento Personal
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </FormItem>
+              )}
+            />
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Fecha inicio</Label>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            {/* Project Selector - Only show if project context */}
+            {eventContext === 'project' && (
+              <FormField
+                control={form.control}
+                name="project_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Proyecto</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                      disabled={loadingProjects}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={loadingProjects ? "Cargando..." : "Seleccionar proyecto"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {projects.map((project) => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Title */}
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Título</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nombre del evento..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Event Type / Category */}
+            <FormField
+              control={form.control}
+              name="event_type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{eventContext === 'project' ? 'Tipo de Evento' : 'Categoría'}</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {(eventContext === 'project' ? eventTypes : personalCategories).map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Date & Time - Compact Row */}
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="start_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fecha</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(field.value, "d MMM", { locale: es }) : "Fecha"}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={(date) => {
+                            field.onChange(date);
+                            form.setValue('end_date', date!);
+                          }}
+                          initialFocus
+                          className="pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-2">
+                <FormField
+                  control={form.control}
+                  name="start_time"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Inicio</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Clock className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <Input 
+                            type="time" 
+                            className="pl-7 h-8 text-sm" 
+                            {...field} 
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="end_time"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Fin</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Clock className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <Input 
+                            type="time" 
+                            className="pl-7 h-8 text-sm" 
+                            {...field} 
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Hora inicio</Label>
-              <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Fecha fin</Label>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Hora fin</Label>
-              <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
-            </div>
-          </div>
+            {/* Location */}
+            <FormField
+              control={form.control}
+              name="location"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ubicación (opcional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Lugar, teléfono o enlace..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <div className="space-y-2">
-            <Label>Ubicación / Enlace</Label>
-            <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Lugar, teléfono o enlace" />
-          </div>
+            {/* Description */}
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descripción (opcional)</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Detalles adicionales..." 
+                      className="resize-none h-20"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <div className="space-y-2">
-            <Label>Descripción</Label>
-            <Textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving}>Guardar</Button>
-          </div>
-        </div>
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Guardando..." : "Guardar Cambios"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
