@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -6,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText, FolderOpen, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText, FolderOpen, AlertTriangle, ExternalLink, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -87,6 +88,7 @@ interface TemplateField {
 
 export default function Booking() {
   usePageTitle('Booking');
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const [offers, setOffers] = useState<BookingOffer[]>([]);
   const [templateFields, setTemplateFields] = useState<TemplateField[]>([]);
@@ -559,7 +561,11 @@ export default function Booking() {
                   </TableHeader>
                   <TableBody>
                     {offers.map((offer) => (
-                      <TableRow key={offer.id} className="cursor-pointer hover:bg-muted/30 transition-colors border-0 group">
+                      <TableRow 
+                        key={offer.id} 
+                        className="cursor-pointer hover:bg-muted/30 transition-colors border-0 group"
+                        onClick={() => navigate(`/booking/${offer.id}`)}
+                      >
                         {/* FECHA */}
                         {getColumnVisibility('fecha') && (
                           <TableCell className="py-4 px-6">
@@ -723,8 +729,16 @@ export default function Booking() {
                         )}
                         
                         {/* ACCIONES */}
-                        <TableCell className="text-right">
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex gap-2 justify-end">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => navigate(`/booking/${offer.id}`)}
+                              title="Ver detalle"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="sm">
@@ -732,6 +746,12 @@ export default function Booking() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="bg-background border shadow-md">
+                                <DropdownMenuItem 
+                                  onClick={() => navigate(`/booking/${offer.id}`)}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Ver detalle
+                                </DropdownMenuItem>
                                 <DropdownMenuItem 
                                   onClick={() => {
                                     setSelectedOffer(offer);
