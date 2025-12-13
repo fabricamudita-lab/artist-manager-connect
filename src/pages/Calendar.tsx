@@ -12,6 +12,7 @@ import { es } from 'date-fns/locale';
 import { CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, X, Plus } from 'lucide-react';
 import { YearlyCalendar } from '@/components/YearlyCalendar';
 import { EditEventDialog } from '@/components/EditEventDialog';
+import { EditEventDialogControlled } from '@/components/EditEventDialogControlled';
 import { useBookingReminders } from '@/hooks/useBookingReminders';
 import { ReminderBadge } from '@/components/ReminderBadge';
 import { EventDetailPopover } from '@/components/EventDetailPopover';
@@ -87,6 +88,7 @@ export default function Calendar() {
   }
   const [openEventPopups, setOpenEventPopups] = useState<OpenEventPopup[]>([]);
   const [highestZIndex, setHighestZIndex] = useState(100);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   useEffect(() => {
     if (profile) {
       setSelectedArtists([profile.id]);
@@ -693,7 +695,14 @@ export default function Calendar() {
                 </div>
                 <div className="space-y-0.5">
                   {dayEvents.slice(0, 2).map(event => (
-                    <div key={event.id} className="text-[10px] bg-primary/10 text-primary px-1 py-0.5 rounded truncate">
+                    <div 
+                      key={event.id} 
+                      className="text-[10px] bg-primary/10 text-primary px-1 py-0.5 rounded truncate cursor-pointer hover:bg-primary/20"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEventClick(event, e);
+                      }}
+                    >
                       {event.title}
                     </div>
                   ))}
@@ -779,11 +788,17 @@ export default function Calendar() {
             </div>
           </div>
           
-          <YearlyCalendar year={currentDate.getFullYear()} events={events} onDateSelect={date => {
-          setSelectedDate(date);
-          setCurrentDate(date);
-          setViewMode('week');
-        }} selectedDate={selectedDate} />
+          <YearlyCalendar 
+            year={currentDate.getFullYear()} 
+            events={events} 
+            onDateSelect={date => {
+              setSelectedDate(date);
+              setCurrentDate(date);
+              setViewMode('week');
+            }} 
+            onEventClick={handleEventClick}
+            selectedDate={selectedDate} 
+          />
         </CardContent>
       </div>;
   };
@@ -928,14 +943,24 @@ export default function Calendar() {
           artistName="David Solans" 
           createdBy="Fabrica Mudita" 
           onEdit={event => {
-            console.log('Edit event:', event);
-          }} 
+            setEditingEvent(event);
+          }}
           onDelete={eventId => {
             console.log('Delete event:', eventId);
             closePopup(popup.id);
           }} 
         />
       ))}
+
+      {/* Edit Event Dialog Controlled */}
+      <EditEventDialogControlled
+        event={editingEvent}
+        open={!!editingEvent}
+        onOpenChange={(open) => {
+          if (!open) setEditingEvent(null);
+        }}
+        onUpdated={fetchEvents}
+      />
     </div>
   );
 }
