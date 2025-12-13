@@ -14,6 +14,7 @@ interface YearlyCalendarProps {
   year: number;
   events: Event[];
   onDateSelect?: (date: Date) => void;
+  onEventClick?: (event: Event, mouseEvent: React.MouseEvent) => void;
   selectedDate?: Date;
 }
 
@@ -37,7 +38,7 @@ const monthNames = [
   'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'
 ];
 
-export function YearlyCalendar({ year, events, onDateSelect, selectedDate }: YearlyCalendarProps) {
+export function YearlyCalendar({ year, events, onDateSelect, onEventClick, selectedDate }: YearlyCalendarProps) {
   const getEventsForDate = (date: Date) => {
     return events.filter(event => 
       isSameDay(new Date(event.start_date), date)
@@ -91,10 +92,18 @@ export function YearlyCalendar({ year, events, onDateSelect, selectedDate }: Yea
                     h-6 text-xs flex items-center justify-center rounded transition-all
                     ${isSelected ? 'bg-white text-gray-900 font-bold' : ''}
                     ${hasEvents ? 'bg-white/20 font-semibold' : 'hover:bg-white/10'}
-                    cursor-pointer relative
+                    cursor-pointer relative group
                   `}
-                  onClick={() => onDateSelect?.(day)}
-                  title={hasEvents ? `${dayEvents.length} evento(s)` : undefined}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (hasEvents && onEventClick) {
+                      // Si hay eventos, abrir el popup del primer evento
+                      onEventClick(dayEvents[0], e);
+                    } else {
+                      onDateSelect?.(day);
+                    }
+                  }}
+                  title={hasEvents ? `${dayEvents.length} evento(s): ${dayEvents.map(e => e.title).join(', ')}` : undefined}
                 >
                   {format(day, 'd')}
                   {hasEvents && (
