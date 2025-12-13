@@ -829,6 +829,7 @@ export default function Calendar() {
         setViewMode={setViewMode}
         currentDate={currentDate}
         onNavigate={handleNavigate}
+        onGoToToday={() => setCurrentDate(new Date())}
         showMyCalendar={showMyCalendar}
         setShowMyCalendar={setShowMyCalendar}
         selectedArtists={selectedArtists}
