@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { 
   FileText, 
   Upload,
@@ -13,13 +11,14 @@ import {
   Send,
   Link as LinkIcon,
   CheckCircle,
-  Clock,
-  Edit3
+  Edit3,
+  Eye
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ContractGenerator } from '@/components/ContractGenerator';
 
 interface BookingDocument {
   id: string;
@@ -40,6 +39,11 @@ interface BookingDocumentsTabProps {
     promotor?: string;
     fee?: number;
     fecha?: string;
+    ciudad?: string;
+    hora?: string;
+    capacidad?: number;
+    duracion?: string;
+    contacto?: string;
   };
   onUpdate: () => void;
 }
@@ -63,8 +67,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
   const [documents, setDocuments] = useState<BookingDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState('standard');
+  const [showContractGenerator, setShowContractGenerator] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
@@ -95,7 +98,6 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
     try {
       setUploading(true);
 
-      // Upload to storage
       const fileExt = file.name.split('.').pop();
       const fileName = `${booking.id}/${Date.now()}.${fileExt}`;
       
@@ -105,12 +107,10 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('documents')
         .getPublicUrl(fileName);
 
-      // Create document record
       const { error: dbError } = await (supabase as any)
         .from('booking_documents')
         .insert({
@@ -143,21 +143,14 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
     }
   };
 
-  const handleGenerateContract = async () => {
+  const handleContractSave = async (contract: { title: string; content: string; pdfUrl?: string }) => {
     try {
-      // For now, we'll create a placeholder - in production this would use a template engine
-      toast({
-        title: "Generando contrato...",
-        description: "El contrato se generará con las variables del evento.",
-      });
-
-      // Create a placeholder contract record
       const { error } = await (supabase as any)
         .from('booking_documents')
         .insert({
           booking_id: booking.id,
-          file_name: `Contrato_${booking.festival_ciclo || booking.venue || 'Evento'}.pdf`,
-          file_url: '', // Would be generated
+          file_name: `${contract.title}.pdf`,
+          file_url: 'generated',
           file_type: 'application/pdf',
           document_type: 'contract',
           status: 'draft',
@@ -167,17 +160,17 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
       if (error) throw error;
 
       toast({
-        title: "Contrato generado",
-        description: "El borrador del contrato está listo para revisión.",
+        title: "Contrato guardado",
+        description: "El contrato se ha guardado. Usa el botón de ver/descargar para obtener el PDF.",
       });
 
-      setShowGenerateDialog(false);
+      setShowContractGenerator(false);
       fetchDocuments();
     } catch (error) {
-      console.error('Error generating contract:', error);
+      console.error('Error saving contract:', error);
       toast({
         title: "Error",
-        description: "No se pudo generar el contrato.",
+        description: "No se pudo guardar el contrato.",
         variant: "destructive",
       });
     }
@@ -241,6 +234,19 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
     });
   };
 
+  // Pre-fill contract data from booking
+  const getBookingDataForContract = () => ({
+    eventName: booking.festival_ciclo || '',
+    eventVenue: booking.venue || '',
+    eventCity: booking.ciudad || '',
+    eventDate: booking.fecha || '',
+    eventTime: booking.hora || '',
+    eventCapacity: booking.capacidad?.toString() || '',
+    fee: booking.fee?.toString() || '',
+    setDuration: booking.duracion || '',
+    promoterName: booking.promotor || '',
+  });
+
   if (loading) {
     return (
       <Card>
@@ -259,6 +265,14 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
 
   return (
     <div className="space-y-6">
+      {/* Contract Generator Dialog */}
+      <ContractGenerator
+        open={showContractGenerator}
+        onOpenChange={setShowContractGenerator}
+        bookingData={getBookingDataForContract()}
+        onSave={handleContractSave}
+      />
+
       {/* Contract Section */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -272,54 +286,25 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
             </p>
           </div>
           <div className="flex gap-2">
-            <Dialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Generar Contrato
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Generar Contrato</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <Label>Plantilla</Label>
-                    <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="standard">Contrato Estándar</SelectItem>
-                        <SelectItem value="festival">Contrato Festival</SelectItem>
-                        <SelectItem value="international">Contrato Internacional</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="bg-muted p-4 rounded-lg space-y-2 text-sm">
-                    <p className="font-medium">Variables que se incluirán:</p>
-                    <ul className="space-y-1 text-muted-foreground">
-                      <li>• Artista: [Nombre del artista]</li>
-                      <li>• Evento: {booking.festival_ciclo || booking.venue || '-'}</li>
-                      <li>• Promotor: {booking.promotor || '-'}</li>
-                      <li>• Fee: {booking.fee ? `${booking.fee.toLocaleString()}€` : '-'}</li>
-                      <li>• Fecha: {booking.fecha || '-'}</li>
-                    </ul>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button variant="outline" onClick={() => setShowGenerateDialog(false)}>
-                      Cancelar
-                    </Button>
-                    <Button onClick={handleGenerateContract}>
-                      Generar
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button size="sm" onClick={() => setShowContractGenerator(true)}>
+              <FileText className="h-4 w-4 mr-2" />
+              Generar Contrato
+            </Button>
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.doc,.docx"
+                onChange={(e) => handleFileUpload(e, 'contract')}
+                disabled={uploading}
+              />
+              <Button size="sm" variant="outline" asChild disabled={uploading}>
+                <span>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Subir
+                </span>
+              </Button>
+            </label>
           </div>
         </CardHeader>
         <CardContent>
@@ -334,6 +319,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
               {contracts.map((doc) => {
                 const statusConfig = STATUS_CONFIG[doc.status as keyof typeof STATUS_CONFIG];
                 const StatusIcon = statusConfig.icon;
+                const isGenerated = doc.file_url === 'generated';
 
                 return (
                   <div
@@ -348,6 +334,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
                         <p className="font-medium">{doc.file_name}</p>
                         <p className="text-xs text-muted-foreground">
                           {new Date(doc.created_at).toLocaleDateString()}
+                          {isGenerated && ' • Generado'}
                         </p>
                       </div>
                     </div>
@@ -370,12 +357,22 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
                         </SelectContent>
                       </Select>
 
-                      {doc.file_url && (
+                      {isGenerated ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setShowContractGenerator(true)}
+                          title="Abrir generador para ver/descargar"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      ) : doc.file_url ? (
                         <>
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => window.open(doc.file_url, '_blank')}
+                            title="Descargar"
                           >
                             <Download className="h-4 w-4" />
                           </Button>
@@ -383,11 +380,12 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
                             variant="ghost"
                             size="icon"
                             onClick={() => handleCopyLink(doc.file_url)}
+                            title="Copiar enlace"
                           >
                             <LinkIcon className="h-4 w-4" />
                           </Button>
                         </>
-                      )}
+                      ) : null}
 
                       <Button
                         variant="ghost"
@@ -467,7 +465,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {doc.file_url && (
+                    {doc.file_url && doc.file_url !== 'generated' && (
                       <Button
                         variant="ghost"
                         size="icon"
