@@ -461,25 +461,28 @@ export function EditEventDialogControlled({ event, open, onOpenChange, onUpdated
             />
 
             {/* Google Sync */}
-            {googleConnected && (
-              <FormField
-                control={form.control}
-                name="syncWithGoogle"
-                render={({ field }) => (
-                  <FormItem className="flex items-center gap-2 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormLabel className="text-sm font-normal cursor-pointer">
-                      Sincronizar con Google Calendar
-                    </FormLabel>
-                  </FormItem>
-                )}
-              />
-            )}
+            <FormField
+              control={form.control}
+              name="syncWithGoogle"
+              render={({ field }) => (
+                <FormItem className="flex items-center gap-2 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={!googleConnected}
+                    />
+                  </FormControl>
+                  <FormLabel className={cn(
+                    "text-sm font-normal cursor-pointer",
+                    !googleConnected && "text-muted-foreground"
+                  )}>
+                    Sincronizar con Google Calendar
+                    {!googleConnected && " (no conectado)"}
+                  </FormLabel>
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button 
