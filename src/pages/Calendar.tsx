@@ -714,14 +714,7 @@ export default function Calendar() {
                 locale: es
               })}
               </h2>
-              <div className="flex gap-1">
-                <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')} className="h-8 w-8 p-0">
-                  
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => navigateMonth('next')} className="h-8 w-8 p-0">
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+              
             </div>
             <div className="flex gap-2 items-center">
               <Button variant={viewMode === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('week')}>
