@@ -627,7 +627,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
           </Button>
           <Button onClick={() => setShowCreateWizard(true)} className="btn-primary">
             <Plus className="h-4 w-4 mr-2" />
-            Nuevo Booking
+            Nueva Oferta
           </Button>
         </div>
       </div>

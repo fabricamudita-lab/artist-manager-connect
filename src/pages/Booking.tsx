@@ -506,7 +506,7 @@ export default function Booking() {
                 <BookingTableColumns columns={columns} onColumnsChange={setColumns} />
                 <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
                   <Plus className="h-4 w-4" />
-                  Nuevo Booking
+                  Nueva Oferta
                 </Button>
               </div>
             </div>

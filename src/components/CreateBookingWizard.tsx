@@ -730,7 +730,7 @@ export function CreateBookingWizard({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Nuevo Booking</DialogTitle>
+          <DialogTitle className="text-2xl">Nueva Oferta</DialogTitle>
         </DialogHeader>
 
         {renderStepIndicator()}
