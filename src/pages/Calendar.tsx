@@ -48,7 +48,10 @@ export default function Calendar() {
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   const [projects, setProjects] = useState<any[]>([]);
-  const [teamMembers, setTeamMembers] = useState<{id: string; full_name: string}[]>([]);
+  const [teamMembers, setTeamMembers] = useState<{
+    id: string;
+    full_name: string;
+  }[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isImporting, setIsImporting] = useState(false);
   const {
@@ -228,10 +231,12 @@ export default function Calendar() {
   };
   const fetchTeamMembers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .order('full_name', { ascending: true });
+      const {
+        data,
+        error
+      } = await supabase.from('profiles').select('id, full_name').order('full_name', {
+        ascending: true
+      });
       if (error) {
         console.error('Error fetching team members:', error);
       } else {
@@ -244,7 +249,6 @@ export default function Calendar() {
   const handleImportCsvClick = () => {
     document.getElementById('csv-upload')?.click();
   };
-  
   const handleImportCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -269,11 +273,8 @@ export default function Calendar() {
       event.target.value = '';
     }
   };
-  
   const handleNavigate = (direction: 'prev' | 'next') => {
-    if (viewMode === 'week') navigateWeek(direction);
-    else if (viewMode === 'month' || viewMode === 'quarter') navigateMonth(direction);
-    else navigateYear(direction);
+    if (viewMode === 'week') navigateWeek(direction);else if (viewMode === 'month' || viewMode === 'quarter') navigateMonth(direction);else navigateYear(direction);
   };
   const fetchBookingOffers = async () => {
     try {
@@ -659,78 +660,63 @@ export default function Calendar() {
     const currentMonthWeeks = getMonthWeeks(currentDate);
     const nextMonth = addMonths(currentDate, 1);
     const nextMonthWeeks = getMonthWeeks(nextMonth);
-
-    const renderSingleMonth = (monthDate: Date, monthWeeks: any[]) => (
-      <div className="flex-1 min-w-0">
+    const renderSingleMonth = (monthDate: Date, monthWeeks: any[]) => <div className="flex-1 min-w-0">
         {/* Month header */}
         <div className="bg-muted/20 p-3 border-b text-center">
           <h3 className="text-lg font-semibold capitalize">
-            {format(monthDate, 'MMMM yyyy', { locale: es })}
+            {format(monthDate, 'MMMM yyyy', {
+            locale: es
+          })}
           </h3>
         </div>
 
         {/* Days of week header */}
         <div className="grid grid-cols-7 border-b bg-muted/10">
-          {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(day => (
-            <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground border-r last:border-r-0">
+          {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(day => <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground border-r last:border-r-0">
               {day}
-            </div>
-          ))}
+            </div>)}
         </div>
 
         {/* Calendar grid */}
         <div className="grid grid-cols-7">
           {monthWeeks.map((week, weekIndex) => week.map((day: Date, dayIndex: number) => {
-            const dayEvents = getEventsForDate(day);
-            const isCurrentMonth = isSameMonth(day, monthDate);
-            const isToday = isSameDay(day, new Date());
-            return (
-              <div 
-                key={`${weekIndex}-${dayIndex}`} 
-                className={`min-h-20 border-r border-b border-muted/30 p-1.5 cursor-pointer hover:bg-muted/10 transition-colors ${!isCurrentMonth ? 'bg-muted/5 text-muted-foreground' : ''}`} 
-                onClick={() => setSelectedDate(day)}
-              >
+          const dayEvents = getEventsForDate(day);
+          const isCurrentMonth = isSameMonth(day, monthDate);
+          const isToday = isSameDay(day, new Date());
+          return <div key={`${weekIndex}-${dayIndex}`} className={`min-h-20 border-r border-b border-muted/30 p-1.5 cursor-pointer hover:bg-muted/10 transition-colors ${!isCurrentMonth ? 'bg-muted/5 text-muted-foreground' : ''}`} onClick={() => setSelectedDate(day)}>
                 <div className={`text-xs font-medium mb-1 ${isToday ? 'bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'}`}>
                   {format(day, 'd')}
                 </div>
                 <div className="space-y-0.5">
-                  {dayEvents.slice(0, 2).map(event => (
-                    <div 
-                      key={event.id} 
-                      className="text-[10px] bg-primary/10 text-primary px-1 py-0.5 rounded truncate cursor-pointer hover:bg-primary/20"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEventClick(event, e);
-                      }}
-                    >
+                  {dayEvents.slice(0, 2).map(event => <div key={event.id} className="text-[10px] bg-primary/10 text-primary px-1 py-0.5 rounded truncate cursor-pointer hover:bg-primary/20" onClick={e => {
+                e.stopPropagation();
+                handleEventClick(event, e);
+              }}>
                       {event.title}
-                    </div>
-                  ))}
-                  {dayEvents.length > 2 && (
-                    <div className="text-[10px] text-muted-foreground">
+                    </div>)}
+                  {dayEvents.length > 2 && <div className="text-[10px] text-muted-foreground">
                       +{dayEvents.length - 2}
-                    </div>
-                  )}
+                    </div>}
                 </div>
-              </div>
-            );
-          }))}
+              </div>;
+        }))}
         </div>
-      </div>
-    );
-
-    return (
-      <div className="calendar-month-view bg-background rounded-xl border shadow-soft overflow-hidden">
+      </div>;
+    return <div className="calendar-month-view bg-background rounded-xl border shadow-soft overflow-hidden">
         {/* Header with navigation */}
         <div className="bg-muted/30 p-4 border-b">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <h2 className="text-xl font-semibold">
-                {format(currentDate, 'MMMM', { locale: es })} - {format(nextMonth, 'MMMM yyyy', { locale: es })}
+                {format(currentDate, 'MMMM', {
+                locale: es
+              })} - {format(nextMonth, 'MMMM yyyy', {
+                locale: es
+              })}
               </h2>
               <div className="flex gap-1">
                 <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')} className="h-8 w-8 p-0">
-                  <ChevronLeft className="h-4 w-4" />
+                  
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => navigateMonth('next')} className="h-8 w-8 p-0">
                   <ChevronRight className="h-4 w-4" />
@@ -758,8 +744,7 @@ export default function Calendar() {
           {renderSingleMonth(currentDate, currentMonthWeeks)}
           {renderSingleMonth(nextMonth, nextMonthWeeks)}
         </div>
-      </div>
-    );
+      </div>;
   };
   const renderYearView = () => {
     return <div className="card-moodita hover-lift">
@@ -788,17 +773,11 @@ export default function Calendar() {
             </div>
           </div>
           
-          <YearlyCalendar 
-            year={currentDate.getFullYear()} 
-            events={events} 
-            onDateSelect={date => {
-              setSelectedDate(date);
-              setCurrentDate(date);
-              setViewMode('week');
-            }} 
-            onEventClick={handleEventClick}
-            selectedDate={selectedDate} 
-          />
+          <YearlyCalendar year={currentDate.getFullYear()} events={events} onDateSelect={date => {
+          setSelectedDate(date);
+          setCurrentDate(date);
+          setViewMode('week');
+        }} onEventClick={handleEventClick} selectedDate={selectedDate} />
         </CardContent>
       </div>;
   };
@@ -812,78 +791,44 @@ export default function Calendar() {
         <div className="text-center">Error: No se pudo cargar el perfil</div>
       </div>;
   }
-  return (
-    <div className="container-moodita py-4 space-y-4 min-h-screen flex flex-col">
+  return <div className="container-moodita py-4 space-y-4 min-h-screen flex flex-col">
       {/* Compact Header */}
-      <CalendarHeader 
-        onCreateEvent={() => setShouldOpenCreateDialog(true)}
-        onImportCsv={handleImportCsvClick}
-        onSyncGoogle={() => {}}
-        isImporting={isImporting}
-      />
+      <CalendarHeader onCreateEvent={() => setShouldOpenCreateDialog(true)} onImportCsv={handleImportCsvClick} onSyncGoogle={() => {}} isImporting={isImporting} />
       <input id="csv-upload" type="file" accept=".csv" onChange={handleImportCsv} className="hidden" />
 
       {/* Unified Toolbar */}
-      <CalendarToolbar
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        currentDate={currentDate}
-        onNavigate={handleNavigate}
-        onGoToToday={() => setCurrentDate(new Date())}
-        showMyCalendar={showMyCalendar}
-        setShowMyCalendar={setShowMyCalendar}
-        selectedArtists={selectedArtists}
-        setSelectedArtists={setSelectedArtists}
-        selectedProjects={selectedProjects}
-        setSelectedProjects={setSelectedProjects}
-        selectedTeam={selectedTeam}
-        setSelectedTeam={setSelectedTeam}
-        selectedDepartment={selectedDepartment}
-        setSelectedDepartment={setSelectedDepartment}
-        projects={projects}
-        teamMembers={teamMembers}
-      />
+      <CalendarToolbar viewMode={viewMode} setViewMode={setViewMode} currentDate={currentDate} onNavigate={handleNavigate} onGoToToday={() => setCurrentDate(new Date())} showMyCalendar={showMyCalendar} setShowMyCalendar={setShowMyCalendar} selectedArtists={selectedArtists} setSelectedArtists={setSelectedArtists} selectedProjects={selectedProjects} setSelectedProjects={setSelectedProjects} selectedTeam={selectedTeam} setSelectedTeam={setSelectedTeam} selectedDepartment={selectedDepartment} setSelectedDepartment={setSelectedDepartment} projects={projects} teamMembers={teamMembers} />
 
       {/* Create Event Dialog V2 */}
-      <CreateEventDialogV2
-        open={shouldOpenCreateDialog}
-        onOpenChange={(open) => {
-          setShouldOpenCreateDialog(open);
-          if (!open) {
-            setPrefilledData(null);
-            clearSelection();
-          }
-        }}
-        onEventCreated={fetchEvents}
-        prefilledData={prefilledData}
-      />
+      <CreateEventDialogV2 open={shouldOpenCreateDialog} onOpenChange={open => {
+      setShouldOpenCreateDialog(open);
+      if (!open) {
+        setPrefilledData(null);
+        clearSelection();
+      }
+    }} onEventCreated={fetchEvents} prefilledData={prefilledData} />
 
       {/* Calendar Views */}
       <div className="flex-1">
-        {viewMode === 'year' ? renderYearView() : (
-          viewMode === 'week' ? renderWeekView() : renderMonthView()
-        )}
+        {viewMode === 'year' ? renderYearView() : viewMode === 'week' ? renderWeekView() : renderMonthView()}
       </div>
 
       {/* Event Details */}
-      {selectedDate && (
-        <Card className="card-moodita">
+      {selectedDate && <Card className="card-moodita">
           <CardHeader>
             <CardTitle>
-              Eventos para {format(selectedDate, 'PPPP', { locale: es })}
+              Eventos para {format(selectedDate, 'PPPP', {
+            locale: es
+          })}
             </CardTitle>
             <CardDescription>
               {getEventsForDate(selectedDate).length} evento(s) programado(s)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {getEventsForDate(selectedDate).length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
+            {getEventsForDate(selectedDate).length === 0 ? <div className="text-center py-8 text-muted-foreground">
                 No hay eventos programados para esta fecha
-              </div>
-            ) : (
-              getEventsForDate(selectedDate).map(event => (
-                <div key={event.id} className="card-interactive p-4 space-y-2 hover-glow">
+              </div> : getEventsForDate(selectedDate).map(event => <div key={event.id} className="card-interactive p-4 space-y-2 hover-glow">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
@@ -897,71 +842,44 @@ export default function Calendar() {
                             {format(new Date(event.start_date), 'HH:mm')} - 
                             {format(new Date(event.end_date), 'HH:mm')}
                           </div>
-                          {event.location && (
-                            <div className="flex items-center gap-1">
+                          {event.location && <div className="flex items-center gap-1">
                               <MapPin className="h-3 w-3" />
                               {event.location}
-                            </div>
-                          )}
+                            </div>}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">{event.event_type}</Badge>
                       {(() => {
-                        const bookingOffer = bookingOffers.find(offer => offer.event_id === event.id);
-                        if (bookingOffer) {
-                          const reminders = getRemindersForBooking(bookingOffer.id);
-                          return reminders.length > 0 ? <ReminderBadge reminders={reminders} /> : null;
-                        }
-                        return null;
-                      })()}
+                const bookingOffer = bookingOffers.find(offer => offer.event_id === event.id);
+                if (bookingOffer) {
+                  const reminders = getRemindersForBooking(bookingOffer.id);
+                  return reminders.length > 0 ? <ReminderBadge reminders={reminders} /> : null;
+                }
+                return null;
+              })()}
                       <EditEventDialog event={event} onUpdated={fetchEvents} />
                     </div>
                   </div>
-                  {event.description && (
-                    <p className="text-sm text-muted-foreground bg-muted/30 p-2 rounded">
+                  {event.description && <p className="text-sm text-muted-foreground bg-muted/30 p-2 rounded">
                       {event.description}
-                    </p>
-                  )}
-                </div>
-              ))
-            )}
+                    </p>}
+                </div>)}
           </CardContent>
-        </Card>
-      )}
+        </Card>}
 
       {/* Event Detail Popovers - Múltiples */}
-      {openEventPopups.map(popup => (
-        <EventDetailPopover 
-          key={popup.id} 
-          event={popup.event} 
-          open={true} 
-          onOpenChange={() => closePopup(popup.id)} 
-          position={popup.position} 
-          zIndex={popup.zIndex} 
-          onBringToFront={() => bringPopupToFront(popup.id)} 
-          artistName="David Solans" 
-          createdBy="Fabrica Mudita" 
-          onEdit={event => {
-            setEditingEvent(event);
-          }}
-          onDelete={eventId => {
-            console.log('Delete event:', eventId);
-            closePopup(popup.id);
-          }} 
-        />
-      ))}
+      {openEventPopups.map(popup => <EventDetailPopover key={popup.id} event={popup.event} open={true} onOpenChange={() => closePopup(popup.id)} position={popup.position} zIndex={popup.zIndex} onBringToFront={() => bringPopupToFront(popup.id)} artistName="David Solans" createdBy="Fabrica Mudita" onEdit={event => {
+      setEditingEvent(event);
+    }} onDelete={eventId => {
+      console.log('Delete event:', eventId);
+      closePopup(popup.id);
+    }} />)}
 
       {/* Edit Event Dialog Controlled */}
-      <EditEventDialogControlled
-        event={editingEvent}
-        open={!!editingEvent}
-        onOpenChange={(open) => {
-          if (!open) setEditingEvent(null);
-        }}
-        onUpdated={fetchEvents}
-      />
-    </div>
-  );
+      <EditEventDialogControlled event={editingEvent} open={!!editingEvent} onOpenChange={open => {
+      if (!open) setEditingEvent(null);
+    }} onUpdated={fetchEvents} />
+    </div>;
 }
