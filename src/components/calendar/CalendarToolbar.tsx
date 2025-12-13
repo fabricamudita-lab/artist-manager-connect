@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { ChevronLeft, ChevronRight, Users, FolderKanban, Filter, UserCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -155,12 +154,6 @@ export function CalendarToolbar({
             </div>
           </PopoverContent>
         </Popover>
-
-        {/* My Calendar Toggle - Compact inline */}
-        <div className="flex items-center gap-2 text-sm">
-          <Switch id="my-calendar" checked={showMyCalendar} onCheckedChange={setShowMyCalendar} className="data-[state=checked]:bg-primary" />
-          
-        </div>
       </div>
 
       {/* Right: Views & Navigation */}
