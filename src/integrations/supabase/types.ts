@@ -265,6 +265,7 @@ export type Database = {
       booking_documents: {
         Row: {
           booking_id: string
+          content: string | null
           created_at: string
           created_by: string | null
           document_type: string
@@ -276,6 +277,7 @@ export type Database = {
         }
         Insert: {
           booking_id: string
+          content?: string | null
           created_at?: string
           created_by?: string | null
           document_type?: string
@@ -287,6 +289,7 @@ export type Database = {
         }
         Update: {
           booking_id?: string
+          content?: string | null
           created_at?: string
           created_by?: string | null
           document_type?: string

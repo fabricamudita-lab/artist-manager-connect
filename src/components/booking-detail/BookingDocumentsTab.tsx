@@ -103,6 +103,15 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
 
       if (error) throw error;
       setDocuments((data || []) as BookingDocument[]);
+      
+      // Load content for generated contracts
+      const contents: Record<string, string> = {};
+      (data || []).forEach((doc: any) => {
+        if (doc.content) {
+          contents[doc.id] = doc.content;
+        }
+      });
+      setContractContents(contents);
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
@@ -291,16 +300,20 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
   const handleContractSave = async (contract: { title: string; content: string }) => {
     try {
       if (editingContract) {
-        // Update existing
-        await (supabase as any)
+        // Update existing - save content to database
+        const { error } = await (supabase as any)
           .from('booking_documents')
-          .update({ file_name: contract.title + '.pdf' })
+          .update({ 
+            file_name: contract.title + '.pdf',
+            content: contract.content 
+          })
           .eq('id', editingContract.id);
         
+        if (error) throw error;
         setContractContents(prev => ({ ...prev, [editingContract.id]: contract.content }));
         setEditingContract(null);
       } else {
-        // Create new
+        // Create new - save content to database
         const { data, error } = await (supabase as any)
           .from('booking_documents')
           .insert({
@@ -311,6 +324,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
             document_type: 'contract',
             status: 'draft',
             created_by: profile?.user_id,
+            content: contract.content,
           })
           .select()
           .single();
