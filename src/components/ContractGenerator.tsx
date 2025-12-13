@@ -24,8 +24,9 @@ import {
 import { cn } from "@/lib/utils";
 import { 
   FileText, Check, ChevronRight, ChevronLeft, ClipboardCopy, Eye, 
-  Building, User, Calendar, CreditCard, Scale, Users
+  Building, User, Calendar, CreditCard, Scale, Users, Download
 } from "lucide-react";
+import jsPDF from "jspdf";
 import {
   AgentData,
   PromoterData,
@@ -532,6 +533,44 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     </div>
   );
 
+  const downloadPDF = () => {
+    const content = generateContract();
+    const doc = new jsPDF();
+    
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const maxWidth = pageWidth - margin * 2;
+    const lineHeight = 5;
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    
+    const lines = doc.splitTextToSize(content, maxWidth);
+    let y = margin;
+    
+    lines.forEach((line: string) => {
+      if (y + lineHeight > pageHeight - margin) {
+        doc.addPage();
+        y = margin;
+      }
+      
+      // Check for headers (lines with === or all caps short lines)
+      if (line.includes("═") || (line.length < 60 && line === line.toUpperCase() && line.trim().length > 0)) {
+        doc.setFont("helvetica", "bold");
+      } else {
+        doc.setFont("helvetica", "normal");
+      }
+      
+      doc.text(line, margin, y);
+      y += lineHeight;
+    });
+    
+    const fileName = `Contrato_${conditions.artista.replace(/\s+/g, "_")}_${conditions.evento || conditions.ciudad || "booking"}.pdf`;
+    doc.save(fileName);
+    toast({ description: "PDF descargado correctamente" });
+  };
+
   // Step 6: Preview
   const renderPreviewStep = () => (
     <div className="space-y-4">
@@ -540,10 +579,14 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
           {generateContract()}
         </pre>
       </div>
-      <div className="flex justify-center">
+      <div className="flex justify-center gap-3">
         <Button variant="outline" onClick={copyToClipboard}>
           <ClipboardCopy className="h-4 w-4 mr-2" />
           Copiar al portapapeles
+        </Button>
+        <Button variant="outline" onClick={downloadPDF}>
+          <Download className="h-4 w-4 mr-2" />
+          Descargar PDF
         </Button>
       </div>
     </div>
