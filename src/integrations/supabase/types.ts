@@ -426,6 +426,7 @@ export type Database = {
           contratos: string | null
           created_at: string
           created_by: string
+          duracion: string | null
           es_cityzen: boolean | null
           es_internacional: boolean | null
           es_privado: boolean | null
@@ -442,7 +443,9 @@ export type Database = {
           id: string
           info_comentarios: string | null
           inicio_venta: string | null
+          invitaciones: number | null
           link_venta: string | null
+          logistica: string | null
           lugar: string | null
           notas: string | null
           oferta: string | null
@@ -450,6 +453,8 @@ export type Database = {
           phase: string | null
           project_id: string | null
           promotor: string | null
+          publico: string | null
+          pvp: number | null
           sort_order: number | null
           tour_manager: string | null
           tour_manager_new: string | null
@@ -469,6 +474,7 @@ export type Database = {
           contratos?: string | null
           created_at?: string
           created_by: string
+          duracion?: string | null
           es_cityzen?: boolean | null
           es_internacional?: boolean | null
           es_privado?: boolean | null
@@ -485,7 +491,9 @@ export type Database = {
           id?: string
           info_comentarios?: string | null
           inicio_venta?: string | null
+          invitaciones?: number | null
           link_venta?: string | null
+          logistica?: string | null
           lugar?: string | null
           notas?: string | null
           oferta?: string | null
@@ -493,6 +501,8 @@ export type Database = {
           phase?: string | null
           project_id?: string | null
           promotor?: string | null
+          publico?: string | null
+          pvp?: number | null
           sort_order?: number | null
           tour_manager?: string | null
           tour_manager_new?: string | null
@@ -512,6 +522,7 @@ export type Database = {
           contratos?: string | null
           created_at?: string
           created_by?: string
+          duracion?: string | null
           es_cityzen?: boolean | null
           es_internacional?: boolean | null
           es_privado?: boolean | null
@@ -528,7 +539,9 @@ export type Database = {
           id?: string
           info_comentarios?: string | null
           inicio_venta?: string | null
+          invitaciones?: number | null
           link_venta?: string | null
+          logistica?: string | null
           lugar?: string | null
           notas?: string | null
           oferta?: string | null
@@ -536,6 +549,8 @@ export type Database = {
           phase?: string | null
           project_id?: string | null
           promotor?: string | null
+          publico?: string | null
+          pvp?: number | null
           sort_order?: number | null
           tour_manager?: string | null
           tour_manager_new?: string | null
