@@ -159,9 +159,10 @@ export default function Calendar() {
             filteredEvents = filteredEvents.filter((event: any) => event.created_by === profile.id || event.artist_id === profile.id);
           }
 
-          // Filtrar por proyectos si hay seleccionados
+          // Filtrar por proyectos - nota: events no tiene project_id, este filtro no aplica
           if (selectedProjects.length > 0) {
-            filteredEvents = filteredEvents.filter((event: any) => event.project_id && selectedProjects.includes(event.project_id));
+            // La tabla events no tiene project_id, este filtro se desactiva
+            // filteredEvents = filteredEvents.filter((event: any) => event.project_id && selectedProjects.includes(event.project_id));
           }
           setEvents(filteredEvents);
         }
@@ -190,10 +191,10 @@ export default function Calendar() {
             filteredEvents = filteredEvents.filter((event: any) => event.created_by === profile.id || event.artist_id === profile.id);
           }
 
-          // Filtrar por proyectos si hay seleccionados
-          if (selectedProjects.length > 0) {
-            filteredEvents = filteredEvents.filter((event: any) => event.project_id && selectedProjects.includes(event.project_id));
-          }
+          // Filtrar por proyectos - nota: events no tiene project_id, este filtro no aplica
+          // if (selectedProjects.length > 0) {
+          //   filteredEvents = filteredEvents.filter((event: any) => event.project_id && selectedProjects.includes(event.project_id));
+          // }
           setEvents(filteredEvents);
         }
       }
