@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { CalendarIcon, Upload, Plus, Loader2 } from 'lucide-react';
 import { ImportConcerts2025Dialog } from '@/components/ImportConcerts2025Dialog';
-
 interface CalendarHeaderProps {
   onCreateEvent: () => void;
   onImportCsv: () => void;
@@ -9,14 +8,12 @@ interface CalendarHeaderProps {
   isImporting: boolean;
   googleConnected?: boolean;
 }
-
 export function CalendarHeader({
   onCreateEvent,
   onImportCsv,
-  isImporting,
+  isImporting
 }: CalendarHeaderProps) {
-  return (
-    <div className="flex items-center justify-between">
+  return <div className="flex items-center justify-between">
       {/* Left: Title */}
       <div className="flex items-center gap-3">
         <div className="p-2 bg-gradient-primary rounded-xl">
@@ -24,7 +21,7 @@ export function CalendarHeader({
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gradient-primary tracking-tight">Calendario</h1>
-          <p className="text-sm text-muted-foreground">Organiza y visualiza todos tus eventos</p>
+          <p className="text-sm text-muted-foreground">Organiza y visualiza tu agenda </p>
         </div>
       </div>
 
@@ -34,23 +31,14 @@ export function CalendarHeader({
         <ImportConcerts2025Dialog />
         
         {/* Import CSV */}
-        <Button 
-          variant="outline" 
-          size="sm" 
-          disabled={isImporting}
-          onClick={onImportCsv}
-        >
-          {isImporting ? (
-            <>
+        <Button variant="outline" size="sm" disabled={isImporting} onClick={onImportCsv}>
+          {isImporting ? <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Importando...
-            </>
-          ) : (
-            <>
+            </> : <>
               <Upload className="mr-2 h-4 w-4" />
               Importar CSV
-            </>
-          )}
+            </>}
         </Button>
 
         {/* Create Event - Primary */}
@@ -59,6 +47,5 @@ export function CalendarHeader({
           Crear Evento
         </Button>
       </div>
-    </div>
-  );
+    </div>;
 }
