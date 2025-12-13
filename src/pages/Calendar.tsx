@@ -448,8 +448,8 @@ export default function Calendar() {
     // Verificar si el evento ya está abierto
     const existingPopup = openEventPopups.find(popup => popup.event.id === event.id);
     if (existingPopup) {
-      // Si ya está abierto, solo traerlo al frente
-      bringPopupToFront(existingPopup.id);
+      // Si ya está abierto, cerrarlo (toggle)
+      setOpenEventPopups(prev => prev.filter(popup => popup.id !== existingPopup.id));
       return;
     }
 
