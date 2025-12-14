@@ -214,13 +214,107 @@ export default function BookingDetail() {
             {/* Copy Info Button */}
             <Button variant="outline" size="sm" onClick={() => {
             const eventName = booking.festival_ciclo || booking.venue || 'Evento';
-            const info = [`📅 ${eventName}`, booking.fecha ? `Fecha: ${format(new Date(booking.fecha), "d 'de' MMMM, yyyy", {
-              locale: es
-            })}${booking.hora ? ` - ${booking.hora}` : ''}` : null, booking.venue ? `Venue: ${booking.venue}` : null, booking.ciudad ? `📍 ${[booking.ciudad, booking.pais].filter(Boolean).join(', ')}` : null, booking.promotor ? `Promotor: ${booking.promotor}` : null, booking.fee ? `Fee: ${booking.fee.toLocaleString()}€` : null, booking.formato ? `Formato: ${booking.formato}` : null].filter(Boolean).join('\n');
+            const sections = [];
+            
+            // Header
+            sections.push(`📅 ${eventName}`);
+            sections.push('═'.repeat(40));
+            
+            // Fecha y lugar
+            const fechaSection = [];
+            if (booking.fecha) {
+              fechaSection.push(`Fecha: ${format(new Date(booking.fecha), "d 'de' MMMM, yyyy", { locale: es })}${booking.hora ? ` - ${booking.hora}` : ''}`);
+            }
+            if (booking.venue) fechaSection.push(`Venue: ${booking.venue}`);
+            if (booking.lugar) fechaSection.push(`Lugar: ${booking.lugar}`);
+            if (booking.ciudad || booking.pais) {
+              fechaSection.push(`📍 ${[booking.ciudad, booking.pais].filter(Boolean).join(', ')}`);
+            }
+            if (booking.capacidad) fechaSection.push(`Capacidad: ${booking.capacidad.toLocaleString()}`);
+            if (fechaSection.length > 0) sections.push(fechaSection.join('\n'));
+            
+            // Promotor y contacto
+            const contactoSection = [];
+            if (booking.promotor) contactoSection.push(`Promotor: ${booking.promotor}`);
+            if (booking.contacto) contactoSection.push(`Contacto: ${booking.contacto}`);
+            if (booking.tour_manager) contactoSection.push(`Tour Manager: ${booking.tour_manager}`);
+            if (contactoSection.length > 0) {
+              sections.push('');
+              sections.push('👤 CONTACTOS');
+              sections.push(contactoSection.join('\n'));
+            }
+            
+            // Financiero
+            const finSection = [];
+            if (booking.fee) finSection.push(`Fee: ${booking.fee.toLocaleString()}€`);
+            if (booking.oferta) finSection.push(`Oferta: ${booking.oferta}`);
+            if (booking.gastos_estimados) finSection.push(`Gastos Estimados: ${booking.gastos_estimados.toLocaleString()}€`);
+            if (booking.comision_porcentaje) finSection.push(`Comisión: ${booking.comision_porcentaje}%`);
+            if (booking.comision_euros) finSection.push(`Comisión (€): ${booking.comision_euros.toLocaleString()}€`);
+            if (finSection.length > 0) {
+              sections.push('');
+              sections.push('💰 FINANCIERO');
+              sections.push(finSection.join('\n'));
+            }
+            
+            // Detalles del evento
+            const detallesSection = [];
+            if (booking.formato) detallesSection.push(`Formato: ${booking.formato}`);
+            if (booking.duracion) detallesSection.push(`Duración: ${booking.duracion}`);
+            if (booking.publico) detallesSection.push(`Público: ${booking.publico}`);
+            if (booking.estado) detallesSection.push(`Estado: ${booking.estado}`);
+            if (booking.phase) detallesSection.push(`Fase: ${booking.phase}`);
+            if (booking.es_internacional !== null) detallesSection.push(`Internacional: ${booking.es_internacional ? 'Sí' : 'No'}`);
+            if (booking.es_cityzen !== null) detallesSection.push(`Cityzen: ${booking.es_cityzen ? 'Sí' : 'No'}`);
+            if (detallesSection.length > 0) {
+              sections.push('');
+              sections.push('🎭 DETALLES');
+              sections.push(detallesSection.join('\n'));
+            }
+            
+            // Venta
+            const ventaSection = [];
+            if (booking.pvp) ventaSection.push(`PVP: ${booking.pvp}€`);
+            if (booking.inicio_venta) ventaSection.push(`Inicio Venta: ${booking.inicio_venta}`);
+            if (booking.link_venta) ventaSection.push(`Link Venta: ${booking.link_venta}`);
+            if (booking.invitaciones) ventaSection.push(`Invitaciones: ${booking.invitaciones}`);
+            if (ventaSection.length > 0) {
+              sections.push('');
+              sections.push('🎟️ VENTA');
+              sections.push(ventaSection.join('\n'));
+            }
+            
+            // Condiciones y logística
+            const condicionesSection = [];
+            if (booking.condiciones) condicionesSection.push(`Condiciones: ${booking.condiciones}`);
+            if (booking.logistica) condicionesSection.push(`Logística: ${booking.logistica}`);
+            if (booking.contratos) condicionesSection.push(`Contratos: ${booking.contratos}`);
+            if (condicionesSection.length > 0) {
+              sections.push('');
+              sections.push('📋 CONDICIONES');
+              sections.push(condicionesSection.join('\n'));
+            }
+            
+            // Notas
+            if (booking.notas || booking.info_comentarios) {
+              sections.push('');
+              sections.push('📝 NOTAS');
+              if (booking.notas) sections.push(booking.notas);
+              if (booking.info_comentarios) sections.push(booking.info_comentarios);
+            }
+            
+            // Links
+            if (booking.folder_url) {
+              sections.push('');
+              sections.push('🔗 ENLACES');
+              sections.push(`Carpeta: ${booking.folder_url}`);
+            }
+            
+            const info = sections.join('\n');
             navigator.clipboard.writeText(info);
             toast({
               title: "Copiado",
-              description: "Información del evento copiada al portapapeles"
+              description: "Información completa del evento copiada al portapapeles"
             });
           }}>
               <Copy className="h-4 w-4 mr-2" />
