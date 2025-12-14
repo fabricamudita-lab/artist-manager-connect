@@ -16,6 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { 
   UserPlus, 
   Copy, 
@@ -23,7 +28,8 @@ import {
   Clock, 
   Trash2,
   Users,
-  Mail
+  Mail,
+  ChevronDown
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -64,6 +70,7 @@ export function ContractSignersManager({ documentId, onSignersChange }: Contract
   const [newSignerRole, setNewSignerRole] = useState('Promotor');
   const [newSignerEmail, setNewSignerEmail] = useState('');
   const [adding, setAdding] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     fetchSigners();
@@ -203,17 +210,20 @@ export function ContractSignersManager({ documentId, onSignersChange }: Contract
   }
 
   return (
-    <div className="space-y-4">
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Firmantes</span>
-          {totalCount > 0 && (
-            <Badge variant={signedCount === totalCount ? 'default' : 'secondary'} className={signedCount === totalCount ? 'bg-green-600' : ''}>
-              {signedCount}/{totalCount} firmados
-            </Badge>
-          )}
-        </div>
+        <CollapsibleTrigger asChild>
+          <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Firmantes</span>
+            {totalCount > 0 && (
+              <Badge variant={signedCount === totalCount ? 'default' : 'secondary'} className={signedCount === totalCount ? 'bg-green-600' : ''}>
+                {signedCount}/{totalCount} firmados
+              </Badge>
+            )}
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          </button>
+        </CollapsibleTrigger>
         
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
@@ -270,93 +280,95 @@ export function ContractSignersManager({ documentId, onSignersChange }: Contract
         </Dialog>
       </div>
 
-      {signers.length === 0 ? (
-        <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
-          <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>No hay firmantes configurados</p>
-          <p className="text-xs mt-1">Añade los firmantes que deben firmar este contrato</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {signers.map((signer) => (
-            <div
-              key={signer.id}
-              className={`flex items-center justify-between p-3 rounded-lg border ${
-                signer.status === 'signed' 
-                  ? 'bg-green-500/10 border-green-500/30' 
-                  : 'bg-muted/30'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-full ${
-                  signer.status === 'signed' ? 'bg-green-500/20' : 'bg-amber-500/20'
-                }`}>
-                  {signer.status === 'signed' ? (
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <Clock className="h-4 w-4 text-amber-600" />
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{signer.name}</span>
-                    <Badge variant="outline" className="text-xs">{signer.role}</Badge>
+      <CollapsibleContent className="mt-4">
+        {signers.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
+            <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>No hay firmantes configurados</p>
+            <p className="text-xs mt-1">Añade los firmantes que deben firmar este contrato</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {signers.map((signer) => (
+              <div
+                key={signer.id}
+                className={`flex items-center justify-between p-3 rounded-lg border ${
+                  signer.status === 'signed' 
+                    ? 'bg-green-500/10 border-green-500/30' 
+                    : 'bg-muted/30'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-full ${
+                    signer.status === 'signed' ? 'bg-green-500/20' : 'bg-amber-500/20'
+                  }`}>
+                    {signer.status === 'signed' ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Clock className="h-4 w-4 text-amber-600" />
+                    )}
                   </div>
-                  {signer.email && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Mail className="h-3 w-3" />
-                      {signer.email}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{signer.name}</span>
+                      <Badge variant="outline" className="text-xs">{signer.role}</Badge>
+                    </div>
+                    {signer.email && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Mail className="h-3 w-3" />
+                        {signer.email}
+                      </div>
+                    )}
+                    {signer.status === 'signed' && signer.signed_at && (
+                      <p className="text-xs text-green-600">
+                        Firmado el {new Date(signer.signed_at).toLocaleString('es-ES', {
+                          dateStyle: 'short',
+                          timeStyle: 'short'
+                        })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {signer.status === 'pending' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleCopyLink(signer)}
+                      className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copiar Link
+                    </Button>
+                  )}
+                  
+                  {signer.signature_image_url && (
+                    <div className="h-10 w-20 bg-white dark:bg-gray-900 rounded border p-1">
+                      <img 
+                        src={signer.signature_image_url} 
+                        alt={`Firma de ${signer.name}`}
+                        className="h-full w-full object-contain"
+                      />
                     </div>
                   )}
-                  {signer.status === 'signed' && signer.signed_at && (
-                    <p className="text-xs text-green-600">
-                      Firmado el {new Date(signer.signed_at).toLocaleString('es-ES', {
-                        dateStyle: 'short',
-                        timeStyle: 'short'
-                      })}
-                    </p>
+
+                  {signer.status === 'pending' && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleDeleteSigner(signer.id)}
+                      className="text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   )}
                 </div>
               </div>
-
-              <div className="flex items-center gap-2">
-                {signer.status === 'pending' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleCopyLink(signer)}
-                    className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10"
-                  >
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copiar Link
-                  </Button>
-                )}
-                
-                {signer.signature_image_url && (
-                  <div className="h-10 w-20 bg-white dark:bg-gray-900 rounded border p-1">
-                    <img 
-                      src={signer.signature_image_url} 
-                      alt={`Firma de ${signer.name}`}
-                      className="h-full w-full object-contain"
-                    />
-                  </div>
-                )}
-
-                {signer.status === 'pending' && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleDeleteSigner(signer.id)}
-                    className="text-destructive hover:bg-destructive/10"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+            ))}
+          </div>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
