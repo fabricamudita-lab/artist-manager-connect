@@ -268,7 +268,16 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(10);
     
-    const lines = pdf.splitTextToSize(content, maxWidth);
+    // Clean content to remove problematic characters
+    const cleanContent = content
+      .replace(/[""]/g, '"')
+      .replace(/['']/g, "'")
+      .replace(/–/g, '-')
+      .replace(/—/g, '-')
+      .replace(/…/g, '...')
+      .replace(/\u00A0/g, ' ');
+    
+    const lines = pdf.splitTextToSize(cleanContent, maxWidth);
     
     const addPageNumber = () => {
       pdf.setFontSize(8);
