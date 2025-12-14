@@ -1422,6 +1422,56 @@ export type Database = {
           },
         ]
       }
+      contract_signers: {
+        Row: {
+          created_at: string
+          document_id: string
+          email: string | null
+          id: string
+          name: string
+          role: string
+          signature_image_url: string | null
+          signed_at: string | null
+          status: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          email?: string | null
+          id?: string
+          name: string
+          role?: string
+          signature_image_url?: string | null
+          signed_at?: string | null
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          email?: string | null
+          id?: string
+          name?: string
+          role?: string
+          signature_image_url?: string | null
+          signed_at?: string | null
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_signers_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "booking_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           created_at: string
