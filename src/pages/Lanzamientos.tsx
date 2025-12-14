@@ -274,7 +274,18 @@ export default function Lanzamientos() {
       {viewMode === 'gantt' ? (
         <Card>
           <CardContent className="pt-6">
-            <GanttChart workflows={workflows} />
+            <GanttChart 
+              workflows={workflows} 
+              onUpdateTaskDate={(workflowId, taskId, newDate) => {
+                setWorkflows(prev => prev.map(w => 
+                  w.id === workflowId 
+                    ? { ...w, tasks: w.tasks.map(t => 
+                        t.id === taskId ? { ...t, startDate: newDate } : t
+                      )}
+                    : w
+                ));
+              }}
+            />
           </CardContent>
         </Card>
       ) : (

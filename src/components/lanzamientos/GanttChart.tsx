@@ -1,12 +1,19 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { format, addDays, differenceInDays, startOfDay, min, max } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { CalendarIcon } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 
 type TaskStatus = 'pendiente' | 'en_proceso' | 'completado' | 'retrasado';
@@ -30,6 +37,7 @@ interface WorkflowSection {
 
 interface GanttChartProps {
   workflows: WorkflowSection[];
+  onUpdateTaskDate?: (workflowId: string, taskId: string, newDate: Date) => void;
 }
 
 const STATUS_BAR_COLORS: Record<TaskStatus, string> = {
@@ -48,7 +56,9 @@ const WORKFLOW_COLORS: Record<string, string> = {
   directo: 'border-l-green-500',
 };
 
-export default function GanttChart({ workflows }: GanttChartProps) {
+export default function GanttChart({ workflows, onUpdateTaskDate }: GanttChartProps) {
+  const [openPopover, setOpenPopover] = useState<string | null>(null);
+
   const { timelineStart, timelineEnd, totalDays, tasksWithDates } = useMemo(() => {
     const allTasks = workflows.flatMap(w => 
       w.tasks.filter(t => t.startDate).map(t => ({
@@ -114,6 +124,13 @@ export default function GanttChart({ workflows }: GanttChartProps) {
     return result;
   }, [timelineStart, timelineEnd, totalDays]);
 
+  const handleDateSelect = (workflowId: string, taskId: string, date: Date | undefined) => {
+    if (date && onUpdateTaskDate) {
+      onUpdateTaskDate(workflowId, taskId, date);
+    }
+    setOpenPopover(null);
+  };
+
   if (tasksWithDates.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
@@ -154,12 +171,36 @@ export default function GanttChart({ workflows }: GanttChartProps) {
                   {workflowTasks.map(task => {
                     const { left, width } = getBarPosition(task.startDate!, task.estimatedDays);
                     const dueDate = addDays(task.startDate!, task.estimatedDays);
+                    const popoverId = `${workflow.id}-${task.id}`;
 
                     return (
                       <div key={task.id} className="flex items-center gap-3">
-                        <div className="w-32 text-sm truncate text-muted-foreground">
-                          {task.name}
-                        </div>
+                        <Popover 
+                          open={openPopover === popoverId} 
+                          onOpenChange={(open) => setOpenPopover(open ? popoverId : null)}
+                        >
+                          <PopoverTrigger asChild>
+                            <button className="w-32 text-sm truncate text-muted-foreground hover:text-foreground flex items-center gap-1 text-left transition-colors">
+                              <CalendarIcon className="w-3 h-3 flex-shrink-0" />
+                              {task.name}
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <div className="p-3 border-b">
+                              <p className="font-medium text-sm">{task.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Inicio: {format(task.startDate!, 'dd MMM yyyy', { locale: es })}
+                              </p>
+                            </div>
+                            <Calendar
+                              mode="single"
+                              selected={task.startDate!}
+                              onSelect={(date) => handleDateSelect(workflow.id, task.id, date)}
+                              initialFocus
+                              className="p-3 pointer-events-auto"
+                            />
+                          </PopoverContent>
+                        </Popover>
                         <div className="flex-1 relative h-8 bg-muted/20 rounded">
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -179,6 +220,10 @@ export default function GanttChart({ workflows }: GanttChartProps) {
                                     <span className="text-muted-foreground">Responsable:</span> {task.responsible}
                                   </p>
                                 )}
+                                <p className="text-sm">
+                                  <span className="text-muted-foreground">Inicio:</span>{' '}
+                                  {format(task.startDate!, 'dd MMMM yyyy', { locale: es })}
+                                </p>
                                 <p className="text-sm">
                                   <span className="text-muted-foreground">Vencimiento:</span>{' '}
                                   {format(dueDate, 'dd MMMM yyyy', { locale: es })}
@@ -216,6 +261,10 @@ export default function GanttChart({ workflows }: GanttChartProps) {
             <span className="text-sm">Retrasado</span>
           </div>
         </div>
+
+        <p className="text-xs text-muted-foreground">
+          💡 Haz clic en el nombre de una tarea para cambiar su fecha de inicio
+        </p>
       </div>
     </TooltipProvider>
   );
