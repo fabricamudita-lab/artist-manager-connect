@@ -10,13 +10,16 @@ import {
   Package,
   Video,
   Megaphone,
-  Mic2
+  Mic2,
+  List,
+  GanttChart as GanttIcon
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -44,6 +47,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import GanttChart from '@/components/lanzamientos/GanttChart';
 
 type TaskStatus = 'pendiente' | 'en_proceso' | 'completado' | 'retrasado';
 
@@ -154,8 +158,11 @@ const INITIAL_WORKFLOWS: WorkflowSection[] = [
   },
 ];
 
+type ViewMode = 'list' | 'gantt';
+
 export default function Lanzamientos() {
   const [workflows, setWorkflows] = useState<WorkflowSection[]>(INITIAL_WORKFLOWS);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(
     Object.fromEntries(INITIAL_WORKFLOWS.map(w => [w.id, true]))
   );
@@ -231,6 +238,18 @@ export default function Lanzamientos() {
           <h1 className="text-3xl font-bold font-playfair">Lanzamientos</h1>
           <p className="text-muted-foreground">Gestiona el cronograma de lanzamiento de tu disco</p>
         </div>
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+          <TabsList>
+            <TabsTrigger value="list" className="gap-2">
+              <List className="w-4 h-4" />
+              Lista
+            </TabsTrigger>
+            <TabsTrigger value="gantt" className="gap-2">
+              <GanttIcon className="w-4 h-4" />
+              Cronograma
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Progress Card */}
@@ -251,8 +270,16 @@ export default function Lanzamientos() {
         </CardContent>
       </Card>
 
-      {/* Workflow Sections */}
-      <div className="space-y-4">
+      {/* View Content */}
+      {viewMode === 'gantt' ? (
+        <Card>
+          <CardContent className="pt-6">
+            <GanttChart workflows={workflows} />
+          </CardContent>
+        </Card>
+      ) : (
+        /* Workflow Sections - List View */
+        <div className="space-y-4">
         {workflows.map(workflow => {
           const Icon = workflow.icon;
           const sectionCompleted = workflow.tasks.filter(t => t.status === 'completado').length;
@@ -411,7 +438,8 @@ export default function Lanzamientos() {
             </Card>
           );
         })}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
