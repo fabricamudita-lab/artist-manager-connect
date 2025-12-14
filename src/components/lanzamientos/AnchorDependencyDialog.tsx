@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,6 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface DependentTask {
   id: string;
@@ -22,7 +24,7 @@ interface AnchorDependencyDialogProps {
   sourceName: string;
   daysDelta: number;
   dependentTasks: DependentTask[];
-  onConfirm: (propagate: boolean) => void;
+  onConfirm: (selectedTaskIds: string[]) => void;
 }
 
 export default function AnchorDependencyDialog({
@@ -35,6 +37,34 @@ export default function AnchorDependencyDialog({
 }: AnchorDependencyDialogProps) {
   const direction = daysDelta > 0 ? 'adelante' : 'atrás';
   const absDays = Math.abs(daysDelta);
+  
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (open) {
+      setSelectedTasks(new Set(dependentTasks.map(t => t.id)));
+    }
+  }, [open, dependentTasks]);
+
+  const toggleTask = (taskId: string) => {
+    setSelectedTasks(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedTasks.size === dependentTasks.length) {
+      setSelectedTasks(new Set());
+    } else {
+      setSelectedTasks(new Set(dependentTasks.map(t => t.id)));
+    }
+  };
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -46,27 +76,46 @@ export default function AnchorDependencyDialog({
               <p>
                 Has movido <strong>"{sourceName}"</strong> {absDays} día{absDays > 1 ? 's' : ''} hacia {direction}.
               </p>
-              <p>Las siguientes tareas están ancladas a esta:</p>
-              <ul className="list-disc pl-5 space-y-1">
+              <p>Selecciona las tareas que deseas mover también:</p>
+              <div className="space-y-2 py-2">
+                <div 
+                  className="flex items-center space-x-2 pb-2 border-b cursor-pointer"
+                  onClick={toggleAll}
+                >
+                  <Checkbox 
+                    id="select-all"
+                    checked={selectedTasks.size === dependentTasks.length}
+                  />
+                  <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+                    Seleccionar todas
+                  </label>
+                </div>
                 {dependentTasks.map(task => (
-                  <li key={task.id} className="text-sm">
-                    <strong>{task.name}</strong>
-                    <span className="text-muted-foreground"> ({task.workflowName})</span>
-                  </li>
+                  <div 
+                    key={task.id} 
+                    className="flex items-center space-x-2 cursor-pointer"
+                    onClick={() => toggleTask(task.id)}
+                  >
+                    <Checkbox 
+                      id={task.id}
+                      checked={selectedTasks.has(task.id)}
+                    />
+                    <label htmlFor={task.id} className="text-sm cursor-pointer">
+                      <strong>{task.name}</strong>
+                      <span className="text-muted-foreground"> ({task.workflowName})</span>
+                    </label>
+                  </div>
                 ))}
-              </ul>
-              <p className="font-medium">
-                ¿Quieres mover también estas tareas {absDays} día{absDays > 1 ? 's' : ''} hacia {direction}?
-              </p>
+              </div>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => onConfirm(false)}>
-            No, solo mover "{sourceName}"
+          <AlertDialogCancel onClick={() => onConfirm([])}>
+            No mover ninguna
           </AlertDialogCancel>
-          <AlertDialogAction onClick={() => onConfirm(true)}>
-            Sí, mover todas
+          <AlertDialogAction onClick={() => onConfirm(Array.from(selectedTasks))}>
+            Mover seleccionadas ({selectedTasks.size})
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
