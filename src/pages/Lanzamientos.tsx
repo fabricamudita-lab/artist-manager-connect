@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { format, addDays } from 'date-fns';
+import { useState, useMemo, useCallback } from 'react';
+import { format, addDays, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
   ChevronDown, 
@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import AnchorDependencyDialog from '@/components/lanzamientos/AnchorDependencyDialog';
 import {
   Table,
   TableBody,
@@ -58,6 +59,7 @@ interface ReleaseTask {
   startDate: Date | null;
   estimatedDays: number;
   status: TaskStatus;
+  anchoredTo?: string; // ID of task this one is anchored to
 }
 
 interface WorkflowSection {
@@ -67,6 +69,8 @@ interface WorkflowSection {
   color: string;
   tasks: ReleaseTask[];
 }
+
+export type { ReleaseTask, WorkflowSection, TaskStatus };
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string; color: string }[] = [
   { value: 'pendiente', label: 'Pendiente', color: 'bg-muted text-muted-foreground' },
@@ -166,6 +170,123 @@ export default function Lanzamientos() {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(
     Object.fromEntries(INITIAL_WORKFLOWS.map(w => [w.id, true]))
   );
+  
+  // Anchor dependency dialog state
+  const [anchorDialogOpen, setAnchorDialogOpen] = useState(false);
+  const [pendingDateChange, setPendingDateChange] = useState<{
+    workflowId: string;
+    taskId: string;
+    newStartDate: Date;
+    newEstimatedDays: number;
+    oldStartDate: Date;
+    daysDelta: number;
+    dependentTasks: { id: string; name: string; workflowId: string; workflowName: string }[];
+  } | null>(null);
+
+  // Get all tasks that are anchored to a given task
+  const getDependentTasks = useCallback((sourceTaskId: string) => {
+    const dependents: { id: string; name: string; workflowId: string; workflowName: string }[] = [];
+    workflows.forEach(workflow => {
+      workflow.tasks.forEach(task => {
+        if (task.anchoredTo === sourceTaskId) {
+          dependents.push({
+            id: task.id,
+            name: task.name,
+            workflowId: workflow.id,
+            workflowName: workflow.name,
+          });
+        }
+      });
+    });
+    return dependents;
+  }, [workflows]);
+
+  // Get task name by ID
+  const getTaskName = useCallback((taskId: string) => {
+    for (const workflow of workflows) {
+      const task = workflow.tasks.find(t => t.id === taskId);
+      if (task) return task.name;
+    }
+    return '';
+  }, [workflows]);
+
+  // Handle date update with anchor check
+  const handleTaskDateUpdate = useCallback((
+    workflowId: string,
+    taskId: string,
+    newStartDate: Date,
+    newEstimatedDays: number
+  ) => {
+    // Find the current task
+    const workflow = workflows.find(w => w.id === workflowId);
+    const task = workflow?.tasks.find(t => t.id === taskId);
+    
+    if (!task || !task.startDate) {
+      // No previous date, just update
+      setWorkflows(prev => prev.map(w => 
+        w.id === workflowId 
+          ? { ...w, tasks: w.tasks.map(t => 
+              t.id === taskId ? { ...t, startDate: newStartDate, estimatedDays: newEstimatedDays } : t
+            )}
+          : w
+      ));
+      return;
+    }
+
+    const daysDelta = differenceInDays(newStartDate, task.startDate);
+    const dependentTasks = getDependentTasks(taskId);
+
+    if (dependentTasks.length > 0 && daysDelta !== 0) {
+      // Show confirmation dialog
+      setPendingDateChange({
+        workflowId,
+        taskId,
+        newStartDate,
+        newEstimatedDays,
+        oldStartDate: task.startDate,
+        daysDelta,
+        dependentTasks,
+      });
+      setAnchorDialogOpen(true);
+    } else {
+      // No dependents or no date change, just update
+      setWorkflows(prev => prev.map(w => 
+        w.id === workflowId 
+          ? { ...w, tasks: w.tasks.map(t => 
+              t.id === taskId ? { ...t, startDate: newStartDate, estimatedDays: newEstimatedDays } : t
+            )}
+          : w
+      ));
+    }
+  }, [workflows, getDependentTasks]);
+
+  // Handle anchor dialog confirmation
+  const handleAnchorConfirm = useCallback((propagate: boolean) => {
+    if (!pendingDateChange) return;
+
+    const { workflowId, taskId, newStartDate, newEstimatedDays, daysDelta, dependentTasks } = pendingDateChange;
+
+    setWorkflows(prev => prev.map(w => {
+      const updatedTasks = w.tasks.map(t => {
+        // Update the main task
+        if (t.id === taskId && w.id === workflowId) {
+          return { ...t, startDate: newStartDate, estimatedDays: newEstimatedDays };
+        }
+        // If propagating, update dependent tasks
+        if (propagate && t.startDate) {
+          const isDependent = dependentTasks.some(dt => dt.id === t.id && dt.workflowId === w.id);
+          if (isDependent) {
+            return { ...t, startDate: addDays(t.startDate, daysDelta) };
+          }
+        }
+        return t;
+      });
+      return { ...w, tasks: updatedTasks };
+    }));
+
+    setAnchorDialogOpen(false);
+    setPendingDateChange(null);
+  }, [pendingDateChange]);
 
   const toggleSection = (id: string) => {
     setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
@@ -276,15 +397,11 @@ export default function Lanzamientos() {
           <CardContent className="pt-6">
             <GanttChart 
               workflows={workflows} 
-              onUpdateTaskDate={(workflowId, taskId, newStartDate, newEstimatedDays) => {
-                setWorkflows(prev => prev.map(w => 
-                  w.id === workflowId 
-                    ? { ...w, tasks: w.tasks.map(t => 
-                        t.id === taskId ? { ...t, startDate: newStartDate, estimatedDays: newEstimatedDays } : t
-                      )}
-                    : w
-                ));
+              onUpdateTaskDate={handleTaskDateUpdate}
+              onSetAnchor={(workflowId, taskId, anchoredTo) => {
+                updateTask(workflowId, taskId, { anchoredTo });
               }}
+              getTaskName={getTaskName}
             />
           </CardContent>
         </Card>
@@ -324,12 +441,13 @@ export default function Lanzamientos() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[200px]">Tarea</TableHead>
-                          <TableHead className="w-[150px]">Responsable</TableHead>
-                          <TableHead className="w-[140px]">Fecha Inicio</TableHead>
-                          <TableHead className="w-[100px]">Días Est.</TableHead>
-                          <TableHead className="w-[140px]">Vencimiento</TableHead>
-                          <TableHead className="w-[140px]">Estado</TableHead>
+                          <TableHead className="w-[180px]">Tarea</TableHead>
+                          <TableHead className="w-[130px]">Responsable</TableHead>
+                          <TableHead className="w-[130px]">Fecha Inicio</TableHead>
+                          <TableHead className="w-[80px]">Días</TableHead>
+                          <TableHead className="w-[130px]">Vencimiento</TableHead>
+                          <TableHead className="w-[150px]">Anclada a</TableHead>
+                          <TableHead className="w-[130px]">Estado</TableHead>
                           <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -398,6 +516,34 @@ export default function Lanzamientos() {
                               </TableCell>
                               <TableCell>
                                 <Select
+                                  value={task.anchoredTo || 'none'}
+                                  onValueChange={(value) => updateTask(workflow.id, task.id, { anchoredTo: value === 'none' ? undefined : value })}
+                                >
+                                  <SelectTrigger className="h-8 border-0 bg-transparent text-xs">
+                                    <SelectValue placeholder="Sin ancla">
+                                      {task.anchoredTo ? (
+                                        <span className="text-xs">🔗 {getTaskName(task.anchoredTo)}</span>
+                                      ) : (
+                                        <span className="text-muted-foreground text-xs">Sin ancla</span>
+                                      )}
+                                    </SelectValue>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="none">Sin ancla</SelectItem>
+                                    {workflows.flatMap(w => 
+                                      w.tasks
+                                        .filter(t => t.id !== task.id)
+                                        .map(t => (
+                                          <SelectItem key={t.id} value={t.id}>
+                                            {t.name} ({w.name})
+                                          </SelectItem>
+                                        ))
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell>
+                                <Select
                                   value={task.status}
                                   onValueChange={(value: TaskStatus) => updateTask(workflow.id, task.id, { status: value })}
                                 >
@@ -451,6 +597,16 @@ export default function Lanzamientos() {
         })}
         </div>
       )}
+
+      {/* Anchor Dependency Dialog */}
+      <AnchorDependencyDialog
+        open={anchorDialogOpen}
+        onOpenChange={setAnchorDialogOpen}
+        sourceName={pendingDateChange ? getTaskName(pendingDateChange.taskId) : ''}
+        daysDelta={pendingDateChange?.daysDelta || 0}
+        dependentTasks={pendingDateChange?.dependentTasks || []}
+        onConfirm={handleAnchorConfirm}
+      />
     </div>
   );
 }
