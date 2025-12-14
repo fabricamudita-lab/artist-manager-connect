@@ -568,7 +568,16 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     
-    const lines = doc.splitTextToSize(content, maxWidth);
+    // Clean content to remove problematic characters
+    const cleanContent = content
+      .replace(/[""]/g, '"')
+      .replace(/['']/g, "'")
+      .replace(/–/g, '-')
+      .replace(/—/g, '-')
+      .replace(/…/g, '...')
+      .replace(/\u00A0/g, ' ');
+    
+    const lines = doc.splitTextToSize(cleanContent, maxWidth);
     
     const addPageNumber = () => {
       doc.setFontSize(8);
