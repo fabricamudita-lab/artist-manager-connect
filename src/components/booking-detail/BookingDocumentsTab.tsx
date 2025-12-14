@@ -210,31 +210,31 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
       // First get the current document to check if it has a token
       const doc = documents.find(d => d.id === docId);
       
-      const { error } = await (supabase as any)
+      // Update status to pending_signature
+      const { data: updatedDoc, error } = await (supabase as any)
         .from('booking_documents')
         .update({ status: 'pending_signature' })
-        .eq('id', docId);
+        .eq('id', docId)
+        .select('contract_token')
+        .single();
 
       if (error) throw error;
 
-      // Refresh to get the token
-      await fetchDocuments();
+      const token = updatedDoc?.contract_token || doc?.contract_token;
       
-      // Get the updated document with token
-      const { data: updatedDoc } = await (supabase as any)
-        .from('booking_documents')
-        .select('contract_token')
-        .eq('id', docId)
-        .single();
-
-      if (updatedDoc?.contract_token) {
-        const signUrl = `${window.location.origin}/sign/${updatedDoc.contract_token}`;
+      if (token) {
+        const signUrl = `${window.location.origin}/sign/${token}`;
         await navigator.clipboard.writeText(signUrl);
         
         toast({
           title: "Enlace de firma generado",
           description: "El enlace ha sido copiado al portapapeles. Compártelo con el firmante.",
         });
+        
+        // Refresh documents list
+        fetchDocuments();
+      } else {
+        throw new Error('No se pudo obtener el token');
       }
 
     } catch (error) {
