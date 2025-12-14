@@ -2721,6 +2721,221 @@ export type Database = {
           },
         ]
       }
+      release_assets: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          file_bucket: string | null
+          file_url: string
+          id: string
+          release_id: string
+          tags: string[] | null
+          thumbnail_url: string | null
+          title: string
+          type: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          file_bucket?: string | null
+          file_url: string
+          id?: string
+          release_id: string
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          title: string
+          type: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          file_bucket?: string | null
+          file_url?: string
+          id?: string
+          release_id?: string
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          title?: string
+          type?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "release_assets_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      release_budgets: {
+        Row: {
+          actual_cost: number | null
+          category: string
+          created_at: string
+          estimated_cost: number | null
+          id: string
+          item_name: string
+          notes: string | null
+          release_id: string
+          status: string | null
+          updated_at: string
+          vendor: string | null
+        }
+        Insert: {
+          actual_cost?: number | null
+          category: string
+          created_at?: string
+          estimated_cost?: number | null
+          id?: string
+          item_name: string
+          notes?: string | null
+          release_id: string
+          status?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Update: {
+          actual_cost?: number | null
+          category?: string
+          created_at?: string
+          estimated_cost?: number | null
+          id?: string
+          item_name?: string
+          notes?: string | null
+          release_id?: string
+          status?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "release_budgets_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      release_milestones: {
+        Row: {
+          category: string | null
+          created_at: string
+          days_offset: number | null
+          due_date: string | null
+          id: string
+          is_anchor: boolean | null
+          notes: string | null
+          release_id: string
+          responsible: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          days_offset?: number | null
+          due_date?: string | null
+          id?: string
+          is_anchor?: boolean | null
+          notes?: string | null
+          release_id: string
+          responsible?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          days_offset?: number | null
+          due_date?: string | null
+          id?: string
+          is_anchor?: boolean | null
+          notes?: string | null
+          release_id?: string
+          responsible?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "release_milestones_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      releases: {
+        Row: {
+          artist_id: string | null
+          cover_image_url: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          genre: string | null
+          id: string
+          label: string | null
+          release_date: string | null
+          status: string
+          title: string
+          type: string
+          upc: string | null
+          updated_at: string
+        }
+        Insert: {
+          artist_id?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          genre?: string | null
+          id?: string
+          label?: string | null
+          release_date?: string | null
+          status?: string
+          title: string
+          type?: string
+          upc?: string | null
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          genre?: string | null
+          id?: string
+          label?: string | null
+          release_date?: string | null
+          status?: string
+          title?: string
+          type?: string
+          upc?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "releases_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       requests: {
         Row: {
           artist_id: string
@@ -3278,6 +3493,145 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      track_credits: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          percentage: number | null
+          role: string
+          track_id: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          percentage?: number | null
+          role: string
+          track_id: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          percentage?: number | null
+          role?: string
+          track_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "track_credits_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "track_credits_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      track_versions: {
+        Row: {
+          created_at: string
+          file_bucket: string | null
+          file_url: string
+          id: string
+          is_current_version: boolean | null
+          notes: string | null
+          track_id: string
+          uploaded_by: string | null
+          version_name: string
+        }
+        Insert: {
+          created_at?: string
+          file_bucket?: string | null
+          file_url: string
+          id?: string
+          is_current_version?: boolean | null
+          notes?: string | null
+          track_id: string
+          uploaded_by?: string | null
+          version_name: string
+        }
+        Update: {
+          created_at?: string
+          file_bucket?: string | null
+          file_url?: string
+          id?: string
+          is_current_version?: boolean | null
+          notes?: string | null
+          track_id?: string
+          uploaded_by?: string | null
+          version_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "track_versions_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tracks: {
+        Row: {
+          created_at: string
+          duration: number | null
+          id: string
+          isrc: string | null
+          lyrics: string | null
+          notes: string | null
+          release_id: string
+          title: string
+          track_number: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          duration?: number | null
+          id?: string
+          isrc?: string | null
+          lyrics?: string | null
+          notes?: string | null
+          release_id: string
+          title: string
+          track_number?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          duration?: number | null
+          id?: string
+          isrc?: string | null
+          lyrics?: string | null
+          notes?: string | null
+          release_id?: string
+          title?: string
+          track_number?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracks_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
             referencedColumns: ["id"]
           },
         ]

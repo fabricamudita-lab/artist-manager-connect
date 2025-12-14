@@ -34,6 +34,14 @@ import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import SharedProject from "./pages/SharedProject";
 import SignContractMulti from "./pages/SignContractMulti";
 import Lanzamientos from "./pages/Lanzamientos";
+import Releases from "./pages/Releases";
+import ReleaseDetail from "./pages/ReleaseDetail";
+import ReleaseCronograma from "./pages/release-sections/ReleaseCronograma";
+import ReleasePresupuestos from "./pages/release-sections/ReleasePresupuestos";
+import ReleaseImagenVideo from "./pages/release-sections/ReleaseImagenVideo";
+import ReleaseCreditos from "./pages/release-sections/ReleaseCreditos";
+import ReleaseAudio from "./pages/release-sections/ReleaseAudio";
+import ReleaseEPF from "./pages/release-sections/ReleaseEPF";
 
 const queryClient = new QueryClient();
 
@@ -216,6 +224,63 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Lanzamientos />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              {/* Releases (Discography) */}
+              <Route path="/releases" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Releases />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/releases/:id" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ReleaseDetail />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/releases/:id/cronograma" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ReleaseCronograma />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/releases/:id/presupuestos" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ReleasePresupuestos />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/releases/:id/imagen-video" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ReleaseImagenVideo />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/releases/:id/creditos" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ReleaseCreditos />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/releases/:id/audio" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ReleaseAudio />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/releases/:id/epf" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ReleaseEPF />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
