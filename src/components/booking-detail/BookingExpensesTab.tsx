@@ -12,7 +12,8 @@ import {
   Receipt,
   Trash2,
   FileText,
-  CheckCircle
+  CheckCircle,
+  Pencil
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -67,8 +68,10 @@ export function BookingExpensesTab({ bookingId, booking }: BookingExpensesTabPro
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   const [showMarkInvoicedDialog, setShowMarkInvoicedDialog] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<ExpenseItem | null>(null);
   const [newExpense, setNewExpense] = useState({
     description: '',
     amount: 0,
@@ -166,6 +169,56 @@ export function BookingExpensesTab({ bookingId, booking }: BookingExpensesTabPro
       toast({
         title: "Error",
         description: "No se pudo eliminar el gasto.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditExpense = (expense: ExpenseItem) => {
+    setEditingExpense(expense);
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateExpense = async () => {
+    if (!editingExpense) return;
+    
+    if (!editingExpense.description.trim()) {
+      toast({
+        title: "Error",
+        description: "La descripción es obligatoria.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await (supabase as any)
+        .from('booking_expenses')
+        .update({
+          description: editingExpense.description,
+          amount: editingExpense.amount,
+          iva_percentage: editingExpense.iva_percentage,
+          handler: editingExpense.handler,
+          payer: editingExpense.payer,
+          category: editingExpense.category,
+        })
+        .eq('id', editingExpense.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Gasto actualizado",
+        description: "El gasto se ha actualizado correctamente.",
+      });
+
+      setShowEditDialog(false);
+      setEditingExpense(null);
+      fetchExpenses();
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el gasto.",
         variant: "destructive",
       });
     }
@@ -403,14 +456,24 @@ export function BookingExpensesTab({ bookingId, booking }: BookingExpensesTabPro
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
-                        onClick={() => handleDeleteExpense(expense.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleEditExpense(expense)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
+                          onClick={() => handleDeleteExpense(expense.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -419,6 +482,113 @@ export function BookingExpensesTab({ bookingId, booking }: BookingExpensesTabPro
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Expense Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Gasto</DialogTitle>
+          </DialogHeader>
+          {editingExpense && (
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label>Descripción *</Label>
+                <Input
+                  value={editingExpense.description}
+                  onChange={(e) => setEditingExpense({ ...editingExpense, description: e.target.value })}
+                  placeholder="Ej: Cena equipo técnico"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Categoría</Label>
+                <Select
+                  value={editingExpense.category || 'other'}
+                  onValueChange={(value) => setEditingExpense({ ...editingExpense, category: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EXPENSE_CATEGORIES.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Importe (€)</Label>
+                  <Input
+                    type="number"
+                    value={editingExpense.amount}
+                    onChange={(e) => setEditingExpense({ ...editingExpense, amount: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>IVA (%)</Label>
+                  <Input
+                    type="number"
+                    value={editingExpense.iva_percentage}
+                    onChange={(e) => setEditingExpense({ ...editingExpense, iva_percentage: parseFloat(e.target.value) || 21 })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Handler (Quién gestiona)</Label>
+                  <Select
+                    value={editingExpense.handler}
+                    onValueChange={(value) => setEditingExpense({ ...editingExpense, handler: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {HANDLERS_PAYERS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Payer (Quién paga)</Label>
+                  <Select
+                    value={editingExpense.payer}
+                    onValueChange={(value) => setEditingExpense({ ...editingExpense, payer: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {HANDLERS_PAYERS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleUpdateExpense}>
+                  Guardar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Invoice Generation Dialog */}
       {booking && (
