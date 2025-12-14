@@ -33,7 +33,7 @@ import { EPKPasswordProtectionPage } from "./pages/EPKPasswordProtection";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import SharedProject from "./pages/SharedProject";
 import SignContractMulti from "./pages/SignContractMulti";
-import Lanzamientos from "./pages/Lanzamientos";
+
 import Releases from "./pages/Releases";
 import ReleaseDetail from "./pages/ReleaseDetail";
 import ReleaseCronograma from "./pages/release-sections/ReleaseCronograma";
@@ -220,13 +220,8 @@ const App = () => (
                   </DashboardLayout>
               </ProtectedRoute>
               } />
-              <Route path="/lanzamientos" element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <Lanzamientos />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              } />
+              {/* Redirect old /lanzamientos to /releases */}
+              <Route path="/lanzamientos" element={<Navigate to="/releases" replace />} />
               {/* Releases (Discography) */}
               <Route path="/releases" element={
                 <ProtectedRoute>
