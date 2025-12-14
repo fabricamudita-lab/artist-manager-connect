@@ -64,6 +64,8 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
   const [openPopover, setOpenPopover] = useState<string | null>(null);
   const [editingDateType, setEditingDateType] = useState<'start' | 'end'>('start');
 
+  const today = useMemo(() => startOfDay(new Date()), []);
+
   const { timelineStart, timelineEnd, totalDays, tasksWithDates } = useMemo(() => {
     const allTasks = workflows.flatMap(w => 
       w.tasks.filter(t => t.startDate).map(t => ({
@@ -75,10 +77,10 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
     );
 
     if (allTasks.length === 0) {
-      const today = startOfDay(new Date());
+      const todayStart = startOfDay(new Date());
       return {
-        timelineStart: today,
-        timelineEnd: addDays(today, 90),
+        timelineStart: todayStart,
+        timelineEnd: addDays(todayStart, 90),
         totalDays: 90,
         tasksWithDates: [],
       };
@@ -98,6 +100,12 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
       tasksWithDates: allTasks,
     };
   }, [workflows]);
+
+  const todayPosition = useMemo(() => {
+    const diff = differenceInDays(today, timelineStart);
+    if (diff < 0 || diff > totalDays) return null;
+    return (diff / totalDays) * 100;
+  }, [today, timelineStart, totalDays]);
 
   const getBarPosition = (startDate: Date, days: number) => {
     const start = differenceInDays(startOfDay(startDate), timelineStart);
@@ -165,6 +173,17 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
               {month.widthPercent > 8 && month.label}
             </div>
           ))}
+          {/* Today line in header */}
+          {todayPosition !== null && (
+            <div 
+              className="absolute top-0 h-full w-0.5 bg-red-500 z-10"
+              style={{ left: `${todayPosition}%` }}
+            >
+              <div className="absolute -top-0 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[10px] px-1 rounded-b whitespace-nowrap">
+                Hoy
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Workflows */}
@@ -196,6 +215,13 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                           {task.name}
                         </div>
                         <div className="flex-1 relative h-8 bg-muted/20 rounded">
+                          {/* Today line in task row */}
+                          {todayPosition !== null && (
+                            <div 
+                              className="absolute top-0 h-full w-0.5 bg-red-500/50 z-10 pointer-events-none"
+                              style={{ left: `${todayPosition}%` }}
+                            />
+                          )}
                           <Popover 
                             open={openPopover === popoverId} 
                             onOpenChange={(open) => {
