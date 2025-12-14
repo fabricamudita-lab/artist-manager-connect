@@ -227,12 +227,6 @@ ${clauses.confidencialidad}
 ${clauses.jurisdiccion}
 
 Y en prueba de su conformidad, firman el presente contrato y sus anexos, por duplicado y a un solo efecto, en el lugar y fecha arriba indicados.
-
-EL PROMOTOR                                    EL AGENTE
-${agent.representante}                         
-
-${agent.nombre}
-CIF: ${agent.cif}
 `;
 };
 
