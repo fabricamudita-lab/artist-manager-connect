@@ -87,6 +87,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
   const [editingContract, setEditingContract] = useState<BookingDocument | null>(null);
   const [viewingContract, setViewingContract] = useState<BookingDocument | null>(null);
   const [contractContents, setContractContents] = useState<Record<string, string>>({});
+  const [previewDoc, setPreviewDoc] = useState<BookingDocument | null>(null);
 
   useEffect(() => {
     fetchDocuments();
@@ -462,6 +463,69 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
         </DialogContent>
       </Dialog>
 
+      {/* Document Preview Dialog */}
+      <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
+        <DialogContent className="max-w-5xl max-h-[90vh] p-0">
+          <DialogHeader className="p-4 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              {previewDoc?.file_name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 p-4 pt-0">
+            {previewDoc?.file_url && previewDoc.file_url !== 'generated' && (
+              <>
+                {previewDoc.file_type?.startsWith('image/') ? (
+                  <div className="flex items-center justify-center bg-muted/30 rounded-lg p-4 max-h-[70vh] overflow-auto">
+                    <img 
+                      src={previewDoc.file_url} 
+                      alt={previewDoc.file_name}
+                      className="max-w-full max-h-[65vh] object-contain rounded"
+                    />
+                  </div>
+                ) : previewDoc.file_type === 'application/pdf' || previewDoc.file_name.endsWith('.pdf') ? (
+                  <iframe
+                    src={previewDoc.file_url}
+                    className="w-full h-[70vh] rounded-lg border"
+                    title={previewDoc.file_name}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center bg-muted/30 rounded-lg p-8 h-[40vh]">
+                    <FileText className="h-16 w-16 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground text-center">
+                      Vista previa no disponible para este tipo de archivo
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {previewDoc.file_type || 'Tipo desconocido'}
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-4"
+                      onClick={() => window.open(previewDoc.file_url, '_blank')}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Descargar archivo
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <div className="flex justify-end gap-2 p-4 pt-2 border-t">
+            <Button 
+              variant="outline" 
+              onClick={() => previewDoc?.file_url && window.open(previewDoc.file_url, '_blank')}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Descargar
+            </Button>
+            <Button variant="outline" onClick={() => setPreviewDoc(null)}>
+              Cerrar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Contract Section */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -654,13 +718,24 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
 
                   <div className="flex items-center gap-2">
                     {doc.file_url && doc.file_url !== 'generated' && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => window.open(doc.file_url, '_blank')}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setPreviewDoc(doc)}
+                          title="Ver documento"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => window.open(doc.file_url, '_blank')}
+                          title="Descargar"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </>
                     )}
                     <Button
                       variant="ghost"
