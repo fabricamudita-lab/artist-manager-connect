@@ -33,6 +33,7 @@ const navigationItems = [
   { title: "Booking", url: "/booking", icon: Mic },
   { title: "Proyectos", url: "/projects", icon: Folder },
   { title: "Lanzamientos", url: "/lanzamientos", icon: Disc3 },
+  { title: "Discografía", url: "/releases", icon: Music },
   { title: "Finanzas", url: "/finanzas", icon: Calculator },
   { title: "Artistas & Equipo", url: "/contacts", icon: Users },
   { title: "Solicitudes", url: "/solicitudes", icon: ClipboardList },
