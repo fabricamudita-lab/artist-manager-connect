@@ -26,6 +26,7 @@ interface ReleaseTask {
   startDate: Date | null;
   estimatedDays: number;
   status: TaskStatus;
+  anchoredTo?: string;
 }
 
 interface WorkflowSection {
@@ -39,6 +40,8 @@ interface WorkflowSection {
 interface GanttChartProps {
   workflows: WorkflowSection[];
   onUpdateTaskDate?: (workflowId: string, taskId: string, newStartDate: Date, newEstimatedDays: number) => void;
+  onSetAnchor?: (workflowId: string, taskId: string, anchoredTo: string | undefined) => void;
+  getTaskName?: (taskId: string) => string;
 }
 
 const STATUS_BAR_COLORS: Record<TaskStatus, string> = {
@@ -57,7 +60,7 @@ const WORKFLOW_COLORS: Record<string, string> = {
   directo: 'border-l-green-500',
 };
 
-export default function GanttChart({ workflows, onUpdateTaskDate }: GanttChartProps) {
+export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, getTaskName }: GanttChartProps) {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
   const [editingDateType, setEditingDateType] = useState<'start' | 'end'>('start');
 
@@ -184,7 +187,12 @@ export default function GanttChart({ workflows, onUpdateTaskDate }: GanttChartPr
 
                     return (
                       <div key={task.id} className="flex items-center gap-3">
-                        <div className="w-32 text-sm truncate text-muted-foreground">
+                        <div className="w-32 text-sm truncate text-muted-foreground flex items-center gap-1">
+                          {task.anchoredTo && (
+                            <span className="text-primary" title={`Anclada a: ${getTaskName?.(task.anchoredTo) || task.anchoredTo}`}>
+                              🔗
+                            </span>
+                          )}
                           {task.name}
                         </div>
                         <div className="flex-1 relative h-8 bg-muted/20 rounded">
@@ -211,6 +219,11 @@ export default function GanttChart({ workflows, onUpdateTaskDate }: GanttChartPr
                                   <span>Inicio: {format(task.startDate!, 'dd MMM yyyy', { locale: es })}</span>
                                   <span>Fin: {format(dueDate, 'dd MMM yyyy', { locale: es })}</span>
                                 </div>
+                                {task.anchoredTo && getTaskName && (
+                                  <p className="text-xs text-primary mt-1">
+                                    🔗 Anclada a: {getTaskName(task.anchoredTo)}
+                                  </p>
+                                )}
                               </div>
                               <div className="p-3">
                                 <div className="flex gap-2 mb-3">
