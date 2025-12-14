@@ -14,6 +14,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 type TaskStatus = 'pendiente' | 'en_proceso' | 'completado' | 'retrasado';
@@ -37,7 +38,7 @@ interface WorkflowSection {
 
 interface GanttChartProps {
   workflows: WorkflowSection[];
-  onUpdateTaskDate?: (workflowId: string, taskId: string, newDate: Date) => void;
+  onUpdateTaskDate?: (workflowId: string, taskId: string, newStartDate: Date, newEstimatedDays: number) => void;
 }
 
 const STATUS_BAR_COLORS: Record<TaskStatus, string> = {
@@ -58,6 +59,7 @@ const WORKFLOW_COLORS: Record<string, string> = {
 
 export default function GanttChart({ workflows, onUpdateTaskDate }: GanttChartProps) {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
+  const [editingDateType, setEditingDateType] = useState<'start' | 'end'>('start');
 
   const { timelineStart, timelineEnd, totalDays, tasksWithDates } = useMemo(() => {
     const allTasks = workflows.flatMap(w => 
@@ -124,11 +126,18 @@ export default function GanttChart({ workflows, onUpdateTaskDate }: GanttChartPr
     return result;
   }, [timelineStart, timelineEnd, totalDays]);
 
-  const handleDateSelect = (workflowId: string, taskId: string, date: Date | undefined) => {
-    if (date && onUpdateTaskDate) {
-      onUpdateTaskDate(workflowId, taskId, date);
+  const handleStartDateSelect = (workflowId: string, taskId: string, currentEndDate: Date, newStartDate: Date | undefined) => {
+    if (newStartDate && onUpdateTaskDate) {
+      const newDays = Math.max(1, differenceInDays(currentEndDate, newStartDate));
+      onUpdateTaskDate(workflowId, taskId, newStartDate, newDays);
     }
-    setOpenPopover(null);
+  };
+
+  const handleEndDateSelect = (workflowId: string, taskId: string, currentStartDate: Date, newEndDate: Date | undefined) => {
+    if (newEndDate && onUpdateTaskDate) {
+      const newDays = Math.max(1, differenceInDays(newEndDate, currentStartDate));
+      onUpdateTaskDate(workflowId, taskId, currentStartDate, newDays);
+    }
   };
 
   if (tasksWithDates.length === 0) {
@@ -175,62 +184,87 @@ export default function GanttChart({ workflows, onUpdateTaskDate }: GanttChartPr
 
                     return (
                       <div key={task.id} className="flex items-center gap-3">
-                        <Popover 
-                          open={openPopover === popoverId} 
-                          onOpenChange={(open) => setOpenPopover(open ? popoverId : null)}
-                        >
-                          <PopoverTrigger asChild>
-                            <button className="w-32 text-sm truncate text-muted-foreground hover:text-foreground flex items-center gap-1 text-left transition-colors">
-                              <CalendarIcon className="w-3 h-3 flex-shrink-0" />
-                              {task.name}
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <div className="p-3 border-b">
-                              <p className="font-medium text-sm">{task.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                Inicio: {format(task.startDate!, 'dd MMM yyyy', { locale: es })}
-                              </p>
-                            </div>
-                            <Calendar
-                              mode="single"
-                              selected={task.startDate!}
-                              onSelect={(date) => handleDateSelect(workflow.id, task.id, date)}
-                              initialFocus
-                              className="p-3 pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        <div className="w-32 text-sm truncate text-muted-foreground">
+                          {task.name}
+                        </div>
                         <div className="flex-1 relative h-8 bg-muted/20 rounded">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
+                          <Popover 
+                            open={openPopover === popoverId} 
+                            onOpenChange={(open) => {
+                              setOpenPopover(open ? popoverId : null);
+                              if (open) setEditingDateType('start');
+                            }}
+                          >
+                            <PopoverTrigger asChild>
                               <div
                                 className={cn(
-                                  'absolute top-1 h-6 rounded cursor-pointer transition-opacity hover:opacity-80',
+                                  'absolute top-1 h-6 rounded cursor-pointer transition-all hover:opacity-80 hover:ring-2 hover:ring-primary/50',
                                   STATUS_BAR_COLORS[task.status]
                                 )}
-                                style={{ left, width, minWidth: '4px' }}
+                                style={{ left, width, minWidth: '20px' }}
                               />
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              <div className="space-y-1">
-                                <p className="font-semibold">{task.name}</p>
-                                {task.responsible && (
-                                  <p className="text-sm">
-                                    <span className="text-muted-foreground">Responsable:</span> {task.responsible}
-                                  </p>
-                                )}
-                                <p className="text-sm">
-                                  <span className="text-muted-foreground">Inicio:</span>{' '}
-                                  {format(task.startDate!, 'dd MMMM yyyy', { locale: es })}
-                                </p>
-                                <p className="text-sm">
-                                  <span className="text-muted-foreground">Vencimiento:</span>{' '}
-                                  {format(dueDate, 'dd MMMM yyyy', { locale: es })}
-                                </p>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start" side="top">
+                              <div className="p-3 border-b">
+                                <p className="font-medium text-sm">{task.name}</p>
+                                <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
+                                  <span>Inicio: {format(task.startDate!, 'dd MMM yyyy', { locale: es })}</span>
+                                  <span>Fin: {format(dueDate, 'dd MMM yyyy', { locale: es })}</span>
+                                </div>
                               </div>
-                            </TooltipContent>
-                          </Tooltip>
+                              <div className="p-3">
+                                <div className="flex gap-2 mb-3">
+                                  <button
+                                    onClick={() => setEditingDateType('start')}
+                                    className={cn(
+                                      'flex-1 px-3 py-1.5 text-sm rounded-md transition-colors',
+                                      editingDateType === 'start' 
+                                        ? 'bg-primary text-primary-foreground' 
+                                        : 'bg-muted hover:bg-muted/80'
+                                    )}
+                                  >
+                                    <CalendarIcon className="w-3 h-3 inline mr-1" />
+                                    Inicio
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingDateType('end')}
+                                    className={cn(
+                                      'flex-1 px-3 py-1.5 text-sm rounded-md transition-colors',
+                                      editingDateType === 'end' 
+                                        ? 'bg-primary text-primary-foreground' 
+                                        : 'bg-muted hover:bg-muted/80'
+                                    )}
+                                  >
+                                    <CalendarIcon className="w-3 h-3 inline mr-1" />
+                                    Fin
+                                  </button>
+                                </div>
+                                <Label className="text-xs text-muted-foreground mb-2 block">
+                                  {editingDateType === 'start' ? 'Seleccionar fecha de inicio' : 'Seleccionar fecha de fin'}
+                                </Label>
+                                <Calendar
+                                  mode="single"
+                                  selected={editingDateType === 'start' ? task.startDate! : dueDate}
+                                  onSelect={(date) => {
+                                    if (editingDateType === 'start') {
+                                      handleStartDateSelect(workflow.id, task.id, dueDate, date);
+                                    } else {
+                                      handleEndDateSelect(workflow.id, task.id, task.startDate!, date);
+                                    }
+                                    setOpenPopover(null);
+                                  }}
+                                  disabled={(date) => {
+                                    if (editingDateType === 'end') {
+                                      return date <= task.startDate!;
+                                    }
+                                    return false;
+                                  }}
+                                  initialFocus
+                                  className="p-0 pointer-events-auto"
+                                />
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
                     );
@@ -263,7 +297,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate }: GanttChartPr
         </div>
 
         <p className="text-xs text-muted-foreground">
-          💡 Haz clic en el nombre de una tarea para cambiar su fecha de inicio
+          💡 Haz clic en una barra para modificar la fecha de inicio o fin
         </p>
       </div>
     </TooltipProvider>
