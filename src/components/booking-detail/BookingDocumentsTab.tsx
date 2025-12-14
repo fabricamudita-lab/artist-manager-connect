@@ -88,8 +88,6 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
   const [viewingContract, setViewingContract] = useState<BookingDocument | null>(null);
   const [contractContents, setContractContents] = useState<Record<string, string>>({});
   const [previewDoc, setPreviewDoc] = useState<BookingDocument | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [loadingPreview, setLoadingPreview] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
@@ -318,46 +316,10 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
     toast({ description: "PDF descargado correctamente" });
   };
 
-  // Get signed URL for private bucket files
-  const getSignedUrl = async (fileUrl: string): Promise<string | null> => {
-    try {
-      // Extract the path from the URL (after /documents/)
-      const pathMatch = fileUrl.match(/\/documents\/(.+)$/);
-      if (!pathMatch) return fileUrl;
-      
-      const filePath = pathMatch[1];
-      const { data, error } = await supabase.storage
-        .from('documents')
-        .createSignedUrl(filePath, 3600); // 1 hour expiry
-      
-      if (error) {
-        console.error('Error creating signed URL:', error);
-        return null;
-      }
-      return data.signedUrl;
-    } catch (error) {
-      console.error('Error getting signed URL:', error);
-      return null;
-    }
-  };
-
-  // Open document preview with signed URL
-  const handlePreviewDoc = async (doc: BookingDocument) => {
-    setPreviewDoc(doc);
-    setLoadingPreview(true);
-    setPreviewUrl(null);
-    
-    if (doc.file_url && doc.file_url !== 'generated') {
-      const signedUrl = await getSignedUrl(doc.file_url);
-      setPreviewUrl(signedUrl);
-    }
-    setLoadingPreview(false);
-  };
-
   // View contract in a dialog
   const handleViewContract = (doc: BookingDocument) => {
     if (doc.file_url && doc.file_url !== 'generated') {
-      handlePreviewDoc(doc);
+      setPreviewDoc(doc);
     } else {
       setViewingContract(doc);
     }
@@ -502,7 +464,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
       </Dialog>
 
       {/* Document Preview Dialog */}
-      <Dialog open={!!previewDoc} onOpenChange={(open) => { if (!open) { setPreviewDoc(null); setPreviewUrl(null); } }}>
+      <Dialog open={!!previewDoc} onOpenChange={(open) => { if (!open) { setPreviewDoc(null); } }}>
         <DialogContent className="max-w-5xl max-h-[90vh] p-0">
           <DialogHeader className="p-4 pb-2">
             <DialogTitle className="flex items-center gap-2">
@@ -511,25 +473,21 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 min-h-0 p-4 pt-0">
-            {loadingPreview ? (
-              <div className="flex items-center justify-center bg-muted/30 rounded-lg p-8 h-[40vh]">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
-            ) : previewUrl ? (
+            {previewDoc?.file_url && previewDoc.file_url !== 'generated' ? (
               <>
-                {previewDoc?.file_type?.startsWith('image/') ? (
+                {previewDoc.file_type?.startsWith('image/') ? (
                   <div className="flex items-center justify-center bg-muted/30 rounded-lg p-4 max-h-[70vh] overflow-auto">
                     <img 
-                      src={previewUrl} 
-                      alt={previewDoc?.file_name}
+                      src={previewDoc.file_url} 
+                      alt={previewDoc.file_name}
                       className="max-w-full max-h-[65vh] object-contain rounded"
                     />
                   </div>
-                ) : previewDoc?.file_type === 'application/pdf' || previewDoc?.file_name.endsWith('.pdf') ? (
+                ) : previewDoc.file_type === 'application/pdf' || previewDoc.file_name.endsWith('.pdf') ? (
                   <iframe
-                    src={previewUrl}
+                    src={previewDoc.file_url}
                     className="w-full h-[70vh] rounded-lg border"
-                    title={previewDoc?.file_name}
+                    title={previewDoc.file_name}
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center bg-muted/30 rounded-lg p-8 h-[40vh]">
@@ -538,12 +496,12 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
                       Vista previa no disponible para este tipo de archivo
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {previewDoc?.file_type || 'Tipo desconocido'}
+                      {previewDoc.file_type || 'Tipo desconocido'}
                     </p>
                     <Button 
                       variant="outline" 
                       className="mt-4"
-                      onClick={() => previewUrl && window.open(previewUrl, '_blank')}
+                      onClick={() => window.open(previewDoc.file_url, '_blank')}
                     >
                       <Download className="h-4 w-4 mr-2" />
                       Descargar archivo
@@ -563,13 +521,13 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
           <div className="flex justify-end gap-2 p-4 pt-2 border-t">
             <Button 
               variant="outline" 
-              onClick={() => previewUrl && window.open(previewUrl, '_blank')}
-              disabled={!previewUrl}
+              onClick={() => previewDoc?.file_url && window.open(previewDoc.file_url, '_blank')}
+              disabled={!previewDoc?.file_url}
             >
               <Download className="h-4 w-4 mr-2" />
               Descargar
             </Button>
-            <Button variant="outline" onClick={() => { setPreviewDoc(null); setPreviewUrl(null); }}>
+            <Button variant="outline" onClick={() => setPreviewDoc(null)}>
               Cerrar
             </Button>
           </div>
@@ -772,7 +730,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handlePreviewDoc(doc)}
+                          onClick={() => setPreviewDoc(doc)}
                           title="Ver documento"
                         >
                           <Eye className="h-4 w-4" />
@@ -780,10 +738,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={async () => {
-                            const signedUrl = await getSignedUrl(doc.file_url);
-                            if (signedUrl) window.open(signedUrl, '_blank');
-                          }}
+                          onClick={() => window.open(doc.file_url, '_blank')}
                           title="Descargar"
                         >
                           <Download className="h-4 w-4" />
