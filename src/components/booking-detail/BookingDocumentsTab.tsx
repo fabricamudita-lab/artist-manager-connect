@@ -483,21 +483,16 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
                       className="max-w-full max-h-[65vh] object-contain rounded"
                     />
                   </div>
-                ) : previewDoc.file_type === 'application/pdf' || previewDoc.file_name.endsWith('.pdf') ? (
-                  <iframe
-                    src={previewDoc.file_url}
-                    className="w-full h-[70vh] rounded-lg border"
-                    title={previewDoc.file_name}
-                  />
                 ) : (
                   <div className="flex flex-col items-center justify-center bg-muted/30 rounded-lg p-8 h-[40vh]">
                     <FileText className="h-16 w-16 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground text-center">
-                      Vista previa no disponible para este tipo de archivo
+                    <p className="text-muted-foreground text-center mb-4">
+                      Haz clic para ver el documento en una nueva pestaña
                     </p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {previewDoc.file_type || 'Tipo desconocido'}
-                    </p>
+                    <Button onClick={() => window.open(previewDoc.file_url, '_blank')}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Abrir documento
+                    </Button>
                     <Button 
                       variant="outline" 
                       className="mt-4"
