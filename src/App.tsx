@@ -33,6 +33,7 @@ import { EPKPasswordProtectionPage } from "./pages/EPKPasswordProtection";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import SharedProject from "./pages/SharedProject";
 import SignContractMulti from "./pages/SignContractMulti";
+import Lanzamientos from "./pages/Lanzamientos";
 
 const queryClient = new QueryClient();
 
@@ -208,6 +209,13 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <EPKBuilder />
+                  </DashboardLayout>
+              </ProtectedRoute>
+              } />
+              <Route path="/lanzamientos" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Lanzamientos />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />

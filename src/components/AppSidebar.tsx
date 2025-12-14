@@ -20,7 +20,8 @@ import {
   Mic,
   FileImage,
   Contact,
-  TrendingUp
+  TrendingUp,
+  Disc3
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import NotificationBell from './NotificationBell';
@@ -31,6 +32,7 @@ const navigationItems = [
   { title: "Calendario", url: "/calendar", icon: Calendar },
   { title: "Booking", url: "/booking", icon: Mic },
   { title: "Proyectos", url: "/projects", icon: Folder },
+  { title: "Lanzamientos", url: "/lanzamientos", icon: Disc3 },
   { title: "Finanzas", url: "/finanzas", icon: Calculator },
   { title: "Artistas & Equipo", url: "/contacts", icon: Users },
   { title: "Solicitudes", url: "/solicitudes", icon: ClipboardList },
