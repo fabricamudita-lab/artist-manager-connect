@@ -5,21 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  ArrowLeft, 
-  Calendar, 
-  MapPin, 
-  Users, 
-  DollarSign,
-  FileText,
-  Plane,
-  Receipt,
-  Edit,
-  ExternalLink,
-  Copy,
-  Share2,
-  Copy as Duplicate
-} from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, FileText, Plane, Receipt, Edit, ExternalLink, Copy, Share2, Copy as Duplicate } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/useCommon';
@@ -32,7 +18,6 @@ import { BookingExpensesTab } from '@/components/booking-detail/BookingExpensesT
 import { BookingDocumentsTab } from '@/components/booking-detail/BookingDocumentsTab';
 import { EditBookingDialog } from '@/components/booking-detail/EditBookingDialog';
 import { ShareBookingDialog } from '@/components/booking-detail/ShareBookingDialog';
-
 interface BookingOffer {
   id: string;
   fecha?: string;
@@ -75,33 +60,31 @@ interface BookingOffer {
   created_by?: string;
   created_at: string;
 }
-
 export default function BookingDetail() {
-  const { id } = useParams<{ id: string }>();
+  const {
+    id
+  } = useParams<{
+    id: string;
+  }>();
   const navigate = useNavigate();
   const [booking, setBooking] = useState<BookingOffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
-  
   usePageTitle(booking?.festival_ciclo || booking?.venue || 'Detalle Evento');
-
   useEffect(() => {
     if (id) {
       fetchBooking();
     }
   }, [id]);
-
   const fetchBooking = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('booking_offers')
-        .select('*')
-        .eq('id', id)
-        .single();
-
+      const {
+        data,
+        error
+      } = await supabase.from('booking_offers').select('*').eq('id', id).single();
       if (error) throw error;
       setBooking(data);
     } catch (error) {
@@ -109,41 +92,38 @@ export default function BookingDetail() {
       toast({
         title: "Error",
         description: "No se pudo cargar el evento.",
-        variant: "destructive",
+        variant: "destructive"
       });
       navigate('/booking');
     } finally {
       setLoading(false);
     }
   };
-
   const handleBookingUpdate = () => {
     fetchBooking();
   };
-
   const handleDuplicate = async () => {
     if (!booking) return;
-    
     setIsDuplicating(true);
     try {
-      const { id, created_at, ...bookingData } = booking;
+      const {
+        id,
+        created_at,
+        ...bookingData
+      } = booking;
       const duplicatedBooking = {
         ...bookingData,
         phase: 'interes',
         created_by: bookingData.created_by || 'unknown'
       };
-
-      const { data, error } = await supabase
-        .from('booking_offers')
-        .insert([duplicatedBooking])
-        .select()
-        .single();
-
+      const {
+        data,
+        error
+      } = await supabase.from('booking_offers').insert([duplicatedBooking]).select().single();
       if (error) throw error;
-
       toast({
         title: "Evento duplicado",
-        description: "El evento se ha duplicado correctamente. Redirigiendo...",
+        description: "El evento se ha duplicado correctamente. Redirigiendo..."
       });
 
       // Navigate to the new duplicated booking
@@ -155,16 +135,14 @@ export default function BookingDetail() {
       toast({
         title: "Error",
         description: "No se pudo duplicar el evento.",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setIsDuplicating(false);
     }
   };
-
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
+    return <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
         <div className="container-moodita section-spacing space-y-6">
           <div className="flex items-center gap-4">
             <Skeleton className="h-10 w-10" />
@@ -176,38 +154,28 @@ export default function BookingDetail() {
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-96 w-full" />
         </div>
-      </div>
-    );
+      </div>;
   }
-
   if (!booking) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background flex items-center justify-center">
+    return <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background flex items-center justify-center">
         <Card className="p-8 text-center">
           <p className="text-muted-foreground">Evento no encontrado</p>
           <Button onClick={() => navigate('/booking')} className="mt-4">
             Volver a Booking
           </Button>
         </Card>
-      </div>
-    );
+      </div>;
   }
-
   const eventName = booking.festival_ciclo || booking.venue || 'Evento';
-  const eventDate = booking.fecha ? format(new Date(booking.fecha), "EEEE d 'de' MMMM, yyyy", { locale: es }) : null;
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
+  const eventDate = booking.fecha ? format(new Date(booking.fecha), "EEEE d 'de' MMMM, yyyy", {
+    locale: es
+  }) : null;
+  return <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
       <div className="container-moodita section-spacing space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/booking')}
-              className="mt-1"
-            >
+            <Button variant="ghost" size="icon" onClick={() => navigate('/booking')} className="mt-1">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             
@@ -219,83 +187,50 @@ export default function BookingDetail() {
                 <Badge variant={getStatusBadgeVariant(booking.estado || 'pendiente')}>
                   {booking.estado || 'pendiente'}
                 </Badge>
-                {booking.es_internacional && (
-                  <Badge variant="outline" className="border-blue-500 text-blue-600">
+                {booking.es_internacional && <Badge variant="outline" className="border-blue-500 text-blue-600">
                     Internacional
-                  </Badge>
-                )}
+                  </Badge>}
               </div>
               
               <div className="flex items-center gap-4 text-muted-foreground">
-                {eventDate && (
-                  <span className="flex items-center gap-1.5">
+                {eventDate && <span className="flex items-center gap-1.5">
                     <Calendar className="h-4 w-4" />
                     {eventDate}
                     {booking.hora && ` - ${booking.hora}`}
-                  </span>
-                )}
-                {(booking.ciudad || booking.venue) && (
-                  <span className="flex items-center gap-1.5">
+                  </span>}
+                {(booking.ciudad || booking.venue) && <span className="flex items-center gap-1.5">
                     <MapPin className="h-4 w-4" />
                     {[booking.venue, booking.ciudad, booking.pais].filter(Boolean).join(', ')}
-                  </span>
-                )}
-                {booking.capacidad && (
-                  <span className="flex items-center gap-1.5">
+                  </span>}
+                {booking.capacidad && <span className="flex items-center gap-1.5">
                     <Users className="h-4 w-4" />
                     {booking.capacidad.toLocaleString()} cap.
-                  </span>
-                )}
+                  </span>}
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             {/* Copy Info Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const eventName = booking.festival_ciclo || booking.venue || 'Evento';
-                const info = [
-                  `📅 ${eventName}`,
-                  booking.fecha ? `Fecha: ${format(new Date(booking.fecha), "d 'de' MMMM, yyyy", { locale: es })}${booking.hora ? ` - ${booking.hora}` : ''}` : null,
-                  booking.venue ? `Venue: ${booking.venue}` : null,
-                  booking.ciudad ? `📍 ${[booking.ciudad, booking.pais].filter(Boolean).join(', ')}` : null,
-                  booking.promotor ? `Promotor: ${booking.promotor}` : null,
-                  booking.fee ? `Fee: ${booking.fee.toLocaleString()}€` : null,
-                  booking.formato ? `Formato: ${booking.formato}` : null,
-                ].filter(Boolean).join('\n');
-                
-                navigator.clipboard.writeText(info);
-                toast({
-                  title: "Copiado",
-                  description: "Información del evento copiada al portapapeles",
-                });
-              }}
-            >
+            <Button variant="outline" size="sm" onClick={() => {
+            const eventName = booking.festival_ciclo || booking.venue || 'Evento';
+            const info = [`📅 ${eventName}`, booking.fecha ? `Fecha: ${format(new Date(booking.fecha), "d 'de' MMMM, yyyy", {
+              locale: es
+            })}${booking.hora ? ` - ${booking.hora}` : ''}` : null, booking.venue ? `Venue: ${booking.venue}` : null, booking.ciudad ? `📍 ${[booking.ciudad, booking.pais].filter(Boolean).join(', ')}` : null, booking.promotor ? `Promotor: ${booking.promotor}` : null, booking.fee ? `Fee: ${booking.fee.toLocaleString()}€` : null, booking.formato ? `Formato: ${booking.formato}` : null].filter(Boolean).join('\n');
+            navigator.clipboard.writeText(info);
+            toast({
+              title: "Copiado",
+              description: "Información del evento copiada al portapapeles"
+            });
+          }}>
               <Copy className="h-4 w-4 mr-2" />
               Copiar Info
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDuplicate}
-              disabled={isDuplicating}
-            >
-              <Duplicate className="h-4 w-4 mr-2" />
-              {isDuplicating ? 'Duplicando...' : 'Duplicar'}
-            </Button>
-            {booking.folder_url && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(booking.folder_url, '_blank')}
-              >
+            
+            {booking.folder_url && <Button variant="outline" size="sm" onClick={() => window.open(booking.folder_url, '_blank')}>
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Carpeta
-              </Button>
-            )}
+              </Button>}
             <Button variant="outline" size="sm" onClick={() => setShowEditDialog(true)}>
               <Edit className="h-4 w-4 mr-2" />
               Editar
@@ -307,19 +242,10 @@ export default function BookingDetail() {
           </div>
 
           {/* Edit Dialog */}
-          <EditBookingDialog
-            open={showEditDialog}
-            onOpenChange={setShowEditDialog}
-            booking={booking}
-            onSuccess={handleBookingUpdate}
-          />
+          <EditBookingDialog open={showEditDialog} onOpenChange={setShowEditDialog} booking={booking} onSuccess={handleBookingUpdate} />
 
           {/* Share Dialog */}
-          <ShareBookingDialog
-            open={showShareDialog}
-            onOpenChange={setShowShareDialog}
-            booking={booking}
-          />
+          <ShareBookingDialog open={showShareDialog} onOpenChange={setShowShareDialog} booking={booking} />
         </div>
 
         {/* Quick Stats Bar */}
@@ -356,8 +282,7 @@ export default function BookingDetail() {
               <div>
                 <p className="text-xs text-muted-foreground">Comisión</p>
                 <p className="text-lg font-bold">
-                  {booking.comision_euros ? `${booking.comision_euros.toLocaleString()}€` : 
-                   booking.comision_porcentaje ? `${booking.comision_porcentaje}%` : '-'}
+                  {booking.comision_euros ? `${booking.comision_euros.toLocaleString()}€` : booking.comision_porcentaje ? `${booking.comision_porcentaje}%` : '-'}
                 </p>
               </div>
             </CardContent>
@@ -414,6 +339,5 @@ export default function BookingDetail() {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
-  );
+    </div>;
 }
