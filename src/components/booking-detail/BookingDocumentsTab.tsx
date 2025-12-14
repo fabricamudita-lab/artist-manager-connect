@@ -35,6 +35,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ContractGenerator } from '@/components/ContractGenerator';
 import { ContractSignersManager } from './ContractSignersManager';
+import { ContractSignaturesFooter, getDocumentSigners } from './ContractSignaturesFooter';
 import jsPDF from 'jspdf';
 import cityzenLogo from "@/assets/cityzen-logo.png";
 interface BookingDocument {
@@ -304,8 +305,8 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
     });
   };
 
-  // Download contract as PDF with Cityzen logo
-  const handleDownloadPDF = (doc: BookingDocument) => {
+  // Download contract as PDF with Cityzen logo and signatures
+  const handleDownloadPDF = async (doc: BookingDocument) => {
     const content = contractContents[doc.id];
     if (!content) {
       // If no generated content, just open the file URL
@@ -314,6 +315,9 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
       }
       return;
     }
+    
+    // Fetch signers for this document
+    const signers = await getDocumentSigners(doc.id);
     
     const pdf = new jsPDF();
     const pageWidth = pdf.internal.pageSize.getWidth();
@@ -383,6 +387,86 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
       y += lineHeight;
     });
     
+    // Add signatures section if there are signers
+    if (signers.length > 0) {
+      // Check if we need a new page for signatures
+      const signatureBlockHeight = 80;
+      if (y + signatureBlockHeight > pageHeight - 30) {
+        addPageNumber();
+        pdf.addPage();
+        pageNumber++;
+        y = addLogo();
+      }
+      
+      y += 15;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(12);
+      pdf.text("FIRMAS", pageWidth / 2, y, { align: 'center' });
+      y += 10;
+      pdf.setFontSize(10);
+      
+      // Calculate columns for signers
+      const colCount = Math.min(signers.length, 3);
+      const colWidth = (maxWidth - (colCount - 1) * 10) / colCount;
+      
+      signers.forEach((signer, index) => {
+        const col = index % colCount;
+        const row = Math.floor(index / colCount);
+        const x = margin + col * (colWidth + 10);
+        const baseY = y + row * 50;
+        
+        // Role
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(9);
+        pdf.text(signer.role.toUpperCase(), x + colWidth / 2, baseY, { align: 'center' });
+        
+        // Signature line or image
+        const lineY = baseY + 25;
+        if (signer.status === 'signed' && signer.signature_image_url) {
+          // Try to add signature image
+          try {
+            // Draw a placeholder line under where signature would be
+            pdf.setDrawColor(100);
+            pdf.line(x + 5, lineY, x + colWidth - 5, lineY);
+            pdf.setFontSize(7);
+            pdf.setFont("helvetica", "italic");
+            pdf.text("[Firma digital]", x + colWidth / 2, lineY - 3, { align: 'center' });
+          } catch {
+            pdf.line(x + 5, lineY, x + colWidth - 5, lineY);
+          }
+        } else {
+          // Pending signature
+          pdf.setDrawColor(150);
+          pdf.line(x + 5, lineY, x + colWidth - 5, lineY);
+          pdf.setFontSize(7);
+          pdf.setFont("helvetica", "italic");
+          pdf.setTextColor(150);
+          pdf.text("(Pendiente)", x + colWidth / 2, lineY - 3, { align: 'center' });
+          pdf.setTextColor(0);
+        }
+        
+        // Name
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        pdf.text(signer.name, x + colWidth / 2, lineY + 8, { align: 'center' });
+        
+        // Signed date if applicable
+        if (signer.status === 'signed' && signer.signed_at) {
+          pdf.setFontSize(7);
+          pdf.setTextColor(100);
+          pdf.text(
+            `Firmado: ${new Date(signer.signed_at).toLocaleDateString('es-ES')}`,
+            x + colWidth / 2,
+            lineY + 14,
+            { align: 'center' }
+          );
+          pdf.setTextColor(0);
+        }
+      });
+      
+      y += Math.ceil(signers.length / colCount) * 50 + 10;
+    }
+    
     addPageNumber();
     pdf.save(doc.file_name.replace(/\.[^/.]+$/, '') + '.pdf');
     toast({ description: "PDF descargado correctamente" });
@@ -447,6 +531,28 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
         if (error) throw error;
         if (data) {
           setContractContents(prev => ({ ...prev, [data.id]: contract.content }));
+          
+          // Auto-add "Agencia" signer (Ciudad Zen)
+          await supabase
+            .from('contract_signers')
+            .insert({
+              document_id: data.id,
+              name: 'Ciudad Zen Músicas S.L.',
+              role: 'Agencia',
+              email: null,
+            });
+          
+          // If booking has promotor/contacto, suggest adding them too
+          if (booking.promotor || booking.contacto) {
+            await supabase
+              .from('contract_signers')
+              .insert({
+                document_id: data.id,
+                name: booking.promotor || booking.contacto || 'Promotor',
+                role: 'Promotor',
+                email: null,
+              });
+          }
         }
       }
       
@@ -514,12 +620,17 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
               {viewingContract?.file_name}
             </DialogTitle>
           </DialogHeader>
-          <div className="bg-muted/50 rounded-lg p-4 max-h-[60vh] overflow-y-auto">
-            <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
+          <div className="bg-white dark:bg-gray-950 rounded-lg p-6 max-h-[60vh] overflow-y-auto border shadow-inner">
+            <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed text-gray-800 dark:text-gray-200">
               {viewingContract && contractContents[viewingContract.id] 
                 ? contractContents[viewingContract.id]
                 : 'No hay contenido disponible para este contrato. Puede que haya sido subido externamente.'}
             </pre>
+            
+            {/* Dynamic Signatures Footer */}
+            {viewingContract && (
+              <ContractSignaturesFooter documentId={viewingContract.id} />
+            )}
           </div>
           <div className="flex justify-end gap-2 pt-4">
             {viewingContract && contractContents[viewingContract.id] && (
