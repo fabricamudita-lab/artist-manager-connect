@@ -96,6 +96,29 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
 
   useEffect(() => {
     fetchDocuments();
+
+    // Subscribe to real-time updates for this booking's documents
+    const channel = supabase
+      .channel(`booking-documents-${booking.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'booking_documents',
+          filter: `booking_id=eq.${booking.id}`,
+        },
+        (payload) => {
+          console.log('Real-time update received:', payload);
+          // Refresh documents when any change happens
+          fetchDocuments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [booking.id]);
 
   const fetchDocuments = async () => {
@@ -632,17 +655,50 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
                     key={doc.id}
                     className={`p-4 bg-muted/30 rounded-lg border group ${isSigned ? 'border-green-500/50 bg-green-500/5' : ''}`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
                         <div className={`p-2 rounded-lg ${isSigned ? 'bg-green-500/20' : 'bg-primary/10'}`}>
-                          <FileText className={`h-5 w-5 ${isSigned ? 'text-green-600' : 'text-primary'}`} />
+                          {isSigned ? (
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <FileText className={`h-5 w-5 text-primary`} />
+                          )}
                         </div>
-                        <div>
+                        <div className="space-y-1">
                           <p className="font-medium">{doc.file_name}</p>
                           <p className="text-xs text-muted-foreground">
                             {new Date(doc.created_at).toLocaleDateString()}
                             {isGenerated && ' • Generado'}
                           </p>
+                          
+                          {/* Show signature info when signed */}
+                          {isSigned && (
+                            <div className="mt-2 p-3 bg-green-500/10 rounded-lg border border-green-500/30 space-y-2">
+                              <div className="flex items-center gap-2 text-sm">
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                <span className="font-medium text-green-700 dark:text-green-400">
+                                  Firmado por: {doc.signer_name || 'Desconocido'}
+                                </span>
+                              </div>
+                              {doc.signed_at && (
+                                <p className="text-xs text-muted-foreground">
+                                  Fecha: {new Date(doc.signed_at).toLocaleString('es-ES', {
+                                    dateStyle: 'long',
+                                    timeStyle: 'short'
+                                  })}
+                                </p>
+                              )}
+                              {doc.signature_image_url && (
+                                <div className="mt-2 bg-white dark:bg-gray-900 rounded p-2 border">
+                                  <img 
+                                    src={doc.signature_image_url} 
+                                    alt="Firma" 
+                                    className="max-h-16 mx-auto"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -680,7 +736,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
                           </Button>
                         )}
 
-                        <Badge className={statusConfig.color}>
+                        <Badge className={`${statusConfig.color} ${isSigned ? 'bg-green-600' : ''}`}>
                           <StatusIcon className="h-3 w-3 mr-1" />
                           {statusConfig.label}
                         </Badge>
