@@ -266,6 +266,7 @@ export type Database = {
         Row: {
           booking_id: string
           content: string | null
+          contract_token: string | null
           created_at: string
           created_by: string | null
           document_type: string
@@ -273,11 +274,15 @@ export type Database = {
           file_type: string | null
           file_url: string
           id: string
+          signature_image_url: string | null
+          signed_at: string | null
+          signer_name: string | null
           status: string
         }
         Insert: {
           booking_id: string
           content?: string | null
+          contract_token?: string | null
           created_at?: string
           created_by?: string | null
           document_type?: string
@@ -285,11 +290,15 @@ export type Database = {
           file_type?: string | null
           file_url: string
           id?: string
+          signature_image_url?: string | null
+          signed_at?: string | null
+          signer_name?: string | null
           status?: string
         }
         Update: {
           booking_id?: string
           content?: string | null
+          contract_token?: string | null
           created_at?: string
           created_by?: string | null
           document_type?: string
@@ -297,6 +306,9 @@ export type Database = {
           file_type?: string | null
           file_url?: string
           id?: string
+          signature_image_url?: string | null
+          signed_at?: string | null
+          signer_name?: string | null
           status?: string
         }
         Relationships: [
