@@ -178,11 +178,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
             <div 
               className="absolute top-0 h-full w-0.5 bg-red-500 z-10"
               style={{ left: `${todayPosition}%` }}
-            >
-              <div className="absolute -top-0 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[10px] px-1 rounded-b whitespace-nowrap">
-                Hoy
-              </div>
-            </div>
+            />
           )}
         </div>
 
