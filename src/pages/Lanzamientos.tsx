@@ -261,7 +261,7 @@ export default function Lanzamientos() {
   }, [workflows, getDependentTasks]);
 
   // Handle anchor dialog confirmation
-  const handleAnchorConfirm = useCallback((propagate: boolean) => {
+  const handleAnchorConfirm = useCallback((selectedTaskIds: string[]) => {
     if (!pendingDateChange) return;
 
     const { workflowId, taskId, newStartDate, newEstimatedDays, daysDelta, dependentTasks } = pendingDateChange;
@@ -272,8 +272,8 @@ export default function Lanzamientos() {
         if (t.id === taskId && w.id === workflowId) {
           return { ...t, startDate: newStartDate, estimatedDays: newEstimatedDays };
         }
-        // If propagating, update dependent tasks
-        if (propagate && t.startDate) {
+        // Update only selected dependent tasks
+        if (selectedTaskIds.includes(t.id) && t.startDate) {
           const isDependent = dependentTasks.some(dt => dt.id === t.id && dt.workflowId === w.id);
           if (isDependent) {
             return { ...t, startDate: addDays(t.startDate, daysDelta) };
