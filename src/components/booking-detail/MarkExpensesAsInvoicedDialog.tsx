@@ -44,7 +44,10 @@ export function MarkExpensesAsInvoicedDialog({
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
 
-  const promoterExpenses = expenses.filter((e) => e.payer === 'promoter');
+  // Filter promoter expenses that are NOT already invoiced
+  const promoterExpenses = expenses.filter(
+    (e) => e.payer === 'promoter' && !e.category?.startsWith('invoiced:')
+  );
 
   const toggleItem = (id: string) => {
     const newSelected = new Set(selectedIds);
