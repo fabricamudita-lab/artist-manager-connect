@@ -34,6 +34,7 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ContractGenerator } from '@/components/ContractGenerator';
+import { ContractSignersManager } from './ContractSignersManager';
 import jsPDF from 'jspdf';
 import cityzenLogo from "@/assets/cityzen-logo.png";
 interface BookingDocument {
@@ -781,29 +782,13 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
                       </div>
                     </div>
 
-                    {/* Signed Info */}
-                    {isSigned && (
-                      <div className="mt-4 pt-4 border-t border-green-500/20">
-                        <div className="flex items-center gap-4">
-                          <div className="flex-1">
-                            <p className="text-sm text-muted-foreground">Firmado por:</p>
-                            <p className="font-medium">{doc.signer_name || 'Desconocido'}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {doc.signed_at ? new Date(doc.signed_at).toLocaleString('es-ES') : ''}
-                            </p>
-                          </div>
-                          {doc.signature_image_url && (
-                            <div className="border rounded-lg p-2 bg-white dark:bg-gray-900">
-                              <img 
-                                src={doc.signature_image_url} 
-                                alt="Firma" 
-                                className="h-12 max-w-32 object-contain"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                    {/* Multi-Signer Manager */}
+                    <div className="mt-4 pt-4 border-t">
+                      <ContractSignersManager 
+                        documentId={doc.id} 
+                        onSignersChange={fetchDocuments}
+                      />
+                    </div>
                   </div>
                 );
               })}

@@ -32,7 +32,7 @@ import { PublicEPKPage } from "./pages/PublicEPK";
 import { EPKPasswordProtectionPage } from "./pages/EPKPasswordProtection";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import SharedProject from "./pages/SharedProject";
-import SignContract from "./pages/SignContract";
+import SignContractMulti from "./pages/SignContractMulti";
 
 const queryClient = new QueryClient();
 
@@ -217,7 +217,7 @@ const App = () => (
               {/* Public Shared Project Route */}
               <Route path="/shared/project/:token" element={<SharedProject />} />
               {/* Public Contract Signature Route */}
-              <Route path="/sign/:token" element={<SignContract />} />
+              <Route path="/sign/:token" element={<SignContractMulti />} />
               {/* Google Calendar OAuth Callback */}
               <Route path="/calendar/callback" element={<GoogleCalendarCallback />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
