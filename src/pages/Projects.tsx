@@ -71,7 +71,7 @@ export default function Projects() {
 
   // SEO: title, meta, canonical
   useEffect(() => {
-    document.title = "Proyectos | MOODITA";
+    document.title = "Carpetas | MOODITA";
     const description = "Gestión centralizada de proyectos: presupuestos, documentos, contratos y solicitudes vinculadas.";
 
     let meta = document.querySelector('meta[name="description"]');
@@ -326,7 +326,7 @@ export default function Projects() {
         <header className="bg-gradient-to-r from-primary/10 via-primary/5 to-background rounded-xl border p-8">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">Proyectos</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">Carpetas</h1>
               <p className="text-muted-foreground">
                 Gestión centralizada de proyectos: presupuestos, documentos, contratos y solicitudes vinculadas.
               </p>
@@ -399,7 +399,7 @@ export default function Projects() {
               onClick={() => handleBreadcrumbClick(null)}
               className="p-1 h-auto text-muted-foreground hover:text-foreground"
             >
-              Proyectos
+              Carpetas
             </Button>
             {breadcrumb.map((crumb, index) => (
               <div key={crumb.id} className="flex items-center gap-2">
