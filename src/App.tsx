@@ -23,6 +23,7 @@ import Contacts from "./pages/Contacts";
 import NotFound from "./pages/NotFound";
 import DashboardLayout from "./components/DashboardLayout";
 import Projects from "./pages/Projects";
+import Proyectos from "./pages/Proyectos";
 import ProjectDetail from "./pages/ProjectDetail";
 import Approvals from "./pages/Approvals";
 import ApprovalDetail from "./pages/ApprovalDetail";
@@ -169,6 +170,11 @@ const App = () => (
                   <DashboardLayout>
                     <Contacts />
                   </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/proyectos" element={
+                <ProtectedRoute>
+                  <Proyectos />
                 </ProtectedRoute>
               } />
               <Route path="/projects" element={
