@@ -31,7 +31,7 @@ const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Calendario", url: "/calendar", icon: Calendar },
   { title: "Booking", url: "/booking", icon: Mic },
-  { title: "Proyectos", url: "/projects", icon: Folder },
+  { title: "Carpetas", url: "/projects", icon: Folder },
   { title: "Discografía", url: "/releases", icon: Disc3 },
   { title: "Finanzas", url: "/finanzas", icon: Calculator },
   { title: "Artistas & Equipo", url: "/contacts", icon: Users },
