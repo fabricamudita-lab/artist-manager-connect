@@ -10,6 +10,9 @@ import { CreateContactDialog } from '@/components/CreateContactDialog';
 import { EditContactDialog } from '@/components/EditContactDialog';
 import { ContactShareDialog } from '@/components/ContactShareDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { RolodexView } from '@/components/RolodexView';
@@ -92,6 +95,16 @@ function ProfileTab() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    phone: '',
+    address: '',
+    emergency_contact: '',
+    team_contacts: '',
+    internal_notes: '',
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -109,10 +122,57 @@ function ProfileTab() {
 
       if (error && error.code !== 'PGRST116') throw error;
       setProfile(data);
+      if (data) {
+        setEditForm({
+          full_name: data.full_name || '',
+          phone: data.phone || '',
+          address: data.address || '',
+          emergency_contact: data.emergency_contact || '',
+          team_contacts: data.team_contacts || '',
+          internal_notes: data.internal_notes || '',
+        });
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: editForm.full_name,
+          phone: editForm.phone,
+          address: editForm.address,
+          emergency_contact: editForm.emergency_contact,
+          team_contacts: editForm.team_contacts,
+          internal_notes: editForm.internal_notes,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Perfil actualizado',
+        description: 'Los cambios se han guardado correctamente',
+      });
+      setIsEditing(false);
+      fetchProfile();
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo actualizar el perfil',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -127,6 +187,79 @@ function ProfileTab() {
 
   return (
     <div className="space-y-6">
+      {/* Edit Profile Dialog */}
+      <Dialog open={isEditing} onOpenChange={setIsEditing}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar Perfil</DialogTitle>
+            <DialogDescription>
+              Actualiza tu información personal
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="full_name">Nombre Completo</Label>
+              <Input
+                id="full_name"
+                value={editForm.full_name}
+                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Teléfono</Label>
+              <Input
+                id="phone"
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address">Dirección</Label>
+              <Input
+                id="address"
+                value={editForm.address}
+                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="emergency_contact">Contacto de Emergencia</Label>
+              <Textarea
+                id="emergency_contact"
+                value={editForm.emergency_contact}
+                onChange={(e) => setEditForm({ ...editForm, emergency_contact: e.target.value })}
+                placeholder="Nombre y teléfono de contacto de emergencia"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="team_contacts">Contactos del Equipo</Label>
+              <Textarea
+                id="team_contacts"
+                value={editForm.team_contacts}
+                onChange={(e) => setEditForm({ ...editForm, team_contacts: e.target.value })}
+                placeholder="Información de contacto del equipo"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="internal_notes">Notas Internas</Label>
+              <Textarea
+                id="internal_notes"
+                value={editForm.internal_notes}
+                onChange={(e) => setEditForm({ ...editForm, internal_notes: e.target.value })}
+                placeholder="Notas personales..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditing(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveProfile} disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar Cambios'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Profile Header */}
       <Card>
         <CardContent className="pt-6">
@@ -143,7 +276,7 @@ function ProfileTab() {
                   <h2 className="text-2xl font-bold">{profile?.full_name || 'Sin nombre'}</h2>
                   <p className="text-muted-foreground">{profile?.email}</p>
                 </div>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
                   <Edit2 className="w-4 h-4 mr-2" />
                   Editar Perfil
                 </Button>
