@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Users, UserCheck, FileUser, Camera, LayoutGrid, CreditCard, FolderOpen, User, Shield, BookOpen, Mail, Phone, MapPin, Building, Edit2, Settings } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Search, Users, UserCheck, FileUser, Camera, LayoutGrid, CreditCard, FolderOpen, User, Shield, BookOpen, Mail, Phone, MapPin, Building, Edit2, Settings, Upload, X, FileImage, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -86,6 +86,10 @@ interface Profile {
   home_phone?: string;
   iban?: string;
   observations?: string;
+  // Document photos
+  dni_photo_url?: string;
+  passport_photo_url?: string;
+  drivers_license_photo_url?: string;
 }
 
 interface TeamMember {
@@ -152,6 +156,11 @@ function ProfileTab() {
     internal_notes: '',
   });
   const [saving, setSaving] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const dniInputRef = useRef<HTMLInputElement>(null);
+  const passportInputRef = useRef<HTMLInputElement>(null);
+  const licenseInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -267,6 +276,124 @@ function ProfileTab() {
       setSaving(false);
     }
   };
+
+  const handleDocumentUpload = async (
+    file: File,
+    docType: 'dni' | 'passport' | 'drivers_license'
+  ) => {
+    if (!user) return;
+    setUploadingDoc(docType);
+    
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${docType}_${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('identity-documents')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('identity-documents')
+        .getPublicUrl(fileName);
+
+      const columnName = `${docType}_photo_url`;
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ [columnName]: publicUrl })
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: 'Documento subido',
+        description: 'El documento se ha guardado correctamente',
+      });
+      fetchProfile();
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo subir el documento',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingDoc(null);
+    }
+  };
+
+  const handleDeleteDocument = async (docType: 'dni' | 'passport' | 'drivers_license') => {
+    if (!user) return;
+    try {
+      const columnName = `${docType}_photo_url`;
+      const { error } = await supabase
+        .from('profiles')
+        .update({ [columnName]: null })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      toast({ title: 'Documento eliminado' });
+      fetchProfile();
+    } catch (error) {
+      console.error('Error deleting document:', error);
+    }
+  };
+
+  const DocumentUploadCard = ({ 
+    label, 
+    docType, 
+    url, 
+    inputRef 
+  }: { 
+    label: string; 
+    docType: 'dni' | 'passport' | 'drivers_license'; 
+    url?: string | null; 
+    inputRef: React.RefObject<HTMLInputElement>;
+  }) => (
+    <div className="border rounded-lg p-3 space-y-2">
+      <Label className="text-sm">{label}</Label>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleDocumentUpload(file, docType);
+        }}
+      />
+      {url ? (
+        <div className="relative group">
+          <img src={url} alt={label} className="w-full h-24 object-cover rounded" />
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 rounded">
+            <Button size="sm" variant="secondary" onClick={() => setPreviewImage(url)}>
+              <Eye className="w-4 h-4" />
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => handleDeleteDocument(docType)}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          variant="outline"
+          className="w-full h-24 flex flex-col items-center justify-center gap-2"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploadingDoc === docType}
+        >
+          {uploadingDoc === docType ? (
+            <span className="text-xs">Subiendo...</span>
+          ) : (
+            <>
+              <Upload className="w-5 h-5" />
+              <span className="text-xs">Subir foto</span>
+            </>
+          )}
+        </Button>
+      )}
+    </div>
+  );
 
   // Helper to show field only if it has a value
   const ProfileField = ({ label, value }: { label: string; value?: string | null }) => {
@@ -423,6 +550,16 @@ function ProfileTab() {
             <div className="space-y-2">
               <Label htmlFor="iban">IBAN</Label>
               <Input id="iban" value={editForm.iban} onChange={(e) => setEditForm({ ...editForm, iban: e.target.value })} />
+            </div>
+
+            {/* Documentos de Identidad */}
+            <div className="md:col-span-2 mt-4">
+              <h3 className="font-semibold text-sm mb-3 text-muted-foreground uppercase tracking-wide">Documentos de Identidad</h3>
+            </div>
+            <div className="md:col-span-2 grid grid-cols-3 gap-4">
+              <DocumentUploadCard label="DNI" docType="dni" url={profile?.dni_photo_url} inputRef={dniInputRef} />
+              <DocumentUploadCard label="Pasaporte" docType="passport" url={profile?.passport_photo_url} inputRef={passportInputRef} />
+              <DocumentUploadCard label="Carné de Conducir" docType="drivers_license" url={profile?.drivers_license_photo_url} inputRef={licenseInputRef} />
             </div>
 
             {/* Observaciones */}
@@ -585,6 +722,55 @@ function ProfileTab() {
           </Card>
         )}
 
+        {/* Documentos de Identidad */}
+        {(profile?.dni_photo_url || profile?.passport_photo_url || profile?.drivers_license_photo_url) && (
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileImage className="w-5 h-5" />
+                Documentos de Identidad
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4">
+                {profile?.dni_photo_url && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">DNI</p>
+                    <img
+                      src={profile.dni_photo_url}
+                      alt="DNI"
+                      className="w-full h-24 object-cover rounded cursor-pointer hover:opacity-80 transition"
+                      onClick={() => setPreviewImage(profile.dni_photo_url!)}
+                    />
+                  </div>
+                )}
+                {profile?.passport_photo_url && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Pasaporte</p>
+                    <img
+                      src={profile.passport_photo_url}
+                      alt="Pasaporte"
+                      className="w-full h-24 object-cover rounded cursor-pointer hover:opacity-80 transition"
+                      onClick={() => setPreviewImage(profile.passport_photo_url!)}
+                    />
+                  </div>
+                )}
+                {profile?.drivers_license_photo_url && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Carné de Conducir</p>
+                    <img
+                      src={profile.drivers_license_photo_url}
+                      alt="Carné de Conducir"
+                      className="w-full h-24 object-cover rounded cursor-pointer hover:opacity-80 transition"
+                      onClick={() => setPreviewImage(profile.drivers_license_photo_url!)}
+                    />
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Observaciones */}
         {profile?.observations && (
           <Card className="md:col-span-2">
@@ -600,6 +786,18 @@ function ProfileTab() {
           </Card>
         )}
       </div>
+
+      {/* Image Preview Dialog */}
+      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Vista previa</DialogTitle>
+          </DialogHeader>
+          {previewImage && (
+            <img src={previewImage} alt="Documento" className="w-full h-auto rounded" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
