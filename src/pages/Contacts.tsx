@@ -62,6 +62,30 @@ interface Profile {
   emergency_contact?: string;
   team_contacts?: string;
   internal_notes?: string;
+  // New extended fields
+  stage_name?: string;
+  first_name?: string;
+  last_name?: string;
+  second_last_name?: string;
+  dni_nie?: string;
+  birth_date?: string;
+  social_security?: string;
+  street?: string;
+  postal_code?: string;
+  province?: string;
+  city?: string;
+  country?: string;
+  shoe_size?: string;
+  pants_size?: string;
+  shirt_size?: string;
+  jacket_size?: string;
+  height?: string;
+  allergies?: string;
+  is_smoker?: boolean;
+  license_type?: string;
+  home_phone?: string;
+  iban?: string;
+  observations?: string;
 }
 
 interface TeamMember {
@@ -98,9 +122,32 @@ function ProfileTab() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     full_name: '',
+    stage_name: '',
+    first_name: '',
+    last_name: '',
+    second_last_name: '',
     phone: '',
-    address: '',
+    home_phone: '',
     emergency_contact: '',
+    email: '',
+    dni_nie: '',
+    birth_date: '',
+    social_security: '',
+    street: '',
+    postal_code: '',
+    province: '',
+    city: '',
+    country: '',
+    shoe_size: '',
+    pants_size: '',
+    shirt_size: '',
+    jacket_size: '',
+    height: '',
+    allergies: '',
+    is_smoker: false,
+    license_type: '',
+    iban: '',
+    observations: '',
     team_contacts: '',
     internal_notes: '',
   });
@@ -125,9 +172,32 @@ function ProfileTab() {
       if (data) {
         setEditForm({
           full_name: data.full_name || '',
+          stage_name: data.stage_name || '',
+          first_name: data.first_name || '',
+          last_name: data.last_name || '',
+          second_last_name: data.second_last_name || '',
           phone: data.phone || '',
-          address: data.address || '',
+          home_phone: data.home_phone || '',
           emergency_contact: data.emergency_contact || '',
+          email: data.email || '',
+          dni_nie: data.dni_nie || '',
+          birth_date: data.birth_date || '',
+          social_security: data.social_security || '',
+          street: data.street || '',
+          postal_code: data.postal_code || '',
+          province: data.province || '',
+          city: data.city || '',
+          country: data.country || '',
+          shoe_size: data.shoe_size || '',
+          pants_size: data.pants_size || '',
+          shirt_size: data.shirt_size || '',
+          jacket_size: data.jacket_size || '',
+          height: data.height || '',
+          allergies: data.allergies || '',
+          is_smoker: data.is_smoker || false,
+          license_type: data.license_type || '',
+          iban: data.iban || '',
+          observations: data.observations || '',
           team_contacts: data.team_contacts || '',
           internal_notes: data.internal_notes || '',
         });
@@ -146,12 +216,34 @@ function ProfileTab() {
       const { error } = await supabase
         .from('profiles')
         .update({
-          full_name: editForm.full_name,
-          phone: editForm.phone,
-          address: editForm.address,
-          emergency_contact: editForm.emergency_contact,
-          team_contacts: editForm.team_contacts,
-          internal_notes: editForm.internal_notes,
+          full_name: editForm.full_name || null,
+          stage_name: editForm.stage_name || null,
+          first_name: editForm.first_name || null,
+          last_name: editForm.last_name || null,
+          second_last_name: editForm.second_last_name || null,
+          phone: editForm.phone || null,
+          home_phone: editForm.home_phone || null,
+          emergency_contact: editForm.emergency_contact || null,
+          dni_nie: editForm.dni_nie || null,
+          birth_date: editForm.birth_date || null,
+          social_security: editForm.social_security || null,
+          street: editForm.street || null,
+          postal_code: editForm.postal_code || null,
+          province: editForm.province || null,
+          city: editForm.city || null,
+          country: editForm.country || null,
+          shoe_size: editForm.shoe_size || null,
+          pants_size: editForm.pants_size || null,
+          shirt_size: editForm.shirt_size || null,
+          jacket_size: editForm.jacket_size || null,
+          height: editForm.height || null,
+          allergies: editForm.allergies || null,
+          is_smoker: editForm.is_smoker,
+          license_type: editForm.license_type || null,
+          iban: editForm.iban || null,
+          observations: editForm.observations || null,
+          team_contacts: editForm.team_contacts || null,
+          internal_notes: editForm.internal_notes || null,
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', user.id);
@@ -176,6 +268,17 @@ function ProfileTab() {
     }
   };
 
+  // Helper to show field only if it has a value
+  const ProfileField = ({ label, value }: { label: string; value?: string | null }) => {
+    if (!value) return null;
+    return (
+      <div>
+        <label className="text-sm font-medium text-muted-foreground">{label}</label>
+        <p className="text-sm">{value}</p>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="animate-pulse space-y-4">
@@ -189,64 +292,146 @@ function ProfileTab() {
     <div className="space-y-6">
       {/* Edit Profile Dialog */}
       <Dialog open={isEditing} onOpenChange={setIsEditing}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Perfil</DialogTitle>
             <DialogDescription>
               Actualiza tu información personal
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name">Nombre Completo</Label>
-              <Input
-                id="full_name"
-                value={editForm.full_name}
-                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
-              />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+            {/* Identificación */}
+            <div className="md:col-span-2">
+              <h3 className="font-semibold text-sm mb-3 text-muted-foreground uppercase tracking-wide">Identificación</h3>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Teléfono</Label>
-              <Input
-                id="phone"
-                value={editForm.phone}
-                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-              />
+              <Label htmlFor="stage_name">Nombre Artístico</Label>
+              <Input id="stage_name" value={editForm.stage_name} onChange={(e) => setEditForm({ ...editForm, stage_name: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="address">Dirección</Label>
-              <Input
-                id="address"
-                value={editForm.address}
-                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-              />
+              <Label htmlFor="email">Correo Electrónico</Label>
+              <Input id="email" value={editForm.email} disabled className="bg-muted" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="first_name">Nombre</Label>
+              <Input id="first_name" value={editForm.first_name} onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dni_nie">DNI/NIE</Label>
+              <Input id="dni_nie" value={editForm.dni_nie} onChange={(e) => setEditForm({ ...editForm, dni_nie: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="last_name">Primer Apellido</Label>
+              <Input id="last_name" value={editForm.last_name} onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="birth_date">Fecha de Nacimiento</Label>
+              <Input id="birth_date" type="date" value={editForm.birth_date} onChange={(e) => setEditForm({ ...editForm, birth_date: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="second_last_name">Segundo Apellido</Label>
+              <Input id="second_last_name" value={editForm.second_last_name} onChange={(e) => setEditForm({ ...editForm, second_last_name: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="social_security">Seguridad Social</Label>
+              <Input id="social_security" value={editForm.social_security} onChange={(e) => setEditForm({ ...editForm, social_security: e.target.value })} />
+            </div>
+
+            {/* Dirección */}
+            <div className="md:col-span-2 mt-4">
+              <h3 className="font-semibold text-sm mb-3 text-muted-foreground uppercase tracking-wide">Dirección</h3>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="street">Calle</Label>
+              <Input id="street" value={editForm.street} onChange={(e) => setEditForm({ ...editForm, street: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="postal_code">Código Postal</Label>
+              <Input id="postal_code" value={editForm.postal_code} onChange={(e) => setEditForm({ ...editForm, postal_code: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="city">Población</Label>
+              <Input id="city" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="province">Provincia</Label>
+              <Input id="province" value={editForm.province} onChange={(e) => setEditForm({ ...editForm, province: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="country">País</Label>
+              <Input id="country" value={editForm.country} onChange={(e) => setEditForm({ ...editForm, country: e.target.value })} />
+            </div>
+
+            {/* Tallas */}
+            <div className="md:col-span-2 mt-4">
+              <h3 className="font-semibold text-sm mb-3 text-muted-foreground uppercase tracking-wide">Tallas</h3>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="shoe_size">Zapato</Label>
+              <Input id="shoe_size" value={editForm.shoe_size} onChange={(e) => setEditForm({ ...editForm, shoe_size: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pants_size">Pantalón</Label>
+              <Input id="pants_size" value={editForm.pants_size} onChange={(e) => setEditForm({ ...editForm, pants_size: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="shirt_size">Camisa</Label>
+              <Input id="shirt_size" value={editForm.shirt_size} onChange={(e) => setEditForm({ ...editForm, shirt_size: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="jacket_size">Chaqueta</Label>
+              <Input id="jacket_size" value={editForm.jacket_size} onChange={(e) => setEditForm({ ...editForm, jacket_size: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="height">Altura</Label>
+              <Input id="height" value={editForm.height} onChange={(e) => setEditForm({ ...editForm, height: e.target.value })} placeholder="ej: 175 cm" />
+            </div>
+
+            {/* Salud y otros */}
+            <div className="md:col-span-2 mt-4">
+              <h3 className="font-semibold text-sm mb-3 text-muted-foreground uppercase tracking-wide">Salud y Otros</h3>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="allergies">Alergias (alimentarias/medicamentos)</Label>
+              <Textarea id="allergies" value={editForm.allergies} onChange={(e) => setEditForm({ ...editForm, allergies: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="license_type">Carné/Tipo</Label>
+              <Input id="license_type" value={editForm.license_type} onChange={(e) => setEditForm({ ...editForm, license_type: e.target.value })} placeholder="ej: B, B+E, C" />
+            </div>
+            <div className="space-y-2 flex items-center gap-3 pt-6">
+              <input type="checkbox" id="is_smoker" checked={editForm.is_smoker} onChange={(e) => setEditForm({ ...editForm, is_smoker: e.target.checked })} className="w-4 h-4" />
+              <Label htmlFor="is_smoker">Fumador/a</Label>
+            </div>
+
+            {/* Contacto */}
+            <div className="md:col-span-2 mt-4">
+              <h3 className="font-semibold text-sm mb-3 text-muted-foreground uppercase tracking-wide">Contacto</h3>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Teléfono Móvil</Label>
+              <Input id="phone" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="home_phone">Teléfono Casa</Label>
+              <Input id="home_phone" value={editForm.home_phone} onChange={(e) => setEditForm({ ...editForm, home_phone: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="emergency_contact">Contacto de Emergencia</Label>
-              <Textarea
-                id="emergency_contact"
-                value={editForm.emergency_contact}
-                onChange={(e) => setEditForm({ ...editForm, emergency_contact: e.target.value })}
-                placeholder="Nombre y teléfono de contacto de emergencia"
-              />
+              <Input id="emergency_contact" value={editForm.emergency_contact} onChange={(e) => setEditForm({ ...editForm, emergency_contact: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="team_contacts">Contactos del Equipo</Label>
-              <Textarea
-                id="team_contacts"
-                value={editForm.team_contacts}
-                onChange={(e) => setEditForm({ ...editForm, team_contacts: e.target.value })}
-                placeholder="Información de contacto del equipo"
-              />
+              <Label htmlFor="iban">IBAN</Label>
+              <Input id="iban" value={editForm.iban} onChange={(e) => setEditForm({ ...editForm, iban: e.target.value })} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="internal_notes">Notas Internas</Label>
-              <Textarea
-                id="internal_notes"
-                value={editForm.internal_notes}
-                onChange={(e) => setEditForm({ ...editForm, internal_notes: e.target.value })}
-                placeholder="Notas personales..."
-              />
+
+            {/* Observaciones */}
+            <div className="md:col-span-2 mt-4">
+              <h3 className="font-semibold text-sm mb-3 text-muted-foreground uppercase tracking-wide">Observaciones</h3>
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="observations">Observaciones</Label>
+              <Textarea id="observations" value={editForm.observations} onChange={(e) => setEditForm({ ...editForm, observations: e.target.value })} />
             </div>
           </div>
           <DialogFooter>
@@ -267,31 +452,34 @@ function ProfileTab() {
             <Avatar className="w-24 h-24">
               <AvatarImage src={profile?.avatar_url || ''} />
               <AvatarFallback className="text-2xl">
-                {profile?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+                {(profile?.stage_name || profile?.full_name)?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold">{profile?.full_name || 'Sin nombre'}</h2>
-                  <p className="text-muted-foreground">{profile?.email}</p>
+                  <h2 className="text-2xl font-bold">{profile?.stage_name || profile?.full_name || 'Sin nombre'}</h2>
+                  {profile?.stage_name && profile?.full_name && (
+                    <p className="text-muted-foreground">{profile.full_name}</p>
+                  )}
+                  <p className="text-muted-foreground text-sm">{profile?.email}</p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
                   <Edit2 className="w-4 h-4 mr-2" />
                   Editar Perfil
                 </Button>
               </div>
-              <div className="flex gap-4 mt-4">
+              <div className="flex flex-wrap gap-4 mt-4">
                 {profile?.phone && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Phone className="w-4 h-4" />
                     {profile.phone}
                   </div>
                 )}
-                {profile?.address && (
+                {profile?.city && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <MapPin className="w-4 h-4" />
-                    {profile.address}
+                    {[profile.city, profile.province, profile.country].filter(Boolean).join(', ')}
                   </div>
                 )}
               </div>
@@ -300,68 +488,117 @@ function ProfileTab() {
         </CardContent>
       </Card>
 
-      {/* Profile Details */}
+      {/* Profile Details - Only show cards with data */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <User className="w-5 h-5" />
-              Información Personal
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Nombre Completo</label>
-              <p className="text-sm">{profile?.full_name || '-'}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Email</label>
-              <p className="text-sm">{profile?.email || '-'}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Teléfono</label>
-              <p className="text-sm">{profile?.phone || '-'}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Dirección</label>
-              <p className="text-sm">{profile?.address || '-'}</p>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Identificación */}
+        {(profile?.first_name || profile?.last_name || profile?.dni_nie || profile?.birth_date || profile?.social_security) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Identificación
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ProfileField label="Nombre" value={profile?.first_name} />
+              <ProfileField label="Primer Apellido" value={profile?.last_name} />
+              <ProfileField label="Segundo Apellido" value={profile?.second_last_name} />
+              <ProfileField label="DNI/NIE" value={profile?.dni_nie} />
+              <ProfileField label="Fecha de Nacimiento" value={profile?.birth_date} />
+              <ProfileField label="Seguridad Social" value={profile?.social_security} />
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Shield className="w-5 h-5" />
-              Contacto de Emergencia
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Contacto</label>
-              <p className="text-sm whitespace-pre-wrap">{profile?.emergency_contact || 'No configurado'}</p>
-            </div>
-            <Separator />
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Contactos del Equipo</label>
-              <p className="text-sm whitespace-pre-wrap">{profile?.team_contacts || 'No configurado'}</p>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Dirección */}
+        {(profile?.street || profile?.postal_code || profile?.city || profile?.province || profile?.country) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <MapPin className="w-5 h-5" />
+                Dirección
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ProfileField label="Calle" value={profile?.street} />
+              <ProfileField label="Código Postal" value={profile?.postal_code} />
+              <ProfileField label="Población" value={profile?.city} />
+              <ProfileField label="Provincia" value={profile?.province} />
+              <ProfileField label="País" value={profile?.country} />
+            </CardContent>
+          </Card>
+        )}
 
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <BookOpen className="w-5 h-5" />
-              Notas Internas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-              {profile?.internal_notes || 'Sin notas internas'}
-            </p>
-          </CardContent>
-        </Card>
+        {/* Tallas */}
+        {(profile?.shoe_size || profile?.pants_size || profile?.shirt_size || profile?.jacket_size || profile?.height) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Tallas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ProfileField label="Zapato" value={profile?.shoe_size} />
+              <ProfileField label="Pantalón" value={profile?.pants_size} />
+              <ProfileField label="Camisa" value={profile?.shirt_size} />
+              <ProfileField label="Chaqueta" value={profile?.jacket_size} />
+              <ProfileField label="Altura" value={profile?.height} />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Salud */}
+        {(profile?.allergies || profile?.is_smoker || profile?.license_type) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Shield className="w-5 h-5" />
+                Salud y Otros
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ProfileField label="Alergias" value={profile?.allergies} />
+              {profile?.is_smoker && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Fumador/a</label>
+                  <p className="text-sm">Sí</p>
+                </div>
+              )}
+              <ProfileField label="Carné/Tipo" value={profile?.license_type} />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Contacto y Financiero */}
+        {(profile?.phone || profile?.home_phone || profile?.emergency_contact || profile?.iban) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Phone className="w-5 h-5" />
+                Contacto
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ProfileField label="Teléfono Móvil" value={profile?.phone} />
+              <ProfileField label="Teléfono Casa" value={profile?.home_phone} />
+              <ProfileField label="Contacto de Emergencia" value={profile?.emergency_contact} />
+              <ProfileField label="IBAN" value={profile?.iban} />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Observaciones */}
+        {profile?.observations && (
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <BookOpen className="w-5 h-5" />
+                Observaciones
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm whitespace-pre-wrap">{profile.observations}</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

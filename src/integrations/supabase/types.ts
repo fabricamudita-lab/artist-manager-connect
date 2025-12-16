@@ -2384,16 +2384,39 @@ export type Database = {
         Row: {
           active_role: Database["public"]["Enums"]["user_role"]
           address: string | null
+          allergies: string | null
           avatar_url: string | null
+          birth_date: string | null
+          city: string | null
+          country: string | null
           created_at: string
+          dni_nie: string | null
           email: string
           emergency_contact: string | null
+          first_name: string | null
           full_name: string
+          height: string | null
+          home_phone: string | null
+          iban: string | null
           id: string
           internal_notes: string | null
+          is_smoker: boolean | null
           is_test_user: boolean | null
+          jacket_size: string | null
+          last_name: string | null
+          license_type: string | null
+          observations: string | null
+          pants_size: string | null
           phone: string | null
+          postal_code: string | null
+          province: string | null
           roles: Database["public"]["Enums"]["user_role"][]
+          second_last_name: string | null
+          shirt_size: string | null
+          shoe_size: string | null
+          social_security: string | null
+          stage_name: string | null
+          street: string | null
           team_contacts: string | null
           updated_at: string
           user_id: string
@@ -2402,16 +2425,39 @@ export type Database = {
         Insert: {
           active_role?: Database["public"]["Enums"]["user_role"]
           address?: string | null
+          allergies?: string | null
           avatar_url?: string | null
+          birth_date?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
+          dni_nie?: string | null
           email: string
           emergency_contact?: string | null
+          first_name?: string | null
           full_name: string
+          height?: string | null
+          home_phone?: string | null
+          iban?: string | null
           id?: string
           internal_notes?: string | null
+          is_smoker?: boolean | null
           is_test_user?: boolean | null
+          jacket_size?: string | null
+          last_name?: string | null
+          license_type?: string | null
+          observations?: string | null
+          pants_size?: string | null
           phone?: string | null
+          postal_code?: string | null
+          province?: string | null
           roles?: Database["public"]["Enums"]["user_role"][]
+          second_last_name?: string | null
+          shirt_size?: string | null
+          shoe_size?: string | null
+          social_security?: string | null
+          stage_name?: string | null
+          street?: string | null
           team_contacts?: string | null
           updated_at?: string
           user_id: string
@@ -2420,16 +2466,39 @@ export type Database = {
         Update: {
           active_role?: Database["public"]["Enums"]["user_role"]
           address?: string | null
+          allergies?: string | null
           avatar_url?: string | null
+          birth_date?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
+          dni_nie?: string | null
           email?: string
           emergency_contact?: string | null
+          first_name?: string | null
           full_name?: string
+          height?: string | null
+          home_phone?: string | null
+          iban?: string | null
           id?: string
           internal_notes?: string | null
+          is_smoker?: boolean | null
           is_test_user?: boolean | null
+          jacket_size?: string | null
+          last_name?: string | null
+          license_type?: string | null
+          observations?: string | null
+          pants_size?: string | null
           phone?: string | null
+          postal_code?: string | null
+          province?: string | null
           roles?: Database["public"]["Enums"]["user_role"][]
+          second_last_name?: string | null
+          shirt_size?: string | null
+          shoe_size?: string | null
+          social_security?: string | null
+          stage_name?: string | null
+          street?: string | null
           team_contacts?: string | null
           updated_at?: string
           user_id?: string
