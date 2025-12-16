@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Search, Users, UserCheck, FileUser, Camera, LayoutGrid, CreditCard, FolderOpen, User, Shield, BookOpen, Mail, Phone, MapPin, Building, Edit2, Settings, Upload, X, FileImage, Eye } from 'lucide-react';
+import { Plus, Search, Users, UserCheck, FileUser, Camera, LayoutGrid, CreditCard, FolderOpen, User, Shield, BookOpen, Mail, Phone, MapPin, Building, Edit2, Settings, Upload, X, FileImage, Eye, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -294,14 +294,11 @@ function ProfileTab() {
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('identity-documents')
-        .getPublicUrl(fileName);
-
+      // Store the path, not public URL (bucket is private)
       const columnName = `${docType}_photo_url`;
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ [columnName]: publicUrl })
+        .update({ [columnName]: fileName })
         .eq('user_id', user.id);
 
       if (updateError) throw updateError;
@@ -340,60 +337,196 @@ function ProfileTab() {
     }
   };
 
+  const getSignedUrl = async (filePath: string): Promise<string | null> => {
+    if (!filePath) return null;
+    // If it's already a full URL (legacy data), return as is
+    if (filePath.startsWith('http')) return filePath;
+    
+    const { data, error } = await supabase.storage
+      .from('identity-documents')
+      .createSignedUrl(filePath, 3600); // 1 hour expiry
+    
+    if (error) {
+      console.error('Error getting signed URL:', error);
+      return null;
+    }
+    return data.signedUrl;
+  };
+
+  const handleDownloadDocument = async (filePath: string, fileName: string) => {
+    try {
+      const signedUrl = await getSignedUrl(filePath);
+      if (!signedUrl) {
+        toast({ title: 'Error', description: 'No se pudo obtener el documento', variant: 'destructive' });
+        return;
+      }
+      
+      const response = await fetch(signedUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      toast({ title: 'Error', description: 'No se pudo descargar el documento', variant: 'destructive' });
+    }
+  };
+
   const DocumentUploadCard = ({ 
     label, 
     docType, 
-    url, 
+    filePath, 
     inputRef 
   }: { 
     label: string; 
     docType: 'dni' | 'passport' | 'drivers_license'; 
-    url?: string | null; 
+    filePath?: string | null; 
     inputRef: React.RefObject<HTMLInputElement>;
-  }) => (
-    <div className="border rounded-lg p-3 space-y-2">
-      <Label className="text-sm">{label}</Label>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleDocumentUpload(file, docType);
-        }}
-      />
-      {url ? (
+  }) => {
+    const [signedUrl, setSignedUrl] = useState<string | null>(null);
+    const [loadingUrl, setLoadingUrl] = useState(false);
+
+    useEffect(() => {
+      if (filePath) {
+        setLoadingUrl(true);
+        getSignedUrl(filePath).then(url => {
+          setSignedUrl(url);
+          setLoadingUrl(false);
+        });
+      } else {
+        setSignedUrl(null);
+      }
+    }, [filePath]);
+
+    return (
+      <div className="border rounded-lg p-3 space-y-2">
+        <Label className="text-sm">{label}</Label>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleDocumentUpload(file, docType);
+          }}
+        />
+        {filePath ? (
+          <div className="relative group">
+            {loadingUrl ? (
+              <div className="w-full h-24 bg-muted rounded flex items-center justify-center">
+                <span className="text-xs text-muted-foreground">Cargando...</span>
+              </div>
+            ) : signedUrl ? (
+              <img src={signedUrl} alt={label} className="w-full h-24 object-cover rounded" />
+            ) : (
+              <div className="w-full h-24 bg-muted rounded flex items-center justify-center">
+                <span className="text-xs text-muted-foreground">Error al cargar</span>
+              </div>
+            )}
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 rounded">
+              <Button size="sm" variant="secondary" onClick={async () => {
+                const url = await getSignedUrl(filePath);
+                if (url) setPreviewImage(url);
+              }}>
+                <Eye className="w-4 h-4" />
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => handleDownloadDocument(filePath, `${label}.jpg`)}>
+                <Download className="w-4 h-4" />
+              </Button>
+              <Button size="sm" variant="destructive" onClick={() => handleDeleteDocument(docType)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            className="w-full h-24 flex flex-col items-center justify-center gap-2"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploadingDoc === docType}
+          >
+            {uploadingDoc === docType ? (
+              <span className="text-xs">Subiendo...</span>
+            ) : (
+              <>
+                <Upload className="w-5 h-5" />
+                <span className="text-xs">Subir foto</span>
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+    );
+  };
+
+  // Component for displaying documents in profile view (read-only with download)
+  const DocumentDisplayCard = ({ 
+    label, 
+    filePath,
+    getSignedUrl,
+    onPreview,
+    onDownload
+  }: { 
+    label: string; 
+    filePath: string;
+    getSignedUrl: (path: string) => Promise<string | null>;
+    onPreview: (url: string) => void;
+    onDownload: (path: string, name: string) => void;
+  }) => {
+    const [signedUrl, setSignedUrl] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+      getSignedUrl(filePath).then(url => {
+        setSignedUrl(url);
+        setLoading(false);
+      });
+    }, [filePath]);
+
+    return (
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">{label}</p>
         <div className="relative group">
-          <img src={url} alt={label} className="w-full h-24 object-cover rounded" />
+          {loading ? (
+            <div className="w-full h-24 bg-muted rounded flex items-center justify-center">
+              <span className="text-xs text-muted-foreground">Cargando...</span>
+            </div>
+          ) : signedUrl ? (
+            <img
+              src={signedUrl}
+              alt={label}
+              className="w-full h-24 object-cover rounded cursor-pointer hover:opacity-80 transition"
+              onClick={async () => {
+                const url = await getSignedUrl(filePath);
+                if (url) onPreview(url);
+              }}
+            />
+          ) : (
+            <div className="w-full h-24 bg-muted rounded flex items-center justify-center">
+              <span className="text-xs text-muted-foreground">Error al cargar</span>
+            </div>
+          )}
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 rounded">
-            <Button size="sm" variant="secondary" onClick={() => setPreviewImage(url)}>
+            <Button size="sm" variant="secondary" onClick={async () => {
+              const url = await getSignedUrl(filePath);
+              if (url) onPreview(url);
+            }}>
               <Eye className="w-4 h-4" />
             </Button>
-            <Button size="sm" variant="destructive" onClick={() => handleDeleteDocument(docType)}>
-              <X className="w-4 h-4" />
+            <Button size="sm" variant="secondary" onClick={() => onDownload(filePath, `${label}.jpg`)}>
+              <Download className="w-4 h-4" />
             </Button>
           </div>
         </div>
-      ) : (
-        <Button
-          variant="outline"
-          className="w-full h-24 flex flex-col items-center justify-center gap-2"
-          onClick={() => inputRef.current?.click()}
-          disabled={uploadingDoc === docType}
-        >
-          {uploadingDoc === docType ? (
-            <span className="text-xs">Subiendo...</span>
-          ) : (
-            <>
-              <Upload className="w-5 h-5" />
-              <span className="text-xs">Subir foto</span>
-            </>
-          )}
-        </Button>
-      )}
-    </div>
-  );
+      </div>
+    );
+  };
 
   // Helper to show field only if it has a value
   const ProfileField = ({ label, value }: { label: string; value?: string | null }) => {
@@ -557,9 +690,9 @@ function ProfileTab() {
               <h3 className="font-semibold text-sm mb-3 text-muted-foreground uppercase tracking-wide">Documentos de Identidad</h3>
             </div>
             <div className="md:col-span-2 grid grid-cols-3 gap-4">
-              <DocumentUploadCard label="DNI" docType="dni" url={profile?.dni_photo_url} inputRef={dniInputRef} />
-              <DocumentUploadCard label="Pasaporte" docType="passport" url={profile?.passport_photo_url} inputRef={passportInputRef} />
-              <DocumentUploadCard label="Carné de Conducir" docType="drivers_license" url={profile?.drivers_license_photo_url} inputRef={licenseInputRef} />
+              <DocumentUploadCard label="DNI" docType="dni" filePath={profile?.dni_photo_url} inputRef={dniInputRef} />
+              <DocumentUploadCard label="Pasaporte" docType="passport" filePath={profile?.passport_photo_url} inputRef={passportInputRef} />
+              <DocumentUploadCard label="Carné de Conducir" docType="drivers_license" filePath={profile?.drivers_license_photo_url} inputRef={licenseInputRef} />
             </div>
 
             {/* Observaciones */}
@@ -734,37 +867,31 @@ function ProfileTab() {
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
                 {profile?.dni_photo_url && (
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">DNI</p>
-                    <img
-                      src={profile.dni_photo_url}
-                      alt="DNI"
-                      className="w-full h-24 object-cover rounded cursor-pointer hover:opacity-80 transition"
-                      onClick={() => setPreviewImage(profile.dni_photo_url!)}
-                    />
-                  </div>
+                  <DocumentDisplayCard 
+                    label="DNI" 
+                    filePath={profile.dni_photo_url} 
+                    getSignedUrl={getSignedUrl}
+                    onPreview={setPreviewImage}
+                    onDownload={handleDownloadDocument}
+                  />
                 )}
                 {profile?.passport_photo_url && (
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Pasaporte</p>
-                    <img
-                      src={profile.passport_photo_url}
-                      alt="Pasaporte"
-                      className="w-full h-24 object-cover rounded cursor-pointer hover:opacity-80 transition"
-                      onClick={() => setPreviewImage(profile.passport_photo_url!)}
-                    />
-                  </div>
+                  <DocumentDisplayCard 
+                    label="Pasaporte" 
+                    filePath={profile.passport_photo_url} 
+                    getSignedUrl={getSignedUrl}
+                    onPreview={setPreviewImage}
+                    onDownload={handleDownloadDocument}
+                  />
                 )}
                 {profile?.drivers_license_photo_url && (
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Carné de Conducir</p>
-                    <img
-                      src={profile.drivers_license_photo_url}
-                      alt="Carné de Conducir"
-                      className="w-full h-24 object-cover rounded cursor-pointer hover:opacity-80 transition"
-                      onClick={() => setPreviewImage(profile.drivers_license_photo_url!)}
-                    />
-                  </div>
+                  <DocumentDisplayCard 
+                    label="Carné de Conducir" 
+                    filePath={profile.drivers_license_photo_url} 
+                    getSignedUrl={getSignedUrl}
+                    onPreview={setPreviewImage}
+                    onDownload={handleDownloadDocument}
+                  />
                 )}
               </div>
             </CardContent>
