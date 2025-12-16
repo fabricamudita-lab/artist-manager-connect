@@ -2391,6 +2391,8 @@ export type Database = {
           country: string | null
           created_at: string
           dni_nie: string | null
+          dni_photo_url: string | null
+          drivers_license_photo_url: string | null
           email: string
           emergency_contact: string | null
           first_name: string | null
@@ -2407,6 +2409,7 @@ export type Database = {
           license_type: string | null
           observations: string | null
           pants_size: string | null
+          passport_photo_url: string | null
           phone: string | null
           postal_code: string | null
           province: string | null
@@ -2432,6 +2435,8 @@ export type Database = {
           country?: string | null
           created_at?: string
           dni_nie?: string | null
+          dni_photo_url?: string | null
+          drivers_license_photo_url?: string | null
           email: string
           emergency_contact?: string | null
           first_name?: string | null
@@ -2448,6 +2453,7 @@ export type Database = {
           license_type?: string | null
           observations?: string | null
           pants_size?: string | null
+          passport_photo_url?: string | null
           phone?: string | null
           postal_code?: string | null
           province?: string | null
@@ -2473,6 +2479,8 @@ export type Database = {
           country?: string | null
           created_at?: string
           dni_nie?: string | null
+          dni_photo_url?: string | null
+          drivers_license_photo_url?: string | null
           email?: string
           emergency_contact?: string | null
           first_name?: string | null
@@ -2489,6 +2497,7 @@ export type Database = {
           license_type?: string | null
           observations?: string | null
           pants_size?: string | null
+          passport_photo_url?: string | null
           phone?: string | null
           postal_code?: string | null
           province?: string | null
