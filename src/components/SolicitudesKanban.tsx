@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { DndContext, DragEndEvent, DragStartEvent, closestCorners, DragOverlay } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragStartEvent, closestCorners, DragOverlay, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Clock, CheckCircle, XCircle, GripVertical, Calendar, MessageSquare, Mic, Music, HelpCircle, Info, FileText, AlertTriangle, Archive } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, GripVertical, Mic, Music, HelpCircle, Info, FileText, AlertTriangle } from 'lucide-react';
 import { format, differenceInCalendarDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
@@ -111,10 +109,10 @@ function SolicitudCard({ solicitud, onOpenDetails }: SolicitudCardProps) {
       ref={setNodeRef}
       style={style}
       className={`
-        group bg-card border rounded-xl p-3 cursor-pointer transition-all duration-200
+        group border rounded-xl p-3 cursor-pointer transition-all duration-200
         hover:shadow-medium hover:border-primary/30
         ${isDragging ? 'opacity-50 shadow-large scale-105 z-50' : ''}
-        ${isOverdue ? 'border-destructive/50 bg-destructive/5' : ''}
+        ${isOverdue ? 'border-destructive/50 bg-muted' : 'bg-card'}
         ${isUrgent && !isOverdue ? 'border-warning/50 bg-warning/5' : ''}
       `}
       onClick={() => onOpenDetails(solicitud)}
@@ -181,14 +179,6 @@ function SolicitudCard({ solicitud, onOpenDetails }: SolicitudCardProps) {
         <span className="text-[10px] text-muted-foreground">
           {format(new Date(solicitud.fecha_creacion), 'dd MMM', { locale: es })}
         </span>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => e.stopPropagation()}>
-            <MessageSquare className="w-3 h-3" />
-          </Button>
-          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => e.stopPropagation()}>
-            <Calendar className="w-3 h-3" />
-          </Button>
-        </div>
       </div>
     </div>
   );
@@ -202,9 +192,13 @@ interface KanbanColumnProps {
 
 function KanbanColumn({ column, solicitudes, onOpenDetails }: KanbanColumnProps) {
   const ColumnIcon = column.icon;
+  const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   return (
-    <div className={`flex flex-col rounded-xl border-2 ${column.color} min-h-[500px]`}>
+    <div 
+      ref={setNodeRef}
+      className={`flex flex-col rounded-xl border-2 ${column.color} min-h-[500px] transition-all duration-200 ${isOver ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+    >
       <div className="p-4 border-b border-border/30">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
