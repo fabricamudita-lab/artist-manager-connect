@@ -3719,6 +3719,7 @@ export type Database = {
           created_at: string
           id: string
           role: Database["public"]["Enums"]["workspace_role"]
+          team_category: Database["public"]["Enums"]["team_category"] | null
           updated_at: string
           user_id: string
           workspace_id: string
@@ -3727,6 +3728,7 @@ export type Database = {
           created_at?: string
           id?: string
           role: Database["public"]["Enums"]["workspace_role"]
+          team_category?: Database["public"]["Enums"]["team_category"] | null
           updated_at?: string
           user_id: string
           workspace_id: string
@@ -3735,6 +3737,7 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["workspace_role"]
+          team_category?: Database["public"]["Enums"]["team_category"] | null
           updated_at?: string
           user_id?: string
           workspace_id?: string
@@ -3921,6 +3924,14 @@ export type Database = {
         | "IN_REVIEW"
         | "COMPLETED"
         | "CANCELLED"
+      team_category:
+        | "banda"
+        | "artistico"
+        | "tecnico"
+        | "management"
+        | "comunicacion"
+        | "legal"
+        | "otro"
       user_role: "artist" | "management"
       workspace_role: "OWNER" | "TEAM_MANAGER"
     }
@@ -4117,6 +4128,15 @@ export const Constants = {
         "IN_REVIEW",
         "COMPLETED",
         "CANCELLED",
+      ],
+      team_category: [
+        "banda",
+        "artistico",
+        "tecnico",
+        "management",
+        "comunicacion",
+        "legal",
+        "otro",
       ],
       user_role: ["artist", "management"],
       workspace_role: ["OWNER", "TEAM_MANAGER"],
