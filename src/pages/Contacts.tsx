@@ -968,13 +968,38 @@ function TeamsTab() {
         return;
       }
 
+      // Check if workspace was created by this user (for bootstrap)
+      const { data: workspace } = await supabase
+        .from('workspaces')
+        .select('created_by')
+        .eq('id', profile.workspace_id)
+        .single();
+
       // Fetch workspace memberships
-      const { data: members, error } = await supabase
+      let { data: members, error } = await supabase
         .from('workspace_memberships')
         .select('id, user_id, role, team_category')
         .eq('workspace_id', profile.workspace_id);
 
       if (error) throw error;
+
+      // Bootstrap: If no members exist and user is workspace creator, create their membership
+      if ((!members || members.length === 0) && workspace?.created_by === user.id) {
+        const { data: newMembership, error: insertError } = await supabase
+          .from('workspace_memberships')
+          .insert({
+            workspace_id: profile.workspace_id,
+            user_id: user.id,
+            role: 'OWNER',
+            team_category: 'management'
+          })
+          .select('id, user_id, role, team_category')
+          .single();
+
+        if (!insertError && newMembership) {
+          members = [newMembership];
+        }
+      }
 
       if (!members || members.length === 0) {
         setTeamMembers([]);
