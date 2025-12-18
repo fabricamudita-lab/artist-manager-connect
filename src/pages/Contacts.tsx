@@ -92,10 +92,13 @@ interface Profile {
   drivers_license_photo_url?: string;
 }
 
+type TeamCategory = 'banda' | 'artistico' | 'tecnico' | 'management' | 'comunicacion' | 'legal' | 'otro';
+
 interface TeamMember {
   id: string;
   user_id: string;
   role: string;
+  team_category: TeamCategory;
   full_name: string;
   email: string;
   avatar_url?: string;
@@ -107,6 +110,16 @@ interface TeamMember {
     presupuestos: 'none' | 'view' | 'edit' | 'owner';
   };
 }
+
+const TEAM_CATEGORIES: { value: TeamCategory; label: string; icon: any }[] = [
+  { value: 'banda', label: 'Banda', icon: Users },
+  { value: 'artistico', label: 'Equipo Artístico', icon: Users },
+  { value: 'tecnico', label: 'Equipo Técnico', icon: UserCheck },
+  { value: 'management', label: 'Management', icon: Building },
+  { value: 'comunicacion', label: 'Comunicación', icon: Mail },
+  { value: 'legal', label: 'Legal', icon: Shield },
+  { value: 'otro', label: 'Otros', icon: Users },
+];
 
 const CATEGORIES = [
   { value: 'artistas', label: 'Artistas', icon: Users },
@@ -933,6 +946,7 @@ function ProfileTab() {
 function TeamsTab() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
 
   useEffect(() => {
     fetchTeamMembers();
@@ -940,7 +954,6 @@ function TeamsTab() {
 
   const fetchTeamMembers = async () => {
     try {
-      // Fetch workspace members with their profiles
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -961,6 +974,7 @@ function TeamsTab() {
           id,
           user_id,
           role,
+          team_category,
           profiles!inner(full_name, email, avatar_url)
         `)
         .eq('workspace_id', profile.workspace_id);
@@ -971,6 +985,7 @@ function TeamsTab() {
         id: m.id,
         user_id: m.user_id,
         role: m.role,
+        team_category: m.team_category || 'otro',
         full_name: m.profiles?.full_name || 'Sin nombre',
         email: m.profiles?.email || '',
         avatar_url: m.profiles?.avatar_url,
@@ -990,6 +1005,30 @@ function TeamsTab() {
       setLoading(false);
     }
   };
+
+  const updateMemberCategory = async (memberId: string, category: TeamCategory) => {
+    try {
+      const { error } = await supabase
+        .from('workspace_memberships')
+        .update({ team_category: category })
+        .eq('id', memberId);
+
+      if (error) throw error;
+
+      setTeamMembers(prev => prev.map(m => 
+        m.id === memberId ? { ...m, team_category: category } : m
+      ));
+      toast({ title: 'Categoría actualizada' });
+    } catch (error) {
+      console.error('Error updating category:', error);
+      toast({ title: 'Error al actualizar', variant: 'destructive' });
+    }
+  };
+
+  const membersByCategory = TEAM_CATEGORIES.map(cat => ({
+    ...cat,
+    members: teamMembers.filter(m => m.team_category === cat.value)
+  })).filter(cat => cat.members.length > 0);
 
   const permissionLabels = {
     none: { label: 'Sin acceso', color: 'bg-muted text-muted-foreground' },
@@ -1014,7 +1053,7 @@ function TeamsTab() {
         <div>
           <h2 className="text-xl font-semibold">Gestión de Equipos</h2>
           <p className="text-sm text-muted-foreground">
-            Administra los accesos y permisos de tu equipo
+            Organiza tu equipo por categorías: banda, técnico, management y más
           </p>
         </div>
         <Button>
@@ -1038,46 +1077,71 @@ function TeamsTab() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {teamMembers.map((member) => (
-            <Card key={member.id}>
-              <CardContent className="py-4">
-                <div className="flex items-center gap-4">
-                  <Avatar>
-                    <AvatarImage src={member.avatar_url || ''} />
-                    <AvatarFallback>
-                      {member.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium">{member.full_name}</h3>
-                      <Badge variant="secondary" className="text-xs">
-                        {member.role}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{member.email}</p>
-                  </div>
-                  <Button variant="ghost" size="sm">
-                    <Settings className="w-4 h-4" />
-                  </Button>
+        <div className="space-y-8">
+          {membersByCategory.map((category) => {
+            const CategoryIcon = category.icon;
+            return (
+              <div key={category.value} className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <CategoryIcon className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-semibold">{category.label}</h3>
+                  <Badge variant="secondary" className="ml-2">{category.members.length}</Badge>
                 </div>
-
-                <Separator className="my-4" />
-
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                  {Object.entries(member.permissions).map(([key, value]) => (
-                    <div key={key} className="text-center">
-                      <p className="text-xs text-muted-foreground capitalize mb-1">{key}</p>
-                      <Badge className={`text-xs ${permissionLabels[value].color}`}>
-                        {permissionLabels[value].label}
-                      </Badge>
-                    </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {category.members.map((member) => (
+                    <Card key={member.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="py-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage src={member.avatar_url || ''} />
+                            <AvatarFallback className="text-sm">
+                              {member.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium truncate">{member.full_name}</h4>
+                            <p className="text-sm text-muted-foreground truncate">{member.email}</p>
+                            <Badge variant="outline" className="text-xs mt-1">
+                              {member.role}
+                            </Badge>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <Settings className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {TEAM_CATEGORIES.map(cat => (
+                                <DropdownMenuItem
+                                  key={cat.value}
+                                  onClick={() => updateMemberCategory(member.id, cat.value)}
+                                  className={member.team_category === cat.value ? 'bg-accent' : ''}
+                                >
+                                  Mover a {cat.label}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            );
+          })}
+
+          {/* Empty categories hint */}
+          {membersByCategory.length < TEAM_CATEGORIES.length && (
+            <div className="border-2 border-dashed border-muted rounded-lg p-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                Organiza mejor tu equipo moviendo miembros a categorías como: {' '}
+                {TEAM_CATEGORIES.filter(c => !membersByCategory.find(m => m.value === c.value))
+                  .map(c => c.label).join(', ')}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
