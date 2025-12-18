@@ -968,35 +968,53 @@ function TeamsTab() {
         return;
       }
 
+      // Fetch workspace memberships
       const { data: members, error } = await supabase
         .from('workspace_memberships')
-        .select(`
-          id,
-          user_id,
-          role,
-          team_category,
-          profiles!inner(full_name, email, avatar_url)
-        `)
+        .select('id, user_id, role, team_category')
         .eq('workspace_id', profile.workspace_id);
 
       if (error) throw error;
 
-      const formattedMembers: TeamMember[] = (members || []).map((m: any) => ({
-        id: m.id,
-        user_id: m.user_id,
-        role: m.role,
-        team_category: m.team_category || 'otro',
-        full_name: m.profiles?.full_name || 'Sin nombre',
-        email: m.profiles?.email || '',
-        avatar_url: m.profiles?.avatar_url,
-        permissions: {
-          documents: 'view',
-          solicitudes: 'view',
-          carpetas: 'view',
-          booking: 'view',
-          presupuestos: 'view',
-        }
-      }));
+      if (!members || members.length === 0) {
+        setTeamMembers([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch profiles for all member user_ids
+      const userIds = members.map(m => m.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, email, avatar_url')
+        .in('user_id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Create a map for quick profile lookup
+      const profileMap = new Map(
+        (profiles || []).map(p => [p.user_id, p])
+      );
+
+      const formattedMembers: TeamMember[] = members.map((m: any) => {
+        const memberProfile = profileMap.get(m.user_id);
+        return {
+          id: m.id,
+          user_id: m.user_id,
+          role: m.role,
+          team_category: m.team_category || 'otro',
+          full_name: memberProfile?.full_name || 'Sin nombre',
+          email: memberProfile?.email || '',
+          avatar_url: memberProfile?.avatar_url,
+          permissions: {
+            documents: 'view',
+            solicitudes: 'view',
+            carpetas: 'view',
+            booking: 'view',
+            presupuestos: 'view',
+          }
+        };
+      });
 
       setTeamMembers(formattedMembers);
     } catch (error) {
