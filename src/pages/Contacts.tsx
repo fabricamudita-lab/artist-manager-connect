@@ -21,6 +21,7 @@ import { ManageContactGroupsDialog } from '@/components/ManageContactGroupsDialo
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/useAuth';
+import { InviteTeamMemberDialog } from '@/components/InviteTeamMemberDialog';
 
 interface Contact {
   id: string;
@@ -947,6 +948,8 @@ function TeamsTab() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTeamMembers();
@@ -967,6 +970,8 @@ function TeamsTab() {
         setLoading(false);
         return;
       }
+
+      setWorkspaceId(profile.workspace_id);
 
       // Check if workspace was created by this user (for bootstrap)
       const { data: workspace } = await supabase
@@ -1099,7 +1104,7 @@ function TeamsTab() {
             Organiza tu equipo por categorías: banda, técnico, management y más
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setInviteDialogOpen(true)} disabled={!workspaceId}>
           <Plus className="w-4 h-4 mr-2" />
           Invitar Miembro
         </Button>
@@ -1113,7 +1118,7 @@ function TeamsTab() {
             <p className="text-muted-foreground mb-4">
               Invita a personas a tu equipo para colaborar
             </p>
-            <Button>
+            <Button onClick={() => setInviteDialogOpen(true)} disabled={!workspaceId}>
               <Plus className="w-4 h-4 mr-2" />
               Invitar Primer Miembro
             </Button>
@@ -1186,6 +1191,15 @@ function TeamsTab() {
             </div>
           )}
         </div>
+      )}
+
+      {workspaceId && (
+        <InviteTeamMemberDialog
+          open={inviteDialogOpen}
+          onOpenChange={setInviteDialogOpen}
+          workspaceId={workspaceId}
+          onMemberInvited={fetchTeamMembers}
+        />
       )}
     </div>
   );
