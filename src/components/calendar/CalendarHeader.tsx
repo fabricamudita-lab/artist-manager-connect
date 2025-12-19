@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { CalendarIcon, Upload, Plus, Loader2 } from 'lucide-react';
 import { ImportConcerts2025Dialog } from '@/components/ImportConcerts2025Dialog';
+import { DownloadDocumentationButton } from '@/components/DownloadDocumentationButton';
 interface CalendarHeaderProps {
   onCreateEvent: () => void;
   onImportCsv: () => void;
@@ -27,6 +28,9 @@ export function CalendarHeader({
 
       {/* Right: Action Buttons */}
       <div className="flex items-center gap-2">
+        {/* Download Documentation */}
+        <DownloadDocumentationButton />
+        
         {/* Import Concerts */}
         <ImportConcerts2025Dialog />
         
