@@ -38,7 +38,7 @@ const navigationItems = [
   { title: "Carpetas", url: "/projects", icon: Folder },
   { title: "Discografía", url: "/releases", icon: Disc3 },
   { title: "Finanzas", url: "/finanzas", icon: Calculator },
-  { title: "Contactos", url: "/contacts", icon: Users },
+  { title: "Perfiles", url: "/contacts", icon: Users },
   { title: "Solicitudes", url: "/solicitudes", icon: ClipboardList },
   { title: "Chat", url: "/chat", icon: MessageCircle },
   { title: "Documentos", url: "/documents", icon: FileText },
