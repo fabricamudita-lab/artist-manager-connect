@@ -223,19 +223,26 @@ export default function ArtistProfile() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-2xl font-bold">{stat.value}</p>
+        {stats.map((stat) => {
+          const isClickable = stat.label === 'Ingresos totales';
+          return (
+            <Card 
+              key={stat.label}
+              className={isClickable ? 'cursor-pointer hover:border-primary transition-colors' : ''}
+              onClick={isClickable ? () => navigate(`/finanzas?artistId=${id}`) : undefined}
+            >
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{stat.label}</p>
+                    <p className="text-2xl font-bold">{stat.value}</p>
+                  </div>
+                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
                 </div>
-                <stat.icon className={`h-6 w-6 ${stat.color}`} />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Tabs */}
