@@ -1234,9 +1234,27 @@ function TeamsTab() {
 
   // Combine workspace members and team contacts by category
   // Now supports multiple categories per contact and filtering by artist (using junction table)
+  // Special case: "00-management" shows workspace members with 'management' category without artist filter
   const allTeamByCategory = allCategoriesForDisplay.map(cat => {
-    const wsMembers = teamMembers.filter(m => m.team_category === cat.value);
+    // Filter workspace members
+    const wsMembers = teamMembers.filter(m => {
+      if (selectedArtistId === '00-management') {
+        // 00 Management: show only management category members
+        return m.team_category === 'management' && cat.value === 'management';
+      }
+      return m.team_category === cat.value;
+    });
+    
+    // Filter contacts
     const contacts = teamContacts.filter(c => {
+      // Special case for 00 Management - don't filter by artist, show management contacts
+      if (selectedArtistId === '00-management') {
+        const config = c.field_config as Record<string, any> | null;
+        const categories = config?.team_categories || [];
+        const singleCategory = config?.team_category || c.category;
+        return (categories.includes('management') || singleCategory === 'management') && cat.value === 'management';
+      }
+      
       // Filter by artist if one is selected - use the assigned_artist_ids array
       if (selectedArtistId !== 'all') {
         const assignedArtists = (c as any).assigned_artist_ids || [];
@@ -1292,6 +1310,7 @@ function TeamsTab() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los equipos</SelectItem>
+              <SelectItem value="00-management">00 Management</SelectItem>
               {artists.map((artist) => (
                 <SelectItem key={artist.id} value={artist.id}>
                   {artist.stage_name || artist.name}
