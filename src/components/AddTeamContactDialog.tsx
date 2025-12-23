@@ -739,7 +739,7 @@ export function AddTeamContactDialog({
               </p>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="clothing_size">Talla de ropa</Label>
+                  <Label htmlFor="clothing_size">Talla de camiseta</Label>
                   <Input
                     id="clothing_size"
                     value={formData.clothing_size}
