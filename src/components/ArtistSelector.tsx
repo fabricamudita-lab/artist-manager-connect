@@ -21,10 +21,8 @@ import { useAuth } from '@/hooks/useAuth';
 
 interface Artist {
   id: string;
-  full_name: string;
-  email: string;
-  roles: ('artist' | 'management')[];
-  active_role: 'artist' | 'management';
+  name: string;
+  stage_name?: string;
 }
 
 interface ArtistSelectorProps {
@@ -53,54 +51,17 @@ export function ArtistSelector({
 
   const fetchArtists = async () => {
     try {
-      console.log('Fetching artists...');
+      console.log('Fetching artists from management...');
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('full_name', { ascending: true });
+        .from('artists')
+        .select('id, name, stage_name')
+        .order('name', { ascending: true });
       
       console.log('Artists fetched:', data, 'Error:', error);
       
-      // Add some example artists for testing if none exist
-      const realArtists = data || [];
-      const exampleArtists: Artist[] = [
-        {
-          id: 'example-1',
-          full_name: 'María Rodríguez',
-          email: 'maria.rodriguez@example.com',
-          roles: ['artist'],
-          active_role: 'artist'
-        },
-        {
-          id: 'example-2', 
-          full_name: 'Carlos Méndez',
-          email: 'carlos.mendez@example.com',
-          roles: ['artist'],
-          active_role: 'artist'
-        },
-        {
-          id: 'example-3',
-          full_name: 'Sofía García',
-          email: 'sofia.garcia@example.com', 
-          roles: ['artist'],
-          active_role: 'artist'
-        },
-        {
-          id: 'example-4',
-          full_name: 'Alejandro López',
-          email: 'alejandro.lopez@example.com',
-          roles: ['artist'],
-          active_role: 'artist'
-        }
-      ];
+      if (error) throw error;
       
-      // Combine real artists with examples (excluding examples that might conflict)
-      const allArtists = [
-        ...realArtists,
-        ...exampleArtists.filter(example => !realArtists.some(real => real.email === example.email))
-      ];
-      
-      setArtists(allArtists);
+      setArtists(data || []);
     } catch (error) {
       console.error('Error fetching artists:', error);
     } finally {
@@ -109,14 +70,7 @@ export function ArtistSelector({
   };
 
   const handleSelect = (artistId: string) => {
-    if (artistId === 'self' && profile) {
-      // Toggle self selection
-      if (selectedArtists.includes(profile.id)) {
-        onSelectionChange(selectedArtists.filter(id => id !== profile.id));
-      } else {
-        onSelectionChange([...selectedArtists.filter(id => id !== profile.id), profile.id]);
-      }
-    } else if (artistId === 'all') {
+    if (artistId === 'all') {
       // Toggle all artists
       const allArtistIds = artists.map(a => a.id);
       if (selectedArtists.length === allArtistIds.length) {
@@ -134,10 +88,12 @@ export function ArtistSelector({
     }
   };
 
+  const getDisplayName = (artist: Artist) => artist.stage_name || artist.name;
+
   const getSelectedNames = () => {
     const names = artists
       .filter(artist => selectedArtists.includes(artist.id))
-      .map(artist => artist.full_name);
+      .map(artist => getDisplayName(artist));
     
     if (names.length === 0) return "Ninguno seleccionado";
     if (names.length === 1) return names[0];
@@ -168,25 +124,6 @@ export function ArtistSelector({
             <CommandEmpty>No se encontraron artistas.</CommandEmpty>
             <CommandList>
               <CommandGroup>
-                {showSelfOption && profile && (
-                  <CommandItem
-                    onSelect={() => handleSelect('self')}
-                    className="cursor-pointer"
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        selectedArtists.includes(profile.id) ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    <User className="mr-2 h-4 w-4" />
-                    <div className="flex flex-col">
-                      <span>Yo mismo ({profile.full_name})</span>
-                      <span className="text-xs text-muted-foreground">{profile.email}</span>
-                    </div>
-                  </CommandItem>
-                )}
-                
                 {artists.length > 1 && (
                   <CommandItem
                     onSelect={() => handleSelect('all')}
@@ -203,29 +140,27 @@ export function ArtistSelector({
                   </CommandItem>
                 )}
                 
-                {artists
-                  .filter(artist => showSelfOption ? artist.id !== profile?.id : true)
-                  .map((artist) => (
-                    <CommandItem
-                      key={artist.id}
-                      onSelect={() => handleSelect(artist.id)}
-                      className="cursor-pointer"
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          selectedArtists.includes(artist.id) ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      <User className="mr-2 h-4 w-4" />
-                      <div className="flex flex-col">
-                        <span>{artist.full_name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {artist.email} • {artist.active_role}
-                        </span>
-                      </div>
-                    </CommandItem>
-                  ))}
+                {artists.map((artist) => (
+                  <CommandItem
+                    key={artist.id}
+                    onSelect={() => handleSelect(artist.id)}
+                    className="cursor-pointer"
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        selectedArtists.includes(artist.id) ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    <User className="mr-2 h-4 w-4" />
+                    <div className="flex flex-col">
+                      <span>{getDisplayName(artist)}</span>
+                      {artist.stage_name && artist.stage_name !== artist.name && (
+                        <span className="text-xs text-muted-foreground">{artist.name}</span>
+                      )}
+                    </div>
+                  </CommandItem>
+                ))}
               </CommandGroup>
             </CommandList>
           </Command>
@@ -242,7 +177,7 @@ export function ArtistSelector({
                 variant="secondary"
                 className="text-xs"
               >
-                {artist.full_name}
+                {getDisplayName(artist)}
               </Badge>
             ))}
         </div>
