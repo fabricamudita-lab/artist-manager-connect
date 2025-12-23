@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/useAuth';
 import { InviteTeamMemberDialog } from '@/components/InviteTeamMemberDialog';
+import { AddTeamContactDialog } from '@/components/AddTeamContactDialog';
 
 interface Contact {
   id: string;
@@ -954,14 +955,44 @@ function ProfileTab() {
 // Teams Tab Component
 function TeamsTab() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [teamContacts, setTeamContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  const [editingContact, setEditingContact] = useState<any | null>(null);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [addContactDialogOpen, setAddContactDialogOpen] = useState(false);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTeamMembers();
+    fetchTeamContacts();
   }, []);
+
+  const fetchTeamContacts = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch contacts that are marked as team members
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('created_by', user.id)
+        .order('name');
+
+      if (error) throw error;
+
+      // Filter contacts that have is_team_member in field_config
+      const teamContactsList = (data || []).filter(c => {
+        const config = c.field_config as Record<string, any> | null;
+        return config?.is_team_member === true;
+      });
+
+      setTeamContacts(teamContactsList);
+    } catch (error) {
+      console.error('Error fetching team contacts:', error);
+    }
+  };
 
   const fetchTeamMembers = async () => {
     try {
@@ -1062,6 +1093,10 @@ function TeamsTab() {
     }
   };
 
+  const handleContactAdded = () => {
+    fetchTeamContacts();
+  };
+
   const updateMemberCategory = async (memberId: string, category: TeamCategory) => {
     try {
       const { error } = await supabase
@@ -1081,10 +1116,20 @@ function TeamsTab() {
     }
   };
 
-  const membersByCategory = TEAM_CATEGORIES.map(cat => ({
-    ...cat,
-    members: teamMembers.filter(m => m.team_category === cat.value)
-  })).filter(cat => cat.members.length > 0);
+  // Combine workspace members and team contacts by category
+  const allTeamByCategory = TEAM_CATEGORIES.map(cat => {
+    const wsMembers = teamMembers.filter(m => m.team_category === cat.value);
+    const contacts = teamContacts.filter(c => {
+      const config = c.field_config as Record<string, any> | null;
+      return config?.team_category === cat.value || c.category === cat.value;
+    });
+    return {
+      ...cat,
+      members: wsMembers,
+      contacts: contacts,
+      total: wsMembers.length + contacts.length,
+    };
+  }).filter(cat => cat.total > 0);
 
   const permissionLabels = {
     none: { label: 'Sin acceso', color: 'bg-muted text-muted-foreground' },
@@ -1112,38 +1157,51 @@ function TeamsTab() {
             Organiza tu equipo por categorías: banda, técnico, management y más
           </p>
         </div>
-        <Button onClick={() => setInviteDialogOpen(true)} disabled={!workspaceId}>
-          <Plus className="w-4 h-4 mr-2" />
-          Invitar Miembro
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setAddContactDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Añadir Perfil
+          </Button>
+          <Button onClick={() => setInviteDialogOpen(true)} disabled={!workspaceId}>
+            <Mail className="w-4 h-4 mr-2" />
+            Invitar Usuario
+          </Button>
+        </div>
       </div>
 
-      {teamMembers.length === 0 ? (
+      {teamMembers.length === 0 && teamContacts.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-semibold mb-2">Sin miembros de equipo</h3>
             <p className="text-muted-foreground mb-4">
-              Invita a personas a tu equipo para colaborar
+              Añade personas a tu equipo (con o sin cuenta de usuario)
             </p>
-            <Button onClick={() => setInviteDialogOpen(true)} disabled={!workspaceId}>
-              <Plus className="w-4 h-4 mr-2" />
-              Invitar Primer Miembro
-            </Button>
+            <div className="flex gap-2 justify-center">
+              <Button variant="outline" onClick={() => setAddContactDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Añadir Perfil
+              </Button>
+              <Button onClick={() => setInviteDialogOpen(true)} disabled={!workspaceId}>
+                <Mail className="w-4 h-4 mr-2" />
+                Invitar Usuario
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-8">
-          {membersByCategory.map((category) => {
+          {allTeamByCategory.map((category) => {
             const CategoryIcon = category.icon;
             return (
               <div key={category.value} className="space-y-4">
                 <div className="flex items-center gap-2">
                   <CategoryIcon className="w-5 h-5 text-primary" />
                   <h3 className="text-lg font-semibold">{category.label}</h3>
-                  <Badge variant="secondary" className="ml-2">{category.members.length}</Badge>
+                  <Badge variant="secondary" className="ml-2">{category.total}</Badge>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {/* Workspace members with accounts */}
                   {category.members.map((member) => (
                     <Card key={member.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="py-4">
@@ -1155,7 +1213,10 @@ function TeamsTab() {
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-medium truncate">{member.full_name}</h4>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium truncate">{member.full_name}</h4>
+                              <Badge variant="default" className="text-xs">Usuario</Badge>
+                            </div>
                             <p className="text-sm text-muted-foreground truncate">{member.email}</p>
                             <Badge variant="outline" className="text-xs mt-1">
                               {member.role}
@@ -1183,17 +1244,49 @@ function TeamsTab() {
                       </CardContent>
                     </Card>
                   ))}
+                  
+                  {/* Team contacts without accounts */}
+                  {category.contacts.map((contact: any) => (
+                    <Card key={contact.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="py-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12">
+                            <AvatarFallback className="text-sm bg-secondary">
+                              {contact.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium truncate">{contact.stage_name || contact.name}</h4>
+                              <Badge variant="secondary" className="text-xs">Perfil</Badge>
+                            </div>
+                            {contact.email && (
+                              <p className="text-sm text-muted-foreground truncate">{contact.email}</p>
+                            )}
+                            {contact.role && (
+                              <Badge variant="outline" className="text-xs mt-1">
+                                {contact.role}
+                              </Badge>
+                            )}
+                          </div>
+                          <Button variant="ghost" size="sm" onClick={() => setEditingContact(contact)}>
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               </div>
             );
           })}
 
           {/* Empty categories hint */}
-          {membersByCategory.length < TEAM_CATEGORIES.length && (
+          {allTeamByCategory.length < TEAM_CATEGORIES.length && (
             <div className="border-2 border-dashed border-muted rounded-lg p-6 text-center">
               <p className="text-sm text-muted-foreground">
-                Organiza mejor tu equipo moviendo miembros a categorías como: {' '}
-                {TEAM_CATEGORIES.filter(c => !membersByCategory.find(m => m.value === c.value))
+                Organiza mejor tu equipo añadiendo miembros a categorías como: {' '}
+                {TEAM_CATEGORIES.filter(c => !allTeamByCategory.find(m => m.value === c.value))
                   .map(c => c.label).join(', ')}
               </p>
             </div>
@@ -1207,6 +1300,24 @@ function TeamsTab() {
           onOpenChange={setInviteDialogOpen}
           workspaceId={workspaceId}
           onMemberInvited={fetchTeamMembers}
+        />
+      )}
+
+      <AddTeamContactDialog
+        open={addContactDialogOpen}
+        onOpenChange={setAddContactDialogOpen}
+        onContactAdded={handleContactAdded}
+      />
+
+      {editingContact && (
+        <EditContactDialog
+          open={!!editingContact}
+          onOpenChange={(open) => !open && setEditingContact(null)}
+          contact={editingContact}
+          onContactUpdated={() => {
+            setEditingContact(null);
+            fetchTeamContacts();
+          }}
         />
       )}
     </div>
