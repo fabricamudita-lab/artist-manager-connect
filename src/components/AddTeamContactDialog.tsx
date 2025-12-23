@@ -249,12 +249,12 @@ export function AddTeamContactDialog({
                 </div>
                 <div>
                   <Label>Artista</Label>
-                  <Select value={selectedArtistId} onValueChange={setSelectedArtistId}>
+                  <Select value={selectedArtistId || 'none'} onValueChange={(val) => setSelectedArtistId(val === 'none' ? '' : val)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar artista..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sin artista asignado</SelectItem>
+                      <SelectItem value="none">Sin artista asignado</SelectItem>
                       {artists.map((artist) => (
                         <SelectItem key={artist.id} value={artist.id}>
                           {artist.stage_name || artist.name}
