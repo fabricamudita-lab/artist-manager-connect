@@ -112,7 +112,7 @@ export default function MyManagement() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
             <Building2 className="h-8 w-8 text-primary" />
-            Mi Management
+            00 Management
           </h1>
           <p className="text-muted-foreground mt-1">
             Dashboard de tu empresa de management
