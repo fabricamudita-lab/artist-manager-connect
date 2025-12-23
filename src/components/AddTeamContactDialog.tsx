@@ -107,11 +107,16 @@ export function AddTeamContactDialog({
       if (defaultArtistId && !selectedArtistIds.includes(defaultArtistId)) {
         setSelectedArtistIds([defaultArtistId]);
       }
+      // Auto-set management category when 00-management is selected
+      if (defaultArtistId === '00-management' && !teamCategories.includes('management')) {
+        setTeamCategories(prev => prev.includes('management') ? prev : [...prev, 'management']);
+      }
     } else {
       // Reset on close
       setMode('select');
       setSelectedExistingContact(null);
       setContactSearchTerm('');
+      setTeamCategories([]);
     }
   }, [open, defaultArtistId]);
 
