@@ -48,17 +48,26 @@ export default function MyManagement() {
     },
   });
 
-  // Fetch management team (contacts without artist_id)
+  // Fetch management team (only contacts marked as team members with 'management' category)
   const { data: managementTeam = [] } = useQuery({
     queryKey: ['management-team'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('contacts')
-        .select('id, name, role, email, category')
+        .select('id, name, role, email, category, field_config')
         .is('artist_id', null)
         .order('name');
       if (error) throw error;
-      return data as TeamMember[];
+      
+      // Filter to only show contacts that are team members with 'management' in their team_categories
+      const filtered = (data || []).filter(contact => {
+        const config = contact.field_config as Record<string, any> | null;
+        if (!config?.is_team_member) return false;
+        const teamCategories = config?.team_categories as string[] | undefined;
+        return teamCategories?.includes('management');
+      });
+      
+      return filtered as TeamMember[];
     },
   });
 
