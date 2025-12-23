@@ -964,6 +964,10 @@ function TeamsTab() {
   const [addContactDialogOpen, setAddContactDialogOpen] = useState(false);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [customCategories, setCustomCategories] = useState<Array<{ value: string; label: string; icon: any; isCustom: boolean }>>([]);
+  
+  // Artist filter state
+  const [artists, setArtists] = useState<Array<{ id: string; name: string; stage_name?: string }>>([]);
+  const [selectedArtistId, setSelectedArtistId] = useState<string>('all');
 
   // Load custom categories from localStorage
   useEffect(() => {
@@ -976,6 +980,24 @@ function TeamsTab() {
         console.error('Error loading custom categories:', e);
       }
     }
+  }, []);
+
+  // Fetch artists
+  useEffect(() => {
+    const fetchArtists = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('artists')
+          .select('id, name, stage_name')
+          .order('name');
+        
+        if (error) throw error;
+        setArtists(data || []);
+      } catch (error) {
+        console.error('Error fetching artists:', error);
+      }
+    };
+    fetchArtists();
   }, []);
 
   const handleAddCustomCategory = (category: { value: string; label: string; icon: any; isCustom?: boolean }) => {
@@ -1155,10 +1177,15 @@ function TeamsTab() {
   };
 
   // Combine workspace members and team contacts by category
-  // Now supports multiple categories per contact
+  // Now supports multiple categories per contact and filtering by artist
   const allTeamByCategory = allCategoriesForDisplay.map(cat => {
     const wsMembers = teamMembers.filter(m => m.team_category === cat.value);
     const contacts = teamContacts.filter(c => {
+      // Filter by artist if one is selected
+      if (selectedArtistId !== 'all' && c.artist_id !== selectedArtistId) {
+        return false;
+      }
+      
       const config = c.field_config as Record<string, any> | null;
       // Support both old single category and new array format
       const categories = config?.team_categories || [];
@@ -1196,10 +1223,23 @@ function TeamsTab() {
         <div>
           <h2 className="text-xl font-semibold">Gestión de Equipos</h2>
           <p className="text-sm text-muted-foreground">
-            Organiza tu equipo por categorías: banda, técnico, management y más
+            Organiza tu equipo por categorías y artistas
           </p>
         </div>
         <div className="flex gap-2">
+          <Select value={selectedArtistId} onValueChange={setSelectedArtistId}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filtrar por artista" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los artistas</SelectItem>
+              {artists.map((artist) => (
+                <SelectItem key={artist.id} value={artist.id}>
+                  {artist.stage_name || artist.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button variant="outline" onClick={() => setAddContactDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Añadir Perfil
@@ -1391,6 +1431,7 @@ function TeamsTab() {
         onContactAdded={handleContactAdded}
         customCategories={customCategories}
         onAddCustomCategory={handleAddCustomCategory}
+        defaultArtistId={selectedArtistId !== 'all' ? selectedArtistId : undefined}
       />
 
       {editingContact && (

@@ -1,13 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { TeamCategorySelector, TeamCategoryOption } from './TeamCategorySelector';
+
+interface Artist {
+  id: string;
+  name: string;
+  stage_name?: string;
+}
 
 interface AddTeamContactDialogProps {
   open: boolean;
@@ -15,6 +22,7 @@ interface AddTeamContactDialogProps {
   onContactAdded: () => void;
   customCategories?: TeamCategoryOption[];
   onAddCustomCategory?: (category: TeamCategoryOption) => void;
+  defaultArtistId?: string;
 }
 
 export function AddTeamContactDialog({ 
@@ -23,10 +31,13 @@ export function AddTeamContactDialog({
   onContactAdded,
   customCategories = [],
   onAddCustomCategory,
+  defaultArtistId,
 }: AddTeamContactDialogProps) {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('basico');
   const [teamCategories, setTeamCategories] = useState<string[]>([]);
+  const [artists, setArtists] = useState<Artist[]>([]);
+  const [selectedArtistId, setSelectedArtistId] = useState<string>(defaultArtistId || '');
   const [formData, setFormData] = useState({
     // Datos básicos
     name: '',
@@ -52,6 +63,29 @@ export function AddTeamContactDialog({
     // Notas
     notes: '',
   });
+
+  useEffect(() => {
+    if (open) {
+      fetchArtists();
+      if (defaultArtistId) {
+        setSelectedArtistId(defaultArtistId);
+      }
+    }
+  }, [open, defaultArtistId]);
+
+  const fetchArtists = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('artists')
+        .select('id, name, stage_name')
+        .order('name');
+      
+      if (error) throw error;
+      setArtists(data || []);
+    } catch (error) {
+      console.error('Error fetching artists:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +137,7 @@ export function AddTeamContactDialog({
           bank_info: formData.bank_info || null,
           notes: formData.notes || null,
           created_by: user.id,
+          artist_id: selectedArtistId || null,
           field_config: {
             is_team_member: true,
             team_categories: teamCategories, // Array of categories
@@ -137,6 +172,7 @@ export function AddTeamContactDialog({
         notes: '',
       });
       setTeamCategories([]);
+      setSelectedArtistId(defaultArtistId || '');
       setActiveTab('basico');
       onContactAdded();
       onOpenChange(false);
@@ -210,6 +246,25 @@ export function AddTeamContactDialog({
                     onChange={(e) => updateField('role', e.target.value)}
                     placeholder="Ej: Batería, Manager, Fotógrafo..."
                   />
+                </div>
+                <div>
+                  <Label>Artista</Label>
+                  <Select value={selectedArtistId} onValueChange={setSelectedArtistId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar artista..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Sin artista asignado</SelectItem>
+                      {artists.map((artist) => (
+                        <SelectItem key={artist.id} value={artist.id}>
+                          {artist.stage_name || artist.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Asigna este miembro a un artista específico
+                  </p>
                 </div>
                 <div className="col-span-2">
                   <Label>Etiquetas de equipo *</Label>
