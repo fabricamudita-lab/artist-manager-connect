@@ -44,6 +44,10 @@ import ReleaseCreditos from "./pages/release-sections/ReleaseCreditos";
 import ReleaseAudio from "./pages/release-sections/ReleaseAudio";
 import ReleaseEPF from "./pages/release-sections/ReleaseEPF";
 
+// Management pages
+import MyManagement from "./pages/MyManagement";
+import ArtistProfile from "./pages/ArtistProfile";
+
 const queryClient = new QueryClient();
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
@@ -169,6 +173,20 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Contacts />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/mi-management" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <MyManagement />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/artistas/:id" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ArtistProfile />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
