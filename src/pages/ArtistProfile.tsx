@@ -15,6 +15,7 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AddTeamContactDialog } from '@/components/AddTeamContactDialog';
+import { ContactQuickViewDialog } from '@/components/ContactQuickViewDialog';
 
 interface Artist {
   id: string;
@@ -53,6 +54,7 @@ export default function ArtistProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [showAddTeamMember, setShowAddTeamMember] = useState(false);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
   // Fetch artist
   const { data: artist, isLoading: loadingArtist } = useQuery({
@@ -269,7 +271,11 @@ export default function ArtistProfile() {
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {teamMembers.map((member) => (
-                <Card key={member.id}>
+                <Card 
+                  key={member.id} 
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => setSelectedContactId(member.id)}
+                >
                   <CardContent className="pt-6">
                     <div className="flex items-start gap-3">
                       <Avatar>
@@ -417,6 +423,12 @@ export default function ArtistProfile() {
           setShowAddTeamMember(false);
         }}
         defaultArtistId={id}
+      />
+
+      <ContactQuickViewDialog
+        open={!!selectedContactId}
+        onOpenChange={(open) => !open && setSelectedContactId(null)}
+        contactId={selectedContactId || ''}
       />
     </div>
   );
