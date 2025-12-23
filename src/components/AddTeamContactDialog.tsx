@@ -5,10 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { TeamCategorySelector, TeamCategoryOption } from './TeamCategorySelector';
+import { Check, X, Music } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Artist {
   id: string;
@@ -37,7 +40,8 @@ export function AddTeamContactDialog({
   const [activeTab, setActiveTab] = useState('basico');
   const [teamCategories, setTeamCategories] = useState<string[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
-  const [selectedArtistId, setSelectedArtistId] = useState<string>(defaultArtistId || '');
+  const [selectedArtistIds, setSelectedArtistIds] = useState<string[]>(defaultArtistId ? [defaultArtistId] : []);
+  const [artistSelectOpen, setArtistSelectOpen] = useState(false);
   const [formData, setFormData] = useState({
     // Datos básicos
     name: '',
@@ -67,8 +71,8 @@ export function AddTeamContactDialog({
   useEffect(() => {
     if (open) {
       fetchArtists();
-      if (defaultArtistId) {
-        setSelectedArtistId(defaultArtistId);
+      if (defaultArtistId && !selectedArtistIds.includes(defaultArtistId)) {
+        setSelectedArtistIds([defaultArtistId]);
       }
     }
   }, [open, defaultArtistId]);
@@ -85,6 +89,23 @@ export function AddTeamContactDialog({
     } catch (error) {
       console.error('Error fetching artists:', error);
     }
+  };
+
+  const toggleArtist = (artistId: string) => {
+    if (selectedArtistIds.includes(artistId)) {
+      setSelectedArtistIds(selectedArtistIds.filter(id => id !== artistId));
+    } else {
+      setSelectedArtistIds([...selectedArtistIds, artistId]);
+    }
+  };
+
+  const removeArtist = (artistId: string) => {
+    setSelectedArtistIds(selectedArtistIds.filter(id => id !== artistId));
+  };
+
+  const getArtistLabel = (artistId: string) => {
+    const artist = artists.find(a => a.id === artistId);
+    return artist?.stage_name || artist?.name || artistId;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -115,7 +136,8 @@ export function AddTeamContactDialog({
       if (!user) throw new Error('No user found');
 
       // Create a contact with is_team_member flag and multiple categories
-      const { error } = await supabase
+      // Don't use artist_id directly - use the junction table instead
+      const { data: newContact, error } = await supabase
         .from('contacts')
         .insert({
           name: formData.name.trim(),
@@ -137,14 +159,32 @@ export function AddTeamContactDialog({
           bank_info: formData.bank_info || null,
           notes: formData.notes || null,
           created_by: user.id,
-          artist_id: selectedArtistId || null,
           field_config: {
             is_team_member: true,
-            team_categories: teamCategories, // Array of categories
+            team_categories: teamCategories,
           },
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      // Insert artist assignments if any artists selected
+      if (selectedArtistIds.length > 0 && newContact?.id) {
+        const assignments = selectedArtistIds.map(artistId => ({
+          contact_id: newContact.id,
+          artist_id: artistId,
+        }));
+
+        const { error: assignError } = await supabase
+          .from('contact_artist_assignments')
+          .insert(assignments);
+
+        if (assignError) {
+          console.error('Error assigning artists:', assignError);
+          // Don't fail the whole operation, just log the error
+        }
+      }
 
       toast({
         title: "Miembro añadido",
@@ -172,7 +212,7 @@ export function AddTeamContactDialog({
         notes: '',
       });
       setTeamCategories([]);
-      setSelectedArtistId(defaultArtistId || '');
+      setSelectedArtistIds(defaultArtistId ? [defaultArtistId] : []);
       setActiveTab('basico');
       onContactAdded();
       onOpenChange(false);
@@ -247,24 +287,76 @@ export function AddTeamContactDialog({
                     placeholder="Ej: Batería, Manager, Fotógrafo..."
                   />
                 </div>
-                <div>
-                  <Label>Artista</Label>
-                  <Select value={selectedArtistId || 'none'} onValueChange={(val) => setSelectedArtistId(val === 'none' ? '' : val)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar artista..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sin artista asignado</SelectItem>
-                      {artists.map((artist) => (
-                        <SelectItem key={artist.id} value={artist.id}>
-                          {artist.stage_name || artist.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Asigna este miembro a un artista específico
+                <div className="col-span-2">
+                  <Label>Artistas</Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Puedes asignar este miembro a varios artistas
                   </p>
+                  <Popover open={artistSelectOpen} onOpenChange={setArtistSelectOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={artistSelectOpen}
+                        className="w-full justify-start text-left font-normal h-auto min-h-10 bg-background hover:bg-background/80"
+                      >
+                        {selectedArtistIds.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {selectedArtistIds.map((artistId) => (
+                              <span
+                                key={artistId}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-background border border-border/50 text-sm font-medium text-foreground shadow-sm"
+                              >
+                                <Music className="w-3.5 h-3.5 text-primary" />
+                                {getArtistLabel(artistId)}
+                                <button
+                                  type="button"
+                                  className="ml-0.5 rounded-full p-0.5 hover:bg-muted transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeArtist(artistId);
+                                  }}
+                                >
+                                  <X className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Seleccionar artistas...</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Buscar artista..." />
+                        <CommandList>
+                          <CommandEmpty>No se encontró ningún artista.</CommandEmpty>
+                          <CommandGroup heading="Artistas">
+                            {artists.map((artist) => {
+                              const isSelected = selectedArtistIds.includes(artist.id);
+                              return (
+                                <CommandItem
+                                  key={artist.id}
+                                  value={artist.stage_name || artist.name}
+                                  onSelect={() => toggleArtist(artist.id)}
+                                >
+                                  <div className={cn(
+                                    "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                    isSelected ? "bg-primary text-primary-foreground" : "opacity-50"
+                                  )}>
+                                    {isSelected && <Check className="h-3 w-3" />}
+                                  </div>
+                                  <Music className="mr-2 h-4 w-4" />
+                                  {artist.stage_name || artist.name}
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="col-span-2">
                   <Label>Etiquetas de equipo *</Label>

@@ -1048,6 +1048,30 @@ function TeamsTab() {
         return config?.is_team_member === true;
       });
 
+      // Fetch artist assignments for all team contacts
+      if (teamContactsList.length > 0) {
+        const contactIds = teamContactsList.map(c => c.id);
+        const { data: assignments, error: assignError } = await supabase
+          .from('contact_artist_assignments')
+          .select('contact_id, artist_id')
+          .in('contact_id', contactIds);
+
+        if (!assignError && assignments) {
+          // Attach artist_ids array to each contact
+          const assignmentMap = new Map<string, string[]>();
+          assignments.forEach(a => {
+            if (!assignmentMap.has(a.contact_id)) {
+              assignmentMap.set(a.contact_id, []);
+            }
+            assignmentMap.get(a.contact_id)!.push(a.artist_id);
+          });
+
+          teamContactsList.forEach(c => {
+            (c as any).assigned_artist_ids = assignmentMap.get(c.id) || [];
+          });
+        }
+      }
+
       setTeamContacts(teamContactsList);
     } catch (error) {
       console.error('Error fetching team contacts:', error);
@@ -1203,13 +1227,16 @@ function TeamsTab() {
   };
 
   // Combine workspace members and team contacts by category
-  // Now supports multiple categories per contact and filtering by artist
+  // Now supports multiple categories per contact and filtering by artist (using junction table)
   const allTeamByCategory = allCategoriesForDisplay.map(cat => {
     const wsMembers = teamMembers.filter(m => m.team_category === cat.value);
     const contacts = teamContacts.filter(c => {
-      // Filter by artist if one is selected
-      if (selectedArtistId !== 'all' && c.artist_id !== selectedArtistId) {
-        return false;
+      // Filter by artist if one is selected - use the assigned_artist_ids array
+      if (selectedArtistId !== 'all') {
+        const assignedArtists = (c as any).assigned_artist_ids || [];
+        if (!assignedArtists.includes(selectedArtistId)) {
+          return false;
+        }
       }
       
       const config = c.field_config as Record<string, any> | null;
