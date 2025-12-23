@@ -544,13 +544,13 @@ export default function Calendar() {
         {/* Week header */}
         <div className="grid grid-cols-8 border-b bg-muted/20">
           <div className="p-3 text-xs font-medium text-muted-foreground">GMT+02</div>
-          {weekDays.map((day, index) => <div key={index} className="p-3 text-center border-l">
+          {weekDays.map((day, index) => <div key={index} className={`p-3 text-center border-l cursor-pointer hover:bg-muted/30 transition-colors ${selectedDate && isSameDay(day, selectedDate) ? 'bg-primary/10' : ''}`} onClick={() => setSelectedDate(day)}>
               <div className="text-xs font-medium text-muted-foreground mb-1">
                 {format(day, 'EEE', {
               locale: es
             }).toUpperCase()}
               </div>
-              <div className={`text-2xl font-bold ${isSameDay(day, new Date()) ? 'text-primary' : 'text-foreground'}`}>
+              <div className={`text-2xl font-bold ${isSameDay(day, new Date()) ? 'bg-primary text-primary-foreground rounded-full w-10 h-10 flex items-center justify-center mx-auto' : selectedDate && isSameDay(day, selectedDate) ? 'text-primary' : 'text-foreground'}`}>
                 {format(day, 'd')}
               </div>
             </div>)}
@@ -788,8 +788,6 @@ export default function Calendar() {
           
           <YearlyCalendar year={currentDate.getFullYear()} events={events} onDateSelect={date => {
           setSelectedDate(date);
-          setCurrentDate(date);
-          setViewMode('week');
         }} onEventClick={handleEventClick} selectedDate={selectedDate} />
         </CardContent>
       </div>;
