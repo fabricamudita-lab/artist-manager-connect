@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { Users, Music, Building2, Mic2, Wrench, Newspaper, Scale, Palette, Headphones, Video, DollarSign } from 'lucide-react';
 
 interface CreateContactGroupDialogProps {
   open: boolean;
@@ -24,11 +26,35 @@ const COLORS = [
   { value: '#84cc16', label: 'Lima' },
 ];
 
+export const GROUP_TYPES = [
+  { value: 'general', label: 'General', icon: Users, description: 'Grupo personalizado' },
+  { value: 'banda', label: 'Mi Banda', icon: Music, description: 'Músicos y artistas de tu proyecto' },
+  { value: 'sello', label: 'Mi Sello', icon: Building2, description: 'Equipo del sello discográfico' },
+  { value: 'management', label: 'Management', icon: Mic2, description: 'Mánagers y representantes' },
+  { value: 'tecnico', label: 'Equipo Técnico', icon: Wrench, description: 'Técnicos de sonido, luz, backline' },
+  { value: 'prensa', label: 'Prensa', icon: Newspaper, description: 'Periodistas y medios' },
+  { value: 'legal', label: 'Legal', icon: Scale, description: 'Abogados y asesores legales' },
+  { value: 'artistico', label: 'Equipo Artístico', icon: Palette, description: 'Diseñadores, fotógrafos, videógrafos' },
+  { value: 'produccion', label: 'Producción', icon: Headphones, description: 'Productores e ingenieros' },
+  { value: 'audiovisual', label: 'Audiovisual', icon: Video, description: 'Equipo de vídeo y streaming' },
+  { value: 'contabilidad', label: 'Contabilidad', icon: DollarSign, description: 'Contables y gestores' },
+];
+
 export function CreateContactGroupDialog({ open, onOpenChange, onGroupCreated }: CreateContactGroupDialogProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [color, setColor] = useState(COLORS[0].value);
+  const [groupType, setGroupType] = useState('general');
   const [loading, setLoading] = useState(false);
+
+  const handleTypeChange = (type: string) => {
+    setGroupType(type);
+    const typeInfo = GROUP_TYPES.find(t => t.value === type);
+    if (typeInfo && type !== 'general') {
+      setName(typeInfo.label);
+      setDescription(typeInfo.description);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,12 +74,16 @@ export function CreateContactGroupDialog({ open, onOpenChange, onGroupCreated }:
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
+      const typeInfo = GROUP_TYPES.find(t => t.value === groupType);
+
       const { error } = await supabase
         .from('contact_groups')
         .insert({
           name: name.trim(),
           description: description.trim() || null,
           color,
+          group_type: groupType,
+          icon: typeInfo?.icon.name || 'Users',
           created_by: user.id,
         });
 
@@ -67,6 +97,7 @@ export function CreateContactGroupDialog({ open, onOpenChange, onGroupCreated }:
       setName('');
       setDescription('');
       setColor(COLORS[0].value);
+      setGroupType('general');
       onGroupCreated();
       onOpenChange(false);
     } catch (error) {
@@ -83,11 +114,36 @@ export function CreateContactGroupDialog({ open, onOpenChange, onGroupCreated }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Crear Grupo</DialogTitle>
+          <DialogTitle>Crear Grupo de Contactos</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label>Tipo de grupo</Label>
+            <Select value={groupType} onValueChange={handleTypeChange}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Selecciona un tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                {GROUP_TYPES.map((type) => {
+                  const Icon = type.icon;
+                  return (
+                    <SelectItem key={type.value} value={type.value}>
+                      <div className="flex items-center gap-2">
+                        <Icon className="w-4 h-4" />
+                        <span>{type.label}</span>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              {GROUP_TYPES.find(t => t.value === groupType)?.description}
+            </p>
+          </div>
+
           <div>
             <Label htmlFor="name">Nombre del grupo *</Label>
             <Input
