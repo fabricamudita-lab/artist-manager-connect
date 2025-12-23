@@ -114,78 +114,71 @@ export function ContactQuickViewDialog({
 
           {/* Action buttons */}
           <div className="flex gap-2">
-            {contact.email && (
-              <Button 
-                className="flex-1" 
-                onClick={() => window.location.href = `mailto:${contact.email}`}
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                Enviar Email
-              </Button>
-            )}
-            {contact.phone && (
-              <Button 
-                variant="outline" 
-                className="flex-1"
-                onClick={() => window.location.href = `tel:${contact.phone}`}
-              >
-                <Phone className="h-4 w-4 mr-2" />
-                Llamar
-              </Button>
-            )}
+            <Button 
+              className="flex-1" 
+              disabled={!contact.email}
+              onClick={() => contact.email && (window.location.href = `mailto:${contact.email}`)}
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Enviar Email
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex-1"
+              disabled={!contact.phone}
+              onClick={() => contact.phone && (window.location.href = `tel:${contact.phone}`)}
+            >
+              <Phone className="h-4 w-4 mr-2" />
+              Llamar
+            </Button>
           </div>
 
           {/* Info cards */}
           <div className="space-y-3">
-            {contact.email && (
-              <Card>
-                <CardContent className="py-3 flex items-center gap-3">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Email</p>
-                    <p className="text-sm">{contact.email}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardContent className="py-3 flex items-center gap-3">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="text-sm">{contact.email || <span className="text-muted-foreground italic">Sin email</span>}</p>
+                </div>
+              </CardContent>
+            </Card>
 
-            {contact.phone && (
-              <Card>
-                <CardContent className="py-3 flex items-center gap-3">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Teléfono</p>
-                    <p className="text-sm">{contact.phone}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardContent className="py-3 flex items-center gap-3">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Teléfono</p>
+                  <p className="text-sm">{contact.phone || <span className="text-muted-foreground italic">Sin teléfono</span>}</p>
+                </div>
+              </CardContent>
+            </Card>
 
-            {contact.company && (
-              <Card>
-                <CardContent className="py-3 flex items-center gap-3">
-                  <Building className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Empresa</p>
-                    <p className="text-sm">{contact.company}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardContent className="py-3 flex items-center gap-3">
+                <Building className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Empresa</p>
+                  <p className="text-sm">{contact.company || <span className="text-muted-foreground italic">Sin empresa</span>}</p>
+                </div>
+              </CardContent>
+            </Card>
 
-            {(contact.city || contact.country) && (
-              <Card>
-                <CardContent className="py-3 flex items-center gap-3">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Ubicación</p>
-                    <p className="text-sm">
-                      {[contact.city, contact.country].filter(Boolean).join(', ')}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardContent className="py-3 flex items-center gap-3">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Ubicación</p>
+                  <p className="text-sm">
+                    {(contact.city || contact.country) 
+                      ? [contact.city, contact.country].filter(Boolean).join(', ')
+                      : <span className="text-muted-foreground italic">Sin ubicación</span>
+                    }
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
 
             {contact.legal_name && (
               <Card>
