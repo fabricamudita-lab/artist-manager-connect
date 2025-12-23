@@ -23,6 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/useAuth';
 import { InviteTeamMemberDialog } from '@/components/InviteTeamMemberDialog';
 import { AddTeamContactDialog } from '@/components/AddTeamContactDialog';
+import { TeamMemberActivityDialog } from '@/components/TeamMemberActivityDialog';
 
 interface Contact {
   id: string;
@@ -990,6 +991,16 @@ function TeamsTab() {
   // Combine default and custom categories for display
   const allCategoriesForDisplay = [...TEAM_CATEGORIES, ...customCategories];
 
+  // State for activity dialog
+  const [activityMember, setActivityMember] = useState<{
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+    type: 'contact' | 'profile';
+  } | null>(null);
+
   useEffect(() => {
     fetchTeamMembers();
     fetchTeamContacts();
@@ -1234,7 +1245,13 @@ function TeamsTab() {
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {/* Workspace members with accounts */}
                   {category.members.map((member) => (
-                    <Card key={member.id} className="hover:shadow-md transition-shadow">
+                    <Card key={member.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActivityMember({
+                      id: member.user_id,
+                      name: member.full_name,
+                      email: member.email,
+                      role: member.role,
+                      type: 'profile'
+                    })}>
                       <CardContent className="py-4">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-12 w-12">
@@ -1256,7 +1273,7 @@ function TeamsTab() {
                             </span>
                           </div>
                           <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                               <Button variant="ghost" size="sm">
                                 <Settings className="w-4 h-4" />
                               </Button>
@@ -1285,7 +1302,14 @@ function TeamsTab() {
                     const otherCategories = categories.filter((c: string) => c !== category.value);
                     
                     return (
-                      <Card key={contact.id} className="hover:shadow-md transition-shadow">
+                      <Card key={contact.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActivityMember({
+                        id: contact.id,
+                        name: contact.stage_name || contact.name,
+                        email: contact.email,
+                        phone: contact.phone,
+                        role: contact.role,
+                        type: 'contact'
+                      })}>
                         <CardContent className="py-4">
                           <div className="flex items-center gap-3">
                             <Avatar className="h-12 w-12">
@@ -1322,7 +1346,10 @@ function TeamsTab() {
                                 })}
                               </div>
                             </div>
-                            <Button variant="ghost" size="sm" onClick={() => setEditingContact(contact)}>
+                            <Button variant="ghost" size="sm" onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingContact(contact);
+                            }}>
                               <Edit2 className="w-4 h-4" />
                             </Button>
                           </div>
@@ -1377,6 +1404,12 @@ function TeamsTab() {
           }}
         />
       )}
+
+      <TeamMemberActivityDialog
+        open={!!activityMember}
+        onOpenChange={(open) => !open && setActivityMember(null)}
+        member={activityMember}
+      />
     </div>
   );
 }
