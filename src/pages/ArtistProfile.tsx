@@ -10,7 +10,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
   ArrowLeft, Music, Users, Calendar, FolderOpen, 
-  Edit, Plus, MapPin, DollarSign 
+  Edit, Plus, MapPin, DollarSign, Mic, FileText, 
+  Disc3, ClipboardList, TrendingUp
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -51,6 +52,23 @@ interface Project {
   name: string;
   status: string;
   created_at: string;
+  is_folder: boolean;
+}
+
+interface Release {
+  id: string;
+  title: string;
+  type: string;
+  release_date: string | null;
+  status: string;
+}
+
+interface Solicitud {
+  id: string;
+  nombre_solicitante: string;
+  tipo: string;
+  estado: string;
+  fecha_creacion: string;
 }
 
 export default function ArtistProfile() {
@@ -120,17 +138,49 @@ export default function ArtistProfile() {
     enabled: !!id,
   });
 
-  // Fetch projects for this artist
+  // Fetch projects for this artist (separate folders and projects)
   const { data: projects = [] } = useQuery({
     queryKey: ['artist-projects', id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, status, created_at')
+        .select('id, name, status, created_at, is_folder')
         .eq('artist_id', id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as Project[];
+    },
+    enabled: !!id,
+  });
+
+  // Fetch releases for this artist
+  const { data: releases = [] } = useQuery({
+    queryKey: ['artist-releases', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('releases')
+        .select('id, title, type, release_date, status')
+        .eq('artist_id', id)
+        .order('release_date', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data as Release[];
+    },
+    enabled: !!id,
+  });
+
+  // Fetch solicitudes for this artist
+  const { data: solicitudes = [] } = useQuery({
+    queryKey: ['artist-solicitudes', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('solicitudes')
+        .select('id, nombre_solicitante, tipo, estado, fecha_creacion')
+        .eq('artist_id', id)
+        .order('fecha_creacion', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data as Solicitud[];
     },
     enabled: !!id,
   });
@@ -170,11 +220,18 @@ export default function ArtistProfile() {
     );
   }
 
+  // Separate folders (archive) from projects (workspace)
+  const folders = projects.filter(p => p.is_folder);
+  const workProjects = projects.filter(p => !p.is_folder);
+  const pendingSolicitudes = solicitudes.filter(s => s.estado === 'pendiente');
+
   const stats = [
     { label: 'Equipo', value: teamMembers.length, icon: Users, color: 'text-blue-500' },
-    { label: 'Shows próximos', value: upcomingBookings, icon: Calendar, color: 'text-green-500' },
-    { label: 'Proyectos', value: projects.length, icon: FolderOpen, color: 'text-purple-500' },
-    { label: 'Ingresos totales', value: `€${totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'text-orange-500' },
+    { label: 'Shows próximos', value: upcomingBookings, icon: Mic, color: 'text-orange-500' },
+    { label: 'Proyectos', value: workProjects.length, icon: FolderOpen, color: 'text-purple-500' },
+    { label: 'Releases', value: releases.length, icon: Disc3, color: 'text-pink-500' },
+    { label: 'Solicitudes', value: pendingSolicitudes.length, icon: ClipboardList, color: 'text-amber-500' },
+    { label: 'Ingresos totales', value: `€${totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'text-green-500' },
   ];
 
   const getStatusColor = (status: string | null) => {
@@ -251,6 +308,9 @@ export default function ArtistProfile() {
           <TabsTrigger value="team">Equipo</TabsTrigger>
           <TabsTrigger value="bookings">Shows</TabsTrigger>
           <TabsTrigger value="projects">Proyectos</TabsTrigger>
+          <TabsTrigger value="releases">Releases</TabsTrigger>
+          <TabsTrigger value="solicitudes">Solicitudes</TabsTrigger>
+          <TabsTrigger value="finanzas">Finanzas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="team" className="space-y-4">

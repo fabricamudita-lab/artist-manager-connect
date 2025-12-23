@@ -29,22 +29,43 @@ import { toast } from '@/hooks/use-toast';
 import NotificationBell from './NotificationBell';
 import { useState } from 'react';
 
-const navigationItems = [
-  { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "00 Management", url: "/mi-management", icon: Building2 },
-  { title: "Calendario", url: "/calendar", icon: Calendar },
-  { title: "Booking", url: "/booking", icon: Mic },
-  { title: "Proyectos", url: "/proyectos", icon: FolderKanban },
-  { title: "Carpetas", url: "/projects", icon: Folder },
-  { title: "Discografía", url: "/releases", icon: Disc3 },
-  { title: "Finanzas", url: "/finanzas", icon: Calculator },
-  { title: "Perfiles", url: "/contacts", icon: Users },
-  { title: "Solicitudes", url: "/solicitudes", icon: ClipboardList },
-  { title: "Chat", url: "/chat", icon: MessageCircle },
-  { title: "Documentos", url: "/documents", icon: FileText },
-  { title: "EPKs", url: "/epks", icon: FileImage },
-  { title: "Analytics", url: "/analytics", icon: DollarSign },
-];
+// Navigation items - some are role-restricted
+const getNavigationItems = (isManagement: boolean) => {
+  const baseItems = [
+    { title: "Dashboard", url: "/dashboard", icon: Home },
+    { title: "Calendario", url: "/calendar", icon: Calendar },
+  ];
+
+  // Management-only items
+  const managementOnlyItems = [
+    { title: "00 Management", url: "/mi-management", icon: Building2 },
+    { title: "Booking", url: "/booking", icon: Mic },
+    { title: "Proyectos", url: "/proyectos", icon: FolderKanban },
+    { title: "Carpetas", url: "/projects", icon: Folder },
+    { title: "Discografía", url: "/releases", icon: Disc3 },
+    { title: "Finanzas", url: "/finanzas", icon: Calculator },
+    { title: "Perfiles", url: "/contacts", icon: Users },
+  ];
+
+  // Common items for all roles
+  const commonItems = [
+    { title: "Solicitudes", url: "/solicitudes", icon: ClipboardList },
+    { title: "Chat", url: "/chat", icon: MessageCircle },
+    { title: "Documentos", url: "/documents", icon: FileText },
+    { title: "EPKs", url: "/epks", icon: FileImage },
+  ];
+
+  // Management-only admin items
+  const adminItems = [
+    { title: "Analytics", url: "/analytics", icon: DollarSign },
+  ];
+
+  if (isManagement) {
+    return [...baseItems, ...managementOnlyItems, ...commonItems, ...adminItems];
+  }
+  
+  return [...baseItems, ...commonItems];
+};
 
 const managementItems = [
   { title: "Solicitudes", url: "/dashboard?tab=requests", icon: Send },
@@ -57,6 +78,9 @@ export function AppSidebar() {
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const currentPath = location.pathname;
+
+  const isManagement = profile?.active_role === 'management';
+  const navigationItems = getNavigationItems(isManagement);
 
   const isActive = (path: string) => {
     if (path.includes('?')) {
