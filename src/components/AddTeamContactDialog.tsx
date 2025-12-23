@@ -294,8 +294,10 @@ export function AddTeamContactDialog({
       }
 
       // Insert artist assignments if any artists selected
-      if (selectedArtistIds.length > 0 && contactId) {
-        const assignments = selectedArtistIds.map(artistId => ({
+      // Filter out special values like "00-management" which are not real artist IDs
+      const validArtistIds = selectedArtistIds.filter(id => id !== '00-management' && id !== 'all');
+      if (validArtistIds.length > 0 && contactId) {
+        const assignments = validArtistIds.map(artistId => ({
           contact_id: contactId,
           artist_id: artistId,
         }));
