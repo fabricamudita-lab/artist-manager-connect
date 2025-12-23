@@ -87,6 +87,7 @@ interface Profile {
   home_phone?: string;
   iban?: string;
   observations?: string;
+  web?: string;
   // Document photos
   dni_photo_url?: string;
   passport_photo_url?: string;
@@ -168,6 +169,7 @@ function ProfileTab() {
     observations: '',
     team_contacts: '',
     internal_notes: '',
+    web: '',
   });
   const [saving, setSaving] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
@@ -223,6 +225,7 @@ function ProfileTab() {
           observations: data.observations || '',
           team_contacts: data.team_contacts || '',
           internal_notes: data.internal_notes || '',
+          web: data.web || '',
         });
       }
     } catch (error) {
@@ -267,6 +270,7 @@ function ProfileTab() {
           observations: editForm.observations || null,
           team_contacts: editForm.team_contacts || null,
           internal_notes: editForm.internal_notes || null,
+          web: editForm.web || null,
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', user.id);
@@ -697,6 +701,10 @@ function ProfileTab() {
             <div className="space-y-2">
               <Label htmlFor="iban">IBAN</Label>
               <Input id="iban" value={editForm.iban} onChange={(e) => setEditForm({ ...editForm, iban: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="web">Página Web / Portfolio</Label>
+              <Input id="web" type="url" value={editForm.web} onChange={(e) => setEditForm({ ...editForm, web: e.target.value })} placeholder="https://..." />
             </div>
 
             {/* Documentos de Identidad */}

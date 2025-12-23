@@ -1283,6 +1283,8 @@ export type Database = {
           created_at: string
           created_by: string
           description: string | null
+          group_type: string | null
+          icon: string | null
           id: string
           name: string
           updated_at: string
@@ -1293,6 +1295,8 @@ export type Database = {
           created_at?: string
           created_by: string
           description?: string | null
+          group_type?: string | null
+          icon?: string | null
           id?: string
           name: string
           updated_at?: string
@@ -1303,6 +1307,8 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string | null
+          group_type?: string | null
+          icon?: string | null
           id?: string
           name?: string
           updated_at?: string
@@ -2423,6 +2429,7 @@ export type Database = {
           team_contacts: string | null
           updated_at: string
           user_id: string
+          web: string | null
           workspace_id: string | null
         }
         Insert: {
@@ -2467,6 +2474,7 @@ export type Database = {
           team_contacts?: string | null
           updated_at?: string
           user_id: string
+          web?: string | null
           workspace_id?: string | null
         }
         Update: {
@@ -2511,6 +2519,7 @@ export type Database = {
           team_contacts?: string | null
           updated_at?: string
           user_id?: string
+          web?: string | null
           workspace_id?: string | null
         }
         Relationships: [

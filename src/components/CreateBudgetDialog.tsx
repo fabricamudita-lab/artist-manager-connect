@@ -15,7 +15,8 @@ import { SingleArtistSelector } from './SingleArtistSelector';
 import SingleProjectSelector from './SingleProjectSelector';
 import { CreateBudgetFromTemplateDialog } from './CreateBudgetFromTemplateDialog';
 import { CreateProjectFolderDialog } from './CreateProjectFolderDialog';
-import { Music, Mic, Megaphone, Video, Package, CalendarIcon, FolderPlus } from 'lucide-react';
+import { ContactGroupSelector } from './ContactGroupSelector';
+import { Music, Mic, Megaphone, Video, Package, CalendarIcon, FolderPlus, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -391,6 +392,18 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
                   value={formData.artist_id}
                   onValueChange={(value) => handleInputChange('artist_id', value)}
                 />
+              </div>
+
+              <div>
+                <Label>Grupo de Contactos</Label>
+                <ContactGroupSelector
+                  value=""
+                  onValueChange={() => {}}
+                  placeholder="Añadir banda, sello..."
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Grupos para automatizar splits, facturación, etc.
+                </p>
               </div>
 
               <div className="md:col-span-2">
