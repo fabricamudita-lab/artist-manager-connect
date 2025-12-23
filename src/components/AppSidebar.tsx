@@ -22,7 +22,8 @@ import {
   FileImage,
   Contact,
   TrendingUp,
-  Disc3
+  Disc3,
+  Building2
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import NotificationBell from './NotificationBell';
@@ -30,6 +31,7 @@ import { useState } from 'react';
 
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
+  { title: "Mi Management", url: "/mi-management", icon: Building2 },
   { title: "Calendario", url: "/calendar", icon: Calendar },
   { title: "Booking", url: "/booking", icon: Mic },
   { title: "Proyectos", url: "/proyectos", icon: FolderKanban },
