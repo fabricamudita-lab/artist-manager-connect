@@ -4,38 +4,35 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Users, UserCheck, Building, Mail, Shield } from 'lucide-react';
+import { TeamCategorySelector, TeamCategoryOption } from './TeamCategorySelector';
 
 interface AddTeamContactDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onContactAdded: () => void;
+  customCategories?: TeamCategoryOption[];
+  onAddCustomCategory?: (category: TeamCategoryOption) => void;
 }
 
-const TEAM_CATEGORIES = [
-  { value: 'banda', label: 'Banda', icon: Users },
-  { value: 'artistico', label: 'Equipo Artístico', icon: Users },
-  { value: 'tecnico', label: 'Equipo Técnico', icon: UserCheck },
-  { value: 'management', label: 'Management', icon: Building },
-  { value: 'comunicacion', label: 'Comunicación', icon: Mail },
-  { value: 'legal', label: 'Legal', icon: Shield },
-  { value: 'otro', label: 'Otros', icon: Users },
-];
-
-export function AddTeamContactDialog({ open, onOpenChange, onContactAdded }: AddTeamContactDialogProps) {
+export function AddTeamContactDialog({ 
+  open, 
+  onOpenChange, 
+  onContactAdded,
+  customCategories = [],
+  onAddCustomCategory,
+}: AddTeamContactDialogProps) {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('basico');
+  const [teamCategories, setTeamCategories] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     // Datos básicos
     name: '',
     stage_name: '',
     legal_name: '',
     role: '',
-    team_category: 'banda',
     // Contacto
     email: '',
     phone: '',
@@ -68,13 +65,22 @@ export function AddTeamContactDialog({ open, onOpenChange, onContactAdded }: Add
       return;
     }
 
+    if (teamCategories.length === 0) {
+      toast({
+        title: "Error",
+        description: "Selecciona al menos una etiqueta",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
-      // Create a contact with is_team_member flag
+      // Create a contact with is_team_member flag and multiple categories
       const { error } = await supabase
         .from('contacts')
         .insert({
@@ -82,7 +88,7 @@ export function AddTeamContactDialog({ open, onOpenChange, onContactAdded }: Add
           stage_name: formData.stage_name || null,
           legal_name: formData.legal_name || null,
           role: formData.role || null,
-          category: formData.team_category,
+          category: teamCategories[0], // Primary category for backwards compatibility
           email: formData.email || null,
           phone: formData.phone || null,
           preferred_hours: formData.preferred_hours || null,
@@ -99,7 +105,7 @@ export function AddTeamContactDialog({ open, onOpenChange, onContactAdded }: Add
           created_by: user.id,
           field_config: {
             is_team_member: true,
-            team_category: formData.team_category,
+            team_categories: teamCategories, // Array of categories
           },
         });
 
@@ -116,7 +122,6 @@ export function AddTeamContactDialog({ open, onOpenChange, onContactAdded }: Add
         stage_name: '',
         legal_name: '',
         role: '',
-        team_category: 'banda',
         email: '',
         phone: '',
         preferred_hours: '',
@@ -131,6 +136,7 @@ export function AddTeamContactDialog({ open, onOpenChange, onContactAdded }: Add
         bank_info: '',
         notes: '',
       });
+      setTeamCategories([]);
       setActiveTab('basico');
       onContactAdded();
       onOpenChange(false);
@@ -205,20 +211,18 @@ export function AddTeamContactDialog({ open, onOpenChange, onContactAdded }: Add
                     placeholder="Ej: Batería, Manager, Fotógrafo..."
                   />
                 </div>
-                <div>
-                  <Label htmlFor="team_category">Categoría</Label>
-                  <Select value={formData.team_category} onValueChange={(value) => updateField('team_category', value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TEAM_CATEGORIES.map(cat => (
-                        <SelectItem key={cat.value} value={cat.value}>
-                          {cat.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="col-span-2">
+                  <Label>Etiquetas de equipo *</Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Puedes asignar varias etiquetas (ej: Banda + Producción)
+                  </p>
+                  <TeamCategorySelector
+                    selectedCategories={teamCategories}
+                    onCategoriesChange={setTeamCategories}
+                    customCategories={customCategories}
+                    onAddCustomCategory={onAddCustomCategory}
+                    placeholder="Seleccionar etiquetas..."
+                  />
                 </div>
               </div>
             </TabsContent>

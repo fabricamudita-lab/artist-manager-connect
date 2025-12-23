@@ -101,7 +101,7 @@ interface TeamMember {
   id: string;
   user_id: string;
   role: string;
-  team_category: TeamCategory;
+  team_category: string; // Now allows custom categories
   full_name: string;
   email: string;
   avatar_url?: string;
@@ -962,6 +962,33 @@ function TeamsTab() {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [addContactDialogOpen, setAddContactDialogOpen] = useState(false);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [customCategories, setCustomCategories] = useState<Array<{ value: string; label: string; icon: any; isCustom: boolean }>>([]);
+
+  // Load custom categories from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('custom_team_categories');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setCustomCategories(parsed.map((c: any) => ({ ...c, icon: Users, isCustom: true })));
+      } catch (e) {
+        console.error('Error loading custom categories:', e);
+      }
+    }
+  }, []);
+
+  const handleAddCustomCategory = (category: { value: string; label: string; icon: any; isCustom?: boolean }) => {
+    const newCat = { ...category, icon: Users, isCustom: true };
+    setCustomCategories(prev => {
+      const updated = [...prev, newCat];
+      // Persist to localStorage
+      localStorage.setItem('custom_team_categories', JSON.stringify(updated.map(c => ({ value: c.value, label: c.label }))));
+      return updated;
+    });
+  };
+
+  // Combine default and custom categories for display
+  const allCategoriesForDisplay = [...TEAM_CATEGORIES, ...customCategories];
 
   useEffect(() => {
     fetchTeamMembers();
@@ -1097,11 +1124,11 @@ function TeamsTab() {
     fetchTeamContacts();
   };
 
-  const updateMemberCategory = async (memberId: string, category: TeamCategory) => {
+  const updateMemberCategory = async (memberId: string, category: string) => {
     try {
       const { error } = await supabase
         .from('workspace_memberships')
-        .update({ team_category: category })
+        .update({ team_category: category as any })
         .eq('id', memberId);
 
       if (error) throw error;
@@ -1117,11 +1144,15 @@ function TeamsTab() {
   };
 
   // Combine workspace members and team contacts by category
-  const allTeamByCategory = TEAM_CATEGORIES.map(cat => {
+  // Now supports multiple categories per contact
+  const allTeamByCategory = allCategoriesForDisplay.map(cat => {
     const wsMembers = teamMembers.filter(m => m.team_category === cat.value);
     const contacts = teamContacts.filter(c => {
       const config = c.field_config as Record<string, any> | null;
-      return config?.team_category === cat.value || c.category === cat.value;
+      // Support both old single category and new array format
+      const categories = config?.team_categories || [];
+      const singleCategory = config?.team_category || c.category;
+      return categories.includes(cat.value) || singleCategory === cat.value;
     });
     return {
       ...cat,
@@ -1229,7 +1260,7 @@ function TeamsTab() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {TEAM_CATEGORIES.map(cat => (
+                              {allCategoriesForDisplay.map(cat => (
                                 <DropdownMenuItem
                                   key={cat.value}
                                   onClick={() => updateMemberCategory(member.id, cat.value)}
@@ -1246,47 +1277,64 @@ function TeamsTab() {
                   ))}
                   
                   {/* Team contacts without accounts */}
-                  {category.contacts.map((contact: any) => (
-                    <Card key={contact.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="py-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12">
-                            <AvatarFallback className="text-sm bg-secondary">
-                              {contact.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-medium truncate">{contact.stage_name || contact.name}</h4>
-                              <Badge variant="secondary" className="text-xs">Perfil</Badge>
+                  {category.contacts.map((contact: any) => {
+                    const config = contact.field_config as Record<string, any> | null;
+                    const categories = config?.team_categories || [];
+                    const otherCategories = categories.filter((c: string) => c !== category.value);
+                    
+                    return (
+                      <Card key={contact.id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="py-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-12 w-12">
+                              <AvatarFallback className="text-sm bg-secondary">
+                                {contact.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium truncate">{contact.stage_name || contact.name}</h4>
+                                <Badge variant="secondary" className="text-xs">Perfil</Badge>
+                              </div>
+                              {contact.email && (
+                                <p className="text-sm text-muted-foreground truncate">{contact.email}</p>
+                              )}
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {contact.role && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {contact.role}
+                                  </Badge>
+                                )}
+                                {otherCategories.map((catValue: string) => {
+                                  const catInfo = allCategoriesForDisplay.find(c => c.value === catValue);
+                                  return catInfo ? (
+                                    <Badge key={catValue} variant="secondary" className="text-xs">
+                                      +{catInfo.label}
+                                    </Badge>
+                                  ) : null;
+                                })}
+                              </div>
                             </div>
-                            {contact.email && (
-                              <p className="text-sm text-muted-foreground truncate">{contact.email}</p>
-                            )}
-                            {contact.role && (
-                              <Badge variant="outline" className="text-xs mt-1">
-                                {contact.role}
-                              </Badge>
-                            )}
+                            <Button variant="ghost" size="sm" onClick={() => setEditingContact(contact)}>
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
                           </div>
-                          <Button variant="ghost" size="sm" onClick={() => setEditingContact(contact)}>
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
             );
           })}
 
           {/* Empty categories hint */}
-          {allTeamByCategory.length < TEAM_CATEGORIES.length && (
+          {allTeamByCategory.length < allCategoriesForDisplay.length && (
             <div className="border-2 border-dashed border-muted rounded-lg p-6 text-center">
               <p className="text-sm text-muted-foreground">
                 Organiza mejor tu equipo añadiendo miembros a categorías como: {' '}
-                {TEAM_CATEGORIES.filter(c => !allTeamByCategory.find(m => m.value === c.value))
+                {allCategoriesForDisplay.filter(c => !allTeamByCategory.find(m => m.value === c.value))
+                  .slice(0, 5)
                   .map(c => c.label).join(', ')}
               </p>
             </div>
@@ -1307,6 +1355,8 @@ function TeamsTab() {
         open={addContactDialogOpen}
         onOpenChange={setAddContactDialogOpen}
         onContactAdded={handleContactAdded}
+        customCategories={customCategories}
+        onAddCustomCategory={handleAddCustomCategory}
       />
 
       {editingContact && (
