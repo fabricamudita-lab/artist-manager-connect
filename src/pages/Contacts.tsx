@@ -1792,9 +1792,9 @@ export default function Contacts() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Artistas & Equipos</h1>
+        <h1 className="text-3xl font-bold">Contactos</h1>
         <p className="text-muted-foreground">
-          Gestiona tu perfil, equipo y agenda de contactos
+          Gestiona tu agenda de contactos y equipo
         </p>
       </div>
 
