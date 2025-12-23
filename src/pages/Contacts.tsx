@@ -1691,7 +1691,7 @@ function AgendaTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Directorio de Contactos</h2>
+          <h2 className="text-xl font-semibold">Directorio de Perfiles</h2>
           <p className="text-sm text-muted-foreground">
             {filteredContacts.length} contactos
           </p>
@@ -1980,7 +1980,7 @@ export default function Contacts() {
           </TabsTrigger>
           <TabsTrigger value="agenda" className="flex items-center gap-2">
             <BookOpen className="w-4 h-4" />
-            Contactos
+            Perfiles
           </TabsTrigger>
         </TabsList>
 
