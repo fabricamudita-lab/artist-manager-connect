@@ -719,6 +719,7 @@ export type Database = {
           budget_id: string
           category: string
           category_id: string | null
+          contact_id: string | null
           created_at: string
           fecha_emision: string | null
           id: string
@@ -738,6 +739,7 @@ export type Database = {
           budget_id: string
           category: string
           category_id?: string | null
+          contact_id?: string | null
           created_at?: string
           fecha_emision?: string | null
           id?: string
@@ -757,6 +759,7 @@ export type Database = {
           budget_id?: string
           category?: string
           category_id?: string | null
+          contact_id?: string | null
           created_at?: string
           fecha_emision?: string | null
           id?: string
@@ -784,6 +787,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "budget_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_items_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]
