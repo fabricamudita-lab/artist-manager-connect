@@ -26,11 +26,22 @@ interface AgendaContact {
   id: string;
   name: string;
   stage_name?: string;
+  legal_name?: string;
   email?: string;
   phone?: string;
   role?: string;
   company?: string;
   city?: string;
+  country?: string;
+  address?: string;
+  preferred_hours?: string;
+  clothing_size?: string;
+  shoe_size?: string;
+  allergies?: string;
+  special_needs?: string;
+  iban?: string;
+  bank_info?: string;
+  notes?: string;
 }
 
 interface AddTeamContactDialogProps {
@@ -122,7 +133,7 @@ export function AddTeamContactDialog({
     try {
       const { data, error } = await supabase
         .from('contacts')
-        .select('id, name, stage_name, email, phone, role, company, city, field_config')
+        .select('id, name, stage_name, legal_name, email, phone, role, company, city, country, address, preferred_hours, clothing_size, shoe_size, allergies, special_needs, iban, bank_info, notes, field_config')
         .order('name');
       
       if (error) throw error;
@@ -135,6 +146,31 @@ export function AddTeamContactDialog({
     } catch (error) {
       console.error('Error fetching agenda contacts:', error);
     }
+  };
+
+  // Pre-fill form when selecting an existing contact
+  const selectExistingContact = (contact: AgendaContact) => {
+    setSelectedExistingContact(contact);
+    setFormData({
+      name: contact.name || '',
+      stage_name: contact.stage_name || '',
+      legal_name: contact.legal_name || '',
+      role: contact.role || '',
+      email: contact.email || '',
+      phone: contact.phone || '',
+      preferred_hours: contact.preferred_hours || '',
+      address: contact.address || '',
+      city: contact.city || '',
+      country: contact.country || '',
+      clothing_size: contact.clothing_size || '',
+      shoe_size: contact.shoe_size || '',
+      allergies: contact.allergies || '',
+      special_needs: contact.special_needs || '',
+      iban: contact.iban || '',
+      bank_info: contact.bank_info || '',
+      notes: contact.notes || '',
+    });
+    setMode('new'); // Switch to form mode with pre-filled data
   };
 
   const toggleArtist = (artistId: string) => {
@@ -152,88 +188,6 @@ export function AddTeamContactDialog({
   const getArtistLabel = (artistId: string) => {
     const artist = artists.find(a => a.id === artistId);
     return artist?.stage_name || artist?.name || artistId;
-  };
-
-  const handleAddExistingContact = async () => {
-    if (!selectedExistingContact) {
-      toast({
-        title: "Error",
-        description: "Selecciona un contacto de la agenda",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (teamCategories.length === 0) {
-      toast({
-        title: "Error",
-        description: "Selecciona al menos una etiqueta de equipo",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // Update existing contact to be a team member
-      const { error } = await supabase
-        .from('contacts')
-        .update({
-          field_config: {
-            is_team_member: true,
-            team_categories: teamCategories,
-          },
-          category: teamCategories[0],
-        })
-        .eq('id', selectedExistingContact.id);
-
-      if (error) throw error;
-
-      // Insert artist assignments if any artists selected
-      if (selectedArtistIds.length > 0) {
-        // First remove any existing assignments for this contact
-        await supabase
-          .from('contact_artist_assignments')
-          .delete()
-          .eq('contact_id', selectedExistingContact.id);
-
-        const assignments = selectedArtistIds.map(artistId => ({
-          contact_id: selectedExistingContact.id,
-          artist_id: artistId,
-        }));
-
-        const { error: assignError } = await supabase
-          .from('contact_artist_assignments')
-          .insert(assignments);
-
-        if (assignError) {
-          console.error('Error assigning artists:', assignError);
-        }
-      }
-
-      toast({
-        title: "Miembro añadido",
-        description: `${selectedExistingContact.stage_name || selectedExistingContact.name} se ha añadido al equipo`,
-      });
-
-      // Reset and close
-      setTeamCategories([]);
-      setSelectedArtistIds(defaultArtistId ? [defaultArtistId] : []);
-      setSelectedExistingContact(null);
-      setMode('select');
-      onContactAdded();
-      onOpenChange(false);
-    } catch (error) {
-      console.error('Error adding existing contact to team:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo añadir el contacto al equipo",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -263,44 +217,86 @@ export function AddTeamContactDialog({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
-      // Create a contact with is_team_member flag and multiple categories
-      // Don't use artist_id directly - use the junction table instead
-      const { data: newContact, error } = await supabase
-        .from('contacts')
-        .insert({
-          name: formData.name.trim(),
-          stage_name: formData.stage_name || null,
-          legal_name: formData.legal_name || null,
-          role: formData.role || null,
-          category: teamCategories[0], // Primary category for backwards compatibility
-          email: formData.email || null,
-          phone: formData.phone || null,
-          preferred_hours: formData.preferred_hours || null,
-          address: formData.address || null,
-          city: formData.city || null,
-          country: formData.country || null,
-          clothing_size: formData.clothing_size || null,
-          shoe_size: formData.shoe_size || null,
-          allergies: formData.allergies || null,
-          special_needs: formData.special_needs || null,
-          iban: formData.iban || null,
-          bank_info: formData.bank_info || null,
-          notes: formData.notes || null,
-          created_by: user.id,
-          field_config: {
-            is_team_member: true,
-            team_categories: teamCategories,
-          },
-        })
-        .select('id')
-        .single();
+      let contactId: string;
 
-      if (error) throw error;
+      // If updating an existing contact from agenda
+      if (selectedExistingContact) {
+        const { error } = await supabase
+          .from('contacts')
+          .update({
+            name: formData.name.trim(),
+            stage_name: formData.stage_name || null,
+            legal_name: formData.legal_name || null,
+            role: formData.role || null,
+            category: teamCategories[0],
+            email: formData.email || null,
+            phone: formData.phone || null,
+            preferred_hours: formData.preferred_hours || null,
+            address: formData.address || null,
+            city: formData.city || null,
+            country: formData.country || null,
+            clothing_size: formData.clothing_size || null,
+            shoe_size: formData.shoe_size || null,
+            allergies: formData.allergies || null,
+            special_needs: formData.special_needs || null,
+            iban: formData.iban || null,
+            bank_info: formData.bank_info || null,
+            notes: formData.notes || null,
+            field_config: {
+              is_team_member: true,
+              team_categories: teamCategories,
+            },
+          })
+          .eq('id', selectedExistingContact.id);
+
+        if (error) throw error;
+        contactId = selectedExistingContact.id;
+
+        // Remove existing artist assignments before adding new ones
+        await supabase
+          .from('contact_artist_assignments')
+          .delete()
+          .eq('contact_id', contactId);
+      } else {
+        // Create a new contact
+        const { data: newContact, error } = await supabase
+          .from('contacts')
+          .insert({
+            name: formData.name.trim(),
+            stage_name: formData.stage_name || null,
+            legal_name: formData.legal_name || null,
+            role: formData.role || null,
+            category: teamCategories[0],
+            email: formData.email || null,
+            phone: formData.phone || null,
+            preferred_hours: formData.preferred_hours || null,
+            address: formData.address || null,
+            city: formData.city || null,
+            country: formData.country || null,
+            clothing_size: formData.clothing_size || null,
+            shoe_size: formData.shoe_size || null,
+            allergies: formData.allergies || null,
+            special_needs: formData.special_needs || null,
+            iban: formData.iban || null,
+            bank_info: formData.bank_info || null,
+            notes: formData.notes || null,
+            created_by: user.id,
+            field_config: {
+              is_team_member: true,
+              team_categories: teamCategories,
+            },
+          })
+          .select('id')
+          .single();
+
+        if (error) throw error;
+        contactId = newContact.id;
+      }
 
       // Insert artist assignments if any artists selected
-      if (selectedArtistIds.length > 0 && newContact?.id) {
+      if (selectedArtistIds.length > 0 && contactId) {
         const assignments = selectedArtistIds.map(artistId => ({
-          contact_id: newContact.id,
+          contact_id: contactId,
           artist_id: artistId,
         }));
 
@@ -310,7 +306,6 @@ export function AddTeamContactDialog({
 
         if (assignError) {
           console.error('Error assigning artists:', assignError);
-          // Don't fail the whole operation, just log the error
         }
       }
 
@@ -341,6 +336,7 @@ export function AddTeamContactDialog({
       });
       setTeamCategories([]);
       setSelectedArtistIds(defaultArtistId ? [defaultArtistId] : []);
+      setSelectedExistingContact(null);
       setActiveTab('basico');
       onContactAdded();
       onOpenChange(false);
@@ -453,7 +449,7 @@ export function AddTeamContactDialog({
               />
             </div>
             
-            {/* Contact list */}
+            {/* Contact list - clicking goes directly to form */}
             <div className="flex-1 overflow-y-auto border rounded-md">
               {filteredAgendaContacts.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
@@ -467,11 +463,8 @@ export function AddTeamContactDialog({
                     <button
                       key={contact.id}
                       type="button"
-                      onClick={() => setSelectedExistingContact(contact)}
-                      className={cn(
-                        "w-full p-3 text-left hover:bg-accent transition-colors flex items-center gap-3",
-                        selectedExistingContact?.id === contact.id && "bg-accent"
-                      )}
+                      onClick={() => selectExistingContact(contact)}
+                      className="w-full p-3 text-left hover:bg-accent transition-colors flex items-center gap-3"
                     >
                       <Avatar className="h-10 w-10">
                         <AvatarFallback className="text-sm">
@@ -488,119 +481,16 @@ export function AddTeamContactDialog({
                           {contact.email && <span>{contact.email}</span>}
                         </div>
                       </div>
-                      {selectedExistingContact?.id === contact.id && (
-                        <Check className="w-5 h-5 text-primary" />
-                      )}
                     </button>
                   ))}
                 </div>
               )}
             </div>
-            
-            {/* Team config for selected contact */}
-            {selectedExistingContact && (
-              <div className="space-y-4 border-t pt-4">
-                <div className="flex items-center gap-2 p-2 bg-accent/50 rounded-md">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-xs">
-                      {(selectedExistingContact.stage_name || selectedExistingContact.name).split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium">
-                    {selectedExistingContact.stage_name || selectedExistingContact.name}
-                  </span>
-                  <Badge variant="secondary" className="ml-auto">Seleccionado</Badge>
-                </div>
-                
-                <div>
-                  <Label>Artistas</Label>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Asignar a uno o varios artistas
-                  </p>
-                  <Popover open={artistSelectOpen} onOpenChange={setArtistSelectOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className="w-full justify-start text-left font-normal h-auto min-h-10"
-                      >
-                        {selectedArtistIds.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {selectedArtistIds.map((artistId) => (
-                              <span
-                                key={artistId}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-sm"
-                              >
-                                <Music className="w-3 h-3" />
-                                {getArtistLabel(artistId)}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeArtist(artistId);
-                                  }}
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">Seleccionar artistas...</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[300px] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Buscar artista..." />
-                        <CommandList>
-                          <CommandEmpty>No se encontró ningún artista.</CommandEmpty>
-                          <CommandGroup>
-                            {artists.map((artist) => (
-                              <CommandItem
-                                key={artist.id}
-                                value={artist.stage_name || artist.name}
-                                onSelect={() => toggleArtist(artist.id)}
-                              >
-                                <div className={cn(
-                                  "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border",
-                                  selectedArtistIds.includes(artist.id) ? "bg-primary text-primary-foreground" : "opacity-50"
-                                )}>
-                                  {selectedArtistIds.includes(artist.id) && <Check className="h-3 w-3" />}
-                                </div>
-                                {artist.stage_name || artist.name}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                
-                <div>
-                  <Label>Etiquetas de equipo *</Label>
-                  <TeamCategorySelector
-                    selectedCategories={teamCategories}
-                    onCategoriesChange={setTeamCategories}
-                    customCategories={customCategories}
-                    onAddCustomCategory={onAddCustomCategory}
-                    placeholder="Seleccionar etiquetas..."
-                  />
-                </div>
-              </div>
-            )}
           </div>
           
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setMode('select')}>
               Volver
-            </Button>
-            <Button 
-              onClick={handleAddExistingContact} 
-              disabled={loading || !selectedExistingContact || teamCategories.length === 0}
-            >
-              {loading ? 'Añadiendo...' : 'Añadir al Equipo'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -609,15 +499,44 @@ export function AddTeamContactDialog({
   }
 
   // New profile form (mode === 'new')
+  const handleBackFromForm = () => {
+    if (selectedExistingContact) {
+      // Going back to agenda list
+      setSelectedExistingContact(null);
+      setFormData({
+        name: '',
+        stage_name: '',
+        legal_name: '',
+        role: '',
+        email: '',
+        phone: '',
+        preferred_hours: '',
+        address: '',
+        city: '',
+        country: '',
+        clothing_size: '',
+        shoe_size: '',
+        allergies: '',
+        special_needs: '',
+        iban: '',
+        bank_info: '',
+        notes: '',
+      });
+      setMode('existing');
+    } else {
+      setMode('select');
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setMode('select')} className="mr-2">
+            <Button variant="ghost" size="sm" onClick={handleBackFromForm} className="mr-2">
               ← Volver
             </Button>
-            Nuevo Perfil de Equipo
+            {selectedExistingContact ? 'Añadir desde Agenda' : 'Nuevo Perfil de Equipo'}
           </DialogTitle>
         </DialogHeader>
         
@@ -899,7 +818,7 @@ export function AddTeamContactDialog({
           </Tabs>
 
           <DialogFooter className="mt-6">
-            <Button type="button" variant="outline" onClick={() => setMode('select')}>
+            <Button type="button" variant="outline" onClick={handleBackFromForm}>
               Volver
             </Button>
             <Button type="submit" disabled={loading}>
