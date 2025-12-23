@@ -69,15 +69,30 @@ export default function ArtistProfile() {
     enabled: !!id,
   });
 
-  // Fetch team members for this artist
+  // Fetch team members for this artist via contact_artist_assignments
   const { data: teamMembers = [], refetch: refetchTeam } = useQuery({
     queryKey: ['artist-team', id],
     queryFn: async () => {
+      // First get contact IDs assigned to this artist
+      const { data: assignments, error: assignError } = await supabase
+        .from('contact_artist_assignments')
+        .select('contact_id')
+        .eq('artist_id', id!);
+      
+      if (assignError) throw assignError;
+      
+      if (!assignments || assignments.length === 0) {
+        return [] as TeamMember[];
+      }
+      
+      const contactIds = assignments.map(a => a.contact_id);
+      
       const { data, error } = await supabase
         .from('contacts')
         .select('id, name, role, email, phone, category')
-        .eq('artist_id', id)
+        .in('id', contactIds)
         .order('name');
+      
       if (error) throw error;
       return data as TeamMember[];
     },
