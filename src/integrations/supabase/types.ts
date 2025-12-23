@@ -2629,6 +2629,48 @@ export type Database = {
         }
         Relationships: []
       }
+      project_file_links: {
+        Row: {
+          id: string
+          linked_at: string
+          linked_by: string
+          notes: string | null
+          project_id: string
+          source_file_id: string
+        }
+        Insert: {
+          id?: string
+          linked_at?: string
+          linked_by: string
+          notes?: string | null
+          project_id: string
+          source_file_id: string
+        }
+        Update: {
+          id?: string
+          linked_at?: string
+          linked_by?: string
+          notes?: string | null
+          project_id?: string
+          source_file_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_file_links_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_file_links_source_file_id_fkey"
+            columns: ["source_file_id"]
+            isOneToOne: false
+            referencedRelation: "project_files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_files: {
         Row: {
           created_at: string
