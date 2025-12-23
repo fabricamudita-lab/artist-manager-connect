@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Search, Users, UserCheck, FileUser, Camera, LayoutGrid, CreditCard, FolderOpen, User, Shield, BookOpen, Mail, Phone, MapPin, Building, Edit2, Settings, Upload, X, FileImage, Eye, Download } from 'lucide-react';
+import { Plus, Search, Users, UserCheck, FileUser, Camera, LayoutGrid, CreditCard, FolderOpen, User, Shield, BookOpen, Mail, Phone, MapPin, Building, Edit2, Settings, Upload, X, FileImage, Eye, Download, MoreVertical, UserMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -1157,6 +1157,32 @@ function TeamsTab() {
     fetchTeamContacts();
   };
 
+  const handleRemoveFromTeam = async (contactId: string) => {
+    try {
+      // Remove is_team_member flag from contact
+      const contact = teamContacts.find(c => c.id === contactId);
+      if (!contact) return;
+
+      const currentConfig = (contact.field_config as Record<string, any>) || {};
+      const { is_team_member, team_categories, team_category, ...restConfig } = currentConfig;
+
+      const { error } = await supabase
+        .from('contacts')
+        .update({ 
+          field_config: restConfig
+        })
+        .eq('id', contactId);
+
+      if (error) throw error;
+
+      setTeamContacts(prev => prev.filter(c => c.id !== contactId));
+      toast({ title: 'Perfil eliminado del equipo' });
+    } catch (error) {
+      console.error('Error removing from team:', error);
+      toast({ title: 'Error al eliminar', variant: 'destructive' });
+    }
+  };
+
   const updateMemberCategory = async (memberId: string, category: string) => {
     try {
       const { error } = await supabase
@@ -1386,12 +1412,26 @@ function TeamsTab() {
                                 })}
                               </div>
                             </div>
-                            <Button variant="ghost" size="sm" onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingContact(contact);
-                            }}>
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" size="sm">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setEditingContact(contact)}>
+                                  <Edit2 className="w-4 h-4 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  className="text-destructive"
+                                  onClick={() => handleRemoveFromTeam(contact.id)}
+                                >
+                                  <UserMinus className="w-4 h-4 mr-2" />
+                                  Quitar del equipo
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </CardContent>
                       </Card>
