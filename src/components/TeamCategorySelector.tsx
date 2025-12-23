@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -90,31 +89,30 @@ export function TeamCategorySelector({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-start text-left font-normal h-auto min-h-10"
+            className="w-full justify-start text-left font-normal h-auto min-h-10 bg-background hover:bg-background/80"
           >
             {selectedCategories.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1.5">
                 {selectedCategories.map((cat) => {
                   const Icon = getCategoryIcon(cat);
                   return (
-                    <Badge
+                    <span
                       key={cat}
-                      variant="secondary"
-                      className="mr-1 mb-1"
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-background border border-border/50 text-sm font-medium text-foreground shadow-sm transition-all hover:shadow-md"
                     >
-                      <Icon className="w-3 h-3 mr-1" />
+                      <Icon className="w-3.5 h-3.5 text-primary" />
                       {getCategoryLabel(cat)}
                       <button
                         type="button"
-                        className="ml-1 hover:text-destructive"
+                        className="ml-0.5 rounded-full p-0.5 hover:bg-muted transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
                           removeCategory(cat);
                         }}
                       >
-                        <X className="w-3 h-3" />
+                        <X className="w-3 h-3 text-muted-foreground hover:text-destructive" />
                       </button>
-                    </Badge>
+                    </span>
                   );
                 })}
               </div>
@@ -147,9 +145,9 @@ export function TeamCategorySelector({
                       <Icon className="mr-2 h-4 w-4" />
                       <span>{category.label}</span>
                       {category.isCustom && (
-                        <Badge variant="outline" className="ml-auto text-xs">
+                        <span className="ml-auto text-xs px-1.5 py-0.5 rounded border border-border/50 text-muted-foreground">
                           Personalizada
-                        </Badge>
+                        </span>
                       )}
                     </CommandItem>
                   );

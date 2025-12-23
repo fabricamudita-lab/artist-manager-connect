@@ -1246,12 +1246,14 @@ function TeamsTab() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <h4 className="font-medium truncate">{member.full_name}</h4>
-                              <Badge variant="default" className="text-xs">Usuario</Badge>
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 border border-primary/20 text-primary shadow-sm">
+                                Usuario
+                              </span>
                             </div>
                             <p className="text-sm text-muted-foreground truncate">{member.email}</p>
-                            <Badge variant="outline" className="text-xs mt-1">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white dark:bg-background border border-border/40 text-foreground shadow-sm mt-1.5">
                               {member.role}
-                            </Badge>
+                            </span>
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -1294,23 +1296,28 @@ function TeamsTab() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <h4 className="font-medium truncate">{contact.stage_name || contact.name}</h4>
-                                <Badge variant="secondary" className="text-xs">Perfil</Badge>
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white dark:bg-background border border-border/40 text-muted-foreground shadow-sm">
+                                  Perfil
+                                </span>
                               </div>
                               {contact.email && (
                                 <p className="text-sm text-muted-foreground truncate">{contact.email}</p>
                               )}
-                              <div className="flex flex-wrap gap-1 mt-1">
+                              <div className="flex flex-wrap gap-1.5 mt-1.5">
                                 {contact.role && (
-                                  <Badge variant="outline" className="text-xs">
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white dark:bg-background border border-primary/20 text-foreground shadow-sm">
                                     {contact.role}
-                                  </Badge>
+                                  </span>
                                 )}
                                 {otherCategories.map((catValue: string) => {
                                   const catInfo = allCategoriesForDisplay.find(c => c.value === catValue);
                                   return catInfo ? (
-                                    <Badge key={catValue} variant="secondary" className="text-xs">
+                                    <span 
+                                      key={catValue} 
+                                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/5 dark:bg-primary/10 border border-primary/20 text-primary shadow-sm"
+                                    >
                                       +{catInfo.label}
-                                    </Badge>
+                                    </span>
                                   ) : null;
                                 })}
                               </div>
