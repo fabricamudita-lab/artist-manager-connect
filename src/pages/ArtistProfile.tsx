@@ -32,6 +32,9 @@ interface TeamMember {
   email: string | null;
   phone: string | null;
   category: string | null;
+  field_config: {
+    team_categories?: string[];
+  } | null;
 }
 
 interface Booking {
@@ -91,7 +94,7 @@ export default function ArtistProfile() {
       
       const { data, error } = await supabase
         .from('contacts')
-        .select('id, name, role, email, phone, category')
+        .select('id, name, role, email, phone, category, field_config')
         .in('id', contactIds)
         .order('name');
       
@@ -269,41 +272,76 @@ export default function ArtistProfile() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {teamMembers.map((member) => (
-                <Card 
-                  key={member.id} 
-                  className="cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => setSelectedContactId(member.id)}
-                >
-                  <CardContent className="pt-6">
-                    <div className="flex items-start gap-3">
-                      <Avatar>
-                        <AvatarFallback>
-                          {member.name.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{member.name}</p>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {member.role || 'Sin rol'}
-                        </p>
-                        {member.email && (
-                          <p className="text-xs text-muted-foreground truncate mt-1">
-                            {member.email}
-                          </p>
-                        )}
+            (() => {
+              // Group team members by team_categories
+              const groupedMembers: Record<string, TeamMember[]> = {};
+              
+              teamMembers.forEach((member) => {
+                const fieldConfig = member.field_config as { team_categories?: string[] } | null;
+                const categories = fieldConfig?.team_categories || [member.category || 'otros'];
+                
+                categories.forEach((cat: string) => {
+                  if (!groupedMembers[cat]) {
+                    groupedMembers[cat] = [];
+                  }
+                  // Avoid duplicates in same category
+                  if (!groupedMembers[cat].find(m => m.id === member.id)) {
+                    groupedMembers[cat].push(member);
+                  }
+                });
+              });
+
+              const categoryLabels: Record<string, string> = {
+                banda: 'Banda',
+                tourmanager: 'Tour Manager',
+                produccion: 'Producción',
+                tecnico: 'Técnicos',
+                management: 'Management',
+                otros: 'Otros',
+              };
+
+              const sortedCategories = Object.keys(groupedMembers).sort((a, b) => {
+                const order = ['management', 'tourmanager', 'banda', 'produccion', 'tecnico', 'otros'];
+                return order.indexOf(a) - order.indexOf(b);
+              });
+
+              return (
+                <div className="space-y-6">
+                  {sortedCategories.map((category) => (
+                    <div key={category} className="space-y-3">
+                      <h3 className="text-lg font-semibold capitalize">
+                        {categoryLabels[category] || category}
+                      </h3>
+                      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {groupedMembers[category].map((member) => (
+                          <Card 
+                            key={member.id} 
+                            className="cursor-pointer hover:shadow-md transition-shadow"
+                            onClick={() => setSelectedContactId(member.id)}
+                          >
+                            <CardContent className="pt-6">
+                              <div className="flex items-start gap-3">
+                                <Avatar>
+                                  <AvatarFallback>
+                                    {member.name.substring(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium truncate">{member.name}</p>
+                                  <p className="text-sm text-muted-foreground truncate">
+                                    {member.role || 'Sin rol'}
+                                  </p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
-                      {member.category && (
-                        <Badge variant="outline" className="shrink-0">
-                          {member.category}
-                        </Badge>
-                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  ))}
+                </div>
+              );
+            })()
           )}
         </TabsContent>
 
