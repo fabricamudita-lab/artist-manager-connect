@@ -1400,6 +1400,7 @@ export type Database = {
           shoe_size: string | null
           special_needs: string | null
           stage_name: string | null
+          tags: string[] | null
           updated_at: string
         }
         Insert: {
@@ -1431,6 +1432,7 @@ export type Database = {
           shoe_size?: string | null
           special_needs?: string | null
           stage_name?: string | null
+          tags?: string[] | null
           updated_at?: string
         }
         Update: {
@@ -1462,6 +1464,7 @@ export type Database = {
           shoe_size?: string | null
           special_needs?: string | null
           stage_name?: string | null
+          tags?: string[] | null
           updated_at?: string
         }
         Relationships: [
