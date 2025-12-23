@@ -31,7 +31,7 @@ import { useState } from 'react';
 
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "Mi Management", url: "/mi-management", icon: Building2 },
+  { title: "00 Management", url: "/mi-management", icon: Building2 },
   { title: "Calendario", url: "/calendar", icon: Calendar },
   { title: "Booking", url: "/booking", icon: Mic },
   { title: "Proyectos", url: "/proyectos", icon: FolderKanban },
