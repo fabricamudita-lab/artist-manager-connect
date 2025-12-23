@@ -1283,10 +1283,10 @@ function TeamsTab() {
         <div className="flex gap-2">
           <Select value={selectedArtistId} onValueChange={setSelectedArtistId}>
             <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filtrar por artista" />
+              <SelectValue placeholder="Filtrar por equipo" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los artistas</SelectItem>
+              <SelectItem value="all">Todos los equipos</SelectItem>
               {artists.map((artist) => (
                 <SelectItem key={artist.id} value={artist.id}>
                   {artist.stage_name || artist.name}
