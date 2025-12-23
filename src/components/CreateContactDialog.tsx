@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { ContactTagsInput } from './ContactTagsInput';
 
 interface CreateContactDialogProps {
   open: boolean;
@@ -65,6 +66,7 @@ const FIELD_LABELS = {
 export function CreateContactDialog({ open, onOpenChange, onContactCreated }: CreateContactDialogProps) {
   const [loading, setLoading] = useState(false);
   const [fieldConfig, setFieldConfig] = useState(DEFAULT_FIELD_CONFIG);
+  const [tags, setTags] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     stage_name: '',
@@ -105,6 +107,7 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
         .from('contacts')
         .insert({
           ...formData,
+          tags: tags,
           field_config: fieldConfig,
           created_by: (await supabase.auth.getUser()).data.user?.id,
         });
@@ -117,6 +120,7 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
       });
 
       onContactCreated();
+      setTags([]);
       setFormData({
         name: '',
         stage_name: '',
@@ -291,6 +295,16 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
               {renderField('contract_url')}
               {renderField('preferred_hours', 'textarea')}
               {renderField('notes', 'textarea')}
+
+              {/* Tags Section */}
+              <div className="pt-4 border-t">
+                <ContactTagsInput
+                  value={tags}
+                  onChange={setTags}
+                  label="Etiquetas"
+                  placeholder="Añadir etiqueta... #prensa #paris"
+                />
+              </div>
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

@@ -47,6 +47,7 @@ interface Contact {
   city?: string;
   country?: string;
   notes?: string;
+  tags?: string[];
   field_config: any;
   is_public: boolean;
   public_slug?: string;
@@ -1531,6 +1532,7 @@ function AgendaTab() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedCity, setSelectedCity] = useState<string>('all');
   const [selectedGroup, setSelectedGroup] = useState<string>('all');
+  const [selectedTag, setSelectedTag] = useState<string>('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [sharingContact, setSharingContact] = useState<Contact | null>(null);
@@ -1539,6 +1541,11 @@ function AgendaTab() {
   const [groups, setGroups] = useState<Array<{ id: string; name: string; color: string }>>([]);
 
   const cities = Array.from(new Set(contacts.map(c => c.city).filter(Boolean))).sort();
+  
+  // Extract all unique tags from contacts
+  const allTags = Array.from(new Set(
+    contacts.flatMap(c => (c.tags as string[] | null) || [])
+  )).sort();
 
   useEffect(() => {
     fetchContacts();
@@ -1547,7 +1554,7 @@ function AgendaTab() {
 
   useEffect(() => {
     filterContacts();
-  }, [contacts, searchTerm, selectedCategory, selectedCity, selectedGroup]);
+  }, [contacts, searchTerm, selectedCategory, selectedCity, selectedGroup, selectedTag]);
 
   const fetchContacts = async () => {
     try {
@@ -1599,6 +1606,9 @@ function AgendaTab() {
         if (contact.phone) searchableFields.push(contact.phone);
         if (contact.city) searchableFields.push(contact.city);
         if (contact.country) searchableFields.push(contact.country);
+        // Also search in tags
+        const contactTags = (contact.tags as string[] | null) || [];
+        searchableFields.push(...contactTags);
         return searchableFields.some(field => field.toLowerCase().includes(term));
       });
     }
@@ -1609,6 +1619,14 @@ function AgendaTab() {
 
     if (selectedCity && selectedCity !== 'all') {
       filtered = filtered.filter(contact => contact.city === selectedCity);
+    }
+
+    // Filter by tag
+    if (selectedTag && selectedTag !== 'all') {
+      filtered = filtered.filter(contact => {
+        const contactTags = (contact.tags as string[] | null) || [];
+        return contactTags.includes(selectedTag);
+      });
     }
 
     if (selectedGroup && selectedGroup !== 'all') {
@@ -1749,6 +1767,26 @@ function AgendaTab() {
           </SelectContent>
         </Select>
 
+        {/* Tag filter */}
+        {allTags.length > 0 && (
+          <Select value={selectedTag} onValueChange={setSelectedTag}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Etiqueta" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              {allTags.map((tag) => (
+                <SelectItem key={tag} value={tag}>
+                  <span className="flex items-center gap-1">
+                    <span className="text-muted-foreground">#</span>
+                    {tag}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
         <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'grid' | 'rolodex')}>
           <ToggleGroupItem value="grid" aria-label="Vista en cuadrícula">
             <LayoutGrid className="h-4 w-4" />
@@ -1828,6 +1866,30 @@ function AgendaTab() {
                   
                   {contact.company && contact.field_config?.company && (
                     <p className="text-sm text-muted-foreground">{contact.company}</p>
+                  )}
+
+                  {/* Display tags */}
+                  {contact.tags && (contact.tags as string[]).length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-2">
+                      {(contact.tags as string[]).slice(0, 4).map(tag => (
+                        <Badge 
+                          key={tag} 
+                          variant="outline" 
+                          className="text-xs cursor-pointer hover:bg-accent"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTag(tag);
+                          }}
+                        >
+                          #{tag}
+                        </Badge>
+                      ))}
+                      {(contact.tags as string[]).length > 4 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{(contact.tags as string[]).length - 4}
+                        </Badge>
+                      )}
+                    </div>
                   )}
 
                   {contact.is_public && (

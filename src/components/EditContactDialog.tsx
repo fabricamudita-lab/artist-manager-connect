@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ContactGroupAssignment } from './ContactGroupAssignment';
+import { ContactTagsInput } from './ContactTagsInput';
 
 interface Contact {
   id: string;
@@ -34,6 +35,7 @@ interface Contact {
   country?: string;
   category: string;
   notes?: string;
+  tags?: string[];
   field_config: Record<string, boolean>;
   is_public: boolean;
   public_slug?: string;
@@ -76,6 +78,7 @@ const FIELD_LABELS = {
 export function EditContactDialog({ contact, open, onOpenChange, onContactUpdated }: EditContactDialogProps) {
   const [loading, setLoading] = useState(false);
   const [fieldConfig, setFieldConfig] = useState(contact.field_config);
+  const [tags, setTags] = useState<string[]>(contact.tags || []);
   const [formData, setFormData] = useState({
     name: contact.name || '',
     stage_name: contact.stage_name || '',
@@ -102,6 +105,7 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
 
   useEffect(() => {
     setFieldConfig(contact.field_config);
+    setTags(contact.tags || []);
     setFormData({
       name: contact.name || '',
       stage_name: contact.stage_name || '',
@@ -144,6 +148,7 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
         .from('contacts')
         .update({
           ...formData,
+          tags: tags,
           field_config: fieldConfig,
         })
         .eq('id', contact.id);
@@ -322,6 +327,16 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
               {renderField('preferred_hours', 'textarea')}
               {renderField('notes', 'textarea')}
 
+              <Separator className="my-6" />
+
+              {/* Tags Section */}
+              <ContactTagsInput
+                value={tags}
+                onChange={setTags}
+                label="Etiquetas"
+                placeholder="Añadir etiqueta... #prensa #paris"
+              />
+              
               <Separator className="my-6" />
               
               <ContactGroupAssignment contactId={contact.id} />
