@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Search, Users, UserCheck, FileUser, Camera, LayoutGrid, CreditCard, FolderOpen, User, Shield, BookOpen, Mail, Phone, MapPin, Building, Edit2, Settings, Upload, X, FileImage, Eye, Download, MoreVertical, UserMinus } from 'lucide-react';
+import { Plus, Search, Users, UserCheck, FileUser, Camera, LayoutGrid, CreditCard, FolderOpen, User, Shield, BookOpen, Mail, Phone, MapPin, Building, Edit2, Settings, Upload, X, FileImage, Eye, Download, MoreVertical, UserMinus, FolderPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -24,6 +24,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { InviteTeamMemberDialog } from '@/components/InviteTeamMemberDialog';
 import { AddTeamContactDialog } from '@/components/AddTeamContactDialog';
 import { TeamMemberActivityDialog } from '@/components/TeamMemberActivityDialog';
+import { CreateTeamDialog } from '@/components/CreateTeamDialog';
 
 interface Contact {
   id: string;
@@ -965,6 +966,7 @@ function TeamsTab() {
   const [addContactDialogOpen, setAddContactDialogOpen] = useState(false);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [customCategories, setCustomCategories] = useState<Array<{ value: string; label: string; icon: any; isCustom: boolean }>>([]);
+  const [createTeamDialogOpen, setCreateTeamDialogOpen] = useState(false);
   
   // Artist filter state
   const [artists, setArtists] = useState<Array<{ id: string; name: string; stage_name?: string }>>([]);
@@ -984,20 +986,21 @@ function TeamsTab() {
   }, []);
 
   // Fetch artists
+  const fetchArtists = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('artists')
+        .select('id, name, stage_name')
+        .order('name');
+      
+      if (error) throw error;
+      setArtists(data || []);
+    } catch (error) {
+      console.error('Error fetching artists:', error);
+    }
+  };
+
   useEffect(() => {
-    const fetchArtists = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('artists')
-          .select('id, name, stage_name')
-          .order('name');
-        
-        if (error) throw error;
-        setArtists(data || []);
-      } catch (error) {
-        console.error('Error fetching artists:', error);
-      }
-    };
     fetchArtists();
   }, []);
 
@@ -1140,7 +1143,7 @@ function TeamsTab() {
       const userIds = members.map(m => m.user_id);
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('user_id, full_name, email, avatar_url')
+        .select('user_id, full_name, stage_name, email, avatar_url')
         .in('user_id', userIds);
 
       if (profilesError) throw profilesError;
@@ -1152,12 +1155,14 @@ function TeamsTab() {
 
       const formattedMembers: TeamMember[] = members.map((m: any) => {
         const memberProfile = profileMap.get(m.user_id);
+        // Prefer stage_name over full_name for display
+        const displayName = memberProfile?.stage_name || memberProfile?.full_name || 'Sin nombre';
         return {
           id: m.id,
           user_id: m.user_id,
           role: m.role,
-          team_category: m.team_category || 'otro',
-          full_name: memberProfile?.full_name || 'Sin nombre',
+          team_category: m.team_category || 'management',
+          full_name: displayName,
           email: memberProfile?.email || '',
           avatar_url: memberProfile?.avatar_url,
           permissions: {
@@ -1294,6 +1299,10 @@ function TeamsTab() {
               ))}
             </SelectContent>
           </Select>
+          <Button variant="outline" onClick={() => setCreateTeamDialogOpen(true)}>
+            <FolderPlus className="w-4 h-4 mr-2" />
+            Crear Equipo
+          </Button>
           <Button variant="outline" onClick={() => setAddContactDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Añadir Perfil
@@ -1518,6 +1527,15 @@ function TeamsTab() {
         open={!!activityMember}
         onOpenChange={(open) => !open && setActivityMember(null)}
         member={activityMember}
+      />
+
+      <CreateTeamDialog
+        open={createTeamDialogOpen}
+        onOpenChange={setCreateTeamDialogOpen}
+        onSuccess={() => {
+          setCreateTeamDialogOpen(false);
+          fetchArtists();
+        }}
       />
     </div>
   );
