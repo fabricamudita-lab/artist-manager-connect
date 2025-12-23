@@ -57,6 +57,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import EnhancedBudgetItemsView from '@/components/EnhancedBudgetItemsView';
 import LiquidarFacturasDialog from '@/components/LiquidarFacturasDialog';
+import { BudgetContactSelector } from '@/components/BudgetContactSelector';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -97,6 +98,15 @@ interface BudgetItem {
   observations?: string;
   category_id?: string;
   fecha_emision?: string;
+  contact_id?: string;
+  contacts?: {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    iban?: string;
+    role?: string;
+  };
   budget_categories?: {
     id: string;
     name: string;
@@ -317,7 +327,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         .from('budget_items')
         .select(`
           *,
-          budget_categories(id, name, icon_name)
+          budget_categories(id, name, icon_name),
+          contacts(id, name, email, phone, iban, role)
         `)
         .eq('budget_id', budget.id)
         .order('name');
@@ -648,7 +659,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
     try {
       // Exclude relational fields that don't exist in the table
-      const { budget_categories, ...itemData } = editingItemValues;
+      const { budget_categories, contacts, ...itemData } = editingItemValues;
       
       const updateData = {
         ...itemData,
@@ -1822,6 +1833,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                         />
                                       </TableHead>
                                       <TableHead className="font-bold text-black w-[200px]">Nombre</TableHead>
+                                      <TableHead className="font-bold text-black w-[130px] text-center">Contacto</TableHead>
                                       <TableHead className="font-bold text-black w-[130px] text-center">Fecha Emisión</TableHead>
                                       <TableHead className="font-bold text-black w-[140px] text-right">Precio Unit. (€)</TableHead>
                                       <TableHead className="font-bold text-black w-[80px] text-center">IVA (%)</TableHead>
@@ -1897,6 +1909,26 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                            </div>
                                          )}
                                        </TableCell>
+                                      
+                                        {/* Contacto */}
+                                        <TableCell className="p-2 text-center">
+                                          <BudgetContactSelector
+                                            value={editingItem === item.id ? editingItemValues.contact_id : item.contact_id}
+                                            onValueChange={(contactId) => {
+                                              if (editingItem === item.id) {
+                                                setEditingItemValues(prev => ({ ...prev, contact_id: contactId || undefined }));
+                                              } else {
+                                                // Direct update without entering edit mode
+                                                supabase
+                                                  .from('budget_items')
+                                                  .update({ contact_id: contactId })
+                                                  .eq('id', item.id)
+                                                  .then(() => fetchBudgetItems());
+                                              }
+                                            }}
+                                            compact
+                                          />
+                                        </TableCell>
                                       
                                         {/* Fecha de emisión */}
                                        <TableCell className="p-2 text-center">
