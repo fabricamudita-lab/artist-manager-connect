@@ -20,6 +20,7 @@ import Documents from "./pages/Documents";
 import Chat from "./pages/Chat";
 import Solicitudes from "./pages/Solicitudes";
 import Contacts from "./pages/Contacts";
+import Teams from "./pages/Teams";
 import NotFound from "./pages/NotFound";
 import DashboardLayout from "./components/DashboardLayout";
 import Projects from "./pages/Projects";
@@ -173,6 +174,13 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Contacts />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/teams" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Teams />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />

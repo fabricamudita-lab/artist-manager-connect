@@ -10,6 +10,7 @@ import {
   MessageCircle, 
   DollarSign, 
   Users, 
+  UsersRound,
   Send,
   LogOut,
   Music,
@@ -44,6 +45,7 @@ const getNavigationItems = (isManagement: boolean) => {
     { title: "Carpetas", url: "/projects", icon: Folder },
     { title: "Discografía", url: "/releases", icon: Disc3 },
     { title: "Finanzas", url: "/finanzas", icon: Calculator },
+    { title: "Equipos", url: "/teams", icon: UsersRound },
     { title: "Perfiles", url: "/contacts", icon: Users },
   ];
 
