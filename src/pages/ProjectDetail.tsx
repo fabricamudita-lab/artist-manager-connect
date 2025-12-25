@@ -1015,8 +1015,8 @@ export default function ProjectDetail() {
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between w-full">
               <TabsList className="grid grid-cols-7 flex-1">
-                <TabsTrigger value="archivos" className="text-xs sm:text-sm">
-                  Archivos
+                <TabsTrigger value="proyectos" className="text-xs sm:text-sm">
+                  Proyectos
                 </TabsTrigger>
                 <TabsTrigger value="presupuestos" className="text-xs sm:text-sm">
                   Presupuestos
@@ -1063,7 +1063,7 @@ export default function ProjectDetail() {
           </CardHeader>
 
           <CardContent className="pt-0">
-            <TabsContent value="archivos" className="mt-0">
+            <TabsContent value="proyectos" className="mt-0">
               <ProjectFilesManager projectId={id || ""} projectName={project.name} />
             </TabsContent>
 
