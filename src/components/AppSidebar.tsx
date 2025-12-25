@@ -26,7 +26,8 @@ import {
   TrendingUp,
   Disc3,
   Building2,
-  User
+  User,
+  Settings
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import NotificationBell from './NotificationBell';
@@ -41,15 +42,12 @@ const getNavigationItems = (isManagement: boolean) => {
 
   // Management-only items
   const managementOnlyItems = [
-    { title: "00 Management", url: "/mi-management", icon: Building2 },
     { title: "Booking", url: "/booking", icon: Mic },
     { title: "Proyectos", url: "/proyectos", icon: FolderKanban },
     { title: "Carpetas", url: "/projects", icon: Folder },
     { title: "Discografía", url: "/releases", icon: Disc3 },
     { title: "Finanzas", url: "/finanzas", icon: Calculator },
-    { title: "Equipos", url: "/teams", icon: UsersRound },
     { title: "Contactos", url: "/agenda", icon: BookOpen },
-    { title: "Mi Perfil", url: "/contacts", icon: User },
   ];
 
   // Common items for all roles
@@ -73,9 +71,10 @@ const getNavigationItems = (isManagement: boolean) => {
 };
 
 const managementItems = [
-  { title: "Solicitudes", url: "/dashboard?tab=requests", icon: Send },
-  { title: "Artistas", url: "/dashboard?tab=artists", icon: Users },
-  { title: "Finanzas", url: "/dashboard?tab=financial", icon: DollarSign },
+  { title: "00 Management", url: "/mi-management", icon: Building2 },
+  { title: "Equipos", url: "/teams", icon: UsersRound },
+  { title: "Mi Perfil", url: "/contacts", icon: User },
+  { title: "Ajustes", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
