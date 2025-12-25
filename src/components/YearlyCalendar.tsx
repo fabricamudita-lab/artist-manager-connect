@@ -96,12 +96,8 @@ export function YearlyCalendar({ year, events, onDateSelect, onEventClick, selec
                   `}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (hasEvents && onEventClick) {
-                      // Si hay eventos, abrir el popup del primer evento
-                      onEventClick(dayEvents[0], e);
-                    } else {
-                      onDateSelect?.(day);
-                    }
+                    // Solo seleccionar el día, no abrir popover
+                    onDateSelect?.(day);
                   }}
                   title={hasEvents ? `${dayEvents.length} evento(s): ${dayEvents.map(e => e.title).join(', ')}` : undefined}
                 >
