@@ -11,6 +11,7 @@ import {
   DollarSign, 
   Users, 
   UsersRound,
+  BookOpen,
   Send,
   LogOut,
   Music,
@@ -24,7 +25,8 @@ import {
   Contact,
   TrendingUp,
   Disc3,
-  Building2
+  Building2,
+  User
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import NotificationBell from './NotificationBell';
@@ -46,7 +48,8 @@ const getNavigationItems = (isManagement: boolean) => {
     { title: "Discografía", url: "/releases", icon: Disc3 },
     { title: "Finanzas", url: "/finanzas", icon: Calculator },
     { title: "Equipos", url: "/teams", icon: UsersRound },
-    { title: "Perfiles", url: "/contacts", icon: Users },
+    { title: "Contactos", url: "/agenda", icon: BookOpen },
+    { title: "Mi Perfil", url: "/contacts", icon: User },
   ];
 
   // Common items for all roles
