@@ -8,10 +8,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ContactGroupAssignment } from './ContactGroupAssignment';
 import { ContactTagsInput } from './ContactTagsInput';
+import { TeamCategorySelector, TeamCategoryOption } from './TeamCategorySelector';
+import { Check, X, Music, Building2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface Artist {
+  id: string;
+  name: string;
+  stage_name?: string;
+}
 
 interface Contact {
   id: string;
@@ -36,7 +48,7 @@ interface Contact {
   category: string;
   notes?: string;
   tags?: string[];
-  field_config: Record<string, boolean>;
+  field_config: Record<string, any>;
   is_public: boolean;
   public_slug?: string;
 }
@@ -79,6 +91,15 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
   const [loading, setLoading] = useState(false);
   const [fieldConfig, setFieldConfig] = useState(contact.field_config);
   const [tags, setTags] = useState<string[]>(contact.tags || []);
+  
+  // Team-related state
+  const [isTeamMember, setIsTeamMember] = useState<boolean>(contact.field_config?.is_team_member || false);
+  const [isManagementTeam, setIsManagementTeam] = useState<boolean>(contact.field_config?.is_management_team || false);
+  const [teamCategories, setTeamCategories] = useState<string[]>(contact.field_config?.team_categories || []);
+  const [artists, setArtists] = useState<Artist[]>([]);
+  const [selectedArtistIds, setSelectedArtistIds] = useState<string[]>([]);
+  const [artistSelectOpen, setArtistSelectOpen] = useState(false);
+  
   const [formData, setFormData] = useState({
     name: contact.name || '',
     stage_name: contact.stage_name || '',
@@ -104,8 +125,18 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
   });
 
   useEffect(() => {
+    if (open) {
+      fetchArtists();
+      fetchContactArtistAssignments();
+    }
+  }, [open, contact.id]);
+
+  useEffect(() => {
     setFieldConfig(contact.field_config);
     setTags(contact.tags || []);
+    setIsTeamMember(contact.field_config?.is_team_member || false);
+    setIsManagementTeam(contact.field_config?.is_management_team || false);
+    setTeamCategories(contact.field_config?.team_categories || []);
     setFormData({
       name: contact.name || '',
       stage_name: contact.stage_name || '',
@@ -131,6 +162,51 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
     });
   }, [contact]);
 
+  const fetchArtists = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('artists')
+        .select('id, name, stage_name')
+        .order('name');
+      
+      if (error) throw error;
+      setArtists(data || []);
+    } catch (error) {
+      console.error('Error fetching artists:', error);
+    }
+  };
+
+  const fetchContactArtistAssignments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('contact_artist_assignments')
+        .select('artist_id')
+        .eq('contact_id', contact.id);
+      
+      if (error) throw error;
+      setSelectedArtistIds((data || []).map(a => a.artist_id));
+    } catch (error) {
+      console.error('Error fetching artist assignments:', error);
+    }
+  };
+
+  const toggleArtist = (artistId: string) => {
+    if (selectedArtistIds.includes(artistId)) {
+      setSelectedArtistIds(selectedArtistIds.filter(id => id !== artistId));
+    } else {
+      setSelectedArtistIds([...selectedArtistIds, artistId]);
+    }
+  };
+
+  const removeArtist = (artistId: string) => {
+    setSelectedArtistIds(selectedArtistIds.filter(id => id !== artistId));
+  };
+
+  const getArtistLabel = (artistId: string) => {
+    const artist = artists.find(a => a.id === artistId);
+    return artist?.stage_name || artist?.name || artistId;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
@@ -144,16 +220,51 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
 
     setLoading(true);
     try {
+      // Build updated field_config
+      const updatedFieldConfig = {
+        ...fieldConfig,
+        is_team_member: isTeamMember,
+        is_management_team: isManagementTeam,
+        team_categories: teamCategories,
+      };
+
       const { error } = await supabase
         .from('contacts')
         .update({
           ...formData,
           tags: tags,
-          field_config: fieldConfig,
+          field_config: updatedFieldConfig,
         })
         .eq('id', contact.id);
 
       if (error) throw error;
+
+      // Update artist assignments if it's a team member and not management team
+      if (isTeamMember && !isManagementTeam) {
+        // Remove existing assignments
+        await supabase
+          .from('contact_artist_assignments')
+          .delete()
+          .eq('contact_id', contact.id);
+
+        // Add new assignments
+        if (selectedArtistIds.length > 0) {
+          const assignments = selectedArtistIds.map(artistId => ({
+            contact_id: contact.id,
+            artist_id: artistId,
+          }));
+
+          await supabase
+            .from('contact_artist_assignments')
+            .insert(assignments);
+        }
+      } else if (isTeamMember && isManagementTeam) {
+        // If it's management team, remove all artist assignments
+        await supabase
+          .from('contact_artist_assignments')
+          .delete()
+          .eq('contact_id', contact.id);
+      }
 
       toast({
         title: "Éxito",
@@ -238,6 +349,17 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_public: checked }))}
                 />
               </div>
+              
+              <div className="flex items-center justify-between">
+                <Label htmlFor="is-team-member" className="text-sm">
+                  Miembro de equipo
+                </Label>
+                <Switch
+                  id="is-team-member"
+                  checked={isTeamMember}
+                  onCheckedChange={setIsTeamMember}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -275,6 +397,128 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
 
                 {renderField('role')}
               </div>
+
+              {/* Team Configuration - Only show if isTeamMember */}
+              {isTeamMember && (
+                <>
+                  <Separator className="my-4" />
+                  <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                    <h4 className="font-medium text-sm">Configuración de Equipo</h4>
+                    
+                    {/* Team Type Selector */}
+                    <div className="space-y-2">
+                      <Label>Tipo de equipo</Label>
+                      <RadioGroup 
+                        value={isManagementTeam ? 'management' : 'artist'} 
+                        onValueChange={(value) => {
+                          setIsManagementTeam(value === 'management');
+                          if (value === 'management') {
+                            setSelectedArtistIds([]);
+                          }
+                        }}
+                        className="flex gap-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="management" id="edit-team-management" />
+                          <Label htmlFor="edit-team-management" className="flex items-center gap-2 cursor-pointer">
+                            <Building2 className="w-4 h-4 text-primary" />
+                            00 Management (empresa)
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="artist" id="edit-team-artist" />
+                          <Label htmlFor="edit-team-artist" className="flex items-center gap-2 cursor-pointer">
+                            <Music className="w-4 h-4 text-primary" />
+                            Equipo de artista
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+
+                    {/* Artist selector - only show when not management team */}
+                    {!isManagementTeam && (
+                      <div className="space-y-2">
+                        <Label>Artistas asignados</Label>
+                        <Popover open={artistSelectOpen} onOpenChange={setArtistSelectOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={artistSelectOpen}
+                              className="w-full justify-start text-left font-normal h-auto min-h-10 bg-background hover:bg-background/80"
+                            >
+                              {selectedArtistIds.length > 0 ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {selectedArtistIds.map((artistId) => (
+                                    <span
+                                      key={artistId}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-background border border-border/50 text-sm font-medium text-foreground shadow-sm"
+                                    >
+                                      <Music className="w-3.5 h-3.5 text-primary" />
+                                      {getArtistLabel(artistId)}
+                                      <button
+                                        type="button"
+                                        className="ml-0.5 rounded-full p-0.5 hover:bg-muted transition-colors"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          removeArtist(artistId);
+                                        }}
+                                      >
+                                        <X className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+                                      </button>
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">Seleccionar artistas...</span>
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[300px] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Buscar artista..." />
+                              <CommandList>
+                                <CommandEmpty>No se encontró ningún artista.</CommandEmpty>
+                                <CommandGroup heading="Artistas">
+                                  {artists.map((artist) => {
+                                    const isSelected = selectedArtistIds.includes(artist.id);
+                                    return (
+                                      <CommandItem
+                                        key={artist.id}
+                                        value={artist.stage_name || artist.name}
+                                        onSelect={() => toggleArtist(artist.id)}
+                                      >
+                                        <div className={cn(
+                                          "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                          isSelected ? "bg-primary text-primary-foreground" : "opacity-50"
+                                        )}>
+                                          {isSelected && <Check className="h-3 w-3" />}
+                                        </div>
+                                        <Music className="mr-2 h-4 w-4" />
+                                        {artist.stage_name || artist.name}
+                                      </CommandItem>
+                                    );
+                                  })}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    )}
+
+                    {/* Team Categories */}
+                    <div className="space-y-2">
+                      <Label>Etiquetas de equipo</Label>
+                      <TeamCategorySelector
+                        selectedCategories={teamCategories}
+                        onCategoriesChange={setTeamCategories}
+                        placeholder="Seleccionar etiquetas..."
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Personal Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
