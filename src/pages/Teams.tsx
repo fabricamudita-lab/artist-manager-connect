@@ -308,17 +308,19 @@ export default function Teams() {
   const allTeamByCategory = allCategoriesForDisplay.map(cat => {
     const wsMembers = teamMembers.filter(m => {
       if (selectedArtistId === '00-management') {
-        return m.team_category === 'management' && cat.value === 'management';
+        // Show all workspace members, grouped by their category
+        return m.team_category === cat.value;
       }
       return m.team_category === cat.value;
     });
     
     const contacts = teamContacts.filter(c => {
       if (selectedArtistId === '00-management') {
+        // Show all team contacts when 00 Management is selected, grouped by category
         const config = c.field_config as Record<string, any> | null;
         const categories = config?.team_categories || [];
         const singleCategory = config?.team_category || c.category;
-        return (categories.includes('management') || singleCategory === 'management') && cat.value === 'management';
+        return categories.includes(cat.value) || singleCategory === cat.value;
       }
       
       if (selectedArtistId !== 'all') {
