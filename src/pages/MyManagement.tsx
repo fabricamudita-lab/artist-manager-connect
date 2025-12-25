@@ -99,10 +99,10 @@ export default function MyManagement() {
   });
 
   const stats = [
-    { label: 'Artistas', value: artists.length, icon: Music, color: 'text-purple-500' },
-    { label: 'Equipo', value: managementTeam.length, icon: Users, color: 'text-blue-500' },
-    { label: 'Shows próximos', value: upcomingBookings, icon: Calendar, color: 'text-green-500' },
-    { label: 'Proyectos activos', value: activeProjects, icon: FolderOpen, color: 'text-orange-500' },
+    { label: 'Artistas', value: artists.length, icon: Music, color: 'text-purple-500', onClick: undefined },
+    { label: 'Equipo', value: managementTeam.length, icon: Users, color: 'text-blue-500', onClick: () => navigate('/teams') },
+    { label: 'Shows próximos', value: upcomingBookings, icon: Calendar, color: 'text-green-500', onClick: () => navigate('/booking') },
+    { label: 'Proyectos activos', value: activeProjects, icon: FolderOpen, color: 'text-orange-500', onClick: () => navigate('/proyectos') },
   ];
 
   return (
@@ -127,7 +127,11 @@ export default function MyManagement() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {stats.map((stat) => (
-          <Card key={stat.label}>
+          <Card 
+            key={stat.label} 
+            className={stat.onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}
+            onClick={stat.onClick}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
