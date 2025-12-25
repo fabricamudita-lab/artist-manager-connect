@@ -308,31 +308,35 @@ export default function Teams() {
   const allTeamByCategory = allCategoriesForDisplay.map(cat => {
     const wsMembers = teamMembers.filter(m => {
       if (selectedArtistId === '00-management') {
-        // Show all workspace members, grouped by their category
+        // For 00 Management, show all workspace members grouped by category
         return m.team_category === cat.value;
       }
       return m.team_category === cat.value;
     });
     
     const contacts = teamContacts.filter(c => {
+      const config = c.field_config as Record<string, any> | null;
+      const isManagementTeam = config?.is_management_team === true;
+      const categories = config?.team_categories || [];
+      const singleCategory = config?.team_category || c.category;
+      
       if (selectedArtistId === '00-management') {
-        // Show all team contacts when 00 Management is selected, grouped by category
-        const config = c.field_config as Record<string, any> | null;
-        const categories = config?.team_categories || [];
-        const singleCategory = config?.team_category || c.category;
+        // Only show contacts marked as management team (empresa)
+        if (!isManagementTeam) return false;
         return categories.includes(cat.value) || singleCategory === cat.value;
       }
       
       if (selectedArtistId !== 'all') {
+        // For specific artist, exclude management team contacts
+        if (isManagementTeam) return false;
         const assignedArtists = (c as any).assigned_artist_ids || [];
         if (!assignedArtists.includes(selectedArtistId)) {
           return false;
         }
+      } else {
+        // For "all", show both management and artist team contacts
       }
       
-      const config = c.field_config as Record<string, any> | null;
-      const categories = config?.team_categories || [];
-      const singleCategory = config?.team_category || c.category;
       return categories.includes(cat.value) || singleCategory === cat.value;
     });
     return {

@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { TeamCategorySelector, TeamCategoryOption } from './TeamCategorySelector';
-import { Check, X, Music, UserPlus, BookOpen, Search } from 'lucide-react';
+import { Check, X, Music, UserPlus, BookOpen, Search, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -67,6 +67,7 @@ export function AddTeamContactDialog({
   const [teamCategories, setTeamCategories] = useState<string[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [selectedArtistIds, setSelectedArtistIds] = useState<string[]>(defaultArtistId ? [defaultArtistId] : []);
+  const [isManagementTeam, setIsManagementTeam] = useState<boolean>(defaultArtistId === '00-management');
   const [artistSelectOpen, setArtistSelectOpen] = useState(false);
   
   // Existing contact selection
@@ -104,12 +105,12 @@ export function AddTeamContactDialog({
     if (open) {
       fetchArtists();
       fetchAgendaContacts();
-      if (defaultArtistId && !selectedArtistIds.includes(defaultArtistId)) {
+      if (defaultArtistId === '00-management') {
+        setIsManagementTeam(true);
+        setSelectedArtistIds([]);
+      } else if (defaultArtistId && !selectedArtistIds.includes(defaultArtistId)) {
+        setIsManagementTeam(false);
         setSelectedArtistIds([defaultArtistId]);
-      }
-      // Auto-set management category when 00-management is selected
-      if (defaultArtistId === '00-management' && !teamCategories.includes('management')) {
-        setTeamCategories(prev => prev.includes('management') ? prev : [...prev, 'management']);
       }
     } else {
       // Reset on close
@@ -117,6 +118,7 @@ export function AddTeamContactDialog({
       setSelectedExistingContact(null);
       setContactSearchTerm('');
       setTeamCategories([]);
+      setIsManagementTeam(defaultArtistId === '00-management');
     }
   }, [open, defaultArtistId]);
 
@@ -249,6 +251,7 @@ export function AddTeamContactDialog({
             notes: formData.notes || null,
             field_config: {
               is_team_member: true,
+              is_management_team: isManagementTeam,
               team_categories: teamCategories,
             },
           })
@@ -288,6 +291,7 @@ export function AddTeamContactDialog({
             created_by: user.id,
             field_config: {
               is_team_member: true,
+              is_management_team: isManagementTeam,
               team_categories: teamCategories,
             },
           })
@@ -342,7 +346,8 @@ export function AddTeamContactDialog({
         notes: '',
       });
       setTeamCategories([]);
-      setSelectedArtistIds(defaultArtistId ? [defaultArtistId] : []);
+      setIsManagementTeam(defaultArtistId === '00-management');
+      setSelectedArtistIds(defaultArtistId && defaultArtistId !== '00-management' ? [defaultArtistId] : []);
       setSelectedExistingContact(null);
       setActiveTab('basico');
       onContactAdded();
@@ -595,77 +600,114 @@ export function AddTeamContactDialog({
                     placeholder="Ej: Batería, Manager, Fotógrafo..."
                   />
                 </div>
+                
+                {/* Team Type Selector */}
                 <div className="col-span-2">
-                  <Label>Artistas</Label>
+                  <Label>Tipo de equipo *</Label>
                   <p className="text-xs text-muted-foreground mb-2">
-                    Puedes asignar este miembro a varios artistas
+                    ¿Este miembro pertenece al equipo de la empresa o a un artista?
                   </p>
-                  <Popover open={artistSelectOpen} onOpenChange={setArtistSelectOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={artistSelectOpen}
-                        className="w-full justify-start text-left font-normal h-auto min-h-10 bg-background hover:bg-background/80"
-                      >
-                        {selectedArtistIds.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {selectedArtistIds.map((artistId) => (
-                              <span
-                                key={artistId}
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-background border border-border/50 text-sm font-medium text-foreground shadow-sm"
-                              >
-                                <Music className="w-3.5 h-3.5 text-primary" />
-                                {getArtistLabel(artistId)}
-                                <button
-                                  type="button"
-                                  className="ml-0.5 rounded-full p-0.5 hover:bg-muted transition-colors"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeArtist(artistId);
-                                  }}
-                                >
-                                  <X className="w-3 h-3 text-muted-foreground hover:text-destructive" />
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">Seleccionar artistas...</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[300px] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Buscar artista..." />
-                        <CommandList>
-                          <CommandEmpty>No se encontró ningún artista.</CommandEmpty>
-                          <CommandGroup heading="Artistas">
-                            {artists.map((artist) => {
-                              const isSelected = selectedArtistIds.includes(artist.id);
-                              return (
-                                <CommandItem
-                                  key={artist.id}
-                                  value={artist.stage_name || artist.name}
-                                  onSelect={() => toggleArtist(artist.id)}
-                                >
-                                  <div className={cn(
-                                    "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                                    isSelected ? "bg-primary text-primary-foreground" : "opacity-50"
-                                  )}>
-                                    {isSelected && <Check className="h-3 w-3" />}
-                                  </div>
-                                  <Music className="mr-2 h-4 w-4" />
-                                  {artist.stage_name || artist.name}
-                                </CommandItem>
-                              );
-                            })}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <RadioGroup 
+                    value={isManagementTeam ? 'management' : 'artist'} 
+                    onValueChange={(value) => {
+                      setIsManagementTeam(value === 'management');
+                      if (value === 'management') {
+                        setSelectedArtistIds([]);
+                      }
+                    }}
+                    className="flex gap-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="management" id="team-management" />
+                      <Label htmlFor="team-management" className="flex items-center gap-2 cursor-pointer">
+                        <Building2 className="w-4 h-4 text-primary" />
+                        00 Management (empresa)
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="artist" id="team-artist" />
+                      <Label htmlFor="team-artist" className="flex items-center gap-2 cursor-pointer">
+                        <Music className="w-4 h-4 text-primary" />
+                        Equipo de artista
+                      </Label>
+                    </div>
+                  </RadioGroup>
                 </div>
+
+                {/* Artist selector - only show when not management team */}
+                {!isManagementTeam && (
+                  <div className="col-span-2">
+                    <Label>Artistas</Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Puedes asignar este miembro a varios artistas
+                    </p>
+                    <Popover open={artistSelectOpen} onOpenChange={setArtistSelectOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={artistSelectOpen}
+                          className="w-full justify-start text-left font-normal h-auto min-h-10 bg-background hover:bg-background/80"
+                        >
+                          {selectedArtistIds.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {selectedArtistIds.map((artistId) => (
+                                <span
+                                  key={artistId}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-background border border-border/50 text-sm font-medium text-foreground shadow-sm"
+                                >
+                                  <Music className="w-3.5 h-3.5 text-primary" />
+                                  {getArtistLabel(artistId)}
+                                  <button
+                                    type="button"
+                                    className="ml-0.5 rounded-full p-0.5 hover:bg-muted transition-colors"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      removeArtist(artistId);
+                                    }}
+                                  >
+                                    <X className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">Seleccionar artistas...</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[300px] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Buscar artista..." />
+                          <CommandList>
+                            <CommandEmpty>No se encontró ningún artista.</CommandEmpty>
+                            <CommandGroup heading="Artistas">
+                              {artists.map((artist) => {
+                                const isSelected = selectedArtistIds.includes(artist.id);
+                                return (
+                                  <CommandItem
+                                    key={artist.id}
+                                    value={artist.stage_name || artist.name}
+                                    onSelect={() => toggleArtist(artist.id)}
+                                  >
+                                    <div className={cn(
+                                      "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                      isSelected ? "bg-primary text-primary-foreground" : "opacity-50"
+                                    )}>
+                                      {isSelected && <Check className="h-3 w-3" />}
+                                    </div>
+                                    <Music className="mr-2 h-4 w-4" />
+                                    {artist.stage_name || artist.name}
+                                  </CommandItem>
+                                );
+                              })}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
                 <div className="col-span-2">
                   <Label>Etiquetas de equipo *</Label>
                   <p className="text-xs text-muted-foreground mb-2">
