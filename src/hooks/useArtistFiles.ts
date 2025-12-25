@@ -1,0 +1,222 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
+
+// Standard folder categories for every artist
+export const ARTIST_FOLDER_CATEGORIES = [
+  { id: 'audiovisuales', name: 'AUDIOVISUALES', icon: 'Video' },
+  { id: 'conciertos', name: 'CONCIERTOS', icon: 'Music' },
+  { id: 'contratos', name: 'CONTRATOS / LEGAL', icon: 'FileText' },
+  { id: 'diseno', name: 'DISEÑO', icon: 'Palette' },
+  { id: 'distribucion', name: 'DISTRIBUCIÓN', icon: 'Share2' },
+  { id: 'economia', name: 'ECONOMÍA', icon: 'Calculator' },
+  { id: 'imagenes', name: 'IMÁGENES', icon: 'Image' },
+  { id: 'marketing', name: 'MARKETING', icon: 'Megaphone' },
+  { id: 'merch', name: 'MERCH', icon: 'ShoppingBag' },
+  { id: 'musica', name: 'MÚSICA', icon: 'Disc' },
+  { id: 'personal', name: 'PERSONAL', icon: 'User' },
+  { id: 'prensa', name: 'PRENSA', icon: 'Newspaper' },
+] as const;
+
+export type FolderCategory = typeof ARTIST_FOLDER_CATEGORIES[number]['id'];
+
+export interface ArtistFile {
+  id: string;
+  artist_id: string;
+  category: string;
+  subcategory: string | null;
+  file_name: string;
+  file_path: string;
+  file_url: string;
+  file_type: string | null;
+  file_size: number | null;
+  uploaded_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export const useArtistFiles = (artistId: string | null, category?: string) => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+
+  // Fetch files for an artist (optionally filtered by category)
+  const { data: files = [], isLoading, error } = useQuery({
+    queryKey: ['artist-files', artistId, category],
+    queryFn: async () => {
+      if (!artistId) return [];
+      
+      let query = supabase
+        .from('artist_files')
+        .select('*')
+        .eq('artist_id', artistId)
+        .order('created_at', { ascending: false });
+
+      if (category) {
+        query = query.eq('category', category);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as ArtistFile[];
+    },
+    enabled: !!artistId,
+  });
+
+  // Get file counts per category
+  const { data: fileCounts = {} } = useQuery({
+    queryKey: ['artist-files-counts', artistId],
+    queryFn: async () => {
+      if (!artistId) return {};
+      
+      const { data, error } = await supabase
+        .from('artist_files')
+        .select('category')
+        .eq('artist_id', artistId);
+
+      if (error) throw error;
+
+      const counts: Record<string, number> = {};
+      data.forEach(file => {
+        counts[file.category] = (counts[file.category] || 0) + 1;
+      });
+      return counts;
+    },
+    enabled: !!artistId,
+  });
+
+  // Upload file mutation
+  const uploadMutation = useMutation({
+    mutationFn: async ({ 
+      file, 
+      artistId: aid, 
+      category: cat,
+      subcategory 
+    }: { 
+      file: File; 
+      artistId: string; 
+      category: string;
+      subcategory?: string;
+    }) => {
+      if (!user?.id) throw new Error('Usuario no autenticado');
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${aid}/${cat}/${subcategory ? subcategory + '/' : ''}${fileName}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath);
+
+      // Insert record in database
+      const { data, error: dbError } = await supabase
+        .from('artist_files')
+        .insert({
+          artist_id: aid,
+          category: cat,
+          subcategory: subcategory || null,
+          file_name: file.name,
+          file_path: filePath,
+          file_url: urlData.publicUrl,
+          file_type: file.type,
+          file_size: file.size,
+          uploaded_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['artist-files', artistId] });
+      queryClient.invalidateQueries({ queryKey: ['artist-files-counts', artistId] });
+      toast({
+        title: "Archivo subido",
+        description: "El archivo se ha subido correctamente",
+      });
+    },
+    onError: (error) => {
+      console.error('Upload error:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo subir el archivo",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete file mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (fileId: string) => {
+      const file = files.find(f => f.id === fileId);
+      if (!file) throw new Error('Archivo no encontrado');
+
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('documents')
+        .remove([file.file_path]);
+
+      if (storageError) {
+        console.warn('Storage delete warning:', storageError);
+      }
+
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from('artist_files')
+        .delete()
+        .eq('id', fileId);
+
+      if (dbError) throw dbError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['artist-files', artistId] });
+      queryClient.invalidateQueries({ queryKey: ['artist-files-counts', artistId] });
+      toast({
+        title: "Archivo eliminado",
+        description: "El archivo se ha eliminado correctamente",
+      });
+    },
+    onError: (error) => {
+      console.error('Delete error:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el archivo",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Upload multiple files
+  const uploadFiles = async (filesToUpload: File[], aid: string, cat: string, subcategory?: string) => {
+    for (const file of filesToUpload) {
+      await uploadMutation.mutateAsync({ file, artistId: aid, category: cat, subcategory });
+    }
+  };
+
+  return {
+    files,
+    fileCounts,
+    isLoading,
+    error,
+    uploadFile: uploadMutation.mutate,
+    uploadFiles,
+    deleteFile: deleteMutation.mutate,
+    isUploading: uploadMutation.isPending,
+    isDeleting: deleteMutation.isPending,
+    uploadProgress,
+  };
+};

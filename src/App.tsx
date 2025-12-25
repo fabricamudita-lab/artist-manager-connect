@@ -27,6 +27,7 @@ import NotFound from "./pages/NotFound";
 import DashboardLayout from "./components/DashboardLayout";
 import Projects from "./pages/Projects";
 import Proyectos from "./pages/Proyectos";
+import Carpetas from "./pages/Carpetas";
 import ProjectDetail from "./pages/ProjectDetail";
 import Approvals from "./pages/Approvals";
 import ApprovalDetail from "./pages/ApprovalDetail";
@@ -224,6 +225,11 @@ const App = () => (
                   <DashboardLayout>
                     <Projects />
                   </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/carpetas" element={
+                <ProtectedRoute>
+                  <Carpetas />
                 </ProtectedRoute>
               } />
               <Route path="/projects/:id" element={

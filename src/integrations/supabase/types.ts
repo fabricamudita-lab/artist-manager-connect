@@ -143,6 +143,59 @@ export type Database = {
           },
         ]
       }
+      artist_files: {
+        Row: {
+          artist_id: string
+          category: string
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          file_url: string
+          id: string
+          subcategory: string | null
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          artist_id: string
+          category: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          subcategory?: string | null
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          artist_id?: string
+          category?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          subcategory?: string | null
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_files_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artist_role_bindings: {
         Row: {
           artist_id: string

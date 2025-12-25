@@ -44,7 +44,7 @@ const getNavigationItems = (isManagement: boolean) => {
   const managementOnlyItems = [
     { title: "Booking", url: "/booking", icon: Mic },
     { title: "Proyectos", url: "/proyectos", icon: FolderKanban },
-    { title: "Carpetas", url: "/projects", icon: Folder },
+    { title: "Carpetas", url: "/carpetas", icon: Folder },
     { title: "Discografía", url: "/releases", icon: Disc3 },
     { title: "Finanzas", url: "/finanzas", icon: Calculator },
     { title: "Contactos", url: "/agenda", icon: BookOpen },
