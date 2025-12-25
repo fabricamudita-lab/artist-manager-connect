@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { ContactGroupAssignment } from './ContactGroupAssignment';
+
 import { ContactTagsInput } from './ContactTagsInput';
 import { TeamCategorySelector, TeamCategoryOption } from './TeamCategorySelector';
 import { Check, X, Music, Building2 } from 'lucide-react';
@@ -581,10 +581,6 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                 placeholder="Añadir etiqueta... #prensa #paris"
               />
               
-              <Separator className="my-6" />
-              
-              <ContactGroupAssignment contactId={contact.id} />
-
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                   Cancelar
