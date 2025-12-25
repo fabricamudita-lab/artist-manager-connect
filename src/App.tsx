@@ -22,6 +22,7 @@ import Solicitudes from "./pages/Solicitudes";
 import Contacts from "./pages/Contacts";
 import Agenda from "./pages/Agenda";
 import Teams from "./pages/Teams";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import DashboardLayout from "./components/DashboardLayout";
 import Projects from "./pages/Projects";
@@ -196,6 +197,13 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <MyManagement />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/settings" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Settings />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
