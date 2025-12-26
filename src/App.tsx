@@ -38,6 +38,7 @@ import { EPKPasswordProtectionPage } from "./pages/EPKPasswordProtection";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import SharedProject from "./pages/SharedProject";
 import SignContractMulti from "./pages/SignContractMulti";
+import SharedFile from "./pages/SharedFile";
 
 import Releases from "./pages/Releases";
 import ReleaseDetail from "./pages/ReleaseDetail";
@@ -338,6 +339,8 @@ const App = () => (
               <Route path="/epk/:slug/password" element={<EPKPasswordProtectionPage />} />
               {/* Public Shared Project Route */}
               <Route path="/shared/project/:token" element={<SharedProject />} />
+              {/* Public Shared File Route */}
+              <Route path="/shared/:token" element={<SharedFile />} />
               {/* Public Contract Signature Route */}
               <Route path="/sign/:token" element={<SignContractMulti />} />
               {/* Google Calendar OAuth Callback */}

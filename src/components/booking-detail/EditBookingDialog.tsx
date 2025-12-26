@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Save } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useBookingFolderAutomation } from '@/hooks/useBookingFolderAutomation';
 
 interface BookingOffer {
   id: string;
@@ -119,6 +120,7 @@ export function EditBookingDialog({
 }: EditBookingDialogProps) {
   const [formData, setFormData] = useState<Partial<BookingOffer>>({});
   const [loading, setLoading] = useState(false);
+  const { syncBookingFolder } = useBookingFolderAutomation();
 
   useEffect(() => {
     if (open) {
@@ -133,49 +135,58 @@ export function EditBookingDialog({
   const handleSave = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase
+      const updateData = {
+        fecha: formData.fecha,
+        hora: formData.hora,
+        duracion: formData.duracion,
+        festival_ciclo: formData.festival_ciclo,
+        ciudad: formData.ciudad,
+        pais: formData.pais,
+        lugar: formData.lugar,
+        venue: formData.venue,
+        capacidad: formData.capacidad,
+        estado: formData.estado,
+        phase: formData.phase,
+        promotor: formData.promotor,
+        fee: formData.fee,
+        pvp: formData.pvp,
+        gastos_estimados: formData.gastos_estimados,
+        comision_porcentaje: formData.comision_porcentaje,
+        comision_euros: formData.comision_euros,
+        es_cityzen: formData.es_cityzen,
+        es_internacional: formData.es_internacional,
+        estado_facturacion: formData.estado_facturacion,
+        oferta: formData.oferta,
+        formato: formData.formato,
+        contacto: formData.contacto,
+        tour_manager: formData.tour_manager,
+        info_comentarios: formData.info_comentarios,
+        condiciones: formData.condiciones,
+        link_venta: formData.link_venta,
+        inicio_venta: formData.inicio_venta,
+        folder_url: formData.folder_url,
+        notas: formData.notas,
+        logistica: formData.logistica,
+        contratos: formData.contratos,
+        publico: formData.publico,
+        invitaciones: formData.invitaciones,
+        anunciado: formData.anunciado,
+        es_privado: formData.es_privado,
+      };
+
+      const { data, error } = await supabase
         .from('booking_offers')
-        .update({
-          fecha: formData.fecha,
-          hora: formData.hora,
-          duracion: formData.duracion,
-          festival_ciclo: formData.festival_ciclo,
-          ciudad: formData.ciudad,
-          pais: formData.pais,
-          lugar: formData.lugar,
-          venue: formData.venue,
-          capacidad: formData.capacidad,
-          estado: formData.estado,
-          phase: formData.phase,
-          promotor: formData.promotor,
-          fee: formData.fee,
-          pvp: formData.pvp,
-          gastos_estimados: formData.gastos_estimados,
-          comision_porcentaje: formData.comision_porcentaje,
-          comision_euros: formData.comision_euros,
-          es_cityzen: formData.es_cityzen,
-          es_internacional: formData.es_internacional,
-          estado_facturacion: formData.estado_facturacion,
-          oferta: formData.oferta,
-          formato: formData.formato,
-          contacto: formData.contacto,
-          tour_manager: formData.tour_manager,
-          info_comentarios: formData.info_comentarios,
-          condiciones: formData.condiciones,
-          link_venta: formData.link_venta,
-          inicio_venta: formData.inicio_venta,
-          folder_url: formData.folder_url,
-          notas: formData.notas,
-          logistica: formData.logistica,
-          contratos: formData.contratos,
-          publico: formData.publico,
-          invitaciones: formData.invitaciones,
-          anunciado: formData.anunciado,
-          es_privado: formData.es_privado,
-        })
-        .eq('id', booking.id);
+        .update(updateData)
+        .eq('id', booking.id)
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Trigger folder automation if status changed to confirmado
+      if (data) {
+        await syncBookingFolder(booking as any, data);
+      }
 
       toast.success('Booking actualizado');
       onSuccess();

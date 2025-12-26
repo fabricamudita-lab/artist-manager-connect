@@ -1,17 +1,28 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useArtistFiles, ARTIST_FOLDER_CATEGORIES, ArtistFile } from '@/hooks/useArtistFiles';
+import { useArtistSubfolders, DEFAULT_SUBFOLDERS } from '@/hooks/useArtistSubfolders';
+import { usePublicFileSharing } from '@/hooks/usePublicFileSharing';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -48,6 +59,9 @@ import {
   ShoppingBag,
   Disc,
   Newspaper,
+  Plus,
+  FolderPlus,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -96,14 +110,22 @@ interface Artist {
   workspace_id: string;
 }
 
+// Categories that support subfolders
+const CATEGORIES_WITH_SUBFOLDERS = ['audiovisuales', 'conciertos'];
+
 export default function Carpetas() {
   const { profile, user } = useAuth();
+  const [searchParams] = useSearchParams();
+  
   const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSubfolder, setSelectedSubfolder] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isDragging, setIsDragging] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<ArtistFile | null>(null);
+  const [showCreateSubfolderDialog, setShowCreateSubfolderDialog] = useState(false);
+  const [newSubfolderName, setNewSubfolderName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isManagement = profile?.active_role === 'management';
@@ -122,6 +144,26 @@ export default function Carpetas() {
     },
   });
 
+  // Handle URL params for deep linking
+  useEffect(() => {
+    const artistId = searchParams.get('artist');
+    const category = searchParams.get('category');
+    const subfolder = searchParams.get('subfolder');
+
+    if (artistId && artists.length > 0) {
+      const artist = artists.find(a => a.id === artistId);
+      if (artist) {
+        setSelectedArtist(artist);
+        if (category) {
+          setSelectedCategory(category);
+          if (subfolder) {
+            setSelectedSubfolder(subfolder);
+          }
+        }
+      }
+    }
+  }, [searchParams, artists]);
+
   // Get files for selected artist and category
   const {
     files,
@@ -133,10 +175,34 @@ export default function Carpetas() {
     isDeleting,
   } = useArtistFiles(selectedArtist?.id || null, selectedCategory || undefined);
 
-  // Filter files by search
-  const filteredFiles = files.filter(file =>
-    file.file_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Get subfolders for current category
+  const {
+    subfolders,
+    isLoading: subfoldersLoading,
+    ensureDefaultSubfolders,
+    createSubfolder,
+    deleteSubfolder,
+    isCreating: isCreatingSubfolder,
+  } = useArtistSubfolders(selectedArtist?.id || null, selectedCategory || undefined);
+
+  // Public sharing hook
+  const { generateShareLink, isGenerating } = usePublicFileSharing();
+
+  // Ensure default subfolders exist when entering a category that supports them
+  useEffect(() => {
+    if (selectedArtist && selectedCategory && CATEGORIES_WITH_SUBFOLDERS.includes(selectedCategory)) {
+      ensureDefaultSubfolders({ artistId: selectedArtist.id, category: selectedCategory });
+    }
+  }, [selectedArtist, selectedCategory, ensureDefaultSubfolders]);
+
+  // Filter files by search and subfolder
+  const filteredFiles = files.filter(file => {
+    const matchesSearch = file.file_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSubfolder = selectedSubfolder 
+      ? file.subcategory === selectedSubfolder 
+      : !file.subcategory; // Show root files when no subfolder selected
+    return matchesSearch && matchesSubfolder;
+  });
 
   // Handle drag and drop
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -165,16 +231,16 @@ export default function Carpetas() {
 
     const droppedFiles = Array.from(e.dataTransfer.files);
     if (droppedFiles.length > 0) {
-      await uploadFiles(droppedFiles, selectedArtist.id, selectedCategory);
+      await uploadFiles(droppedFiles, selectedArtist.id, selectedCategory, selectedSubfolder || undefined);
     }
-  }, [selectedArtist, selectedCategory, uploadFiles]);
+  }, [selectedArtist, selectedCategory, selectedSubfolder, uploadFiles]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!selectedArtist || !selectedCategory || !e.target.files) return;
 
     const selectedFiles = Array.from(e.target.files);
     if (selectedFiles.length > 0) {
-      await uploadFiles(selectedFiles, selectedArtist.id, selectedCategory);
+      await uploadFiles(selectedFiles, selectedArtist.id, selectedCategory, selectedSubfolder || undefined);
     }
     e.target.value = '';
   };
@@ -188,6 +254,32 @@ export default function Carpetas() {
       deleteFile(fileToDelete.id);
       setFileToDelete(null);
     }
+  };
+
+  const handleCreateSubfolder = () => {
+    if (!selectedArtist || !selectedCategory || !newSubfolderName.trim()) return;
+
+    // Validate naming convention for audiovisuales
+    if (selectedCategory === 'audiovisuales') {
+      const pattern = /^\d{4}\.\d{2}\s.+$/;
+      if (!pattern.test(newSubfolderName) && newSubfolderName !== 'Reels') {
+        // Allow but warn
+        console.log('Nombre no sigue convención YYYY.MM Concepto');
+      }
+    }
+
+    createSubfolder({
+      artistId: selectedArtist.id,
+      category: selectedCategory,
+      name: newSubfolderName.trim(),
+    });
+
+    setNewSubfolderName('');
+    setShowCreateSubfolderDialog(false);
+  };
+
+  const handleShareFile = (file: ArtistFile) => {
+    generateShareLink({ fileId: file.id, expiresInDays: 30 });
   };
 
   // Render Level 1: Artist Selection
@@ -267,6 +359,7 @@ export default function Carpetas() {
         {ARTIST_FOLDER_CATEGORIES.map((category) => {
           const IconComponent = getCategoryIcon(category.icon);
           const count = fileCounts[category.id] || 0;
+          const hasSubfolders = CATEGORIES_WITH_SUBFOLDERS.includes(category.id);
 
           return (
             <Card
@@ -283,6 +376,7 @@ export default function Carpetas() {
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1">
                   {count} {count === 1 ? 'archivo' : 'archivos'}
+                  {hasSubfolders && ' • Subcarpetas'}
                 </p>
               </CardContent>
             </Card>
@@ -292,9 +386,10 @@ export default function Carpetas() {
     </div>
   );
 
-  // Render Level 3: Files in Category
+  // Render Level 3: Subfolders + Files
   const renderFilesView = () => {
     const currentCategory = ARTIST_FOLDER_CATEGORIES.find(c => c.id === selectedCategory);
+    const hasSubfolderSupport = selectedCategory && CATEGORIES_WITH_SUBFOLDERS.includes(selectedCategory);
 
     return (
       <div className="space-y-6">
@@ -303,14 +398,23 @@ export default function Carpetas() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setSelectedCategory(null)}
+              onClick={() => {
+                if (selectedSubfolder) {
+                  setSelectedSubfolder(null);
+                } else {
+                  setSelectedCategory(null);
+                }
+              }}
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold">{currentCategory?.name}</h1>
+              <h1 className="text-2xl font-bold">
+                {selectedSubfolder || currentCategory?.name}
+              </h1>
               <p className="text-muted-foreground">
                 {selectedArtist?.stage_name || selectedArtist?.name}
+                {selectedSubfolder && ` / ${currentCategory?.name}`}
               </p>
             </div>
           </div>
@@ -343,6 +447,13 @@ export default function Carpetas() {
               </Button>
             </div>
 
+            {hasSubfolderSupport && !selectedSubfolder && (
+              <Button variant="outline" onClick={() => setShowCreateSubfolderDialog(true)}>
+                <FolderPlus className="w-4 h-4 mr-2" />
+                Nueva Subcarpeta
+              </Button>
+            )}
+
             <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
               <Upload className="w-4 h-4 mr-2" />
               {isUploading ? 'Subiendo...' : 'Subir'}
@@ -356,6 +467,34 @@ export default function Carpetas() {
             />
           </div>
         </div>
+
+        {/* Subfolders Grid (only show when not inside a subfolder) */}
+        {hasSubfolderSupport && !selectedSubfolder && subfolders.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-muted-foreground">Subcarpetas</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {subfolders.map((subfolder) => (
+                <Card
+                  key={subfolder.id}
+                  className="cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all group"
+                  onClick={() => setSelectedSubfolder(subfolder.name)}
+                >
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                      <Folder className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">{subfolder.name}</p>
+                      {subfolder.is_default && (
+                        <p className="text-xs text-muted-foreground">Por defecto</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Drop Zone */}
         <div
@@ -397,12 +536,13 @@ export default function Carpetas() {
             {filteredFiles.map((file) => {
               const FileIcon = getFileIcon(file.file_type);
               const isImage = file.file_type?.startsWith('image/');
+              const canShare = selectedCategory === 'audiovisuales';
 
               return (
                 <Card key={file.id} className="group hover:shadow-md transition-shadow">
                   <CardContent className="p-3">
                     <div className="relative aspect-square rounded-lg bg-muted mb-2 flex items-center justify-center overflow-hidden">
-                      {isImage ? (
+                      {isImage && file.file_url !== 'placeholder' ? (
                         <img
                           src={file.file_url}
                           alt={file.file_name}
@@ -420,14 +560,28 @@ export default function Carpetas() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleDownload(file)}>
-                              <ExternalLink className="w-4 h-4 mr-2" />
-                              Abrir
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDownload(file)}>
-                              <Download className="w-4 h-4 mr-2" />
-                              Descargar
-                            </DropdownMenuItem>
+                            {file.file_url !== 'placeholder' && (
+                              <>
+                                <DropdownMenuItem onClick={() => handleDownload(file)}>
+                                  <ExternalLink className="w-4 h-4 mr-2" />
+                                  Abrir
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDownload(file)}>
+                                  <Download className="w-4 h-4 mr-2" />
+                                  Descargar
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {canShare && file.file_url !== 'placeholder' && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleShareFile(file)}>
+                                  <LinkIcon className="w-4 h-4 mr-2" />
+                                  Compartir Enlace
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-destructive"
                               onClick={() => setFileToDelete(file)}
@@ -444,7 +598,11 @@ export default function Carpetas() {
                       {file.file_name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {formatFileSize(file.file_size)}
+                      {file.file_url === 'placeholder' ? (
+                        <span className="text-warning">Pendiente</span>
+                      ) : (
+                        formatFileSize(file.file_size)
+                      )}
                     </p>
                   </CardContent>
                 </Card>
@@ -457,6 +615,7 @@ export default function Carpetas() {
               <div className="divide-y">
                 {filteredFiles.map((file) => {
                   const FileIcon = getFileIcon(file.file_type);
+                  const canShare = selectedCategory === 'audiovisuales';
 
                   return (
                     <div
@@ -470,8 +629,14 @@ export default function Carpetas() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{file.file_name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatFileSize(file.file_size)} •{' '}
-                          {format(new Date(file.created_at), 'dd MMM yyyy', { locale: es })}
+                          {file.file_url === 'placeholder' ? (
+                            <span className="text-warning">Pendiente de subir</span>
+                          ) : (
+                            <>
+                              {formatFileSize(file.file_size)} •{' '}
+                              {format(new Date(file.created_at), 'dd MMM yyyy', { locale: es })}
+                            </>
+                          )}
                         </p>
                       </div>
 
@@ -482,14 +647,28 @@ export default function Carpetas() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleDownload(file)}>
-                            <ExternalLink className="w-4 h-4 mr-2" />
-                            Abrir
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDownload(file)}>
-                            <Download className="w-4 h-4 mr-2" />
-                            Descargar
-                          </DropdownMenuItem>
+                          {file.file_url !== 'placeholder' && (
+                            <>
+                              <DropdownMenuItem onClick={() => handleDownload(file)}>
+                                <ExternalLink className="w-4 h-4 mr-2" />
+                                Abrir
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDownload(file)}>
+                                <Download className="w-4 h-4 mr-2" />
+                                Descargar
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          {canShare && file.file_url !== 'placeholder' && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleShareFile(file)}>
+                                <LinkIcon className="w-4 h-4 mr-2" />
+                                Compartir Enlace
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => setFileToDelete(file)}
@@ -547,6 +726,44 @@ export default function Carpetas() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create Subfolder Dialog */}
+      <Dialog open={showCreateSubfolderDialog} onOpenChange={setShowCreateSubfolderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nueva Subcarpeta</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                {selectedCategory === 'audiovisuales' 
+                  ? 'Se recomienda usar el formato: YYYY.MM Concepto (ej: 2025.04 Videoclips Camino)'
+                  : selectedCategory === 'conciertos'
+                  ? 'Para eventos, se creará automáticamente cuando confirmes un booking.'
+                  : 'Introduce un nombre para la subcarpeta'
+                }
+              </p>
+              <Input
+                placeholder="Nombre de la subcarpeta"
+                value={newSubfolderName}
+                onChange={(e) => setNewSubfolderName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateSubfolder()}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateSubfolderDialog(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleCreateSubfolder} 
+              disabled={!newSubfolderName.trim() || isCreatingSubfolder}
+            >
+              {isCreatingSubfolder ? 'Creando...' : 'Crear'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
