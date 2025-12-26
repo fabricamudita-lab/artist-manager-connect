@@ -149,7 +149,7 @@ export default function ReleaseCreditos() {
         </Button>
         <div className="flex-1">
           <p className="text-sm text-muted-foreground">{release?.title}</p>
-          <h1 className="text-2xl font-bold">Créditos y Autorías</h1>
+          <h1 className="text-2xl font-bold">Créditos y Autoría</h1>
         </div>
         <Dialog open={isCreateTrackOpen} onOpenChange={setIsCreateTrackOpen}>
           <DialogTrigger asChild>
@@ -173,7 +173,7 @@ export default function ReleaseCreditos() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Canciones y Autorías</CardTitle>
+          <CardTitle>Canciones y Autoría</CardTitle>
         </CardHeader>
         <CardContent>
           {loadingTracks ? (
@@ -356,7 +356,7 @@ function TrackCreditsItem({
           {/* Credits Section */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Créditos y Autorías</Label>
+              <Label className="text-sm font-medium">Créditos y Autoría</Label>
               <Dialog open={isAddCreditOpen} onOpenChange={setIsAddCreditOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm">
