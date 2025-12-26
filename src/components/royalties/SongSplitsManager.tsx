@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Music, Plus, Trash2, Users, Link } from 'lucide-react';
+import { Music, Plus, Trash2, Users, Link, Disc } from 'lucide-react';
 import { useSongs, useSongSplits, useCreateSongSplit, useDeleteSongSplit, Song, SongSplit } from '@/hooks/useRoyalties';
 import { CreateSongDialog } from './CreateSongDialog';
 import { EditSongDialog } from './EditSongDialog';
@@ -15,6 +15,121 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { LinkContactDialog } from './LinkContactDialog';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+// Unified interface for track credits from releases
+interface TrackCredit {
+  id: string;
+  track_id: string;
+  name: string;
+  role: string;
+  percentage: number;
+  contact_id?: string;
+}
+
+interface Track {
+  id: string;
+  title: string;
+  release_id: string;
+  track_number: number;
+  isrc?: string;
+  release_title?: string;
+  artist_id?: string;
+}
+
+// Hook to get tracks with credits from releases
+function useTracksWithCredits(artistId?: string) {
+  return useQuery({
+    queryKey: ['tracks-with-credits', artistId],
+    queryFn: async () => {
+      // If filtering by a specific artist, get artist info first
+      let artistName: string | null = null;
+      if (artistId && artistId !== 'all') {
+        const { data: artist } = await supabase
+          .from('artists')
+          .select('name, stage_name')
+          .eq('id', artistId)
+          .single();
+        artistName = artist?.name || artist?.stage_name || null;
+      }
+      
+      // Get releases - either filtered by artist_id OR all if no filter
+      let releasesQuery = supabase
+        .from('releases')
+        .select('id, title, artist_id');
+      
+      // If artist is selected and has artist_id assigned, filter by it
+      if (artistId && artistId !== 'all') {
+        // Get releases by artist_id OR releases without artist_id (we'll filter by credits later)
+        releasesQuery = releasesQuery.or(`artist_id.eq.${artistId},artist_id.is.null`);
+      }
+      
+      const { data: releases, error: releasesError } = await releasesQuery;
+      if (releasesError) throw releasesError;
+      
+      if (!releases || releases.length === 0) return { tracks: [], credits: [] };
+      
+      const releaseIds = releases.map(r => r.id);
+      
+      // Get tracks from those releases
+      const { data: tracks, error: tracksError } = await supabase
+        .from('tracks')
+        .select('id, title, release_id, track_number, isrc')
+        .in('release_id', releaseIds)
+        .order('track_number');
+      
+      if (tracksError) throw tracksError;
+      if (!tracks || tracks.length === 0) return { tracks: [], credits: [] };
+      
+      const trackIds = tracks.map(t => t.id);
+      
+      // Get credits for those tracks (only those with percentage = splits)
+      const { data: credits, error: creditsError } = await supabase
+        .from('track_credits')
+        .select('*')
+        .in('track_id', trackIds)
+        .not('percentage', 'is', null);
+      
+      if (creditsError) throw creditsError;
+      
+      // If filtering by artist, also filter tracks where artist appears as a credit
+      let filteredTracks = tracks;
+      let filteredCredits = credits || [];
+      
+      if (artistId && artistId !== 'all' && artistName) {
+        // Find tracks where this artist has a credit
+        const artistCreditTrackIds = new Set(
+          filteredCredits
+            .filter(c => c.name?.toLowerCase().includes(artistName!.toLowerCase()))
+            .map(c => c.track_id)
+        );
+        
+        // Also include tracks from releases with matching artist_id
+        const artistReleaseIds = new Set(
+          releases.filter(r => r.artist_id === artistId).map(r => r.id)
+        );
+        
+        filteredTracks = tracks.filter(t => 
+          artistCreditTrackIds.has(t.id) || artistReleaseIds.has(t.release_id)
+        );
+        
+        const filteredTrackIds = new Set(filteredTracks.map(t => t.id));
+        filteredCredits = filteredCredits.filter(c => filteredTrackIds.has(c.track_id));
+      }
+      
+      // Map tracks with release info
+      const tracksWithRelease = filteredTracks.map(t => ({
+        ...t,
+        release_title: releases.find(r => r.id === t.release_id)?.title,
+        artist_id: releases.find(r => r.id === t.release_id)?.artist_id,
+      }));
+      
+      return { tracks: tracksWithRelease as Track[], credits: filteredCredits as TrackCredit[] };
+    },
+  });
+}
 
 const ROLES = [
   { value: 'writer', label: 'Compositor' },
@@ -219,12 +334,90 @@ function SongCard({ song }: { song: Song }) {
   );
 }
 
+// Component to display tracks from releases with their credits
+function TrackCreditCard({ track, credits }: { track: Track; credits: TrackCredit[] }) {
+  const totalPercentage = credits.reduce((sum, c) => sum + Number(c.percentage), 0);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Disc className="h-4 w-4 text-muted-foreground" />
+              {track.title}
+            </CardTitle>
+            <CardDescription className="flex items-center gap-2 mt-1">
+              {track.release_title && <Badge variant="outline">{track.release_title}</Badge>}
+              {track.isrc && <span className="text-xs">ISRC: {track.isrc}</span>}
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Distribución total</span>
+            <span className={totalPercentage === 100 ? 'text-green-500' : 'text-amber-500'}>
+              {totalPercentage}%
+            </span>
+          </div>
+          <Progress value={totalPercentage} className="h-2" />
+        </div>
+        
+        {credits.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            No hay splits configurados
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {credits.map(credit => (
+              <div
+                key={credit.id}
+                className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Users className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <p className="font-medium text-sm">{credit.name}</p>
+                      {credit.contact_id && (
+                        <Link className="h-3 w-3 text-green-500" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{credit.role}</p>
+                  </div>
+                </div>
+                <Badge variant="secondary">{credit.percentage}%</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 interface SongSplitsManagerProps {
   artistId?: string;
 }
 
 export function SongSplitsManager({ artistId }: SongSplitsManagerProps) {
-  const { data: songs = [], isLoading } = useSongs(artistId);
+  const [activeTab, setActiveTab] = useState('releases');
+  const { data: songs = [], isLoading: songsLoading } = useSongs(artistId);
+  const { data: tracksData, isLoading: tracksLoading } = useTracksWithCredits(artistId);
+
+  const tracks = tracksData?.tracks || [];
+  const trackCredits = tracksData?.credits || [];
+
+  const isLoading = songsLoading || tracksLoading;
+
+  // Stats for display
+  const tracksWithSplits = tracks.filter(t => 
+    trackCredits.some(c => c.track_id === t.id)
+  );
 
   if (isLoading) {
     return (
@@ -240,29 +433,70 @@ export function SongSplitsManager({ artistId }: SongSplitsManagerProps) {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="font-semibold">Tus Canciones</h3>
+          <h3 className="font-semibold">Canciones & Splits</h3>
           <p className="text-sm text-muted-foreground">
             Gestiona los splits de royalties para cada canción
           </p>
         </div>
-        <CreateSongDialog />
       </div>
 
-      {songs.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            <Music className="h-12 w-12 mx-auto mb-4 opacity-20" />
-            <p>No hay canciones registradas</p>
-            <p className="text-sm mt-2">Añade una canción para comenzar a gestionar sus splits</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {songs.map(song => (
-            <SongCard key={song.id} song={song} />
-          ))}
-        </div>
-      )}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="releases" className="gap-2">
+            <Disc className="h-4 w-4" />
+            Desde Discografía ({tracksWithSplits.length})
+          </TabsTrigger>
+          <TabsTrigger value="manual" className="gap-2">
+            <Music className="h-4 w-4" />
+            Canciones Manuales ({songs.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="releases" className="space-y-4 mt-4">
+          {tracksWithSplits.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                <Disc className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p>No hay tracks con splits desde Discografía</p>
+                <p className="text-sm mt-2">
+                  Los splits creados en la sección de Discografía aparecerán aquí
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {tracksWithSplits.map(track => (
+                <TrackCreditCard 
+                  key={track.id} 
+                  track={track} 
+                  credits={trackCredits.filter(c => c.track_id === track.id)} 
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="manual" className="space-y-4 mt-4">
+          <div className="flex justify-end">
+            <CreateSongDialog />
+          </div>
+          {songs.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                <Music className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p>No hay canciones registradas manualmente</p>
+                <p className="text-sm mt-2">Añade una canción para comenzar a gestionar sus splits</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {songs.map(song => (
+                <SongCard key={song.id} song={song} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
