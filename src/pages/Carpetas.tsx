@@ -491,31 +491,57 @@ export default function Carpetas() {
           </div>
         </div>
 
-        {/* Folders Grid */}
+        {/* Folders */}
         {childFolders.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-muted-foreground">Carpetas</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {childFolders.map((folder) => (
-                <Card
-                  key={folder.id}
-                  className="cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all group"
-                  onClick={() => setCurrentFolderId(folder.id)}
-                >
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
-                      <Folder className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm truncate">{folder.name}</p>
-                      {folder.is_default && (
-                        <p className="text-xs text-muted-foreground">Por defecto</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                {childFolders.map((folder) => (
+                  <Card
+                    key={folder.id}
+                    className="cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all group"
+                    onClick={() => setCurrentFolderId(folder.id)}
+                  >
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                        <Folder className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate">{folder.name}</p>
+                        {folder.is_default && (
+                          <p className="text-xs text-muted-foreground">Por defecto</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-0">
+                  <div className="divide-y">
+                    {childFolders.map((folder) => (
+                      <div
+                        key={folder.id}
+                        className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => setCurrentFolderId(folder.id)}
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <Folder className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{folder.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {folder.is_default ? 'Carpeta por defecto' : 'Carpeta'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
 
