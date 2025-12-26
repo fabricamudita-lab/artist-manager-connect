@@ -11,12 +11,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { 
   ArrowLeft, Music, Users, Calendar, FolderOpen, 
   Edit, Plus, MapPin, DollarSign, Mic, FileText, 
-  Disc3, ClipboardList, TrendingUp
+  Disc3, ClipboardList, TrendingUp, Settings2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AddTeamContactDialog } from '@/components/AddTeamContactDialog';
 import { ContactQuickViewDialog } from '@/components/ContactQuickViewDialog';
+import { ArtistFormatsDialog } from '@/components/ArtistFormatsDialog';
 
 interface Artist {
   id: string;
@@ -76,6 +77,7 @@ export default function ArtistProfile() {
   const navigate = useNavigate();
   const [showAddTeamMember, setShowAddTeamMember] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [showFormatsDialog, setShowFormatsDialog] = useState(false);
 
   // Fetch artist
   const { data: artist, isLoading: loadingArtist } = useQuery({
@@ -318,10 +320,16 @@ export default function ArtistProfile() {
             <p className="text-muted-foreground">
               Equipo asignado a {artist.stage_name || artist.name}
             </p>
-            <Button onClick={() => setShowAddTeamMember(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Añadir Miembro
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowFormatsDialog(true)}>
+                <Settings2 className="h-4 w-4 mr-2" />
+                Configurar Formatos
+              </Button>
+              <Button onClick={() => setShowAddTeamMember(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Añadir Miembro
+              </Button>
+            </div>
           </div>
 
           {teamMembers.length === 0 ? (
@@ -534,6 +542,13 @@ export default function ArtistProfile() {
         open={!!selectedContactId}
         onOpenChange={(open) => !open && setSelectedContactId(null)}
         contactId={selectedContactId || ''}
+      />
+
+      <ArtistFormatsDialog
+        open={showFormatsDialog}
+        onOpenChange={setShowFormatsDialog}
+        artistId={id || ''}
+        artistName={artist?.stage_name || artist?.name || ''}
       />
     </div>
   );
