@@ -67,6 +67,7 @@ interface BookingOffer {
   created_by?: string;
   created_at: string;
   artist?: Artist;
+  adjuntos?: any;
 }
 export default function BookingDetail() {
   const {
@@ -210,7 +211,7 @@ export default function BookingDetail() {
                   </Badge>}
               </div>
               
-              <div className="flex items-center gap-4 text-muted-foreground">
+              <div className="flex items-center gap-4 text-muted-foreground flex-wrap">
                 {eventDate && <span className="flex items-center gap-1.5">
                     <Calendar className="h-4 w-4" />
                     {eventDate}
@@ -225,6 +226,18 @@ export default function BookingDetail() {
                     {booking.capacidad.toLocaleString()} cap.
                   </span>}
               </div>
+              
+              {/* Fechas opcionales */}
+              {booking.adjuntos?.fechas_opcionales && booking.adjuntos.fechas_opcionales.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap mt-1">
+                  <span className="text-xs text-muted-foreground">Fechas opcionales:</span>
+                  {booking.adjuntos.fechas_opcionales.map((fecha: string, index: number) => (
+                    <Badge key={index} variant="outline" className="text-xs">
+                      {format(new Date(fecha), "d MMM yyyy", { locale: es })}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
