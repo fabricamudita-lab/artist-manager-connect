@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, TrendingUp } from 'lucide-react';
 import { EditEarningDialog } from './EditEarningDialog';
-import { useSongs, usePlatformEarnings, useCreatePlatformEarning, useRoyaltiesStats } from '@/hooks/useRoyalties';
+import { useSongs, usePlatformEarnings, useCreatePlatformEarning, useRoyaltiesStats, useTracksWithCredits } from '@/hooks/useRoyalties';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ImportEarningsDialog } from './ImportEarningsDialog';
@@ -34,7 +34,15 @@ function AddEarningDialog({ artistId }: { artistId?: string }) {
   const [periodEnd, setPeriodEnd] = useState('');
   
   const { data: songs = [] } = useSongs(artistId);
+  const { data: tracksData } = useTracksWithCredits(artistId);
+  const tracks = tracksData?.tracks || [];
   const createEarning = useCreatePlatformEarning();
+
+  // Combine manual songs and discography tracks for the selector
+  const allSongs = [
+    ...songs.map(s => ({ id: s.id, title: s.title, type: 'manual' as const })),
+    ...tracks.map(t => ({ id: t.id, title: t.title, type: 'discography' as const, releaseTitle: t.release_title })),
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,9 +85,27 @@ function AddEarningDialog({ artistId }: { artistId?: string }) {
                 <SelectValue placeholder="Selecciona una canción" />
               </SelectTrigger>
               <SelectContent>
-                {songs.map(song => (
-                  <SelectItem key={song.id} value={song.id}>{song.title}</SelectItem>
-                ))}
+                {songs.length > 0 && (
+                  <>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Canciones Manuales</div>
+                    {songs.map(song => (
+                      <SelectItem key={`song-${song.id}`} value={song.id}>{song.title}</SelectItem>
+                    ))}
+                  </>
+                )}
+                {tracks.length > 0 && (
+                  <>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">Desde Discográfica</div>
+                    {tracks.map(track => (
+                      <SelectItem key={`track-${track.id}`} value={track.id}>
+                        {track.title} {track.release_title && <span className="text-muted-foreground">({track.release_title})</span>}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
+                {songs.length === 0 && tracks.length === 0 && (
+                  <div className="px-2 py-4 text-sm text-muted-foreground text-center">No hay canciones registradas</div>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -153,7 +179,7 @@ function AddEarningDialog({ artistId }: { artistId?: string }) {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={createEarning.isPending || songs.length === 0}>
+            <Button type="submit" disabled={createEarning.isPending || (songs.length === 0 && tracks.length === 0)}>
               {createEarning.isPending ? 'Guardando...' : 'Guardar'}
             </Button>
           </div>
@@ -171,20 +197,28 @@ export function PlatformEarningsManager({ artistId }: PlatformEarningsManagerPro
   const [filters, setFilters] = useState<{ startDate?: string; endDate?: string }>({});
   const { data: allEarnings = [], isLoading } = usePlatformEarnings();
   const { data: songs = [] } = useSongs(artistId);
+  const { data: tracksData } = useTracksWithCredits(artistId);
+  const tracks = tracksData?.tracks || [];
   const { earningsByPlatform, totalEarnings } = useRoyaltiesStats(artistId);
 
-  // Get song IDs for this artist
+  // Get song IDs and track IDs for this artist
   const songIds = new Set(songs.map(s => s.id));
+  const trackIds = new Set(tracks.map(t => t.id));
 
   // Apply date filters and artist filter
   const earnings = allEarnings.filter(e => {
-    if (artistId && artistId !== 'all' && !songIds.has(e.song_id)) return false;
+    if (artistId && artistId !== 'all' && !songIds.has(e.song_id) && !trackIds.has(e.song_id)) return false;
     if (filters.startDate && e.period_start < filters.startDate) return false;
     if (filters.endDate && e.period_end > filters.endDate) return false;
     return true;
   });
+
   const getSongTitle = (songId: string) => {
-    return songs.find(s => s.id === songId)?.title || 'Canción desconocida';
+    const song = songs.find(s => s.id === songId);
+    if (song) return song.title;
+    const track = tracks.find(t => t.id === songId);
+    if (track) return track.title;
+    return 'Canción desconocida';
   };
 
   const getPlatformInfo = (platformKey: string) => {
@@ -246,7 +280,7 @@ export function PlatformEarningsManager({ artistId }: PlatformEarningsManagerPro
             <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-20" />
             <p>No hay ganancias registradas</p>
             <p className="text-sm mt-2">
-              {songs.length === 0 
+              {songs.length === 0 && tracks.length === 0
                 ? 'Primero añade una canción en la pestaña de Splits'
                 : 'Registra tus primeras ganancias de streaming'}
             </p>
