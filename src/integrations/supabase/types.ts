@@ -505,38 +505,80 @@ export type Database = {
       }
       artists: {
         Row: {
+          avatar_url: string | null
+          bank_name: string | null
+          brand_color: string | null
+          calendar_url: string | null
+          company_name: string | null
           created_at: string
           created_by: string
           description: string | null
+          genre: string | null
+          header_image_url: string | null
+          iban: string | null
           id: string
+          instagram_url: string | null
+          legal_name: string | null
           metadata: Json | null
           name: string
           profile_id: string | null
+          spotify_url: string | null
           stage_name: string | null
+          swift_code: string | null
+          tax_id: string | null
+          tiktok_url: string | null
           updated_at: string
           workspace_id: string
         }
         Insert: {
+          avatar_url?: string | null
+          bank_name?: string | null
+          brand_color?: string | null
+          calendar_url?: string | null
+          company_name?: string | null
           created_at?: string
           created_by: string
           description?: string | null
+          genre?: string | null
+          header_image_url?: string | null
+          iban?: string | null
           id?: string
+          instagram_url?: string | null
+          legal_name?: string | null
           metadata?: Json | null
           name: string
           profile_id?: string | null
+          spotify_url?: string | null
           stage_name?: string | null
+          swift_code?: string | null
+          tax_id?: string | null
+          tiktok_url?: string | null
           updated_at?: string
           workspace_id: string
         }
         Update: {
+          avatar_url?: string | null
+          bank_name?: string | null
+          brand_color?: string | null
+          calendar_url?: string | null
+          company_name?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
+          genre?: string | null
+          header_image_url?: string | null
+          iban?: string | null
           id?: string
+          instagram_url?: string | null
+          legal_name?: string | null
           metadata?: Json | null
           name?: string
           profile_id?: string | null
+          spotify_url?: string | null
           stage_name?: string | null
+          swift_code?: string | null
+          tax_id?: string | null
+          tiktok_url?: string | null
           updated_at?: string
           workspace_id?: string
         }
@@ -910,6 +952,74 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_products: {
+        Row: {
+          artist_id: string
+          created_at: string | null
+          created_by: string
+          crew_size: number | null
+          currency: string | null
+          description: string | null
+          fee_max: number | null
+          fee_min: number | null
+          hospitality_requirements: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          performance_duration_minutes: number | null
+          rider_url: string | null
+          setup_time_minutes: number | null
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string | null
+          created_by: string
+          crew_size?: number | null
+          currency?: string | null
+          description?: string | null
+          fee_max?: number | null
+          fee_min?: number | null
+          hospitality_requirements?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          performance_duration_minutes?: number | null
+          rider_url?: string | null
+          setup_time_minutes?: number | null
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string | null
+          created_by?: string
+          crew_size?: number | null
+          currency?: string | null
+          description?: string | null
+          fee_max?: number | null
+          fee_min?: number | null
+          hospitality_requirements?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          performance_duration_minutes?: number | null
+          rider_url?: string | null
+          setup_time_minutes?: number | null
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_products_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
             referencedColumns: ["id"]
           },
         ]
@@ -2004,6 +2114,54 @@ export type Database = {
           },
         ]
       }
+      default_royalty_splits: {
+        Row: {
+          artist_id: string
+          contact_id: string | null
+          created_at: string | null
+          id: string
+          percentage: number
+          recipient_name: string
+          recipient_role: string
+          updated_at: string | null
+        }
+        Insert: {
+          artist_id: string
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          percentage: number
+          recipient_name: string
+          recipient_role: string
+          updated_at?: string | null
+        }
+        Update: {
+          artist_id?: string
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          percentage?: number
+          recipient_name?: string
+          recipient_role?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "default_royalty_splits_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "default_royalty_splits_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           artist_id: string
@@ -2686,6 +2844,65 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legal_documents: {
+        Row: {
+          artist_id: string
+          created_at: string | null
+          document_type: string
+          end_date: string | null
+          file_name: string
+          file_url: string
+          id: string
+          is_active: boolean | null
+          notes: string | null
+          renewal_alert_days: number | null
+          start_date: string | null
+          title: string
+          updated_at: string | null
+          uploaded_by: string
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string | null
+          document_type: string
+          end_date?: string | null
+          file_name: string
+          file_url: string
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          renewal_alert_days?: number | null
+          start_date?: string | null
+          title: string
+          updated_at?: string | null
+          uploaded_by: string
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string | null
+          document_type?: string
+          end_date?: string | null
+          file_name?: string
+          file_url?: string
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          renewal_alert_days?: number | null
+          start_date?: string | null
+          title?: string
+          updated_at?: string | null
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_documents_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
             referencedColumns: ["id"]
           },
         ]
