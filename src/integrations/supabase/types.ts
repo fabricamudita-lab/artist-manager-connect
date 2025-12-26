@@ -956,6 +956,41 @@ export type Database = {
           },
         ]
       }
+      booking_product_crew: {
+        Row: {
+          booking_product_id: string
+          created_at: string
+          id: string
+          member_id: string
+          member_type: string
+          role_label: string | null
+        }
+        Insert: {
+          booking_product_id: string
+          created_at?: string
+          id?: string
+          member_id: string
+          member_type: string
+          role_label?: string | null
+        }
+        Update: {
+          booking_product_id?: string
+          created_at?: string
+          id?: string
+          member_id?: string
+          member_type?: string
+          role_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_product_crew_booking_product_id_fkey"
+            columns: ["booking_product_id"]
+            isOneToOne: false
+            referencedRelation: "booking_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_products: {
         Row: {
           artist_id: string
