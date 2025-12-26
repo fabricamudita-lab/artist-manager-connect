@@ -24,7 +24,8 @@ import {
   User,
   Settings,
   Inbox,
-  Wallet
+  Wallet,
+  HardDrive
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import NotificationBell from './NotificationBell';
@@ -42,7 +43,7 @@ const getNavigationItems = (isManagement: boolean) => {
   const coreItems = [
     { title: "Dashboard", url: "/dashboard", icon: Home },
     { title: "Artistas", url: "/mi-management", icon: Music },
-    { title: "Drive", url: "/carpetas", icon: Folder },
+    { title: "Drive", url: "/drive", icon: HardDrive },
     { title: "Calendario", url: "/calendar", icon: Calendar },
     { title: "Action Center", url: "/solicitudes", icon: Inbox },
     { title: "Finanzas", url: "/finanzas", icon: Wallet },
