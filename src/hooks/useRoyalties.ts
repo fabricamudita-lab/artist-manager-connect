@@ -221,6 +221,78 @@ export function useRoyaltiesStats(artistId?: string) {
   const { data: splits } = useSongSplits();
   const { data: earnings } = usePlatformEarnings();
 
+  // Also fetch track credits from releases for unified stats
+  const { data: tracksData } = useQuery({
+    queryKey: ['tracks-credits-stats', artistId],
+    queryFn: async () => {
+      // If filtering by a specific artist, get artist info first
+      let artistName: string | null = null;
+      if (artistId && artistId !== 'all') {
+        const { data: artist } = await supabase
+          .from('artists')
+          .select('name, stage_name')
+          .eq('id', artistId)
+          .single();
+        artistName = artist?.name || artist?.stage_name || null;
+      }
+      
+      // Get releases - either filtered by artist_id OR all if no filter
+      let releasesQuery = supabase
+        .from('releases')
+        .select('id, artist_id');
+      
+      if (artistId && artistId !== 'all') {
+        // Get releases by artist_id OR releases without artist_id
+        releasesQuery = releasesQuery.or(`artist_id.eq.${artistId},artist_id.is.null`);
+      }
+      
+      const { data: releases } = await releasesQuery;
+      if (!releases || releases.length === 0) return { tracks: [], credits: [] };
+      
+      const releaseIds = releases.map(r => r.id);
+      
+      const { data: tracks } = await supabase
+        .from('tracks')
+        .select('id, release_id')
+        .in('release_id', releaseIds);
+      
+      if (!tracks || tracks.length === 0) return { tracks: [], credits: [] };
+      
+      const trackIds = tracks.map(t => t.id);
+      
+      const { data: credits } = await supabase
+        .from('track_credits')
+        .select('*')
+        .in('track_id', trackIds)
+        .not('percentage', 'is', null);
+      
+      // If filtering by artist, filter tracks where artist appears as a credit
+      let filteredTracks = tracks;
+      let filteredCredits = credits || [];
+      
+      if (artistId && artistId !== 'all' && artistName) {
+        const artistCreditTrackIds = new Set(
+          filteredCredits
+            .filter(c => c.name?.toLowerCase().includes(artistName!.toLowerCase()))
+            .map(c => c.track_id)
+        );
+        
+        const artistReleaseIds = new Set(
+          releases.filter(r => r.artist_id === artistId).map(r => r.id)
+        );
+        
+        filteredTracks = tracks.filter(t => 
+          artistCreditTrackIds.has(t.id) || artistReleaseIds.has(t.release_id)
+        );
+        
+        const filteredTrackIds = new Set(filteredTracks.map(t => t.id));
+        filteredCredits = filteredCredits.filter(c => filteredTrackIds.has(c.track_id));
+      }
+      
+      return { tracks: filteredTracks, credits: filteredCredits };
+    },
+  });
+
   // Filter earnings by songs if artistId is set
   const songIds = new Set(songs?.map(s => s.id) || []);
   const filteredEarnings = artistId && artistId !== 'all' 
@@ -230,9 +302,19 @@ export function useRoyaltiesStats(artistId?: string) {
     ? splits?.filter(s => songIds.has(s.song_id))
     : splits;
 
+  // Combine collaborators from both sources
+  const songCollaborators = new Set(filteredSplits?.map(s => s.collaborator_name) || []);
+  const trackCollaborators = new Set(tracksData?.credits?.map(c => c.name) || []);
+  const allCollaborators = new Set([...songCollaborators, ...trackCollaborators]);
+
   const totalEarnings = filteredEarnings?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
   const totalStreams = filteredEarnings?.reduce((sum, e) => sum + (e.streams || 0), 0) || 0;
-  const uniqueCollaborators = new Set(filteredSplits?.map(s => s.collaborator_name) || []).size;
+  
+  // Count songs: manual songs + tracks with credits from releases
+  const tracksWithCredits = tracksData?.tracks?.filter(t => 
+    tracksData?.credits?.some(c => c.track_id === t.id)
+  )?.length || 0;
+  const totalSongsCount = (songs?.length || 0) + tracksWithCredits;
   
   const earningsByPlatform = filteredEarnings?.reduce((acc, e) => {
     acc[e.platform] = (acc[e.platform] || 0) + Number(e.amount);
@@ -242,8 +324,8 @@ export function useRoyaltiesStats(artistId?: string) {
   return {
     totalEarnings,
     totalStreams,
-    songsCount: songs?.length || 0,
-    collaboratorsCount: uniqueCollaborators,
+    songsCount: totalSongsCount,
+    collaboratorsCount: allCollaborators.size,
     earningsByPlatform,
   };
 }
