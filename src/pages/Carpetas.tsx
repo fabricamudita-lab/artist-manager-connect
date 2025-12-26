@@ -501,24 +501,6 @@ export default function Carpetas() {
           </div>
         )}
 
-        {/* Drop Zone */}
-        <div
-          className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-            isDragging
-              ? 'border-primary bg-primary/5'
-              : 'border-border hover:border-muted-foreground/50'
-          }`}
-          onDragEnter={handleDragEnter}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground">
-            Arrastra archivos aquí o haz clic en "Subir"
-          </p>
-        </div>
-
         {/* Files */}
         {filesLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
