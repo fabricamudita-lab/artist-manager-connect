@@ -6,12 +6,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useArtistFiles, ARTIST_FOLDER_CATEGORIES, ArtistFile } from '@/hooks/useArtistFiles';
 import { useArtistSubfolders, DEFAULT_SUBFOLDERS } from '@/hooks/useArtistSubfolders';
 import { usePublicFileSharing } from '@/hooks/usePublicFileSharing';
-import DashboardLayout from '@/components/DashboardLayout';
-import { InlineEdit } from '@/components/ui/inline-edit';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +13,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import DashboardLayout from '@/components/DashboardLayout';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -126,6 +126,8 @@ export default function Carpetas() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isDragging, setIsDragging] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<ArtistFile | null>(null);
+  const [fileToRename, setFileToRename] = useState<ArtistFile | null>(null);
+  const [newFileName, setNewFileName] = useState('');
   const [showCreateSubfolderDialog, setShowCreateSubfolderDialog] = useState(false);
   const [newSubfolderName, setNewSubfolderName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -584,6 +586,15 @@ export default function Carpetas() {
                                 </DropdownMenuItem>
                               </>
                             )}
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setFileToRename(file);
+                                setNewFileName(file.file_name);
+                              }}
+                            >
+                              <Pencil className="w-4 h-4 mr-2" />
+                              Renombrar
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-destructive"
@@ -597,14 +608,9 @@ export default function Carpetas() {
                       </div>
                     </div>
 
-                    <InlineEdit
-                      value={file.file_name}
-                      onSave={async (newName) => {
-                        await renameFile({ fileId: file.id, newName });
-                      }}
-                      className="text-xs font-medium truncate"
-                      placeholder="Nombre del archivo"
-                    />
+                    <p className="text-xs font-medium truncate" title={file.file_name}>
+                      {file.file_name}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {file.file_url === 'placeholder' ? (
                         <span className="text-warning">Pendiente</span>
@@ -635,14 +641,9 @@ export default function Carpetas() {
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <InlineEdit
-                          value={file.file_name}
-                          onSave={async (newName) => {
-                            await renameFile({ fileId: file.id, newName });
-                          }}
-                          className="font-medium truncate"
-                          placeholder="Nombre del archivo"
-                        />
+                        <p className="font-medium truncate" title={file.file_name}>
+                          {file.file_name}
+                        </p>
                         <p className="text-xs text-muted-foreground">
                           {file.file_url === 'placeholder' ? (
                             <span className="text-warning">Pendiente de subir</span>
@@ -683,6 +684,15 @@ export default function Carpetas() {
                               </DropdownMenuItem>
                             </>
                           )}
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setFileToRename(file);
+                              setNewFileName(file.file_name);
+                            }}
+                          >
+                            <Pencil className="w-4 h-4 mr-2" />
+                            Renombrar
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
@@ -775,6 +785,47 @@ export default function Carpetas() {
               disabled={!newSubfolderName.trim() || isCreatingSubfolder}
             >
               {isCreatingSubfolder ? 'Creando...' : 'Crear'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename File Dialog */}
+      <Dialog open={!!fileToRename} onOpenChange={(open) => !open && setFileToRename(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Renombrar archivo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="file-name">Nombre del archivo</Label>
+              <Input
+                id="file-name"
+                value={newFileName}
+                onChange={(e) => setNewFileName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newFileName.trim() && fileToRename) {
+                    renameFile({ fileId: fileToRename.id, newName: newFileName.trim() });
+                    setFileToRename(null);
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFileToRename(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                if (fileToRename && newFileName.trim()) {
+                  renameFile({ fileId: fileToRename.id, newName: newFileName.trim() });
+                  setFileToRename(null);
+                }
+              }}
+              disabled={!newFileName.trim()}
+            >
+              Guardar
             </Button>
           </DialogFooter>
         </DialogContent>
