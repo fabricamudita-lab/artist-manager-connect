@@ -48,6 +48,26 @@ const CREDIT_ROLES = [
   'Editorial',
 ];
 
+// Order for sorting credits by role
+const ROLE_ORDER: Record<string, number> = {
+  'Compositor': 1,
+  'Letrista': 2,
+  'Productor': 3,
+  'Intérprete': 4,
+  'Featuring': 5,
+  'Sello': 6,
+  'Editorial': 7,
+};
+
+const sortCreditsByRole = (credits: TrackCredit[]) => {
+  return [...credits].sort((a, b) => {
+    const orderA = ROLE_ORDER[a.role] ?? 99;
+    const orderB = ROLE_ORDER[b.role] ?? 99;
+    if (orderA !== orderB) return orderA - orderB;
+    return a.name.localeCompare(b.name);
+  });
+};
+
 export default function ReleaseCreditos() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -360,7 +380,7 @@ function TrackCreditsItem({
               <Skeleton className="h-16 w-full" />
             ) : credits.length > 0 ? (
               <div className="space-y-2">
-                {credits.map((credit) => (
+                {sortCreditsByRole(credits).map((credit) => (
                   <CreditRow
                     key={credit.id}
                     credit={credit}
