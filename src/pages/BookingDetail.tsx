@@ -16,6 +16,7 @@ import { BookingOverviewTab } from '@/components/booking-detail/BookingOverviewT
 import { BookingItineraryTab } from '@/components/booking-detail/BookingItineraryTab';
 import { BookingExpensesTab } from '@/components/booking-detail/BookingExpensesTab';
 import { BookingDocumentsTab } from '@/components/booking-detail/BookingDocumentsTab';
+import { BookingFilesWidget } from '@/components/booking-detail/BookingFilesWidget';
 import { EditBookingDialog } from '@/components/booking-detail/EditBookingDialog';
 import { ShareBookingDialog } from '@/components/booking-detail/ShareBookingDialog';
 interface BookingOffer {
@@ -395,43 +396,53 @@ export default function BookingDetail() {
           </Card>
         </div>
 
-        {/* Main Tabs */}
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="itinerary" className="flex items-center gap-2">
-              <Plane className="h-4 w-4" />
-              Itinerary
-            </TabsTrigger>
-            <TabsTrigger value="expenses" className="flex items-center gap-2">
-              <Receipt className="h-4 w-4" />
-              Expenses
-            </TabsTrigger>
-            <TabsTrigger value="documents" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Documents
-            </TabsTrigger>
-          </TabsList>
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Tabs - Takes 2 columns */}
+          <div className="lg:col-span-2">
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="grid w-full grid-cols-4 mb-6">
+                <TabsTrigger value="overview" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger value="itinerary" className="flex items-center gap-2">
+                  <Plane className="h-4 w-4" />
+                  Itinerary
+                </TabsTrigger>
+                <TabsTrigger value="expenses" className="flex items-center gap-2">
+                  <Receipt className="h-4 w-4" />
+                  Expenses
+                </TabsTrigger>
+                <TabsTrigger value="documents" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Documents
+                </TabsTrigger>
+              </TabsList>
 
-          <TabsContent value="overview">
-            <BookingOverviewTab booking={booking} onUpdate={handleBookingUpdate} />
-          </TabsContent>
+              <TabsContent value="overview">
+                <BookingOverviewTab booking={booking} onUpdate={handleBookingUpdate} />
+              </TabsContent>
 
-          <TabsContent value="itinerary">
-            <BookingItineraryTab bookingId={booking.id} eventDate={booking.fecha} />
-          </TabsContent>
+              <TabsContent value="itinerary">
+                <BookingItineraryTab bookingId={booking.id} eventDate={booking.fecha} />
+              </TabsContent>
 
-          <TabsContent value="expenses">
-            <BookingExpensesTab bookingId={booking.id} booking={booking} />
-          </TabsContent>
+              <TabsContent value="expenses">
+                <BookingExpensesTab bookingId={booking.id} booking={booking} />
+              </TabsContent>
 
-          <TabsContent value="documents">
-            <BookingDocumentsTab booking={booking} onUpdate={handleBookingUpdate} />
-          </TabsContent>
-        </Tabs>
+              <TabsContent value="documents">
+                <BookingDocumentsTab booking={booking} onUpdate={handleBookingUpdate} />
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Sidebar - Linked Files Widget */}
+          <div className="space-y-6">
+            <BookingFilesWidget bookingId={booking.id} artistId={booking.artist_id} />
+          </div>
+        </div>
       </div>
     </div>;
 }

@@ -146,6 +146,7 @@ export type Database = {
       artist_files: {
         Row: {
           artist_id: string
+          booking_id: string | null
           category: string
           created_at: string
           file_name: string
@@ -154,12 +155,15 @@ export type Database = {
           file_type: string | null
           file_url: string
           id: string
+          public_expires_at: string | null
+          public_token: string | null
           subcategory: string | null
           updated_at: string
           uploaded_by: string
         }
         Insert: {
           artist_id: string
+          booking_id?: string | null
           category: string
           created_at?: string
           file_name: string
@@ -168,12 +172,15 @@ export type Database = {
           file_type?: string | null
           file_url: string
           id?: string
+          public_expires_at?: string | null
+          public_token?: string | null
           subcategory?: string | null
           updated_at?: string
           uploaded_by: string
         }
         Update: {
           artist_id?: string
+          booking_id?: string | null
           category?: string
           created_at?: string
           file_name?: string
@@ -182,6 +189,8 @@ export type Database = {
           file_type?: string | null
           file_url?: string
           id?: string
+          public_expires_at?: string | null
+          public_token?: string | null
           subcategory?: string | null
           updated_at?: string
           uploaded_by?: string
@@ -192,6 +201,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artist_files_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
             referencedColumns: ["id"]
           },
         ]
@@ -227,6 +243,57 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artist_subfolders: {
+        Row: {
+          artist_id: string
+          booking_id: string | null
+          category: string
+          created_at: string
+          created_by: string
+          id: string
+          is_default: boolean | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          artist_id: string
+          booking_id?: string | null
+          category: string
+          created_at?: string
+          created_by: string
+          id?: string
+          is_default?: boolean | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string
+          booking_id?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_subfolders_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artist_subfolders_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
             referencedColumns: ["id"]
           },
         ]
