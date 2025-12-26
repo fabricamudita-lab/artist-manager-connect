@@ -2858,6 +2858,51 @@ export type Database = {
           },
         ]
       }
+      project_resources: {
+        Row: {
+          display_order: number | null
+          id: string
+          linked_at: string
+          linked_by: string
+          node_id: string
+          permissions_snapshot: Json | null
+          project_id: string
+        }
+        Insert: {
+          display_order?: number | null
+          id?: string
+          linked_at?: string
+          linked_by: string
+          node_id: string
+          permissions_snapshot?: Json | null
+          project_id: string
+        }
+        Update: {
+          display_order?: number | null
+          id?: string
+          linked_at?: string
+          linked_by?: string
+          node_id?: string
+          permissions_snapshot?: Json | null
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_resources_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "storage_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_resources_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_role_bindings: {
         Row: {
           created_at: string
@@ -3812,6 +3857,75 @@ export type Database = {
           },
         ]
       }
+      storage_nodes: {
+        Row: {
+          artist_id: string
+          created_at: string
+          created_by: string
+          file_size: number | null
+          file_type: string | null
+          file_url: string | null
+          id: string
+          is_system_folder: boolean | null
+          metadata: Json | null
+          name: string
+          node_type: Database["public"]["Enums"]["node_type"]
+          parent_id: string | null
+          storage_bucket: string | null
+          storage_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string
+          created_by: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_system_folder?: boolean | null
+          metadata?: Json | null
+          name: string
+          node_type?: Database["public"]["Enums"]["node_type"]
+          parent_id?: string | null
+          storage_bucket?: string | null
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string
+          created_by?: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_system_folder?: boolean | null
+          metadata?: Json | null
+          name?: string
+          node_type?: Database["public"]["Enums"]["node_type"]
+          parent_id?: string | null
+          storage_bucket?: string | null
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storage_nodes_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "storage_nodes_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "storage_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       track_credits: {
         Row: {
           contact_id: string | null
@@ -4030,6 +4144,20 @@ export type Database = {
         Returns: Json
       }
       check_pending_royalty_payments: { Args: never; Returns: undefined }
+      create_booking_event_folder: {
+        Args: {
+          p_artist_id: string
+          p_booking_id: string
+          p_created_by: string
+          p_event_date: string
+          p_event_name: string
+        }
+        Returns: string
+      }
+      create_default_artist_folders: {
+        Args: { p_artist_id: string; p_created_by: string }
+        Returns: undefined
+      }
       generate_contact_slug: { Args: never; Returns: string }
       generate_epk_slug: { Args: { artista_proyecto: string }; Returns: string }
       generate_project_share_token: { Args: never; Returns: string }
@@ -4136,6 +4264,7 @@ export type Database = {
       epk_theme: "auto" | "claro" | "oscuro"
       epk_video_type: "youtube" | "vimeo" | "archivo"
       epk_visibility: "publico" | "privado" | "protegido_password"
+      node_type: "folder" | "file"
       project_role: "EDITOR" | "COMMENTER" | "VIEWER"
       project_status: "en_curso" | "finalizado" | "archivado"
       project_type: "TOUR" | "SINGLE_RELEASE" | "VIDEO" | "CAMPAIGN"
@@ -4338,6 +4467,7 @@ export const Constants = {
       epk_theme: ["auto", "claro", "oscuro"],
       epk_video_type: ["youtube", "vimeo", "archivo"],
       epk_visibility: ["publico", "privado", "protegido_password"],
+      node_type: ["folder", "file"],
       project_role: ["EDITOR", "COMMENTER", "VIEWER"],
       project_status: ["en_curso", "finalizado", "archivado"],
       project_type: ["TOUR", "SINGLE_RELEASE", "VIDEO", "CAMPAIGN"],
