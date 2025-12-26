@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -120,12 +120,47 @@ export function CreateSolicitudFromTemplateDialog({
   const { profile } = useAuth();
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [step, setStep] = useState<'select' | 'form'>('select');
+  const [artistFormats, setArtistFormats] = useState<{ id: string; name: string }[]>([]);
+  const [showNewFormatInput, setShowNewFormatInput] = useState(false);
+  const [newFormatName, setNewFormatName] = useState('');
   const [formData, setFormData] = useState<Record<string, any>>({
     contact_id: '',
     artist_id: '',
     prioridad: 'media',
     observaciones: '',
   });
+
+  // Fetch artist formats when artist changes
+  useEffect(() => {
+    const fetchArtistFormats = async () => {
+      if (!formData.artist_id) {
+        setArtistFormats([]);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('booking_products')
+          .select('id, name')
+          .eq('artist_id', formData.artist_id)
+          .eq('is_active', true)
+          .order('sort_order');
+        
+        if (error) throw error;
+        setArtistFormats(data || []);
+        
+        // Reset format if current selection is not in new artist's formats
+        if (formData.formato && data && !data.some(f => f.name === formData.formato)) {
+          setFormData(prev => ({ ...prev, formato: '' }));
+        }
+      } catch (error) {
+        console.error('Error fetching artist formats:', error);
+        setArtistFormats([]);
+      }
+    };
+    
+    fetchArtistFormats();
+  }, [formData.artist_id]);
 
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId);
@@ -516,12 +551,76 @@ export function CreateSolicitudFromTemplateDialog({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="formato">Formato</Label>
-                  <Input
-                    id="formato"
-                    value={formData.formato}
-                    onChange={(e) => setFormData({ ...formData, formato: e.target.value })}
-                    placeholder="Concierto, DJ set, etc."
-                  />
+                  {showNewFormatInput ? (
+                    <div className="flex gap-2">
+                      <Input
+                        id="new_formato"
+                        value={newFormatName}
+                        onChange={(e) => setNewFormatName(e.target.value)}
+                        placeholder="Nombre del nuevo formato"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          if (newFormatName.trim()) {
+                            setFormData({ ...formData, formato: newFormatName.trim() });
+                            setNewFormatName('');
+                            setShowNewFormatInput(false);
+                          }
+                        }}
+                      >
+                        Añadir
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setNewFormatName('');
+                          setShowNewFormatInput(false);
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  ) : (
+                    <Select
+                      value={formData.formato}
+                      onValueChange={(value) => {
+                        if (value === '__new__') {
+                          setShowNewFormatInput(true);
+                        } else {
+                          setFormData({ ...formData, formato: value });
+                        }
+                      }}
+                      disabled={!formData.artist_id}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={
+                          !formData.artist_id 
+                            ? "Selecciona primero un artista" 
+                            : artistFormats.length === 0 
+                              ? "Sin formatos - añade uno nuevo"
+                              : "Seleccionar formato"
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {artistFormats.map((format) => (
+                          <SelectItem key={format.id} value={format.name}>
+                            {format.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="__new__" className="text-primary">
+                          <span className="flex items-center gap-2">
+                            <Plus className="h-4 w-4" />
+                            Nuevo formato
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
               </div>
 
