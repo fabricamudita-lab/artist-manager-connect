@@ -15,7 +15,7 @@ export interface StorageNode {
   file_size: number | null;
   file_type: string | null;
   is_system_folder: boolean;
-  metadata: Record<string, unknown>;
+  metadata: Json;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -31,7 +31,7 @@ export interface CreateNodeParams {
   file_url?: string;
   file_size?: number;
   file_type?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Json;
 }
 
 export function useStorageNodes(artistId: string | null, parentId: string | null = null) {
@@ -171,6 +171,131 @@ export function useStorageNodes(artistId: string | null, parentId: string | null
     },
   });
 
+  const updateNodeMutation = useMutation({
+    mutationFn: async ({ nodeId, updates }: { nodeId: string; updates: Partial<StorageNode> }) => {
+      const { data, error } = await supabase
+        .from('storage_nodes')
+        .update(updates)
+        .eq('id', nodeId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['storage-nodes'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const moveNodeMutation = useMutation({
+    mutationFn: async ({ nodeId, newParentId }: { nodeId: string; newParentId: string | null }) => {
+      const { data, error } = await supabase
+        .from('storage_nodes')
+        .update({ parent_id: newParentId })
+        .eq('id', nodeId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['storage-nodes'] });
+      toast({
+        title: 'Éxito',
+        description: 'Elemento movido correctamente',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const uploadFileMutation = useMutation({
+    mutationFn: async ({ artistId, parentId, file }: { artistId: string; parentId: string | null; file: File }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `${artistId}/${fileName}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath);
+
+      // Create node record
+      const insertData: {
+        artist_id: string;
+        parent_id: string | null;
+        name: string;
+        node_type: 'file';
+        storage_path: string;
+        storage_bucket: string;
+        file_url: string;
+        file_size: number;
+        file_type: string;
+        metadata: Json;
+        created_by: string;
+      } = {
+        artist_id: artistId,
+        parent_id: parentId,
+        name: file.name,
+        node_type: 'file',
+        storage_path: filePath,
+        storage_bucket: 'documents',
+        file_url: urlData.publicUrl,
+        file_size: file.size,
+        file_type: file.type,
+        metadata: {} as Json,
+        created_by: user.id,
+      };
+
+      const { data, error } = await supabase
+        .from('storage_nodes')
+        .insert([insertData])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['storage-nodes'] });
+      toast({
+        title: 'Éxito',
+        description: 'Archivo subido correctamente',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
   return {
     nodes,
     folders: nodes.filter(n => n.node_type === 'folder'),
@@ -181,9 +306,13 @@ export function useStorageNodes(artistId: string | null, parentId: string | null
     createNode: createNodeMutation.mutateAsync,
     deleteNode: deleteNodeMutation.mutateAsync,
     renameNode: renameNodeMutation.mutateAsync,
+    updateNode: updateNodeMutation.mutateAsync,
+    moveNode: moveNodeMutation.mutateAsync,
+    uploadFile: uploadFileMutation.mutateAsync,
     isCreating: createNodeMutation.isPending,
     isDeleting: deleteNodeMutation.isPending,
     isRenaming: renameNodeMutation.isPending,
+    isUploading: uploadFileMutation.isPending,
   };
 }
 

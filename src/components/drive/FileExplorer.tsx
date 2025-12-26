@@ -1,0 +1,757 @@
+import { useState, useCallback, useRef } from 'react';
+import { useStorageNodes, StorageNode } from '@/hooks/useStorageNodes';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Label } from '@/components/ui/label';
+import {
+  Upload,
+  MoreVertical,
+  Folder,
+  FileText,
+  Image,
+  Video,
+  Music,
+  File,
+  Download,
+  Trash2,
+  Search,
+  Grid3X3,
+  List,
+  FolderPlus,
+  Pencil,
+  Home,
+  ChevronRight,
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  useSensor,
+  useSensors,
+  PointerSensor,
+} from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+
+interface FileExplorerProps {
+  artistId: string | null;
+  initialFolderId?: string | null;
+  bookingId?: string | null;
+  showBreadcrumbs?: boolean;
+  compact?: boolean;
+}
+
+// Get file icon based on type
+const getFileIcon = (fileType: string | null) => {
+  if (!fileType) return File;
+  if (fileType.startsWith('image/')) return Image;
+  if (fileType.startsWith('video/')) return Video;
+  if (fileType.startsWith('audio/')) return Music;
+  if (fileType.includes('pdf')) return FileText;
+  return File;
+};
+
+// Format file size
+const formatFileSize = (bytes: number | null) => {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+// Draggable file/folder item
+function DraggableNode({ node, children }: { node: StorageNode; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: node.id,
+    data: { node },
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+      {children}
+    </div>
+  );
+}
+
+// Droppable folder
+function DroppableFolder({ folderId, children }: { folderId: string; children: React.ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: folderId,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`transition-colors ${isOver ? 'ring-2 ring-primary ring-offset-2 rounded-lg' : ''}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function FileExplorer({
+  artistId,
+  initialFolderId = null,
+  bookingId,
+  showBreadcrumbs = true,
+  compact = false,
+}: FileExplorerProps) {
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(initialFolderId);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [isDragging, setIsDragging] = useState(false);
+  const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [nodeToRename, setNodeToRename] = useState<StorageNode | null>(null);
+  const [nodeToDelete, setNodeToDelete] = useState<StorageNode | null>(null);
+  const [activeDragNode, setActiveDragNode] = useState<StorageNode | null>(null);
+  const [breadcrumbPath, setBreadcrumbPath] = useState<StorageNode[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    nodes,
+    isLoading,
+    createNode,
+    updateNode,
+    deleteNode,
+    moveNode,
+    uploadFile,
+    isCreating,
+  } = useStorageNodes(artistId, currentFolderId) as {
+    nodes: StorageNode[];
+    isLoading: boolean;
+    createNode: (params: { artist_id: string; parent_id: string | null; name: string; node_type: 'folder' | 'file' }) => Promise<unknown>;
+    updateNode: (params: { nodeId: string; updates: Partial<StorageNode> }) => Promise<unknown>;
+    deleteNode: (nodeId: string) => Promise<void>;
+    moveNode: (params: { nodeId: string; newParentId: string | null }) => Promise<unknown>;
+    uploadFile: (params: { artistId: string; parentId: string | null; file: File }) => Promise<unknown>;
+    isCreating: boolean;
+  };
+
+  // Configure DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  // Filter nodes by search
+  const filteredNodes = nodes.filter((node) =>
+    node.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Separate folders and files
+  const folders = filteredNodes.filter((n) => n.node_type === 'folder');
+  const files = filteredNodes.filter((n) => n.node_type === 'file');
+
+  // Build breadcrumb path when folder changes
+  const buildBreadcrumbs = useCallback(async (folderId: string | null) => {
+    if (!folderId || !artistId) {
+      setBreadcrumbPath([]);
+      return;
+    }
+
+    const path: StorageNode[] = [];
+    let currentId: string | null = folderId;
+
+    while (currentId) {
+      const { data, error } = await supabase
+        .from('storage_nodes')
+        .select('*')
+        .eq('id', currentId)
+        .single();
+
+      if (error || !data) break;
+      path.unshift(data);
+      currentId = data.parent_id;
+    }
+
+    setBreadcrumbPath(path);
+  }, [artistId]);
+
+  // Update breadcrumbs when folder changes
+  useState(() => {
+    buildBreadcrumbs(currentFolderId);
+  });
+
+  // Handle drag start
+  const handleDragStart = (event: DragStartEvent) => {
+    const node = event.active.data.current?.node as StorageNode;
+    setActiveDragNode(node);
+  };
+
+  // Handle drag end (move file/folder)
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveDragNode(null);
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const draggedNode = active.data.current?.node as StorageNode;
+    const targetId = over.id as string;
+
+    // Don't allow dropping a folder into itself
+    if (draggedNode.node_type === 'folder' && draggedNode.id === targetId) return;
+
+    await moveNode({ nodeId: draggedNode.id, newParentId: targetId });
+  };
+
+  // Handle file drop upload
+  const handleFileDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+
+      if (!artistId) return;
+
+      const droppedFiles = Array.from(e.dataTransfer.files);
+      if (droppedFiles.length > 0) {
+        for (const file of droppedFiles) {
+          await uploadFile({
+            artistId,
+            parentId: currentFolderId,
+            file,
+          });
+        }
+      }
+    },
+    [artistId, currentFolderId, uploadFile]
+  );
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!artistId || !e.target.files) return;
+
+    const selectedFiles = Array.from(e.target.files);
+    for (const file of selectedFiles) {
+      await uploadFile({
+        artistId,
+        parentId: currentFolderId,
+        file,
+      });
+    }
+    e.target.value = '';
+  };
+
+  const handleCreateFolder = async () => {
+    if (!artistId || !newFolderName.trim()) return;
+
+    await createNode({
+      artist_id: artistId,
+      parent_id: currentFolderId,
+      name: newFolderName.trim(),
+      node_type: 'folder',
+    });
+
+    setNewFolderName('');
+    setShowCreateFolderDialog(false);
+  };
+
+  const handleRename = async () => {
+    if (!nodeToRename || !newFolderName.trim()) return;
+
+    await updateNode({
+      nodeId: nodeToRename.id,
+      updates: { name: newFolderName.trim() },
+    });
+
+    setNodeToRename(null);
+    setNewFolderName('');
+    setShowRenameDialog(false);
+  };
+
+  const handleDelete = async () => {
+    if (!nodeToDelete) return;
+
+    await deleteNode(nodeToDelete.id);
+    setNodeToDelete(null);
+  };
+
+  const handleDownload = (node: StorageNode) => {
+    if (node.file_url) {
+      window.open(node.file_url, '_blank');
+    }
+  };
+
+  const navigateToFolder = (folderId: string | null) => {
+    setCurrentFolderId(folderId);
+    buildBreadcrumbs(folderId);
+  };
+
+  // Render grid view item
+  const renderGridItem = (node: StorageNode) => {
+    const IconComponent = node.node_type === 'folder' ? Folder : getFileIcon(node.file_type);
+    const isFolder = node.node_type === 'folder';
+
+    const content = (
+      <Card
+        className={`cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group ${
+          compact ? 'p-2' : ''
+        }`}
+        onClick={() => isFolder && navigateToFolder(node.id)}
+        onDoubleClick={() => !isFolder && handleDownload(node)}
+      >
+        <CardContent className={`${compact ? 'p-2' : 'p-4'} flex flex-col items-center text-center relative`}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setNodeToRename(node);
+                  setNewFolderName(node.name);
+                  setShowRenameDialog(true);
+                }}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Renombrar
+              </DropdownMenuItem>
+              {!isFolder && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownload(node);
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Descargar
+                </DropdownMenuItem>
+              )}
+              {!node.is_system_folder && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setNodeToDelete(node);
+                    }}
+                    className="text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Eliminar
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <div
+            className={`${
+              compact ? 'w-10 h-10 mb-2' : 'w-12 h-12 mb-3'
+            } rounded-lg bg-gradient-to-br ${
+              isFolder ? 'from-yellow-500/20 to-yellow-600/10' : 'from-primary/20 to-primary/5'
+            } flex items-center justify-center`}
+          >
+            <IconComponent
+              className={`${compact ? 'w-5 h-5' : 'w-6 h-6'} ${
+                isFolder ? 'text-yellow-600' : 'text-primary'
+              }`}
+            />
+          </div>
+          <h3 className={`font-medium ${compact ? 'text-xs' : 'text-sm'} truncate w-full`}>
+            {node.name}
+          </h3>
+          {!compact && node.node_type === 'file' && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {formatFileSize(node.file_size)}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    );
+
+    if (isFolder) {
+      return (
+        <DroppableFolder key={node.id} folderId={node.id}>
+          <DraggableNode node={node}>{content}</DraggableNode>
+        </DroppableFolder>
+      );
+    }
+
+    return (
+      <DraggableNode key={node.id} node={node}>
+        {content}
+      </DraggableNode>
+    );
+  };
+
+  // Render list view item
+  const renderListItem = (node: StorageNode) => {
+    const IconComponent = node.node_type === 'folder' ? Folder : getFileIcon(node.file_type);
+    const isFolder = node.node_type === 'folder';
+
+    const content = (
+      <div
+        className="flex items-center gap-4 p-3 hover:bg-muted/50 rounded-lg cursor-pointer group"
+        onClick={() => isFolder && navigateToFolder(node.id)}
+        onDoubleClick={() => !isFolder && handleDownload(node)}
+      >
+        <IconComponent
+          className={`w-5 h-5 ${isFolder ? 'text-yellow-600' : 'text-primary'}`}
+        />
+        <div className="flex-1 min-w-0">
+          <p className="font-medium truncate">{node.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {format(new Date(node.created_at), 'd MMM yyyy', { locale: es })}
+          </p>
+        </div>
+        {node.node_type === 'file' && (
+          <span className="text-sm text-muted-foreground">{formatFileSize(node.file_size)}</span>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                setNodeToRename(node);
+                setNewFolderName(node.name);
+                setShowRenameDialog(true);
+              }}
+            >
+              <Pencil className="h-4 w-4 mr-2" />
+              Renombrar
+            </DropdownMenuItem>
+            {!isFolder && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDownload(node);
+                }}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Descargar
+              </DropdownMenuItem>
+            )}
+            {!node.is_system_folder && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setNodeToDelete(node);
+                  }}
+                  className="text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Eliminar
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    );
+
+    if (isFolder) {
+      return (
+        <DroppableFolder key={node.id} folderId={node.id}>
+          <DraggableNode node={node}>{content}</DraggableNode>
+        </DroppableFolder>
+      );
+    }
+
+    return (
+      <DraggableNode key={node.id} node={node}>
+        {content}
+      </DraggableNode>
+    );
+  };
+
+  if (!artistId) {
+    return (
+      <Card className="p-8 text-center">
+        <p className="text-muted-foreground">Selecciona un artista para ver sus archivos</p>
+      </Card>
+    );
+  }
+
+  return (
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="space-y-4">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          {showBreadcrumbs && (
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink
+                    onClick={() => navigateToFolder(null)}
+                    className="cursor-pointer flex items-center gap-1"
+                  >
+                    <Home className="h-4 w-4" />
+                    Drive
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                {breadcrumbPath.map((folder, index) => (
+                  <BreadcrumbItem key={folder.id}>
+                    <BreadcrumbSeparator>
+                      <ChevronRight className="h-4 w-4" />
+                    </BreadcrumbSeparator>
+                    {index === breadcrumbPath.length - 1 ? (
+                      <BreadcrumbPage>{folder.name}</BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink
+                        onClick={() => navigateToFolder(folder.id)}
+                        className="cursor-pointer"
+                      >
+                        {folder.name}
+                      </BreadcrumbLink>
+                    )}
+                  </BreadcrumbItem>
+                ))}
+              </BreadcrumbList>
+            </Breadcrumb>
+          )}
+
+          <div className="flex items-center gap-2 ml-auto">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-48"
+              />
+            </div>
+
+            <div className="flex border rounded-lg">
+              <Button
+                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                size="icon"
+                onClick={() => setViewMode('grid')}
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                size="icon"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <Button variant="outline" size="sm" onClick={() => setShowCreateFolderDialog(true)}>
+              <FolderPlus className="w-4 h-4 mr-2" />
+              Carpeta
+            </Button>
+
+            <Button size="sm" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="w-4 h-4 mr-2" />
+              Subir
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </div>
+        </div>
+
+        {/* Drop zone */}
+        <div
+          className={`min-h-[200px] border-2 border-dashed rounded-lg transition-colors ${
+            isDragging ? 'border-primary bg-primary/5' : 'border-transparent'
+          }`}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+          }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleFileDrop}
+        >
+          {isLoading ? (
+            <div className={`grid ${viewMode === 'grid' ? 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3' : 'gap-1'}`}>
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className={viewMode === 'grid' ? 'h-28' : 'h-14'} />
+              ))}
+            </div>
+          ) : folders.length === 0 && files.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Folder className="w-12 h-12 text-muted-foreground/50 mb-4" />
+              <p className="text-muted-foreground">
+                {searchQuery ? 'No se encontraron resultados' : 'Esta carpeta está vacía'}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Arrastra archivos aquí o usa el botón "Subir"
+              </p>
+            </div>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {folders.map(renderGridItem)}
+              {files.map(renderGridItem)}
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {folders.map(renderListItem)}
+              {files.map(renderListItem)}
+            </div>
+          )}
+        </div>
+
+        {/* Drag overlay */}
+        <DragOverlay>
+          {activeDragNode && (
+            <Card className="p-3 shadow-lg">
+              <div className="flex items-center gap-2">
+                {activeDragNode.node_type === 'folder' ? (
+                  <Folder className="w-5 h-5 text-yellow-600" />
+                ) : (
+                  <File className="w-5 h-5 text-primary" />
+                )}
+                <span className="font-medium text-sm">{activeDragNode.name}</span>
+              </div>
+            </Card>
+          )}
+        </DragOverlay>
+      </div>
+
+      {/* Create Folder Dialog */}
+      <Dialog open={showCreateFolderDialog} onOpenChange={setShowCreateFolderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nueva Carpeta</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="folder-name">Nombre</Label>
+              <Input
+                id="folder-name"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Nombre de la carpeta"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateFolderDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateFolder} disabled={!newFolderName.trim() || isCreating}>
+              Crear
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Dialog */}
+      <Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Renombrar</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-name">Nuevo nombre</Label>
+              <Input
+                id="new-name"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRenameDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleRename} disabled={!newFolderName.trim()}>
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!nodeToDelete} onOpenChange={() => setNodeToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar {nodeToDelete?.node_type === 'folder' ? 'carpeta' : 'archivo'}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {nodeToDelete?.node_type === 'folder'
+                ? 'Se eliminarán todos los archivos y subcarpetas contenidos.'
+                : `Se eliminará "${nodeToDelete?.name}" permanentemente.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </DndContext>
+  );
+}
