@@ -1058,10 +1058,17 @@ export type Database = {
           invoice_link: string | null
           irpf_percentage: number | null
           is_attendee: boolean | null
+          is_reconciled: boolean | null
           iva_percentage: number | null
           name: string
           observations: string | null
+          provider_email: string | null
+          provider_invoice_received_at: string | null
+          provider_invoice_requested_at: string | null
+          provider_invoice_status: string | null
           quantity: number | null
+          reconciled_at: string | null
+          reconciled_by: string | null
           subcategory: string | null
           unit_price: number | null
           updated_at: string
@@ -1078,10 +1085,17 @@ export type Database = {
           invoice_link?: string | null
           irpf_percentage?: number | null
           is_attendee?: boolean | null
+          is_reconciled?: boolean | null
           iva_percentage?: number | null
           name: string
           observations?: string | null
+          provider_email?: string | null
+          provider_invoice_received_at?: string | null
+          provider_invoice_requested_at?: string | null
+          provider_invoice_status?: string | null
           quantity?: number | null
+          reconciled_at?: string | null
+          reconciled_by?: string | null
           subcategory?: string | null
           unit_price?: number | null
           updated_at?: string
@@ -1098,10 +1112,17 @@ export type Database = {
           invoice_link?: string | null
           irpf_percentage?: number | null
           is_attendee?: boolean | null
+          is_reconciled?: boolean | null
           iva_percentage?: number | null
           name?: string
           observations?: string | null
+          provider_email?: string | null
+          provider_invoice_received_at?: string | null
+          provider_invoice_requested_at?: string | null
+          provider_invoice_status?: string | null
           quantity?: number | null
+          reconciled_at?: string | null
+          reconciled_by?: string | null
           subcategory?: string | null
           unit_price?: number | null
           updated_at?: string
@@ -1215,8 +1236,69 @@ export type Database = {
           },
         ]
       }
+      budget_versions: {
+        Row: {
+          budget_id: string
+          created_at: string
+          created_by: string
+          id: string
+          locked_at: string | null
+          locked_by: string | null
+          net_profit: number | null
+          notes: string | null
+          snapshot_data: Json
+          total_expenses: number | null
+          total_income: number | null
+          version_name: string
+          version_number: number
+          version_type: string
+        }
+        Insert: {
+          budget_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          net_profit?: number | null
+          notes?: string | null
+          snapshot_data?: Json
+          total_expenses?: number | null
+          total_income?: number | null
+          version_name: string
+          version_number?: number
+          version_type: string
+        }
+        Update: {
+          budget_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          net_profit?: number | null
+          notes?: string | null
+          snapshot_data?: Json
+          total_expenses?: number | null
+          total_income?: number | null
+          version_name?: string
+          version_number?: number
+          version_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_versions_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budgets: {
         Row: {
+          accountant_verified_at: string | null
+          accountant_verified_by: string | null
           artist_id: string | null
           budget_status: Database["public"]["Enums"]["budget_status"] | null
           capacidad: number | null
@@ -1225,10 +1307,12 @@ export type Database = {
           country: string | null
           created_at: string
           created_by: string
+          estimated_version_id: string | null
           event_date: string | null
           event_time: string | null
           fee: number | null
           festival_ciclo: string | null
+          final_version_id: string | null
           formato: string | null
           id: string
           internal_notes: string | null
@@ -1237,6 +1321,7 @@ export type Database = {
           oferta: string | null
           parent_folder_id: string | null
           project_id: string | null
+          settlement_status: string | null
           show_status: Database["public"]["Enums"]["show_status"] | null
           status_negociacion: string | null
           template_id: string | null
@@ -1245,6 +1330,8 @@ export type Database = {
           venue: string | null
         }
         Insert: {
+          accountant_verified_at?: string | null
+          accountant_verified_by?: string | null
           artist_id?: string | null
           budget_status?: Database["public"]["Enums"]["budget_status"] | null
           capacidad?: number | null
@@ -1253,10 +1340,12 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by: string
+          estimated_version_id?: string | null
           event_date?: string | null
           event_time?: string | null
           fee?: number | null
           festival_ciclo?: string | null
+          final_version_id?: string | null
           formato?: string | null
           id?: string
           internal_notes?: string | null
@@ -1265,6 +1354,7 @@ export type Database = {
           oferta?: string | null
           parent_folder_id?: string | null
           project_id?: string | null
+          settlement_status?: string | null
           show_status?: Database["public"]["Enums"]["show_status"] | null
           status_negociacion?: string | null
           template_id?: string | null
@@ -1273,6 +1363,8 @@ export type Database = {
           venue?: string | null
         }
         Update: {
+          accountant_verified_at?: string | null
+          accountant_verified_by?: string | null
           artist_id?: string | null
           budget_status?: Database["public"]["Enums"]["budget_status"] | null
           capacidad?: number | null
@@ -1281,10 +1373,12 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by?: string
+          estimated_version_id?: string | null
           event_date?: string | null
           event_time?: string | null
           fee?: number | null
           festival_ciclo?: string | null
+          final_version_id?: string | null
           formato?: string | null
           id?: string
           internal_notes?: string | null
@@ -1293,6 +1387,7 @@ export type Database = {
           oferta?: string | null
           parent_folder_id?: string | null
           project_id?: string | null
+          settlement_status?: string | null
           show_status?: Database["public"]["Enums"]["show_status"] | null
           status_negociacion?: string | null
           template_id?: string | null
@@ -2717,6 +2812,135 @@ export type Database = {
           },
         ]
       }
+      payment_alerts: {
+        Row: {
+          alert_date: string
+          alert_type: string
+          booking_id: string | null
+          created_at: string
+          days_before: number | null
+          dismissed: boolean | null
+          dismissed_by: string | null
+          id: string
+          is_sent: boolean | null
+          payment_schedule_id: string | null
+          sent_at: string | null
+        }
+        Insert: {
+          alert_date: string
+          alert_type: string
+          booking_id?: string | null
+          created_at?: string
+          days_before?: number | null
+          dismissed?: boolean | null
+          dismissed_by?: string | null
+          id?: string
+          is_sent?: boolean | null
+          payment_schedule_id?: string | null
+          sent_at?: string | null
+        }
+        Update: {
+          alert_date?: string
+          alert_type?: string
+          booking_id?: string | null
+          created_at?: string
+          days_before?: number | null
+          dismissed?: boolean | null
+          dismissed_by?: string | null
+          id?: string
+          is_sent?: boolean | null
+          payment_schedule_id?: string | null
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_alerts_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_alerts_payment_schedule_id_fkey"
+            columns: ["payment_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "payment_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_schedules: {
+        Row: {
+          amount: number
+          booking_id: string | null
+          budget_id: string | null
+          created_at: string
+          created_by: string
+          due_date: string | null
+          id: string
+          invoice_number: string | null
+          invoice_status: string
+          invoice_url: string | null
+          notes: string | null
+          payment_status: string
+          payment_type: string
+          percentage: number | null
+          received_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          booking_id?: string | null
+          budget_id?: string | null
+          created_at?: string
+          created_by: string
+          due_date?: string | null
+          id?: string
+          invoice_number?: string | null
+          invoice_status?: string
+          invoice_url?: string | null
+          notes?: string | null
+          payment_status?: string
+          payment_type: string
+          percentage?: number | null
+          received_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          booking_id?: string | null
+          budget_id?: string | null
+          created_at?: string
+          created_by?: string
+          due_date?: string | null
+          id?: string
+          invoice_number?: string | null
+          invoice_status?: string
+          invoice_url?: string | null
+          notes?: string | null
+          payment_status?: string
+          payment_type?: string
+          percentage?: number | null
+          received_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_schedules_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_schedules_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_earnings: {
         Row: {
           amount: number
@@ -3272,6 +3496,104 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quick_expenses: {
+        Row: {
+          amount: number | null
+          artist_id: string | null
+          auto_link_confidence: number | null
+          auto_linked: boolean | null
+          booking_id: string | null
+          budget_id: string | null
+          budget_item_id: string | null
+          created_at: string
+          description: string | null
+          expense_date: string | null
+          file_name: string
+          file_type: string | null
+          file_url: string
+          id: string
+          metadata: Json | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          uploader_id: string
+        }
+        Insert: {
+          amount?: number | null
+          artist_id?: string | null
+          auto_link_confidence?: number | null
+          auto_linked?: boolean | null
+          booking_id?: string | null
+          budget_id?: string | null
+          budget_item_id?: string | null
+          created_at?: string
+          description?: string | null
+          expense_date?: string | null
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          id?: string
+          metadata?: Json | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          uploader_id: string
+        }
+        Update: {
+          amount?: number | null
+          artist_id?: string | null
+          auto_link_confidence?: number | null
+          auto_linked?: boolean | null
+          booking_id?: string | null
+          budget_id?: string | null
+          budget_item_id?: string | null
+          created_at?: string
+          description?: string | null
+          expense_date?: string | null
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          metadata?: Json | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          uploader_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_expenses_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quick_expenses_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quick_expenses_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quick_expenses_budget_item_id_fkey"
+            columns: ["budget_item_id"]
+            isOneToOne: false
+            referencedRelation: "budget_items"
             referencedColumns: ["id"]
           },
         ]
@@ -4498,6 +4820,7 @@ export type Database = {
         Args: { new_data: Json; old_data: Json }
         Returns: Json
       }
+      can_close_budget: { Args: { p_budget_id: string }; Returns: Json }
       check_epk_password_attempts: {
         Args: { client_ip?: unknown; epk_slug: string }
         Returns: Json
@@ -4515,6 +4838,15 @@ export type Database = {
       }
       create_default_artist_folders: {
         Args: { p_artist_id: string; p_created_by: string }
+        Returns: undefined
+      }
+      create_default_payment_schedule: {
+        Args: {
+          p_booking_id: string
+          p_created_by: string
+          p_event_date: string
+          p_fee: number
+        }
         Returns: undefined
       }
       generate_contact_slug: { Args: never; Returns: string }
