@@ -14,7 +14,6 @@ import { toast } from '@/hooks/use-toast';
 import { useBookingCalendarSync } from '@/hooks/useBookingCalendarSync';
 import { useBookingFolders } from '@/hooks/useBookingFolders';
 import { BookingStatusCombobox } from './BookingStatusCombobox';
-import { FormatoCombobox } from './FormatoCombobox';
 import { ContactSelector } from './ContactSelector';
 import { SingleArtistSelector } from './SingleArtistSelector';
 import { 
@@ -82,6 +81,7 @@ export function CreateBookingWizard({
   const [loading, setLoading] = useState(false);
   const [contacts, setContacts] = useState<any[]>([]);
   const [showNewContactForm, setShowNewContactForm] = useState(false);
+  const [artistFormats, setArtistFormats] = useState<{ id: string; name: string }[]>([]);
   
   // Form data organized by step
   const [generalData, setGeneralData] = useState({
@@ -126,6 +126,38 @@ export function CreateBookingWizard({
       resetForm();
     }
   }, [open]);
+
+  // Fetch artist formats when artist changes
+  useEffect(() => {
+    const fetchArtistFormats = async () => {
+      if (!dealData.artist_id) {
+        setArtistFormats([]);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('booking_products')
+          .select('id, name')
+          .eq('artist_id', dealData.artist_id)
+          .eq('is_active', true)
+          .order('sort_order');
+        
+        if (error) throw error;
+        setArtistFormats(data || []);
+        
+        // Reset format if current selection is not in new artist's formats
+        if (dealData.formato && data && !data.some(f => f.name === dealData.formato)) {
+          setDealData(prev => ({ ...prev, formato: '' }));
+        }
+      } catch (error) {
+        console.error('Error fetching artist formats:', error);
+        setArtistFormats([]);
+      }
+    };
+    
+    fetchArtistFormats();
+  }, [dealData.artist_id]);
 
   const fetchContacts = async () => {
     try {
@@ -753,11 +785,28 @@ export function CreateBookingWizard({
         
         <div className="space-y-2">
           <Label>Formato</Label>
-          <FormatoCombobox
+          <Select
             value={dealData.formato}
             onValueChange={(value) => setDealData({ ...dealData, formato: value })}
-            placeholder="Seleccionar formato"
-          />
+            disabled={!dealData.artist_id || artistFormats.length === 0}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={
+                !dealData.artist_id 
+                  ? "Selecciona primero un artista" 
+                  : artistFormats.length === 0 
+                    ? "No hay formatos configurados"
+                    : "Seleccionar formato"
+              } />
+            </SelectTrigger>
+            <SelectContent>
+              {artistFormats.map((format) => (
+                <SelectItem key={format.id} value={format.name}>
+                  {format.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
