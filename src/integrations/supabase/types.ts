@@ -14,6 +14,201 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_center: {
+        Row: {
+          amount: number | null
+          artist_id: string | null
+          assigned_to: string | null
+          attachments: Json | null
+          booking_id: string | null
+          budget_id: string | null
+          conditions: string | null
+          created_at: string
+          created_by: string
+          currency: string | null
+          deadline: string | null
+          decided_at: string | null
+          decided_by: string | null
+          decision_comment: string | null
+          description: string | null
+          id: string
+          item_type: Database["public"]["Enums"]["action_item_type"]
+          metadata: Json | null
+          priority: Database["public"]["Enums"]["action_item_priority"]
+          project_id: string | null
+          requested_date: string | null
+          requester_company: string | null
+          requester_email: string | null
+          requester_name: string | null
+          status: Database["public"]["Enums"]["action_item_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          artist_id?: string | null
+          assigned_to?: string | null
+          attachments?: Json | null
+          booking_id?: string | null
+          budget_id?: string | null
+          conditions?: string | null
+          created_at?: string
+          created_by: string
+          currency?: string | null
+          deadline?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_comment?: string | null
+          description?: string | null
+          id?: string
+          item_type?: Database["public"]["Enums"]["action_item_type"]
+          metadata?: Json | null
+          priority?: Database["public"]["Enums"]["action_item_priority"]
+          project_id?: string | null
+          requested_date?: string | null
+          requester_company?: string | null
+          requester_email?: string | null
+          requester_name?: string | null
+          status?: Database["public"]["Enums"]["action_item_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          artist_id?: string | null
+          assigned_to?: string | null
+          attachments?: Json | null
+          booking_id?: string | null
+          budget_id?: string | null
+          conditions?: string | null
+          created_at?: string
+          created_by?: string
+          currency?: string | null
+          deadline?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_comment?: string | null
+          description?: string | null
+          id?: string
+          item_type?: Database["public"]["Enums"]["action_item_type"]
+          metadata?: Json | null
+          priority?: Database["public"]["Enums"]["action_item_priority"]
+          project_id?: string | null
+          requested_date?: string | null
+          requester_company?: string | null
+          requester_email?: string | null
+          requester_name?: string | null
+          status?: Database["public"]["Enums"]["action_item_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_center_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_center_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_center_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_center_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      action_center_comments: {
+        Row: {
+          action_id: string
+          author_id: string
+          created_at: string
+          id: string
+          is_system: boolean | null
+          message: string
+        }
+        Insert: {
+          action_id: string
+          author_id: string
+          created_at?: string
+          id?: string
+          is_system?: boolean | null
+          message: string
+        }
+        Update: {
+          action_id?: string
+          author_id?: string
+          created_at?: string
+          id?: string
+          is_system?: boolean | null
+          message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_center_comments_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "action_center"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      action_center_history: {
+        Row: {
+          action_id: string
+          changed_by: string
+          changes: Json | null
+          created_at: string
+          event_type: string
+          from_status: Database["public"]["Enums"]["action_item_status"] | null
+          id: string
+          to_status: Database["public"]["Enums"]["action_item_status"] | null
+        }
+        Insert: {
+          action_id: string
+          changed_by: string
+          changes?: Json | null
+          created_at?: string
+          event_type: string
+          from_status?: Database["public"]["Enums"]["action_item_status"] | null
+          id?: string
+          to_status?: Database["public"]["Enums"]["action_item_status"] | null
+        }
+        Update: {
+          action_id?: string
+          changed_by?: string
+          changes?: Json | null
+          created_at?: string
+          event_type?: string
+          from_status?: Database["public"]["Enums"]["action_item_status"] | null
+          id?: string
+          to_status?: Database["public"]["Enums"]["action_item_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_center_history_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "action_center"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_comments: {
         Row: {
           approval_id: string
@@ -4228,6 +4423,22 @@ export type Database = {
       }
     }
     Enums: {
+      action_item_priority: "low" | "normal" | "high" | "urgent"
+      action_item_status:
+        | "draft"
+        | "pending"
+        | "in_review"
+        | "approved"
+        | "rejected"
+        | "cancelled"
+      action_item_type:
+        | "booking_request"
+        | "budget_approval"
+        | "expense_approval"
+        | "vacation_request"
+        | "interview_request"
+        | "collaboration"
+        | "general"
       approval_event_type:
         | "CREATED"
         | "UPDATED"
@@ -4427,6 +4638,24 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      action_item_priority: ["low", "normal", "high", "urgent"],
+      action_item_status: [
+        "draft",
+        "pending",
+        "in_review",
+        "approved",
+        "rejected",
+        "cancelled",
+      ],
+      action_item_type: [
+        "booking_request",
+        "budget_approval",
+        "expense_approval",
+        "vacation_request",
+        "interview_request",
+        "collaboration",
+        "general",
+      ],
       approval_event_type: [
         "CREATED",
         "UPDATED",
