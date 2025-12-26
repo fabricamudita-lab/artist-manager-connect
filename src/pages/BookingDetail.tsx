@@ -19,6 +19,12 @@ import { BookingDocumentsTab } from '@/components/booking-detail/BookingDocument
 import { BookingFilesWidget } from '@/components/booking-detail/BookingFilesWidget';
 import { EditBookingDialog } from '@/components/booking-detail/EditBookingDialog';
 import { ShareBookingDialog } from '@/components/booking-detail/ShareBookingDialog';
+interface Artist {
+  id: string;
+  name: string;
+  stage_name?: string;
+}
+
 interface BookingOffer {
   id: string;
   fecha?: string;
@@ -60,6 +66,7 @@ interface BookingOffer {
   folder_url?: string;
   created_by?: string;
   created_at: string;
+  artist?: Artist;
 }
 export default function BookingDetail() {
   const {
@@ -85,9 +92,14 @@ export default function BookingDetail() {
       const {
         data,
         error
-      } = await supabase.from('booking_offers').select('*').eq('id', id).single();
+      } = await supabase.from('booking_offers').select('*, artist:artists(id, name, stage_name)').eq('id', id).single();
       if (error) throw error;
-      setBooking(data);
+      // Normalize artist to handle array response
+      const normalizedData = data ? {
+        ...data,
+        artist: Array.isArray(data.artist) ? data.artist[0] : data.artist
+      } : null;
+      setBooking(normalizedData);
     } catch (error) {
       console.error('Error fetching booking:', error);
       toast({
@@ -181,13 +193,18 @@ export default function BookingDetail() {
             </Button>
             
             <div className="space-y-2">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-3xl font-bold text-gradient-primary tracking-tight">
                   {eventName}
                 </h1>
                 <Badge variant={getStatusBadgeVariant(booking.estado || 'pendiente')}>
                   {booking.estado || 'pendiente'}
                 </Badge>
+                {booking.artist && (
+                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                    {booking.artist.stage_name || booking.artist.name}
+                  </Badge>
+                )}
                 {booking.es_internacional && <Badge variant="outline" className="border-blue-500 text-blue-600">
                     Internacional
                   </Badge>}
