@@ -42,13 +42,10 @@ const CREDIT_ROLES = [
   'Compositor',
   'Letrista',
   'Productor',
-  'Ingeniero de mezcla',
-  'Ingeniero de masterización',
-  'Arreglista',
-  'Músico de sesión',
-  'Vocalista',
-  'Programador',
-  'Otro',
+  'Intérprete',
+  'Featuring',
+  'Sello',
+  'Editorial',
 ];
 
 export default function ReleaseCreditos() {
