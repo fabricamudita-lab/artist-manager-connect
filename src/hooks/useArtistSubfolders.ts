@@ -10,6 +10,7 @@ export interface ArtistSubfolder {
   name: string;
   is_default: boolean;
   booking_id: string | null;
+  parent_id: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -25,7 +26,7 @@ export const useArtistSubfolders = (artistId: string | null, category?: string) 
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Fetch subfolders for an artist and category
+  // Fetch ALL subfolders for an artist and category (flat list, we'll build tree in UI)
   const { data: subfolders = [], isLoading, error, refetch } = useQuery({
     queryKey: ['artist-subfolders', artistId, category],
     queryFn: async () => {
@@ -45,6 +46,35 @@ export const useArtistSubfolders = (artistId: string | null, category?: string) 
     enabled: !!artistId && !!category,
   });
 
+  // Get subfolders for a specific parent (null = root level)
+  const getSubfoldersForParent = (parentId: string | null) => {
+    return subfolders.filter(sf => sf.parent_id === parentId);
+  };
+
+  // Get folder by ID
+  const getFolderById = (folderId: string) => {
+    return subfolders.find(sf => sf.id === folderId);
+  };
+
+  // Get breadcrumb path for a folder
+  const getBreadcrumbPath = (folderId: string | null): ArtistSubfolder[] => {
+    if (!folderId) return [];
+    const path: ArtistSubfolder[] = [];
+    let currentId: string | null = folderId;
+    
+    while (currentId) {
+      const folder = subfolders.find(sf => sf.id === currentId);
+      if (folder) {
+        path.unshift(folder);
+        currentId = folder.parent_id;
+      } else {
+        break;
+      }
+    }
+    
+    return path;
+  };
+
   // Create default subfolders for a category
   const ensureDefaultSubfolders = useMutation({
     mutationFn: async ({ artistId: aid, category: cat }: { artistId: string; category: string }) => {
@@ -53,13 +83,14 @@ export const useArtistSubfolders = (artistId: string | null, category?: string) 
       const defaults = DEFAULT_SUBFOLDERS[cat] || [];
       if (defaults.length === 0) return [];
 
-      // Check which defaults already exist
+      // Check which defaults already exist at root level
       const { data: existing } = await supabase
         .from('artist_subfolders')
         .select('name')
         .eq('artist_id', aid)
         .eq('category', cat)
-        .eq('is_default', true);
+        .eq('is_default', true)
+        .is('parent_id', null);
 
       const existingNames = new Set((existing || []).map(s => s.name));
       const toCreate = defaults.filter(name => !existingNames.has(name));
@@ -74,6 +105,7 @@ export const useArtistSubfolders = (artistId: string | null, category?: string) 
             category: cat,
             name,
             is_default: true,
+            parent_id: null,
             created_by: user.id,
           }))
         )
@@ -87,17 +119,19 @@ export const useArtistSubfolders = (artistId: string | null, category?: string) 
     },
   });
 
-  // Create a new subfolder
+  // Create a new subfolder (with optional parent_id for nesting)
   const createSubfolder = useMutation({
     mutationFn: async ({ 
       artistId: aid, 
       category: cat, 
       name,
+      parentId,
       bookingId 
     }: { 
       artistId: string; 
       category: string; 
       name: string;
+      parentId?: string | null;
       bookingId?: string;
     }) => {
       if (!user?.id) throw new Error('Usuario no autenticado');
@@ -109,6 +143,7 @@ export const useArtistSubfolders = (artistId: string | null, category?: string) 
           category: cat,
           name,
           is_default: false,
+          parent_id: parentId || null,
           booking_id: bookingId || null,
           created_by: user.id,
         })
@@ -121,8 +156,8 @@ export const useArtistSubfolders = (artistId: string | null, category?: string) 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['artist-subfolders', artistId, category] });
       toast({
-        title: "Subcarpeta creada",
-        description: "La subcarpeta se ha creado correctamente",
+        title: "Carpeta creada",
+        description: "La carpeta se ha creado correctamente",
       });
     },
     onError: (error: any) => {
@@ -130,20 +165,20 @@ export const useArtistSubfolders = (artistId: string | null, category?: string) 
       if (error.code === '23505') {
         toast({
           title: "Error",
-          description: "Ya existe una subcarpeta con ese nombre",
+          description: "Ya existe una carpeta con ese nombre en esta ubicación",
           variant: "destructive",
         });
       } else {
         toast({
           title: "Error",
-          description: "No se pudo crear la subcarpeta",
+          description: "No se pudo crear la carpeta",
           variant: "destructive",
         });
       }
     },
   });
 
-  // Delete a subfolder
+  // Delete a subfolder (cascade will delete children)
   const deleteSubfolder = useMutation({
     mutationFn: async (subfolderId: string) => {
       const { error } = await supabase
@@ -156,15 +191,15 @@ export const useArtistSubfolders = (artistId: string | null, category?: string) 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['artist-subfolders', artistId, category] });
       toast({
-        title: "Subcarpeta eliminada",
-        description: "La subcarpeta se ha eliminado correctamente",
+        title: "Carpeta eliminada",
+        description: "La carpeta y su contenido se han eliminado correctamente",
       });
     },
     onError: (error) => {
       console.error('Delete subfolder error:', error);
       toast({
         title: "Error",
-        description: "No se pudo eliminar la subcarpeta",
+        description: "No se pudo eliminar la carpeta",
         variant: "destructive",
       });
     },
@@ -183,15 +218,15 @@ export const useArtistSubfolders = (artistId: string | null, category?: string) 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['artist-subfolders', artistId, category] });
       toast({
-        title: "Subcarpeta renombrada",
-        description: "La subcarpeta se ha renombrado correctamente",
+        title: "Carpeta renombrada",
+        description: "La carpeta se ha renombrado correctamente",
       });
     },
     onError: (error) => {
       console.error('Rename subfolder error:', error);
       toast({
         title: "Error",
-        description: "No se pudo renombrar la subcarpeta",
+        description: "No se pudo renombrar la carpeta",
         variant: "destructive",
       });
     },
@@ -202,6 +237,9 @@ export const useArtistSubfolders = (artistId: string | null, category?: string) 
     isLoading,
     error,
     refetch,
+    getSubfoldersForParent,
+    getFolderById,
+    getBreadcrumbPath,
     ensureDefaultSubfolders: ensureDefaultSubfolders.mutate,
     createSubfolder: createSubfolder.mutate,
     deleteSubfolder: deleteSubfolder.mutate,

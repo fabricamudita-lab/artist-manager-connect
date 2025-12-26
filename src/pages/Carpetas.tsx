@@ -116,8 +116,8 @@ interface Artist {
   workspace_id: string;
 }
 
-// Categories that support subfolders
-const CATEGORIES_WITH_SUBFOLDERS = ['audiovisuales', 'conciertos'];
+// All categories support infinite nested folders now
+const CATEGORIES_WITH_FOLDERS = ARTIST_FOLDER_CATEGORIES.map(c => c.id);
 
 export default function Carpetas() {
   const { profile, user } = useAuth();
@@ -125,15 +125,16 @@ export default function Carpetas() {
   
   const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedSubfolder, setSelectedSubfolder] = useState<string | null>(null);
+  // Now we track folder by ID for proper nesting
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isDragging, setIsDragging] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<ArtistFile | null>(null);
   const [fileToRename, setFileToRename] = useState<ArtistFile | null>(null);
   const [newFileName, setNewFileName] = useState('');
-  const [showCreateSubfolderDialog, setShowCreateSubfolderDialog] = useState(false);
-  const [newSubfolderName, setNewSubfolderName] = useState('');
+  const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isManagement = profile?.active_role === 'management';
@@ -156,7 +157,7 @@ export default function Carpetas() {
   useEffect(() => {
     const artistId = searchParams.get('artist');
     const category = searchParams.get('category');
-    const subfolder = searchParams.get('subfolder');
+    const folderId = searchParams.get('folder');
 
     if (artistId && artists.length > 0) {
       const artist = artists.find(a => a.id === artistId);
@@ -164,8 +165,8 @@ export default function Carpetas() {
         setSelectedArtist(artist);
         if (category) {
           setSelectedCategory(category);
-          if (subfolder) {
-            setSelectedSubfolder(subfolder);
+          if (folderId) {
+            setCurrentFolderId(folderId);
           }
         }
       }
@@ -189,29 +190,43 @@ export default function Carpetas() {
   const {
     subfolders,
     isLoading: subfoldersLoading,
+    getSubfoldersForParent,
+    getFolderById,
+    getBreadcrumbPath,
     ensureDefaultSubfolders,
     createSubfolder,
     deleteSubfolder,
-    isCreating: isCreatingSubfolder,
+    isCreating: isCreatingFolder,
   } = useArtistSubfolders(selectedArtist?.id || null, selectedCategory || undefined);
 
   // Public sharing hook
   const { generateShareLink, isGenerating } = usePublicFileSharing();
 
-  // Ensure default subfolders exist when entering a category that supports them
+  // Get current folder info and child folders
+  const currentFolder = currentFolderId ? getFolderById(currentFolderId) : null;
+  const childFolders = getSubfoldersForParent(currentFolderId);
+  const breadcrumbPath = getBreadcrumbPath(currentFolderId);
+
+  // Ensure default subfolders exist when entering a category
   useEffect(() => {
-    if (selectedArtist && selectedCategory && CATEGORIES_WITH_SUBFOLDERS.includes(selectedCategory)) {
+    if (selectedArtist && selectedCategory) {
       ensureDefaultSubfolders({ artistId: selectedArtist.id, category: selectedCategory });
     }
   }, [selectedArtist, selectedCategory, ensureDefaultSubfolders]);
 
-  // Filter files by search and subfolder
+  // Filter files by search and current folder
+  // We use the folder ID path to match files (stored as subcategory with folder names)
+  const currentFolderPath = currentFolder 
+    ? breadcrumbPath.map(f => f.name).join('/') + (breadcrumbPath.length > 0 ? '' : currentFolder.name)
+    : null;
+  
   const filteredFiles = files.filter(file => {
     const matchesSearch = file.file_name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesSubfolder = selectedSubfolder 
-      ? file.subcategory === selectedSubfolder 
-      : !file.subcategory; // Show root files when no subfolder selected
-    return matchesSearch && matchesSubfolder;
+    // Match files in current folder (subcategory stores the folder path or folder ID)
+    const matchesFolder = currentFolderId 
+      ? file.subcategory === currentFolderId || file.subcategory === currentFolderPath
+      : !file.subcategory; // Show root files when no folder selected
+    return matchesSearch && matchesFolder;
   });
 
   // Handle drag and drop
@@ -241,16 +256,16 @@ export default function Carpetas() {
 
     const droppedFiles = Array.from(e.dataTransfer.files);
     if (droppedFiles.length > 0) {
-      await uploadFiles(droppedFiles, selectedArtist.id, selectedCategory, selectedSubfolder || undefined);
+      await uploadFiles(droppedFiles, selectedArtist.id, selectedCategory, currentFolderId || undefined);
     }
-  }, [selectedArtist, selectedCategory, selectedSubfolder, uploadFiles]);
+  }, [selectedArtist, selectedCategory, currentFolderId, uploadFiles]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!selectedArtist || !selectedCategory || !e.target.files) return;
 
     const selectedFiles = Array.from(e.target.files);
     if (selectedFiles.length > 0) {
-      await uploadFiles(selectedFiles, selectedArtist.id, selectedCategory, selectedSubfolder || undefined);
+      await uploadFiles(selectedFiles, selectedArtist.id, selectedCategory, currentFolderId || undefined);
     }
     e.target.value = '';
   };
@@ -266,26 +281,18 @@ export default function Carpetas() {
     }
   };
 
-  const handleCreateSubfolder = () => {
-    if (!selectedArtist || !selectedCategory || !newSubfolderName.trim()) return;
-
-    // Validate naming convention for audiovisuales
-    if (selectedCategory === 'audiovisuales') {
-      const pattern = /^\d{4}\.\d{2}\s.+$/;
-      if (!pattern.test(newSubfolderName) && newSubfolderName !== 'Reels') {
-        // Allow but warn
-        console.log('Nombre no sigue convención YYYY.MM Concepto');
-      }
-    }
+  const handleCreateFolder = () => {
+    if (!selectedArtist || !selectedCategory || !newFolderName.trim()) return;
 
     createSubfolder({
       artistId: selectedArtist.id,
       category: selectedCategory,
-      name: newSubfolderName.trim(),
+      name: newFolderName.trim(),
+      parentId: currentFolderId,
     });
 
-    setNewSubfolderName('');
-    setShowCreateSubfolderDialog(false);
+    setNewFolderName('');
+    setShowCreateFolderDialog(false);
   };
 
   const handleShareFile = (file: ArtistFile) => {
@@ -369,13 +376,16 @@ export default function Carpetas() {
         {ARTIST_FOLDER_CATEGORIES.map((category) => {
           const IconComponent = getCategoryIcon(category.icon);
           const count = fileCounts[category.id] || 0;
-          const hasSubfolders = CATEGORIES_WITH_SUBFOLDERS.includes(category.id);
+          const hasFolders = subfolders.filter(sf => sf.parent_id === null).length > 0;
 
           return (
             <Card
               key={category.id}
               className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group"
-              onClick={() => setSelectedCategory(category.id)}
+              onClick={() => {
+                setSelectedCategory(category.id);
+                setCurrentFolderId(null);
+              }}
             >
               <CardContent className="p-6 flex flex-col items-center text-center">
                 <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-3 group-hover:from-primary/30 group-hover:to-primary/10 transition-colors">
@@ -386,7 +396,6 @@ export default function Carpetas() {
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1">
                   {count} {count === 1 ? 'archivo' : 'archivos'}
-                  {hasSubfolders && ' • Subcarpetas'}
                 </p>
               </CardContent>
             </Card>
@@ -396,10 +405,14 @@ export default function Carpetas() {
     </div>
   );
 
-  // Render Level 3: Subfolders + Files
+  // Render Level 3: Folders + Files
   const renderFilesView = () => {
-    const currentCategory = ARTIST_FOLDER_CATEGORIES.find(c => c.id === selectedCategory);
-    const hasSubfolderSupport = selectedCategory && CATEGORIES_WITH_SUBFOLDERS.includes(selectedCategory);
+    const currentCategoryObj = ARTIST_FOLDER_CATEGORIES.find(c => c.id === selectedCategory);
+
+    // Build breadcrumb text
+    const breadcrumbText = breadcrumbPath.length > 0 
+      ? `${currentCategoryObj?.name} / ${breadcrumbPath.map(f => f.name).join(' / ')}`
+      : currentCategoryObj?.name;
 
     return (
       <div className="space-y-6">
@@ -409,8 +422,10 @@ export default function Carpetas() {
               variant="ghost"
               size="icon"
               onClick={() => {
-                if (selectedSubfolder) {
-                  setSelectedSubfolder(null);
+                if (currentFolderId) {
+                  // Go up one level
+                  const parentId = currentFolder?.parent_id || null;
+                  setCurrentFolderId(parentId);
                 } else {
                   setSelectedCategory(null);
                 }
@@ -420,11 +435,11 @@ export default function Carpetas() {
             </Button>
             <div>
               <h1 className="text-2xl font-bold">
-                {selectedSubfolder || currentCategory?.name}
+                {currentFolder?.name || currentCategoryObj?.name}
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 {selectedArtist?.stage_name || selectedArtist?.name}
-                {selectedSubfolder && ` / ${currentCategory?.name}`}
+                {currentFolderId && ` / ${breadcrumbText}`}
               </p>
             </div>
           </div>
@@ -457,12 +472,10 @@ export default function Carpetas() {
               </Button>
             </div>
 
-            {hasSubfolderSupport && !selectedSubfolder && (
-              <Button variant="outline" onClick={() => setShowCreateSubfolderDialog(true)}>
-                <FolderPlus className="w-4 h-4 mr-2" />
-                Nueva Subcarpeta
-              </Button>
-            )}
+            <Button variant="outline" onClick={() => setShowCreateFolderDialog(true)}>
+              <FolderPlus className="w-4 h-4 mr-2" />
+              Nueva Carpeta
+            </Button>
 
             <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
               <Upload className="w-4 h-4 mr-2" />
@@ -478,24 +491,24 @@ export default function Carpetas() {
           </div>
         </div>
 
-        {/* Subfolders Grid (only show when not inside a subfolder) */}
-        {hasSubfolderSupport && !selectedSubfolder && subfolders.length > 0 && (
+        {/* Folders Grid */}
+        {childFolders.length > 0 && (
           <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground">Subcarpetas</h3>
+            <h3 className="text-sm font-medium text-muted-foreground">Carpetas</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {subfolders.map((subfolder) => (
+              {childFolders.map((folder) => (
                 <Card
-                  key={subfolder.id}
+                  key={folder.id}
                   className="cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all group"
-                  onClick={() => setSelectedSubfolder(subfolder.name)}
+                  onClick={() => setCurrentFolderId(folder.id)}
                 >
                   <CardContent className="p-4 flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
                       <Folder className="w-5 h-5 text-primary" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm truncate">{subfolder.name}</p>
-                      {subfolder.is_default && (
+                      <p className="font-medium text-sm truncate">{folder.name}</p>
+                      {folder.is_default && (
                         <p className="text-xs text-muted-foreground">Por defecto</p>
                       )}
                     </div>
@@ -582,19 +595,19 @@ export default function Carpetas() {
                               <Pencil className="w-4 h-4 mr-2" />
                               Renombrar
                             </DropdownMenuItem>
-                            {hasSubfolderSupport && subfolders.length > 0 && (
+                            {subfolders.length > 0 && (
                               <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>
                                   <FolderInput className="w-4 h-4 mr-2" />
                                   Mover a...
                                 </DropdownMenuSubTrigger>
                                 <DropdownMenuSubContent>
-                                  {!selectedSubfolder && (
+                                  {!currentFolderId && (
                                     <DropdownMenuItem disabled className="text-muted-foreground text-xs">
                                       Raíz (actual)
                                     </DropdownMenuItem>
                                   )}
-                                  {selectedSubfolder && (
+                                  {currentFolderId && (
                                     <DropdownMenuItem
                                       onClick={() => moveFile({ fileId: file.id, subcategory: null })}
                                     >
@@ -606,12 +619,12 @@ export default function Carpetas() {
                                   {subfolders.map((sf) => (
                                     <DropdownMenuItem
                                       key={sf.id}
-                                      disabled={sf.name === selectedSubfolder}
-                                      onClick={() => moveFile({ fileId: file.id, subcategory: sf.name })}
+                                      disabled={sf.id === currentFolderId}
+                                      onClick={() => moveFile({ fileId: file.id, subcategory: sf.id })}
                                     >
                                       <Folder className="w-4 h-4 mr-2" />
                                       {sf.name}
-                                      {sf.name === selectedSubfolder && ' (actual)'}
+                                      {sf.id === currentFolderId && ' (actual)'}
                                     </DropdownMenuItem>
                                   ))}
                                 </DropdownMenuSubContent>
@@ -715,19 +728,19 @@ export default function Carpetas() {
                             <Pencil className="w-4 h-4 mr-2" />
                             Renombrar
                           </DropdownMenuItem>
-                          {hasSubfolderSupport && subfolders.length > 0 && (
+                          {subfolders.length > 0 && (
                             <DropdownMenuSub>
                               <DropdownMenuSubTrigger>
                                 <FolderInput className="w-4 h-4 mr-2" />
                                 Mover a...
                               </DropdownMenuSubTrigger>
                               <DropdownMenuSubContent>
-                                {!selectedSubfolder && (
+                                {!currentFolderId && (
                                   <DropdownMenuItem disabled className="text-muted-foreground text-xs">
                                     Raíz (actual)
                                   </DropdownMenuItem>
                                 )}
-                                {selectedSubfolder && (
+                                {currentFolderId && (
                                   <DropdownMenuItem
                                     onClick={() => moveFile({ fileId: file.id, subcategory: null })}
                                   >
@@ -739,12 +752,12 @@ export default function Carpetas() {
                                 {subfolders.map((sf) => (
                                   <DropdownMenuItem
                                     key={sf.id}
-                                    disabled={sf.name === selectedSubfolder}
-                                    onClick={() => moveFile({ fileId: file.id, subcategory: sf.name })}
+                                    disabled={sf.id === currentFolderId}
+                                    onClick={() => moveFile({ fileId: file.id, subcategory: sf.id })}
                                   >
                                     <Folder className="w-4 h-4 mr-2" />
                                     {sf.name}
-                                    {sf.name === selectedSubfolder && ' (actual)'}
+                                    {sf.id === currentFolderId && ' (actual)'}
                                   </DropdownMenuItem>
                                 ))}
                               </DropdownMenuSubContent>
@@ -809,39 +822,35 @@ export default function Carpetas() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Create Subfolder Dialog */}
-      <Dialog open={showCreateSubfolderDialog} onOpenChange={setShowCreateSubfolderDialog}>
+      {/* Create Folder Dialog */}
+      <Dialog open={showCreateFolderDialog} onOpenChange={setShowCreateFolderDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nueva Subcarpeta</DialogTitle>
+            <DialogTitle>Nueva Carpeta</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                {selectedCategory === 'audiovisuales' 
-                  ? 'Se recomienda usar el formato: YYYY.MM Concepto (ej: 2025.04 Videoclips Camino)'
-                  : selectedCategory === 'conciertos'
-                  ? 'Para eventos, se creará automáticamente cuando confirmes un booking.'
-                  : 'Introduce un nombre para la subcarpeta'
-                }
+                Introduce un nombre para la carpeta
+                {currentFolder && ` dentro de "${currentFolder.name}"`}
               </p>
               <Input
-                placeholder="Nombre de la subcarpeta"
-                value={newSubfolderName}
-                onChange={(e) => setNewSubfolderName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateSubfolder()}
+                placeholder="Nombre de la carpeta"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateSubfolderDialog(false)}>
+            <Button variant="outline" onClick={() => setShowCreateFolderDialog(false)}>
               Cancelar
             </Button>
             <Button 
-              onClick={handleCreateSubfolder} 
-              disabled={!newSubfolderName.trim() || isCreatingSubfolder}
+              onClick={handleCreateFolder} 
+              disabled={!newFolderName.trim() || isCreatingFolder}
             >
-              {isCreatingSubfolder ? 'Creando...' : 'Crear'}
+              {isCreatingFolder ? 'Creando...' : 'Crear'}
             </Button>
           </DialogFooter>
         </DialogContent>

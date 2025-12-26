@@ -257,6 +257,7 @@ export type Database = {
           id: string
           is_default: boolean | null
           name: string
+          parent_id: string | null
           updated_at: string
         }
         Insert: {
@@ -268,6 +269,7 @@ export type Database = {
           id?: string
           is_default?: boolean | null
           name: string
+          parent_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -279,6 +281,7 @@ export type Database = {
           id?: string
           is_default?: boolean | null
           name?: string
+          parent_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -294,6 +297,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artist_subfolders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "artist_subfolders"
             referencedColumns: ["id"]
           },
         ]
