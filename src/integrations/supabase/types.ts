@@ -4260,6 +4260,136 @@ export type Database = {
           },
         ]
       }
+      transactions: {
+        Row: {
+          amount: number
+          artist_id: string | null
+          booking_id: string | null
+          budget_id: string | null
+          budget_item_id: string | null
+          category: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string
+          currency: string | null
+          description: string
+          due_date: string | null
+          id: string
+          invoice_date: string | null
+          invoice_number: string | null
+          invoice_url: string | null
+          irpf_percentage: number | null
+          iva_percentage: number | null
+          metadata: Json | null
+          net_amount: number | null
+          payment_date: string | null
+          project_id: string | null
+          status: Database["public"]["Enums"]["transaction_status"]
+          subcategory: string | null
+          transaction_type: Database["public"]["Enums"]["transaction_type"]
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          artist_id?: string | null
+          booking_id?: string | null
+          budget_id?: string | null
+          budget_item_id?: string | null
+          category?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by: string
+          currency?: string | null
+          description: string
+          due_date?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          invoice_url?: string | null
+          irpf_percentage?: number | null
+          iva_percentage?: number | null
+          metadata?: Json | null
+          net_amount?: number | null
+          payment_date?: string | null
+          project_id?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"]
+          subcategory?: string | null
+          transaction_type: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          artist_id?: string | null
+          booking_id?: string | null
+          budget_id?: string | null
+          budget_item_id?: string | null
+          category?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string
+          currency?: string | null
+          description?: string
+          due_date?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          invoice_url?: string | null
+          irpf_percentage?: number | null
+          iva_percentage?: number | null
+          metadata?: Json | null
+          net_amount?: number | null
+          payment_date?: string | null
+          project_id?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"]
+          subcategory?: string | null
+          transaction_type?: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_budget_item_id_fkey"
+            columns: ["budget_item_id"]
+            isOneToOne: false
+            referencedRelation: "budget_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_memberships: {
         Row: {
           created_at: string
@@ -4327,7 +4457,41 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profit_and_loss: {
+        Row: {
+          artist_id: string | null
+          booking_id: string | null
+          net_profit: number | null
+          period: string | null
+          project_id: string | null
+          total_expenses: number | null
+          total_income: number | null
+          transaction_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       build_changes_json: {
@@ -4509,6 +4673,13 @@ export type Database = {
         | "comunicacion"
         | "legal"
         | "otro"
+      transaction_status:
+        | "pending"
+        | "confirmed"
+        | "invoiced"
+        | "paid"
+        | "cancelled"
+      transaction_type: "income" | "expense" | "transfer" | "refund"
       user_role: "artist" | "management"
       workspace_role: "OWNER" | "TEAM_MANAGER"
     }
@@ -4734,6 +4905,14 @@ export const Constants = {
         "legal",
         "otro",
       ],
+      transaction_status: [
+        "pending",
+        "confirmed",
+        "invoiced",
+        "paid",
+        "cancelled",
+      ],
+      transaction_type: ["income", "expense", "transfer", "refund"],
       user_role: ["artist", "management"],
       workspace_role: ["OWNER", "TEAM_MANAGER"],
     },
