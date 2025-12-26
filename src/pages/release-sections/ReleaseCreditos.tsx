@@ -282,7 +282,7 @@ function TrackCreditsItem({
   });
 
   const updateCredit = useMutation({
-    mutationFn: async ({ creditId, data }: { creditId: string; data: Partial<{ role: string; name: string }> }) => {
+    mutationFn: async ({ creditId, data }: { creditId: string; data: Partial<{ role: string; name: string; percentage: number | null }> }) => {
       const { error } = await supabase.from('track_credits').update(data).eq('id', creditId);
       if (error) throw error;
     },
@@ -419,18 +419,23 @@ function CreditRow({
   isEditing: boolean;
   onStartEdit: () => void;
   onCancelEdit: () => void;
-  onSave: (data: Partial<{ role: string; name: string }>) => void;
+  onSave: (data: Partial<{ role: string; name: string; percentage: number | null }>) => void;
   onDelete: () => void;
   isSaving: boolean;
 }) {
   const [editRole, setEditRole] = useState(credit.role);
   const [editName, setEditName] = useState(credit.name);
+  const [editPercentage, setEditPercentage] = useState<string>(
+    credit.percentage != null ? String(credit.percentage) : ''
+  );
   const hasContact = !!credit.contact_id;
 
   const handleSave = () => {
-    const updates: Partial<{ role: string; name: string }> = {};
+    const updates: Partial<{ role: string; name: string; percentage: number | null }> = {};
     if (editRole !== credit.role) updates.role = editRole;
     if (!hasContact && editName !== credit.name) updates.name = editName;
+    const newPercentage = editPercentage === '' ? null : Number(editPercentage);
+    if (newPercentage !== credit.percentage) updates.percentage = newPercentage;
     if (Object.keys(updates).length > 0) {
       onSave(updates);
     } else {
@@ -440,12 +445,12 @@ function CreditRow({
 
   if (isEditing) {
     return (
-      <div className="flex items-center gap-2 p-2 bg-background rounded border">
+      <div className="flex items-center gap-2 p-2 bg-background rounded border flex-wrap">
         {!hasContact && (
           <Input
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
-            className="flex-1 h-8"
+            className="flex-1 h-8 min-w-[120px]"
             placeholder="Nombre"
           />
         )}
@@ -462,9 +467,19 @@ function CreditRow({
             ))}
           </SelectContent>
         </Select>
-        {credit.percentage && (
-          <Badge variant="outline">{credit.percentage}%</Badge>
-        )}
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            value={editPercentage}
+            onChange={(e) => setEditPercentage(e.target.value)}
+            className="w-[70px] h-8"
+            placeholder="%"
+          />
+          <span className="text-sm text-muted-foreground">%</span>
+        </div>
         <Button size="sm" variant="default" onClick={handleSave} disabled={isSaving}>
           Guardar
         </Button>
