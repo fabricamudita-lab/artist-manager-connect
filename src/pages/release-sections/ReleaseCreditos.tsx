@@ -241,6 +241,7 @@ function TrackCreditsItem({
   const { data: credits = [], isLoading } = useTrackCredits(track.id);
   const queryClient = useQueryClient();
   const [isAddCreditOpen, setIsAddCreditOpen] = useState(false);
+  const [editingCreditId, setEditingCreditId] = useState<string | null>(null);
 
   const createCredit = useMutation({
     mutationFn: async (data: { name: string; role: string; percentage?: number }) => {
@@ -257,6 +258,21 @@ function TrackCreditsItem({
     },
     onError: () => {
       toast.error('Error al añadir crédito');
+    },
+  });
+
+  const updateCredit = useMutation({
+    mutationFn: async ({ creditId, data }: { creditId: string; data: Partial<{ role: string; name: string }> }) => {
+      const { error } = await supabase.from('track_credits').update(data).eq('id', creditId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
+      toast.success('Crédito actualizado');
+      setEditingCreditId(null);
+    },
+    onError: () => {
+      toast.error('Error al actualizar');
     },
   });
 
@@ -345,28 +361,16 @@ function TrackCreditsItem({
             ) : credits.length > 0 ? (
               <div className="space-y-2">
                 {credits.map((credit) => (
-                  <div
+                  <CreditRow
                     key={credit.id}
-                    className="flex items-center justify-between p-2 bg-background rounded border"
-                  >
-                    <div>
-                      <p className="font-medium text-sm">{credit.name}</p>
-                      <p className="text-xs text-muted-foreground">{credit.role}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {credit.percentage && (
-                        <Badge variant="outline">{credit.percentage}%</Badge>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => deleteCredit.mutate(credit.id)}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
+                    credit={credit}
+                    isEditing={editingCreditId === credit.id}
+                    onStartEdit={() => setEditingCreditId(credit.id)}
+                    onCancelEdit={() => setEditingCreditId(null)}
+                    onSave={(data) => updateCredit.mutate({ creditId: credit.id, data })}
+                    onDelete={() => deleteCredit.mutate(credit.id)}
+                    isSaving={updateCredit.isPending}
+                  />
                 ))}
               </div>
             ) : (
@@ -378,6 +382,105 @@ function TrackCreditsItem({
         </div>
       </AccordionContent>
     </AccordionItem>
+  );
+}
+
+// Credit Row with inline editing
+function CreditRow({
+  credit,
+  isEditing,
+  onStartEdit,
+  onCancelEdit,
+  onSave,
+  onDelete,
+  isSaving,
+}: {
+  credit: TrackCredit;
+  isEditing: boolean;
+  onStartEdit: () => void;
+  onCancelEdit: () => void;
+  onSave: (data: Partial<{ role: string; name: string }>) => void;
+  onDelete: () => void;
+  isSaving: boolean;
+}) {
+  const [editRole, setEditRole] = useState(credit.role);
+  const [editName, setEditName] = useState(credit.name);
+  const hasContact = !!credit.contact_id;
+
+  const handleSave = () => {
+    const updates: Partial<{ role: string; name: string }> = {};
+    if (editRole !== credit.role) updates.role = editRole;
+    if (!hasContact && editName !== credit.name) updates.name = editName;
+    if (Object.keys(updates).length > 0) {
+      onSave(updates);
+    } else {
+      onCancelEdit();
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-2 p-2 bg-background rounded border">
+        {!hasContact && (
+          <Input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            className="flex-1 h-8"
+            placeholder="Nombre"
+          />
+        )}
+        {hasContact && (
+          <span className="font-medium text-sm flex-1">{credit.name}</span>
+        )}
+        <Select value={editRole} onValueChange={setEditRole}>
+          <SelectTrigger className="w-[140px] h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {CREDIT_ROLES.map((role) => (
+              <SelectItem key={role} value={role}>{role}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {credit.percentage && (
+          <Badge variant="outline">{credit.percentage}%</Badge>
+        )}
+        <Button size="sm" variant="default" onClick={handleSave} disabled={isSaving}>
+          Guardar
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onCancelEdit}>
+          Cancelar
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center justify-between p-2 bg-background rounded border cursor-pointer hover:bg-muted/50 transition-colors"
+      onClick={onStartEdit}
+    >
+      <div>
+        <p className="font-medium text-sm">{credit.name}</p>
+        <p className="text-xs text-muted-foreground">{credit.role}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        {credit.percentage && (
+          <Badge variant="outline">{credit.percentage}%</Badge>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+        >
+          <Trash2 className="w-3 h-3" />
+        </Button>
+      </div>
+    </div>
   );
 }
 
