@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ interface CreateSolicitudDialogProps {
 export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, projectId }: CreateSolicitudDialogProps) {
   const { profile } = useAuth();
   const [step, setStep] = useState(1);
+  const [artistFormats, setArtistFormats] = useState<{ id: string; name: string }[]>([]);
   const [formData, setFormData] = useState({
     tipo: '' as 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro' | '',
     nombre_solicitante: '',
@@ -43,6 +44,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
     nombre_festival: '',
     lugar_concierto: '',
     ciudad: '',
+    formato: '',
     
     // Campos específicos para licencias
     oferta: '',
@@ -72,11 +74,44 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
       nombre_festival: '',
       lugar_concierto: '',
       ciudad: '',
+      formato: '',
       oferta: '',
       descripcion_libre: '',
     });
     setFieldErrors({});
   };
+
+  // Fetch artist formats when artist changes
+  useEffect(() => {
+    const fetchArtistFormats = async () => {
+      if (!formData.artist_id) {
+        setArtistFormats([]);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('booking_products')
+          .select('id, name')
+          .eq('artist_id', formData.artist_id)
+          .eq('is_active', true)
+          .order('sort_order');
+        
+        if (error) throw error;
+        setArtistFormats(data || []);
+        
+        // Reset format if current selection is not in new artist's formats
+        if (formData.formato && data && !data.some(f => f.name === formData.formato)) {
+          setFormData(prev => ({ ...prev, formato: '' }));
+        }
+      } catch (error) {
+        console.error('Error fetching artist formats:', error);
+        setArtistFormats([]);
+      }
+    };
+    
+    fetchArtistFormats();
+  }, [formData.artist_id]);
 
   // Función para extraer contenido clave del texto
   const extractKeyContent = (text: string): string => {
@@ -245,6 +280,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
           nombre_festival: formData.nombre_festival || null,
           lugar_concierto: formData.lugar_concierto || null,
           ciudad: formData.ciudad || null,
+          formato: formData.formato || null,
         }),
         
         ...(formData.tipo === 'licencia' && {
@@ -575,6 +611,32 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
                 value={formData.hora_show}
                 onChange={(e) => setFormData({ ...formData, hora_show: e.target.value })}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Formato</Label>
+              <Select
+                value={formData.formato}
+                onValueChange={(value) => setFormData({ ...formData, formato: value })}
+                disabled={!formData.artist_id || artistFormats.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={
+                    !formData.artist_id 
+                      ? "Selecciona primero un artista (Paso 1)" 
+                      : artistFormats.length === 0 
+                        ? "No hay formatos configurados"
+                        : "Seleccionar formato"
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {artistFormats.map((format) => (
+                    <SelectItem key={format.id} value={format.name}>
+                      {format.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
