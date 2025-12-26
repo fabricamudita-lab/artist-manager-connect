@@ -704,6 +704,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "booking_offers_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "booking_offers_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false

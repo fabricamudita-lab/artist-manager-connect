@@ -19,8 +19,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface Artist {
   id: string;
-  full_name: string;
-  email: string;
+  name: string;
+  stage_name?: string;
 }
 
 interface SingleArtistSelectorProps {
@@ -47,9 +47,9 @@ export function SingleArtistSelector({
   const fetchArtists = async () => {
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .order('full_name', { ascending: true });
+        .from('artists')
+        .select('id, name, stage_name')
+        .order('name', { ascending: true });
       
       if (error) throw error;
       setArtists(data || []);
@@ -61,6 +61,7 @@ export function SingleArtistSelector({
   };
 
   const selectedArtist = artists.find(artist => artist.id === value);
+  const getDisplayName = (artist: Artist) => artist.stage_name || artist.name;
 
   return (
     <div className={className}>
@@ -73,7 +74,7 @@ export function SingleArtistSelector({
             className="w-full justify-between"
           >
             <span className="truncate">
-              {selectedArtist ? selectedArtist.full_name : placeholder}
+              {selectedArtist ? getDisplayName(selectedArtist) : placeholder}
             </span>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
@@ -117,8 +118,10 @@ export function SingleArtistSelector({
                     />
                     <User className="mr-2 h-4 w-4" />
                     <div className="flex flex-col">
-                      <span>{artist.full_name}</span>
-                      <span className="text-xs text-muted-foreground">{artist.email}</span>
+                      <span>{getDisplayName(artist)}</span>
+                      {artist.stage_name && artist.name !== artist.stage_name && (
+                        <span className="text-xs text-muted-foreground">{artist.name}</span>
+                      )}
                     </div>
                   </CommandItem>
                 ))}
