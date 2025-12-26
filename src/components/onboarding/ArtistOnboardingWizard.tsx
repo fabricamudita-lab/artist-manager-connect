@@ -221,10 +221,12 @@ export function ArtistOnboardingWizard() {
       if (formData.teamMembers.length > 0) {
         for (const member of formData.teamMembers) {
           if (member.userId) {
+            // Map UI roles to DB roles
+            const dbRole = member.role === 'ARTIST' ? 'ARTIST_OBSERVER' : 'ARTIST_MANAGER';
             await supabase.from('artist_role_bindings').insert({
               artist_id: artistId,
               user_id: member.userId,
-              role: member.role,
+              role: dbRole,
             });
           }
           // TODO: Send invitations for non-existing users
