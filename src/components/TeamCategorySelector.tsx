@@ -3,26 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
-import { Check, Plus, X, Users, UserCheck, Building, Mail, Shield, Tag } from 'lucide-react';
+import { Check, Plus, X, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { TEAM_CATEGORIES, TeamCategoryOption } from '@/lib/teamCategories';
 
-export interface TeamCategoryOption {
-  value: string;
-  label: string;
-  icon?: any;
-  isCustom?: boolean;
-}
+export type { TeamCategoryOption } from '@/lib/teamCategories';
 
-const DEFAULT_CATEGORIES: TeamCategoryOption[] = [
-  { value: 'banda', label: 'Banda', icon: Users },
-  { value: 'artistico', label: 'Equipo Artístico', icon: Users },
-  { value: 'tecnico', label: 'Equipo Técnico', icon: UserCheck },
-  { value: 'management', label: 'Management', icon: Building },
-  { value: 'comunicacion', label: 'Comunicación', icon: Mail },
-  { value: 'legal', label: 'Legal', icon: Shield },
-  { value: 'produccion', label: 'Producción', icon: Users },
-];
-
+const DEFAULT_CATEGORIES = TEAM_CATEGORIES;
 interface TeamCategorySelectorProps {
   selectedCategories: string[];
   onCategoriesChange: (categories: string[]) => void;

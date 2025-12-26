@@ -1,11 +1,13 @@
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, FolderKanban, Filter, UserCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, FolderKanban, Filter, UserCircle, ChevronLeft, ChevronRight, Building } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArtistSelector } from '@/components/ArtistSelector';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import { TEAM_CATEGORIES } from '@/lib/teamCategories';
+
 interface CalendarToolbarProps {
   // View controls
   viewMode: 'week' | 'month' | 'quarter' | 'year';
@@ -32,8 +34,10 @@ interface CalendarToolbarProps {
   teamMembers: {
     id: string;
     full_name: string;
+    type?: 'workspace' | 'contact';
   }[];
 }
+
 export function CalendarToolbar({
   viewMode,
   setViewMode,
@@ -74,8 +78,11 @@ export function CalendarToolbar({
         });
     }
   };
+
   const activeFiltersCount = (selectedArtists.length > 0 ? 1 : 0) + (selectedProjects.length > 0 ? 1 : 0) + (selectedTeam !== 'all' ? 1 : 0) + (selectedDepartment !== 'all' ? 1 : 0);
-  return <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-card border rounded-lg">
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-card border rounded-lg">
       {/* Left: Filters */}
       <div className="flex items-center gap-3">
         {/* Filter Dropdown */}
@@ -84,21 +91,28 @@ export function CalendarToolbar({
             <Button variant="outline" size="sm" className="gap-2">
               <Filter className="h-4 w-4" />
               Filtrar
-              {activeFiltersCount > 0 && <Badge variant="secondary" className="h-5 w-5 p-0 flex items-center justify-center text-xs">
+              {activeFiltersCount > 0 && (
+                <Badge variant="secondary" className="h-5 w-5 p-0 flex items-center justify-center text-xs">
                   {activeFiltersCount}
-                </Badge>}
+                </Badge>
+              )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-80 p-4" align="start">
             <div className="space-y-4">
               <div className="font-medium text-sm">Filtros</div>
               
-              {/* Artists */}
+              {/* Artists - from artists table (roster) */}
               <div className="space-y-2">
                 <label className="text-xs text-muted-foreground flex items-center gap-1">
                   <Users className="h-3 w-3" /> Artistas
                 </label>
-                <ArtistSelector selectedArtists={selectedArtists} onSelectionChange={setSelectedArtists} placeholder="Todos los artistas" showSelfOption={true} />
+                <ArtistSelector 
+                  selectedArtists={selectedArtists} 
+                  onSelectionChange={setSelectedArtists} 
+                  placeholder="Ninguno seleccionado" 
+                  showSelfOption={true} 
+                />
               </div>
               
               {/* Projects */}
@@ -112,14 +126,16 @@ export function CalendarToolbar({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos los proyectos</SelectItem>
-                    {projects.map(project => <SelectItem key={project.id} value={project.id}>
+                    {projects.map(project => (
+                      <SelectItem key={project.id} value={project.id}>
                         {project.name}
-                      </SelectItem>)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               
-              {/* Team Members */}
+              {/* Team Members - from workspace_memberships + team contacts */}
               <div className="space-y-2">
                 <label className="text-xs text-muted-foreground flex items-center gap-1">
                   <UserCircle className="h-3 w-3" /> Equipo
@@ -130,26 +146,31 @@ export function CalendarToolbar({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos los miembros</SelectItem>
-                    {teamMembers.map(member => <SelectItem key={member.id} value={member.id}>
+                    {teamMembers.map(member => (
+                      <SelectItem key={member.id} value={member.id}>
                         {member.full_name}
-                      </SelectItem>)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               
-              {/* Department */}
+              {/* Department - team categories */}
               <div className="space-y-2">
-                <label className="text-xs text-muted-foreground">Departamento</label>
+                <label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Building className="h-3 w-3" /> Departamento
+                </label>
                 <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="booking">Booking</SelectItem>
-                    <SelectItem value="produccion">Producción</SelectItem>
-                    <SelectItem value="marketing">Marketing</SelectItem>
-                    <SelectItem value="administracion">Administración</SelectItem>
+                    {TEAM_CATEGORIES.map(cat => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -170,5 +191,6 @@ export function CalendarToolbar({
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
-    </div>;
+    </div>
+  );
 }
