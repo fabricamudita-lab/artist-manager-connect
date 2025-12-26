@@ -7,7 +7,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Music, Plus, Trash2, Users, Link, Disc } from 'lucide-react';
-import { useSongs, useSongSplits, useCreateSongSplit, useDeleteSongSplit, Song, SongSplit } from '@/hooks/useRoyalties';
+import {
+  useSongs,
+  useSongSplits,
+  useCreateSongSplit,
+  useDeleteSongSplit,
+  useTracksWithCredits,
+  Song,
+  SongSplit,
+  Track,
+  TrackCredit,
+} from '@/hooks/useRoyalties';
 import { CreateSongDialog } from './CreateSongDialog';
 import { EditSongDialog } from './EditSongDialog';
 import { SongDetailDialog } from './SongDetailDialog';
@@ -15,121 +25,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { LinkContactDialog } from './LinkContactDialog';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-// Unified interface for track credits from releases
-interface TrackCredit {
-  id: string;
-  track_id: string;
-  name: string;
-  role: string;
-  percentage: number;
-  contact_id?: string;
-}
-
-interface Track {
-  id: string;
-  title: string;
-  release_id: string;
-  track_number: number;
-  isrc?: string;
-  release_title?: string;
-  artist_id?: string;
-}
-
-// Hook to get tracks with credits from releases
-function useTracksWithCredits(artistId?: string) {
-  return useQuery({
-    queryKey: ['tracks-with-credits', artistId],
-    queryFn: async () => {
-      // If filtering by a specific artist, get artist info first
-      let artistName: string | null = null;
-      if (artistId && artistId !== 'all') {
-        const { data: artist } = await supabase
-          .from('artists')
-          .select('name, stage_name')
-          .eq('id', artistId)
-          .single();
-        artistName = artist?.name || artist?.stage_name || null;
-      }
-      
-      // Get releases - either filtered by artist_id OR all if no filter
-      let releasesQuery = supabase
-        .from('releases')
-        .select('id, title, artist_id');
-      
-      // If artist is selected and has artist_id assigned, filter by it
-      if (artistId && artistId !== 'all') {
-        // Get releases by artist_id OR releases without artist_id (we'll filter by credits later)
-        releasesQuery = releasesQuery.or(`artist_id.eq.${artistId},artist_id.is.null`);
-      }
-      
-      const { data: releases, error: releasesError } = await releasesQuery;
-      if (releasesError) throw releasesError;
-      
-      if (!releases || releases.length === 0) return { tracks: [], credits: [] };
-      
-      const releaseIds = releases.map(r => r.id);
-      
-      // Get tracks from those releases
-      const { data: tracks, error: tracksError } = await supabase
-        .from('tracks')
-        .select('id, title, release_id, track_number, isrc')
-        .in('release_id', releaseIds)
-        .order('track_number');
-      
-      if (tracksError) throw tracksError;
-      if (!tracks || tracks.length === 0) return { tracks: [], credits: [] };
-      
-      const trackIds = tracks.map(t => t.id);
-      
-      // Get credits for those tracks (only those with percentage = splits)
-      const { data: credits, error: creditsError } = await supabase
-        .from('track_credits')
-        .select('*')
-        .in('track_id', trackIds)
-        .not('percentage', 'is', null);
-      
-      if (creditsError) throw creditsError;
-      
-      // If filtering by artist, also filter tracks where artist appears as a credit
-      let filteredTracks = tracks;
-      let filteredCredits = credits || [];
-      
-      if (artistId && artistId !== 'all' && artistName) {
-        // Find tracks where this artist has a credit
-        const artistCreditTrackIds = new Set(
-          filteredCredits
-            .filter(c => c.name?.toLowerCase().includes(artistName!.toLowerCase()))
-            .map(c => c.track_id)
-        );
-        
-        // Also include tracks from releases with matching artist_id
-        const artistReleaseIds = new Set(
-          releases.filter(r => r.artist_id === artistId).map(r => r.id)
-        );
-        
-        filteredTracks = tracks.filter(t => 
-          artistCreditTrackIds.has(t.id) || artistReleaseIds.has(t.release_id)
-        );
-        
-        const filteredTrackIds = new Set(filteredTracks.map(t => t.id));
-        filteredCredits = filteredCredits.filter(c => filteredTrackIds.has(c.track_id));
-      }
-      
-      // Map tracks with release info
-      const tracksWithRelease = filteredTracks.map(t => ({
-        ...t,
-        release_title: releases.find(r => r.id === t.release_id)?.title,
-        artist_id: releases.find(r => r.id === t.release_id)?.artist_id,
-      }));
-      
-      return { tracks: tracksWithRelease as Track[], credits: filteredCredits as TrackCredit[] };
-    },
-  });
-}
 
 const ROLES = [
   { value: 'writer', label: 'Compositor' },
@@ -478,7 +375,7 @@ export function SongSplitsManager({ artistId }: SongSplitsManagerProps) {
 
         <TabsContent value="manual" className="space-y-4 mt-4">
           <div className="flex justify-end">
-            <CreateSongDialog />
+            <CreateSongDialog artistId={artistId} />
           </div>
           {songs.length === 0 ? (
             <Card>
