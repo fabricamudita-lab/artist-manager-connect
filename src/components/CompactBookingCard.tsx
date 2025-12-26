@@ -104,6 +104,10 @@ export function CompactBookingCard({
                     }) : '—'} {offer.festival_ciclo || offer.venue || offer.promotor || 'Sin nombre'}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                    {offer.artist ? (
+                      <span className="font-medium text-primary">{offer.artist.stage_name || offer.artist.name}</span>
+                    ) : null}
+                    {offer.artist && offer.ciudad ? ' · ' : ''}
                     {offer.ciudad || ''}{offer.ciudad && offer.venue && offer.festival_ciclo ? ` · ${offer.venue}` : ''}
                   </div>
                 </div>

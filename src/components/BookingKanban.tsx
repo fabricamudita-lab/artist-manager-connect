@@ -67,6 +67,12 @@ export interface BookingOffer {
   created_at: string;
   updated_at: string;
   created_by?: string;
+  // Joined fields
+  artist?: {
+    id: string;
+    name: string;
+    stage_name?: string;
+  };
 }
 
 // Main pipeline phases - displayed prominently
@@ -91,6 +97,12 @@ interface BookingKanbanProps {
   templateFields: any[];
 }
 
+interface Artist {
+  id: string;
+  name: string;
+  stage_name?: string;
+}
+
 export function BookingKanban({ templateFields }: BookingKanbanProps) {
   const [offers, setOffers] = useState<BookingOffer[]>([]);
   const [filteredOffers, setFilteredOffers] = useState<BookingOffer[]>([]);
@@ -99,6 +111,8 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
   const [phaseFilter, setPhaseFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
   const [promoterFilter, setPromoterFilter] = useState<string>('all');
+  const [artistFilter, setArtistFilter] = useState<string>('all');
+  const [artists, setArtists] = useState<Artist[]>([]);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [showInternational, setShowInternational] = useState<boolean | 'all'>('all');
@@ -113,22 +127,33 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
 
   useEffect(() => {
     fetchOffers();
+    fetchArtists();
   }, []);
 
   useEffect(() => {
     applyFilters();
-  }, [offers, searchTerm, phaseFilter, countryFilter, promoterFilter, dateFrom, dateTo, showInternational, showCityzen]);
+  }, [offers, searchTerm, phaseFilter, countryFilter, promoterFilter, artistFilter, dateFrom, dateTo, showInternational, showCityzen]);
 
   const fetchOffers = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('booking_offers')
-        .select('*')
+        .select(`
+          *,
+          artist:artists(id, name, stage_name)
+        `)
         .order('sort_order', { ascending: true });
 
       if (error) throw error;
-      setOffers(data || []);
+      
+      // Map data to ensure artist is a single object, not an array
+      const mappedOffers = (data || []).map(offer => ({
+        ...offer,
+        artist: Array.isArray(offer.artist) ? offer.artist[0] : offer.artist
+      })) as BookingOffer[];
+      
+      setOffers(mappedOffers);
     } catch (error) {
       console.error('Error fetching offers:', error);
       toast({
@@ -138,6 +163,20 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchArtists = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('artists')
+        .select('id, name, stage_name')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setArtists(data || []);
+    } catch (error) {
+      console.error('Error fetching artists:', error);
     }
   };
 
@@ -151,7 +190,9 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
         offer.venue?.toLowerCase().includes(term) ||
         offer.ciudad?.toLowerCase().includes(term) ||
         offer.promotor?.toLowerCase().includes(term) ||
-        offer.festival_ciclo?.toLowerCase().includes(term)
+        offer.festival_ciclo?.toLowerCase().includes(term) ||
+        offer.artist?.name?.toLowerCase().includes(term) ||
+        offer.artist?.stage_name?.toLowerCase().includes(term)
       );
     }
 
@@ -168,6 +209,11 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
     // Promoter filter
     if (promoterFilter !== 'all') {
       filtered = filtered.filter(offer => offer.promotor === promoterFilter);
+    }
+
+    // Artist filter
+    if (artistFilter !== 'all') {
+      filtered = filtered.filter(offer => offer.artist_id === artistFilter);
     }
 
     // Date range filter
@@ -202,6 +248,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
     setPhaseFilter('all');
     setCountryFilter('all');
     setPromoterFilter('all');
+    setArtistFilter('all');
     setDateFrom(undefined);
     setDateTo(undefined);
     setShowInternational('all');
@@ -209,7 +256,11 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
   };
 
   const hasActiveFilters = searchTerm || phaseFilter !== 'all' || countryFilter !== 'all' || 
-    promoterFilter !== 'all' || dateFrom || dateTo || showInternational !== 'all' || showCityzen !== 'all';
+    promoterFilter !== 'all' || artistFilter !== 'all' || dateFrom || dateTo || showInternational !== 'all' || showCityzen !== 'all';
+  
+  const getArtistDisplayName = (artist: Artist) => {
+    return artist.stage_name || artist.name;
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     setDraggedItem(event.active.id as string);
@@ -457,12 +508,26 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por venue, ciudad, promotor..."
+              placeholder="Buscar por venue, ciudad, artista..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 w-64"
             />
           </div>
+
+          <Select value={artistFilter} onValueChange={setArtistFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Artista" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los artistas</SelectItem>
+              {artists.map(artist => (
+                <SelectItem key={artist.id} value={artist.id}>
+                  {getArtistDisplayName(artist)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           
           <Select value={phaseFilter} onValueChange={setPhaseFilter}>
             <SelectTrigger className="w-40">
