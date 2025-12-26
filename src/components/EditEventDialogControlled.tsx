@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Clock, Users, FolderKanban, User } from 'lucide-react';
+import { CalendarIcon, Clock, Users, FolderKanban, User, Music, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -40,9 +40,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
+import { TEAM_CATEGORIES } from '@/lib/teamCategories';
 
 const eventTypes = [
   { value: 'concert', label: 'Concierto' },
@@ -61,9 +63,23 @@ const personalCategories = [
   { value: 'other', label: 'Otros' }
 ] as const;
 
+interface Artist {
+  id: string;
+  name: string;
+  stage_name: string | null;
+}
+
+interface TeamMember {
+  id: string;
+  name: string;
+  category?: string;
+}
+
 const formSchema = z.object({
   eventContext: z.enum(['project', 'personal']),
   project_id: z.string().optional(),
+  artist_ids: z.array(z.string()).optional(),
+  team_member_ids: z.array(z.string()).optional(),
   title: z.string().min(1, 'El título es requerido'),
   event_type: z.string().min(1, 'Selecciona un tipo'),
   start_date: z.date({ required_error: 'La fecha es requerida' }),
@@ -103,6 +119,8 @@ export function EditEventDialogControlled({ event, open, onOpenChange, onUpdated
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [artists, setArtists] = useState<Artist[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const { isConnected: googleConnected, createEvent: createGoogleEvent } = useGoogleCalendar();
 
@@ -111,6 +129,8 @@ export function EditEventDialogControlled({ event, open, onOpenChange, onUpdated
     defaultValues: {
       eventContext: 'personal',
       project_id: '',
+      artist_ids: [],
+      team_member_ids: [],
       title: '',
       event_type: '',
       start_time: '09:00',
@@ -124,27 +144,74 @@ export function EditEventDialogControlled({ event, open, onOpenChange, onUpdated
   });
 
   const eventContext = form.watch('eventContext');
+  const selectedArtistIds = form.watch('artist_ids') || [];
+  const selectedTeamMemberIds = form.watch('team_member_ids') || [];
 
-  // Fetch projects
+  // Fetch projects, artists and team members
   useEffect(() => {
-    const fetchProjects = async () => {
+    const fetchData = async () => {
       try {
-        const { data, error } = await supabase
+        // Fetch projects
+        const { data: projectsData, error: projectsError } = await supabase
           .from('projects')
           .select('id, name')
           .order('name');
 
-        if (error) throw error;
-        setProjects(data || []);
+        if (projectsError) throw projectsError;
+        setProjects(projectsData || []);
+
+        // Fetch artists from artists table (roster)
+        const { data: artistsData, error: artistsError } = await supabase
+          .from('artists')
+          .select('id, name, stage_name')
+          .order('name');
+
+        if (artistsError) throw artistsError;
+        setArtists(artistsData || []);
+
+        // Fetch team members (workspace members + team contacts)
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Get workspace memberships
+          const { data: memberships } = await supabase
+            .from('workspace_memberships')
+            .select(`
+              user_id,
+              role,
+              profiles!workspace_memberships_user_id_fkey(id, full_name)
+            `);
+
+          const workspaceMembers: TeamMember[] = (memberships || [])
+            .filter((m: any) => m.profiles)
+            .map((m: any) => ({
+              id: m.user_id,
+              name: m.profiles.full_name || 'Sin nombre',
+              category: m.role
+            }));
+
+          // Get contacts marked as team members
+          const { data: teamContacts } = await supabase
+            .from('contacts')
+            .select('id, name, category')
+            .eq('category', 'team');
+
+          const contactMembers: TeamMember[] = (teamContacts || []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            category: c.category
+          }));
+
+          setTeamMembers([...workspaceMembers, ...contactMembers]);
+        }
       } catch (error) {
-        console.error('Error fetching projects:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoadingProjects(false);
       }
     };
 
     if (open) {
-      fetchProjects();
+      fetchData();
     }
   }, [open]);
 
@@ -157,6 +224,8 @@ export function EditEventDialogControlled({ event, open, onOpenChange, onUpdated
       form.reset({
         eventContext: 'personal',
         project_id: '',
+        artist_ids: [],
+        team_member_ids: [],
         title: event.title,
         event_type: event.event_type || 'other',
         start_date: start,
@@ -169,6 +238,24 @@ export function EditEventDialogControlled({ event, open, onOpenChange, onUpdated
       });
     }
   }, [event, open, form]);
+
+  const toggleArtist = (artistId: string) => {
+    const current = form.getValues('artist_ids') || [];
+    if (current.includes(artistId)) {
+      form.setValue('artist_ids', current.filter(id => id !== artistId));
+    } else {
+      form.setValue('artist_ids', [...current, artistId]);
+    }
+  };
+
+  const toggleTeamMember = (memberId: string) => {
+    const current = form.getValues('team_member_ids') || [];
+    if (current.includes(memberId)) {
+      form.setValue('team_member_ids', current.filter(id => id !== memberId));
+    } else {
+      form.setValue('team_member_ids', [...current, memberId]);
+    }
+  };
 
   const onSubmit = async (data: FormData) => {
     if (!event) return;
@@ -297,6 +384,111 @@ export function EditEventDialogControlled({ event, open, onOpenChange, onUpdated
                 )}
               />
             )}
+
+            {/* Artist Selector */}
+            <div className="space-y-2">
+              <FormLabel className="flex items-center gap-2">
+                <Music className="h-4 w-4" />
+                Artistas
+              </FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    {selectedArtistIds.length > 0 
+                      ? `${selectedArtistIds.length} artista(s) seleccionado(s)`
+                      : "Seleccionar artistas..."}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-2" align="start">
+                  <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                    {artists.map((artist) => (
+                      <div
+                        key={artist.id}
+                        className={cn(
+                          "flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted",
+                          selectedArtistIds.includes(artist.id) && "bg-primary/10"
+                        )}
+                        onClick={() => toggleArtist(artist.id)}
+                      >
+                        <Checkbox checked={selectedArtistIds.includes(artist.id)} />
+                        <span>{artist.stage_name || artist.name}</span>
+                      </div>
+                    ))}
+                    {artists.length === 0 && (
+                      <p className="text-sm text-muted-foreground p-2">No hay artistas</p>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              {selectedArtistIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {selectedArtistIds.map(id => {
+                    const artist = artists.find(a => a.id === id);
+                    return artist ? (
+                      <Badge key={id} variant="secondary" className="gap-1">
+                        {artist.stage_name || artist.name}
+                        <X className="h-3 w-3 cursor-pointer" onClick={() => toggleArtist(id)} />
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Team Member Selector */}
+            <div className="space-y-2">
+              <FormLabel className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Equipo
+              </FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    {selectedTeamMemberIds.length > 0 
+                      ? `${selectedTeamMemberIds.length} miembro(s) seleccionado(s)`
+                      : "Seleccionar equipo..."}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-2" align="start">
+                  <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                    {teamMembers.map((member) => (
+                      <div
+                        key={member.id}
+                        className={cn(
+                          "flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted",
+                          selectedTeamMemberIds.includes(member.id) && "bg-primary/10"
+                        )}
+                        onClick={() => toggleTeamMember(member.id)}
+                      >
+                        <Checkbox checked={selectedTeamMemberIds.includes(member.id)} />
+                        <span>{member.name}</span>
+                        {member.category && (
+                          <Badge variant="outline" className="text-xs ml-auto">
+                            {TEAM_CATEGORIES.find(c => c.value === member.category)?.label || member.category}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                    {teamMembers.length === 0 && (
+                      <p className="text-sm text-muted-foreground p-2">No hay miembros</p>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              {selectedTeamMemberIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {selectedTeamMemberIds.map(id => {
+                    const member = teamMembers.find(m => m.id === id);
+                    return member ? (
+                      <Badge key={id} variant="secondary" className="gap-1">
+                        {member.name}
+                        <X className="h-3 w-3 cursor-pointer" onClick={() => toggleTeamMember(id)} />
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* Title */}
             <FormField
