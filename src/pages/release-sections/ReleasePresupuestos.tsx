@@ -516,20 +516,22 @@ function TrackSplitsCard({ track }: { track: Track }) {
   const queryClient = useQueryClient();
   const { data: credits = [], isLoading } = useTrackCredits(track.id);
   const [isAddSplitOpen, setIsAddSplitOpen] = useState(false);
+  const [editingCreditId, setEditingCreditId] = useState<string | null>(null);
 
   const totalPercentage = credits.reduce((sum, c) => sum + (c.percentage || 0), 0);
 
-  const updateCreditPercentage = useMutation({
-    mutationFn: async ({ creditId, percentage }: { creditId: string; percentage: number }) => {
+  const updateCredit = useMutation({
+    mutationFn: async ({ creditId, data }: { creditId: string; data: Partial<{ percentage: number; role: string; name: string }> }) => {
       const { error } = await supabase
         .from('track_credits')
-        .update({ percentage })
+        .update(data)
         .eq('id', creditId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
       toast.success('Split actualizado');
+      setEditingCreditId(null);
     },
     onError: () => {
       toast.error('Error al actualizar');
@@ -618,47 +620,140 @@ function TrackSplitsCard({ track }: { track: Track }) {
         ) : (
           <div className="space-y-2">
             {credits.map((credit) => (
-              <div
+              <CreditRow
                 key={credit.id}
-                className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Users className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">{credit.name}</p>
-                    <p className="text-xs text-muted-foreground">{credit.role}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min="0"
-                    max={100 - totalPercentage + (credit.percentage || 0)}
-                    value={credit.percentage || ''}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0;
-                      updateCreditPercentage.mutate({ creditId: credit.id, percentage: val });
-                    }}
-                    className="w-20 h-8 text-right"
-                  />
-                  <span className="text-sm text-muted-foreground">%</span>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => deleteCredit.mutate(credit.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+                credit={credit}
+                totalPercentage={totalPercentage}
+                isEditing={editingCreditId === credit.id}
+                onEdit={() => setEditingCreditId(credit.id)}
+                onCancelEdit={() => setEditingCreditId(null)}
+                onUpdate={(data) => updateCredit.mutate({ creditId: credit.id, data })}
+                onDelete={() => deleteCredit.mutate(credit.id)}
+                isUpdating={updateCredit.isPending}
+              />
             ))}
           </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// Credit Row Component with inline editing
+function CreditRow({
+  credit,
+  totalPercentage,
+  isEditing,
+  onEdit,
+  onCancelEdit,
+  onUpdate,
+  onDelete,
+  isUpdating,
+}: {
+  credit: { id: string; name: string; role: string; percentage: number | null; contact_id: string | null };
+  totalPercentage: number;
+  isEditing: boolean;
+  onEdit: () => void;
+  onCancelEdit: () => void;
+  onUpdate: (data: Partial<{ percentage: number; role: string; name: string }>) => void;
+  onDelete: () => void;
+  isUpdating: boolean;
+}) {
+  const [editName, setEditName] = useState(credit.name);
+  const [editRole, setEditRole] = useState(credit.role);
+  const hasContact = !!credit.contact_id;
+
+  const handleSave = () => {
+    const updates: Partial<{ name: string; role: string }> = { role: editRole };
+    if (!hasContact) {
+      updates.name = editName;
+    }
+    onUpdate(updates);
+  };
+
+  if (isEditing) {
+    return (
+      <div className="p-3 bg-muted/50 rounded-lg space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <Users className="h-4 w-4 text-primary" />
+          </div>
+          <div className="flex-1 space-y-2">
+            {!hasContact ? (
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Nombre"
+                className="h-8"
+              />
+            ) : (
+              <p className="font-medium text-sm">{credit.name}</p>
+            )}
+            <Select value={editRole} onValueChange={setEditRole}>
+              <SelectTrigger className="h-8">
+                <SelectValue placeholder="Selecciona rol" />
+              </SelectTrigger>
+              <SelectContent>
+                {CREDIT_ROLES.map((r) => (
+                  <SelectItem key={r.value} value={r.value}>
+                    {r.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="ghost" onClick={onCancelEdit}>
+            Cancelar
+          </Button>
+          <Button size="sm" onClick={handleSave} disabled={isUpdating}>
+            {isUpdating ? 'Guardando...' : 'Guardar'}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted/70 transition-colors"
+      onClick={onEdit}
+    >
+      <div className="flex items-center gap-3">
+        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+          <Users className="h-4 w-4 text-primary" />
+        </div>
+        <div>
+          <p className="font-medium text-sm">{credit.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {CREDIT_ROLES.find(r => r.value === credit.role)?.label || credit.role}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <Input
+          type="number"
+          min="0"
+          max={100 - totalPercentage + (credit.percentage || 0)}
+          value={credit.percentage || ''}
+          onChange={(e) => {
+            const val = parseFloat(e.target.value) || 0;
+            onUpdate({ percentage: val });
+          }}
+          className="w-20 h-8 text-right"
+        />
+        <span className="text-sm text-muted-foreground">%</span>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 text-destructive hover:text-destructive"
+          onClick={onDelete}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
   );
 }
 
