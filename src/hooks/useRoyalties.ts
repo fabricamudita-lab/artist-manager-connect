@@ -52,8 +52,9 @@ export function useSongs(artistId?: string) {
         .select('*')
         .order('created_at', { ascending: false });
       
+      // Include songs for this artist OR songs without artist_id (shared/unassigned)
       if (artistId && artistId !== 'all') {
-        query = query.eq('artist_id', artistId);
+        query = query.or(`artist_id.eq.${artistId},artist_id.is.null`);
       }
       
       const { data, error } = await query;
