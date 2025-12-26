@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, FileText, Plane, Receipt, Edit, ExternalLink, Copy, Share2, Copy as Duplicate } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, FileText, Plane, Receipt, Edit, ExternalLink, Copy, Share2, Copy as Duplicate, FolderOpen } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/useCommon';
@@ -17,6 +17,7 @@ import { BookingItineraryTab } from '@/components/booking-detail/BookingItinerar
 import { BookingExpensesTab } from '@/components/booking-detail/BookingExpensesTab';
 import { BookingDocumentsTab } from '@/components/booking-detail/BookingDocumentsTab';
 import { BookingFilesWidget } from '@/components/booking-detail/BookingFilesWidget';
+import { BookingDriveTab } from '@/components/booking-detail/BookingDriveTab';
 import { EditBookingDialog } from '@/components/booking-detail/EditBookingDialog';
 import { ShareBookingDialog } from '@/components/booking-detail/ShareBookingDialog';
 interface Artist {
@@ -431,7 +432,7 @@ export default function BookingDetail() {
           {/* Main Tabs - Takes 2 columns */}
           <div className="lg:col-span-2">
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 mb-6">
+              <TabsList className="grid w-full grid-cols-5 mb-6">
                 <TabsTrigger value="overview" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   Overview
@@ -447,6 +448,10 @@ export default function BookingDetail() {
                 <TabsTrigger value="documents" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   Documents
+                </TabsTrigger>
+                <TabsTrigger value="drive" className="flex items-center gap-2">
+                  <FolderOpen className="h-4 w-4" />
+                  Archivos
                 </TabsTrigger>
               </TabsList>
 
@@ -464,6 +469,14 @@ export default function BookingDetail() {
 
               <TabsContent value="documents">
                 <BookingDocumentsTab booking={booking} onUpdate={handleBookingUpdate} />
+              </TabsContent>
+
+              <TabsContent value="drive">
+                <BookingDriveTab 
+                  bookingId={booking.id} 
+                  artistId={booking.artist_id} 
+                  folderUrl={booking.folder_url} 
+                />
               </TabsContent>
             </Tabs>
           </div>

@@ -28,6 +28,7 @@ import DashboardLayout from "./components/DashboardLayout";
 import Projects from "./pages/Projects";
 import Proyectos from "./pages/Proyectos";
 import Carpetas from "./pages/Carpetas";
+import Drive from "./pages/Drive";
 import ProjectDetail from "./pages/ProjectDetail";
 import Approvals from "./pages/Approvals";
 import ApprovalDetail from "./pages/ApprovalDetail";
@@ -231,6 +232,11 @@ const App = () => (
               <Route path="/carpetas" element={
                 <ProtectedRoute>
                   <Carpetas />
+                </ProtectedRoute>
+              } />
+              <Route path="/drive" element={
+                <ProtectedRoute>
+                  <Drive />
                 </ProtectedRoute>
               } />
               <Route path="/projects/:id" element={
