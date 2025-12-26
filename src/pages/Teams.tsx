@@ -13,8 +13,9 @@ import { AddTeamContactDialog } from '@/components/AddTeamContactDialog';
 import { TeamMemberActivityDialog } from '@/components/TeamMemberActivityDialog';
 import { CreateTeamDialog } from '@/components/CreateTeamDialog';
 import { EditContactDialog } from '@/components/EditContactDialog';
+import { TEAM_CATEGORIES } from '@/lib/teamCategories';
 
-type TeamCategory = 'banda' | 'artistico' | 'tecnico' | 'management' | 'comunicacion' | 'legal' | 'otro';
+type TeamCategory = 'banda' | 'artistico' | 'tecnico' | 'management' | 'comunicacion' | 'legal' | 'produccion' | 'otro';
 
 interface TeamMember {
   id: string;
@@ -32,16 +33,6 @@ interface TeamMember {
     presupuestos: 'none' | 'view' | 'edit' | 'owner';
   };
 }
-
-const TEAM_CATEGORIES: { value: TeamCategory; label: string; icon: any }[] = [
-  { value: 'banda', label: 'Banda', icon: Users },
-  { value: 'artistico', label: 'Equipo Artístico', icon: Users },
-  { value: 'tecnico', label: 'Equipo Técnico', icon: UserCheck },
-  { value: 'management', label: 'Management', icon: Building },
-  { value: 'comunicacion', label: 'Comunicación', icon: Mail },
-  { value: 'legal', label: 'Legal', icon: Shield },
-  { value: 'otro', label: 'Otros', icon: Users },
-];
 
 export default function Teams() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);

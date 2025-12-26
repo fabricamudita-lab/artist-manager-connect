@@ -51,6 +51,7 @@ export default function Calendar() {
   const [teamMembers, setTeamMembers] = useState<{
     id: string;
     full_name: string;
+    type?: 'workspace' | 'contact';
   }[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isImporting, setIsImporting] = useState(false);
@@ -232,17 +233,64 @@ export default function Calendar() {
   };
   const fetchTeamMembers = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('profiles').select('id, full_name').order('full_name', {
-        ascending: true
-      });
-      if (error) {
-        console.error('Error fetching team members:', error);
-      } else {
-        setTeamMembers(data || []);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get user's workspace
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('workspace_id')
+        .eq('user_id', user.id)
+        .single();
+
+      const allMembers: { id: string; full_name: string; type?: 'workspace' | 'contact' }[] = [];
+
+      // Fetch workspace members
+      if (profileData?.workspace_id) {
+        const { data: memberships } = await supabase
+          .from('workspace_memberships')
+          .select('user_id')
+          .eq('workspace_id', profileData.workspace_id);
+
+        if (memberships && memberships.length > 0) {
+          const userIds = memberships.map(m => m.user_id);
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('user_id, full_name, stage_name')
+            .in('user_id', userIds);
+
+          if (profiles) {
+            profiles.forEach(p => {
+              allMembers.push({
+                id: p.user_id,
+                full_name: p.stage_name || p.full_name || 'Sin nombre',
+                type: 'workspace'
+              });
+            });
+          }
+        }
       }
+
+      // Fetch team contacts
+      const { data: contacts } = await supabase
+        .from('contacts')
+        .select('id, name, stage_name, field_config')
+        .eq('created_by', user.id);
+
+      if (contacts) {
+        contacts.forEach(c => {
+          const config = c.field_config as Record<string, any> | null;
+          if (config?.is_team_member) {
+            allMembers.push({
+              id: c.id,
+              full_name: c.stage_name || c.name,
+              type: 'contact'
+            });
+          }
+        });
+      }
+
+      setTeamMembers(allMembers);
     } catch (error) {
       console.error('Error fetching team members:', error);
     }
