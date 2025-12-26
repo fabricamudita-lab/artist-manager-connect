@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useTeamMembersByArtist, TeamMemberWithCategory } from '@/hooks/useTeamMembersByArtist';
 import {
   Dialog,
   DialogContent,
@@ -14,11 +15,20 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Plus, Trash2, Upload, Loader2, Users, Clock, Euro, 
-  FileText, Music, GripVertical, Settings2
+  FileText, Music, GripVertical, Settings2, X, UserPlus
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+interface CrewMember {
+  memberId: string;
+  memberType: 'workspace' | 'contact';
+  roleLabel?: string;
+  name: string;
+}
 
 interface BookingProduct {
   id?: string;
@@ -26,7 +36,7 @@ interface BookingProduct {
   description?: string;
   feeMin?: number;
   feeMax?: number;
-  crewSize: number;
+  crewMembers: CrewMember[];
   performanceDurationMinutes?: number;
   riderUrl?: string;
   hospitalityRequirements?: string;
@@ -60,7 +70,11 @@ export function ArtistFormatsDialog({
   const queryClient = useQueryClient();
   const [formats, setFormats] = useState<BookingProduct[]>([]);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  const [selectingCrewForIndex, setSelectingCrewForIndex] = useState<number | null>(null);
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  
+  // Fetch team members for this artist
+  const { filteredMembers, groupedByCategory, loading: loadingTeam } = useTeamMembersByArtist([artistId]);
 
   // Fetch existing formats
   const { data: existingFormats, isLoading } = useQuery({
@@ -77,29 +91,77 @@ export function ArtistFormatsDialog({
     enabled: open && !!artistId,
   });
 
+  // Fetch crew assignments for existing formats
+  const { data: existingCrew } = useQuery({
+    queryKey: ['booking-product-crew', artistId],
+    queryFn: async () => {
+      if (!existingFormats || existingFormats.length === 0) return [];
+      
+      const productIds = existingFormats.map(f => f.id);
+      const { data, error } = await supabase
+        .from('booking_product_crew')
+        .select('*')
+        .in('booking_product_id', productIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: open && !!artistId && !!existingFormats && existingFormats.length > 0,
+  });
+
   // Initialize formats from database
   useEffect(() => {
     if (existingFormats) {
+      const crewByProduct = new Map<string, CrewMember[]>();
+      
+      if (existingCrew) {
+        existingCrew.forEach((c: any) => {
+          if (!crewByProduct.has(c.booking_product_id)) {
+            crewByProduct.set(c.booking_product_id, []);
+          }
+          // Find member name from team members
+          const member = filteredMembers.find(m => m.id === c.member_id);
+          crewByProduct.get(c.booking_product_id)!.push({
+            memberId: c.member_id,
+            memberType: c.member_type,
+            roleLabel: c.role_label || undefined,
+            name: member?.name || 'Desconocido',
+          });
+        });
+      }
+      
       setFormats(existingFormats.map(f => ({
         id: f.id,
         name: f.name,
         description: f.description || undefined,
         feeMin: f.fee_min || undefined,
         feeMax: f.fee_max || undefined,
-        crewSize: f.crew_size || 1,
+        crewMembers: crewByProduct.get(f.id) || [],
         performanceDurationMinutes: f.performance_duration_minutes || undefined,
         riderUrl: f.rider_url || undefined,
         hospitalityRequirements: f.hospitality_requirements || undefined,
       })));
     }
-  }, [existingFormats]);
+  }, [existingFormats, existingCrew, filteredMembers]);
 
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('No user');
 
-      // Delete all existing formats for this artist
+      // Delete all existing formats and crew for this artist
+      const { data: existingProducts } = await supabase
+        .from('booking_products')
+        .select('id')
+        .eq('artist_id', artistId);
+      
+      if (existingProducts && existingProducts.length > 0) {
+        const productIds = existingProducts.map(p => p.id);
+        await supabase
+          .from('booking_product_crew')
+          .delete()
+          .in('booking_product_id', productIds);
+      }
+      
       await supabase
         .from('booking_products')
         .delete()
@@ -107,26 +169,49 @@ export function ArtistFormatsDialog({
 
       // Insert all new/updated formats
       if (formats.length > 0) {
-        const { error } = await supabase.from('booking_products').insert(
-          formats.map((f, idx) => ({
-            artist_id: artistId,
-            name: f.name,
-            description: f.description || null,
-            fee_min: f.feeMin || null,
-            fee_max: f.feeMax || null,
-            crew_size: f.crewSize,
-            performance_duration_minutes: f.performanceDurationMinutes || null,
-            rider_url: f.riderUrl || null,
-            hospitality_requirements: f.hospitalityRequirements || null,
-            sort_order: idx,
-            created_by: user.id,
-          }))
-        );
-        if (error) throw error;
+        for (let idx = 0; idx < formats.length; idx++) {
+          const f = formats[idx];
+          const { data: newProduct, error } = await supabase
+            .from('booking_products')
+            .insert({
+              artist_id: artistId,
+              name: f.name,
+              description: f.description || null,
+              fee_min: f.feeMin || null,
+              fee_max: f.feeMax || null,
+              crew_size: f.crewMembers.length,
+              performance_duration_minutes: f.performanceDurationMinutes || null,
+              rider_url: f.riderUrl || null,
+              hospitality_requirements: f.hospitalityRequirements || null,
+              sort_order: idx,
+              created_by: user.id,
+            })
+            .select()
+            .single();
+          
+          if (error) throw error;
+          
+          // Insert crew members
+          if (f.crewMembers.length > 0 && newProduct) {
+            const crewInserts = f.crewMembers.map(cm => ({
+              booking_product_id: newProduct.id,
+              member_id: cm.memberId,
+              member_type: cm.memberType,
+              role_label: cm.roleLabel || null,
+            }));
+            
+            const { error: crewError } = await supabase
+              .from('booking_product_crew')
+              .insert(crewInserts);
+            
+            if (crewError) throw crewError;
+          }
+        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking-products', artistId] });
+      queryClient.invalidateQueries({ queryKey: ['booking-product-crew', artistId] });
       toast.success('Formatos guardados correctamente');
       onOpenChange(false);
     },
@@ -141,7 +226,7 @@ export function ArtistFormatsDialog({
       ...formats,
       {
         name: preset?.name || 'Nuevo Formato',
-        crewSize: preset?.crewSize || 1,
+        crewMembers: [],
       },
     ]);
   };
@@ -152,6 +237,38 @@ export function ArtistFormatsDialog({
 
   const handleUpdateFormat = (index: number, updates: Partial<BookingProduct>) => {
     setFormats(formats.map((f, i) => (i === index ? { ...f, ...updates } : f)));
+  };
+
+  const handleAddCrewMember = (formatIndex: number, member: TeamMemberWithCategory) => {
+    const format = formats[formatIndex];
+    if (format.crewMembers.some(cm => cm.memberId === member.id)) return;
+    
+    handleUpdateFormat(formatIndex, {
+      crewMembers: [
+        ...format.crewMembers,
+        {
+          memberId: member.id,
+          memberType: member.type,
+          name: member.name,
+        },
+      ],
+    });
+  };
+
+  const handleRemoveCrewMember = (formatIndex: number, memberId: string) => {
+    const format = formats[formatIndex];
+    handleUpdateFormat(formatIndex, {
+      crewMembers: format.crewMembers.filter(cm => cm.memberId !== memberId),
+    });
+  };
+
+  const handleUpdateCrewRole = (formatIndex: number, memberId: string, roleLabel: string) => {
+    const format = formats[formatIndex];
+    handleUpdateFormat(formatIndex, {
+      crewMembers: format.crewMembers.map(cm =>
+        cm.memberId === memberId ? { ...cm, roleLabel } : cm
+      ),
+    });
   };
 
   const handleRiderUpload = async (index: number, file: File) => {
@@ -282,40 +399,141 @@ export function ArtistFormatsDialog({
                       </div>
                     </div>
 
-                    {/* Crew & Duration */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="flex items-center gap-2 text-sm">
-                          <Users className="w-4 h-4" />
-                          Tamaño del Crew
-                        </Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={format.crewSize}
-                          onChange={(e) =>
-                            handleUpdateFormat(index, { crewSize: parseInt(e.target.value) || 1 })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="flex items-center gap-2 text-sm">
-                          <Clock className="w-4 h-4" />
-                          Duración (min)
-                        </Label>
-                        <Input
-                          type="number"
-                          min="15"
-                          step="15"
-                          placeholder="90"
-                          value={format.performanceDurationMinutes || ''}
-                          onChange={(e) =>
-                            handleUpdateFormat(index, {
-                              performanceDurationMinutes: parseInt(e.target.value) || undefined,
-                            })
-                          }
-                        />
-                      </div>
+                    {/* Crew Selection */}
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2 text-sm">
+                        <Users className="w-4 h-4" />
+                        Equipo ({format.crewMembers.length} miembros)
+                      </Label>
+                      
+                      {/* Selected Crew Members */}
+                      {format.crewMembers.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {format.crewMembers.map((cm) => (
+                            <div
+                              key={cm.memberId}
+                              className="flex items-center gap-1 bg-secondary rounded-md px-2 py-1"
+                            >
+                              <span className="text-sm">{cm.name}</span>
+                              {cm.roleLabel && (
+                                <span className="text-xs text-muted-foreground">
+                                  ({cm.roleLabel})
+                                </span>
+                              )}
+                              <Input
+                                value={cm.roleLabel || ''}
+                                onChange={(e) => handleUpdateCrewRole(index, cm.memberId, e.target.value)}
+                                placeholder="Rol"
+                                className="w-20 h-6 text-xs border-none bg-background/50 px-1"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5"
+                                onClick={() => handleRemoveCrewMember(index, cm.memberId)}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Add Crew Button */}
+                      {selectingCrewForIndex === index ? (
+                        <div className="border rounded-md p-3 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-medium">Seleccionar miembros</Label>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectingCrewForIndex(null)}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          
+                          {loadingTeam ? (
+                            <div className="flex items-center justify-center py-4">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            </div>
+                          ) : groupedByCategory.length === 0 ? (
+                            <p className="text-sm text-muted-foreground py-2">
+                              No hay miembros del equipo configurados. Añádelos en la pestaña "Equipo".
+                            </p>
+                          ) : (
+                            <ScrollArea className="h-48">
+                              <div className="space-y-3">
+                                {groupedByCategory.map((category) => (
+                                  <div key={category.value}>
+                                    <p className="text-xs font-medium text-muted-foreground mb-1">
+                                      {category.label}
+                                    </p>
+                                    <div className="space-y-1">
+                                      {category.members.map((member) => {
+                                        const isSelected = format.crewMembers.some(
+                                          cm => cm.memberId === member.id
+                                        );
+                                        return (
+                                          <div
+                                            key={member.id}
+                                            className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer"
+                                            onClick={() => {
+                                              if (isSelected) {
+                                                handleRemoveCrewMember(index, member.id);
+                                              } else {
+                                                handleAddCrewMember(index, member);
+                                              }
+                                            }}
+                                          >
+                                            <Checkbox checked={isSelected} />
+                                            <span className="text-sm">{member.name}</span>
+                                            <Badge variant="secondary" className="text-xs">
+                                              {member.type === 'workspace' ? 'Usuario' : 'Contacto'}
+                                            </Badge>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </ScrollArea>
+                          )}
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectingCrewForIndex(index)}
+                        >
+                          <UserPlus className="w-4 h-4 mr-2" />
+                          Añadir miembros
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Duration */}
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2 text-sm">
+                        <Clock className="w-4 h-4" />
+                        Duración (min)
+                      </Label>
+                      <Input
+                        type="number"
+                        min="15"
+                        step="15"
+                        placeholder="90"
+                        value={format.performanceDurationMinutes || ''}
+                        onChange={(e) =>
+                          handleUpdateFormat(index, {
+                            performanceDurationMinutes: parseInt(e.target.value) || undefined,
+                          })
+                        }
+                      />
                     </div>
 
                     {/* Rider Upload */}
