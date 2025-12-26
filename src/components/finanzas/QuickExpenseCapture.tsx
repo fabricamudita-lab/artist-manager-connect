@@ -97,7 +97,9 @@ export function QuickExpenseCapture({ artistId, bookingId, onExpenseCreated }: Q
           booking_id: bookingId,
         });
 
-        onExpenseCreated?.(result);
+        if (result) {
+          onExpenseCreated?.(result as QuickExpense);
+        }
       }
     } catch (error) {
       console.error('Error uploading expense:', error);
@@ -127,17 +129,6 @@ export function QuickExpenseCapture({ artistId, bookingId, onExpenseCreated }: Q
   const handleSaveDetails = async () => {
     if (!selectedExpense) return;
     
-    // First update the expense with details, then approve
-    await createExpense.mutateAsync({
-      file_url: selectedExpense.file_url,
-      file_name: selectedExpense.file_name,
-      file_type: selectedExpense.file_type || undefined,
-      amount: parseFloat(expenseDetails.amount) || undefined,
-      description: expenseDetails.description || undefined,
-      artist_id: selectedExpense.artist_id || undefined,
-      booking_id: selectedExpense.booking_id || undefined,
-    });
-    
     await approveExpense.mutateAsync(selectedExpense.id);
     
     setShowDetailsDialog(false);
@@ -147,21 +138,6 @@ export function QuickExpenseCapture({ artistId, bookingId, onExpenseCreated }: Q
 
   const handleReject = async (expense: QuickExpense) => {
     await rejectExpense.mutateAsync(expense.id);
-  };
-
-  const handleSaveDetails = async () => {
-    if (!selectedExpense) return;
-    
-    // Update and approve
-    await createExpense.mutateAsync({
-      ...selectedExpense,
-      amount: parseFloat(expenseDetails.amount) || undefined,
-      description: expenseDetails.description || undefined,
-    } as any);
-    
-    setShowDetailsDialog(false);
-    setSelectedExpense(null);
-    setExpenseDetails({ amount: '', description: '' });
   };
 
   return (
