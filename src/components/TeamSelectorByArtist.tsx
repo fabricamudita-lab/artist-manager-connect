@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { useTeamMembersByArtist, TeamMemberWithCategory } from '@/hooks/useTeamMembersByArtist';
+import { useTeamMembersByArtist } from '@/hooks/useTeamMembersByArtist';
 import { TEAM_CATEGORIES } from '@/lib/teamCategories';
 
 interface TeamSelectorByArtistProps {
@@ -85,63 +86,65 @@ export function TeamSelectorByArtist({
               : "Seleccionar equipo..."}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[320px] p-2" align="start">
-          <div className="space-y-1 max-h-[300px] overflow-y-auto">
-            {loading ? (
-              <p className="text-sm text-muted-foreground p-2">Cargando...</p>
-            ) : groupedByCategory.length === 0 ? (
-              <p className="text-sm text-muted-foreground p-2">No hay miembros</p>
-            ) : (
-              groupedByCategory.map((category) => (
-                <div key={category.value} className="mb-2">
-                  {/* Category header - clickable to select/deselect all */}
-                  <div
-                    className={cn(
-                      "flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted font-medium text-sm border-b",
-                      isCategoryFullySelected(category.value) && "bg-primary/10"
-                    )}
-                    onClick={() => toggleCategory(category.value)}
-                  >
-                    <Checkbox 
-                      checked={isCategoryFullySelected(category.value)}
+        <PopoverContent className="w-[320px] p-0" align="start">
+          <ScrollArea className="h-[300px]">
+            <div className="p-2 space-y-1">
+              {loading ? (
+                <p className="text-sm text-muted-foreground p-2">Cargando...</p>
+              ) : groupedByCategory.length === 0 ? (
+                <p className="text-sm text-muted-foreground p-2">No hay miembros</p>
+              ) : (
+                groupedByCategory.map((category) => (
+                  <div key={category.value} className="mb-2">
+                    {/* Category header - clickable to select/deselect all */}
+                    <div
                       className={cn(
-                        isCategoryPartiallySelected(category.value) && "data-[state=unchecked]:bg-primary/30"
+                        "flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted font-medium text-sm border-b",
+                        isCategoryFullySelected(category.value) && "bg-primary/10"
                       )}
-                    />
-                    <span>{category.label}</span>
-                    <Badge variant="secondary" className="text-xs ml-auto">
-                      {category.members.length}
-                    </Badge>
-                  </div>
-                  
-                  {/* Individual members in category */}
-                  <div className="pl-4 space-y-0.5">
-                    {category.members.map((member) => (
-                      <div
-                        key={member.id}
+                      onClick={() => toggleCategory(category.value)}
+                    >
+                      <Checkbox 
+                        checked={isCategoryFullySelected(category.value)}
                         className={cn(
-                          "flex items-center gap-2 p-1.5 rounded cursor-pointer hover:bg-muted text-sm",
-                          selectedTeamMemberIds.includes(member.id) && "bg-primary/5"
+                          isCategoryPartiallySelected(category.value) && "data-[state=unchecked]:bg-primary/30"
                         )}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleMember(member.id);
-                        }}
-                      >
-                        <Checkbox checked={selectedTeamMemberIds.includes(member.id)} />
-                        <span className="truncate">{member.name}</span>
-                        {member.type === 'workspace' && (
-                          <Badge variant="outline" className="text-[10px] ml-auto shrink-0">
-                            Usuario
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
+                      />
+                      <span>{category.label}</span>
+                      <Badge variant="secondary" className="text-xs ml-auto">
+                        {category.members.length}
+                      </Badge>
+                    </div>
+                    
+                    {/* Individual members in category */}
+                    <div className="pl-4 space-y-0.5">
+                      {category.members.map((member) => (
+                        <div
+                          key={member.id}
+                          className={cn(
+                            "flex items-center gap-2 p-1.5 rounded cursor-pointer hover:bg-muted text-sm",
+                            selectedTeamMemberIds.includes(member.id) && "bg-primary/5"
+                          )}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleMember(member.id);
+                          }}
+                        >
+                          <Checkbox checked={selectedTeamMemberIds.includes(member.id)} />
+                          <span className="truncate">{member.name}</span>
+                          {member.type === 'workspace' && (
+                            <Badge variant="outline" className="text-[10px] ml-auto shrink-0">
+                              Usuario
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
-          </div>
+                ))
+              )}
+            </div>
+          </ScrollArea>
         </PopoverContent>
       </Popover>
       
