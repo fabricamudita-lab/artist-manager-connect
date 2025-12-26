@@ -74,7 +74,7 @@ const SECTIONS = [
   },
   {
     id: 'creditos',
-    title: 'Créditos',
+    title: 'Créditos y Autoría',
     description: 'Compositores, productores y colaboradores',
     icon: Users,
     color: 'from-purple-500/20 to-purple-500/5',
