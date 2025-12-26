@@ -198,7 +198,7 @@ export function Step2Team({ formData, updateFormData, onValidationChange }: Step
                     {role.label}
                   </div>
                 </SelectItem>
-              )))}
+              ))}
             </SelectContent>
           </Select>
           <Button type="button" onClick={handleAddMember}>
@@ -267,7 +267,7 @@ export function Step2Team({ formData, updateFormData, onValidationChange }: Step
                                 </div>
                               </div>
                             </SelectItem>
-                          )))}
+                          ))}
                         </SelectContent>
                       </Select>
 

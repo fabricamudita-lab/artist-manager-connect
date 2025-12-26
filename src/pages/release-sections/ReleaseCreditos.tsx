@@ -1,21 +1,128 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Users } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useRelease, useTracks } from '@/hooks/useReleases';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { useRelease, useTracks, useTrackCredits, Track, TrackCredit } from '@/hooks/useReleases';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
+
+const CREDIT_ROLES = [
+  'Compositor',
+  'Letrista',
+  'Productor',
+  'Ingeniero de mezcla',
+  'Ingeniero de masterización',
+  'Arreglista',
+  'Músico de sesión',
+  'Vocalista',
+  'Programador',
+  'Otro',
+];
 
 export default function ReleaseCreditos() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: release, isLoading: loadingRelease } = useRelease(id);
   const { data: tracks, isLoading: loadingTracks } = useTracks(id);
+
+  const [isCreateTrackOpen, setIsCreateTrackOpen] = useState(false);
+  const [isEditTrackOpen, setIsEditTrackOpen] = useState(false);
+  const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
+  const [deleteTrackId, setDeleteTrackId] = useState<string | null>(null);
+
+  // Create track mutation
+  const createTrack = useMutation({
+    mutationFn: async (data: { title: string; track_number: number; lyrics?: string; isrc?: string }) => {
+      const { data: track, error } = await supabase
+        .from('tracks')
+        .insert({ ...data, release_id: id })
+        .select()
+        .single();
+      if (error) throw error;
+      return track;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tracks', id] });
+      toast.success('Canción creada');
+      setIsCreateTrackOpen(false);
+    },
+    onError: () => {
+      toast.error('Error al crear la canción');
+    },
+  });
+
+  // Update track mutation
+  const updateTrack = useMutation({
+    mutationFn: async (data: { id: string; title?: string; lyrics?: string; isrc?: string }) => {
+      const { id: trackId, ...updates } = data;
+      const { error } = await supabase.from('tracks').update(updates).eq('id', trackId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tracks', id] });
+      toast.success('Canción actualizada');
+      setIsEditTrackOpen(false);
+      setSelectedTrack(null);
+    },
+    onError: () => {
+      toast.error('Error al actualizar');
+    },
+  });
+
+  // Delete track mutation
+  const deleteTrack = useMutation({
+    mutationFn: async (trackId: string) => {
+      const { error } = await supabase.from('tracks').delete().eq('id', trackId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tracks', id] });
+      toast.success('Canción eliminada');
+      setDeleteTrackId(null);
+    },
+    onError: () => {
+      toast.error('Error al eliminar');
+    },
+  });
 
   if (loadingRelease) {
     return <Skeleton className="h-64 w-full" />;
   }
+
+  const nextTrackNumber = tracks ? Math.max(0, ...tracks.map((t) => t.track_number)) + 1 : 1;
 
   return (
     <div className="space-y-6">
@@ -23,15 +130,33 @@ export default function ReleaseCreditos() {
         <Button variant="ghost" size="icon" onClick={() => navigate(`/releases/${id}`)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
+        <div className="flex-1">
           <p className="text-sm text-muted-foreground">{release?.title}</p>
           <h1 className="text-2xl font-bold">Créditos</h1>
         </div>
+        <Dialog open={isCreateTrackOpen} onOpenChange={setIsCreateTrackOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Nueva Canción
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Añadir Canción</DialogTitle>
+            </DialogHeader>
+            <CreateTrackForm
+              nextTrackNumber={nextTrackNumber}
+              onSubmit={(data) => createTrack.mutate(data)}
+              isLoading={createTrack.isPending}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Créditos por Canción</CardTitle>
+          <CardTitle>Canciones y Créditos</CardTitle>
         </CardHeader>
         <CardContent>
           {loadingTracks ? (
@@ -39,40 +164,443 @@ export default function ReleaseCreditos() {
           ) : tracks && tracks.length > 0 ? (
             <Accordion type="multiple" className="w-full">
               {tracks.map((track) => (
-                <AccordionItem key={track.id} value={track.id}>
-                  <AccordionTrigger>
-                    <div className="flex items-center gap-3">
-                      <span className="text-muted-foreground w-6">{track.track_number}.</span>
-                      <span>{track.title}</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="pl-9 space-y-3">
-                      <Button variant="outline" size="sm">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Añadir Crédito
-                      </Button>
-                      <p className="text-sm text-muted-foreground">
-                        Sin créditos registrados para esta canción.
-                      </p>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
+                <TrackCreditsItem
+                  key={track.id}
+                  track={track}
+                  onEdit={() => {
+                    setSelectedTrack(track);
+                    setIsEditTrackOpen(true);
+                  }}
+                  onDelete={() => setDeleteTrackId(track.id)}
+                />
               ))}
             </Accordion>
           ) : (
-            <div className="text-center py-8">
-              <Users className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground">
-                Primero añade canciones en la sección de Audio para gestionar sus créditos.
+            <div className="text-center py-12">
+              <Music className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Sin canciones</h3>
+              <p className="text-muted-foreground mb-4">
+                Crea las canciones para añadir letra y créditos
               </p>
-              <Button variant="link" onClick={() => navigate(`/releases/${id}/audio`)}>
-                Ir a Audio
+              <Button onClick={() => setIsCreateTrackOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Añadir Canción
               </Button>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Track Dialog */}
+      <Dialog open={isEditTrackOpen} onOpenChange={setIsEditTrackOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar Canción</DialogTitle>
+          </DialogHeader>
+          {selectedTrack && (
+            <EditTrackForm
+              track={selectedTrack}
+              onSubmit={(data) => updateTrack.mutate({ id: selectedTrack.id, ...data })}
+              isLoading={updateTrack.isPending}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTrackId} onOpenChange={() => setDeleteTrackId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar canción?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará la canción y todos sus créditos. No se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTrackId && deleteTrack.mutate(deleteTrackId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+// Track Credits Item Component
+function TrackCreditsItem({
+  track,
+  onEdit,
+  onDelete,
+}: {
+  track: Track;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { data: credits = [], isLoading } = useTrackCredits(track.id);
+  const queryClient = useQueryClient();
+  const [isAddCreditOpen, setIsAddCreditOpen] = useState(false);
+
+  const createCredit = useMutation({
+    mutationFn: async (data: { name: string; role: string; percentage?: number }) => {
+      const { error } = await supabase.from('track_credits').insert({
+        track_id: track.id,
+        ...data,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
+      toast.success('Crédito añadido');
+      setIsAddCreditOpen(false);
+    },
+    onError: () => {
+      toast.error('Error al añadir crédito');
+    },
+  });
+
+  const deleteCredit = useMutation({
+    mutationFn: async (creditId: string) => {
+      const { error } = await supabase.from('track_credits').delete().eq('id', creditId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
+      toast.success('Crédito eliminado');
+    },
+  });
+
+  return (
+    <AccordionItem value={track.id}>
+      <AccordionTrigger className="hover:no-underline">
+        <div className="flex items-center gap-3 flex-1">
+          <span className="text-muted-foreground w-6">{track.track_number}.</span>
+          <span className="font-medium">{track.title}</span>
+          <div className="flex gap-1 ml-auto mr-4">
+            {track.lyrics && (
+              <Badge variant="outline" className="text-xs">
+                <FileText className="w-3 h-3 mr-1" />
+                Letra
+              </Badge>
+            )}
+            {credits.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                <Users className="w-3 h-3 mr-1" />
+                {credits.length}
+              </Badge>
+            )}
+          </div>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent>
+        <div className="pl-9 space-y-4">
+          {/* Track Actions */}
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={onEdit}>
+              <Pencil className="w-3 h-3 mr-1" />
+              Editar Canción
+            </Button>
+            <Button variant="outline" size="sm" onClick={onDelete}>
+              <Trash2 className="w-3 h-3 mr-1" />
+              Eliminar
+            </Button>
+          </div>
+
+          {/* Lyrics Preview */}
+          {track.lyrics && (
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <Label className="text-sm font-medium mb-2 block">Letra</Label>
+              <p className="text-sm text-muted-foreground whitespace-pre-line line-clamp-4">
+                {track.lyrics}
+              </p>
+            </div>
+          )}
+
+          {/* Credits Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Créditos</Label>
+              <Dialog open={isAddCreditOpen} onOpenChange={setIsAddCreditOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <UserPlus className="w-3 h-3 mr-1" />
+                    Añadir Crédito
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Añadir Crédito</DialogTitle>
+                  </DialogHeader>
+                  <AddCreditForm
+                    onSubmit={(data) => createCredit.mutate(data)}
+                    isLoading={createCredit.isPending}
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {isLoading ? (
+              <Skeleton className="h-16 w-full" />
+            ) : credits.length > 0 ? (
+              <div className="space-y-2">
+                {credits.map((credit) => (
+                  <div
+                    key={credit.id}
+                    className="flex items-center justify-between p-2 bg-background rounded border"
+                  >
+                    <div>
+                      <p className="font-medium text-sm">{credit.name}</p>
+                      <p className="text-xs text-muted-foreground">{credit.role}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {credit.percentage && (
+                        <Badge variant="outline">{credit.percentage}%</Badge>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => deleteCredit.mutate(credit.id)}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Sin créditos registrados para esta canción.
+              </p>
+            )}
+          </div>
+        </div>
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
+// Create Track Form
+function CreateTrackForm({
+  nextTrackNumber,
+  onSubmit,
+  isLoading,
+}: {
+  nextTrackNumber: number;
+  onSubmit: (data: { title: string; track_number: number; lyrics?: string; isrc?: string }) => void;
+  isLoading: boolean;
+}) {
+  const [title, setTitle] = useState('');
+  const [trackNumber, setTrackNumber] = useState(nextTrackNumber);
+  const [lyrics, setLyrics] = useState('');
+  const [isrc, setIsrc] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    onSubmit({
+      title: title.trim(),
+      track_number: trackNumber,
+      lyrics: lyrics.trim() || undefined,
+      isrc: isrc.trim() || undefined,
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-4 gap-4">
+        <div className="col-span-1">
+          <Label htmlFor="track_number">N°</Label>
+          <Input
+            id="track_number"
+            type="number"
+            min={1}
+            value={trackNumber}
+            onChange={(e) => setTrackNumber(parseInt(e.target.value) || 1)}
+          />
+        </div>
+        <div className="col-span-3">
+          <Label htmlFor="title">Título *</Label>
+          <Input
+            id="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Nombre de la canción"
+            required
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="isrc">ISRC</Label>
+        <Input
+          id="isrc"
+          value={isrc}
+          onChange={(e) => setIsrc(e.target.value)}
+          placeholder="XX-XXX-00-00000"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="lyrics">Letra</Label>
+        <Textarea
+          id="lyrics"
+          value={lyrics}
+          onChange={(e) => setLyrics(e.target.value)}
+          placeholder="Escribe la letra de la canción..."
+          rows={6}
+        />
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button type="submit" disabled={isLoading || !title.trim()}>
+          {isLoading ? 'Guardando...' : 'Crear Canción'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+// Edit Track Form
+function EditTrackForm({
+  track,
+  onSubmit,
+  isLoading,
+}: {
+  track: Track;
+  onSubmit: (data: { title?: string; lyrics?: string; isrc?: string }) => void;
+  isLoading: boolean;
+}) {
+  const [title, setTitle] = useState(track.title);
+  const [lyrics, setLyrics] = useState(track.lyrics || '');
+  const [isrc, setIsrc] = useState(track.isrc || '');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      title: title.trim(),
+      lyrics: lyrics.trim() || undefined,
+      isrc: isrc.trim() || undefined,
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="edit_title">Título *</Label>
+        <Input
+          id="edit_title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Nombre de la canción"
+          required
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="edit_isrc">ISRC</Label>
+        <Input
+          id="edit_isrc"
+          value={isrc}
+          onChange={(e) => setIsrc(e.target.value)}
+          placeholder="XX-XXX-00-00000"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="edit_lyrics">Letra</Label>
+        <Textarea
+          id="edit_lyrics"
+          value={lyrics}
+          onChange={(e) => setLyrics(e.target.value)}
+          placeholder="Escribe la letra de la canción..."
+          rows={8}
+        />
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button type="submit" disabled={isLoading || !title.trim()}>
+          {isLoading ? 'Guardando...' : 'Guardar Cambios'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+// Add Credit Form
+function AddCreditForm({
+  onSubmit,
+  isLoading,
+}: {
+  onSubmit: (data: { name: string; role: string; percentage?: number }) => void;
+  isLoading: boolean;
+}) {
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('');
+  const [percentage, setPercentage] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !role) return;
+    onSubmit({
+      name: name.trim(),
+      role,
+      percentage: percentage ? parseFloat(percentage) : undefined,
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="credit_name">Nombre *</Label>
+        <Input
+          id="credit_name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Nombre del colaborador"
+          required
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="credit_role">Rol *</Label>
+        <Select value={role} onValueChange={setRole}>
+          <SelectTrigger>
+            <SelectValue placeholder="Selecciona un rol" />
+          </SelectTrigger>
+          <SelectContent>
+            {CREDIT_ROLES.map((r) => (
+              <SelectItem key={r} value={r}>
+                {r}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="credit_percentage">Porcentaje (%)</Label>
+        <Input
+          id="credit_percentage"
+          type="number"
+          min={0}
+          max={100}
+          step={0.1}
+          value={percentage}
+          onChange={(e) => setPercentage(e.target.value)}
+          placeholder="Opcional"
+        />
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button type="submit" disabled={isLoading || !name.trim() || !role}>
+          {isLoading ? 'Guardando...' : 'Añadir Crédito'}
+        </Button>
+      </div>
+    </form>
   );
 }
