@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Clock, Users, FolderKanban, User } from 'lucide-react';
+import { CalendarIcon, Clock, Users, FolderKanban, User, Music, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -40,12 +40,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { TEAM_CATEGORIES } from '@/lib/teamCategories';
 
 const eventTypes = [
   { value: 'concert', label: 'Concierto' },
@@ -76,6 +78,8 @@ const interviewFormats = [
 const formSchema = z.object({
   eventContext: z.enum(['project', 'personal']),
   project_id: z.string().optional(),
+  artist_ids: z.array(z.string()).optional(),
+  team_member_ids: z.array(z.string()).optional(),
   title: z.string().min(1, 'El título es requerido'),
   event_type: z.string().min(1, 'Selecciona un tipo'),
   start_date: z.date({ required_error: 'La fecha es requerida' }),
@@ -95,6 +99,18 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
+
+interface Artist {
+  id: string;
+  name: string;
+  stage_name: string | null;
+}
+
+interface GlobalTeamMember {
+  id: string;
+  name: string;
+  category?: string;
+}
 
 interface TeamMember {
   id: string;
@@ -125,6 +141,8 @@ export function CreateEventDialogV2({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [artists, setArtists] = useState<Artist[]>([]);
+  const [globalTeamMembers, setGlobalTeamMembers] = useState<GlobalTeamMember[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -135,6 +153,8 @@ export function CreateEventDialogV2({
     defaultValues: {
       eventContext: 'project',
       project_id: '',
+      artist_ids: [],
+      team_member_ids: [],
       title: prefilledData?.title || '',
       event_type: prefilledData?.event_type || '',
       start_time: prefilledData?.start_date ? format(new Date(prefilledData.start_date), 'HH:mm') : '09:00',
@@ -155,28 +175,117 @@ export function CreateEventDialogV2({
 
   const eventContext = form.watch('eventContext');
   const selectedProjectId = form.watch('project_id');
+  const selectedArtistIds = form.watch('artist_ids') || [];
+  const selectedTeamMemberIds = form.watch('team_member_ids') || [];
   const selectedEventType = form.watch('event_type');
 
-  // Fetch projects
+  // Fetch projects, artists and global team members
   useEffect(() => {
-    const fetchProjects = async () => {
+    const fetchData = async () => {
       try {
-        const { data, error } = await supabase
+        // Projects
+        const { data: projectsData, error: projectsError } = await supabase
           .from('projects')
           .select('id, name, artist_id')
           .order('name');
+        if (projectsError) throw projectsError;
+        setProjects(projectsData || []);
 
-        if (error) throw error;
-        setProjects(data || []);
+        // Artists from artists table (roster)
+        const { data: artistsData, error: artistsError } = await supabase
+          .from('artists')
+          .select('id, name, stage_name')
+          .order('name');
+        if (artistsError) throw artistsError;
+        setArtists(artistsData || []);
+
+        // Global team members (workspace + team contacts)
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const allMembers: GlobalTeamMember[] = [];
+
+        // Workspace
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('workspace_id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profileData?.workspace_id) {
+          const { data: workspace } = await supabase
+            .from('workspaces')
+            .select('created_by')
+            .eq('id', profileData.workspace_id)
+            .single();
+
+          let { data: members } = await supabase
+            .from('workspace_memberships')
+            .select('id, user_id, role, team_category')
+            .eq('workspace_id', profileData.workspace_id);
+
+          // Auto-create owner membership if needed
+          if ((!members || members.length === 0) && workspace?.created_by === user.id) {
+            const { data: newMembership } = await supabase
+              .from('workspace_memberships')
+              .insert({
+                workspace_id: profileData.workspace_id,
+                user_id: user.id,
+                role: 'OWNER',
+                team_category: 'management',
+              })
+              .select('id, user_id, role, team_category')
+              .single();
+            members = newMembership ? [newMembership] : [];
+          }
+
+          if (members && members.length > 0) {
+            const catMap = new Map<string, string>();
+            members.forEach((m: any) => catMap.set(m.user_id, m.team_category || 'otro'));
+
+            const userIds = members.map((m: any) => m.user_id);
+            const { data: profiles } = await supabase
+              .from('profiles')
+              .select('user_id, full_name, stage_name')
+              .in('user_id', userIds);
+
+            (profiles || []).forEach((p: any) => {
+              allMembers.push({
+                id: p.user_id,
+                name: p.stage_name || p.full_name || 'Sin nombre',
+                category: catMap.get(p.user_id),
+              });
+            });
+          }
+        }
+
+        // Team contacts
+        const { data: contacts } = await supabase
+          .from('contacts')
+          .select('id, name, stage_name, category, field_config')
+          .eq('created_by', user.id);
+
+        (contacts || []).forEach((c: any) => {
+          const config = c.field_config as Record<string, any> | null;
+          if (!config?.is_team_member) return;
+          const cats: string[] = Array.isArray(config?.team_categories) ? config.team_categories : [];
+          allMembers.push({
+            id: c.id,
+            name: c.stage_name || c.name,
+            category: cats[0] || c.category,
+          });
+        });
+
+        setGlobalTeamMembers(allMembers);
       } catch (error) {
-        console.error('Error fetching projects:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoadingProjects(false);
       }
     };
 
     if (open) {
-      fetchProjects();
+      fetchData();
     }
   }, [open]);
 
@@ -256,6 +365,24 @@ export function CreateEventDialogV2({
     );
     setTeamMembers(updated);
     form.setValue('invitees', updated.filter(m => m.selected).map(m => m.id));
+  };
+
+  const toggleArtist = (artistId: string) => {
+    const current = form.getValues('artist_ids') || [];
+    if (current.includes(artistId)) {
+      form.setValue('artist_ids', current.filter(id => id !== artistId));
+    } else {
+      form.setValue('artist_ids', [...current, artistId]);
+    }
+  };
+
+  const toggleGlobalTeamMember = (memberId: string) => {
+    const current = form.getValues('team_member_ids') || [];
+    if (current.includes(memberId)) {
+      form.setValue('team_member_ids', current.filter(id => id !== memberId));
+    } else {
+      form.setValue('team_member_ids', [...current, memberId]);
+    }
   };
 
   const onSubmit = async (data: FormData) => {
@@ -439,12 +566,117 @@ export function CreateEventDialogV2({
               />
             )}
 
-            {/* Team Members - Only show if project selected */}
+            {/* Artist Selector */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Music className="h-4 w-4" />
+                Artistas
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    {selectedArtistIds.length > 0 
+                      ? `${selectedArtistIds.length} artista(s) seleccionado(s)`
+                      : "Seleccionar artistas..."}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-2" align="start">
+                  <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                    {artists.map((artist) => (
+                      <div
+                        key={artist.id}
+                        className={cn(
+                          "flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted",
+                          selectedArtistIds.includes(artist.id) && "bg-primary/10"
+                        )}
+                        onClick={() => toggleArtist(artist.id)}
+                      >
+                        <Checkbox checked={selectedArtistIds.includes(artist.id)} />
+                        <span>{artist.stage_name || artist.name}</span>
+                      </div>
+                    ))}
+                    {artists.length === 0 && (
+                      <p className="text-sm text-muted-foreground p-2">No hay artistas</p>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              {selectedArtistIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {selectedArtistIds.map(id => {
+                    const artist = artists.find(a => a.id === id);
+                    return artist ? (
+                      <Badge key={id} variant="secondary" className="gap-1">
+                        {artist.stage_name || artist.name}
+                        <X className="h-3 w-3 cursor-pointer" onClick={() => toggleArtist(id)} />
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Global Team Member Selector */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Equipo
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    {selectedTeamMemberIds.length > 0 
+                      ? `${selectedTeamMemberIds.length} miembro(s) seleccionado(s)`
+                      : "Seleccionar equipo..."}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-2" align="start">
+                  <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                    {globalTeamMembers.map((member) => (
+                      <div
+                        key={member.id}
+                        className={cn(
+                          "flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted",
+                          selectedTeamMemberIds.includes(member.id) && "bg-primary/10"
+                        )}
+                        onClick={() => toggleGlobalTeamMember(member.id)}
+                      >
+                        <Checkbox checked={selectedTeamMemberIds.includes(member.id)} />
+                        <span>{member.name}</span>
+                        {member.category && (
+                          <Badge variant="outline" className="text-xs ml-auto">
+                            {TEAM_CATEGORIES.find(c => c.value === member.category)?.label || member.category}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                    {globalTeamMembers.length === 0 && (
+                      <p className="text-sm text-muted-foreground p-2">No hay miembros</p>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              {selectedTeamMemberIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {selectedTeamMemberIds.map(id => {
+                    const member = globalTeamMembers.find(m => m.id === id);
+                    return member ? (
+                      <Badge key={id} variant="secondary" className="gap-1">
+                        {member.name}
+                        <X className="h-3 w-3 cursor-pointer" onClick={() => toggleGlobalTeamMember(id)} />
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Team Members - Only show if project selected (project invitees) */}
             {eventContext === 'project' && selectedProjectId && teamMembers.length > 0 && (
               <div className="space-y-2">
                 <Label className="text-sm font-medium flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  Invitados (Equipo)
+                  Invitados del Proyecto
                 </Label>
                 <div className="flex flex-wrap gap-2 p-3 bg-muted/30 rounded-lg border">
                   {teamMembers.map((member) => (
