@@ -149,7 +149,7 @@ export default function ReleaseCreditos() {
         </Button>
         <div className="flex-1">
           <p className="text-sm text-muted-foreground">{release?.title}</p>
-          <h1 className="text-2xl font-bold">Créditos</h1>
+          <h1 className="text-2xl font-bold">Créditos y Autorías</h1>
         </div>
         <Dialog open={isCreateTrackOpen} onOpenChange={setIsCreateTrackOpen}>
           <DialogTrigger asChild>
@@ -173,7 +173,7 @@ export default function ReleaseCreditos() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Canciones y Créditos</CardTitle>
+          <CardTitle>Canciones y Autorías</CardTitle>
         </CardHeader>
         <CardContent>
           {loadingTracks ? (
@@ -356,7 +356,7 @@ function TrackCreditsItem({
           {/* Credits Section */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Créditos</Label>
+              <Label className="text-sm font-medium">Créditos y Autorías</Label>
               <Dialog open={isAddCreditOpen} onOpenChange={setIsAddCreditOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -395,7 +395,7 @@ function TrackCreditsItem({
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Sin créditos registrados para esta canción.
+                Sin créditos ni autorías registrados para esta canción.
               </p>
             )}
           </div>
@@ -476,7 +476,8 @@ function CreditRow({
             value={editPercentage}
             onChange={(e) => setEditPercentage(e.target.value)}
             className="w-[70px] h-8"
-            placeholder="%"
+            placeholder="Autoría"
+            title="Porcentaje de autoría"
           />
           <span className="text-sm text-muted-foreground">%</span>
         </div>
@@ -500,8 +501,8 @@ function CreditRow({
         <p className="text-xs text-muted-foreground">{credit.role}</p>
       </div>
       <div className="flex items-center gap-2">
-        {credit.percentage && (
-          <Badge variant="outline">{credit.percentage}%</Badge>
+        {credit.percentage != null && (
+          <Badge variant="outline" title="Porcentaje de autoría">{credit.percentage}%</Badge>
         )}
         <Button
           variant="ghost"
