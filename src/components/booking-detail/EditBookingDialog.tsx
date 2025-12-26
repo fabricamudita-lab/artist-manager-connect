@@ -23,6 +23,7 @@ import { Loader2, Save } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useBookingFolderAutomation } from '@/hooks/useBookingFolderAutomation';
+import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 
 interface BookingOffer {
   id: string;
@@ -62,6 +63,7 @@ interface BookingOffer {
   invitaciones?: number | null;
   anunciado?: boolean | null;
   es_privado?: boolean | null;
+  artist_id?: string | null;
 }
 
 interface EditBookingDialogProps {
@@ -172,6 +174,7 @@ export function EditBookingDialog({
         invitaciones: formData.invitaciones,
         anunciado: formData.anunciado,
         es_privado: formData.es_privado,
+        artist_id: formData.artist_id,
       };
 
       const { data, error } = await supabase
@@ -216,6 +219,16 @@ export function EditBookingDialog({
 
           {/* General Tab */}
           <TabsContent value="general" className="space-y-4 pt-4">
+            {/* Artist Selector */}
+            <div className="space-y-2">
+              <Label>Artista</Label>
+              <SingleArtistSelector
+                value={formData.artist_id || null}
+                onValueChange={(value) => updateField('artist_id', value)}
+                placeholder="Seleccionar artista..."
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Festival / Ciclo</Label>
