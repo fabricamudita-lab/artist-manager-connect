@@ -48,6 +48,7 @@ import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { TEAM_CATEGORIES } from '@/lib/teamCategories';
+import { TeamSelectorByArtist } from '@/components/TeamSelectorByArtist';
 
 const eventTypes = [
   { value: 'concert', label: 'Concierto' },
@@ -617,59 +618,11 @@ export function CreateEventDialogV2({
             </div>
 
             {/* Global Team Member Selector */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Equipo
-              </Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start">
-                    {selectedTeamMemberIds.length > 0 
-                      ? `${selectedTeamMemberIds.length} miembro(s) seleccionado(s)`
-                      : "Seleccionar equipo..."}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-2" align="start">
-                  <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                    {globalTeamMembers.map((member) => (
-                      <div
-                        key={member.id}
-                        className={cn(
-                          "flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted",
-                          selectedTeamMemberIds.includes(member.id) && "bg-primary/10"
-                        )}
-                        onClick={() => toggleGlobalTeamMember(member.id)}
-                      >
-                        <Checkbox checked={selectedTeamMemberIds.includes(member.id)} />
-                        <span>{member.name}</span>
-                        {member.category && (
-                          <Badge variant="outline" className="text-xs ml-auto">
-                            {TEAM_CATEGORIES.find(c => c.value === member.category)?.label || member.category}
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
-                    {globalTeamMembers.length === 0 && (
-                      <p className="text-sm text-muted-foreground p-2">No hay miembros</p>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
-              {selectedTeamMemberIds.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {selectedTeamMemberIds.map(id => {
-                    const member = globalTeamMembers.find(m => m.id === id);
-                    return member ? (
-                      <Badge key={id} variant="secondary" className="gap-1">
-                        {member.name}
-                        <X className="h-3 w-3 cursor-pointer" onClick={() => toggleGlobalTeamMember(id)} />
-                      </Badge>
-                    ) : null;
-                  })}
-                </div>
-              )}
-            </div>
+            <TeamSelectorByArtist
+              selectedArtistIds={selectedArtistIds}
+              selectedTeamMemberIds={selectedTeamMemberIds}
+              onSelectionChange={(ids) => form.setValue('team_member_ids', ids)}
+            />
 
             {/* Team Members - Only show if project selected (project invitees) */}
             {eventContext === 'project' && selectedProjectId && teamMembers.length > 0 && (
