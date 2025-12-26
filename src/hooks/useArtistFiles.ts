@@ -200,6 +200,36 @@ export const useArtistFiles = (artistId: string | null, category?: string) => {
     },
   });
 
+  // Rename file mutation
+  const renameMutation = useMutation({
+    mutationFn: async ({ fileId, newName }: { fileId: string; newName: string }) => {
+      const { data, error } = await supabase
+        .from('artist_files')
+        .update({ file_name: newName })
+        .eq('id', fileId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['artist-files', artistId] });
+      toast({
+        title: "Archivo renombrado",
+        description: "El nombre se ha actualizado correctamente",
+      });
+    },
+    onError: (error) => {
+      console.error('Rename error:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo renombrar el archivo",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Upload multiple files
   const uploadFiles = async (filesToUpload: File[], aid: string, cat: string, subcategory?: string) => {
     for (const file of filesToUpload) {
@@ -215,8 +245,10 @@ export const useArtistFiles = (artistId: string | null, category?: string) => {
     uploadFile: uploadMutation.mutate,
     uploadFiles,
     deleteFile: deleteMutation.mutate,
+    renameFile: renameMutation.mutateAsync,
     isUploading: uploadMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    isRenaming: renameMutation.isPending,
     uploadProgress,
   };
 };

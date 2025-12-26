@@ -7,6 +7,7 @@ import { useArtistFiles, ARTIST_FOLDER_CATEGORIES, ArtistFile } from '@/hooks/us
 import { useArtistSubfolders, DEFAULT_SUBFOLDERS } from '@/hooks/useArtistSubfolders';
 import { usePublicFileSharing } from '@/hooks/usePublicFileSharing';
 import DashboardLayout from '@/components/DashboardLayout';
+import { InlineEdit } from '@/components/ui/inline-edit';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,6 +63,7 @@ import {
   Plus,
   FolderPlus,
   Link as LinkIcon,
+  Pencil,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -171,6 +173,7 @@ export default function Carpetas() {
     isLoading: filesLoading,
     uploadFiles,
     deleteFile,
+    renameFile,
     isUploading,
     isDeleting,
   } = useArtistFiles(selectedArtist?.id || null, selectedCategory || undefined);
@@ -594,9 +597,14 @@ export default function Carpetas() {
                       </div>
                     </div>
 
-                    <p className="text-xs font-medium truncate" title={file.file_name}>
-                      {file.file_name}
-                    </p>
+                    <InlineEdit
+                      value={file.file_name}
+                      onSave={async (newName) => {
+                        await renameFile({ fileId: file.id, newName });
+                      }}
+                      className="text-xs font-medium truncate"
+                      placeholder="Nombre del archivo"
+                    />
                     <p className="text-xs text-muted-foreground">
                       {file.file_url === 'placeholder' ? (
                         <span className="text-warning">Pendiente</span>
@@ -627,7 +635,14 @@ export default function Carpetas() {
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{file.file_name}</p>
+                        <InlineEdit
+                          value={file.file_name}
+                          onSave={async (newName) => {
+                            await renameFile({ fileId: file.id, newName });
+                          }}
+                          className="font-medium truncate"
+                          placeholder="Nombre del archivo"
+                        />
                         <p className="text-xs text-muted-foreground">
                           {file.file_url === 'placeholder' ? (
                             <span className="text-warning">Pendiente de subir</span>
