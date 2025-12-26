@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Plus } from 'lucide-react';
 import { useCreateSong } from '@/hooks/useRoyalties';
 
-export function CreateSongDialog() {
+export function CreateSongDialog({ artistId }: { artistId?: string }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [isrc, setIsrc] = useState('');
@@ -16,13 +16,14 @@ export function CreateSongDialog() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     await createSong.mutateAsync({
       title,
+      artist_id: artistId && artistId !== 'all' ? artistId : undefined,
       isrc: isrc || undefined,
       release_date: releaseDate || undefined,
     });
-    
+
     setOpen(false);
     setTitle('');
     setIsrc('');

@@ -24,7 +24,7 @@ const PLATFORMS = [
   { value: 'other', label: 'Otra', icon: '📀', color: 'bg-gray-500' },
 ];
 
-function AddEarningDialog() {
+function AddEarningDialog({ artistId }: { artistId?: string }) {
   const [open, setOpen] = useState(false);
   const [songId, setSongId] = useState('');
   const [platform, setPlatform] = useState('');
@@ -33,7 +33,7 @@ function AddEarningDialog() {
   const [periodStart, setPeriodStart] = useState('');
   const [periodEnd, setPeriodEnd] = useState('');
   
-  const { data: songs = [] } = useSongs();
+  const { data: songs = [] } = useSongs(artistId);
   const createEarning = useCreatePlatformEarning();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -214,7 +214,7 @@ export function PlatformEarningsManager({ artistId }: PlatformEarningsManagerPro
           <EarningsFilters onFilterChange={setFilters} />
           <ImportEarningsDialog />
           <ExportRoyaltiesButton />
-          <AddEarningDialog />
+          <AddEarningDialog artistId={artistId} />
         </div>
       </div>
 
