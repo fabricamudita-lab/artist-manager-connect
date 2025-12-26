@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -74,7 +74,8 @@ export function ArtistFormatsDialog({
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   
   // Fetch team members for this artist
-  const { filteredMembers, groupedByCategory, loading: loadingTeam } = useTeamMembersByArtist([artistId]);
+  const selectedArtistIds = useMemo(() => (artistId ? [artistId] : []), [artistId]);
+  const { filteredMembers, groupedByCategory, loading: loadingTeam } = useTeamMembersByArtist(selectedArtistIds);
 
   // Fetch existing formats
   const { data: existingFormats, isLoading } = useQuery({
