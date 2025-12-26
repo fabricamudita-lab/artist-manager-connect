@@ -16,7 +16,7 @@ import { useBookingFolders } from '@/hooks/useBookingFolders';
 import { BookingStatusCombobox } from './BookingStatusCombobox';
 import { FormatoCombobox } from './FormatoCombobox';
 import { ContactSelector } from './ContactSelector';
-import { ArtistSelector } from './ArtistSelector';
+import { SingleArtistSelector } from './SingleArtistSelector';
 import { 
   MapPin, 
   Calendar, 
@@ -182,7 +182,7 @@ export function CreateBookingWizard({
       case 1: // Buyer
         return buyerData.contacto || (showNewContactForm && buyerData.newContact.name);
       case 2: // Deal
-        return dealData.fee || dealData.door_split_percentage;
+        return dealData.artist_id && (dealData.fee || dealData.door_split_percentage);
       default:
         return true;
     }
@@ -592,6 +592,16 @@ export function CreateBookingWizard({
 
   const renderDealStep = () => (
     <div className="space-y-6">
+      {/* Artist Selection */}
+      <div className="space-y-2">
+        <Label>Artista <span className="text-destructive">*</span></Label>
+        <SingleArtistSelector
+          value={dealData.artist_id || null}
+          onValueChange={(value) => setDealData({ ...dealData, artist_id: value || '' })}
+          placeholder="Seleccionar artista..."
+        />
+      </div>
+
       <div className="space-y-2">
         <Label>Tipo de Deal</Label>
         <div className="grid grid-cols-2 gap-4">
