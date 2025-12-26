@@ -13,13 +13,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Plus, Trash2, Upload, Loader2, Users, Clock, Euro, 
-  FileText, Music, GripVertical, Settings2, X, UserPlus
+  FileText, Music, GripVertical, Settings2, X, UserPlus, ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -71,6 +72,7 @@ export function ArtistFormatsDialog({
   const [formats, setFormats] = useState<BookingProduct[]>([]);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [selectingCrewForIndex, setSelectingCrewForIndex] = useState<number | null>(null);
+  const [expandedFormats, setExpandedFormats] = useState<Set<number>>(new Set());
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   
   // Fetch team members for this artist
@@ -344,31 +346,70 @@ export function ArtistFormatsDialog({
 
             {/* Format Cards */}
             <div className="space-y-4">
-              {formats.map((format, index) => (
-                <Card key={index}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <GripVertical className="h-4 w-4 text-muted-foreground" />
-                        <Input
-                          value={format.name}
-                          onChange={(e) => handleUpdateFormat(index, { name: e.target.value })}
-                          placeholder="Nombre del formato"
-                          className="text-lg font-semibold border-none shadow-none p-0 h-auto focus-visible:ring-0 w-[200px]"
-                        />
+              {formats.map((format, index) => {
+                const isExpanded = expandedFormats.has(index);
+                return (
+                <Collapsible
+                  key={index}
+                  open={isExpanded}
+                  onOpenChange={(open) => {
+                    setExpandedFormats(prev => {
+                      const next = new Set(prev);
+                      if (open) {
+                        next.add(index);
+                      } else {
+                        next.delete(index);
+                      }
+                      return next;
+                    });
+                  }}
+                >
+                  <Card>
+                    <CollapsibleTrigger asChild>
+                      <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-accent/50 transition-colors rounded-t-lg">
+                        <div className="flex items-center gap-2">
+                          <GripVertical className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-lg font-semibold">{format.name || 'Nuevo Formato'}</span>
+                          {format.crewMembers.length > 0 && (
+                            <Badge variant="secondary" className="ml-2">
+                              {format.crewMembers.length} miembros
+                            </Badge>
+                          )}
+                          {format.feeMin && format.feeMax && (
+                            <Badge variant="outline" className="ml-1">
+                              €{format.feeMin} - €{format.feeMax}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveFormat(index);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        </div>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveFormat(index)}
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Fee Range */}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <CardContent className="space-y-4 pt-4 border-t">
+                        {/* Editable Name */}
+                        <div className="space-y-2">
+                          <Label className="text-sm">Nombre del formato</Label>
+                          <Input
+                            value={format.name}
+                            onChange={(e) => handleUpdateFormat(index, { name: e.target.value })}
+                            placeholder="Nombre del formato"
+                          />
+                        </div>
+
+                        {/* Fee Range */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2 text-sm">
@@ -595,8 +636,11 @@ export function ArtistFormatsDialog({
                       />
                     </div>
                   </CardContent>
-                </Card>
-              ))}
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+              );
+              })}
 
               {formats.length === 0 && (
                 <Card>
