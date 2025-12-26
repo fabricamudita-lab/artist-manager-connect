@@ -29,7 +29,9 @@ import {
   Music,
   FileText,
   Check,
-  Circle
+  Circle,
+  Plus,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -91,6 +93,7 @@ export function CreateBookingWizard({
     fecha: '',
     hora: '',
     capacidad: '',
+    fechas_opcionales: [] as string[],
   });
   
   const [buyerData, setBuyerData] = useState({
@@ -149,6 +152,7 @@ export function CreateBookingWizard({
       fecha: '',
       hora: '',
       capacidad: '',
+      fechas_opcionales: [],
     });
     setBuyerData({
       contacto: '',
@@ -279,6 +283,11 @@ export function CreateBookingWizard({
         formato: dealData.formato,
         condiciones: dealData.condiciones,
         info_comentarios: dealData.info_comentarios,
+        
+        // Optional dates stored in adjuntos JSON field
+        adjuntos: generalData.fechas_opcionales.length > 0 
+          ? { fechas_opcionales: generalData.fechas_opcionales.filter(f => f) }
+          : null,
         
         // Metadata
         created_by: profile?.user_id,
@@ -443,6 +452,59 @@ export function CreateBookingWizard({
             placeholder="Ej: 1500"
           />
         </div>
+      </div>
+
+      {/* Fechas opcionales */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm text-muted-foreground">
+            Fechas opcionales
+            <span className="ml-2 text-xs">(si el festival/sala tiene varios días disponibles)</span>
+          </Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setGeneralData({
+              ...generalData,
+              fechas_opcionales: [...generalData.fechas_opcionales, '']
+            })}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Añadir fecha
+          </Button>
+        </div>
+        
+        {generalData.fechas_opcionales.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {generalData.fechas_opcionales.map((fecha, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={fecha}
+                  onChange={(e) => {
+                    const newFechas = [...generalData.fechas_opcionales];
+                    newFechas[index] = e.target.value;
+                    setGeneralData({ ...generalData, fechas_opcionales: newFechas });
+                  }}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                  onClick={() => {
+                    const newFechas = generalData.fechas_opcionales.filter((_, i) => i !== index);
+                    setGeneralData({ ...generalData, fechas_opcionales: newFechas });
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
