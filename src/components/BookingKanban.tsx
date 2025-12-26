@@ -3,30 +3,21 @@ import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, closestCorners
 import { SortableContext, arrayMove } from '@dnd-kit/sortable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Search, Filter, Plus, Download, FileText, Copy, CalendarIcon, X, Globe, Sparkles, FileSpreadsheet, CheckSquare } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { CompactBookingCard } from './CompactBookingCard';
 import { CreateBookingWizard } from './CreateBookingWizard';
 import { exportToCSV, generateOfferNumber } from '@/utils/exportUtils';
 import { exportToExcel, generateBookingExportData, BOOKING_EXPORT_HEADERS } from '@/utils/excelExport';
-import { CopyButton } from '@/components/ui/copy-button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { CardSkeleton } from '@/components/ui/card-skeleton';
 import { useGlobalSearch } from '@/hooks/useKeyboardShortcuts';
 import { GlobalSearchDialog } from '@/components/GlobalSearchDialog';
 import { UpcomingEventsWidget } from './booking-detail/UpcomingEventsWidget';
 import { BulkActionsBar } from './booking-detail/BulkActionsBar';
+import { BookingFiltersToolbar, BookingFiltersState } from './BookingFiltersToolbar';
 
 export interface BookingOffer {
   id: string;
@@ -107,21 +98,23 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
   const [offers, setOffers] = useState<BookingOffer[]>([]);
   const [filteredOffers, setFilteredOffers] = useState<BookingOffer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [phaseFilter, setPhaseFilter] = useState<string>('all');
-  const [countryFilter, setCountryFilter] = useState<string>('all');
-  const [promoterFilter, setPromoterFilter] = useState<string>('all');
-  const [artistFilter, setArtistFilter] = useState<string>('all');
   const [artists, setArtists] = useState<Artist[]>([]);
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
-  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
-  const [showInternational, setShowInternational] = useState<boolean | 'all'>('all');
-  const [showCityzen, setShowCityzen] = useState<boolean | 'all'>('all');
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectionMode, setSelectionMode] = useState(false);
+  
+  const [filters, setFilters] = useState<BookingFiltersState>({
+    searchTerm: '',
+    artistFilter: 'all',
+    phaseFilter: 'all',
+    countryFilter: 'all',
+    promoterFilter: 'all',
+    dateFrom: undefined,
+    dateTo: undefined,
+    showInternational: 'all',
+    showCityzen: 'all',
+  });
   
   const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
 
@@ -132,7 +125,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
 
   useEffect(() => {
     applyFilters();
-  }, [offers, searchTerm, phaseFilter, countryFilter, promoterFilter, artistFilter, dateFrom, dateTo, showInternational, showCityzen]);
+  }, [offers, filters]);
 
   const fetchOffers = async () => {
     try {
@@ -184,8 +177,8 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
     let filtered = [...offers];
 
     // Search filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
+    if (filters.searchTerm) {
+      const term = filters.searchTerm.toLowerCase();
       filtered = filtered.filter(offer => 
         offer.venue?.toLowerCase().includes(term) ||
         offer.ciudad?.toLowerCase().includes(term) ||
@@ -197,69 +190,75 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
     }
 
     // Phase filter
-    if (phaseFilter !== 'all') {
-      filtered = filtered.filter(offer => offer.phase === phaseFilter);
+    if (filters.phaseFilter !== 'all') {
+      filtered = filtered.filter(offer => offer.phase === filters.phaseFilter);
     }
 
     // Country filter
-    if (countryFilter !== 'all') {
-      filtered = filtered.filter(offer => offer.pais === countryFilter);
+    if (filters.countryFilter !== 'all') {
+      filtered = filtered.filter(offer => offer.pais === filters.countryFilter);
     }
 
     // Promoter filter
-    if (promoterFilter !== 'all') {
-      filtered = filtered.filter(offer => offer.promotor === promoterFilter);
+    if (filters.promoterFilter !== 'all') {
+      filtered = filtered.filter(offer => offer.promotor === filters.promoterFilter);
     }
 
     // Artist filter
-    if (artistFilter !== 'all') {
-      filtered = filtered.filter(offer => offer.artist_id === artistFilter);
+    if (filters.artistFilter !== 'all') {
+      filtered = filtered.filter(offer => offer.artist_id === filters.artistFilter);
     }
 
     // Date range filter
-    if (dateFrom) {
+    if (filters.dateFrom) {
       filtered = filtered.filter(offer => {
         if (!offer.fecha) return false;
-        return new Date(offer.fecha) >= dateFrom;
+        return new Date(offer.fecha) >= filters.dateFrom!;
       });
     }
-    if (dateTo) {
+    if (filters.dateTo) {
       filtered = filtered.filter(offer => {
         if (!offer.fecha) return false;
-        return new Date(offer.fecha) <= dateTo;
+        return new Date(offer.fecha) <= filters.dateTo!;
       });
     }
 
     // International filter
-    if (showInternational !== 'all') {
-      filtered = filtered.filter(offer => offer.es_internacional === showInternational);
+    if (filters.showInternational !== 'all') {
+      filtered = filtered.filter(offer => offer.es_internacional === filters.showInternational);
     }
 
     // CityZen filter
-    if (showCityzen !== 'all') {
-      filtered = filtered.filter(offer => offer.es_cityzen === showCityzen);
+    if (filters.showCityzen !== 'all') {
+      filtered = filtered.filter(offer => offer.es_cityzen === filters.showCityzen);
     }
 
     setFilteredOffers(filtered);
   };
 
   const clearAllFilters = () => {
-    setSearchTerm('');
-    setPhaseFilter('all');
-    setCountryFilter('all');
-    setPromoterFilter('all');
-    setArtistFilter('all');
-    setDateFrom(undefined);
-    setDateTo(undefined);
-    setShowInternational('all');
-    setShowCityzen('all');
+    setFilters({
+      searchTerm: '',
+      artistFilter: 'all',
+      phaseFilter: 'all',
+      countryFilter: 'all',
+      promoterFilter: 'all',
+      dateFrom: undefined,
+      dateTo: undefined,
+      showInternational: 'all',
+      showCityzen: 'all',
+    });
   };
 
-  const hasActiveFilters = searchTerm || phaseFilter !== 'all' || countryFilter !== 'all' || 
-    promoterFilter !== 'all' || artistFilter !== 'all' || dateFrom || dateTo || showInternational !== 'all' || showCityzen !== 'all';
-  
-  const getArtistDisplayName = (artist: Artist) => {
-    return artist.stage_name || artist.name;
+  const handleFiltersChange = (newFilters: Partial<BookingFiltersState>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+  };
+
+  const getUniqueValues = (field: keyof BookingOffer) => {
+    const values = offers
+      .map(offer => offer[field])
+      .filter((value): value is string => typeof value === 'string' && value.length > 0);
+    return [...new Set(values)].sort();
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -382,9 +381,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
     return filteredOffers.filter(offer => offer.phase === phase);
   };
 
-  const getUniqueValues = (field: keyof BookingOffer) => {
-    return [...new Set(offers.map(offer => offer[field]).filter(Boolean).map(String))];
-  };
+  // Removed duplicate getUniqueValues - now defined earlier in the component
 
   const toggleSelection = (offerId: string) => {
     setSelectedIds(prev => 
@@ -455,7 +452,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
         offer_number: generateOfferNumber(offer)
       }));
 
-      const filterSuffix = phaseFilter !== 'all' || countryFilter !== 'all' || promoterFilter !== 'all' || searchTerm 
+      const filterSuffix = filters.phaseFilter !== 'all' || filters.countryFilter !== 'all' || filters.promoterFilter !== 'all' || filters.searchTerm 
         ? '_filtrado' 
         : '';
       
@@ -502,200 +499,26 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header with filters */}
-      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-        <div className="flex flex-wrap gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por venue, ciudad, artista..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-64"
-            />
-          </div>
-
-          <Select value={artistFilter} onValueChange={setArtistFilter}>
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="Artista" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los artistas</SelectItem>
-              {artists.map(artist => (
-                <SelectItem key={artist.id} value={artist.id}>
-                  {getArtistDisplayName(artist)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Select value={phaseFilter} onValueChange={setPhaseFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Fase" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las fases</SelectItem>
-              {PHASES.map(phase => (
-                <SelectItem key={phase.id} value={phase.id}>
-                  {phase.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={countryFilter} onValueChange={setCountryFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="País" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los países</SelectItem>
-              {getUniqueValues('pais').map(country => (
-                <SelectItem key={country} value={country}>
-                  {country}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={promoterFilter} onValueChange={setPromoterFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Promotor" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los promotores</SelectItem>
-              {getUniqueValues('promotor').map(promoter => (
-                <SelectItem key={promoter} value={promoter}>
-                  {promoter}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Advanced Filters Button */}
-          <Popover open={showAdvancedFilters} onOpenChange={setShowAdvancedFilters}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className={hasActiveFilters ? 'border-primary' : ''}>
-                <Filter className="h-4 w-4 mr-2" />
-                Filtros
-                {hasActiveFilters && (
-                  <Badge variant="secondary" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                    !
-                  </Badge>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80" align="start">
-              <div className="space-y-4">
-                <div className="font-medium text-sm">Filtros Avanzados</div>
-                
-                {/* Date Range */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Rango de Fechas</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="justify-start text-left font-normal">
-                          <CalendarIcon className="h-4 w-4 mr-2" />
-                          {dateFrom ? format(dateFrom, 'dd/MM/yy', { locale: es }) : 'Desde'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} />
-                      </PopoverContent>
-                    </Popover>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="justify-start text-left font-normal">
-                          <CalendarIcon className="h-4 w-4 mr-2" />
-                          {dateTo ? format(dateTo, 'dd/MM/yy', { locale: es }) : 'Hasta'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" selected={dateTo} onSelect={setDateTo} />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-
-                {/* Type Filters */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Tipo de Evento</Label>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Checkbox 
-                        id="international" 
-                        checked={showInternational === true}
-                        onCheckedChange={(checked) => {
-                          setShowInternational(checked ? true : 'all');
-                        }}
-                      />
-                      <Label htmlFor="international" className="flex items-center gap-1 text-sm cursor-pointer">
-                        <Globe className="h-3 w-3" />
-                        Solo Internacional
-                      </Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Checkbox 
-                        id="cityzen" 
-                        checked={showCityzen === true}
-                        onCheckedChange={(checked) => {
-                          setShowCityzen(checked ? true : 'all');
-                        }}
-                      />
-                      <Label htmlFor="cityzen" className="flex items-center gap-1 text-sm cursor-pointer">
-                        <Sparkles className="h-3 w-3" />
-                        Solo CityZen
-                      </Label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Clear Filters */}
-                {hasActiveFilters && (
-                  <Button variant="ghost" size="sm" onClick={clearAllFilters} className="w-full">
-                    <X className="h-4 w-4 mr-2" />
-                    Limpiar todos los filtros
-                  </Button>
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        <div className="flex gap-2">
-          <Button 
-            variant={selectionMode ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => {
-              setSelectionMode(!selectionMode);
-              if (selectionMode) clearSelection();
-            }}
-          >
-            <CheckSquare className="h-4 w-4 mr-2" />
-            {selectionMode ? 'Cancelar' : 'Seleccionar'}
-          </Button>
-          <Button 
-            onClick={handleExportExcel}
-            variant="outline"
-            size="sm"
-          >
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Excel
-          </Button>
-          <Button 
-            onClick={handleExportFiltered}
-            variant="outline"
-            size="sm"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            CSV ({filteredOffers.length})
-          </Button>
-          <Button onClick={() => setShowCreateWizard(true)} className="btn-primary">
-            <Plus className="h-4 w-4 mr-2" />
-            Nueva Oferta
-          </Button>
-        </div>
-      </div>
+      {/* Filters Toolbar */}
+      <BookingFiltersToolbar
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+        onClearFilters={clearAllFilters}
+        artists={artists}
+        phases={PHASES}
+        countries={getUniqueValues('pais')}
+        promoters={getUniqueValues('promotor')}
+        filteredCount={filteredOffers.length}
+        totalCount={offers.length}
+        onExportExcel={handleExportExcel}
+        onExportCSV={handleExportFiltered}
+        onNewOffer={() => setShowCreateWizard(true)}
+        selectionMode={selectionMode}
+        onToggleSelection={() => {
+          setSelectionMode(!selectionMode);
+          if (selectionMode) clearSelection();
+        }}
+      />
 
       {/* Quick Stats Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">

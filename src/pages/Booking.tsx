@@ -24,6 +24,7 @@ import { GlobalSearchDialog } from '@/components/GlobalSearchDialog';
 import { EventFolderDialog } from '@/components/EventFolderDialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { BookingKanban } from '@/components/BookingKanban';
+import { BookingFiltersToolbar, BookingFiltersState } from '@/components/BookingFiltersToolbar';
 import { ReminderBadge } from '@/components/ReminderBadge';
 import { AlertsBadge } from '@/components/AlertsBadge';
 import { exportToCSV } from '@/utils/exportUtils';
@@ -108,11 +109,64 @@ export default function Booking() {
   const [folderErrors, setFolderErrors] = useState<Record<string, string>>({});
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const { columns, setColumns, visibleColumns, getColumnVisibility } = useBookingColumns();
+  const [artists, setArtists] = useState<{ id: string; name: string; stage_name?: string }[]>([]);
+  const [filters, setFilters] = useState<BookingFiltersState>({
+    searchTerm: '',
+    artistFilter: 'all',
+    phaseFilter: 'all',
+    countryFilter: 'all',
+    promoterFilter: 'all',
+    dateFrom: undefined,
+    dateTo: undefined,
+    showInternational: 'all',
+    showCityzen: 'all',
+  });
+  const [filteredOffers, setFilteredOffers] = useState<BookingOffer[]>([]);
 
   useEffect(() => {
     fetchOffers();
     fetchTemplateFields();
+    fetchArtists();
   }, []);
+
+  useEffect(() => {
+    applyTableFilters();
+  }, [offers, filters]);
+
+  const fetchArtists = async () => {
+    const { data } = await supabase.from('artists').select('id, name, stage_name').order('name');
+    setArtists(data || []);
+  };
+
+  const applyTableFilters = () => {
+    let filtered = [...offers];
+    if (filters.searchTerm) {
+      const term = filters.searchTerm.toLowerCase();
+      filtered = filtered.filter(o => 
+        o.venue?.toLowerCase().includes(term) || 
+        o.ciudad?.toLowerCase().includes(term) ||
+        o.festival_ciclo?.toLowerCase().includes(term)
+      );
+    }
+    if (filters.artistFilter !== 'all') filtered = filtered.filter(o => o.artist_id === filters.artistFilter);
+    if (filters.phaseFilter !== 'all') filtered = filtered.filter(o => o.phase === filters.phaseFilter);
+    if (filters.countryFilter !== 'all') filtered = filtered.filter(o => o.pais === filters.countryFilter);
+    if (filters.promoterFilter !== 'all') filtered = filtered.filter(o => o.promotor === filters.promoterFilter);
+    if (filters.dateFrom) filtered = filtered.filter(o => o.fecha && new Date(o.fecha) >= filters.dateFrom!);
+    if (filters.dateTo) filtered = filtered.filter(o => o.fecha && new Date(o.fecha) <= filters.dateTo!);
+    if (filters.showInternational !== 'all') filtered = filtered.filter(o => o.es_internacional === filters.showInternational);
+    if (filters.showCityzen !== 'all') filtered = filtered.filter(o => o.es_cityzen === filters.showCityzen);
+    setFilteredOffers(filtered);
+  };
+
+  const getUniqueValues = (field: keyof BookingOffer) => {
+    return [...new Set(offers.map(o => o[field]).filter((v): v is string => typeof v === 'string' && v.length > 0))].sort();
+  };
+
+  const clearAllFilters = () => setFilters({
+    searchTerm: '', artistFilter: 'all', phaseFilter: 'all', countryFilter: 'all',
+    promoterFilter: 'all', dateFrom: undefined, dateTo: undefined, showInternational: 'all', showCityzen: 'all',
+  });
 
   useEffect(() => {
     if (offers.length > 0) {
