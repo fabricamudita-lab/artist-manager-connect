@@ -25,6 +25,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
@@ -64,6 +67,7 @@ import {
   FolderPlus,
   Link as LinkIcon,
   Pencil,
+  FolderInput,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -176,6 +180,7 @@ export default function Carpetas() {
     uploadFiles,
     deleteFile,
     renameFile,
+    moveFile,
     isUploading,
     isDeleting,
   } = useArtistFiles(selectedArtist?.id || null, selectedCategory || undefined);
@@ -577,6 +582,41 @@ export default function Carpetas() {
                               <Pencil className="w-4 h-4 mr-2" />
                               Renombrar
                             </DropdownMenuItem>
+                            {hasSubfolderSupport && subfolders.length > 0 && (
+                              <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>
+                                  <FolderInput className="w-4 h-4 mr-2" />
+                                  Mover a...
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                  {!selectedSubfolder && (
+                                    <DropdownMenuItem disabled className="text-muted-foreground text-xs">
+                                      Raíz (actual)
+                                    </DropdownMenuItem>
+                                  )}
+                                  {selectedSubfolder && (
+                                    <DropdownMenuItem
+                                      onClick={() => moveFile({ fileId: file.id, subcategory: null })}
+                                    >
+                                      <Folder className="w-4 h-4 mr-2" />
+                                      Raíz
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  {subfolders.map((sf) => (
+                                    <DropdownMenuItem
+                                      key={sf.id}
+                                      disabled={sf.name === selectedSubfolder}
+                                      onClick={() => moveFile({ fileId: file.id, subcategory: sf.name })}
+                                    >
+                                      <Folder className="w-4 h-4 mr-2" />
+                                      {sf.name}
+                                      {sf.name === selectedSubfolder && ' (actual)'}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuSubContent>
+                              </DropdownMenuSub>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-destructive"
@@ -675,6 +715,41 @@ export default function Carpetas() {
                             <Pencil className="w-4 h-4 mr-2" />
                             Renombrar
                           </DropdownMenuItem>
+                          {hasSubfolderSupport && subfolders.length > 0 && (
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger>
+                                <FolderInput className="w-4 h-4 mr-2" />
+                                Mover a...
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuSubContent>
+                                {!selectedSubfolder && (
+                                  <DropdownMenuItem disabled className="text-muted-foreground text-xs">
+                                    Raíz (actual)
+                                  </DropdownMenuItem>
+                                )}
+                                {selectedSubfolder && (
+                                  <DropdownMenuItem
+                                    onClick={() => moveFile({ fileId: file.id, subcategory: null })}
+                                  >
+                                    <Folder className="w-4 h-4 mr-2" />
+                                    Raíz
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                {subfolders.map((sf) => (
+                                  <DropdownMenuItem
+                                    key={sf.id}
+                                    disabled={sf.name === selectedSubfolder}
+                                    onClick={() => moveFile({ fileId: file.id, subcategory: sf.name })}
+                                  >
+                                    <Folder className="w-4 h-4 mr-2" />
+                                    {sf.name}
+                                    {sf.name === selectedSubfolder && ' (actual)'}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"

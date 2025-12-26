@@ -230,6 +230,36 @@ export const useArtistFiles = (artistId: string | null, category?: string) => {
     },
   });
 
+  // Move file to subfolder mutation
+  const moveMutation = useMutation({
+    mutationFn: async ({ fileId, subcategory }: { fileId: string; subcategory: string | null }) => {
+      const { data, error } = await supabase
+        .from('artist_files')
+        .update({ subcategory })
+        .eq('id', fileId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['artist-files', artistId] });
+      toast({
+        title: "Archivo movido",
+        description: "El archivo se ha movido correctamente",
+      });
+    },
+    onError: (error) => {
+      console.error('Move error:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo mover el archivo",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Upload multiple files
   const uploadFiles = async (filesToUpload: File[], aid: string, cat: string, subcategory?: string) => {
     for (const file of filesToUpload) {
@@ -246,9 +276,11 @@ export const useArtistFiles = (artistId: string | null, category?: string) => {
     uploadFiles,
     deleteFile: deleteMutation.mutate,
     renameFile: renameMutation.mutateAsync,
+    moveFile: moveMutation.mutateAsync,
     isUploading: uploadMutation.isPending,
     isDeleting: deleteMutation.isPending,
     isRenaming: renameMutation.isPending,
+    isMoving: moveMutation.isPending,
     uploadProgress,
   };
 };
