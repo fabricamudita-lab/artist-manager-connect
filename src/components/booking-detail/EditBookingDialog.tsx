@@ -73,13 +73,15 @@ interface EditBookingDialogProps {
   onSuccess: () => void;
 }
 
-const STATUS_OPTIONS = [
-  'pendiente',
-  'confirmado',
-  'cancelado',
-  'hold',
-  'opciones',
-  'cobrado',
+// Phases matching the Kanban view
+const PHASE_OPTIONS = [
+  { id: 'interes', label: 'Interés' },
+  { id: 'oferta', label: 'Oferta' },
+  { id: 'negociacion', label: 'Negociación' },
+  { id: 'confirmado', label: 'Confirmado' },
+  { id: 'facturado', label: 'Facturado' },
+  { id: 'cerrado', label: 'Cerrado' },
+  { id: 'cancelado', label: 'Cancelado' },
 ];
 
 const BILLING_STATUS_OPTIONS = [
@@ -324,18 +326,18 @@ export function EditBookingDialog({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Estado</Label>
+                <Label>Fase</Label>
                 <Select
-                  value={formData.estado || ''}
-                  onValueChange={(v) => updateField('estado', v)}
+                  value={formData.phase || ''}
+                  onValueChange={(v) => updateField('phase', v)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar estado" />
+                    <SelectValue placeholder="Seleccionar fase" />
                   </SelectTrigger>
                   <SelectContent>
-                    {STATUS_OPTIONS.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                    {PHASE_OPTIONS.map((phase) => (
+                      <SelectItem key={phase.id} value={phase.id}>
+                        {phase.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
