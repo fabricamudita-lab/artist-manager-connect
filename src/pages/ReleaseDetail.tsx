@@ -216,11 +216,10 @@ export default function ReleaseDetail() {
         {SECTIONS.map((section) => (
           <Card
             key={section.id}
-            className="group cursor-pointer transition-all hover:ring-2 hover:ring-primary/50 hover:shadow-md overflow-hidden"
+            className={`group cursor-pointer transition-all hover:ring-2 hover:ring-primary/50 hover:shadow-md overflow-hidden relative bg-gradient-to-br ${section.color}`}
             onClick={() => handleSectionClick(section.id)}
           >
-            <div className={`absolute inset-0 bg-gradient-to-br ${section.color} opacity-50`} />
-            <CardHeader className="relative">
+            <CardHeader>
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg bg-background/80 ${section.iconColor}`}>
                   <section.icon className="w-5 h-5" />
@@ -232,7 +231,7 @@ export default function ReleaseDetail() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="relative">
+            <CardContent>
               <p className="text-sm text-muted-foreground">{section.description}</p>
             </CardContent>
           </Card>
