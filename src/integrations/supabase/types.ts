@@ -4502,7 +4502,7 @@ export type Database = {
             foreignKeyName: "solicitudes_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "artists"
             referencedColumns: ["id"]
           },
           {
