@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Filter, X, CalendarIcon, Globe, Sparkles, Download, FileSpreadsheet, Plus, CheckSquare } from 'lucide-react';
+import { Search, Filter, X, CalendarIcon, Globe, Sparkles, Download, FileSpreadsheet, Plus, CheckSquare, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -44,9 +45,10 @@ interface BookingFiltersToolbarProps {
   promoters: string[];
   filteredCount: number;
   totalCount: number;
-  // Actions
+  // Export actions
   onExportExcel?: () => void;
   onExportCSV?: () => void;
+  onExportPDF?: () => void;
   onNewOffer?: () => void;
   // Selection mode (optional)
   selectionMode?: boolean;
@@ -67,6 +69,7 @@ export function BookingFiltersToolbar({
   totalCount,
   onExportExcel,
   onExportCSV,
+  onExportPDF,
   onNewOffer,
   selectionMode,
   onToggleSelection,
@@ -301,16 +304,34 @@ export function BookingFiltersToolbar({
             </Button>
           )}
 
-          {onExportExcel && (
-            <Button onClick={onExportExcel} variant="outline" size="sm" className="h-9">
-              <FileSpreadsheet className="h-4 w-4" />
-            </Button>
-          )}
-
-          {onExportCSV && (
-            <Button onClick={onExportCSV} variant="outline" size="sm" className="h-9">
-              <Download className="h-4 w-4" />
-            </Button>
+          {(onExportExcel || onExportCSV || onExportPDF) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9">
+                  <Download className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-background border shadow-lg z-50">
+                {onExportExcel && (
+                  <DropdownMenuItem onClick={onExportExcel} className="cursor-pointer">
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Excel (.xlsx)
+                  </DropdownMenuItem>
+                )}
+                {onExportCSV && (
+                  <DropdownMenuItem onClick={onExportCSV} className="cursor-pointer">
+                    <FileText className="h-4 w-4 mr-2" />
+                    CSV
+                  </DropdownMenuItem>
+                )}
+                {onExportPDF && (
+                  <DropdownMenuItem onClick={onExportPDF} className="cursor-pointer">
+                    <FileText className="h-4 w-4 mr-2" />
+                    PDF
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
 
           {additionalActions}
