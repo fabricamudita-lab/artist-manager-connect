@@ -172,36 +172,94 @@ export function EditEventDialogControlled({ event, open, onOpenChange, onUpdated
         // Fetch team members (workspace members + team contacts)
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          // Get workspace memberships
-          const { data: memberships } = await supabase
-            .from('workspace_memberships')
-            .select(`
-              user_id,
-              role,
-              profiles!workspace_memberships_user_id_fkey(id, full_name)
-            `);
+          const allMembers: TeamMember[] = [];
 
-          const workspaceMembers: TeamMember[] = (memberships || [])
-            .filter((m: any) => m.profiles)
-            .map((m: any) => ({
-              id: m.user_id,
-              name: m.profiles.full_name || 'Sin nombre',
-              category: m.role
-            }));
+          // Get user's workspace
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('workspace_id')
+            .eq('user_id', user.id)
+            .single();
 
-          // Get contacts marked as team members
-          const { data: teamContacts } = await supabase
+          // Workspace members (with accounts)
+          if (profileData?.workspace_id) {
+            const { data: workspace } = await supabase
+              .from('workspaces')
+              .select('created_by')
+              .eq('id', profileData.workspace_id)
+              .single();
+
+            let { data: members, error: membersError } = await supabase
+              .from('workspace_memberships')
+              .select('id, user_id, role, team_category')
+              .eq('workspace_id', profileData.workspace_id);
+
+            if (membersError) throw membersError;
+
+            // If workspace creator has no membership yet, create it (same behavior as /teams)
+            if ((!members || members.length === 0) && workspace?.created_by === user.id) {
+              const { data: newMembership, error: insertError } = await supabase
+                .from('workspace_memberships')
+                .insert({
+                  workspace_id: profileData.workspace_id,
+                  user_id: user.id,
+                  role: 'OWNER',
+                  team_category: 'management',
+                })
+                .select('id, user_id, role, team_category')
+                .single();
+
+              if (insertError) throw insertError;
+              members = newMembership ? [newMembership] : [];
+            }
+
+            if (members && members.length > 0) {
+              const categoryByUser = new Map<string, string>();
+              members.forEach((m: any) => {
+                categoryByUser.set(m.user_id, m.team_category || 'otro');
+              });
+
+              const userIds = members.map((m: any) => m.user_id);
+              const { data: profiles, error: profilesError } = await supabase
+                .from('profiles')
+                .select('user_id, full_name, stage_name')
+                .in('user_id', userIds);
+
+              if (profilesError) throw profilesError;
+
+              (profiles || []).forEach((p: any) => {
+                allMembers.push({
+                  id: p.user_id,
+                  name: p.stage_name || p.full_name || 'Sin nombre',
+                  category: categoryByUser.get(p.user_id),
+                });
+              });
+            }
+          }
+
+          // Team contacts (without accounts)
+          const { data: contacts, error: contactsError } = await supabase
             .from('contacts')
-            .select('id, name, category')
-            .eq('category', 'team');
+            .select('id, name, stage_name, category, field_config')
+            .eq('created_by', user.id);
 
-          const contactMembers: TeamMember[] = (teamContacts || []).map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            category: c.category
-          }));
+          if (contactsError) throw contactsError;
 
-          setTeamMembers([...workspaceMembers, ...contactMembers]);
+          (contacts || []).forEach((c: any) => {
+            const config = c.field_config as Record<string, any> | null;
+            if (!config?.is_team_member) return;
+
+            const categories: string[] = Array.isArray(config?.team_categories) ? config.team_categories : [];
+            const category = categories[0] || c.category;
+
+            allMembers.push({
+              id: c.id,
+              name: c.stage_name || c.name,
+              category,
+            });
+          });
+
+          setTeamMembers(allMembers);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
