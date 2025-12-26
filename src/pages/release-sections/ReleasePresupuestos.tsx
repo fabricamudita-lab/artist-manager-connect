@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Trash2, Pencil, DollarSign, Users, PieChart, Receipt } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Pencil, DollarSign, Users, PieChart, Receipt, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Dialog,
   DialogContent,
@@ -567,75 +568,91 @@ function TrackSplitsCard({ track }: { track: Track }) {
     },
   });
 
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-base flex items-center gap-2">
-              <span className="text-muted-foreground">{track.track_number}.</span>
-              {track.title}
-            </CardTitle>
-            {track.isrc && (
-              <p className="text-xs text-muted-foreground mt-1">ISRC: {track.isrc}</p>
-            )}
-          </div>
-          <Dialog open={isAddSplitOpen} onOpenChange={setIsAddSplitOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline">
-                <Plus className="h-4 w-4 mr-1" />
-                Añadir Split
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Añadir Colaborador a "{track.title}"</DialogTitle>
-              </DialogHeader>
-              <AddSplitForm
-                maxPercentage={100 - totalPercentage}
-                onSubmit={(data) => createCredit.mutate(data)}
-                isLoading={createCredit.isPending}
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span>Distribución total</span>
-            <span className={totalPercentage === 100 ? 'text-green-500' : 'text-amber-500'}>
-              {totalPercentage}%
-            </span>
-          </div>
-          <Progress value={totalPercentage} className="h-2" />
-        </div>
+  const [isOpen, setIsOpen] = useState(false);
 
-        {isLoading ? (
-          <Skeleton className="h-16 w-full" />
-        ) : credits.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            Sin splits configurados
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {credits.map((credit) => (
-              <CreditRow
-                key={credit.id}
-                credit={credit}
-                totalPercentage={totalPercentage}
-                isEditing={editingCreditId === credit.id}
-                onEdit={() => setEditingCreditId(credit.id)}
-                onCancelEdit={() => setEditingCreditId(null)}
-                onUpdate={(data) => updateCredit.mutate({ creditId: credit.id, data })}
-                onDelete={() => deleteCredit.mutate(credit.id)}
-                isUpdating={updateCredit.isPending}
-              />
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <span className="text-muted-foreground">{track.track_number}.</span>
+                    {track.title}
+                  </CardTitle>
+                  {track.isrc && (
+                    <p className="text-xs text-muted-foreground mt-1">ISRC: {track.isrc}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant={totalPercentage === 100 ? 'default' : 'secondary'} className={totalPercentage === 100 ? 'bg-green-500' : ''}>
+                  {totalPercentage}%
+                </Badge>
+                <Dialog open={isAddSplitOpen} onOpenChange={setIsAddSplitOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline" onClick={(e) => e.stopPropagation()}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Añadir Split
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Añadir Colaborador a "{track.title}"</DialogTitle>
+                    </DialogHeader>
+                    <AddSplitForm
+                      maxPercentage={100 - totalPercentage}
+                      onSubmit={(data) => createCredit.mutate(data)}
+                      isLoading={createCredit.isPending}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="space-y-4 pt-0">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Distribución total</span>
+                <span className={totalPercentage === 100 ? 'text-green-500' : 'text-amber-500'}>
+                  {totalPercentage}%
+                </span>
+              </div>
+              <Progress value={totalPercentage} className="h-2" />
+            </div>
+
+            {isLoading ? (
+              <Skeleton className="h-16 w-full" />
+            ) : credits.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Sin splits configurados
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {credits.map((credit) => (
+                  <CreditRow
+                    key={credit.id}
+                    credit={credit}
+                    totalPercentage={totalPercentage}
+                    isEditing={editingCreditId === credit.id}
+                    onEdit={() => setEditingCreditId(credit.id)}
+                    onCancelEdit={() => setEditingCreditId(null)}
+                    onUpdate={(data) => updateCredit.mutate({ creditId: credit.id, data })}
+                    onDelete={() => deleteCredit.mutate(credit.id)}
+                    isUpdating={updateCredit.isPending}
+                  />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }
 
