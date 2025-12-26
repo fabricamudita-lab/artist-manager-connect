@@ -8,6 +8,7 @@ export interface TeamMemberWithCategory {
   category?: string;
   type: 'workspace' | 'contact';
   artistIds?: string[]; // Artists this contact is assigned to
+  isManagementTeam?: boolean; // True if contact is part of management team
 }
 
 export interface TeamCategory {
@@ -123,7 +124,8 @@ export function useTeamMembersByArtist(selectedArtistIds: string[] = []) {
               name: c.stage_name || c.name,
               category: cats[0] || c.category,
               type: 'contact',
-              artistIds: isManagementTeam ? [] : (assignmentMap.get(c.id) || []),
+              artistIds: assignmentMap.get(c.id) || [],
+              isManagementTeam,
             });
           });
         }
@@ -146,14 +148,21 @@ export function useTeamMembersByArtist(selectedArtistIds: string[] = []) {
       return allTeamMembers;
     }
 
-    // Filter: workspace members always visible, contacts only if assigned to selected artist
+    // Filter: workspace members always visible, contacts only if:
+    // 1. They are marked as management team (is_management_team: true => artistIds is empty array)
+    // 2. They are explicitly assigned to one of the selected artists
     return allTeamMembers.filter(member => {
       if (member.type === 'workspace') {
         return true; // Workspace members are always visible
       }
-      // Contact: check if assigned to any selected artist OR has no specific assignments (management)
+      // Contact: check if is management team (empty artistIds means management)
+      // OR explicitly assigned to any selected artist
+      if (member.isManagementTeam) {
+        return true; // Management team always visible
+      }
+      // Only show if assigned to at least one selected artist
       if (!member.artistIds || member.artistIds.length === 0) {
-        return true; // Management team (no artist assignment)
+        return false; // No assignment and not management = hide
       }
       return member.artistIds.some(id => selectedArtistIds.includes(id));
     });
