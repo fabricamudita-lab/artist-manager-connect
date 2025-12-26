@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Plus, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useBookingFolderAutomation } from '@/hooks/useBookingFolderAutomation';
@@ -64,6 +64,7 @@ interface BookingOffer {
   anunciado?: boolean | null;
   es_privado?: boolean | null;
   artist_id?: string | null;
+  adjuntos?: any;
 }
 
 interface EditBookingDialogProps {
@@ -123,12 +124,16 @@ export function EditBookingDialog({
   onSuccess,
 }: EditBookingDialogProps) {
   const [formData, setFormData] = useState<Partial<BookingOffer>>({});
+  const [fechasOpcionales, setFechasOpcionales] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const { syncBookingFolder } = useBookingFolderAutomation();
 
   useEffect(() => {
     if (open) {
       setFormData({ ...booking });
+      // Load fechas opcionales from adjuntos
+      const adjuntos = booking.adjuntos as { fechas_opcionales?: string[] } | null;
+      setFechasOpcionales(adjuntos?.fechas_opcionales || []);
     }
   }, [open, booking]);
 
@@ -139,6 +144,12 @@ export function EditBookingDialog({
   const handleSave = async () => {
     setLoading(true);
     try {
+      // Build adjuntos with fechas opcionales
+      const filteredFechas = fechasOpcionales.filter(f => f);
+      const adjuntos = filteredFechas.length > 0 
+        ? { fechas_opcionales: filteredFechas }
+        : null;
+
       const updateData = {
         fecha: formData.fecha,
         hora: formData.hora,
@@ -177,6 +188,7 @@ export function EditBookingDialog({
         anunciado: formData.anunciado,
         es_privado: formData.es_privado,
         artist_id: formData.artist_id,
+        adjuntos: adjuntos,
       };
 
       const { data, error } = await supabase
@@ -283,6 +295,56 @@ export function EditBookingDialog({
                   onChange={(e) => updateField('capacidad', parseInt(e.target.value) || null)}
                 />
               </div>
+            </div>
+
+            {/* Fechas opcionales */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm text-muted-foreground">
+                  Fechas opcionales
+                  <span className="ml-2 text-xs">(si el festival/sala tiene varios días disponibles)</span>
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFechasOpcionales([...fechasOpcionales, ''])}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Añadir fecha
+                </Button>
+              </div>
+              
+              {fechasOpcionales.length > 0 && (
+                <div className="grid grid-cols-3 gap-3">
+                  {fechasOpcionales.map((fecha, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <Input
+                        type="date"
+                        value={fecha}
+                        onChange={(e) => {
+                          const newFechas = [...fechasOpcionales];
+                          newFechas[index] = e.target.value;
+                          setFechasOpcionales(newFechas);
+                        }}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                        onClick={() => {
+                          const newFechas = fechasOpcionales.filter((_, i) => i !== index);
+                          setFechasOpcionales(newFechas);
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
