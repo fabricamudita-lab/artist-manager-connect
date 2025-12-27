@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -90,6 +90,8 @@ interface TemplateField {
 export default function Booking() {
   usePageTitle('Booking');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const artistIdFromUrl = searchParams.get('artistId');
   const { profile } = useAuth();
   const [offers, setOffers] = useState<BookingOffer[]>([]);
   const [templateFields, setTemplateFields] = useState<TemplateField[]>([]);
@@ -112,7 +114,7 @@ export default function Booking() {
   const [artists, setArtists] = useState<{ id: string; name: string; stage_name?: string }[]>([]);
   const [filters, setFilters] = useState<BookingFiltersState>({
     searchTerm: '',
-    artistFilter: 'all',
+    artistFilter: artistIdFromUrl || 'all',
     phaseFilter: 'all',
     countryFilter: 'all',
     promoterFilter: 'all',
@@ -123,6 +125,13 @@ export default function Booking() {
   });
   const [filteredOffers, setFilteredOffers] = useState<BookingOffer[]>([]);
 
+  // Update filter when URL changes
+  useEffect(() => {
+    if (artistIdFromUrl) {
+      setFilters(prev => ({ ...prev, artistFilter: artistIdFromUrl }));
+    }
+  }, [artistIdFromUrl]);
+
   useEffect(() => {
     fetchOffers();
     fetchTemplateFields();
@@ -132,6 +141,7 @@ export default function Booking() {
   useEffect(() => {
     applyTableFilters();
   }, [offers, filters]);
+
 
   const fetchArtists = async () => {
     const { data } = await supabase.from('artists').select('id, name, stage_name').order('name');

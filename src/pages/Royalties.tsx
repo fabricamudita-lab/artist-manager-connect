@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/useCommon';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,7 +14,16 @@ import { ArtistFilter } from '@/components/royalties/ArtistFilter';
 
 export default function Royalties() {
   usePageTitle('Royalties');
-  const [selectedArtist, setSelectedArtist] = useState('all');
+  const [searchParams] = useSearchParams();
+  const artistIdFromUrl = searchParams.get('artistId');
+  const [selectedArtist, setSelectedArtist] = useState(artistIdFromUrl || 'all');
+  
+  // Update selectedArtist when URL changes
+  useEffect(() => {
+    if (artistIdFromUrl) {
+      setSelectedArtist(artistIdFromUrl);
+    }
+  }, [artistIdFromUrl]);
   
   const { totalEarnings, songsCount, collaboratorsCount, totalStreams } = useRoyaltiesStats(selectedArtist);
 

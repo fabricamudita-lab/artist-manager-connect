@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Users, Mail, Building, Shield, UserCheck, Edit2, Settings, MoreVertical, UserMinus, FolderPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -35,6 +36,7 @@ interface TeamMember {
 }
 
 export default function Teams() {
+  const [searchParams] = useSearchParams();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [teamContacts, setTeamContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,9 +47,10 @@ export default function Teams() {
   const [customCategories, setCustomCategories] = useState<Array<{ value: string; label: string; icon: any; isCustom: boolean }>>([]);
   const [createTeamDialogOpen, setCreateTeamDialogOpen] = useState(false);
   
-  // Artist filter state
+  // Artist filter state - initialize from URL param if present
   const [artists, setArtists] = useState<Array<{ id: string; name: string; stage_name?: string }>>([]);
-  const [selectedArtistId, setSelectedArtistId] = useState<string>('all');
+  const artistIdFromUrl = searchParams.get('artistId');
+  const [selectedArtistId, setSelectedArtistId] = useState<string>(artistIdFromUrl || 'all');
 
   // State for activity dialog
   const [activityMember, setActivityMember] = useState<{

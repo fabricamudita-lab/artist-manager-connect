@@ -52,8 +52,10 @@ interface ProjectListItem {
 export default function Projects() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const artistIdFromUrl = searchParams.get('artistId');
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string>("todos");
+  const [artistFilter, setArtistFilter] = useState(artistIdFromUrl || 'all');
   const [items, setItems] = useState<ProjectListItem[]>([]);
   const [openCreate, setOpenCreate] = useState(false);
   const [openCreateFolder, setOpenCreateFolder] = useState(false);
@@ -68,6 +70,13 @@ export default function Projects() {
   const [breadcrumb, setBreadcrumb] = useState<{ id: string; name: string }[]>([]);
   const [draggedItem, setDraggedItem] = useState<ProjectListItem | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+
+  // Update filter when URL changes
+  useEffect(() => {
+    if (artistIdFromUrl) {
+      setArtistFilter(artistIdFromUrl);
+    }
+  }, [artistIdFromUrl]);
 
   // SEO: title, meta, canonical
   useEffect(() => {
@@ -129,6 +138,11 @@ export default function Projects() {
           queryBuilder = queryBuilder.eq('status', status as any);
         }
 
+        // Filter by artist if specified
+        if (artistFilter !== 'all') {
+          queryBuilder = queryBuilder.eq('artist_id', artistFilter);
+        }
+
         const { data, error } = await queryBuilder;
         if (error) throw error;
 
@@ -153,7 +167,7 @@ export default function Projects() {
     };
 
     fetchProjects();
-  }, [status, refreshKey, currentFolderId]);
+  }, [status, refreshKey, currentFolderId, artistFilter]);
 
   useEffect(() => {
     const buildBreadcrumb = async () => {
