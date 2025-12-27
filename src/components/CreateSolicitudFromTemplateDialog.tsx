@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { SingleArtistSelector } from "@/components/SingleArtistSelector";
 import { ContactSelector } from "@/components/ContactSelector";
+import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 
 interface CreateSolicitudFromTemplateDialogProps {
   open: boolean;
@@ -594,11 +595,13 @@ export function CreateSolicitudFromTemplateDialog({
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="direccion">Dirección</Label>
-                      <Input
-                        id="direccion"
-                        value={formData.direccion}
-                        onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                        placeholder="Ej: C/ Nou de la Rambla, 113"
+                      <AddressAutocomplete
+                        value={formData.direccion || ''}
+                        onChange={(value) => setFormData({ ...formData, direccion: value })}
+                        venue={formData.lugar_concierto}
+                        city={formData.ciudad}
+                        country={formData.pais}
+                        placeholder="Buscar dirección..."
                       />
                     </div>
                   </div>
