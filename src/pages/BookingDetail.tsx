@@ -443,7 +443,7 @@ export default function BookingDetail() {
                 </TabsTrigger>
                 <TabsTrigger value="expenses" className="flex items-center gap-2">
                   <Receipt className="h-4 w-4" />
-                  Expenses
+                  Travel Expenses
                 </TabsTrigger>
                 <TabsTrigger value="documents" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />

@@ -277,10 +277,10 @@ export function BookingExpensesTab({ bookingId, booking }: BookingExpensesTabPro
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
               <Receipt className="h-5 w-5 text-primary" />
-              Gastos Variables
+              Imprevistos del Evento
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Cenas, taxis, extras y otros gastos del evento
+              Gastos extras no contemplados en el presupuesto que surjan el día del concierto
             </p>
           </div>
           <div className="flex gap-2">
@@ -411,8 +411,8 @@ export function BookingExpensesTab({ bookingId, booking }: BookingExpensesTabPro
           {expenses.length === 0 ? (
             <EmptyState
               icon={<Receipt className="w-10 h-10 text-muted-foreground" />}
-              title="Sin gastos registrados"
-              description="Añade gastos variables como cenas, taxis o extras"
+              title="Sin imprevistos registrados"
+              description="Añade gastos extras que surjan el día del concierto y no estén en el presupuesto"
             />
           ) : (
             <Table>
