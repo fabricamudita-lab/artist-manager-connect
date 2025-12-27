@@ -61,7 +61,7 @@ export function BudgetContactSelector({ value, onValueChange, className, compact
             aria-expanded={open}
             className={cn(
               "h-8 justify-start text-left font-normal px-2 hover:bg-blue-100",
-              !selectedContact && "text-muted-foreground",
+              selectedContact ? "text-gray-900" : "text-muted-foreground",
               className
             )}
           >
@@ -69,9 +69,9 @@ export function BudgetContactSelector({ value, onValueChange, className, compact
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center gap-1.5 truncate">
-                      <User className="w-3 h-3 flex-shrink-0" />
-                      <span className="truncate max-w-[100px]">{selectedContact.name}</span>
+                    <div className="flex items-center gap-1.5 truncate text-gray-900">
+                      <User className="w-3 h-3 flex-shrink-0 text-gray-700" />
+                      <span className="truncate max-w-[100px] text-gray-900 font-medium">{selectedContact.name}</span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-xs">
