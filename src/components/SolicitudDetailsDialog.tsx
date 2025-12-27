@@ -77,6 +77,11 @@ interface SolicitudDetails {
   } | null;
   project_id?: string | null;
   project?: { id: string; name: string } | null;
+  // New booking-related fields
+  booking_id?: string | null;
+  booking_status?: string | null;
+  required_approvers?: string[] | null;
+  current_approvals?: string[] | null;
 }
 
 interface SolicitudDetailsDialogProps {
@@ -143,38 +148,113 @@ const navigate = useNavigate();
   };
 
 const updateSolicitudStatus = async (newStatus: 'aprobada' | 'denegada', comment?: string) => {
-  if (!solicitud) return;
+  if (!solicitud || !profile?.user_id) return;
 
   const previousEstado = solicitud.estado;
+  const userId = profile.user_id;
 
   try {
+    // Check if this is a multi-approver scenario
+    const requiredApprovers = solicitud.required_approvers || [];
+    const currentApprovals = solicitud.current_approvals || [];
+    
+    let finalStatus = newStatus;
+    let newApprovals = [...currentApprovals];
+
+    // If there are required approvers and this is an approval
+    if (requiredApprovers.length > 0 && newStatus === 'aprobada') {
+      // Add current user to approvals if not already there
+      if (!currentApprovals.includes(userId)) {
+        newApprovals = [...currentApprovals, userId];
+      }
+      
+      // Check if all required approvers have approved
+      const allApproved = requiredApprovers.every(approverId => newApprovals.includes(approverId));
+      
+      if (!allApproved) {
+        // Not all approvers have approved yet - update approvals but keep status pending
+        const { error } = await supabase
+          .from('solicitudes')
+          .update({
+            current_approvals: newApprovals,
+            fecha_actualizacion: new Date().toISOString(),
+          } as any)
+          .eq('id', solicitud.id);
+
+        if (error) throw error;
+
+        const approvedCount = newApprovals.length;
+        const totalRequired = requiredApprovers.length;
+        
+        setSolicitud(prev => prev ? { ...prev, current_approvals: newApprovals } : null);
+        onUpdate?.();
+        
+        toast({
+          title: "Aprobación registrada",
+          description: `${approvedCount}/${totalRequired} aprobaciones completadas. Faltan ${totalRequired - approvedCount} aprobador(es).`,
+        });
+        return;
+      }
+      // All approved - continue with full approval
+      finalStatus = 'aprobada';
+    }
+
+    // If denied, just proceed with denial
+    if (newStatus === 'denegada') {
+      finalStatus = 'denegada';
+    }
+
+    // Update solicitud status
     const { error } = await supabase
       .from('solicitudes')
       .update({
-        estado: newStatus,
+        estado: finalStatus,
+        current_approvals: finalStatus === 'aprobada' ? newApprovals : currentApprovals,
         fecha_actualizacion: new Date().toISOString(),
         comentario_estado: comment || null,
-        decision_por: profile?.user_id || null,
+        decision_por: userId,
         decision_fecha: new Date().toISOString(),
       } as any)
       .eq('id', solicitud.id);
 
     if (error) throw error;
 
-    setSolicitud(prev => prev ? { ...prev, estado: newStatus, comentario_estado: comment || null } : null);
+    // Sync booking status if this is a booking solicitud
+    if (solicitud.tipo === 'booking' && solicitud.booking_id) {
+      const bookingStatus = finalStatus === 'aprobada' ? 'confirmado' : finalStatus === 'denegada' ? 'cancelado' : solicitud.booking_status;
+      
+      const { error: bookingError } = await supabase
+        .from('booking_offers')
+        .update({
+          estado: bookingStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', solicitud.booking_id);
+
+      if (bookingError) {
+        console.error('Error syncing booking status:', bookingError);
+      } else {
+        toast({
+          title: "Booking actualizado",
+          description: `El estado del booking se ha actualizado a "${bookingStatus}"`,
+        });
+      }
+    }
+
+    setSolicitud(prev => prev ? { ...prev, estado: finalStatus, comentario_estado: comment || null, current_approvals: newApprovals } : null);
     onUpdate?.();
     
     toast({
       title: "¡Éxito!",
-      description: newStatus === 'aprobada' ? "¡Solicitud aprobada! 🎉" : "Solicitud denegada correctamente",
+      description: finalStatus === 'aprobada' ? "¡Solicitud aprobada! 🎉" : "Solicitud denegada correctamente",
     });
 
-    if (previousEstado !== 'aprobada' && newStatus === 'aprobada') {
+    if (previousEstado !== 'aprobada' && finalStatus === 'aprobada') {
       setTimeout(() => {
         fireCelebration();
         onOpenChange(false);
       }, 300);
-    } else if (newStatus === 'denegada') {
+    } else if (finalStatus === 'denegada') {
       setTimeout(() => onOpenChange(false), 1000);
     }
   } catch (error) {
@@ -724,6 +804,56 @@ const updateSolicitudToPending = async (comment?: string) => {
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Approval Progress - For booking solicitudes with multi-approvers */}
+          {solicitud.tipo === 'booking' && (solicitud.required_approvers?.length || 0) > 0 && (
+            <Card className="border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-primary" />
+                  Progreso de Aprobación
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Aprobaciones completadas</span>
+                    <span className="font-medium">
+                      {(solicitud.current_approvals?.length || 0)} / {(solicitud.required_approvers?.length || 0)}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary transition-all duration-300"
+                      style={{ 
+                        width: `${((solicitud.current_approvals?.length || 0) / (solicitud.required_approvers?.length || 1)) * 100}%` 
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {(solicitud.current_approvals?.length || 0) === (solicitud.required_approvers?.length || 0)
+                      ? "Todos los aprobadores han aprobado"
+                      : `Faltan ${(solicitud.required_approvers?.length || 0) - (solicitud.current_approvals?.length || 0)} aprobación(es)`
+                    }
+                  </p>
+                </div>
+
+                {solicitud.booking_status && (
+                  <div className="pt-2 border-t">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Estado del booking objetivo:</span>
+                      <Badge variant="outline" className="capitalize">
+                        {solicitud.booking_status}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Al aprobar, el booking pasará a "confirmado". Al denegar, pasará a "cancelado".
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

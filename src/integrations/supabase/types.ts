@@ -4406,12 +4406,15 @@ export type Database = {
           archived: boolean
           archivos_adjuntos: Json | null
           artist_id: string | null
+          booking_id: string | null
+          booking_status: string | null
           capacidad: number | null
           ciudad: string | null
           comentario_estado: string | null
           condiciones: string | null
           contact_id: string | null
           created_by: string
+          current_approvals: string[] | null
           deal_type: string | null
           decision_fecha: string | null
           decision_has_new_comment: boolean
@@ -4444,6 +4447,7 @@ export type Database = {
           prioridad: string | null
           project_id: string | null
           promotor_contact_id: string | null
+          required_approvers: string[] | null
           telefono: string | null
           tipo: Database["public"]["Enums"]["request_type"]
         }
@@ -4451,12 +4455,15 @@ export type Database = {
           archived?: boolean
           archivos_adjuntos?: Json | null
           artist_id?: string | null
+          booking_id?: string | null
+          booking_status?: string | null
           capacidad?: number | null
           ciudad?: string | null
           comentario_estado?: string | null
           condiciones?: string | null
           contact_id?: string | null
           created_by: string
+          current_approvals?: string[] | null
           deal_type?: string | null
           decision_fecha?: string | null
           decision_has_new_comment?: boolean
@@ -4489,6 +4496,7 @@ export type Database = {
           prioridad?: string | null
           project_id?: string | null
           promotor_contact_id?: string | null
+          required_approvers?: string[] | null
           telefono?: string | null
           tipo: Database["public"]["Enums"]["request_type"]
         }
@@ -4496,12 +4504,15 @@ export type Database = {
           archived?: boolean
           archivos_adjuntos?: Json | null
           artist_id?: string | null
+          booking_id?: string | null
+          booking_status?: string | null
           capacidad?: number | null
           ciudad?: string | null
           comentario_estado?: string | null
           condiciones?: string | null
           contact_id?: string | null
           created_by?: string
+          current_approvals?: string[] | null
           deal_type?: string | null
           decision_fecha?: string | null
           decision_has_new_comment?: boolean
@@ -4534,6 +4545,7 @@ export type Database = {
           prioridad?: string | null
           project_id?: string | null
           promotor_contact_id?: string | null
+          required_approvers?: string[] | null
           telefono?: string | null
           tipo?: Database["public"]["Enums"]["request_type"]
         }
@@ -4543,6 +4555,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
             referencedColumns: ["id"]
           },
           {
