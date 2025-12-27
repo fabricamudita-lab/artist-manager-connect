@@ -5,11 +5,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
+import { ContactSelector } from '@/components/ContactSelector';
+import { Calendar, Users, DollarSign, Plus, X, AlertTriangle, Flag } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface CreateSolicitudDialogProps {
   open: boolean;
@@ -31,6 +35,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
     notas_internas: '',
     artist_id: '',
     fecha_limite_respuesta: new Date(Date.now() + 7*24*60*60*1000).toISOString().slice(0,10),
+    prioridad: 'normal' as 'baja' | 'normal' | 'alta' | 'urgente',
     
     // Campos específicos para entrevistas
     medio: '',
@@ -39,12 +44,30 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
     hora_entrevista: '',
     informacion_programa: '',
     
-    // Campos específicos para bookings
-    hora_show: '',
+    // Campos específicos para bookings - matching CreateBookingWizard
     nombre_festival: '',
     lugar_concierto: '',
     ciudad: '',
+    pais: '',
+    direccion: '',
+    hora_show: '',
+    capacidad: '',
+    fechas_opcionales: [] as string[],
     formato: '',
+    // Buyer/Promotor
+    promotor_contact_id: '',
+    promotor_tab: 'existing' as 'existing' | 'new',
+    new_promotor: {
+      name: '',
+      company: '',
+      email: '',
+      phone: '',
+    },
+    // Deal info
+    deal_type: 'flat_fee' as 'flat_fee' | 'door_split',
+    fee: '',
+    door_split_percentage: '',
+    condiciones: '',
     
     // Campos específicos para licencias
     oferta: '',
@@ -52,6 +75,7 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
     // Campo libre para tipo "otro"
     descripcion_libre: '',
   });
+  const [contacts, setContacts] = useState<any[]>([]);
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
 
   const resetForm = () => {
@@ -65,21 +89,45 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
       notas_internas: '',
       artist_id: '',
       fecha_limite_respuesta: new Date(Date.now() + 7*24*60*60*1000).toISOString().slice(0,10),
+      prioridad: 'normal',
       medio: '',
       nombre_entrevistador: '',
       nombre_programa: '',
       hora_entrevista: '',
       informacion_programa: '',
-      hora_show: '',
       nombre_festival: '',
       lugar_concierto: '',
       ciudad: '',
+      pais: '',
+      direccion: '',
+      hora_show: '',
+      capacidad: '',
+      fechas_opcionales: [],
       formato: '',
+      promotor_contact_id: '',
+      promotor_tab: 'existing',
+      new_promotor: { name: '', company: '', email: '', phone: '' },
+      deal_type: 'flat_fee',
+      fee: '',
+      door_split_percentage: '',
+      condiciones: '',
       oferta: '',
       descripcion_libre: '',
     });
     setFieldErrors({});
   };
+
+  // Fetch contacts for promotor selector
+  useEffect(() => {
+    const fetchContacts = async () => {
+      const { data } = await supabase
+        .from('contacts')
+        .select('id, name, company, email, phone')
+        .order('name');
+      setContacts(data || []);
+    };
+    fetchContacts();
+  }, []);
 
   // Fetch artist formats when artist changes
   useEffect(() => {
@@ -254,6 +302,26 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
         throw new Error('No se pudo obtener el ID del usuario');
       }
 
+      // Create promotor contact if needed
+      let promotorContactId = formData.promotor_contact_id || null;
+      if (formData.tipo === 'booking' && formData.promotor_tab === 'new' && formData.new_promotor.name) {
+        const { data: newContact, error: contactError } = await supabase
+          .from('contacts')
+          .insert({
+            name: formData.new_promotor.name,
+            company: formData.new_promotor.company,
+            email: formData.new_promotor.email,
+            phone: formData.new_promotor.phone,
+            category: 'promotor',
+            created_by: profile.user_id,
+          })
+          .select()
+          .single();
+        if (!contactError && newContact) {
+          promotorContactId = newContact.id;
+        }
+      }
+
       const solicitudData = {
         tipo: formData.tipo as 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro',
         nombre_solicitante: finalNombreSolicitante,
@@ -261,10 +329,11 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
         telefono: formData.telefono || null,
         observaciones: formData.observaciones || null,
         notas_internas: formData.notas_internas || null,
-        created_by: profile.user_id, // Debe ser el user_id de auth, no el profile.id
+        created_by: profile.user_id,
         artist_id: formData.artist_id || null,
         fecha_limite_respuesta: formData.fecha_limite_respuesta || null,
         project_id: projectId || null,
+        prioridad: formData.prioridad,
         
         // Campos específicos según el tipo
         ...(formData.tipo === 'entrevista' && {
@@ -280,7 +349,20 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
           nombre_festival: formData.nombre_festival || null,
           lugar_concierto: formData.lugar_concierto || null,
           ciudad: formData.ciudad || null,
+          pais: formData.pais || null,
+          direccion: formData.direccion || null,
+          capacidad: formData.capacidad ? parseInt(formData.capacidad) : null,
+          fechas_opcionales: formData.fechas_opcionales.length > 0 
+            ? formData.fechas_opcionales.filter(f => f) 
+            : null,
           formato: formData.formato || null,
+          promotor_contact_id: promotorContactId,
+          deal_type: formData.deal_type,
+          fee: formData.deal_type === 'flat_fee' && formData.fee ? parseFloat(formData.fee) : null,
+          door_split_percentage: formData.deal_type === 'door_split' && formData.door_split_percentage 
+            ? parseFloat(formData.door_split_percentage) 
+            : null,
+          condiciones: formData.condiciones || null,
         }),
         
         ...(formData.tipo === 'licencia' && {
@@ -389,15 +471,60 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="fecha_limite_respuesta">Fecha límite de respuesta</Label>
-        <Input
-          id="fecha_limite_respuesta"
-          type="date"
-          value={formData.fecha_limite_respuesta}
-          onChange={(e) => setFormData({ ...formData, fecha_limite_respuesta: e.target.value })}
-        />
-        <p className="text-xs text-muted-foreground">Por defecto: +7 días</p>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="fecha_limite_respuesta">Fecha límite de respuesta</Label>
+          <Input
+            id="fecha_limite_respuesta"
+            type="date"
+            value={formData.fecha_limite_respuesta}
+            onChange={(e) => setFormData({ ...formData, fecha_limite_respuesta: e.target.value })}
+          />
+          <p className="text-xs text-muted-foreground">Por defecto: +7 días</p>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">
+            <Flag className="h-4 w-4" />
+            Prioridad
+          </Label>
+          <Select
+            value={formData.prioridad}
+            onValueChange={(value: 'baja' | 'normal' | 'alta' | 'urgente') => 
+              setFormData({ ...formData, prioridad: value })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="baja">
+                <span className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-slate-400" />
+                  Baja
+                </span>
+              </SelectItem>
+              <SelectItem value="normal">
+                <span className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                  Normal
+                </span>
+              </SelectItem>
+              <SelectItem value="alta">
+                <span className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-orange-500" />
+                  Alta
+                </span>
+              </SelectItem>
+              <SelectItem value="urgente">
+                <span className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  Urgente
+                </span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -566,80 +693,340 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
       )}
 
       {formData.tipo === 'booking' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              🎤 Información del Booking
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="nombre_festival">Nombre del Festival/Evento</Label>
-              <Input
-                id="nombre_festival"
-                value={formData.nombre_festival}
-                onChange={(e) => setFormData({ ...formData, nombre_festival: e.target.value })}
-                placeholder="Nombre del festival o evento"
-              />
-            </div>
+        <div className="space-y-6">
+          {/* Sección 1: Datos Generales */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Datos Generales
+              </CardTitle>
+              <CardDescription>Información básica del evento</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nombre_festival">Nombre del Evento / Festival</Label>
+                  <Input
+                    id="nombre_festival"
+                    value={formData.nombre_festival}
+                    onChange={(e) => setFormData({ ...formData, nombre_festival: e.target.value })}
+                    placeholder="Ej: Primavera Sound 2025"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lugar_concierto">Venue <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="lugar_concierto"
+                    value={formData.lugar_concierto}
+                    onChange={(e) => setFormData({ ...formData, lugar_concierto: e.target.value })}
+                    placeholder="Ej: Sala Apolo"
+                  />
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="lugar_concierto">Lugar del Concierto</Label>
-              <Input
-                id="lugar_concierto"
-                value={formData.lugar_concierto}
-                onChange={(e) => setFormData({ ...formData, lugar_concierto: e.target.value })}
-                placeholder="Nombre del venue o lugar"
-              />
-            </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ciudad">Ciudad</Label>
+                  <Input
+                    id="ciudad"
+                    value={formData.ciudad}
+                    onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
+                    placeholder="Ej: Barcelona"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pais">País</Label>
+                  <Input
+                    id="pais"
+                    value={formData.pais}
+                    onChange={(e) => setFormData({ ...formData, pais: e.target.value })}
+                    placeholder="Ej: España"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="direccion">Dirección</Label>
+                  <Input
+                    id="direccion"
+                    value={formData.direccion}
+                    onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+                    placeholder="Ej: C/ Nou de la Rambla, 113"
+                  />
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="ciudad">Ciudad</Label>
-              <Input
-                id="ciudad"
-                value={formData.ciudad}
-                onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
-                placeholder="Ciudad donde se realizará el evento"
-              />
-            </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="hora_show">Fecha <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="hora_show"
+                    type="datetime-local"
+                    value={formData.hora_show}
+                    onChange={(e) => setFormData({ ...formData, hora_show: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="capacidad">Capacidad</Label>
+                  <Input
+                    id="capacidad"
+                    type="number"
+                    value={formData.capacidad}
+                    onChange={(e) => setFormData({ ...formData, capacidad: e.target.value })}
+                    placeholder="Ej: 1500"
+                  />
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="hora_show">Fecha y Hora del Show</Label>
-              <Input
-                id="hora_show"
-                type="datetime-local"
-                value={formData.hora_show}
-                onChange={(e) => setFormData({ ...formData, hora_show: e.target.value })}
-              />
-            </div>
+              {/* Fechas opcionales */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm text-muted-foreground">
+                    Fechas opcionales
+                    <span className="ml-2 text-xs">(si el festival/sala tiene varios días disponibles)</span>
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFormData({
+                      ...formData,
+                      fechas_opcionales: [...formData.fechas_opcionales, '']
+                    })}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Añadir fecha
+                  </Button>
+                </div>
+                {formData.fechas_opcionales.map((fecha, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      type="date"
+                      value={fecha}
+                      onChange={(e) => {
+                        const newFechas = [...formData.fechas_opcionales];
+                        newFechas[index] = e.target.value;
+                        setFormData({ ...formData, fechas_opcionales: newFechas });
+                      }}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        const newFechas = formData.fechas_opcionales.filter((_, i) => i !== index);
+                        setFormData({ ...formData, fechas_opcionales: newFechas });
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-            <div className="space-y-2">
-              <Label>Formato</Label>
-              <Select
-                value={formData.formato}
-                onValueChange={(value) => setFormData({ ...formData, formato: value })}
-                disabled={!formData.artist_id || artistFormats.length === 0}
+          {/* Sección 2: Buyer / Promotor */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Buyer / Promotor
+              </CardTitle>
+              <CardDescription>Selecciona o crea el promotor</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Tabs 
+                value={formData.promotor_tab} 
+                onValueChange={(v) => setFormData({ ...formData, promotor_tab: v as 'existing' | 'new' })}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder={
-                    !formData.artist_id 
-                      ? "Selecciona primero un artista (Paso 1)" 
-                      : artistFormats.length === 0 
-                        ? "No hay formatos configurados"
-                        : "Seleccionar formato"
-                  } />
-                </SelectTrigger>
-                <SelectContent>
-                  {artistFormats.map((format) => (
-                    <SelectItem key={format.id} value={format.name}>
-                      {format.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="existing">Contacto Existente</TabsTrigger>
+                  <TabsTrigger value="new">Crear Nuevo</TabsTrigger>
+                </TabsList>
+                <TabsContent value="existing" className="mt-4">
+                  <div className="space-y-2">
+                    <Label>Seleccionar Promotor/Buyer</Label>
+                    <ContactSelector
+                      value={formData.promotor_contact_id}
+                      onValueChange={(value) => setFormData({ ...formData, promotor_contact_id: value })}
+                      placeholder="Buscar contacto..."
+                    />
+                  </div>
+                </TabsContent>
+                <TabsContent value="new" className="mt-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Nombre <span className="text-destructive">*</span></Label>
+                      <Input
+                        value={formData.new_promotor.name}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          new_promotor: { ...formData.new_promotor, name: e.target.value }
+                        })}
+                        placeholder="Nombre del contacto"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Empresa</Label>
+                      <Input
+                        value={formData.new_promotor.company}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          new_promotor: { ...formData.new_promotor, company: e.target.value }
+                        })}
+                        placeholder="Nombre de la promotora"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Email</Label>
+                      <Input
+                        type="email"
+                        value={formData.new_promotor.email}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          new_promotor: { ...formData.new_promotor, email: e.target.value }
+                        })}
+                        placeholder="email@promotora.com"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Teléfono</Label>
+                      <Input
+                        value={formData.new_promotor.phone}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          new_promotor: { ...formData.new_promotor, phone: e.target.value }
+                        })}
+                        placeholder="+34 600 000 000"
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+
+          {/* Sección 3: Deal Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Deal Info
+              </CardTitle>
+              <CardDescription>Condiciones económicas</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Tipo de Deal</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, deal_type: 'flat_fee' })}
+                    className={cn(
+                      "p-4 rounded-lg border-2 text-left transition-all",
+                      formData.deal_type === 'flat_fee'
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "h-4 w-4 rounded-full border-2",
+                        formData.deal_type === 'flat_fee'
+                          ? "border-primary bg-primary"
+                          : "border-muted-foreground"
+                      )} />
+                      <span className="font-medium">Flat Fee</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">Caché fijo</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, deal_type: 'door_split' })}
+                    className={cn(
+                      "p-4 rounded-lg border-2 text-left transition-all",
+                      formData.deal_type === 'door_split'
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "h-4 w-4 rounded-full border-2",
+                        formData.deal_type === 'door_split'
+                          ? "border-primary bg-primary"
+                          : "border-muted-foreground"
+                      )} />
+                      <span className="font-medium">Door Split</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">% de taquilla</p>
+                  </button>
+                </div>
+              </div>
+
+              {formData.deal_type === 'flat_fee' ? (
+                <div className="space-y-2">
+                  <Label>Fee (€) <span className="text-destructive">*</span></Label>
+                  <Input
+                    type="number"
+                    value={formData.fee}
+                    onChange={(e) => setFormData({ ...formData, fee: e.target.value })}
+                    placeholder="Ej: 5000"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Porcentaje de taquilla (%) <span className="text-destructive">*</span></Label>
+                  <Input
+                    type="number"
+                    value={formData.door_split_percentage}
+                    onChange={(e) => setFormData({ ...formData, door_split_percentage: e.target.value })}
+                    placeholder="Ej: 70"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Formato</Label>
+                <Select
+                  value={formData.formato}
+                  onValueChange={(value) => setFormData({ ...formData, formato: value })}
+                  disabled={!formData.artist_id || artistFormats.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={
+                      !formData.artist_id 
+                        ? "Selecciona primero un artista (Paso 1)" 
+                        : artistFormats.length === 0 
+                          ? "No hay formatos configurados"
+                          : "Seleccionar formato"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {artistFormats.map((format) => (
+                      <SelectItem key={format.id} value={format.name}>
+                        {format.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="condiciones">Condiciones</Label>
+                <Textarea
+                  id="condiciones"
+                  value={formData.condiciones}
+                  onChange={(e) => setFormData({ ...formData, condiciones: e.target.value })}
+                  placeholder="Condiciones especiales del deal..."
+                  rows={3}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {formData.tipo === 'otro' && (

@@ -4406,19 +4406,26 @@ export type Database = {
           archived: boolean
           archivos_adjuntos: Json | null
           artist_id: string | null
+          capacidad: number | null
           ciudad: string | null
           comentario_estado: string | null
+          condiciones: string | null
           contact_id: string | null
           created_by: string
+          deal_type: string | null
           decision_fecha: string | null
           decision_has_new_comment: boolean
           decision_por: string | null
           descripcion_libre: string | null
+          direccion: string | null
+          door_split_percentage: number | null
           email: string | null
           estado: Database["public"]["Enums"]["request_status"]
           fecha_actualizacion: string
           fecha_creacion: string
           fecha_limite_respuesta: string | null
+          fechas_opcionales: Json | null
+          fee: number | null
           formato: string | null
           hora_entrevista: string | null
           hora_show: string | null
@@ -4433,7 +4440,10 @@ export type Database = {
           notas_internas: string | null
           observaciones: string | null
           oferta: string | null
+          pais: string | null
+          prioridad: string | null
           project_id: string | null
+          promotor_contact_id: string | null
           telefono: string | null
           tipo: Database["public"]["Enums"]["request_type"]
         }
@@ -4441,19 +4451,26 @@ export type Database = {
           archived?: boolean
           archivos_adjuntos?: Json | null
           artist_id?: string | null
+          capacidad?: number | null
           ciudad?: string | null
           comentario_estado?: string | null
+          condiciones?: string | null
           contact_id?: string | null
           created_by: string
+          deal_type?: string | null
           decision_fecha?: string | null
           decision_has_new_comment?: boolean
           decision_por?: string | null
           descripcion_libre?: string | null
+          direccion?: string | null
+          door_split_percentage?: number | null
           email?: string | null
           estado?: Database["public"]["Enums"]["request_status"]
           fecha_actualizacion?: string
           fecha_creacion?: string
           fecha_limite_respuesta?: string | null
+          fechas_opcionales?: Json | null
+          fee?: number | null
           formato?: string | null
           hora_entrevista?: string | null
           hora_show?: string | null
@@ -4468,7 +4485,10 @@ export type Database = {
           notas_internas?: string | null
           observaciones?: string | null
           oferta?: string | null
+          pais?: string | null
+          prioridad?: string | null
           project_id?: string | null
+          promotor_contact_id?: string | null
           telefono?: string | null
           tipo: Database["public"]["Enums"]["request_type"]
         }
@@ -4476,19 +4496,26 @@ export type Database = {
           archived?: boolean
           archivos_adjuntos?: Json | null
           artist_id?: string | null
+          capacidad?: number | null
           ciudad?: string | null
           comentario_estado?: string | null
+          condiciones?: string | null
           contact_id?: string | null
           created_by?: string
+          deal_type?: string | null
           decision_fecha?: string | null
           decision_has_new_comment?: boolean
           decision_por?: string | null
           descripcion_libre?: string | null
+          direccion?: string | null
+          door_split_percentage?: number | null
           email?: string | null
           estado?: Database["public"]["Enums"]["request_status"]
           fecha_actualizacion?: string
           fecha_creacion?: string
           fecha_limite_respuesta?: string | null
+          fechas_opcionales?: Json | null
+          fee?: number | null
           formato?: string | null
           hora_entrevista?: string | null
           hora_show?: string | null
@@ -4503,7 +4530,10 @@ export type Database = {
           notas_internas?: string | null
           observaciones?: string | null
           oferta?: string | null
+          pais?: string | null
+          prioridad?: string | null
           project_id?: string | null
+          promotor_contact_id?: string | null
           telefono?: string | null
           tipo?: Database["public"]["Enums"]["request_type"]
         }
@@ -4534,6 +4564,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_promotor_contact_id_fkey"
+            columns: ["promotor_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]
