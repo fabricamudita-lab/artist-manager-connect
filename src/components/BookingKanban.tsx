@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, closestCorners } from '@dnd-kit/core';
 import { SortableContext, arrayMove } from '@dnd-kit/sortable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -95,6 +96,9 @@ interface Artist {
 }
 
 export function BookingKanban({ templateFields }: BookingKanbanProps) {
+  const [searchParams] = useSearchParams();
+  const artistIdFromUrl = searchParams.get('artistId');
+  
   const [offers, setOffers] = useState<BookingOffer[]>([]);
   const [filteredOffers, setFilteredOffers] = useState<BookingOffer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,7 +110,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
   
   const [filters, setFilters] = useState<BookingFiltersState>({
     searchTerm: '',
-    artistFilter: 'all',
+    artistFilter: artistIdFromUrl || 'all',
     phaseFilter: 'all',
     countryFilter: 'all',
     promoterFilter: 'all',
@@ -117,6 +121,13 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
   });
   
   const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
+
+  // Update filter when URL changes
+  useEffect(() => {
+    if (artistIdFromUrl) {
+      setFilters(prev => ({ ...prev, artistFilter: artistIdFromUrl }));
+    }
+  }, [artistIdFromUrl]);
 
   useEffect(() => {
     fetchOffers();
