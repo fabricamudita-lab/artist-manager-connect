@@ -93,6 +93,9 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
   const [selectedArtistIds, setSelectedArtistIds] = useState<string[]>([]);
   const [artistSelectOpen, setArtistSelectOpen] = useState(false);
   
+  // Project roles state
+  const [projectRoles, setProjectRoles] = useState<{ projectId: string; projectName: string; role: string }[]>([]);
+  
   const [formData, setFormData] = useState({
     name: contact.name || '',
     stage_name: contact.stage_name || '',
@@ -121,8 +124,29 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
     if (open) {
       fetchArtists();
       fetchContactArtistAssignments();
+      fetchProjectRoles();
     }
   }, [open, contact.id]);
+
+  const fetchProjectRoles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('project_team')
+        .select('id, role, project_id, projects:project_id(name)')
+        .eq('contact_id', contact.id);
+      
+      if (error) throw error;
+      
+      const roles = (data || []).map((pt: any) => ({
+        projectId: pt.project_id,
+        projectName: pt.projects?.name || 'Proyecto sin nombre',
+        role: pt.role || 'Sin rol'
+      }));
+      setProjectRoles(roles);
+    } catch (error) {
+      console.error('Error fetching project roles:', error);
+    }
+  };
 
   useEffect(() => {
     setFieldConfig(contact.field_config);
@@ -365,9 +389,38 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {renderField('role')}
+              {/* Main Role */}
+              <div className="space-y-2">
+                <Label htmlFor="role">Rol principal</Label>
+                <Input
+                  id="role"
+                  value={formData.role}
+                  onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
+                  placeholder="Ej: Batería, Manager, Productor..."
+                />
               </div>
+
+              {/* Project-specific roles - Show if contact has roles in projects */}
+              {projectRoles.length > 0 && (
+                <div className="space-y-2 p-3 bg-muted/30 rounded-lg border border-border/50">
+                  <Label className="text-sm font-medium">Roles en proyectos</Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Este contacto tiene roles específicos asignados en los siguientes proyectos
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {projectRoles.map((pr) => (
+                      <div 
+                        key={pr.projectId}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-background border text-sm"
+                      >
+                        <span className="font-medium">{pr.role}</span>
+                        <span className="text-muted-foreground">en</span>
+                        <span className="text-primary">{pr.projectName}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Team Configuration - Only show if isTeamMember */}
               {isTeamMember && (
