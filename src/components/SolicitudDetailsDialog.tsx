@@ -222,13 +222,22 @@ const updateSolicitudStatus = async (newStatus: 'aprobada' | 'denegada', comment
     // Sync booking status if this is a booking solicitud
     if (solicitud.tipo === 'booking' && solicitud.booking_id) {
       const bookingStatus = finalStatus === 'aprobada' ? 'confirmado' : finalStatus === 'denegada' ? 'cancelado' : solicitud.booking_status;
+      // Also update the phase for Kanban positioning
+      const bookingPhase = finalStatus === 'aprobada' ? 'confirmado' : finalStatus === 'denegada' ? 'cancelado' : undefined;
+      
+      const updateData: any = {
+        estado: bookingStatus,
+        updated_at: new Date().toISOString(),
+      };
+      
+      // Only update phase if we have a new phase value
+      if (bookingPhase) {
+        updateData.phase = bookingPhase;
+      }
       
       const { error: bookingError } = await supabase
         .from('booking_offers')
-        .update({
-          estado: bookingStatus,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', solicitud.booking_id);
 
       if (bookingError) {
