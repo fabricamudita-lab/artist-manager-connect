@@ -136,6 +136,28 @@ export default function Booking() {
     fetchOffers();
     fetchTemplateFields();
     fetchArtists();
+
+    // Subscribe to real-time updates on booking_offers
+    const channel = supabase
+      .channel('booking-table-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'booking_offers'
+        },
+        (payload) => {
+          console.log('Real-time update received:', payload);
+          // Refetch all offers when any change happens
+          fetchOffers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
