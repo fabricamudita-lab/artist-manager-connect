@@ -221,28 +221,38 @@ const updateSolicitudToPending = async (comment?: string) => {
   }
 };
 
-  const updateArtistId = async (artistId: string | null) => {
+  const updateLinkedProfile = async (
+    id: string | null,
+    type: 'artist' | 'contact' | null
+  ) => {
     if (!solicitud) return;
     try {
+      const updateData =
+        !id || !type
+          ? { artist_id: null, contact_id: null }
+          : type === 'artist'
+            ? { artist_id: id, contact_id: null }
+            : { artist_id: null, contact_id: id };
+
       const { error } = await supabase
         .from('solicitudes')
-        .update({ artist_id: artistId })
+        .update(updateData as any)
         .eq('id', solicitud.id);
 
       if (error) throw error;
 
-      // Refetch to get the new artist data
+      // Refetch to get the new linked data
       fetchSolicitudDetails();
       onUpdate?.();
       toast({
-        title: 'Artista actualizado',
-        description: 'Se ha actualizado el artista asociado',
+        title: 'Perfil actualizado',
+        description: 'Se ha actualizado el perfil asociado',
       });
     } catch (error) {
-      console.error('Error updating artist:', error);
+      console.error('Error updating linked profile:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo actualizar el artista',
+        description: 'No se pudo actualizar el perfil',
         variant: 'destructive'
       });
     }
@@ -500,8 +510,8 @@ const updateSolicitudToPending = async (comment?: string) => {
                   <div className="mt-3">
                     <Label className="text-sm text-muted-foreground mb-1 block">Artista</Label>
                     <ArtistProfileSelector
-                      value={solicitud.artist_id || null}
-                      onValueChange={(value) => updateArtistId(value)}
+                      value={solicitud.artist_id || solicitud.contact_id || null}
+                      onValueChange={(value, type) => updateLinkedProfile(value, type)}
                       placeholder="Seleccionar artista..."
                       disabled={solicitud.estado !== 'pendiente'}
                     />
