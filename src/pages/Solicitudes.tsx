@@ -137,8 +137,10 @@ export default function Solicitudes() {
     open: false,
     solicitud: null
   });
-  const [profileSuggestions, setProfileSuggestions] = useState<{ id: string; full_name: string; email?: string | null }[]>([]);
+  const [profileSuggestions, setProfileSuggestions] = useState<{ id: string; full_name: string; email?: string | null; type: 'artist' | 'contact' }[]>([]);
   const [showProfileSuggestions, setShowProfileSuggestions] = useState(false);
+  const [artists, setArtists] = useState<{ id: string; name: string; stage_name?: string | null }[]>([]);
+  const [solicitudContacts, setSolicitudContacts] = useState<{ id: string; name: string; email?: string | null }[]>([]);
   const [associateDialog, setAssociateDialog] = useState<{ open: boolean; solicitud: Solicitud | null }>({ open: false, solicitud: null });
   const [createProjectForSolicitud, setCreateProjectForSolicitud] = useState<{ open: boolean; solicitud: Solicitud | null }>({ open: false, solicitud: null });
 
@@ -151,8 +153,45 @@ export default function Solicitudes() {
 
   useEffect(() => {
     fetchSolicitudes();
+    fetchArtistsAndContacts();
     updateExistingSolicitudesNames(); // Actualizar nombres automáticamente
   }, []);
+
+  // Fetch artists and contacts linked to solicitudes
+  const fetchArtistsAndContacts = async () => {
+    try {
+      // Fetch artists (roster)
+      const { data: artistsData, error: artistsError } = await supabase
+        .from('artists')
+        .select('id, name, stage_name')
+        .order('name');
+      if (artistsError) throw artistsError;
+      setArtists(artistsData || []);
+
+      // Fetch unique contacts linked to solicitudes via nombre_solicitante or email
+      const { data: solicitudesData, error: solError } = await supabase
+        .from('solicitudes')
+        .select('nombre_solicitante, email');
+      if (solError) throw solError;
+
+      // Extract unique contacts from solicitudes
+      const contactsMap = new Map<string, { id: string; name: string; email?: string | null }>();
+      solicitudesData?.forEach((s: any) => {
+        const key = (s.email || s.nombre_solicitante || '').toLowerCase();
+        if (key && !contactsMap.has(key)) {
+          contactsMap.set(key, {
+            id: key,
+            name: s.nombre_solicitante || '',
+            email: s.email || null
+          });
+        }
+      });
+      setSolicitudContacts(Array.from(contactsMap.values()));
+    } catch (error) {
+      console.error('Error fetching artists/contacts:', error);
+    }
+  };
+
   // Update filter when URL changes
   useEffect(() => {
     if (artistIdFromUrl) {
@@ -164,28 +203,49 @@ export default function Solicitudes() {
     filterSolicitudes();
   }, [solicitudes, searchTerm, profileSearchTerm, filterStatus, filterType, filterArtist]);
 
-  // Sugerencias de perfiles con debounce
+  // Sugerencias de perfiles con debounce - ahora incluye artistas y contactos de solicitudes
   useEffect(() => {
-    const term = profileSearchTerm.trim();
-    if (!term) {
-      setProfileSuggestions([]);
-      return;
-    }
-    const handle = setTimeout(async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, full_name, email')
-          .or(`full_name.ilike.%${term}%,email.ilike.%${term}%`)
-          .limit(8);
-        if (error) throw error;
-        setProfileSuggestions((data as any) || []);
-      } catch (err) {
-        console.error('Error buscando perfiles:', err);
+    const term = profileSearchTerm.trim().toLowerCase();
+    
+    // Build suggestions: first artists, then solicitud contacts
+    const suggestions: { id: string; full_name: string; email?: string | null; type: 'artist' | 'contact' }[] = [];
+    
+    // Filter artists
+    const filteredArtists = artists.filter(a => 
+      !term || 
+      a.name.toLowerCase().includes(term) || 
+      (a.stage_name && a.stage_name.toLowerCase().includes(term))
+    );
+    filteredArtists.forEach(a => {
+      suggestions.push({
+        id: a.id,
+        full_name: a.stage_name || a.name,
+        email: null,
+        type: 'artist'
+      });
+    });
+
+    // Filter solicitud contacts
+    const filteredContacts = solicitudContacts.filter(c =>
+      term && (
+        c.name.toLowerCase().includes(term) ||
+        (c.email && c.email.toLowerCase().includes(term))
+      )
+    );
+    filteredContacts.forEach(c => {
+      // Avoid duplicates with artists
+      if (!suggestions.find(s => s.full_name.toLowerCase() === c.name.toLowerCase())) {
+        suggestions.push({
+          id: c.id,
+          full_name: c.name,
+          email: c.email,
+          type: 'contact'
+        });
       }
-    }, 250);
-    return () => clearTimeout(handle);
-  }, [profileSearchTerm]);
+    });
+
+    setProfileSuggestions(suggestions.slice(0, 10));
+  }, [profileSearchTerm, artists, solicitudContacts]);
 
   const fetchSolicitudes = async () => {
     try {
@@ -1149,26 +1209,67 @@ const confirmStatusChange = async (comment: string) => {
           />
           {showProfileSuggestions && (
             <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border bg-popover text-popover-foreground shadow-md">
-              <ul className="max-h-60 overflow-auto py-1">
-                {profileSearchTerm.trim().length === 0 ? (
-                  <li className="px-3 py-2 text-sm text-muted-foreground">Escribe para buscar perfiles…</li>
-                ) : (profileSuggestions.length > 0 ? (
-                  profileSuggestions.map((p) => (
-                    <li key={p.id}>
-                      <button
-                        className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground text-sm"
-                        onMouseDown={(e) => { e.preventDefault(); setProfileSearchTerm(p.full_name || ''); setShowProfileSuggestions(false); }}
-                      >
-                        <div className="font-medium">{p.full_name}</div>
-                        {p.email ? <div className="text-xs text-muted-foreground">{p.email}</div> : null}
-                      </button>
-                    </li>
-                  ))
-                ) : (
-                  <li className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</li>
-                ))}
+              <ul className="max-h-72 overflow-auto py-1">
+                {(() => {
+                  const artistSuggestions = profileSuggestions.filter(p => p.type === 'artist');
+                  const contactSuggestions = profileSuggestions.filter(p => p.type === 'contact');
+                  const hasArtists = artistSuggestions.length > 0;
+                  const hasContacts = contactSuggestions.length > 0;
+
+                  if (profileSearchTerm.trim().length === 0 && !hasArtists) {
+                    return <li className="px-3 py-2 text-sm text-muted-foreground">Escribe para buscar perfiles…</li>;
+                  }
+
+                  return (
+                    <>
+                      {/* Artistas del roster */}
+                      {hasArtists && (
+                        <>
+                          <li className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">
+                            Artistas
+                          </li>
+                          {artistSuggestions.map((p) => (
+                            <li key={`artist-${p.id}`}>
+                              <button
+                                className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground text-sm flex items-center gap-2"
+                                onMouseDown={(e) => { e.preventDefault(); setProfileSearchTerm(p.full_name || ''); setShowProfileSuggestions(false); }}
+                              >
+                                <Music className="w-3 h-3 text-primary" />
+                                <span className="font-medium">{p.full_name}</span>
+                              </button>
+                            </li>
+                          ))}
+                        </>
+                      )}
+
+                      {/* Contactos de solicitudes */}
+                      {hasContacts && (
+                        <>
+                          <li className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">
+                            Contactos en solicitudes
+                          </li>
+                          {contactSuggestions.map((p) => (
+                            <li key={`contact-${p.id}`}>
+                              <button
+                                className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground text-sm"
+                                onMouseDown={(e) => { e.preventDefault(); setProfileSearchTerm(p.full_name || ''); setShowProfileSuggestions(false); }}
+                              >
+                                <div className="font-medium">{p.full_name}</div>
+                                {p.email ? <div className="text-xs text-muted-foreground">{p.email}</div> : null}
+                              </button>
+                            </li>
+                          ))}
+                        </>
+                      )}
+
+                      {!hasArtists && !hasContacts && profileSearchTerm.trim().length > 0 && (
+                        <li className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</li>
+                      )}
+                    </>
+                  );
+                })()}
                 {profileSearchTerm && (
-                  <li>
+                  <li className="border-t">
                     <button
                       className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                       onMouseDown={(e) => { e.preventDefault(); setProfileSearchTerm(''); setShowProfileSuggestions(false); }}
