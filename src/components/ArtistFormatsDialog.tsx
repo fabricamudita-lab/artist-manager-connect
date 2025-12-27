@@ -328,7 +328,8 @@ export function ArtistFormatsDialog({
             const crewInserts = f.crewMembers.map(cm => ({
               booking_product_id: newProduct.id,
               member_id: cm.memberId,
-              member_type: cm.memberType,
+              // Save 'artist' type as 'workspace' for database compatibility
+              member_type: cm.memberType === 'artist' ? 'workspace' : cm.memberType,
               role_label: cm.roleLabel || null,
               fee_national: cm.feeNational || null,
               fee_international: cm.feeInternational || null,
