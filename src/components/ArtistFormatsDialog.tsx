@@ -29,7 +29,8 @@ interface CrewMember {
   memberType: 'workspace' | 'contact';
   roleLabel?: string;
   name: string;
-  fee?: number;
+  feeNational?: number;
+  feeInternational?: number;
 }
 
 interface BookingProduct {
@@ -144,7 +145,8 @@ export function ArtistFormatsDialog({
             memberType: c.member_type,
             roleLabel: c.role_label || undefined,
             name: member?.name || 'Desconocido',
-            fee: c.fee || undefined,
+            feeNational: c.fee_national || undefined,
+            feeInternational: c.fee_international || undefined,
           });
         });
       }
@@ -218,7 +220,8 @@ export function ArtistFormatsDialog({
               member_id: cm.memberId,
               member_type: cm.memberType,
               role_label: cm.roleLabel || null,
-              fee: cm.fee || null,
+              fee_national: cm.feeNational || null,
+              fee_international: cm.feeInternational || null,
             }));
             
             const { error: crewError } = await supabase
@@ -292,11 +295,20 @@ export function ArtistFormatsDialog({
     });
   };
 
-  const handleUpdateCrewFee = (formatIndex: number, memberId: string, fee: number | undefined) => {
+  const handleUpdateCrewFeeNational = (formatIndex: number, memberId: string, feeNational: number | undefined) => {
     const format = formats[formatIndex];
     handleUpdateFormat(formatIndex, {
       crewMembers: format.crewMembers.map(cm =>
-        cm.memberId === memberId ? { ...cm, fee } : cm
+        cm.memberId === memberId ? { ...cm, feeNational } : cm
+      ),
+    });
+  };
+
+  const handleUpdateCrewFeeInternational = (formatIndex: number, memberId: string, feeInternational: number | undefined) => {
+    const format = formats[formatIndex];
+    handleUpdateFormat(formatIndex, {
+      crewMembers: format.crewMembers.map(cm =>
+        cm.memberId === memberId ? { ...cm, feeInternational } : cm
       ),
     });
   };
@@ -483,21 +495,25 @@ export function ArtistFormatsDialog({
                               key={cm.memberId}
                               className="flex items-center gap-1 bg-secondary rounded-md px-2 py-1"
                             >
-                              <span className="text-sm">{cm.name}</span>
-                              <Input
-                                value={cm.roleLabel || ''}
-                                onChange={(e) => handleUpdateCrewRole(index, cm.memberId, e.target.value)}
-                                placeholder="Rol"
-                                className="w-16 h-6 text-xs border-none bg-background/50 px-1"
-                              />
-                              <div className="flex items-center gap-0.5">
-                                <Euro className="w-3 h-3 text-muted-foreground" />
+                              <span className="text-sm font-medium">{cm.name}</span>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-muted-foreground">NAC</span>
                                 <Input
                                   type="number"
-                                  value={cm.fee || ''}
-                                  onChange={(e) => handleUpdateCrewFee(index, cm.memberId, parseFloat(e.target.value) || undefined)}
-                                  placeholder="0"
-                                  className="w-14 h-6 text-xs border-none bg-background/50 px-1"
+                                  value={cm.feeNational || ''}
+                                  onChange={(e) => handleUpdateCrewFeeNational(index, cm.memberId, parseFloat(e.target.value) || undefined)}
+                                  placeholder="€"
+                                  className="w-16 h-6 text-xs border-none bg-background/50 px-1"
+                                />
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-muted-foreground">INT</span>
+                                <Input
+                                  type="number"
+                                  value={cm.feeInternational || ''}
+                                  onChange={(e) => handleUpdateCrewFeeInternational(index, cm.memberId, parseFloat(e.target.value) || undefined)}
+                                  placeholder="€"
+                                  className="w-16 h-6 text-xs border-none bg-background/50 px-1"
                                 />
                               </div>
                               <Button
