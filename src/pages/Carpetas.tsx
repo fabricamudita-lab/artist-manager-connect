@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useArtistFiles, ARTIST_FOLDER_CATEGORIES, ArtistFile } from '@/hooks/useArtistFiles';
 import { useArtistSubfolders, DEFAULT_SUBFOLDERS } from '@/hooks/useArtistSubfolders';
+import { FileExplorer } from '@/components/drive/FileExplorer';
 import { usePublicFileSharing } from '@/hooks/usePublicFileSharing';
 import {
   Dialog,
@@ -127,6 +128,9 @@ export default function Carpetas() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   // Now we track folder by ID for proper nesting
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  // Track if we're viewing a storage_nodes folder directly (e.g., booking folders)
+  const [storageNodeFolderId, setStorageNodeFolderId] = useState<string | null>(null);
+  const [storageNodeArtistId, setStorageNodeArtistId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isDragging, setIsDragging] = useState(false);
@@ -158,6 +162,27 @@ export default function Carpetas() {
     const artistId = searchParams.get('artist');
     const category = searchParams.get('category');
     const folderId = searchParams.get('folder');
+
+    // If we have a folder ID but no artist/category, it's a direct storage_node link
+    if (folderId && !artistId && !category) {
+      // Look up the storage_node to get the artist_id
+      supabase
+        .from('storage_nodes')
+        .select('id, artist_id')
+        .eq('id', folderId)
+        .single()
+        .then(({ data, error }) => {
+          if (!error && data) {
+            setStorageNodeFolderId(data.id);
+            setStorageNodeArtistId(data.artist_id);
+          }
+        });
+      return;
+    }
+
+    // Reset storage node view if we have explicit artist/category
+    setStorageNodeFolderId(null);
+    setStorageNodeArtistId(null);
 
     if (artistId && artists.length > 0) {
       const artist = artists.find(a => a.id === artistId);
@@ -405,9 +430,56 @@ export default function Carpetas() {
     </div>
   );
 
+  // Query for the Conciertos folder in storage_nodes for this artist
+  const { data: conciertosFolder } = useQuery({
+    queryKey: ['conciertos-storage-node', selectedArtist?.id],
+    queryFn: async () => {
+      if (!selectedArtist?.id) return null;
+      const { data, error } = await supabase
+        .from('storage_nodes')
+        .select('id')
+        .eq('artist_id', selectedArtist.id)
+        .eq('name', 'Conciertos')
+        .is('parent_id', null)
+        .single();
+      
+      if (error) return null;
+      return data;
+    },
+    enabled: !!selectedArtist?.id && selectedCategory === 'conciertos',
+  });
+
   // Render Level 3: Folders + Files
   const renderFilesView = () => {
     const currentCategoryObj = ARTIST_FOLDER_CATEGORIES.find(c => c.id === selectedCategory);
+
+    // For "conciertos" category, use FileExplorer with storage_nodes
+    if (selectedCategory === 'conciertos' && selectedArtist && conciertosFolder) {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSelectedCategory(null)}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">Conciertos</h1>
+              <p className="text-muted-foreground">
+                {selectedArtist?.stage_name || selectedArtist?.name} / CONCIERTOS / Conciertos
+              </p>
+            </div>
+          </div>
+          <FileExplorer
+            artistId={selectedArtist.id}
+            initialFolderId={conciertosFolder.id}
+            showBreadcrumbs={true}
+          />
+        </div>
+      );
+    }
 
     // Build breadcrumb text
     const breadcrumbText = breadcrumbPath.length > 0 
@@ -812,6 +884,37 @@ export default function Carpetas() {
 
   // Main content based on navigation level
   const renderContent = () => {
+    // If viewing a storage_node folder directly (e.g., from booking)
+    if (storageNodeFolderId && storageNodeArtistId) {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setStorageNodeFolderId(null);
+                setStorageNodeArtistId(null);
+                // Navigate back to base carpetas
+                window.history.pushState({}, '', '/carpetas');
+              }}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">Archivos del Evento</h1>
+              <p className="text-muted-foreground">Navega por los archivos vinculados</p>
+            </div>
+          </div>
+          <FileExplorer
+            artistId={storageNodeArtistId}
+            initialFolderId={storageNodeFolderId}
+            showBreadcrumbs={true}
+          />
+        </div>
+      );
+    }
+
     if (!selectedArtist) {
       return renderArtistSelection();
     }
