@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Plus, Calendar, Mic, HelpCircle, Info, Scale, MoreHorizontal, Users, DollarSign, X, MapPin } from "lucide-react";
+import { FileText, Plus, Calendar, Mic, HelpCircle, Info, Scale, MoreHorizontal, Users, DollarSign, X, MapPin, UserCheck } from "lucide-react";
+import { BookingStatusCombobox } from "@/components/BookingStatusCombobox";
+import { TeamMemberSelector } from "@/components/TeamMemberSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
@@ -315,6 +317,7 @@ export function CreateSolicitudFromTemplateDialog({
         descripcionLibre += `Capacidad: ${formData.capacidad || 'No especificada'}\n`;
         descripcionLibre += `Hora: ${formData.hora || 'No especificada'}\n`;
         descripcionLibre += `Formato: ${formData.formato || 'No especificado'}\n`;
+        descripcionLibre += `Estado Booking: ${formData.booking_status || 'interest'}\n`;
         descripcionLibre += `Deal Type: ${formData.deal_type === 'flat_fee' ? 'Fee Fijo' : 'Door Split'}\n`;
         if (formData.deal_type === 'flat_fee') {
           descripcionLibre += `Fee: ${formData.fee ? `€${formData.fee}` : 'No especificado'}\n`;
@@ -343,6 +346,9 @@ export function CreateSolicitudFromTemplateDialog({
           ? parseFloat(formData.door_split_percentage) 
           : null;
         solicitudData.condiciones = formData.condiciones || null;
+        // Save booking status and required approvers
+        (solicitudData as any).booking_status = formData.booking_status || 'interest';
+        (solicitudData as any).required_approvers = formData.required_approvers || [];
       }
 
       if (selectedTemplate === 'entrevista') {
@@ -928,6 +934,42 @@ export function CreateSolicitudFromTemplateDialog({
                       placeholder="Notas adicionales sobre la solicitud"
                       rows={3}
                     />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Sección 4: Estado y Aprobadores */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <UserCheck className="h-4 w-4" />
+                    Estado y Aprobación
+                  </CardTitle>
+                  <CardDescription className="text-sm">Estado del booking y aprobadores requeridos</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="booking_status">Estado del Booking</Label>
+                    <BookingStatusCombobox
+                      value={formData.booking_status || 'interest'}
+                      onValueChange={(value) => setFormData({ ...formData, booking_status: value })}
+                      placeholder="Selecciona el estado..."
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Si se aprueba la solicitud, el booking pasará a "confirmado". Si se deniega, pasará a "cancelado".
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Aprobadores Requeridos</Label>
+                    <TeamMemberSelector
+                      selectedMembers={formData.required_approvers || []}
+                      onSelectionChange={(value) => setFormData({ ...formData, required_approvers: value })}
+                      placeholder="Selecciona los aprobadores..."
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Si hay múltiples aprobadores, todos deben aprobar para que la solicitud se considere aprobada.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
