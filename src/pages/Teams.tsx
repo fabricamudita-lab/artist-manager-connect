@@ -321,8 +321,8 @@ export default function Teams() {
       }
       
       if (selectedArtistId !== 'all') {
-        // For specific artist, exclude management team contacts
-        if (isManagementTeam) return false;
+        // For specific artist, show contacts that have this artist assigned
+        // regardless of whether they are management team or not
         const assignedArtists = (c as any).assigned_artist_ids || [];
         if (!assignedArtists.includes(selectedArtistId)) {
           return false;
