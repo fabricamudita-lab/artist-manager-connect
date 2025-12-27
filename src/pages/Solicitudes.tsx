@@ -556,9 +556,22 @@ export default function Solicitudes() {
     }
 
     if (profileSearchTerm) {
-      filtered = filtered.filter(s =>
-        s.profiles?.full_name?.toLowerCase().includes(profileSearchTerm.toLowerCase())
-      );
+      const term = profileSearchTerm.toLowerCase();
+      filtered = filtered.filter(s => {
+        // Search in profile name
+        if (s.profiles?.full_name?.toLowerCase().includes(term)) return true;
+        // Search in nombre_solicitante
+        if (s.nombre_solicitante?.toLowerCase().includes(term)) return true;
+        // Search by artist name - find the artist and check if it matches
+        if (s.artist_id) {
+          const matchingArtist = artists.find(a => a.id === s.artist_id);
+          if (matchingArtist) {
+            if (matchingArtist.name.toLowerCase().includes(term)) return true;
+            if (matchingArtist.stage_name?.toLowerCase().includes(term)) return true;
+          }
+        }
+        return false;
+      });
     }
 
     // Orden: pendientes primero; dentro de cada grupo, por prioridad (urgente→baja→sin), luego por fecha límite y finalmente por creación
