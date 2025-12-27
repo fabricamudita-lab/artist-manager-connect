@@ -1005,8 +1005,8 @@ export type Database = {
           crew_size: number | null
           currency: string | null
           description: string | null
-          fee_max: number | null
-          fee_min: number | null
+          fee_international: number | null
+          fee_national: number | null
           hospitality_requirements: string | null
           id: string
           is_active: boolean | null
@@ -1024,8 +1024,8 @@ export type Database = {
           crew_size?: number | null
           currency?: string | null
           description?: string | null
-          fee_max?: number | null
-          fee_min?: number | null
+          fee_international?: number | null
+          fee_national?: number | null
           hospitality_requirements?: string | null
           id?: string
           is_active?: boolean | null
@@ -1043,8 +1043,8 @@ export type Database = {
           crew_size?: number | null
           currency?: string | null
           description?: string | null
-          fee_max?: number | null
-          fee_min?: number | null
+          fee_international?: number | null
+          fee_national?: number | null
           hospitality_requirements?: string | null
           id?: string
           is_active?: boolean | null

@@ -37,8 +37,8 @@ interface BookingProduct {
   id?: string;
   name: string;
   description?: string;
-  feeMin?: number;
-  feeMax?: number;
+  feeNational?: number;
+  feeInternational?: number;
   crewMembers: CrewMember[];
   performanceDurationMinutes?: number;
   riderUrl?: string;
@@ -155,8 +155,8 @@ export function ArtistFormatsDialog({
         id: f.id,
         name: f.name,
         description: f.description || undefined,
-        feeMin: f.fee_min || undefined,
-        feeMax: f.fee_max || undefined,
+        feeNational: f.fee_national || undefined,
+        feeInternational: f.fee_international || undefined,
         crewMembers: crewByProduct.get(f.id) || [],
         performanceDurationMinutes: f.performance_duration_minutes || undefined,
         riderUrl: f.rider_url || undefined,
@@ -199,8 +199,8 @@ export function ArtistFormatsDialog({
               artist_id: artistId,
               name: f.name,
               description: f.description || null,
-              fee_min: f.feeMin || null,
-              fee_max: f.feeMax || null,
+              fee_national: f.feeNational || null,
+              fee_international: f.feeInternational || null,
               crew_size: f.crewMembers.length,
               performance_duration_minutes: f.performanceDurationMinutes || null,
               rider_url: f.riderUrl || null,
@@ -414,9 +414,9 @@ export function ArtistFormatsDialog({
                               {format.crewMembers.length} miembros
                             </Badge>
                           )}
-                          {format.feeMin && format.feeMax && (
+                          {(format.feeNational || format.feeInternational) && (
                             <Badge variant="outline" className="ml-1">
-                              €{format.feeMin} - €{format.feeMax}
+                              {format.feeNational ? `NAC €${format.feeNational}` : ''}{format.feeNational && format.feeInternational ? ' / ' : ''}{format.feeInternational ? `INT €${format.feeInternational}` : ''}
                             </Badge>
                           )}
                         </div>
@@ -448,37 +448,37 @@ export function ArtistFormatsDialog({
                           />
                         </div>
 
-                        {/* Fee Range */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="flex items-center gap-2 text-sm">
-                          <Euro className="w-4 h-4" />
-                          Caché Mínimo
-                        </Label>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          value={format.feeMin || ''}
-                          onChange={(e) =>
-                            handleUpdateFormat(index, { feeMin: parseFloat(e.target.value) || undefined })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="flex items-center gap-2 text-sm">
-                          <Euro className="w-4 h-4" />
-                          Caché Máximo
-                        </Label>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          value={format.feeMax || ''}
-                          onChange={(e) =>
-                            handleUpdateFormat(index, { feeMax: parseFloat(e.target.value) || undefined })
-                          }
-                        />
-                      </div>
-                    </div>
+                        {/* Tarifas */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="flex items-center gap-2 text-sm">
+                              <Euro className="w-4 h-4" />
+                              Tarifa Nacional
+                            </Label>
+                            <Input
+                              type="number"
+                              placeholder="€"
+                              value={format.feeNational || ''}
+                              onChange={(e) =>
+                                handleUpdateFormat(index, { feeNational: parseFloat(e.target.value) || undefined })
+                              }
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="flex items-center gap-2 text-sm">
+                              <Euro className="w-4 h-4" />
+                              Tarifa Internacional
+                            </Label>
+                            <Input
+                              type="number"
+                              placeholder="€"
+                              value={format.feeInternational || ''}
+                              onChange={(e) =>
+                                handleUpdateFormat(index, { feeInternational: parseFloat(e.target.value) || undefined })
+                              }
+                            />
+                          </div>
+                        </div>
 
                     {/* Crew Selection */}
                     <div className="space-y-2">
