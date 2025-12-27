@@ -260,7 +260,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       
       toast({
         title: "¡Éxito!",
-        description: "Presupuesto actualizado correctamente"
+        description: "Caché actualizado correctamente"
       });
     } catch (error) {
       console.error('Error updating budget amount:', error);
@@ -1205,10 +1205,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 </div>
               </div>
               
-              {/* Presupuesto editable compacto */}
+              {/* Caché editable compacto */}
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xs text-gray-400">Presupuestado:</div>
+                  <div className="text-xs text-gray-400">Caché:</div>
                   {editingBudgetAmount ? (
                     <div className="flex items-center gap-1">
                       <Input
@@ -1307,29 +1307,34 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
               </div>
             </div>
             
-            {/* Compact Financial Summary */}
+            {/* Compact Financial Summary - Industry Standard */}
             <div className="mt-4">
               {(() => {
                 const totals = calculateGrandTotals();
-                const difference = budgetAmount > 0 ? totals.total - budgetAmount : 0;
-                const percentageDiff = budgetAmount > 0 ? ((difference / budgetAmount) * 100) : 0;
+                // Caché = lo que paga el promotor (budgetAmount/fee)
+                // Beneficio = Caché - Costes netos
+                const beneficio = budgetAmount - totals.neto;
+                // Margen = (Beneficio / Caché) × 100
+                const margen = budgetAmount > 0 ? ((beneficio / budgetAmount) * 100) : 0;
                 
                 return (
                   <div className="grid grid-cols-5 gap-2">
-                    {/* Presupuesto (neto) */}
-                    <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-card/50 rounded-lg border border-border">
-                      <div className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-1">PRESUPUESTO</div>
-                      <div className="text-xl font-bold text-foreground">
+                    {/* Caché (lo que paga el promotor) */}
+                    <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                      <div className="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1">CACHÉ</div>
+                      <div className="text-xl font-bold text-blue-400">
                         €{budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                       </div>
+                      <div className="text-[9px] text-blue-400/70 mt-0.5">Ingresos</div>
                     </div>
 
-                    {/* Costes finales (neto) */}
+                    {/* Gastos (neto) */}
                     <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-card/50 rounded-lg border border-border">
-                      <div className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-1">COSTES FINALES</div>
+                      <div className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-1">GASTOS</div>
                       <div className="text-xl font-bold text-foreground">
                         €{totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                       </div>
+                      <div className="text-[9px] text-foreground/50 mt-0.5">Costes netos</div>
                     </div>
 
                     {/* Total a Facturar (con IVA & IRPF) */}
@@ -1344,71 +1349,65 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       </div>
                     </div>
 
-                    {/* Beneficio (neto) */}
+                    {/* Beneficio (Caché - Gastos) */}
                     <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${
                       budgetAmount === 0 
                         ? 'bg-muted/30 border-border'
-                        : difference > 0 
+                        : beneficio >= 0 
                           ? 'bg-green-500/10 border-green-500/20'
-                          : difference < 0 
-                            ? 'bg-destructive/10 border-destructive/20'
-                            : 'bg-muted/30 border-border'
+                          : 'bg-destructive/10 border-destructive/20'
                     }`}>
                       <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${
                         budgetAmount === 0 
                           ? 'text-muted-foreground'
-                          : difference > 0 
+                          : beneficio >= 0 
                             ? 'text-green-600'
-                            : difference < 0 
-                              ? 'text-destructive'
-                              : 'text-muted-foreground'
+                            : 'text-destructive'
                       }`}>
                         BENEFICIO
                       </div>
                       <div className={`text-xl font-bold ${
                         budgetAmount === 0 
                           ? 'text-muted-foreground'
-                          : difference > 0 
+                          : beneficio >= 0 
                             ? 'text-green-600'
-                            : difference < 0 
-                              ? 'text-destructive'
-                              : 'text-muted-foreground'
+                            : 'text-destructive'
                       }`}>
-                        {budgetAmount === 0 ? '—' : `€${Math.abs(difference).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`}
+                        {budgetAmount === 0 ? '—' : `${beneficio < 0 ? '-' : ''}€${Math.abs(beneficio).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`}
+                      </div>
+                      <div className={`text-[9px] mt-0.5 ${beneficio >= 0 ? 'text-green-600/70' : 'text-destructive/70'}`}>
+                        Caché - Gastos
                       </div>
                     </div>
 
-                    {/* Diferencia (%) */}
+                    {/* Margen (%) */}
                     <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${
                       budgetAmount === 0 
                         ? 'bg-muted/30 border-border'
-                        : percentageDiff < 0 
+                        : margen >= 0 
                           ? 'bg-green-500/10 border-green-500/20'
-                          : percentageDiff > 0 
-                            ? 'bg-destructive/10 border-destructive/20'
-                            : 'bg-muted/30 border-border'
+                          : 'bg-destructive/10 border-destructive/20'
                     }`}>
                       <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${
                         budgetAmount === 0 
                           ? 'text-muted-foreground'
-                          : percentageDiff < 0 
+                          : margen >= 0 
                             ? 'text-green-600'
-                            : percentageDiff > 0 
-                              ? 'text-destructive'
-                              : 'text-muted-foreground'
+                            : 'text-destructive'
                       }`}>
-                        DIFERENCIA
+                        MARGEN
                       </div>
                       <div className={`text-xl font-bold ${
                         budgetAmount === 0 
                           ? 'text-muted-foreground'
-                          : percentageDiff < 0 
+                          : margen >= 0 
                             ? 'text-green-600'
-                            : percentageDiff > 0 
-                              ? 'text-destructive'
-                              : 'text-muted-foreground'
+                            : 'text-destructive'
                       }`}>
-                        {budgetAmount === 0 ? '—' : `${percentageDiff.toFixed(1)}%`}
+                        {budgetAmount === 0 ? '—' : `${margen.toFixed(1)}%`}
+                      </div>
+                      <div className={`text-[9px] mt-0.5 ${margen >= 0 ? 'text-green-600/70' : 'text-destructive/70'}`}>
+                        Rentabilidad
                       </div>
                     </div>
                   </div>
