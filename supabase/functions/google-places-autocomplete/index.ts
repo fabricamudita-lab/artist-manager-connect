@@ -40,12 +40,14 @@ serve(async (req) => {
     // Use Places Autocomplete API
     const autocompleteUrl = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
     autocompleteUrl.searchParams.set('input', searchQuery);
-    autocompleteUrl.searchParams.set('types', 'address|establishment');
     autocompleteUrl.searchParams.set('key', apiKey);
-    
-    // Add location bias if city is provided
-    if (city && country) {
-      autocompleteUrl.searchParams.set('components', `country:${getCountryCode(country)}`);
+    autocompleteUrl.searchParams.set('language', 'es');
+
+    const countryCode = country ? getCountryCode(country) : '';
+    if (countryCode) {
+      // Restrict to a country when we can resolve it
+      autocompleteUrl.searchParams.set('components', `country:${countryCode}`);
+      autocompleteUrl.searchParams.set('region', countryCode);
     }
 
     const response = await fetch(autocompleteUrl.toString());
