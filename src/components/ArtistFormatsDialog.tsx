@@ -489,42 +489,44 @@ export function ArtistFormatsDialog({
                       
                       {/* Selected Crew Members */}
                       {format.crewMembers.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-2">
+                        <div className="space-y-2 mb-2">
                           {format.crewMembers.map((cm) => (
                             <div
                               key={cm.memberId}
-                              className="flex items-center gap-1 bg-secondary rounded-md px-2 py-1"
+                              className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2 border border-border/50"
                             >
-                              <span className="text-sm font-medium">{cm.name}</span>
-                              <div className="flex items-center gap-1">
-                                <span className="text-xs text-muted-foreground">NAC</span>
-                                <Input
-                                  type="number"
-                                  value={cm.feeNational || ''}
-                                  onChange={(e) => handleUpdateCrewFeeNational(index, cm.memberId, parseFloat(e.target.value) || undefined)}
-                                  placeholder="€"
-                                  className="w-16 h-6 text-xs border-none bg-background/50 px-1"
-                                />
+                              <span className="text-sm font-medium min-w-[120px]">{cm.name}</span>
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-xs text-muted-foreground whitespace-nowrap">Nacional €</Label>
+                                  <Input
+                                    type="number"
+                                    value={cm.feeNational || ''}
+                                    onChange={(e) => handleUpdateCrewFeeNational(index, cm.memberId, parseFloat(e.target.value) || undefined)}
+                                    placeholder="0"
+                                    className="w-20 h-8 text-sm"
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-xs text-muted-foreground whitespace-nowrap">Internacional €</Label>
+                                  <Input
+                                    type="number"
+                                    value={cm.feeInternational || ''}
+                                    onChange={(e) => handleUpdateCrewFeeInternational(index, cm.memberId, parseFloat(e.target.value) || undefined)}
+                                    placeholder="0"
+                                    className="w-20 h-8 text-sm"
+                                  />
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  onClick={() => handleRemoveCrewMember(index, cm.memberId)}
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <span className="text-xs text-muted-foreground">INT</span>
-                                <Input
-                                  type="number"
-                                  value={cm.feeInternational || ''}
-                                  onChange={(e) => handleUpdateCrewFeeInternational(index, cm.memberId, parseFloat(e.target.value) || undefined)}
-                                  placeholder="€"
-                                  className="w-16 h-6 text-xs border-none bg-background/50 px-1"
-                                />
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-5 w-5"
-                                onClick={() => handleRemoveCrewMember(index, cm.memberId)}
-                              >
-                                <X className="w-3 h-3" />
-                              </Button>
                             </div>
                           ))}
                         </div>
