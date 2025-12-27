@@ -122,6 +122,8 @@ export default function ProjectDetail() {
   const [openAddTask, setOpenAddTask] = useState(false);
   const [openAddMember, setOpenAddMember] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{id: string, type: 'profile' | 'contact'} | null>(null);
+  const [editingTeamMemberId, setEditingTeamMemberId] = useState<string | null>(null);
+  const [editingTeamMemberRole, setEditingTeamMemberRole] = useState('');
   const [currentStage, setCurrentStage] = useState<"PREPARATIVOS" | "PRODUCCIÓN" | "CIERRE" | null>(null);
   const [checklistOpen, setChecklistOpen] = useState(true);
   const [selectedTask, setSelectedTask] = useState<any>(null);
@@ -726,6 +728,44 @@ export default function ProjectDetail() {
     loadLinked();
   }, [id]);
 
+  // Team member management functions
+  const handleUpdateTeamMemberRole = async (memberId: string) => {
+    try {
+      const { error } = await supabase
+        .from('project_team')
+        .update({ role: editingTeamMemberRole })
+        .eq('id', memberId);
+      
+      if (error) throw error;
+      
+      setTeam(prev => prev.map(m => 
+        m.id === memberId ? { ...m, role: editingTeamMemberRole } : m
+      ));
+      setEditingTeamMemberId(null);
+      toast({ title: 'Rol actualizado' });
+    } catch (e) {
+      console.error('Error updating role:', e);
+      toast({ title: 'Error', description: 'No se pudo actualizar el rol', variant: 'destructive' });
+    }
+  };
+
+  const handleRemoveTeamMember = async (memberId: string) => {
+    try {
+      const { error } = await supabase
+        .from('project_team')
+        .delete()
+        .eq('id', memberId);
+      
+      if (error) throw error;
+      
+      setTeam(prev => prev.filter(m => m.id !== memberId));
+      toast({ title: 'Miembro eliminado del equipo' });
+    } catch (e) {
+      console.error('Error removing member:', e);
+      toast({ title: 'Error', description: 'No se pudo eliminar el miembro', variant: 'destructive' });
+    }
+  };
+
   const getStatusVariant = (status: string) => {
     switch (status) {
       case 'en_curso':
@@ -988,7 +1028,7 @@ export default function ProjectDetail() {
             ) : (
               <div className="space-y-3">
                 {team.map((member) => (
-                  <div key={member.id} className="flex items-center gap-3">
+                  <div key={member.id} className="flex items-center gap-3 group">
                     <Avatar className="w-8 h-8">
                       <AvatarFallback className="text-xs">
                         {member.full_name.split(' ').map(n => n[0]).join('')}
@@ -996,10 +1036,59 @@ export default function ProjectDetail() {
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{member.full_name}</p>
-                      {member.role && (
-                        <p className="text-xs text-muted-foreground">{member.role}</p>
+                      {editingTeamMemberId === member.id ? (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Input
+                            value={editingTeamMemberRole}
+                            onChange={(e) => setEditingTeamMemberRole(e.target.value)}
+                            className="h-6 text-xs py-0 px-2"
+                            placeholder="Rol en este proyecto..."
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleUpdateTeamMemberRole(member.id);
+                              if (e.key === 'Escape') setEditingTeamMemberId(null);
+                            }}
+                          />
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleUpdateTeamMemberRole(member.id)}>
+                            <Check className="h-3 w-3" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditingTeamMemberId(null)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <p 
+                          className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                          onClick={() => {
+                            setEditingTeamMemberId(member.id);
+                            setEditingTeamMemberRole(member.role || '');
+                          }}
+                        >
+                          {member.role || 'Sin rol asignado (clic para editar)'}
+                        </p>
                       )}
                     </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => {
+                          setEditingTeamMemberId(member.id);
+                          setEditingTeamMemberRole(member.role || '');
+                        }}>
+                          Editar rol
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={() => handleRemoveTeamMember(member.id)}
+                        >
+                          Quitar del equipo
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 ))}
                 <Button variant="outline" size="sm" className="w-full" onClick={() => setOpenAddMember(true)}>
