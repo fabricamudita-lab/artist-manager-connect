@@ -12,7 +12,8 @@ import { toast } from '@/hooks/use-toast';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 import { ContactSelector } from '@/components/ContactSelector';
 import { useConfetti } from '@/hooks/useConfetti';
-import { Calendar, Users, DollarSign, Plus, X, Flag } from 'lucide-react';
+import { TeamMemberSelector } from '@/components/TeamMemberSelector';
+import { Calendar, Users, DollarSign, Plus, X, Flag, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Solicitud {
@@ -27,6 +28,10 @@ interface Solicitud {
   artist_id?: string;
   fecha_limite_respuesta?: string;
   prioridad?: string;
+  
+  // Multi-approver fields
+  required_approvers?: string[];
+  current_approvals?: string[];
   
   // Campos específicos para entrevistas
   medio?: string;
@@ -76,6 +81,8 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
     artist_id: '',
     fecha_limite_respuesta: '',
     prioridad: 'normal' as 'baja' | 'normal' | 'alta' | 'urgente',
+    required_approvers: [] as string[],
+    current_approvals: [] as string[],
     
     // Campos específicos para entrevistas
     medio: '',
@@ -151,6 +158,8 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
         artist_id: solicitud.artist_id || '',
         fecha_limite_respuesta: solicitud.fecha_limite_respuesta ? new Date(solicitud.fecha_limite_respuesta).toISOString().slice(0, 10) : '',
         prioridad: (solicitud.prioridad as 'baja' | 'normal' | 'alta' | 'urgente') || 'normal',
+        required_approvers: (solicitud.required_approvers || []) as string[],
+        current_approvals: (solicitud.current_approvals || []) as string[],
         
         // Campos específicos para entrevistas
         medio: solicitud.medio || '',
@@ -229,6 +238,14 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
         estado: formData.estado,
         artist_id: formData.artist_id || null,
         prioridad: formData.prioridad,
+        required_approvers: formData.required_approvers.length > 0 ? formData.required_approvers : null,
+        // Reset current_approvals if required_approvers changed
+        current_approvals: formData.required_approvers.length > 0 
+          ? (solicitud?.required_approvers?.length === formData.required_approvers.length 
+            && solicitud?.required_approvers?.every((id: string) => formData.required_approvers.includes(id))
+              ? formData.current_approvals  // Keep existing approvals if approvers didn't change
+              : []) // Reset if approvers changed
+          : null,
         
         // Campos específicos según el tipo
         ...(formData.tipo === 'entrevista' && {
@@ -483,6 +500,50 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
                   rows={3}
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Aprobadores */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserCheck className="h-5 w-5" />
+                Aprobadores Requeridos
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Seleccionar Aprobadores</Label>
+                <TeamMemberSelector
+                  selectedMembers={formData.required_approvers}
+                  onSelectionChange={(value) => setFormData({ ...formData, required_approvers: value })}
+                  artistId={formData.artist_id}
+                  placeholder={formData.artist_id ? "Selecciona los aprobadores del equipo..." : "Primero selecciona un artista"}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Si hay múltiples aprobadores, todos deben aprobar para que la solicitud se considere aprobada.
+                </p>
+              </div>
+
+              {/* Show current approval progress */}
+              {formData.required_approvers.length > 0 && (
+                <div className="space-y-2 pt-2 border-t">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Progreso de aprobación</span>
+                    <span className="font-medium">
+                      {formData.current_approvals.length} / {formData.required_approvers.length}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary transition-all duration-300"
+                      style={{ 
+                        width: `${(formData.current_approvals.length / formData.required_approvers.length) * 100}%` 
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
