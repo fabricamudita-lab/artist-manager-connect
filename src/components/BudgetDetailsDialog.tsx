@@ -78,6 +78,7 @@ interface Budget {
   event_date: string;
   event_time: string;
   fee: number;
+  expense_budget?: number;
   profiles?: { full_name: string };
   projects?: { id: string; name: string };
 }
@@ -196,7 +197,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [editingBudgetAmount, setEditingBudgetAmount] = useState(false);
+  const [editingExpenseBudget, setEditingExpenseBudget] = useState(false);
   const [budgetAmount, setBudgetAmount] = useState<number>(budget.fee || 0);
+  const [expenseBudget, setExpenseBudget] = useState<number>(budget.expense_budget || 0);
   const [expandedQuantity, setExpandedQuantity] = useState<string | null>(null);
   const [showLiquidarDialog, setShowLiquidarDialog] = useState(false);
 
@@ -204,6 +207,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     if (open && budget) {
       setBudgetData(budget);
       setBudgetAmount(budget.fee || 0);
+      setExpenseBudget(budget.expense_budget || 0);
       fetchBudgetItems();
       fetchBudgetCategories();
       
@@ -267,6 +271,33 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       toast({
         title: "Error",
         description: "No se pudo actualizar el presupuesto",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const saveExpenseBudget = async () => {
+    try {
+      const { error } = await supabase
+        .from('budgets')
+        .update({ expense_budget: expenseBudget })
+        .eq('id', budget.id);
+
+      if (error) throw error;
+      
+      setEditingExpenseBudget(false);
+      setBudgetData(prev => ({ ...prev, expense_budget: expenseBudget }));
+      onUpdate();
+      
+      toast({
+        title: "¡Éxito!",
+        description: "Presupuesto de gastos actualizado correctamente"
+      });
+    } catch (error) {
+      console.error('Error updating expense budget:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el presupuesto de gastos",
         variant: "destructive"
       });
     }
@@ -1205,8 +1236,61 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 </div>
               </div>
               
-              {/* Caché editable compacto */}
-              <div className="flex items-center gap-3">
+              {/* Caché y Presupuesto editables compactos */}
+              <div className="flex items-center gap-4">
+                {/* Presupuesto de gastos */}
+                <div className="text-right">
+                  <div className="text-xs text-gray-400">Presupuesto:</div>
+                  {editingExpenseBudget ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={expenseBudget}
+                        onChange={(e) => setExpenseBudget(parseFloat(e.target.value) || 0)}
+                        className="h-7 w-20 text-sm bg-white/10 border-white/20 text-white"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            saveExpenseBudget();
+                          } else if (e.key === 'Escape') {
+                            setEditingExpenseBudget(false);
+                            setExpenseBudget(budget.expense_budget || 0);
+                          }
+                        }}
+                        autoFocus
+                      />
+                      <Button
+                        size="sm"
+                        onClick={saveExpenseBudget}
+                        className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700"
+                      >
+                        <Save className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingExpenseBudget(false);
+                          setExpenseBudget(budget.expense_budget || 0);
+                        }}
+                        className="h-6 w-6 p-0 bg-white/10 border-white/20 hover:bg-white/20"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setEditingExpenseBudget(true)}
+                      className="text-amber-400 hover:text-amber-300 transition-colors font-medium"
+                      aria-label="Editar presupuesto de gastos"
+                    >
+                      {expenseBudget > 0 ? `€${expenseBudget.toFixed(2)}` : 'Sin definir'}
+                      <Pencil className="w-3 h-3 ml-1 inline" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Caché */}
                 <div className="text-right">
                   <div className="text-xs text-gray-400">Caché:</div>
                   {editingBudgetAmount ? (
@@ -1249,8 +1333,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   ) : (
                     <button
                       onClick={() => setEditingBudgetAmount(true)}
-                      className="text-white hover:text-blue-300 transition-colors font-medium"
-                      aria-label="Editar presupuesto"
+                      className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
+                      aria-label="Editar caché"
                     >
                       {budgetAmount > 0 ? `€${budgetAmount.toFixed(2)}` : 'Sin definir'}
                       <Pencil className="w-3 h-3 ml-1 inline" />
@@ -1312,13 +1396,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
               {(() => {
                 const totals = calculateGrandTotals();
                 // Caché = lo que paga el promotor (budgetAmount/fee)
+                // Presupuesto = gastos planificados (expenseBudget)
                 // Beneficio = Caché - Costes netos
                 const beneficio = budgetAmount - totals.neto;
                 // Margen = (Beneficio / Caché) × 100
                 const margen = budgetAmount > 0 ? ((beneficio / budgetAmount) * 100) : 0;
+                // Desviación = Gastos reales vs Presupuesto planificado
+                const desviacion = expenseBudget > 0 ? totals.neto - expenseBudget : 0;
+                const desviacionPct = expenseBudget > 0 ? ((desviacion / expenseBudget) * 100) : 0;
                 
                 return (
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-6 gap-2">
                     {/* Caché (lo que paga el promotor) */}
                     <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                       <div className="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1">CACHÉ</div>
@@ -1328,13 +1416,34 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       <div className="text-[9px] text-blue-400/70 mt-0.5">Ingresos</div>
                     </div>
 
-                    {/* Gastos (neto) */}
-                    <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-card/50 rounded-lg border border-border">
-                      <div className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-1">GASTOS</div>
-                      <div className="text-xl font-bold text-foreground">
+                    {/* Presupuesto (gastos planificados) */}
+                    <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                      <div className="text-xs font-semibold text-amber-400 uppercase tracking-wide mb-1">PRESUPUESTO</div>
+                      <div className="text-xl font-bold text-amber-400">
+                        €{expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-[9px] text-amber-400/70 mt-0.5">Gastos planif.</div>
+                    </div>
+
+                    {/* Gastos Reales (neto) */}
+                    <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${
+                      expenseBudget > 0 && totals.neto > expenseBudget
+                        ? 'bg-destructive/10 border-destructive/20'
+                        : 'bg-card/50 border-border'
+                    }`}>
+                      <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${
+                        expenseBudget > 0 && totals.neto > expenseBudget ? 'text-destructive' : 'text-foreground/70'
+                      }`}>GASTOS REALES</div>
+                      <div className={`text-xl font-bold ${
+                        expenseBudget > 0 && totals.neto > expenseBudget ? 'text-destructive' : 'text-foreground'
+                      }`}>
                         €{totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                       </div>
-                      <div className="text-[9px] text-foreground/50 mt-0.5">Costes netos</div>
+                      {expenseBudget > 0 && (
+                        <div className={`text-[9px] mt-0.5 ${desviacion > 0 ? 'text-destructive' : 'text-green-600'}`}>
+                          {desviacion > 0 ? '+' : ''}{desviacionPct.toFixed(0)}% vs presup.
+                        </div>
+                      )}
                     </div>
 
                     {/* Total a Facturar (con IVA & IRPF) */}
