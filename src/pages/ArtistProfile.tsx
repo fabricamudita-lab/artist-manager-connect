@@ -228,9 +228,9 @@ export default function ArtistProfile() {
   const pendingSolicitudes = solicitudes.filter(s => s.estado === 'pendiente');
 
   const stats = [
-    { label: 'Equipo', value: teamMembers.length, icon: Users, color: 'text-blue-500', path: `/equipos?artistId=${id}` },
+    { label: 'Equipo', value: teamMembers.length, icon: Users, color: 'text-blue-500', path: `/teams?artistId=${id}` },
     { label: 'Shows próximos', value: upcomingBookings, icon: Mic, color: 'text-orange-500', path: `/booking?artistId=${id}` },
-    { label: 'Proyectos', value: workProjects.length, icon: FolderOpen, color: 'text-purple-500', path: `/proyectos?artistId=${id}` },
+    { label: 'Proyectos', value: workProjects.length, icon: FolderOpen, color: 'text-purple-500', path: `/projects?artistId=${id}` },
     { label: 'Releases', value: releases.length, icon: Disc3, color: 'text-pink-500', path: `/releases?artistId=${id}` },
     { label: 'Solicitudes', value: pendingSolicitudes.length, icon: ClipboardList, color: 'text-amber-500', path: `/solicitudes?artistId=${id}` },
     { label: 'Ingresos totales', value: `€${totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'text-green-500', path: `/royalties?artistId=${id}` },
