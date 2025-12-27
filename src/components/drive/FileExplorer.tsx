@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useStorageNodes, StorageNode } from '@/hooks/useStorageNodes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -57,9 +57,13 @@ import {
   Pencil,
   Home,
   ChevronRight,
+  Calculator,
+  ExternalLink,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   DndContext,
   DragEndEvent,
@@ -140,6 +144,7 @@ export function FileExplorer({
   showBreadcrumbs = true,
   compact = false,
 }: FileExplorerProps) {
+  const navigate = useNavigate();
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(initialFolderId);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -152,6 +157,54 @@ export function FileExplorer({
   const [activeDragNode, setActiveDragNode] = useState<StorageNode | null>(null);
   const [breadcrumbPath, setBreadcrumbPath] = useState<StorageNode[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if current folder is "Presupuesto" and has a linked budget
+  const { data: linkedBudget } = useQuery({
+    queryKey: ['linked-budget', currentFolderId],
+    queryFn: async () => {
+      if (!currentFolderId) return null;
+      
+      // Get current folder info
+      const { data: currentFolder } = await supabase
+        .from('storage_nodes')
+        .select('name, parent_id, metadata')
+        .eq('id', currentFolderId)
+        .single();
+      
+      if (!currentFolder || currentFolder.name !== 'Presupuesto') return null;
+      
+      // Get parent folder (event folder) to find booking_id
+      const { data: parentFolder } = await supabase
+        .from('storage_nodes')
+        .select('metadata')
+        .eq('id', currentFolder.parent_id)
+        .single();
+      
+      if (!parentFolder?.metadata || !(parentFolder.metadata as any).booking_id) return null;
+      
+      const bookingId = (parentFolder.metadata as any).booking_id;
+      
+      // Find budget linked to this booking
+      const { data: booking } = await supabase
+        .from('booking_offers')
+        .select('festival_ciclo, ciudad, lugar, venue, fecha')
+        .eq('id', bookingId)
+        .single();
+      
+      if (!booking) return null;
+      
+      // Try to find budget by name pattern
+      const budgetName = booking.festival_ciclo || `${booking.ciudad} - ${booking.lugar || booking.venue || 'TBD'}`;
+      const { data: budget } = await supabase
+        .from('budgets')
+        .select('id, name, fee, event_date, city, venue')
+        .ilike('name', `%${budgetName.split(' ')[0]}%`)
+        .single();
+      
+      return budget;
+    },
+    enabled: !!currentFolderId,
+  });
 
   const {
     nodes,
@@ -639,22 +692,92 @@ export function FileExplorer({
               ))}
             </div>
           ) : folders.length === 0 && files.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Folder className="w-12 h-12 text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground">
-                {searchQuery ? 'No se encontraron resultados' : 'Esta carpeta está vacía'}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Arrastra archivos aquí o usa el botón "Subir"
-              </p>
+            <div className="flex flex-col items-center justify-center py-12 text-center space-y-6">
+              {/* Linked Budget Card */}
+              {linkedBudget && (
+                <Card 
+                  className="w-full max-w-md cursor-pointer hover:border-primary/50 hover:shadow-lg transition-all bg-gradient-to-br from-primary/5 to-primary/10"
+                  onClick={() => navigate(`/presupuestos?id=${linkedBudget.id}`)}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center">
+                        <Calculator className="w-7 h-7 text-primary" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <h3 className="font-semibold text-lg">{linkedBudget.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {linkedBudget.city} • {linkedBudget.event_date ? format(new Date(linkedBudget.event_date), 'd MMM yyyy', { locale: es }) : 'Sin fecha'}
+                        </p>
+                        {linkedBudget.fee && (
+                          <p className="text-sm font-medium text-primary mt-1">
+                            Fee: {linkedBudget.fee.toLocaleString('es-ES')} €
+                          </p>
+                        )}
+                      </div>
+                      <ExternalLink className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
+              <div className="flex flex-col items-center">
+                <Folder className="w-12 h-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground">
+                  {searchQuery ? 'No se encontraron resultados' : linkedBudget ? 'También puedes subir archivos relacionados' : 'Esta carpeta está vacía'}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Arrastra archivos aquí o usa el botón "Subir"
+                </p>
+              </div>
             </div>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {folders.map(renderGridItem)}
-              {files.map(renderGridItem)}
+            <div className="space-y-4">
+              {/* Show linked budget card at top when in Presupuesto folder */}
+              {linkedBudget && (
+                <Card 
+                  className="cursor-pointer hover:border-primary/50 hover:shadow-lg transition-all bg-gradient-to-br from-primary/5 to-primary/10"
+                  onClick={() => navigate(`/presupuestos?id=${linkedBudget.id}`)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                        <Calculator className="w-6 h-6 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold">{linkedBudget.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {linkedBudget.fee ? `Fee: ${linkedBudget.fee.toLocaleString('es-ES')} €` : 'Ver presupuesto completo'}
+                        </p>
+                      </div>
+                      <ExternalLink className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                {folders.map(renderGridItem)}
+                {files.map(renderGridItem)}
+              </div>
             </div>
           ) : (
             <div className="space-y-1">
+              {/* Show linked budget in list view too */}
+              {linkedBudget && (
+                <div 
+                  className="flex items-center gap-4 p-3 hover:bg-primary/5 rounded-lg cursor-pointer border border-primary/20 bg-gradient-to-r from-primary/5 to-transparent"
+                  onClick={() => navigate(`/presupuestos?id=${linkedBudget.id}`)}
+                >
+                  <Calculator className="w-5 h-5 text-primary" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{linkedBudget.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Presupuesto vinculado • {linkedBudget.fee ? `${linkedBudget.fee.toLocaleString('es-ES')} €` : 'Ver detalles'}
+                    </p>
+                  </div>
+                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                </div>
+              )}
               {folders.map(renderListItem)}
               {files.map(renderListItem)}
             </div>
