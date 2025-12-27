@@ -60,13 +60,6 @@ interface EditContactDialogProps {
   onContactUpdated: () => void;
 }
 
-const CATEGORIES = [
-  { value: 'artistas', label: 'Artistas' },
-  { value: 'tecnicos', label: 'Técnicos' },
-  { value: 'contables', label: 'Contables' },
-  { value: 'prensa', label: 'Prensa' },
-  { value: 'general', label: 'General' },
-];
 
 const FIELD_LABELS = {
   stage_name: 'Nombre artístico',
@@ -379,22 +372,6 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="category">Categoría</Label>
-                  <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map((cat) => (
-                        <SelectItem key={cat.value} value={cat.value}>
-                          {cat.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 {renderField('role')}
               </div>
 
