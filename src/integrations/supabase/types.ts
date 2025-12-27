@@ -1455,6 +1455,7 @@ export type Database = {
           estimated_version_id: string | null
           event_date: string | null
           event_time: string | null
+          expense_budget: number | null
           fee: number | null
           festival_ciclo: string | null
           final_version_id: string | null
@@ -1488,6 +1489,7 @@ export type Database = {
           estimated_version_id?: string | null
           event_date?: string | null
           event_time?: string | null
+          expense_budget?: number | null
           fee?: number | null
           festival_ciclo?: string | null
           final_version_id?: string | null
@@ -1521,6 +1523,7 @@ export type Database = {
           estimated_version_id?: string | null
           event_date?: string | null
           event_time?: string | null
+          expense_budget?: number | null
           fee?: number | null
           festival_ciclo?: string | null
           final_version_id?: string | null
