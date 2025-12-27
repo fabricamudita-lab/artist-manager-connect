@@ -29,6 +29,7 @@ interface CrewMember {
   memberType: 'workspace' | 'contact';
   roleLabel?: string;
   name: string;
+  fee?: number;
 }
 
 interface BookingProduct {
@@ -143,6 +144,7 @@ export function ArtistFormatsDialog({
             memberType: c.member_type,
             roleLabel: c.role_label || undefined,
             name: member?.name || 'Desconocido',
+            fee: c.fee || undefined,
           });
         });
       }
@@ -216,6 +218,7 @@ export function ArtistFormatsDialog({
               member_id: cm.memberId,
               member_type: cm.memberType,
               role_label: cm.roleLabel || null,
+              fee: cm.fee || null,
             }));
             
             const { error: crewError } = await supabase
@@ -285,6 +288,15 @@ export function ArtistFormatsDialog({
     handleUpdateFormat(formatIndex, {
       crewMembers: format.crewMembers.map(cm =>
         cm.memberId === memberId ? { ...cm, roleLabel } : cm
+      ),
+    });
+  };
+
+  const handleUpdateCrewFee = (formatIndex: number, memberId: string, fee: number | undefined) => {
+    const format = formats[formatIndex];
+    handleUpdateFormat(formatIndex, {
+      crewMembers: format.crewMembers.map(cm =>
+        cm.memberId === memberId ? { ...cm, fee } : cm
       ),
     });
   };
@@ -472,17 +484,22 @@ export function ArtistFormatsDialog({
                               className="flex items-center gap-1 bg-secondary rounded-md px-2 py-1"
                             >
                               <span className="text-sm">{cm.name}</span>
-                              {cm.roleLabel && (
-                                <span className="text-xs text-muted-foreground">
-                                  ({cm.roleLabel})
-                                </span>
-                              )}
                               <Input
                                 value={cm.roleLabel || ''}
                                 onChange={(e) => handleUpdateCrewRole(index, cm.memberId, e.target.value)}
                                 placeholder="Rol"
-                                className="w-20 h-6 text-xs border-none bg-background/50 px-1"
+                                className="w-16 h-6 text-xs border-none bg-background/50 px-1"
                               />
+                              <div className="flex items-center gap-0.5">
+                                <Euro className="w-3 h-3 text-muted-foreground" />
+                                <Input
+                                  type="number"
+                                  value={cm.fee || ''}
+                                  onChange={(e) => handleUpdateCrewFee(index, cm.memberId, parseFloat(e.target.value) || undefined)}
+                                  placeholder="0"
+                                  className="w-14 h-6 text-xs border-none bg-background/50 px-1"
+                                />
+                              </div>
                               <Button
                                 type="button"
                                 variant="ghost"

@@ -960,6 +960,7 @@ export type Database = {
         Row: {
           booking_product_id: string
           created_at: string
+          fee: number | null
           id: string
           member_id: string
           member_type: string
@@ -968,6 +969,7 @@ export type Database = {
         Insert: {
           booking_product_id: string
           created_at?: string
+          fee?: number | null
           id?: string
           member_id: string
           member_type: string
@@ -976,6 +978,7 @@ export type Database = {
         Update: {
           booking_product_id?: string
           created_at?: string
+          fee?: number | null
           id?: string
           member_id?: string
           member_type?: string
