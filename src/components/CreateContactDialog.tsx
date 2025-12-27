@@ -103,6 +103,25 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
 
     setLoading(true);
     try {
+      // Check for duplicate email if provided
+      if (formData.email.trim()) {
+        const { data: existingContacts } = await supabase
+          .from('contacts')
+          .select('id, name')
+          .eq('email', formData.email.trim())
+          .limit(1);
+
+        if (existingContacts && existingContacts.length > 0) {
+          toast({
+            title: "Contacto duplicado",
+            description: `Ya existe un contacto con este email: ${existingContacts[0].name}`,
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from('contacts')
         .insert({
