@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.setup-test-users]
 verify_jwt = false
+
+[functions.google-places-autocomplete]
+verify_jwt = false
