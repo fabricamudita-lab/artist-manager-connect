@@ -41,6 +41,7 @@ import AssociateProjectDialog from '@/components/AssociateProjectDialog';
 import CreateProjectDialog from '@/components/CreateProjectDialog';
 import { useNavigate } from 'react-router-dom';
 import { InlineEdit } from '@/components/ui/inline-edit';
+import { ArtistProfileSelector } from '@/components/ArtistProfileSelector';
 
 interface SolicitudDetails {
   id: string;
@@ -219,6 +220,33 @@ const updateSolicitudToPending = async (comment?: string) => {
     });
   }
 };
+
+  const updateArtistId = async (artistId: string | null) => {
+    if (!solicitud) return;
+    try {
+      const { error } = await supabase
+        .from('solicitudes')
+        .update({ artist_id: artistId })
+        .eq('id', solicitud.id);
+
+      if (error) throw error;
+
+      // Refetch to get the new artist data
+      fetchSolicitudDetails();
+      onUpdate?.();
+      toast({
+        title: 'Artista actualizado',
+        description: 'Se ha actualizado el artista asociado',
+      });
+    } catch (error) {
+      console.error('Error updating artist:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo actualizar el artista',
+        variant: 'destructive'
+      });
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -469,14 +497,15 @@ const updateSolicitudToPending = async (comment?: string) => {
                   <p className="text-muted-foreground capitalize mb-2 mt-1">
                     Solicitud de {solicitud.tipo.replace('_', ' ')}
                   </p>
-                  {solicitud.artists?.name && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <User className="w-4 h-4 text-primary" />
-                      <span className="text-foreground font-medium">
-                        Artista: {solicitud.artists.stage_name || solicitud.artists.name}
-                      </span>
-                    </div>
-                  )}
+                  <div className="mt-3">
+                    <Label className="text-sm text-muted-foreground mb-1 block">Artista</Label>
+                    <ArtistProfileSelector
+                      value={solicitud.artist_id || null}
+                      onValueChange={(value) => updateArtistId(value)}
+                      placeholder="Seleccionar artista..."
+                      disabled={solicitud.estado !== 'pendiente'}
+                    />
+                  </div>
                 </div>
               </div>
             </CardContent>
