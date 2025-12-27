@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useArtistFiles, ARTIST_FOLDER_CATEGORIES, ArtistFile } from '@/hooks/useArtistFiles';
 import { useArtistSubfolders, DEFAULT_SUBFOLDERS } from '@/hooks/useArtistSubfolders';
 import { FileExplorer } from '@/components/drive/FileExplorer';
+import { ConciertosView } from '@/components/drive/ConciertosView';
 import { usePublicFileSharing } from '@/hooks/usePublicFileSharing';
 import {
   Dialog,
@@ -430,54 +431,19 @@ export default function Carpetas() {
     </div>
   );
 
-  // Query for the Conciertos folder in storage_nodes for this artist
-  const { data: conciertosFolder } = useQuery({
-    queryKey: ['conciertos-storage-node', selectedArtist?.id],
-    queryFn: async () => {
-      if (!selectedArtist?.id) return null;
-      const { data, error } = await supabase
-        .from('storage_nodes')
-        .select('id')
-        .eq('artist_id', selectedArtist.id)
-        .eq('name', 'Conciertos')
-        .is('parent_id', null)
-        .single();
-      
-      if (error) return null;
-      return data;
-    },
-    enabled: !!selectedArtist?.id && selectedCategory === 'conciertos',
-  });
 
   // Render Level 3: Folders + Files
   const renderFilesView = () => {
     const currentCategoryObj = ARTIST_FOLDER_CATEGORIES.find(c => c.id === selectedCategory);
 
-    // For "conciertos" category, use FileExplorer with storage_nodes
-    if (selectedCategory === 'conciertos' && selectedArtist && conciertosFolder) {
+    // For "conciertos" category, use ConciertosView with custom HISTORIAL logic
+    if (selectedCategory === 'conciertos' && selectedArtist) {
       return (
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSelectedCategory(null)}
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold">Conciertos</h1>
-              <p className="text-muted-foreground">
-                {selectedArtist?.stage_name || selectedArtist?.name} / CONCIERTOS / Conciertos
-              </p>
-            </div>
-          </div>
-          <FileExplorer
-            artistId={selectedArtist.id}
-            initialFolderId={conciertosFolder.id}
-            showBreadcrumbs={true}
-          />
-        </div>
+        <ConciertosView
+          artistId={selectedArtist.id}
+          artistName={selectedArtist.stage_name || selectedArtist.name}
+          onBack={() => setSelectedCategory(null)}
+        />
       );
     }
 
