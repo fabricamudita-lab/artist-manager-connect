@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MapPin, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -37,7 +36,6 @@ export function AddressAutocomplete({
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [inputValue, setInputValue] = useState(value);
-  const [hasAutoSearched, setHasAutoSearched] = useState(false);
   const lastContextRef = useRef<string>("");
 
   const debouncedInput = useDebounce(inputValue, 300);
@@ -89,7 +87,6 @@ export function AddressAutocomplete({
     // Only auto-search if context changed and we have venue + city
     if (contextKey !== lastContextRef.current && debouncedVenue && debouncedCity && !value) {
       lastContextRef.current = contextKey;
-      setHasAutoSearched(false);
       searchAddresses('', true);
     }
   }, [debouncedVenue, debouncedCity, debouncedCountry, value, searchAddresses]);
@@ -148,66 +145,69 @@ export function AddressAutocomplete({
 
   return (
     <div className="space-y-2">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={inputValue}
-              onChange={handleInputChange}
-              onFocus={() => predictions.length > 0 && setOpen(true)}
-              onBlur={handleInputBlur}
-              placeholder={placeholder}
-              className={`pl-10 ${showSuggestionButton ? 'pr-24' : ''} ${className}`}
-            />
-            {isLoading && (
-              <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-            )}
-            {showSuggestionButton && !isLoading && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleAutoFill}
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 px-2 text-xs text-primary hover:text-primary"
-              >
-                <Sparkles className="h-3 w-3 mr-1" />
-                Sugerir
-              </Button>
-            )}
+      <div className="relative">
+        <div className="relative">
+          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={inputValue}
+            onChange={handleInputChange}
+            onFocus={() => predictions.length > 0 && setOpen(true)}
+            onBlur={handleInputBlur}
+            placeholder={placeholder}
+            className={`pl-10 ${showSuggestionButton ? 'pr-24' : ''} ${className}`}
+          />
+          {isLoading && (
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+          )}
+          {showSuggestionButton && !isLoading && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={handleAutoFill}
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 text-xs text-primary hover:text-primary"
+            >
+              <Sparkles className="mr-1 h-3 w-3" />
+              Sugerir
+            </Button>
+          )}
+        </div>
+
+        {/* Dropdown */}
+        {open && (
+          <div className="absolute left-0 right-0 top-full z-50 mt-2 rounded-md border bg-popover p-0 text-popover-foreground shadow-md">
+            <Command>
+              <CommandList>
+                {predictions.length === 0 && !isLoading && (
+                  <CommandEmpty>
+                    {inputValue.length >= 2
+                      ? "No se encontraron direcciones"
+                      : "Escribe para buscar direcciones..."}
+                  </CommandEmpty>
+                )}
+                <CommandGroup>
+                  {predictions.map((prediction) => (
+                    <CommandItem
+                      key={prediction.placeId}
+                      value={prediction.description}
+                      onSelect={() => handleSelect(prediction)}
+                      className="cursor-pointer"
+                    >
+                      <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <div className="flex flex-col">
+                        <span className="font-medium">{prediction.mainText}</span>
+                        <span className="text-xs text-muted-foreground">{prediction.secondaryText}</span>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
           </div>
-        </PopoverTrigger>
-        <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start">
-          <Command>
-            <CommandList>
-              {predictions.length === 0 && !isLoading && (
-                <CommandEmpty>
-                  {inputValue.length >= 2 
-                    ? "No se encontraron direcciones" 
-                    : "Escribe para buscar direcciones..."}
-                </CommandEmpty>
-              )}
-              <CommandGroup>
-                {predictions.map((prediction) => (
-                  <CommandItem
-                    key={prediction.placeId}
-                    value={prediction.description}
-                    onSelect={() => handleSelect(prediction)}
-                    className="cursor-pointer"
-                  >
-                    <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
-                    <div className="flex flex-col">
-                      <span className="font-medium">{prediction.mainText}</span>
-                      <span className="text-xs text-muted-foreground">{prediction.secondaryText}</span>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-      
+        )}
+      </div>
+
       {/* Show suggestion preview below input */}
       {showSuggestionButton && predictions[0] && (
         <div 

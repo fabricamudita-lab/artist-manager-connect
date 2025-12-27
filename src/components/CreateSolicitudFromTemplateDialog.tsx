@@ -597,8 +597,8 @@ export function CreateSolicitudFromTemplateDialog({
                       <Label htmlFor="direccion">Dirección</Label>
                       <AddressAutocomplete
                         value={formData.direccion || ''}
-                        onChange={(value) => setFormData({ ...formData, direccion: value })}
-                        venue={formData.lugar_concierto}
+                        onChange={(value) => setFormData((prev) => ({ ...prev, direccion: value }))}
+                        venue={formData.lugar}
                         city={formData.ciudad}
                         country={formData.pais}
                         placeholder="Buscar dirección..."
