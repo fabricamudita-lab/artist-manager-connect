@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Plus, Calendar, Mic, HelpCircle, Info, Scale, MoreHorizontal } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileText, Plus, Calendar, Mic, HelpCircle, Info, Scale, MoreHorizontal, Users, DollarSign, X, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
@@ -176,12 +177,26 @@ export function CreateSolicitudFromTemplateDialog({
         fecha: '',
         festival_ciclo: '',
         ciudad: '',
+        pais: '',
         lugar: '',
+        direccion: '',
         capacidad: '',
         hora: '',
+        fechas_opcionales: [] as string[],
         formato: '',
-        status_booking: '',
-        oferta: '',
+        // Buyer/Promotor
+        promotor_tab: 'existing' as 'existing' | 'new',
+        promotor_contact_id: '',
+        new_promotor: {
+          name: '',
+          company: '',
+          email: '',
+          phone: '',
+        },
+        // Deal info
+        deal_type: 'flat_fee' as 'flat_fee' | 'door_split',
+        fee: '',
+        door_split_percentage: '',
         condiciones: '',
         comentarios: ''
       }),
@@ -270,23 +285,63 @@ export function CreateSolicitudFromTemplateDialog({
       const prioridadLabel = prioridadLabelMap[(formData.prioridad || 'media').toLowerCase()] || 'Media';
       descripcionLibre += `Prioridad: ${prioridadLabel}\n\n`;
       if (selectedTemplate === 'booking') {
+        // Create promotor contact if needed
+        let promotorContactId = formData.promotor_contact_id || null;
+        if (formData.promotor_tab === 'new' && formData.new_promotor?.name) {
+          const { data: newContact, error: contactError } = await supabase
+            .from('contacts')
+            .insert({
+              name: formData.new_promotor.name,
+              company: formData.new_promotor.company,
+              email: formData.new_promotor.email,
+              phone: formData.new_promotor.phone,
+              category: 'promotor',
+              created_by: profile?.user_id,
+            })
+            .select()
+            .single();
+          if (!contactError && newContact) {
+            promotorContactId = newContact.id;
+          }
+        }
+
         descripcionLibre += `Fecha: ${formData.fecha || 'No especificada'}\n`;
         descripcionLibre += `Festival / Ciclo: ${formData.festival_ciclo || 'No especificado'}\n`;
         descripcionLibre += `Ciudad: ${formData.ciudad || 'No especificada'}\n`;
-        descripcionLibre += `Lugar: ${formData.lugar || 'No especificado'}\n`;
+        descripcionLibre += `País: ${formData.pais || 'No especificado'}\n`;
+        descripcionLibre += `Venue: ${formData.lugar || 'No especificado'}\n`;
+        descripcionLibre += `Dirección: ${formData.direccion || 'No especificada'}\n`;
         descripcionLibre += `Capacidad: ${formData.capacidad || 'No especificada'}\n`;
         descripcionLibre += `Hora: ${formData.hora || 'No especificada'}\n`;
         descripcionLibre += `Formato: ${formData.formato || 'No especificado'}\n`;
-        descripcionLibre += `Status: ${formData.status_booking || 'No especificado'}\n`;
-        descripcionLibre += `Oferta: ${formData.oferta || 'No especificada'}\n`;
+        descripcionLibre += `Deal Type: ${formData.deal_type === 'flat_fee' ? 'Fee Fijo' : 'Door Split'}\n`;
+        if (formData.deal_type === 'flat_fee') {
+          descripcionLibre += `Fee: ${formData.fee ? `€${formData.fee}` : 'No especificado'}\n`;
+        } else {
+          descripcionLibre += `Door Split: ${formData.door_split_percentage || 'No especificado'}%\n`;
+        }
         descripcionLibre += `Condiciones: ${formData.condiciones || 'No especificadas'}\n`;
         descripcionLibre += `Comentarios: ${formData.comentarios || 'No especificados'}\n`;
         
         // Map to existing fields where possible
         solicitudData.nombre_festival = formData.festival_ciclo || null;
         solicitudData.ciudad = formData.ciudad || null;
+        solicitudData.pais = formData.pais || null;
         solicitudData.lugar_concierto = formData.lugar || null;
+        solicitudData.direccion = formData.direccion || null;
+        solicitudData.capacidad = formData.capacidad ? parseInt(formData.capacidad) : null;
         solicitudData.hora_show = formData.fecha && formData.hora ? new Date(formData.fecha + 'T' + formData.hora).toISOString() : null;
+        solicitudData.formato = formData.formato || null;
+        solicitudData.fechas_opcionales = formData.fechas_opcionales?.length > 0 
+          ? formData.fechas_opcionales.filter((f: string) => f) 
+          : null;
+        solicitudData.promotor_contact_id = promotorContactId;
+        solicitudData.deal_type = formData.deal_type;
+        solicitudData.fee = formData.deal_type === 'flat_fee' && formData.fee ? parseFloat(formData.fee) : null;
+        solicitudData.door_split_percentage = formData.deal_type === 'door_split' && formData.door_split_percentage 
+          ? parseFloat(formData.door_split_percentage) 
+          : null;
+        solicitudData.condiciones = formData.condiciones || null;
       }
 
       if (selectedTemplate === 'entrevista') {
@@ -486,196 +541,394 @@ export function CreateSolicitudFromTemplateDialog({
           </h4>
           
           {selectedTemplate === 'booking' && (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fecha">Fecha</Label>
-                  <Input
-                    id="fecha"
-                    type="date"
-                    value={formData.fecha}
-                    onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="festival_ciclo">Festival / Ciclo</Label>
-                  <Input
-                    id="festival_ciclo"
-                    value={formData.festival_ciclo}
-                    onChange={(e) => setFormData({ ...formData, festival_ciclo: e.target.value })}
-                    placeholder="Nombre del festival o ciclo"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ciudad">Ciudad</Label>
-                  <Input
-                    id="ciudad"
-                    value={formData.ciudad}
-                    onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
-                    placeholder="Madrid, España"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lugar">Lugar</Label>
-                  <Input
-                    id="lugar"
-                    value={formData.lugar}
-                    onChange={(e) => setFormData({ ...formData, lugar: e.target.value })}
-                    placeholder="Nombre del venue"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="capacidad">Capacidad</Label>
-                  <Input
-                    id="capacidad"
-                    type="number"
-                    value={formData.capacidad}
-                    onChange={(e) => setFormData({ ...formData, capacidad: e.target.value })}
-                    placeholder="1500"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="hora">Hora</Label>
-                  <Input
-                    id="hora"
-                    type="time"
-                    value={formData.hora}
-                    onChange={(e) => setFormData({ ...formData, hora: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="formato">Formato</Label>
-                  {showNewFormatInput ? (
-                    <div className="flex gap-2">
+            <div className="space-y-6">
+              {/* Sección 1: Datos Generales */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Calendar className="h-4 w-4" />
+                    Datos Generales
+                  </CardTitle>
+                  <CardDescription className="text-sm">Información básica del evento</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="festival_ciclo">Nombre del Evento / Festival</Label>
                       <Input
-                        id="new_formato"
-                        value={newFormatName}
-                        onChange={(e) => setNewFormatName(e.target.value)}
-                        placeholder="Nombre del nuevo formato"
-                        className="flex-1"
+                        id="festival_ciclo"
+                        value={formData.festival_ciclo}
+                        onChange={(e) => setFormData({ ...formData, festival_ciclo: e.target.value })}
+                        placeholder="Ej: Primavera Sound 2025"
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lugar">Venue <span className="text-destructive">*</span></Label>
+                      <Input
+                        id="lugar"
+                        value={formData.lugar}
+                        onChange={(e) => setFormData({ ...formData, lugar: e.target.value })}
+                        placeholder="Ej: Sala Apolo"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="ciudad">Ciudad</Label>
+                      <Input
+                        id="ciudad"
+                        value={formData.ciudad}
+                        onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
+                        placeholder="Ej: Barcelona"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pais">País</Label>
+                      <Input
+                        id="pais"
+                        value={formData.pais}
+                        onChange={(e) => setFormData({ ...formData, pais: e.target.value })}
+                        placeholder="Ej: España"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="direccion">Dirección</Label>
+                      <Input
+                        id="direccion"
+                        value={formData.direccion}
+                        onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+                        placeholder="Ej: C/ Nou de la Rambla, 113"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="fecha">Fecha <span className="text-destructive">*</span></Label>
+                      <Input
+                        id="fecha"
+                        type="date"
+                        value={formData.fecha}
+                        onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="hora">Hora</Label>
+                      <Input
+                        id="hora"
+                        type="time"
+                        value={formData.hora}
+                        onChange={(e) => setFormData({ ...formData, hora: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="capacidad">Capacidad</Label>
+                      <Input
+                        id="capacidad"
+                        type="number"
+                        value={formData.capacidad}
+                        onChange={(e) => setFormData({ ...formData, capacidad: e.target.value })}
+                        placeholder="Ej: 1500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Fechas opcionales */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm text-muted-foreground">
+                        Fechas opcionales
+                        <span className="ml-2 text-xs">(si el festival/sala tiene varios días disponibles)</span>
+                      </Label>
                       <Button
                         type="button"
-                        size="sm"
-                        onClick={() => {
-                          if (newFormatName.trim()) {
-                            setFormData({ ...formData, formato: newFormatName.trim() });
-                            setNewFormatName('');
-                            setShowNewFormatInput(false);
-                          }
-                        }}
-                      >
-                        Añadir
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
                         variant="outline"
-                        onClick={() => {
-                          setNewFormatName('');
-                          setShowNewFormatInput(false);
-                        }}
+                        size="sm"
+                        onClick={() => setFormData({
+                          ...formData,
+                          fechas_opcionales: [...(formData.fechas_opcionales || []), '']
+                        })}
                       >
-                        Cancelar
+                        <Plus className="h-4 w-4 mr-1" /> Añadir fecha
                       </Button>
                     </div>
-                  ) : (
-                    <Select
-                      value={formData.formato}
-                      onValueChange={(value) => {
-                        if (value === '__new__') {
-                          setShowNewFormatInput(true);
-                        } else {
-                          setFormData({ ...formData, formato: value });
-                        }
-                      }}
-                      disabled={!formData.artist_id}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={
-                          !formData.artist_id 
-                            ? "Selecciona primero un artista" 
-                            : artistFormats.length === 0 
-                              ? "Sin formatos - añade uno nuevo"
-                              : "Seleccionar formato"
-                        } />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {artistFormats.map((format) => (
-                          <SelectItem key={format.id} value={format.name}>
-                            {format.name}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="__new__" className="text-primary">
-                          <span className="flex items-center gap-2">
-                            <Plus className="h-4 w-4" />
-                            Nuevo formato
-                          </span>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-              </div>
+                    {(formData.fechas_opcionales || []).map((fecha: string, index: number) => (
+                      <div key={index} className="flex gap-2">
+                        <Input
+                          type="date"
+                          value={fecha}
+                          onChange={(e) => {
+                            const newFechas = [...(formData.fechas_opcionales || [])];
+                            newFechas[index] = e.target.value;
+                            setFormData({ ...formData, fechas_opcionales: newFechas });
+                          }}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            const newFechas = (formData.fechas_opcionales || []).filter((_: string, i: number) => i !== index);
+                            setFormData({ ...formData, fechas_opcionales: newFechas });
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="status_booking">Status</Label>
-                  <Select
-                    value={formData.status_booking}
-                    onValueChange={(value) => setFormData({ ...formData, status_booking: value })}
+              {/* Sección 2: Buyer / Promotor */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Users className="h-4 w-4" />
+                    Buyer / Promotor
+                  </CardTitle>
+                  <CardDescription className="text-sm">Selecciona o crea el promotor</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Tabs 
+                    value={formData.promotor_tab || 'existing'} 
+                    onValueChange={(v) => setFormData({ ...formData, promotor_tab: v as 'existing' | 'new' })}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="interes">Interés</SelectItem>
-                      <SelectItem value="oferta">Oferta</SelectItem>
-                      <SelectItem value="negociacion">Negociación</SelectItem>
-                      <SelectItem value="cerrado">Cerrado</SelectItem>
-                      <SelectItem value="cancelado">Cancelado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="oferta">Oferta</Label>
-                  <Input
-                    id="oferta"
-                    value={formData.oferta}
-                    onChange={(e) => setFormData({ ...formData, oferta: e.target.value })}
-                    placeholder="€5000"
-                  />
-                </div>
-              </div>
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="existing">Contacto Existente</TabsTrigger>
+                      <TabsTrigger value="new">Crear Nuevo</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="existing" className="mt-4">
+                      <div className="space-y-2">
+                        <Label>Seleccionar Promotor/Buyer</Label>
+                        <ContactSelector
+                          value={formData.promotor_contact_id || ''}
+                          onValueChange={(value) => setFormData({ ...formData, promotor_contact_id: value })}
+                          placeholder="Buscar contacto..."
+                        />
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="new" className="mt-4 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Nombre <span className="text-destructive">*</span></Label>
+                          <Input
+                            value={formData.new_promotor?.name || ''}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              new_promotor: { ...(formData.new_promotor || {}), name: e.target.value }
+                            })}
+                            placeholder="Nombre del contacto"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Empresa</Label>
+                          <Input
+                            value={formData.new_promotor?.company || ''}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              new_promotor: { ...(formData.new_promotor || {}), company: e.target.value }
+                            })}
+                            placeholder="Nombre de la promotora"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Email</Label>
+                          <Input
+                            type="email"
+                            value={formData.new_promotor?.email || ''}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              new_promotor: { ...(formData.new_promotor || {}), email: e.target.value }
+                            })}
+                            placeholder="email@promotora.com"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Teléfono</Label>
+                          <Input
+                            value={formData.new_promotor?.phone || ''}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              new_promotor: { ...(formData.new_promotor || {}), phone: e.target.value }
+                            })}
+                            placeholder="+34 600 000 000"
+                          />
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
 
-              <div className="space-y-2">
-                <Label htmlFor="condiciones">Condiciones</Label>
-                <Textarea
-                  id="condiciones"
-                  value={formData.condiciones}
-                  onChange={(e) => setFormData({ ...formData, condiciones: e.target.value })}
-                  placeholder="Backline, alojamiento, transporte, rider..."
-                  rows={3}
-                />
-              </div>
+              {/* Sección 3: Deal Info */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <DollarSign className="h-4 w-4" />
+                    Deal Info
+                  </CardTitle>
+                  <CardDescription className="text-sm">Condiciones económicas del evento</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <Label>Tipo de Deal</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, deal_type: 'flat_fee' })}
+                        className={`p-4 rounded-lg border-2 text-left transition-all ${
+                          formData.deal_type === 'flat_fee' 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="font-medium">Fee Fijo</div>
+                        <div className="text-sm text-muted-foreground">Caché garantizado</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, deal_type: 'door_split' })}
+                        className={`p-4 rounded-lg border-2 text-left transition-all ${
+                          formData.deal_type === 'door_split' 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="font-medium">Door Split</div>
+                        <div className="text-sm text-muted-foreground">Porcentaje de taquilla</div>
+                      </button>
+                    </div>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="comentarios">Comentarios</Label>
-                <Textarea
-                  id="comentarios"
-                  value={formData.comentarios}
-                  onChange={(e) => setFormData({ ...formData, comentarios: e.target.value })}
-                  placeholder="Comentarios adicionales sobre la solicitud"
-                  rows={3}
-                />
-              </div>
-            </>
+                  <div className="grid grid-cols-2 gap-4">
+                    {formData.deal_type === 'flat_fee' ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="fee">Fee (€)</Label>
+                        <Input
+                          id="fee"
+                          type="number"
+                          value={formData.fee || ''}
+                          onChange={(e) => setFormData({ ...formData, fee: e.target.value })}
+                          placeholder="5000"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label htmlFor="door_split_percentage">Porcentaje (%)</Label>
+                        <Input
+                          id="door_split_percentage"
+                          type="number"
+                          value={formData.door_split_percentage || ''}
+                          onChange={(e) => setFormData({ ...formData, door_split_percentage: e.target.value })}
+                          placeholder="80"
+                        />
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="formato">Formato</Label>
+                      {showNewFormatInput ? (
+                        <div className="flex gap-2">
+                          <Input
+                            id="new_formato"
+                            value={newFormatName}
+                            onChange={(e) => setNewFormatName(e.target.value)}
+                            placeholder="Nombre del nuevo formato"
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              if (newFormatName.trim()) {
+                                setFormData({ ...formData, formato: newFormatName.trim() });
+                                setNewFormatName('');
+                                setShowNewFormatInput(false);
+                              }
+                            }}
+                          >
+                            Añadir
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setNewFormatName('');
+                              setShowNewFormatInput(false);
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      ) : (
+                        <Select
+                          value={formData.formato || ''}
+                          onValueChange={(value) => {
+                            if (value === '__new__') {
+                              setShowNewFormatInput(true);
+                            } else {
+                              setFormData({ ...formData, formato: value });
+                            }
+                          }}
+                          disabled={!formData.artist_id}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={
+                              !formData.artist_id 
+                                ? "Selecciona primero un artista" 
+                                : artistFormats.length === 0 
+                                  ? "Sin formatos - añade uno nuevo"
+                                  : "Seleccionar formato"
+                            } />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {artistFormats.map((format) => (
+                              <SelectItem key={format.id} value={format.name}>
+                                {format.name}
+                              </SelectItem>
+                            ))}
+                            <SelectItem value="__new__" className="text-primary">
+                              <span className="flex items-center gap-2">
+                                <Plus className="h-4 w-4" />
+                                Nuevo formato
+                              </span>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="condiciones">Condiciones</Label>
+                    <Textarea
+                      id="condiciones"
+                      value={formData.condiciones || ''}
+                      onChange={(e) => setFormData({ ...formData, condiciones: e.target.value })}
+                      placeholder="Backline, alojamiento, transporte, rider..."
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="comentarios">Comentarios del solicitante</Label>
+                    <Textarea
+                      id="comentarios"
+                      value={formData.comentarios || ''}
+                      onChange={(e) => setFormData({ ...formData, comentarios: e.target.value })}
+                      placeholder="Notas adicionales sobre la solicitud"
+                      rows={3}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {selectedTemplate === 'entrevista' && (
