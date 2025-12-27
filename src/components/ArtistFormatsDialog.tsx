@@ -43,12 +43,18 @@ import { toast } from 'sonner';
 
 interface CrewMember {
   memberId: string;
-  memberType: 'workspace' | 'contact';
+  memberType: 'workspace' | 'contact' | 'artist';
   roleLabel?: string;
   name: string;
   feeNational?: number;
   feeInternational?: number;
 }
+
+type CrewSelectableMember = {
+  id: string;
+  name: string;
+  type: CrewMember['memberType'];
+};
 
 interface BookingProduct {
   id?: string;
@@ -238,13 +244,17 @@ export function ArtistFormatsDialog({
           if (!crewByProduct.has(c.booking_product_id)) {
             crewByProduct.set(c.booking_product_id, []);
           }
-          // Find member name from ALL team members (not filtered)
-          const member = allTeamMembers.find(m => m.id === c.member_id);
+          const looksLikeArtist =
+            c.member_type === 'artist' ||
+            (artistProfile && c.member_id === artistProfile.id && c.member_type === 'workspace');
+
+          const member = looksLikeArtist ? undefined : allTeamMembers.find(m => m.id === c.member_id);
+
           crewByProduct.get(c.booking_product_id)!.push({
             memberId: c.member_id,
-            memberType: c.member_type,
+            memberType: looksLikeArtist ? 'artist' : c.member_type,
             roleLabel: c.role_label || undefined,
-            name: member?.name || 'Desconocido',
+            name: looksLikeArtist ? (artistProfile?.name || 'Artista') : (member?.name || 'Desconocido'),
             feeNational: c.fee_national || undefined,
             feeInternational: c.fee_international || undefined,
           });
@@ -263,7 +273,7 @@ export function ArtistFormatsDialog({
         hospitalityRequirements: f.hospitality_requirements || undefined,
       })));
     }
-  }, [existingFormats, existingCrew, allTeamMembers]);
+  }, [existingFormats, existingCrew, allTeamMembers, artistProfile]);
 
   // Save mutation
   const saveMutation = useMutation({
@@ -363,10 +373,10 @@ export function ArtistFormatsDialog({
     setFormats(formats.map((f, i) => (i === index ? { ...f, ...updates } : f)));
   };
 
-  const handleAddCrewMember = (formatIndex: number, member: TeamMemberWithCategory) => {
+  const handleAddCrewMember = (formatIndex: number, member: CrewSelectableMember) => {
     const format = formats[formatIndex];
     if (format.crewMembers.some(cm => cm.memberId === member.id)) return;
-    
+
     handleUpdateFormat(formatIndex, {
       crewMembers: [
         ...format.crewMembers,
@@ -674,19 +684,17 @@ export function ArtistFormatsDialog({
                                         return (
                                           <div
                                             className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer bg-primary/10 border border-primary/20"
-                                            onClick={() => {
-                                              if (isSelected) {
-                                                handleRemoveCrewMember(index, artistProfile.id);
-                                              } else {
-                                                handleAddCrewMember(index, {
-                                                  id: artistProfile.id,
-                                                  name: artistProfile.name,
-                                                  type: 'workspace',
-                                                  category: undefined,
-                                                  artistIds: [artistProfile.id],
-                                                });
-                                              }
-                                            }}
+                                              onClick={() => {
+                                                if (isSelected) {
+                                                  handleRemoveCrewMember(index, artistProfile.id);
+                                                } else {
+                                                  handleAddCrewMember(index, {
+                                                    id: artistProfile.id,
+                                                    name: artistProfile.name,
+                                                    type: 'artist',
+                                                  });
+                                                }
+                                              }}
                                           >
                                             <Checkbox checked={isSelected} />
                                             <span className="text-sm font-medium">{artistProfile.name}</span>
