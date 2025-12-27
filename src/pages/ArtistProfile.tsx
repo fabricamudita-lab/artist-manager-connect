@@ -228,12 +228,12 @@ export default function ArtistProfile() {
   const pendingSolicitudes = solicitudes.filter(s => s.estado === 'pendiente');
 
   const stats = [
-    { label: 'Equipo', value: teamMembers.length, icon: Users, color: 'text-blue-500' },
-    { label: 'Shows próximos', value: upcomingBookings, icon: Mic, color: 'text-orange-500' },
-    { label: 'Proyectos', value: workProjects.length, icon: FolderOpen, color: 'text-purple-500' },
-    { label: 'Releases', value: releases.length, icon: Disc3, color: 'text-pink-500' },
-    { label: 'Solicitudes', value: pendingSolicitudes.length, icon: ClipboardList, color: 'text-amber-500' },
-    { label: 'Ingresos totales', value: `€${totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'text-green-500' },
+    { label: 'Equipo', value: teamMembers.length, icon: Users, color: 'text-blue-500', path: `/equipos?artistId=${id}` },
+    { label: 'Shows próximos', value: upcomingBookings, icon: Mic, color: 'text-orange-500', path: `/booking?artistId=${id}` },
+    { label: 'Proyectos', value: workProjects.length, icon: FolderOpen, color: 'text-purple-500', path: `/proyectos?artistId=${id}` },
+    { label: 'Releases', value: releases.length, icon: Disc3, color: 'text-pink-500', path: `/releases?artistId=${id}` },
+    { label: 'Solicitudes', value: pendingSolicitudes.length, icon: ClipboardList, color: 'text-amber-500', path: `/solicitudes?artistId=${id}` },
+    { label: 'Ingresos totales', value: `€${totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'text-green-500', path: `/royalties?artistId=${id}` },
   ];
 
   const getStatusColor = (status: string | null) => {
@@ -282,26 +282,23 @@ export default function ArtistProfile() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {stats.map((stat) => {
-          const isClickable = stat.label === 'Ingresos totales';
-          return (
-            <Card 
-              key={stat.label}
-              className={isClickable ? 'cursor-pointer hover:border-primary transition-colors' : ''}
-              onClick={isClickable ? () => navigate(`/finanzas?artistId=${id}`) : undefined}
-            >
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
-                    <p className="text-2xl font-bold">{stat.value}</p>
-                  </div>
-                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
+        {stats.map((stat) => (
+          <Card 
+            key={stat.label}
+            className="cursor-pointer hover:border-primary transition-colors"
+            onClick={() => navigate(stat.path)}
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  <p className="text-2xl font-bold">{stat.value}</p>
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+                <stat.icon className={`h-6 w-6 ${stat.color}`} />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Tabs */}

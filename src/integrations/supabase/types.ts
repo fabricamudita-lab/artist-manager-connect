@@ -3203,8 +3203,9 @@ export type Database = {
           period_end: string
           period_start: string
           platform: string
-          song_id: string
+          song_id: string | null
           streams: number | null
+          track_id: string | null
           updated_at: string
         }
         Insert: {
@@ -3216,8 +3217,9 @@ export type Database = {
           period_end: string
           period_start: string
           platform: string
-          song_id: string
+          song_id?: string | null
           streams?: number | null
+          track_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -3229,8 +3231,9 @@ export type Database = {
           period_end?: string
           period_start?: string
           platform?: string
-          song_id?: string
+          song_id?: string | null
           streams?: number | null
+          track_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3239,6 +3242,13 @@ export type Database = {
             columns: ["song_id"]
             isOneToOne: false
             referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_earnings_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
             referencedColumns: ["id"]
           },
         ]
