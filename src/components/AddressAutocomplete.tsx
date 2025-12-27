@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { MapPin, Loader2 } from "lucide-react";
+import { MapPin, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "@/hooks/useDebounce";
+import { Button } from "@/components/ui/button";
 
 interface AddressAutocompleteProps {
   value: string;
@@ -36,14 +37,22 @@ export function AddressAutocomplete({
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [inputValue, setInputValue] = useState(value);
+  const [hasAutoSearched, setHasAutoSearched] = useState(false);
+  const lastContextRef = useRef<string>("");
 
   const debouncedInput = useDebounce(inputValue, 300);
   const debouncedVenue = useDebounce(venue, 500);
   const debouncedCity = useDebounce(city, 500);
   const debouncedCountry = useDebounce(country, 500);
 
-  const searchAddresses = useCallback(async (query: string) => {
-    if (!query && !debouncedVenue && !debouncedCity) {
+  const searchAddresses = useCallback(async (query: string, isContextSearch = false) => {
+    // For context search, we need venue + city at minimum
+    if (isContextSearch && (!debouncedVenue || !debouncedCity)) {
+      return;
+    }
+    
+    // For manual search, we need at least 2 characters or context
+    if (!isContextSearch && !query && !debouncedVenue && !debouncedCity) {
       setPredictions([]);
       return;
     }
@@ -62,8 +71,8 @@ export function AddressAutocomplete({
       if (error) throw error;
 
       setPredictions(data.predictions || []);
-      if (data.predictions?.length > 0) {
-        setOpen(true);
+      if (data.predictions?.length > 0 && isContextSearch) {
+        // Don't auto-open, just show the suggestion button
       }
     } catch (error) {
       console.error('Error fetching address suggestions:', error);
@@ -72,6 +81,18 @@ export function AddressAutocomplete({
       setIsLoading(false);
     }
   }, [debouncedVenue, debouncedCity, debouncedCountry]);
+
+  // Auto-search when venue + city + country are filled and value is empty
+  useEffect(() => {
+    const contextKey = `${debouncedVenue}|${debouncedCity}|${debouncedCountry}`;
+    
+    // Only auto-search if context changed and we have venue + city
+    if (contextKey !== lastContextRef.current && debouncedVenue && debouncedCity && !value) {
+      lastContextRef.current = contextKey;
+      setHasAutoSearched(false);
+      searchAddresses('', true);
+    }
+  }, [debouncedVenue, debouncedCity, debouncedCountry, value, searchAddresses]);
 
   // Search when input changes
   useEffect(() => {
@@ -112,53 +133,93 @@ export function AddressAutocomplete({
     }, 200);
   };
 
+  // Show suggestion button when we have predictions from context but no value yet
+  const showSuggestionButton = predictions.length > 0 && !value && venue && city;
+
+  const handleAutoFill = () => {
+    if (predictions.length > 0) {
+      handleSelect(predictions[0]);
+    }
+  };
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <div className="relative">
-          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={inputValue}
-            onChange={handleInputChange}
-            onFocus={() => predictions.length > 0 && setOpen(true)}
-            onBlur={handleInputBlur}
-            placeholder={placeholder}
-            className={`pl-10 ${className}`}
-          />
-          {isLoading && (
-            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-          )}
-        </div>
-      </PopoverTrigger>
-      <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start">
-        <Command>
-          <CommandList>
-            {predictions.length === 0 && !isLoading && (
-              <CommandEmpty>
-                {inputValue.length >= 2 
-                  ? "No se encontraron direcciones" 
-                  : "Escribe para buscar direcciones..."}
-              </CommandEmpty>
+    <div className="space-y-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <div className="relative">
+            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={inputValue}
+              onChange={handleInputChange}
+              onFocus={() => predictions.length > 0 && setOpen(true)}
+              onBlur={handleInputBlur}
+              placeholder={placeholder}
+              className={`pl-10 ${showSuggestionButton ? 'pr-24' : ''} ${className}`}
+            />
+            {isLoading && (
+              <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
             )}
-            <CommandGroup>
-              {predictions.map((prediction) => (
-                <CommandItem
-                  key={prediction.placeId}
-                  value={prediction.description}
-                  onSelect={() => handleSelect(prediction)}
-                  className="cursor-pointer"
-                >
-                  <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <div className="flex flex-col">
-                    <span className="font-medium">{prediction.mainText}</span>
-                    <span className="text-xs text-muted-foreground">{prediction.secondaryText}</span>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+            {showSuggestionButton && !isLoading && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleAutoFill}
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 px-2 text-xs text-primary hover:text-primary"
+              >
+                <Sparkles className="h-3 w-3 mr-1" />
+                Sugerir
+              </Button>
+            )}
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start">
+          <Command>
+            <CommandList>
+              {predictions.length === 0 && !isLoading && (
+                <CommandEmpty>
+                  {inputValue.length >= 2 
+                    ? "No se encontraron direcciones" 
+                    : "Escribe para buscar direcciones..."}
+                </CommandEmpty>
+              )}
+              <CommandGroup>
+                {predictions.map((prediction) => (
+                  <CommandItem
+                    key={prediction.placeId}
+                    value={prediction.description}
+                    onSelect={() => handleSelect(prediction)}
+                    className="cursor-pointer"
+                  >
+                    <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">{prediction.mainText}</span>
+                      <span className="text-xs text-muted-foreground">{prediction.secondaryText}</span>
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      
+      {/* Show suggestion preview below input */}
+      {showSuggestionButton && predictions[0] && (
+        <div 
+          onClick={handleAutoFill}
+          className="flex items-center gap-2 p-2 rounded-md bg-primary/5 border border-primary/20 cursor-pointer hover:bg-primary/10 transition-colors"
+        >
+          <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-muted-foreground">Dirección sugerida:</p>
+            <p className="text-sm font-medium truncate">{predictions[0].description}</p>
+          </div>
+          <Button type="button" variant="secondary" size="sm" className="flex-shrink-0">
+            Usar
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
