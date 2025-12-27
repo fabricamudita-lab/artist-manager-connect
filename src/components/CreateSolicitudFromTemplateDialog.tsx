@@ -399,6 +399,48 @@ export function CreateSolicitudFromTemplateDialog({
       
       solicitudData.descripcion_libre = descripcionLibre;
 
+      // For booking requests, create the booking_offer first and link it
+      if (selectedTemplate === 'booking') {
+        // Map booking_status to phase
+        const statusToPhase: Record<string, string> = {
+          'interest': 'interes',
+          'offer': 'oferta',
+          'confirmed': 'confirmado'
+        };
+        const phase = statusToPhase[formData.booking_status || 'interest'] || 'interes';
+
+        // Create booking offer
+        const bookingOfferData = {
+          artist_id: formData.artist_id,
+          festival_ciclo: formData.festival_ciclo || null,
+          ciudad: formData.ciudad || null,
+          pais: formData.pais || null,
+          lugar: formData.lugar || null,
+          venue: formData.direccion || null,
+          capacidad: formData.capacidad ? parseInt(formData.capacidad) : null,
+          fecha: formData.fecha || null,
+          hora: formData.hora || null,
+          formato: formData.formato || null,
+          fee: formData.deal_type === 'flat_fee' && formData.fee ? parseFloat(formData.fee) : null,
+          condiciones: formData.condiciones || null,
+          info_comentarios: formData.comentarios || null,
+          estado: 'pendiente',
+          phase: phase,
+          created_by: profile?.user_id,
+        };
+
+        const { data: bookingOffer, error: bookingError } = await supabase
+          .from('booking_offers')
+          .insert([bookingOfferData])
+          .select('id')
+          .single();
+
+        if (bookingError) throw bookingError;
+
+        // Link booking offer to solicitud
+        (solicitudData as any).booking_id = bookingOffer.id;
+      }
+
       const { error } = await supabase
         .from('solicitudes')
         .insert([solicitudData]);
