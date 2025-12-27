@@ -15,6 +15,13 @@ export const TEAM_CATEGORIES: TeamCategoryOption[] = [
   { value: 'comunicacion', label: 'Comunicación', icon: Mail },
   { value: 'legal', label: 'Legal', icon: Shield },
   { value: 'produccion', label: 'Producción', icon: Users },
+  { value: 'tourmanager', label: 'Tour Manager', icon: UserCheck },
+  { value: 'compositor', label: 'Compositor', icon: Users },
+  { value: 'letrista', label: 'Letrista', icon: Users },
+  { value: 'productor', label: 'Productor', icon: Users },
+  { value: 'interprete', label: 'Intérprete', icon: Users },
+  { value: 'sello', label: 'Sello', icon: Building },
+  { value: 'editorial', label: 'Editorial', icon: Building },
   { value: 'otro', label: 'Otros', icon: Tag },
 ];
 
