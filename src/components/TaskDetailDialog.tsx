@@ -252,11 +252,12 @@ Generado desde el sistema de gestión de proyectos
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">
                     {isEditingTask ? (
-                      <Input
+                      <Textarea
                         value={editedTitle}
                         onChange={(e) => setEditedTitle(e.target.value)}
-                        className="text-lg font-semibold"
+                        className="text-lg font-semibold min-h-[60px] resize-none"
                         placeholder="Título de la tarea"
+                        rows={2}
                       />
                     ) : (
                       task.title
