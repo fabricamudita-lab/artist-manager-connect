@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -102,6 +102,8 @@ export default function Solicitudes() {
   const { fireCelebration } = useConfetti();
   const { profile } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const artistIdFromUrl = searchParams.get('artistId');
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [filteredSolicitudes, setFilteredSolicitudes] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,6 +111,7 @@ export default function Solicitudes() {
   const [profileSearchTerm, setProfileSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [filterArtist, setFilterArtist] = useState(artistIdFromUrl || 'all');
   const [viewMode, setViewMode] = useState<'list' | 'kanban' | 'stats'>('list');
   
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -150,9 +153,16 @@ export default function Solicitudes() {
     fetchSolicitudes();
     updateExistingSolicitudesNames(); // Actualizar nombres automáticamente
   }, []);
+  // Update filter when URL changes
+  useEffect(() => {
+    if (artistIdFromUrl) {
+      setFilterArtist(artistIdFromUrl);
+    }
+  }, [artistIdFromUrl]);
+
   useEffect(() => {
     filterSolicitudes();
-  }, [solicitudes, searchTerm, profileSearchTerm, filterStatus, filterType]);
+  }, [solicitudes, searchTerm, profileSearchTerm, filterStatus, filterType, filterArtist]);
 
   // Sugerencias de perfiles con debounce
   useEffect(() => {
@@ -473,6 +483,10 @@ export default function Solicitudes() {
       filtered = filtered.filter(s => s.tipo === filterType);
     }
 
+    // Filter by artist
+    if (filterArtist !== 'all') {
+      filtered = filtered.filter(s => s.artist_id === filterArtist);
+    }
 
     if (searchTerm) {
       filtered = filtered.filter(s =>

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Plus, Disc3, Music, Album } from 'lucide-react';
@@ -32,8 +32,23 @@ const STATUS_LABELS = {
 
 export default function Releases() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const artistIdFromUrl = searchParams.get('artistId');
   const { data: releases, isLoading } = useReleases();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [artistFilter, setArtistFilter] = useState(artistIdFromUrl || 'all');
+
+  // Update filter when URL changes
+  useEffect(() => {
+    if (artistIdFromUrl) {
+      setArtistFilter(artistIdFromUrl);
+    }
+  }, [artistIdFromUrl]);
+
+  // Filter releases by artist
+  const filteredReleases = artistFilter === 'all' 
+    ? releases 
+    : releases?.filter(r => r.artist_id === artistFilter);
 
   return (
     <div className="space-y-6">
@@ -54,9 +69,9 @@ export default function Releases() {
             <Skeleton key={i} className="aspect-square rounded-lg" />
           ))}
         </div>
-      ) : releases && releases.length > 0 ? (
+      ) : filteredReleases && filteredReleases.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {releases.map((release) => {
+          {filteredReleases.map((release) => {
             const TypeIcon = TYPE_ICONS[release.type] || Disc3;
             return (
               <Card
