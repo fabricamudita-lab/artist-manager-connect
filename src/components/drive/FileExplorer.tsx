@@ -697,7 +697,7 @@ export function FileExplorer({
               {linkedBudget && (
                 <Card 
                   className="w-full max-w-md cursor-pointer hover:border-primary/50 hover:shadow-lg transition-all bg-gradient-to-br from-primary/5 to-primary/10"
-                  onClick={() => navigate(`/presupuestos?id=${linkedBudget.id}`)}
+                  onClick={() => navigate(`/budgets?id=${linkedBudget.id}`)}
                 >
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
@@ -737,7 +737,7 @@ export function FileExplorer({
               {linkedBudget && (
                 <Card 
                   className="cursor-pointer hover:border-primary/50 hover:shadow-lg transition-all bg-gradient-to-br from-primary/5 to-primary/10"
-                  onClick={() => navigate(`/presupuestos?id=${linkedBudget.id}`)}
+                  onClick={() => navigate(`/budgets?id=${linkedBudget.id}`)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
@@ -766,7 +766,7 @@ export function FileExplorer({
               {linkedBudget && (
                 <div 
                   className="flex items-center gap-4 p-3 hover:bg-primary/5 rounded-lg cursor-pointer border border-primary/20 bg-gradient-to-r from-primary/5 to-transparent"
-                  onClick={() => navigate(`/presupuestos?id=${linkedBudget.id}`)}
+                  onClick={() => navigate(`/budgets?id=${linkedBudget.id}`)}
                 >
                   <Calculator className="w-5 h-5 text-primary" />
                   <div className="flex-1 min-w-0">
