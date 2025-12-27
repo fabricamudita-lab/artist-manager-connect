@@ -784,6 +784,42 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   };
 
+  const deleteCategory = async (categoryId: string) => {
+    try {
+      // Check if category has items
+      const itemsInCategory = getCategoryItems(categoryId);
+      if (itemsInCategory.length > 0) {
+        toast({
+          title: "No se puede eliminar",
+          description: "La categoría tiene elementos. Muévelos primero a otra categoría.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('budget_categories')
+        .delete()
+        .eq('id', categoryId);
+
+      if (error) throw error;
+      
+      await fetchBudgetCategories();
+      
+      toast({
+        title: "¡Éxito!",
+        description: "Categoría eliminada correctamente"
+      });
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la categoría",
+        variant: "destructive"
+      });
+    }
+  };
+
   const addNewCategory = async () => {
     try {
       const { data, error } = await supabase
@@ -1744,19 +1780,29 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                      <X className="w-3 h-3" />
                                    </Button>
                                  </div>
-                               ) : (
-                                 <Button
-                                   onClick={() => {
-                                     setEditingCategory(category.id);
-                                     setNewCategoryName(category.name);
-                                   }}
-                                   size="sm"
-                                   variant="ghost"
-                                   className="h-6 w-6 p-0 hover:bg-gray-600"
-                                 >
-                                   <Pencil className="w-3 h-3" />
-                                 </Button>
-                               )}
+                                ) : (
+                                  <div className="flex gap-1">
+                                    <Button
+                                      onClick={() => {
+                                        setEditingCategory(category.id);
+                                        setNewCategoryName(category.name);
+                                      }}
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 w-6 p-0 hover:bg-gray-600"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </Button>
+                                    <Button
+                                      onClick={() => deleteCategory(category.id)}
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 w-6 p-0 hover:bg-red-600/50 text-red-400"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                )}
                              </div>
                            </div>
                          ))}
