@@ -79,6 +79,21 @@ export function ArtistFormatsDialog({
   const selectedArtistIds = useMemo(() => (artistId ? [artistId] : []), [artistId]);
   const { filteredMembers, groupedByCategory, loading: loadingTeam } = useTeamMembersByArtist(selectedArtistIds);
 
+  // Fetch artist profile data
+  const { data: artistProfile } = useQuery({
+    queryKey: ['artist-profile', artistId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('artists')
+        .select('id, name, profile_id')
+        .eq('id', artistId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: open && !!artistId,
+  });
+
   // Fetch existing formats
   const { data: existingFormats, isLoading } = useQuery({
     queryKey: ['booking-products', artistId],
@@ -501,13 +516,50 @@ export function ArtistFormatsDialog({
                             <div className="flex items-center justify-center py-4">
                               <Loader2 className="h-4 w-4 animate-spin" />
                             </div>
-                          ) : groupedByCategory.length === 0 ? (
-                            <p className="text-sm text-muted-foreground py-2">
-                              No hay miembros del equipo configurados. Añádelos en la pestaña "Equipo".
-                            </p>
                           ) : (
                             <ScrollArea className="h-48">
                               <div className="space-y-3">
+                                {/* Artist Profile - Highlighted at top */}
+                                {artistProfile && (
+                                  <div>
+                                    <p className="text-xs font-medium text-primary mb-1">
+                                      Artista Principal
+                                    </p>
+                                    <div className="space-y-1">
+                                      {(() => {
+                                        const isSelected = format.crewMembers.some(
+                                          cm => cm.memberId === artistProfile.id
+                                        );
+                                        return (
+                                          <div
+                                            className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer bg-primary/10 border border-primary/20"
+                                            onClick={() => {
+                                              if (isSelected) {
+                                                handleRemoveCrewMember(index, artistProfile.id);
+                                              } else {
+                                                handleAddCrewMember(index, {
+                                                  id: artistProfile.id,
+                                                  name: artistProfile.name,
+                                                  type: 'workspace',
+                                                  category: undefined,
+                                                  artistIds: [artistProfile.id],
+                                                });
+                                              }
+                                            }}
+                                          >
+                                            <Checkbox checked={isSelected} />
+                                            <span className="text-sm font-medium">{artistProfile.name}</span>
+                                            <Badge className="text-xs bg-primary/20 text-primary">
+                                              Artista
+                                            </Badge>
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Team categories */}
                                 {groupedByCategory.map((category) => (
                                   <div key={category.value}>
                                     <p className="text-xs font-medium text-muted-foreground mb-1">
