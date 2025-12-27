@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { format, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +21,10 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, Plus, X } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Loader2, Save, Plus, X, CalendarIcon, Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useBookingFolderAutomation } from '@/hooks/useBookingFolderAutomation';
@@ -265,19 +270,43 @@ export function EditBookingDialog({
             <div className="grid grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label>Fecha</Label>
-                <Input
-                  type="date"
-                  value={formData.fecha || ''}
-                  onChange={(e) => updateField('fecha', e.target.value)}
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.fecha && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.fecha 
+                        ? format(new Date(formData.fecha), "PPP", { locale: es })
+                        : "Seleccionar fecha"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.fecha ? new Date(formData.fecha) : undefined}
+                      onSelect={(date) => updateField('fecha', date ? format(date, 'yyyy-MM-dd') : null)}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-2">
                 <Label>Hora</Label>
-                <Input
-                  type="time"
-                  value={formData.hora || ''}
-                  onChange={(e) => updateField('hora', e.target.value)}
-                />
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="time"
+                    value={formData.hora || ''}
+                    onChange={(e) => updateField('hora', e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Duración</Label>
@@ -646,11 +675,63 @@ export function EditBookingDialog({
               </div>
               <div className="space-y-2">
                 <Label>Inicio de Venta</Label>
-                <Input
-                  value={formData.inicio_venta || ''}
-                  onChange={(e) => updateField('inicio_venta', e.target.value)}
-                  placeholder="DD/MM/YYYY HH:MM"
-                />
+                <div className="flex gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "flex-1 justify-start text-left font-normal",
+                          !formData.inicio_venta && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.inicio_venta 
+                          ? format(new Date(formData.inicio_venta), "dd/MM/yyyy", { locale: es })
+                          : "Fecha"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.inicio_venta ? new Date(formData.inicio_venta) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            // Preserve time if exists, otherwise set to midnight
+                            const existingDate = formData.inicio_venta ? new Date(formData.inicio_venta) : new Date();
+                            date.setHours(existingDate.getHours(), existingDate.getMinutes());
+                            updateField('inicio_venta', date.toISOString());
+                          } else {
+                            updateField('inicio_venta', null);
+                          }
+                        }}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <div className="relative w-28">
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="time"
+                      value={formData.inicio_venta 
+                        ? format(new Date(formData.inicio_venta), "HH:mm") 
+                        : ''}
+                      onChange={(e) => {
+                        const time = e.target.value;
+                        if (time) {
+                          const [hours, minutes] = time.split(':').map(Number);
+                          const date = formData.inicio_venta 
+                            ? new Date(formData.inicio_venta) 
+                            : new Date();
+                          date.setHours(hours, minutes);
+                          updateField('inicio_venta', date.toISOString());
+                        }
+                      }}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
