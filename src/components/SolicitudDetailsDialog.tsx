@@ -69,9 +69,10 @@ interface SolicitudDetails {
   comentario_estado?: string | null;
   decision_por?: string | null;
   decision_fecha?: string | null;
-  profiles?: {
-    full_name: string;
-    email: string;
+  artists?: {
+    id: string;
+    name: string;
+    stage_name?: string;
   } | null;
   project_id?: string | null;
   project?: { id: string; name: string } | null;
@@ -117,7 +118,7 @@ const navigate = useNavigate();
         .from('solicitudes')
         .select(`
           *,
-          profiles:artist_id(full_name, email),
+          artists:artist_id(id, name, stage_name),
           project:project_id(id, name)
         `)
         .eq('id', solicitudId)
@@ -468,11 +469,11 @@ const updateSolicitudToPending = async (comment?: string) => {
                   <p className="text-muted-foreground capitalize mb-2 mt-1">
                     Solicitud de {solicitud.tipo.replace('_', ' ')}
                   </p>
-                  {solicitud.profiles?.full_name && (
+                  {solicitud.artists?.name && (
                     <div className="flex items-center gap-2 text-sm">
                       <User className="w-4 h-4 text-primary" />
                       <span className="text-foreground font-medium">
-                        Artista: {solicitud.profiles.full_name}
+                        Artista: {solicitud.artists.stage_name || solicitud.artists.name}
                       </span>
                     </div>
                   )}
