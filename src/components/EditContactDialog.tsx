@@ -232,8 +232,8 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
 
       if (error) throw error;
 
-      // Update artist assignments if it's a team member and not management team
-      if (isTeamMember && !isManagementTeam) {
+      // Update artist assignments if it's a team member
+      if (isTeamMember) {
         // Remove existing assignments
         await supabase
           .from('contact_artist_assignments')
@@ -251,12 +251,6 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
             .from('contact_artist_assignments')
             .insert(assignments);
         }
-      } else if (isTeamMember && isManagementTeam) {
-        // If it's management team, remove all artist assignments
-        await supabase
-          .from('contact_artist_assignments')
-          .delete()
-          .eq('contact_id', contact.id);
       }
 
       toast({
