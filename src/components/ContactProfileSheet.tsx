@@ -179,17 +179,7 @@ export function ContactProfileSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col">
         <SheetHeader className="p-6 pb-0">
-          <div className="flex items-start justify-between">
-            <SheetTitle className="sr-only">Perfil de {contact.name}</SheetTitle>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => onOpenChange(false)}
-              className="absolute right-4 top-4"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
+          <SheetTitle className="sr-only">Perfil de {contact.name}</SheetTitle>
         </SheetHeader>
         
         <ScrollArea className="flex-1 px-6">
