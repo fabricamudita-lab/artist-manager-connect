@@ -20,8 +20,14 @@ import {
   CreditCard,
   Shirt,
   AlertTriangle,
-  Clock
+  Clock,
+  Globe,
+  Link,
+  Calendar,
+  Home
 } from "lucide-react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ContactProfileSheetProps {
@@ -52,6 +58,11 @@ interface ContactData {
   allergies?: string | null;
   special_needs?: string | null;
   preferred_hours?: string | null;
+  contract_url?: string | null;
+  is_public?: boolean | null;
+  public_slug?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 interface ProjectRole {
@@ -243,76 +254,103 @@ export function ContactProfileSheet({
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-muted-foreground">Información de contacto</h3>
               
-              <InfoCard 
-                icon={Mail} 
-                label="Email" 
-                value={contact.email || <EmptyValue />} 
-              />
+              {contact.email && (
+                <InfoCard 
+                  icon={Mail} 
+                  label="Email" 
+                  value={contact.email} 
+                />
+              )}
 
-              <InfoCard 
-                icon={Phone} 
-                label="Teléfono" 
-                value={contact.phone || <EmptyValue />} 
-              />
+              {contact.phone && (
+                <InfoCard 
+                  icon={Phone} 
+                  label="Teléfono" 
+                  value={contact.phone} 
+                />
+              )}
 
-              <InfoCard 
-                icon={Building} 
-                label="Empresa" 
-                value={contact.company || <EmptyValue />} 
-              />
+              {contact.company && (
+                <InfoCard 
+                  icon={Building} 
+                  label="Empresa" 
+                  value={contact.company} 
+                />
+              )}
 
-              <InfoCard 
-                icon={MapPin} 
-                label="Ubicación" 
-                value={(contact.city || contact.country || contact.address) 
-                  ? [contact.address, contact.city, contact.country].filter(Boolean).join(', ')
-                  : <EmptyValue />
-                } 
-              />
+              {contact.address && (
+                <InfoCard 
+                  icon={Home} 
+                  label="Dirección" 
+                  value={contact.address} 
+                />
+              )}
+
+              {contact.city && (
+                <InfoCard 
+                  icon={MapPin} 
+                  label="Ciudad" 
+                  value={contact.city} 
+                />
+              )}
+
+              {contact.country && (
+                <InfoCard 
+                  icon={Globe} 
+                  label="País" 
+                  value={contact.country} 
+                />
+              )}
+
+              {!contact.email && !contact.phone && !contact.company && !contact.address && !contact.city && !contact.country && (
+                <p className="text-sm text-muted-foreground italic">Sin información de contacto</p>
+              )}
             </div>
 
             {/* Información personal */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-muted-foreground">Información personal</h3>
-              
-              {contact.legal_name && (
-                <InfoCard 
-                  icon={User} 
-                  label="Nombre legal" 
-                  value={contact.legal_name} 
-                />
-              )}
+            {(contact.legal_name || contact.category || (contact.tags && contact.tags.length > 0) || contact.preferred_hours) && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Información personal</h3>
+                
+                {contact.legal_name && (
+                  <InfoCard 
+                    icon={User} 
+                    label="Nombre legal" 
+                    value={contact.legal_name} 
+                  />
+                )}
 
-              {contact.category && (
-                <InfoCard 
-                  icon={Briefcase} 
-                  label="Categoría" 
-                  value={<Badge variant="outline">{contact.category}</Badge>} 
-                />
-              )}
+                {contact.category && (
+                  <InfoCard 
+                    icon={Briefcase} 
+                    label="Categoría" 
+                    value={<Badge variant="outline">{contact.category}</Badge>} 
+                  />
+                )}
 
-              {contact.tags && contact.tags.length > 0 && (
-                <InfoCard 
-                  icon={Tag} 
-                  label="Etiquetas" 
-                  value={
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {contact.tags.map((tag, idx) => (
-                        <Badge key={idx} variant="secondary" className="text-xs">{tag}</Badge>
-                      ))}
-                    </div>
-                  } 
-                />
-              )}
+                {contact.tags && contact.tags.length > 0 && (
+                  <InfoCard 
+                    icon={Tag} 
+                    label="Etiquetas" 
+                    value={
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {contact.tags.map((tag, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-xs">{tag}</Badge>
+                        ))}
+                      </div>
+                    } 
+                  />
+                )}
 
-              {contact.preferred_hours && (
-                <InfoCard 
-                  icon={Clock} 
-                  label="Horario preferido" 
-                  value={contact.preferred_hours} 
-                />
-              )}
-            </div>
+                {contact.preferred_hours && (
+                  <InfoCard 
+                    icon={Clock} 
+                    label="Horario preferido" 
+                    value={contact.preferred_hours} 
+                  />
+                )}
+              </div>
+            )}
 
             {/* Información adicional */}
             {(contact.clothing_size || contact.shoe_size || contact.allergies || contact.special_needs) && (
@@ -376,6 +414,50 @@ export function ContactProfileSheet({
               </div>
             )}
 
+            {/* Contrato */}
+            {contact.contract_url && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Contrato</h3>
+                <InfoCard 
+                  icon={Link} 
+                  label="URL del contrato" 
+                  value={
+                    <a 
+                      href={contact.contract_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline break-all"
+                    >
+                      {contact.contract_url}
+                    </a>
+                  } 
+                />
+              </div>
+            )}
+
+            {/* Visibilidad */}
+            {(contact.is_public || contact.public_slug) && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Visibilidad</h3>
+                
+                {contact.is_public !== null && (
+                  <InfoCard 
+                    icon={Globe} 
+                    label="Contacto público" 
+                    value={contact.is_public ? "Sí" : "No"} 
+                  />
+                )}
+
+                {contact.public_slug && (
+                  <InfoCard 
+                    icon={Link} 
+                    label="Slug público" 
+                    value={contact.public_slug} 
+                  />
+                )}
+              </div>
+            )}
+
             {/* Notas */}
             {contact.notes && (
               <div className="space-y-3">
@@ -385,6 +467,29 @@ export function ContactProfileSheet({
                   label="Notas" 
                   value={<p className="whitespace-pre-wrap">{contact.notes}</p>} 
                 />
+              </div>
+            )}
+
+            {/* Fechas */}
+            {(contact.created_at || contact.updated_at) && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Registro</h3>
+                
+                {contact.created_at && (
+                  <InfoCard 
+                    icon={Calendar} 
+                    label="Creado" 
+                    value={format(new Date(contact.created_at), "d 'de' MMMM, yyyy", { locale: es })} 
+                  />
+                )}
+
+                {contact.updated_at && (
+                  <InfoCard 
+                    icon={Calendar} 
+                    label="Última actualización" 
+                    value={format(new Date(contact.updated_at), "d 'de' MMMM, yyyy", { locale: es })} 
+                  />
+                )}
               </div>
             )}
           </div>
