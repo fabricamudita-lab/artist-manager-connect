@@ -14,7 +14,7 @@ import { AddTeamContactDialog } from '@/components/AddTeamContactDialog';
 import { TeamMemberActivityDialog } from '@/components/TeamMemberActivityDialog';
 import { CreateTeamDialog } from '@/components/CreateTeamDialog';
 import { EditContactDialog } from '@/components/EditContactDialog';
-import { ContactQuickViewDialog } from '@/components/ContactQuickViewDialog';
+import { ContactProfileSheet } from '@/components/ContactProfileSheet';
 import { TEAM_CATEGORIES } from '@/lib/teamCategories';
 
 type TeamCategory = 'banda' | 'artistico' | 'tecnico' | 'management' | 'comunicacion' | 'legal' | 'produccion' | 'otro';
@@ -606,7 +606,7 @@ export default function Teams() {
         member={activityMember}
       />
 
-      <ContactQuickViewDialog
+      <ContactProfileSheet
         open={!!selectedContactId}
         onOpenChange={(open) => !open && setSelectedContactId(null)}
         contactId={selectedContactId || ''}
