@@ -4,6 +4,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useTeamMembersByArtist, TeamMemberWithCategory } from '@/hooks/useTeamMembersByArtist';
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -62,6 +79,89 @@ const PRESET_FORMATS = [
   { name: 'Full Band + Luces', crewSize: 8 },
   { name: 'DJ Set', crewSize: 1 },
 ];
+
+// Sortable Crew Member Component
+interface SortableCrewMemberProps {
+  crew: CrewMember;
+  formatIndex: number;
+  onUpdateFeeNational: (formatIndex: number, memberId: string, fee: number | undefined) => void;
+  onUpdateFeeInternational: (formatIndex: number, memberId: string, fee: number | undefined) => void;
+  onRemove: (formatIndex: number, memberId: string) => void;
+}
+
+function SortableCrewMember({ 
+  crew, 
+  formatIndex, 
+  onUpdateFeeNational, 
+  onUpdateFeeInternational, 
+  onRemove 
+}: SortableCrewMemberProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: crew.memberId });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2 border border-border/50"
+    >
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+        <span className="text-sm font-medium min-w-[100px]">{crew.name}</span>
+      </div>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground whitespace-nowrap">Nacional €</Label>
+          <Input
+            type="number"
+            value={crew.feeNational || ''}
+            onChange={(e) => onUpdateFeeNational(formatIndex, crew.memberId, parseFloat(e.target.value) || undefined)}
+            placeholder="0"
+            className="w-20 h-8 text-sm"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground whitespace-nowrap">Internacional €</Label>
+          <Input
+            type="number"
+            value={crew.feeInternational || ''}
+            onChange={(e) => onUpdateFeeInternational(formatIndex, crew.memberId, parseFloat(e.target.value) || undefined)}
+            placeholder="0"
+            className="w-20 h-8 text-sm"
+          />
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-destructive hover:text-destructive"
+          onClick={() => onRemove(formatIndex, crew.memberId)}
+        >
+          <X className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function ArtistFormatsDialog({ 
   open, 
@@ -313,6 +413,25 @@ export function ArtistFormatsDialog({
     });
   };
 
+  const handleReorderCrewMembers = (formatIndex: number, activeId: string, overId: string) => {
+    const format = formats[formatIndex];
+    const oldIndex = format.crewMembers.findIndex(cm => cm.memberId === activeId);
+    const newIndex = format.crewMembers.findIndex(cm => cm.memberId === overId);
+    
+    if (oldIndex !== -1 && newIndex !== -1) {
+      handleUpdateFormat(formatIndex, {
+        crewMembers: arrayMove(format.crewMembers, oldIndex, newIndex),
+      });
+    }
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   const handleRiderUpload = async (index: number, file: File) => {
     if (!user || !artistId) return;
 
@@ -487,49 +606,36 @@ export function ArtistFormatsDialog({
                         Equipo ({format.crewMembers.length} miembros)
                       </Label>
                       
-                      {/* Selected Crew Members */}
+                      {/* Selected Crew Members with Drag & Drop */}
                       {format.crewMembers.length > 0 && (
-                        <div className="space-y-2 mb-2">
-                          {format.crewMembers.map((cm) => (
-                            <div
-                              key={cm.memberId}
-                              className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2 border border-border/50"
-                            >
-                              <span className="text-sm font-medium min-w-[120px]">{cm.name}</span>
-                              <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2">
-                                  <Label className="text-xs text-muted-foreground whitespace-nowrap">Nacional €</Label>
-                                  <Input
-                                    type="number"
-                                    value={cm.feeNational || ''}
-                                    onChange={(e) => handleUpdateCrewFeeNational(index, cm.memberId, parseFloat(e.target.value) || undefined)}
-                                    placeholder="0"
-                                    className="w-20 h-8 text-sm"
-                                  />
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Label className="text-xs text-muted-foreground whitespace-nowrap">Internacional €</Label>
-                                  <Input
-                                    type="number"
-                                    value={cm.feeInternational || ''}
-                                    onChange={(e) => handleUpdateCrewFeeInternational(index, cm.memberId, parseFloat(e.target.value) || undefined)}
-                                    placeholder="0"
-                                    className="w-20 h-8 text-sm"
-                                  />
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
-                                  onClick={() => handleRemoveCrewMember(index, cm.memberId)}
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              </div>
+                        <DndContext
+                          sensors={sensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={(event: DragEndEvent) => {
+                            const { active, over } = event;
+                            if (over && active.id !== over.id) {
+                              handleReorderCrewMembers(index, active.id as string, over.id as string);
+                            }
+                          }}
+                        >
+                          <SortableContext
+                            items={format.crewMembers.map(cm => cm.memberId)}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <div className="space-y-2 mb-2">
+                              {format.crewMembers.map((cm) => (
+                                <SortableCrewMember
+                                  key={cm.memberId}
+                                  crew={cm}
+                                  formatIndex={index}
+                                  onUpdateFeeNational={handleUpdateCrewFeeNational}
+                                  onUpdateFeeInternational={handleUpdateCrewFeeInternational}
+                                  onRemove={handleRemoveCrewMember}
+                                />
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          </SortableContext>
+                        </DndContext>
                       )}
                       
                       {/* Add Crew Button */}
