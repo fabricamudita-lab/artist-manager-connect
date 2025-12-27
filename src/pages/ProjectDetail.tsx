@@ -694,20 +694,29 @@ export default function ProjectDetail() {
 
     const loadLinked = async () => {
       try {
-        const [bRes, cRes, dRes, sRes] = await Promise.all([
+        const [bRes, cRes, dRes, sRes, tRes] = await Promise.all([
           supabase.from('budgets').select('id, name, event_date, show_status, type, city, country, venue, budget_status, internal_notes, created_at, artist_id, event_time, fee, profiles:artist_id(full_name)').eq('project_id', id).order('created_at', { ascending: false }),
           supabase.from('contracts').select('id, title, status, file_path').eq('project_id', id).order('created_at', { ascending: false }),
           supabase.from('documents').select('id, title, file_url, category').eq('project_id', id).order('created_at', { ascending: false }),
           supabase.from('solicitudes').select('id, nombre_solicitante, estado, fecha_creacion').eq('project_id', id).order('fecha_creacion', { ascending: false }),
+          supabase.from('project_team').select('id, role, profile_id, contact_id, profiles:profile_id(full_name), contacts:contact_id(name)').eq('project_id', id),
         ]);
         if (bRes.error) throw bRes.error;
         if (cRes.error) throw cRes.error;
         if (dRes.error) throw dRes.error;
         if (sRes.error) throw sRes.error;
+        if (tRes.error) throw tRes.error;
         setBudgets(bRes.data || []);
         setContracts(cRes.data || []);
         setDocuments(dRes.data || []);
         setSolicitudes(sRes.data || []);
+        // Map team members from profiles or contacts
+        const teamData = (tRes.data || []).map((t: any) => ({
+          id: t.id,
+          full_name: t.profiles?.full_name || t.contacts?.name || 'Sin nombre',
+          role: t.role
+        }));
+        setTeam(teamData);
       } catch (e) {
         console.error('Error linked', e);
       }
