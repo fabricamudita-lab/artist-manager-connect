@@ -249,52 +249,54 @@ Generado desde el sistema de gestión de proyectos
             {/* Task Basic Info */}
             <Card>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">
-                    {isEditingTask ? (
-                      <Textarea
-                        value={editedTitle}
-                        onChange={(e) => setEditedTitle(e.target.value)}
-                        className="text-lg font-semibold min-h-[60px] resize-none"
-                        placeholder="Título de la tarea"
-                        rows={2}
-                      />
-                    ) : (
-                      task.title
-                    )}
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    {isEditingTask ? (
-                      <>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <CardTitle className="text-lg flex-1">
+                      {isEditingTask ? (
+                        <Textarea
+                          value={editedTitle}
+                          onChange={(e) => setEditedTitle(e.target.value)}
+                          className="text-lg font-semibold min-h-[80px] resize-none w-full"
+                          placeholder="Título de la tarea"
+                          rows={3}
+                        />
+                      ) : (
+                        task.title
+                      )}
+                    </CardTitle>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isEditingTask ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={cancelTaskEdit}
+                            className="flex items-center gap-2"
+                          >
+                            <X className="w-4 h-4" />
+                            Cancelar
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={saveTaskChanges}
+                            className="flex items-center gap-2"
+                          >
+                            <Save className="w-4 h-4" />
+                            Guardar
+                          </Button>
+                        </>
+                      ) : (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={cancelTaskEdit}
+                          onClick={() => setIsEditingTask(true)}
                           className="flex items-center gap-2"
                         >
-                          <X className="w-4 h-4" />
-                          Cancelar
+                          <Edit className="w-4 h-4" />
+                          Editar
                         </Button>
-                        <Button
-                          size="sm"
-                          onClick={saveTaskChanges}
-                          className="flex items-center gap-2"
-                        >
-                          <Save className="w-4 h-4" />
-                          Guardar
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsEditingTask(true)}
-                        className="flex items-center gap-2"
-                      >
-                        <Edit className="w-4 h-4" />
-                        Editar
-                      </Button>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardHeader>
