@@ -198,7 +198,9 @@ export async function can(
           const workspaceRole = userScopes.workspaces.find(w => w.workspace_id === parentWorkspaceId);
           if (workspaceRole) {
             const allowedActions = permissions.roles.WORKSPACE[workspaceRole.role]?.allow || [];
-            if (allowedActions.includes('SEE_ALL') && allowedActions.includes(action)) return true;
+            // SEE_ALL acts as a wildcard for resources within the workspace
+            if (allowedActions.includes('SEE_ALL')) return true;
+            if (allowedActions.includes(action)) return true;
           }
         }
       }
@@ -219,7 +221,9 @@ export async function can(
         const workspaceRole = userScopes.workspaces.find(w => w.workspace_id === parentWorkspaceId);
         if (workspaceRole) {
           const allowedActions = permissions.roles.WORKSPACE[workspaceRole.role]?.allow || [];
-          if (allowedActions.includes('SEE_ALL') && allowedActions.includes(action)) return true;
+          // SEE_ALL acts as a wildcard for resources within the workspace
+          if (allowedActions.includes('SEE_ALL')) return true;
+          if (allowedActions.includes(action)) return true;
         }
       }
       break;
@@ -230,6 +234,8 @@ export async function can(
       const workspaceRole = userScopes.workspaces.find(w => w.workspace_id === resourceRef.id);
       if (workspaceRole && (workspaceRole.role === 'OWNER' || workspaceRole.role === 'TEAM_MANAGER')) {
         const allowedActions = permissions.roles.WORKSPACE[workspaceRole.role]?.allow || [];
+        // SEE_ALL acts as a wildcard for workspace-wide capabilities
+        if (allowedActions.includes('SEE_ALL')) return true;
         if (allowedActions.includes(action)) return true;
       }
       break;
