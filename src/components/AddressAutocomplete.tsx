@@ -118,8 +118,12 @@ export function AddressAutocomplete({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
-    if (!newValue) {
-      onChange("");
+    // Keep this input controlled by propagating changes up immediately
+    onChange(newValue);
+
+    // Show dropdown when user starts typing
+    if (newValue.length >= 2) {
+      setOpen(true);
     }
   };
 
