@@ -179,7 +179,7 @@ export function ArtistFormatsDialog({
   
   // Fetch team members for this artist
   const selectedArtistIds = useMemo(() => (artistId ? [artistId] : []), [artistId]);
-  const { filteredMembers, groupedByCategory, loading: loadingTeam } = useTeamMembersByArtist(selectedArtistIds);
+  const { allTeamMembers, filteredMembers, groupedByCategory, loading: loadingTeam } = useTeamMembersByArtist(selectedArtistIds);
 
   // Fetch artist profile data
   const { data: artistProfile } = useQuery({
@@ -238,8 +238,8 @@ export function ArtistFormatsDialog({
           if (!crewByProduct.has(c.booking_product_id)) {
             crewByProduct.set(c.booking_product_id, []);
           }
-          // Find member name from team members
-          const member = filteredMembers.find(m => m.id === c.member_id);
+          // Find member name from ALL team members (not filtered)
+          const member = allTeamMembers.find(m => m.id === c.member_id);
           crewByProduct.get(c.booking_product_id)!.push({
             memberId: c.member_id,
             memberType: c.member_type,
@@ -263,7 +263,7 @@ export function ArtistFormatsDialog({
         hospitalityRequirements: f.hospitality_requirements || undefined,
       })));
     }
-  }, [existingFormats, existingCrew, filteredMembers]);
+  }, [existingFormats, existingCrew, allTeamMembers]);
 
   // Save mutation
   const saveMutation = useMutation({
