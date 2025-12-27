@@ -412,10 +412,12 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                       </RadioGroup>
                     </div>
 
-                    {/* Artist selector - only show when not management team */}
-                    {!isManagementTeam && (
-                      <div className="space-y-2">
-                        <Label>Artistas asignados</Label>
+                    {/* Artist selector - always show for team members */}
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-sm font-medium">Artistas</Label>
+                        <p className="text-xs text-muted-foreground mb-2">Puedes asignar este miembro a varios artistas</p>
+                      </div>
                         <Popover open={artistSelectOpen} onOpenChange={setArtistSelectOpen}>
                           <PopoverTrigger asChild>
                             <Button
@@ -482,7 +484,6 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                           </PopoverContent>
                         </Popover>
                       </div>
-                    )}
 
                     {/* Team Categories */}
                     <div className="space-y-2">
