@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Check, ChevronsUpDown, User, Users, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -16,17 +16,12 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-
-interface TeamMember {
-  id: string;
-  full_name: string;
-  email: string;
-}
+import { useTeamMembersByArtist } from '@/hooks/useTeamMembersByArtist';
 
 interface TeamMemberSelectorProps {
   selectedMembers: string[];
   onSelectionChange: (memberIds: string[]) => void;
+  artistId?: string; // Optional: filter by artist
   placeholder?: string;
   className?: string;
 }
@@ -34,36 +29,29 @@ interface TeamMemberSelectorProps {
 export function TeamMemberSelector({ 
   selectedMembers, 
   onSelectionChange, 
+  artistId,
   placeholder = "Seleccionar miembros del equipo...",
   className
 }: TeamMemberSelectorProps) {
   const [open, setOpen] = useState(false);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Use the hook to get team members filtered by artist
+  const { filteredMembers, loading } = useTeamMembersByArtist(
+    artistId ? [artistId] : []
+  );
 
-  useEffect(() => {
-    fetchTeamMembers();
-  }, []);
-
-  const fetchTeamMembers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .order('full_name', { ascending: true });
-      
-      if (error) throw error;
-      setTeamMembers(data || []);
-    } catch (error) {
-      console.error('Error fetching team members:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Transform to the format needed for display
+  const teamMembers = useMemo(() => {
+    return filteredMembers.map(member => ({
+      id: member.id,
+      full_name: member.name,
+      type: member.type,
+      category: member.category,
+    }));
+  }, [filteredMembers]);
 
   const handleSelect = (memberId: string) => {
     if (memberId === 'all') {
-      // Toggle all members
       const allMemberIds = teamMembers.map(m => m.id);
       if (selectedMembers.length === allMemberIds.length) {
         onSelectionChange([]);
@@ -71,7 +59,6 @@ export function TeamMemberSelector({
         onSelectionChange(allMemberIds);
       }
     } else {
-      // Toggle individual member
       if (selectedMembers.includes(memberId)) {
         onSelectionChange(selectedMembers.filter(id => id !== memberId));
       } else {
@@ -89,14 +76,25 @@ export function TeamMemberSelector({
       .filter(member => selectedMembers.includes(member.id))
       .map(member => member.full_name);
     
-    if (names.length === 0) return "Ningún miembro seleccionado";
+    if (names.length === 0) return placeholder;
     if (names.length === 1) return names[0];
-    if (names.length === teamMembers.length) return "Todo el equipo";
+    if (names.length === teamMembers.length && teamMembers.length > 0) return "Todo el equipo";
     return `${names.length} miembros seleccionados`;
   };
 
   const allMemberIds = teamMembers.map(m => m.id);
   const allSelected = selectedMembers.length === allMemberIds.length && allMemberIds.length > 0;
+
+  if (loading) {
+    return (
+      <div className={className}>
+        <Button variant="outline" className="w-full justify-between" disabled>
+          <span className="text-muted-foreground">Cargando equipo...</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className={className}>
@@ -115,7 +113,11 @@ export function TeamMemberSelector({
         <PopoverContent className="w-full p-0 bg-background border shadow-lg z-50" align="start">
           <Command>
             <CommandInput placeholder="Buscar miembros del equipo..." />
-            <CommandEmpty>No se encontraron miembros.</CommandEmpty>
+            <CommandEmpty>
+              {artistId 
+                ? "No hay miembros asignados a este artista." 
+                : "No se encontraron miembros."}
+            </CommandEmpty>
             <CommandList>
               <CommandGroup>
                 {teamMembers.length > 1 && (
@@ -150,7 +152,8 @@ export function TeamMemberSelector({
                     <div className="flex flex-col">
                       <span>{member.full_name}</span>
                       <span className="text-xs text-muted-foreground">
-                        {member.email}
+                        {member.type === 'workspace' ? 'Cuenta' : 'Contacto'}
+                        {member.category && ` · ${member.category}`}
                       </span>
                     </div>
                   </CommandItem>

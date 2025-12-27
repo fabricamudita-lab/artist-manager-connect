@@ -965,7 +965,8 @@ export function CreateSolicitudFromTemplateDialog({
                     <TeamMemberSelector
                       selectedMembers={formData.required_approvers || []}
                       onSelectionChange={(value) => setFormData({ ...formData, required_approvers: value })}
-                      placeholder="Selecciona los aprobadores..."
+                      artistId={formData.artist_id}
+                      placeholder={formData.artist_id ? "Selecciona los aprobadores del equipo..." : "Primero selecciona un artista"}
                     />
                     <p className="text-xs text-muted-foreground">
                       Si hay múltiples aprobadores, todos deben aprobar para que la solicitud se considere aprobada.
