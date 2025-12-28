@@ -730,6 +730,25 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       // Get the booking fee for percentage calculations
       const bookingFee = budgetAmount || 0;
 
+      // Category sort order: Artista=0, Músicos=1, Equipo técnico=2, Comisiones=99 (always last)
+      const getCategorySortOrder = (categoryName: string): number => {
+        const name = categoryName.toLowerCase();
+        if (name === 'artista') return 0;
+        if (name === 'músicos' || name === 'musicos') return 1;
+        if (name.includes('técn') || name.includes('tecn') || name.includes('crew')) return 2;
+        if (name.includes('comisi')) return 99;
+        return 50; // Default for other categories
+      };
+
+      const getCategoryIcon = (categoryName: string): string => {
+        const name = categoryName.toLowerCase();
+        if (name === 'artista') return 'Music';
+        if (name === 'músicos' || name === 'musicos') return 'Users';
+        if (name.includes('técn') || name.includes('tecn')) return 'Lightbulb';
+        if (name.includes('comisi')) return 'DollarSign';
+        return 'Users';
+      };
+
       // Helper to get or create category
       const getOrCreateCategory = async (categoryName: string) => {
         let category = budgetCategories.find(c => 
@@ -737,21 +756,20 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         );
         
         if (!category) {
-          // Create the category
+          // Create the category with proper sort order
           const { data: newCat, error: catError } = await supabase
             .from('budget_categories')
             .insert({
               name: categoryName,
-              icon_name: categoryName.toLowerCase().includes('comisi') ? 'DollarSign' : 
-                         categoryName.toLowerCase().includes('técn') ? 'Lightbulb' : 'Users',
+              icon_name: getCategoryIcon(categoryName),
               created_by: user?.id,
-              sort_order: budgetCategories.length
+              sort_order: getCategorySortOrder(categoryName)
             })
             .select()
             .single();
           
           if (!catError && newCat) {
-            setBudgetCategories(prev => [...prev, newCat]);
+            setBudgetCategories(prev => [...prev, newCat].sort((a, b) => a.sort_order - b.sort_order));
             return newCat.id;
           }
         }
@@ -773,7 +791,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           // Try to get the member name and determine category
           let memberName = crew.role_label || 'Miembro del equipo';
           let memberRole = '';
-          let memberCategory = 'Músicos / Crew'; // Default category
+          let memberCategory = 'Músicos'; // Default category for band members
           let contactId: string | null = null; // To link budget item to contact
           let isArtist = false;
 
@@ -848,7 +866,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                            memberRole.toLowerCase().includes('bajo') ||
                            memberRole.toLowerCase().includes('bateria') ||
                            memberRole.toLowerCase().includes('teclado')) {
-                  memberCategory = 'Músicos / Crew';
+                  memberCategory = 'Músicos';
                 }
               }
             }
