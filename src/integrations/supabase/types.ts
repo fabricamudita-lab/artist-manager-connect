@@ -963,8 +963,11 @@ export type Database = {
           fee_international: number | null
           fee_national: number | null
           id: string
+          is_percentage: boolean | null
           member_id: string
           member_type: string
+          percentage_international: number | null
+          percentage_national: number | null
           role_label: string | null
         }
         Insert: {
@@ -973,8 +976,11 @@ export type Database = {
           fee_international?: number | null
           fee_national?: number | null
           id?: string
+          is_percentage?: boolean | null
           member_id: string
           member_type: string
+          percentage_international?: number | null
+          percentage_national?: number | null
           role_label?: string | null
         }
         Update: {
@@ -983,8 +989,11 @@ export type Database = {
           fee_international?: number | null
           fee_national?: number | null
           id?: string
+          is_percentage?: boolean | null
           member_id?: string
           member_type?: string
+          percentage_international?: number | null
+          percentage_national?: number | null
           role_label?: string | null
         }
         Relationships: [
