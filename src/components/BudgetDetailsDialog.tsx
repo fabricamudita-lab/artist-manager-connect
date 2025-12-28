@@ -861,19 +861,30 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       // Create budget items from crew members
       const budgetItems = await Promise.all(
         sortedCrewData.map(async (crew) => {
-          // Try to get the member name and determine category
-          let memberName = crew.role_label || 'Miembro del equipo';
-          let memberRole = '';
+          // Concept (role) will be stored in 'name' field, member name comes from contact
+          let concept = crew.role_label || 'Miembro del equipo'; // This is the role/concept
           let memberCategory = 'Músicos'; // Default category for band members
           let contactId: string | null = null; // To link budget item to contact
           let isArtist = false;
 
           // Check if this is the artist themselves
           if (crew.member_id === artistId && artistInfo) {
-            // Use artist's legal_name or name (real name)
-            memberName = artistInfo.legal_name || artistInfo.name;
+            concept = 'Artista Principal'; // The concept/role for the artist
             memberCategory = 'Artista Principal';
             isArtist = true;
+            
+            // Try to find a contact for the artist to link
+            if (artistInfo.name) {
+              const { data: matchingContact } = await supabase
+                .from('contacts')
+                .select('id')
+                .or(`name.ilike.%${artistInfo.name}%,legal_name.ilike.%${artistInfo.legal_name || artistInfo.name}%`)
+                .maybeSingle();
+              
+              if (matchingContact) {
+                contactId = matchingContact.id;
+              }
+            }
           }
           
           // Only look up profiles/contacts if this is NOT the artist
@@ -887,8 +898,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 .maybeSingle();
               
               if (profile) {
-                // Use full_name (real name) first, then stage_name as fallback
-                memberName = profile.full_name || profile.stage_name || memberName;
+                // Use role_label as concept, keep it as is
                 // Check if this person has management role (manager/booker = commission)
                 const roles = profile.roles as string[] | null;
                 if (roles && (roles.includes('management') || roles.includes('manager') || roles.includes('booker'))) {
@@ -917,33 +927,36 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 .maybeSingle();
               
               if (contact) {
-                // Use legal_name or name (real name), NOT stage_name for budget items
-                memberName = contact.legal_name || contact.name || memberName;
-                memberRole = contact.role || '';
+                // Use contact's role as concept if role_label is generic
+                if (!crew.role_label || crew.role_label === 'Miembro del equipo') {
+                  concept = contact.role || concept;
+                }
                 contactId = contact.id; // Link to contact
                 
                 // Determine category based on contact category/role
+                const contactRole = contact.role?.toLowerCase() || '';
                 if (contact.category === 'tecnico' || 
-                    memberRole.toLowerCase().includes('técnico') ||
-                    memberRole.toLowerCase().includes('sonido') ||
-                    memberRole.toLowerCase().includes('luces') ||
-                    memberRole.toLowerCase().includes('backline')) {
+                    contactRole.includes('técnico') ||
+                    contactRole.includes('sonido') ||
+                    contactRole.includes('luces') ||
+                    contactRole.includes('backline')) {
                   memberCategory = 'Equipo técnico';
                 } else if (contact.category === 'management' ||
-                           memberRole.toLowerCase().includes('manager') ||
-                           memberRole.toLowerCase().includes('booker')) {
+                           contactRole.includes('manager') ||
+                           contactRole.includes('booker')) {
                   memberCategory = 'Comisiones';
                 } else if (contact.category === 'banda' ||
-                           memberRole.toLowerCase().includes('músico') ||
-                           memberRole.toLowerCase().includes('guitarra') ||
-                           memberRole.toLowerCase().includes('bajo') ||
-                           memberRole.toLowerCase().includes('bateria') ||
-                           memberRole.toLowerCase().includes('teclado')) {
+                           contactRole.includes('músico') ||
+                           contactRole.includes('guitarra') ||
+                           contactRole.includes('bajo') ||
+                           contactRole.includes('bateria') ||
+                           contactRole.includes('teclado')) {
                   memberCategory = 'Músicos';
                 }
               }
             }
           } // End of if (!isArtist)
+          
           // Also check: if is_percentage is true, it's likely a commission (manager/booker)
           if (crew.is_percentage) {
             memberCategory = 'Comisiones';
@@ -975,7 +988,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             budget_id: budget.id,
             category_id: targetCategoryId,
             category: memberCategory,
-            name: memberName,
+            name: concept, // Store the role/concept, not the member name
             quantity: 1,
             unit_price: unitPrice,
             iva_percentage: 0,
@@ -987,7 +1000,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             contact_id: contactId, // Link budget item to contact profile
             subcategory: crew.is_percentage 
               ? `${commissionPercentage}% del fee`
-              : (memberRole || undefined),
+              : undefined,
             observations: 'Cargado desde formato'
           };
         })
@@ -1395,7 +1408,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     const totals = calculateGrandTotals();
     
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Nombre,Categoría,Cantidad,Precio Unitario,IVA %,IRPF %,Total,Estado,Fecha Emisión,Enlace Factura\n";
+    csvContent += "Concepto,Categoría,Cantidad,Precio Unitario,IVA %,IRPF %,Total,Estado,Fecha Emisión,Enlace Factura\n";
     
     items.forEach(item => {
       const row = [
@@ -2448,7 +2461,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                           }}
                                         />
                                       </TableHead>
-                                      <TableHead className="font-bold text-black w-[200px]">Nombre</TableHead>
+                                      <TableHead className="font-bold text-black w-[200px]">Concepto</TableHead>
                                       <TableHead className="font-bold text-black w-[130px] text-center">Contacto</TableHead>
                                       <TableHead className="font-bold text-black w-[130px] text-center">Fecha Emisión</TableHead>
                                       <TableHead className="font-bold text-black w-[140px] text-right">Precio / Comisión</TableHead>
