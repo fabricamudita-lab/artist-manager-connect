@@ -6,6 +6,7 @@ export interface TeamMemberWithCategory {
   id: string;
   name: string;
   category?: string;
+  role?: string; // Role from contact/profile (e.g., "Bajo", "Técnico de sonido", "Manager")
   type: 'workspace' | 'contact';
   artistIds?: string[]; // Artists this contact is assigned to
   isManagementTeam?: boolean; // True if contact is part of management team
@@ -72,14 +73,21 @@ export function useTeamMembersByArtist(selectedArtistIds: string[] = []) {
             const userIds = memberships.map((m: any) => m.user_id);
             const { data: profiles } = await supabase
               .from('profiles')
-              .select('user_id, full_name, stage_name')
+              .select('user_id, full_name, stage_name, roles')
               .in('user_id', userIds);
 
             (profiles || []).forEach((p: any) => {
+              // Determine role from roles array
+              const roles = p.roles as string[] | null;
+              let roleLabel: string | undefined;
+              if (roles?.includes('management')) roleLabel = 'Manager';
+              else if (roles?.includes('artist')) roleLabel = 'Artista';
+
               members.push({
                 id: p.user_id,
                 name: p.stage_name || p.full_name || 'Sin nombre',
                 category: catMap.get(p.user_id),
+                role: roleLabel,
                 type: 'workspace',
                 artistIds: [], // Workspace members are not artist-specific
               });
@@ -90,7 +98,7 @@ export function useTeamMembersByArtist(selectedArtistIds: string[] = []) {
         // Team contacts (without accounts)
         const { data: contacts } = await supabase
           .from('contacts')
-          .select('id, name, stage_name, category, field_config')
+          .select('id, name, stage_name, category, role, field_config')
           .eq('created_by', user.id);
 
         const teamContacts = (contacts || []).filter((c: any) => {
@@ -123,6 +131,7 @@ export function useTeamMembersByArtist(selectedArtistIds: string[] = []) {
               id: c.id,
               name: c.stage_name || c.name,
               category: cats[0] || c.category,
+              role: c.role || undefined,
               type: 'contact',
               artistIds: assignmentMap.get(c.id) || [],
               isManagementTeam,

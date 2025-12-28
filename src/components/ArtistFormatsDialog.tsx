@@ -46,6 +46,7 @@ interface CrewMember {
   memberType: 'workspace' | 'contact' | 'artist';
   roleLabel?: string;
   name: string;
+  role?: string; // Role from contact/profile (e.g., "Bajo", "Técnico de sonido", "Manager")
   feeNational?: number;
   feeInternational?: number;
   isPercentage?: boolean;
@@ -56,6 +57,7 @@ interface CrewMember {
 type CrewSelectableMember = {
   id: string;
   name: string;
+  role?: string;
   type: CrewMember['memberType'];
 };
 
@@ -143,7 +145,12 @@ function SortableCrewMember({
         >
           <GripVertical className="w-4 h-4" />
         </button>
-        <span className="text-sm font-medium min-w-[100px]">{crew.name}</span>
+        <div className="flex flex-col min-w-[120px]">
+          <span className="text-sm font-medium">{crew.name}</span>
+          {crew.role && (
+            <span className="text-xs text-muted-foreground">{crew.role}</span>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-3 flex-wrap">
         {/* Toggle between % and € */}
@@ -321,6 +328,7 @@ export function ArtistFormatsDialog({
             memberType: looksLikeArtist ? 'artist' : c.member_type,
             roleLabel: c.role_label || undefined,
             name: looksLikeArtist ? (artistProfile?.name || 'Artista') : (member?.name || 'Desconocido'),
+            role: looksLikeArtist ? 'Artista principal' : (member?.role || undefined),
             feeNational: c.fee_national || undefined,
             feeInternational: c.fee_international || undefined,
             isPercentage: c.is_percentage || false,
@@ -457,6 +465,7 @@ export function ArtistFormatsDialog({
           memberId: member.id,
           memberType: member.type,
           name: member.name,
+          role: member.role,
         },
       ],
     });
@@ -794,6 +803,7 @@ export function ArtistFormatsDialog({
                                                   handleAddCrewMember(index, {
                                                     id: artistProfile.id,
                                                     name: artistProfile.name,
+                                                    role: 'Artista principal',
                                                     type: 'artist',
                                                   });
                                                 }
@@ -835,7 +845,12 @@ export function ArtistFormatsDialog({
                                             }}
                                           >
                                             <Checkbox checked={isSelected} />
-                                            <span className="text-sm">{member.name}</span>
+                                            <div className="flex flex-col flex-1">
+                                              <span className="text-sm">{member.name}</span>
+                                              {member.role && (
+                                                <span className="text-xs text-muted-foreground">{member.role}</span>
+                                              )}
+                                            </div>
                                             <Badge variant="secondary" className="text-xs">
                                               {member.type === 'workspace' ? 'Usuario' : 'Contacto'}
                                             </Badge>
