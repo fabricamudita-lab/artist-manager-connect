@@ -700,7 +700,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const loadCrewFromFormat = async (formatId: string, isInternational: boolean = false) => {
     try {
-      // Get crew members for this format
+      // Get crew members and artist info for this format
       const { data: crewData, error: crewError } = await supabase
         .from('booking_product_crew')
         .select('*')
@@ -716,6 +716,16 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         });
         return;
       }
+
+      // Get the format to know the artist_id
+      const { data: formatData } = await supabase
+        .from('booking_products')
+        .select('artist_id, artists(id, name, legal_name)')
+        .eq('id', formatId)
+        .single();
+
+      const artistId = formatData?.artist_id;
+      const artistInfo = formatData?.artists as { id: string; name: string; legal_name: string | null } | null;
 
       // Get the booking fee for percentage calculations
       const bookingFee = budgetAmount || 0;
@@ -748,79 +758,101 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         return category?.id || budgetCategories[0]?.id;
       };
 
+      // Sort crew data to put the artist first
+      const sortedCrewData = [...crewData].sort((a, b) => {
+        const aIsArtist = a.member_id === artistId;
+        const bIsArtist = b.member_id === artistId;
+        if (aIsArtist && !bIsArtist) return -1;
+        if (!aIsArtist && bIsArtist) return 1;
+        return 0;
+      });
+
       // Create budget items from crew members
       const budgetItems = await Promise.all(
-        crewData.map(async (crew) => {
+        sortedCrewData.map(async (crew) => {
           // Try to get the member name and determine category
           let memberName = crew.role_label || 'Miembro del equipo';
           let memberRole = '';
           let memberCategory = 'Músicos / Crew'; // Default category
           let contactId: string | null = null; // To link budget item to contact
+          let isArtist = false;
+
+          // Check if this is the artist themselves
+          if (crew.member_id === artistId && artistInfo) {
+            // Use artist's legal_name or name (real name)
+            memberName = artistInfo.legal_name || artistInfo.name;
+            memberCategory = 'Artista';
+            isArtist = true;
+          }
           
-          // Try profiles table (workspace members)
-          if (crew.member_id && crew.member_type === 'workspace') {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name, stage_name, roles')
-              .eq('user_id', crew.member_id)
-              .maybeSingle();
-            
-            if (profile) {
-              // Use full_name (real name) first, then stage_name as fallback
-              memberName = profile.full_name || profile.stage_name || memberName;
-              // Check if this person has management role (manager/booker = commission)
-              const roles = profile.roles as string[] | null;
-              if (roles && (roles.includes('management') || roles.includes('manager') || roles.includes('booker'))) {
-                memberCategory = 'Comisiones';
-              }
-              
-              // Try to find a matching contact to link
-              const { data: matchingContact } = await supabase
-                .from('contacts')
-                .select('id')
-                .or(`name.ilike.%${profile.full_name}%,legal_name.ilike.%${profile.full_name}%`)
+          // Only look up profiles/contacts if this is NOT the artist
+          if (!isArtist) {
+            // Try profiles table (workspace members)
+            if (crew.member_id && crew.member_type === 'workspace') {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('full_name, stage_name, roles')
+                .eq('user_id', crew.member_id)
                 .maybeSingle();
               
-              if (matchingContact) {
-                contactId = matchingContact.id;
+              if (profile) {
+                // Use full_name (real name) first, then stage_name as fallback
+                memberName = profile.full_name || profile.stage_name || memberName;
+                // Check if this person has management role (manager/booker = commission)
+                const roles = profile.roles as string[] | null;
+                if (roles && (roles.includes('management') || roles.includes('manager') || roles.includes('booker'))) {
+                  memberCategory = 'Comisiones';
+                }
+                
+                // Try to find a matching contact to link
+                if (profile.full_name) {
+                  const { data: matchingContact } = await supabase
+                    .from('contacts')
+                    .select('id')
+                    .or(`name.ilike.%${profile.full_name}%,legal_name.ilike.%${profile.full_name}%`)
+                    .maybeSingle();
+                  
+                  if (matchingContact) {
+                    contactId = matchingContact.id;
+                  }
+                }
               }
-            }
-          } else if (crew.member_id) {
-            // Try contacts table - directly link to contact
-            const { data: contact } = await supabase
-              .from('contacts')
-              .select('id, name, legal_name, stage_name, role, category')
-              .eq('id', crew.member_id)
-              .maybeSingle();
-            
-            if (contact) {
-              // Use legal_name or name (real name), NOT stage_name for budget items
-              memberName = contact.legal_name || contact.name || memberName;
-              memberRole = contact.role || '';
-              contactId = contact.id; // Link to contact
+            } else if (crew.member_id) {
+              // Try contacts table - directly link to contact
+              const { data: contact } = await supabase
+                .from('contacts')
+                .select('id, name, legal_name, stage_name, role, category')
+                .eq('id', crew.member_id)
+                .maybeSingle();
               
-              // Determine category based on contact category/role
-              if (contact.category === 'tecnico' || 
-                  memberRole.toLowerCase().includes('técnico') ||
-                  memberRole.toLowerCase().includes('sonido') ||
-                  memberRole.toLowerCase().includes('luces') ||
-                  memberRole.toLowerCase().includes('backline')) {
-                memberCategory = 'Equipo técnico';
-              } else if (contact.category === 'management' ||
-                         memberRole.toLowerCase().includes('manager') ||
-                         memberRole.toLowerCase().includes('booker')) {
-                memberCategory = 'Comisiones';
-              } else if (contact.category === 'banda' ||
-                         memberRole.toLowerCase().includes('músico') ||
-                         memberRole.toLowerCase().includes('guitarra') ||
-                         memberRole.toLowerCase().includes('bajo') ||
-                         memberRole.toLowerCase().includes('bateria') ||
-                         memberRole.toLowerCase().includes('teclado')) {
-                memberCategory = 'Músicos / Crew';
+              if (contact) {
+                // Use legal_name or name (real name), NOT stage_name for budget items
+                memberName = contact.legal_name || contact.name || memberName;
+                memberRole = contact.role || '';
+                contactId = contact.id; // Link to contact
+                
+                // Determine category based on contact category/role
+                if (contact.category === 'tecnico' || 
+                    memberRole.toLowerCase().includes('técnico') ||
+                    memberRole.toLowerCase().includes('sonido') ||
+                    memberRole.toLowerCase().includes('luces') ||
+                    memberRole.toLowerCase().includes('backline')) {
+                  memberCategory = 'Equipo técnico';
+                } else if (contact.category === 'management' ||
+                           memberRole.toLowerCase().includes('manager') ||
+                           memberRole.toLowerCase().includes('booker')) {
+                  memberCategory = 'Comisiones';
+                } else if (contact.category === 'banda' ||
+                           memberRole.toLowerCase().includes('músico') ||
+                           memberRole.toLowerCase().includes('guitarra') ||
+                           memberRole.toLowerCase().includes('bajo') ||
+                           memberRole.toLowerCase().includes('bateria') ||
+                           memberRole.toLowerCase().includes('teclado')) {
+                  memberCategory = 'Músicos / Crew';
+                }
               }
             }
-          }
-
+          } // End of if (!isArtist)
           // Also check: if is_percentage is true, it's likely a commission (manager/booker)
           if (crew.is_percentage) {
             memberCategory = 'Comisiones';
