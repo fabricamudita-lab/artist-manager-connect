@@ -183,7 +183,7 @@ const sortCategoriesWithPriority = (categories: BudgetCategory[]): BudgetCategor
 const CONCERT_DEFAULT_CATEGORIES = [
   { name: 'Artista Principal', icon_name: 'Music', sort_order: 0 },
   { name: 'Músicos', icon_name: 'Users', sort_order: 1 },
-  { name: 'Equipo Técnico | Producción', icon_name: 'Users', sort_order: 2 },
+  { name: 'Equipo Técnico', icon_name: 'Lightbulb', sort_order: 2 },
   { name: 'Transporte', icon_name: 'Car', sort_order: 3 },
   { name: 'Dietas', icon_name: 'Utensils', sort_order: 4 },
   { name: 'Hospedaje', icon_name: 'Bed', sort_order: 5 },
@@ -1136,8 +1136,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         // Map frontend values to database values
         billing_status: (editingItemValues.billing_status === 'pagada' ? 'pagado' :
                         editingItemValues.billing_status === 'factura_recibida' ? 'facturado' :
-                        editingItemValues.billing_status === 'factura_solicitada' ? 'pendiente' :
-                        'pendiente') as 'pendiente' | 'pagado' | 'facturado' | 'cancelado'
+                        editingItemValues.billing_status === 'factura_solicitada' ? 'factura_solicitada' :
+                        editingItemValues.billing_status === 'cancelado' ? 'cancelado' :
+                        'pendiente') as 'pendiente' | 'pagado' | 'facturado' | 'cancelado' | 'factura_solicitada'
       };
       
       console.log('📝 Update data to send:', updateData);
@@ -2597,47 +2598,127 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                        
                                         {/* Precio Unitario / Comisión % */}
                                        <TableCell className="p-2 text-right">
-                                         {item.is_commission_percentage && item.commission_percentage ? (
-                                           // Commission percentage display
+                                         {editingItem === item.id ? (
+                                           <div className="flex flex-col gap-1">
+                                             {/* Toggle between percentage and fixed */}
+                                             <div className="flex items-center justify-end gap-1 mb-1">
+                                               <button
+                                                 type="button"
+                                                 onClick={() => {
+                                                   const isPercentage = !editingItemValues.is_commission_percentage;
+                                                   if (isPercentage) {
+                                                     // Switching to percentage: calculate percentage from current price
+                                                     const currentPrice = editingItemValues.unit_price ?? item.unit_price;
+                                                     const percentage = budgetAmount > 0 ? (currentPrice / budgetAmount) * 100 : 0;
+                                                     setEditingItemValues(prev => ({
+                                                       ...prev,
+                                                       is_commission_percentage: true,
+                                                       commission_percentage: Math.round(percentage * 100) / 100
+                                                     }));
+                                                   } else {
+                                                     // Switching to fixed: keep calculated price
+                                                     setEditingItemValues(prev => ({
+                                                       ...prev,
+                                                       is_commission_percentage: false,
+                                                       commission_percentage: null
+                                                     }));
+                                                   }
+                                                 }}
+                                                 className={`text-xs px-2 py-0.5 rounded ${
+                                                   editingItemValues.is_commission_percentage ?? item.is_commission_percentage
+                                                     ? 'bg-purple-100 text-purple-700 font-medium'
+                                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                 }`}
+                                               >
+                                                 % Fee
+                                               </button>
+                                               <button
+                                                 type="button"
+                                                 onClick={() => {
+                                                   setEditingItemValues(prev => ({
+                                                     ...prev,
+                                                     is_commission_percentage: false,
+                                                     commission_percentage: null
+                                                   }));
+                                                 }}
+                                                 className={`text-xs px-2 py-0.5 rounded ${
+                                                   !(editingItemValues.is_commission_percentage ?? item.is_commission_percentage)
+                                                     ? 'bg-blue-100 text-blue-700 font-medium'
+                                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                 }`}
+                                               >
+                                                 € Fijo
+                                               </button>
+                                             </div>
+                                             {/* Input based on mode */}
+                                             {(editingItemValues.is_commission_percentage ?? item.is_commission_percentage) ? (
+                                               <div className="flex items-center gap-1">
+                                                 <Input
+                                                   type="number"
+                                                   step="0.1"
+                                                   min="0"
+                                                   max="100"
+                                                   value={editingItemValues.commission_percentage ?? item.commission_percentage ?? 0}
+                                                   onChange={(e) => {
+                                                     const percentage = parseFloat(e.target.value) || 0;
+                                                     const calculatedPrice = (budgetAmount * percentage) / 100;
+                                                     setEditingItemValues(prev => ({
+                                                       ...prev,
+                                                       commission_percentage: percentage,
+                                                       unit_price: calculatedPrice
+                                                     }));
+                                                   }}
+                                                   className="h-8 w-16 text-sm text-right border-purple-300 focus:border-purple-500 text-gray-900 bg-white"
+                                                 />
+                                                 <span className="text-purple-600 text-sm font-medium">%</span>
+                                                 <span className="text-gray-400 text-xs">→</span>
+                                                 <span className="text-gray-600 text-sm">€{((budgetAmount * (editingItemValues.commission_percentage ?? item.commission_percentage ?? 0)) / 100).toFixed(0)}</span>
+                                               </div>
+                                             ) : (
+                                               <div className="flex items-center gap-1">
+                                                 <Input
+                                                   type="number"
+                                                   step="0.01"
+                                                   value={editingItemValues.unit_price ?? item.unit_price}
+                                                   onChange={(e) => setEditingItemValues(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
+                                                   className="h-8 text-sm text-right border-blue-300 focus:border-blue-500 text-gray-900 bg-white flex-1"
+                                                 />
+                                                 {(expandedQuantity === item.id || (item.quantity && item.quantity > 1)) && (
+                                                   <>
+                                                     <span className="text-gray-500 text-sm">×</span>
+                                                     <Input
+                                                       type="number"
+                                                       min="1"
+                                                       value={editingItemValues.quantity ?? item.quantity ?? 1}
+                                                       onChange={(e) => setEditingItemValues(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                                                       className="h-8 w-12 text-sm text-center border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
+                                                     />
+                                                   </>
+                                                 )}
+                                                 <Button
+                                                   size="sm"
+                                                   variant="ghost"
+                                                   onClick={() => setExpandedQuantity(expandedQuantity === item.id ? null : item.id)}
+                                                   className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800"
+                                                 >
+                                                   <Plus className="w-3 h-3" />
+                                                 </Button>
+                                               </div>
+                                             )}
+                                           </div>
+                                         ) : item.is_commission_percentage && item.commission_percentage ? (
+                                           // Commission percentage display (view mode)
                                            <div 
-                                             className="h-8 flex items-center justify-end px-2 rounded text-purple-700 font-semibold gap-1"
+                                             className="h-8 flex items-center justify-end px-2 rounded text-purple-700 font-semibold gap-1 cursor-pointer hover:bg-purple-50"
+                                             onClick={() => startEditingItem(item)}
                                              title={`${item.commission_percentage}% del caché (€${budgetAmount.toLocaleString('es-ES')})`}
                                            >
                                              <span className="text-purple-600">{item.commission_percentage}%</span>
                                              <span className="text-gray-400 text-xs">→</span>
                                              <span className="text-gray-700">€{item.unit_price.toFixed(2)}</span>
                                            </div>
-                                         ) : editingItem === item.id ? (
-                                           <div className="flex items-center gap-1">
-                                             <Input
-                                               type="number"
-                                               step="0.01"
-                                               value={editingItemValues.unit_price || item.unit_price}
-                                               onChange={(e) => setEditingItemValues(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
-                                               className="h-8 text-sm text-right border-blue-300 focus:border-blue-500 text-gray-900 bg-white flex-1"
-                                             />
-                                             {(expandedQuantity === item.id || (item.quantity && item.quantity > 1)) && (
-                                               <>
-                                                 <span className="text-gray-500 text-sm">×</span>
-                                                 <Input
-                                                   type="number"
-                                                   min="1"
-                                                   value={editingItemValues.quantity || item.quantity || 1}
-                                                   onChange={(e) => setEditingItemValues(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
-                                                   className="h-8 w-16 text-sm text-center border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
-                                                 />
-                                               </>
-                                             )}
-                                             <Button
-                                               size="sm"
-                                               variant="ghost"
-                                               onClick={() => setExpandedQuantity(expandedQuantity === item.id ? null : item.id)}
-                                               className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800"
-                                             >
-                                               <Plus className="w-3 h-3" />
-                                             </Button>
-                                           </div>
                                          ) : (
+                                           // Fixed price display (view mode)
                                            <div 
                                              className="h-8 flex items-center justify-end cursor-pointer hover:bg-blue-100 px-2 rounded text-gray-900 gap-1"
                                              onClick={() => startEditingItem(item)}
