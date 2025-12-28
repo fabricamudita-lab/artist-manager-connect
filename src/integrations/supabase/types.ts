@@ -1211,6 +1211,7 @@ export type Database = {
           budget_id: string
           category: string
           category_id: string | null
+          commission_percentage: number | null
           contact_id: string | null
           created_at: string
           fecha_emision: string | null
@@ -1218,6 +1219,7 @@ export type Database = {
           invoice_link: string | null
           irpf_percentage: number | null
           is_attendee: boolean | null
+          is_commission_percentage: boolean | null
           is_reconciled: boolean | null
           iva_percentage: number | null
           name: string
@@ -1238,6 +1240,7 @@ export type Database = {
           budget_id: string
           category: string
           category_id?: string | null
+          commission_percentage?: number | null
           contact_id?: string | null
           created_at?: string
           fecha_emision?: string | null
@@ -1245,6 +1248,7 @@ export type Database = {
           invoice_link?: string | null
           irpf_percentage?: number | null
           is_attendee?: boolean | null
+          is_commission_percentage?: boolean | null
           is_reconciled?: boolean | null
           iva_percentage?: number | null
           name: string
@@ -1265,6 +1269,7 @@ export type Database = {
           budget_id?: string
           category?: string
           category_id?: string | null
+          commission_percentage?: number | null
           contact_id?: string | null
           created_at?: string
           fecha_emision?: string | null
@@ -1272,6 +1277,7 @@ export type Database = {
           invoice_link?: string | null
           irpf_percentage?: number | null
           is_attendee?: boolean | null
+          is_commission_percentage?: boolean | null
           is_reconciled?: boolean | null
           iva_percentage?: number | null
           name?: string

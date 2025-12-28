@@ -101,6 +101,8 @@ interface BudgetItem {
   category_id?: string;
   fecha_emision?: string;
   contact_id?: string;
+  is_commission_percentage?: boolean;
+  commission_percentage?: number;
   contacts?: {
     id: string;
     name: string;
@@ -270,13 +272,27 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
       if (error) throw error;
       
+      // Recalculate commission-based items
+      const commissionItems = items.filter(item => item.is_commission_percentage && item.commission_percentage);
+      if (commissionItems.length > 0) {
+        for (const item of commissionItems) {
+          const newUnitPrice = (budgetAmount * (item.commission_percentage || 0)) / 100;
+          await supabase
+            .from('budget_items')
+            .update({ unit_price: newUnitPrice })
+            .eq('id', item.id);
+        }
+        // Refresh items to show updated values
+        await fetchBudgetItems();
+      }
+      
       setEditingBudgetAmount(false);
       setBudgetData(prev => ({ ...prev, fee: budgetAmount }));
       onUpdate();
       
       toast({
         title: "¡Éxito!",
-        description: "Caché actualizado correctamente"
+        description: `Caché actualizado${commissionItems.length > 0 ? ` y ${commissionItems.length} comisiones recalculadas` : ''}`
       });
     } catch (error) {
       console.error('Error updating budget amount:', error);
@@ -811,6 +827,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
               : (crew.fee_national || crew.fee_international || 0);
           }
 
+          const commissionPercentage = crew.is_percentage
+            ? (isInternational 
+                ? (crew.percentage_international || crew.percentage_national || 0)
+                : (crew.percentage_national || crew.percentage_international || 0))
+            : null;
+
           return {
             budget_id: budget.id,
             category_id: targetCategoryId,
@@ -822,8 +844,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             irpf_percentage: 15,
             is_attendee: true,
             billing_status: 'pendiente' as const,
+            is_commission_percentage: crew.is_percentage || false,
+            commission_percentage: commissionPercentage,
             subcategory: crew.is_percentage 
-              ? `${isInternational ? crew.percentage_international : crew.percentage_national}% del fee`
+              ? `${commissionPercentage}% del fee`
               : (memberRole || undefined),
             observations: 'Cargado desde formato'
           };
@@ -2288,7 +2312,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                       <TableHead className="font-bold text-black w-[200px]">Nombre</TableHead>
                                       <TableHead className="font-bold text-black w-[130px] text-center">Contacto</TableHead>
                                       <TableHead className="font-bold text-black w-[130px] text-center">Fecha Emisión</TableHead>
-                                      <TableHead className="font-bold text-black w-[140px] text-right">Precio Unit. (€)</TableHead>
+                                      <TableHead className="font-bold text-black w-[140px] text-right">Precio / Comisión</TableHead>
                                       <TableHead className="font-bold text-black w-[80px] text-center">IVA (%)</TableHead>
                                       <TableHead className="font-bold text-black w-[80px] text-center">IRPF (%)</TableHead>
                                       <TableHead className="font-bold text-black w-[120px] text-right">Total (€)</TableHead>
@@ -2419,9 +2443,19 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                          )}
                                        </TableCell>
                                        
-                                        {/* Precio Unitario con botón + para cantidad */}
+                                        {/* Precio Unitario / Comisión % */}
                                        <TableCell className="p-2 text-right">
-                                         {editingItem === item.id ? (
+                                         {item.is_commission_percentage && item.commission_percentage ? (
+                                           // Commission percentage display
+                                           <div 
+                                             className="h-8 flex items-center justify-end px-2 rounded text-purple-700 font-semibold gap-1"
+                                             title={`${item.commission_percentage}% del caché (€${budgetAmount.toLocaleString('es-ES')})`}
+                                           >
+                                             <span className="text-purple-600">{item.commission_percentage}%</span>
+                                             <span className="text-gray-400 text-xs">→</span>
+                                             <span className="text-gray-700">€{item.unit_price.toFixed(2)}</span>
+                                           </div>
+                                         ) : editingItem === item.id ? (
                                            <div className="flex items-center gap-1">
                                              <Input
                                                type="number"
