@@ -49,7 +49,8 @@ import {
   Download,
   FileSpreadsheet,
   FolderOpen,
-  ExternalLink
+  ExternalLink,
+  Database
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -202,6 +203,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [expenseBudget, setExpenseBudget] = useState<number>(budget.expense_budget || 0);
   const [expandedQuantity, setExpandedQuantity] = useState<string | null>(null);
   const [showLiquidarDialog, setShowLiquidarDialog] = useState(false);
+  const [showLoadFromFormatDialog, setShowLoadFromFormatDialog] = useState(false);
+  const [availableFormats, setAvailableFormats] = useState<Array<{
+    id: string;
+    name: string;
+    artist_name: string;
+    artist_id: string;
+    crew_count: number;
+    fee_national: number | null;
+    fee_international: number | null;
+  }>>([]);
+  const [loadingFormats, setLoadingFormats] = useState(false);
 
   useEffect(() => {
     if (open && budget) {
@@ -616,6 +628,172 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       });
     } catch (error) {
       console.error('Error creating test items:', error);
+    }
+  };
+
+  const fetchAvailableFormats = async () => {
+    setLoadingFormats(true);
+    try {
+      const { data, error } = await supabase
+        .from('booking_products')
+        .select(`
+          id,
+          name,
+          artist_id,
+          fee_national,
+          fee_international,
+          artists!inner(name)
+        `)
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+
+      // Get crew counts for each format
+      const formatsWithCrew = await Promise.all(
+        (data || []).map(async (format) => {
+          const { count } = await supabase
+            .from('booking_product_crew')
+            .select('*', { count: 'exact', head: true })
+            .eq('booking_product_id', format.id);
+
+          return {
+            id: format.id,
+            name: format.name,
+            artist_id: format.artist_id,
+            artist_name: (format.artists as any)?.name || 'Sin artista',
+            crew_count: count || 0,
+            fee_national: format.fee_national,
+            fee_international: format.fee_international
+          };
+        })
+      );
+
+      setAvailableFormats(formatsWithCrew);
+    } catch (error) {
+      console.error('Error fetching formats:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los formatos",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingFormats(false);
+    }
+  };
+
+  const loadCrewFromFormat = async (formatId: string, isInternational: boolean = false) => {
+    try {
+      // Get crew members for this format
+      const { data: crewData, error: crewError } = await supabase
+        .from('booking_product_crew')
+        .select('*')
+        .eq('booking_product_id', formatId);
+
+      if (crewError) throw crewError;
+
+      if (!crewData || crewData.length === 0) {
+        toast({
+          title: "Sin equipo",
+          description: "Este formato no tiene miembros del equipo configurados",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Find the "Músicos / Crew" category or use the first category
+      let targetCategoryId = budgetCategories.find(c => 
+        c.name.toLowerCase().includes('músico') || 
+        c.name.toLowerCase().includes('crew') ||
+        c.name.toLowerCase().includes('musico')
+      )?.id || budgetCategories[0]?.id;
+
+      // Get the booking fee for percentage calculations
+      const bookingFee = budgetAmount || 0;
+
+      // Create budget items from crew members
+      const budgetItems = await Promise.all(
+        crewData.map(async (crew) => {
+          // Try to get the member name
+          let memberName = crew.role_label || 'Miembro del equipo';
+          
+          // Try profiles table
+          if (crew.member_id) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('full_name, stage_name')
+              .eq('user_id', crew.member_id)
+              .maybeSingle();
+            
+            if (profile) {
+              memberName = profile.stage_name || profile.full_name || memberName;
+            } else {
+              // Try contacts table
+              const { data: contact } = await supabase
+                .from('contacts')
+                .select('name, stage_name')
+                .eq('id', crew.member_id)
+                .maybeSingle();
+              
+              if (contact) {
+                memberName = contact.stage_name || contact.name || memberName;
+              }
+            }
+          }
+
+          // Calculate unit price
+          let unitPrice = 0;
+          if (crew.is_percentage) {
+            const percentage = isInternational 
+              ? (crew.percentage_international || crew.percentage_national || 0)
+              : (crew.percentage_national || crew.percentage_international || 0);
+            unitPrice = (bookingFee * percentage) / 100;
+          } else {
+            unitPrice = isInternational
+              ? (crew.fee_international || crew.fee_national || 0)
+              : (crew.fee_national || crew.fee_international || 0);
+          }
+
+          return {
+            budget_id: budget.id,
+            category_id: targetCategoryId,
+            category: 'Músicos / Crew',
+            name: memberName,
+            quantity: 1,
+            unit_price: unitPrice,
+            iva_percentage: 0,
+            irpf_percentage: 15,
+            is_attendee: true,
+            billing_status: 'pendiente' as const,
+            subcategory: crew.is_percentage 
+              ? `${isInternational ? crew.percentage_international : crew.percentage_national}% del fee`
+              : undefined,
+            observations: 'Cargado desde formato'
+          };
+        })
+      );
+
+      // Insert all items
+      const { error: insertError } = await supabase
+        .from('budget_items')
+        .insert(budgetItems);
+
+      if (insertError) throw insertError;
+
+      await fetchBudgetItems();
+      setShowLoadFromFormatDialog(false);
+      
+      toast({
+        title: "¡Equipo cargado!",
+        description: `Se han añadido ${crewData.length} miembros del equipo al presupuesto`
+      });
+    } catch (error) {
+      console.error('Error loading crew from format:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el equipo del formato",
+        variant: "destructive"
+      });
     }
   };
 
@@ -1651,6 +1829,18 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       <h2 className="text-base font-bold">Gestión de Elementos y Categorías</h2>
                        <div className="flex gap-2">
                          <Button
+                           onClick={() => {
+                             fetchAvailableFormats();
+                             setShowLoadFromFormatDialog(true);
+                           }}
+                           size="sm"
+                           variant="outline"
+                           className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-200 border-blue-400/20 text-xs"
+                         >
+                           <Database className="w-3 h-3 mr-1" />
+                           Cargar desde formato
+                         </Button>
+                         <Button
                            onClick={() => setShowLiquidarDialog(true)}
                            size="sm"
                            variant="outline"
@@ -2537,6 +2727,81 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           });
         }}
       />
+
+      {/* Dialog para cargar desde formato */}
+      <Dialog open={showLoadFromFormatDialog} onOpenChange={setShowLoadFromFormatDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Database className="w-5 h-5" />
+              Cargar equipo desde formato
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Selecciona un formato de artista para cargar automáticamente los miembros del equipo al presupuesto.
+            </p>
+            
+            {loadingFormats ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : availableFormats.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>No hay formatos disponibles</p>
+                <p className="text-xs mt-1">Crea un formato en la configuración del artista</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {availableFormats.map((format) => (
+                  <Card 
+                    key={format.id} 
+                    className="cursor-pointer hover:border-primary transition-colors"
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{format.name}</p>
+                          <p className="text-sm text-muted-foreground">{format.artist_name}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {format.crew_count} miembros del equipo
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => loadCrewFromFormat(format.id, false)}
+                            disabled={format.crew_count === 0}
+                          >
+                            Nacional
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => loadCrewFromFormat(format.id, true)}
+                            disabled={format.crew_count === 0}
+                          >
+                            Internacional
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+            
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => setShowLoadFromFormatDialog(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
