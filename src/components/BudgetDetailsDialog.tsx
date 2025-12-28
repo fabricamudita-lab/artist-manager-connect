@@ -151,13 +151,21 @@ const iconMap = {
   Bed: Bed
 };
 
-// Global category sort function - Artista first, Músicos second, Comisiones always last
+// Global category sort function - Artista Principal first, Músicos second, then others, Comisiones always last
 const getCategorySortPriority = (categoryName: string): number => {
   const name = categoryName.toLowerCase();
-  if (name === 'artista') return 0;
+  if (name === 'artista principal' || name === 'artista') return 0;
   if (name === 'músicos' || name === 'musicos') return 1;
+  if (name.includes('equipo') || name.includes('técnico') || name.includes('producción') || name.includes('produccion')) return 2;
+  if (name.includes('transporte')) return 3;
+  if (name.includes('dieta')) return 4;
+  if (name.includes('hospedaje') || name.includes('alojamiento')) return 5;
+  if (name.includes('alquiler') || name.includes('instrumento')) return 6;
+  if (name.includes('promoción') || name.includes('promocion')) return 7;
+  if (name.includes('booking')) return 97;
+  if (name.includes('management')) return 98;
   if (name.includes('comisi')) return 999; // Always last
-  // Everything else in the middle, sorted by their database sort_order
+  // Everything else in the middle
   return 50;
 };
 
@@ -170,6 +178,20 @@ const sortCategoriesWithPriority = (categories: BudgetCategory[]): BudgetCategor
     return (a.sort_order || 0) - (b.sort_order || 0);
   });
 };
+
+// Default categories for concert budgets
+const CONCERT_DEFAULT_CATEGORIES = [
+  { name: 'Artista Principal', icon_name: 'Music', sort_order: 0 },
+  { name: 'Músicos', icon_name: 'Users', sort_order: 1 },
+  { name: 'Equipo Técnico | Producción', icon_name: 'Users', sort_order: 2 },
+  { name: 'Transporte', icon_name: 'Car', sort_order: 3 },
+  { name: 'Dietas', icon_name: 'Utensils', sort_order: 4 },
+  { name: 'Hospedaje', icon_name: 'Bed', sort_order: 5 },
+  { name: 'Alquiler instrumentos', icon_name: 'Music', sort_order: 6 },
+  { name: 'Promoción', icon_name: 'Music', sort_order: 7 },
+  { name: 'Booking', icon_name: 'DollarSign', sort_order: 97 },
+  { name: 'Management', icon_name: 'DollarSign', sort_order: 98 },
+];
 
 // Helper functions for billing status mapping
 const mapDbToFrontend = (dbStatus: string): 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada' | 'cancelado' => {
@@ -367,9 +389,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         return;
       }
       
-      // Apply priority sorting: Artista first, Músicos second, Comisiones last
-      setBudgetCategories(sortCategoriesWithPriority(data || []));
-      setOpenCategories(new Set((data || []).map(c => c.id)));
+      // Ensure concert budgets have all required categories
+      const categoriesWithConcert = await ensureConcertCategories(data);
+      
+      // Apply priority sorting: Artista Principal first, Músicos second, Comisiones last
+      setBudgetCategories(sortCategoriesWithPriority(categoriesWithConcert));
+      setOpenCategories(new Set(categoriesWithConcert.map(c => c.id)));
     } catch (error) {
       console.error('Error fetching budget categories:', error);
     }
@@ -377,26 +402,58 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const createDefaultCategories = async () => {
     try {
-      const defaultCategories = [
-        { name: 'Promoción', icon_name: 'Music' },
-        { name: 'Comisiones', icon_name: 'DollarSign' },
-        { name: 'Otros Gastos', icon_name: 'CreditCard' }
-      ];
+      // Use concert categories if budget type is 'concierto', otherwise use generic categories
+      const isConcertBudget = budget?.type === 'concierto';
+      
+      const defaultCategories = isConcertBudget 
+        ? CONCERT_DEFAULT_CATEGORIES
+        : [
+            { name: 'Promoción', icon_name: 'Music', sort_order: 0 },
+            { name: 'Comisiones', icon_name: 'DollarSign', sort_order: 1 },
+            { name: 'Otros Gastos', icon_name: 'CreditCard', sort_order: 2 }
+          ];
 
       const { data, error } = await supabase
         .from('budget_categories')
-        .insert(defaultCategories.map((cat, index) => ({
+        .insert(defaultCategories.map((cat) => ({
           ...cat,
-          created_by: user?.id,
-          sort_order: index
+          created_by: user?.id
         })))
         .select();
 
       if (error) throw error;
-      setBudgetCategories(data || []);
+      setBudgetCategories(sortCategoriesWithPriority(data || []));
       setOpenCategories(new Set((data || []).map(c => c.id)));
     } catch (error) {
       console.error('Error creating default categories:', error);
+    }
+  };
+
+  // Ensure concert budgets have all required categories
+  const ensureConcertCategories = async (existingCategories: BudgetCategory[]) => {
+    if (budget?.type !== 'concierto') return existingCategories;
+    
+    const existingNames = existingCategories.map(c => c.name.toLowerCase());
+    const missingCategories = CONCERT_DEFAULT_CATEGORIES.filter(
+      cat => !existingNames.includes(cat.name.toLowerCase())
+    );
+    
+    if (missingCategories.length === 0) return existingCategories;
+    
+    try {
+      const { data, error } = await supabase
+        .from('budget_categories')
+        .insert(missingCategories.map((cat) => ({
+          ...cat,
+          created_by: user?.id
+        })))
+        .select();
+
+      if (error) throw error;
+      return [...existingCategories, ...(data || [])];
+    } catch (error) {
+      console.error('Error creating missing concert categories:', error);
+      return existingCategories;
     }
   };
 
@@ -746,10 +803,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       // Get the booking fee for percentage calculations
       const bookingFee = budgetAmount || 0;
 
-      // Category sort order: Artista=0, Músicos=1, Equipo técnico=2, Comisiones=99 (always last)
+      // Category sort order: Artista Principal=0, Músicos=1, Equipo técnico=2, Comisiones=99 (always last)
       const getCategorySortOrder = (categoryName: string): number => {
         const name = categoryName.toLowerCase();
-        if (name === 'artista') return 0;
+        if (name === 'artista principal' || name === 'artista') return 0;
         if (name === 'músicos' || name === 'musicos') return 1;
         if (name.includes('técn') || name.includes('tecn') || name.includes('crew')) return 2;
         if (name.includes('comisi')) return 99;
@@ -758,7 +815,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
       const getCategoryIcon = (categoryName: string): string => {
         const name = categoryName.toLowerCase();
-        if (name === 'artista') return 'Music';
+        if (name === 'artista principal' || name === 'artista') return 'Music';
         if (name === 'músicos' || name === 'musicos') return 'Users';
         if (name.includes('técn') || name.includes('tecn')) return 'Lightbulb';
         if (name.includes('comisi')) return 'DollarSign';
@@ -815,7 +872,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           if (crew.member_id === artistId && artistInfo) {
             // Use artist's legal_name or name (real name)
             memberName = artistInfo.legal_name || artistInfo.name;
-            memberCategory = 'Artista';
+            memberCategory = 'Artista Principal';
             isArtist = true;
           }
           
