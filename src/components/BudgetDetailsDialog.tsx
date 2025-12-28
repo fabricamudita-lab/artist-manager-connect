@@ -701,45 +701,102 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         return;
       }
 
-      // Find the "Músicos / Crew" category or use the first category
-      let targetCategoryId = budgetCategories.find(c => 
-        c.name.toLowerCase().includes('músico') || 
-        c.name.toLowerCase().includes('crew') ||
-        c.name.toLowerCase().includes('musico')
-      )?.id || budgetCategories[0]?.id;
-
       // Get the booking fee for percentage calculations
       const bookingFee = budgetAmount || 0;
+
+      // Helper to get or create category
+      const getOrCreateCategory = async (categoryName: string) => {
+        let category = budgetCategories.find(c => 
+          c.name.toLowerCase() === categoryName.toLowerCase()
+        );
+        
+        if (!category) {
+          // Create the category
+          const { data: newCat, error: catError } = await supabase
+            .from('budget_categories')
+            .insert({
+              name: categoryName,
+              icon_name: categoryName.toLowerCase().includes('comisi') ? 'DollarSign' : 
+                         categoryName.toLowerCase().includes('técn') ? 'Lightbulb' : 'Users',
+              created_by: user?.id,
+              sort_order: budgetCategories.length
+            })
+            .select()
+            .single();
+          
+          if (!catError && newCat) {
+            setBudgetCategories(prev => [...prev, newCat]);
+            return newCat.id;
+          }
+        }
+        return category?.id || budgetCategories[0]?.id;
+      };
 
       // Create budget items from crew members
       const budgetItems = await Promise.all(
         crewData.map(async (crew) => {
-          // Try to get the member name
+          // Try to get the member name and determine category
           let memberName = crew.role_label || 'Miembro del equipo';
+          let memberRole = '';
+          let memberCategory = 'Músicos / Crew'; // Default category
           
-          // Try profiles table
-          if (crew.member_id) {
+          // Try profiles table (workspace members)
+          if (crew.member_id && crew.member_type === 'workspace') {
             const { data: profile } = await supabase
               .from('profiles')
-              .select('full_name, stage_name')
+              .select('full_name, stage_name, roles')
               .eq('user_id', crew.member_id)
               .maybeSingle();
             
             if (profile) {
               memberName = profile.stage_name || profile.full_name || memberName;
-            } else {
-              // Try contacts table
-              const { data: contact } = await supabase
-                .from('contacts')
-                .select('name, stage_name')
-                .eq('id', crew.member_id)
-                .maybeSingle();
+              // Check if this person has management role (manager/booker = commission)
+              const roles = profile.roles as string[] | null;
+              if (roles && (roles.includes('management') || roles.includes('manager') || roles.includes('booker'))) {
+                memberCategory = 'Comisiones';
+              }
+            }
+          } else if (crew.member_id) {
+            // Try contacts table
+            const { data: contact } = await supabase
+              .from('contacts')
+              .select('name, stage_name, role, category')
+              .eq('id', crew.member_id)
+              .maybeSingle();
+            
+            if (contact) {
+              memberName = contact.stage_name || contact.name || memberName;
+              memberRole = contact.role || '';
               
-              if (contact) {
-                memberName = contact.stage_name || contact.name || memberName;
+              // Determine category based on contact category/role
+              if (contact.category === 'tecnico' || 
+                  memberRole.toLowerCase().includes('técnico') ||
+                  memberRole.toLowerCase().includes('sonido') ||
+                  memberRole.toLowerCase().includes('luces') ||
+                  memberRole.toLowerCase().includes('backline')) {
+                memberCategory = 'Equipo técnico';
+              } else if (contact.category === 'management' ||
+                         memberRole.toLowerCase().includes('manager') ||
+                         memberRole.toLowerCase().includes('booker')) {
+                memberCategory = 'Comisiones';
+              } else if (contact.category === 'banda' ||
+                         memberRole.toLowerCase().includes('músico') ||
+                         memberRole.toLowerCase().includes('guitarra') ||
+                         memberRole.toLowerCase().includes('bajo') ||
+                         memberRole.toLowerCase().includes('bateria') ||
+                         memberRole.toLowerCase().includes('teclado')) {
+                memberCategory = 'Músicos / Crew';
               }
             }
           }
+
+          // Also check: if is_percentage is true, it's likely a commission (manager/booker)
+          if (crew.is_percentage) {
+            memberCategory = 'Comisiones';
+          }
+
+          // Get or create the target category
+          const targetCategoryId = await getOrCreateCategory(memberCategory);
 
           // Calculate unit price
           let unitPrice = 0;
@@ -757,7 +814,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           return {
             budget_id: budget.id,
             category_id: targetCategoryId,
-            category: 'Músicos / Crew',
+            category: memberCategory,
             name: memberName,
             quantity: 1,
             unit_price: unitPrice,
@@ -767,7 +824,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             billing_status: 'pendiente' as const,
             subcategory: crew.is_percentage 
               ? `${isInternational ? crew.percentage_international : crew.percentage_national}% del fee`
-              : undefined,
+              : (memberRole || undefined),
             observations: 'Cargado desde formato'
           };
         })
