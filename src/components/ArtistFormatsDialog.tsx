@@ -48,6 +48,9 @@ interface CrewMember {
   name: string;
   feeNational?: number;
   feeInternational?: number;
+  isPercentage?: boolean;
+  percentageNational?: number;
+  percentageInternational?: number;
 }
 
 type CrewSelectableMember = {
@@ -92,6 +95,9 @@ interface SortableCrewMemberProps {
   formatIndex: number;
   onUpdateFeeNational: (formatIndex: number, memberId: string, fee: number | undefined) => void;
   onUpdateFeeInternational: (formatIndex: number, memberId: string, fee: number | undefined) => void;
+  onUpdatePercentageNational: (formatIndex: number, memberId: string, pct: number | undefined) => void;
+  onUpdatePercentageInternational: (formatIndex: number, memberId: string, pct: number | undefined) => void;
+  onToggleIsPercentage: (formatIndex: number, memberId: string, isPercentage: boolean) => void;
   onRemove: (formatIndex: number, memberId: string) => void;
 }
 
@@ -99,7 +105,10 @@ function SortableCrewMember({
   crew, 
   formatIndex, 
   onUpdateFeeNational, 
-  onUpdateFeeInternational, 
+  onUpdateFeeInternational,
+  onUpdatePercentageNational,
+  onUpdatePercentageInternational,
+  onToggleIsPercentage,
   onRemove 
 }: SortableCrewMemberProps) {
   const {
@@ -117,11 +126,13 @@ function SortableCrewMember({
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const isPercentage = crew.isPercentage || false;
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2 border border-border/50"
+      className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2 border border-border/50 gap-2 flex-wrap"
     >
       <div className="flex items-center gap-2">
         <button
@@ -134,27 +145,83 @@ function SortableCrewMember({
         </button>
         <span className="text-sm font-medium min-w-[100px]">{crew.name}</span>
       </div>
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <Label className="text-xs text-muted-foreground whitespace-nowrap">Nacional €</Label>
-          <Input
-            type="number"
-            value={crew.feeNational || ''}
-            onChange={(e) => onUpdateFeeNational(formatIndex, crew.memberId, parseFloat(e.target.value) || undefined)}
-            placeholder="0"
-            className="w-20 h-8 text-sm"
-          />
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Toggle between % and € */}
+        <div className="flex items-center gap-1.5">
+          <Button
+            type="button"
+            variant={isPercentage ? "outline" : "default"}
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => onToggleIsPercentage(formatIndex, crew.memberId, false)}
+          >
+            € Caché
+          </Button>
+          <Button
+            type="button"
+            variant={isPercentage ? "default" : "outline"}
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => onToggleIsPercentage(formatIndex, crew.memberId, true)}
+          >
+            % Fee
+          </Button>
         </div>
-        <div className="flex items-center gap-2">
-          <Label className="text-xs text-muted-foreground whitespace-nowrap">Internacional €</Label>
-          <Input
-            type="number"
-            value={crew.feeInternational || ''}
-            onChange={(e) => onUpdateFeeInternational(formatIndex, crew.memberId, parseFloat(e.target.value) || undefined)}
-            placeholder="0"
-            className="w-20 h-8 text-sm"
-          />
-        </div>
+        
+        {isPercentage ? (
+          <>
+            <div className="flex items-center gap-1">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Nac %</Label>
+              <Input
+                type="number"
+                step="0.5"
+                min="0"
+                max="100"
+                value={crew.percentageNational ?? ''}
+                onChange={(e) => onUpdatePercentageNational(formatIndex, crew.memberId, parseFloat(e.target.value) || undefined)}
+                placeholder="0"
+                className="w-16 h-8 text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Int %</Label>
+              <Input
+                type="number"
+                step="0.5"
+                min="0"
+                max="100"
+                value={crew.percentageInternational ?? ''}
+                onChange={(e) => onUpdatePercentageInternational(formatIndex, crew.memberId, parseFloat(e.target.value) || undefined)}
+                placeholder="0"
+                className="w-16 h-8 text-sm"
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-1">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Nac €</Label>
+              <Input
+                type="number"
+                value={crew.feeNational || ''}
+                onChange={(e) => onUpdateFeeNational(formatIndex, crew.memberId, parseFloat(e.target.value) || undefined)}
+                placeholder="0"
+                className="w-20 h-8 text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Int €</Label>
+              <Input
+                type="number"
+                value={crew.feeInternational || ''}
+                onChange={(e) => onUpdateFeeInternational(formatIndex, crew.memberId, parseFloat(e.target.value) || undefined)}
+                placeholder="0"
+                className="w-20 h-8 text-sm"
+              />
+            </div>
+          </>
+        )}
+        
         <Button
           type="button"
           variant="ghost"
@@ -168,7 +235,6 @@ function SortableCrewMember({
     </div>
   );
 }
-
 export function ArtistFormatsDialog({ 
   open, 
   onOpenChange, 
@@ -257,6 +323,9 @@ export function ArtistFormatsDialog({
             name: looksLikeArtist ? (artistProfile?.name || 'Artista') : (member?.name || 'Desconocido'),
             feeNational: c.fee_national || undefined,
             feeInternational: c.fee_international || undefined,
+            isPercentage: c.is_percentage || false,
+            percentageNational: c.percentage_national || undefined,
+            percentageInternational: c.percentage_international || undefined,
           });
         });
       }
@@ -333,6 +402,9 @@ export function ArtistFormatsDialog({
               role_label: cm.roleLabel || null,
               fee_national: cm.feeNational || null,
               fee_international: cm.feeInternational || null,
+              is_percentage: cm.isPercentage || false,
+              percentage_national: cm.percentageNational || null,
+              percentage_international: cm.percentageInternational || null,
             }));
             
             const { error: crewError } = await supabase
@@ -420,6 +492,33 @@ export function ArtistFormatsDialog({
     handleUpdateFormat(formatIndex, {
       crewMembers: format.crewMembers.map(cm =>
         cm.memberId === memberId ? { ...cm, feeInternational } : cm
+      ),
+    });
+  };
+
+  const handleUpdateCrewPercentageNational = (formatIndex: number, memberId: string, percentageNational: number | undefined) => {
+    const format = formats[formatIndex];
+    handleUpdateFormat(formatIndex, {
+      crewMembers: format.crewMembers.map(cm =>
+        cm.memberId === memberId ? { ...cm, percentageNational } : cm
+      ),
+    });
+  };
+
+  const handleUpdateCrewPercentageInternational = (formatIndex: number, memberId: string, percentageInternational: number | undefined) => {
+    const format = formats[formatIndex];
+    handleUpdateFormat(formatIndex, {
+      crewMembers: format.crewMembers.map(cm =>
+        cm.memberId === memberId ? { ...cm, percentageInternational } : cm
+      ),
+    });
+  };
+
+  const handleToggleCrewIsPercentage = (formatIndex: number, memberId: string, isPercentage: boolean) => {
+    const format = formats[formatIndex];
+    handleUpdateFormat(formatIndex, {
+      crewMembers: format.crewMembers.map(cm =>
+        cm.memberId === memberId ? { ...cm, isPercentage } : cm
       ),
     });
   };
@@ -641,6 +740,9 @@ export function ArtistFormatsDialog({
                                   formatIndex={index}
                                   onUpdateFeeNational={handleUpdateCrewFeeNational}
                                   onUpdateFeeInternational={handleUpdateCrewFeeInternational}
+                                  onUpdatePercentageNational={handleUpdateCrewPercentageNational}
+                                  onUpdatePercentageInternational={handleUpdateCrewPercentageInternational}
+                                  onToggleIsPercentage={handleToggleCrewIsPercentage}
                                   onRemove={handleRemoveCrewMember}
                                 />
                               ))}
