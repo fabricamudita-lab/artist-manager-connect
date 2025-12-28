@@ -303,6 +303,11 @@ export default function Teams() {
     }
   };
 
+  // Get selected artist info to show as team member
+  const selectedArtist = selectedArtistId !== 'all' && selectedArtistId !== '00-management' 
+    ? artists.find(a => a.id === selectedArtistId) 
+    : null;
+
   const allTeamByCategory = allCategoriesForDisplay.map(cat => {
     const wsMembers = teamMembers.filter(m => {
       if (selectedArtistId === '00-management') {
@@ -337,11 +342,25 @@ export default function Teams() {
       
       return categories.includes(cat.value) || singleCategory === cat.value;
     });
+
+    // Add the artist as a virtual member in "artistico" or "banda" category
+    let artistAsMember: any = null;
+    if (selectedArtist && (cat.value === 'artistico' || cat.value === 'banda')) {
+      artistAsMember = {
+        id: `artist-${selectedArtist.id}`,
+        isArtist: true,
+        name: selectedArtist.stage_name || selectedArtist.name,
+        role: 'Artista principal',
+        artistId: selectedArtist.id
+      };
+    }
+
     return {
       ...cat,
       members: wsMembers,
       contacts: contacts,
-      total: wsMembers.length + contacts.length,
+      artistMember: artistAsMember,
+      total: wsMembers.length + contacts.length + (artistAsMember ? 1 : 0),
     };
   }).filter(cat => cat.total > 0);
 
@@ -482,6 +501,32 @@ export default function Teams() {
                       </CardContent>
                     </Card>
                   ))}
+
+                  {/* Artist as team member */}
+                  {category.artistMember && (
+                    <Card key={category.artistMember.id} className="hover:shadow-md transition-shadow border-primary/30 bg-primary/5">
+                      <CardContent className="py-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12 ring-2 ring-primary/30">
+                            <AvatarFallback className="text-sm bg-primary/20 text-primary font-semibold">
+                              {category.artistMember.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold truncate">{category.artistMember.name}</h4>
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/20 border border-primary/30 text-primary shadow-sm">
+                                Artista
+                              </span>
+                            </div>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white dark:bg-background border border-primary/20 text-foreground shadow-sm mt-1.5">
+                              {category.artistMember.role}
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                   
                   {/* Team contacts without accounts */}
                   {category.contacts.map((contact: any) => {
