@@ -780,12 +780,40 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
       if (insertError) throw insertError;
 
+      // Delete empty categories (categories without any items in this budget)
+      const { data: allBudgetItems } = await supabase
+        .from('budget_items')
+        .select('category_id')
+        .eq('budget_id', budget.id);
+
+      const usedCategoryIds = new Set(
+        (allBudgetItems || [])
+          .map(item => item.category_id)
+          .filter(Boolean)
+      );
+
+      // Find empty categories to delete
+      const emptyCategories = budgetCategories.filter(cat => !usedCategoryIds.has(cat.id));
+      
+      if (emptyCategories.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('budget_categories')
+          .delete()
+          .in('id', emptyCategories.map(c => c.id));
+
+        if (deleteError) {
+          console.error('Error deleting empty categories:', deleteError);
+        } else {
+          await fetchBudgetCategories();
+        }
+      }
+
       await fetchBudgetItems();
       setShowLoadFromFormatDialog(false);
       
       toast({
         title: "¡Equipo cargado!",
-        description: `Se han añadido ${crewData.length} miembros del equipo al presupuesto`
+        description: `Se han añadido ${crewData.length} miembros del equipo al presupuesto${emptyCategories.length > 0 ? ` y eliminado ${emptyCategories.length} categorías vacías` : ''}`
       });
     } catch (error) {
       console.error('Error loading crew from format:', error);
