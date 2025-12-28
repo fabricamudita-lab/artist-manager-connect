@@ -873,8 +873,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             memberCategory = 'Artista Principal';
             isArtist = true;
             
-            // Use the artist_id directly - the BudgetContactSelector now supports artists
-            contactId = artistId;
+            // Artists are not in the contacts table, so we can't link via contact_id
+            // The contact_id FK only accepts IDs from the contacts table
+            contactId = null;
           }
           
           // Only look up profiles/contacts if this is NOT the artist
