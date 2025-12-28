@@ -873,9 +873,35 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             memberCategory = 'Artista Principal';
             isArtist = true;
             
-            // Artists are not in the contacts table, so we can't link via contact_id
-            // The contact_id FK only accepts IDs from the contacts table
-            contactId = null;
+            // Find or create a mirror contact for the artist
+            const { data: existingContact } = await supabase
+              .from('contacts')
+              .select('id')
+              .eq('artist_id', artistId)
+              .maybeSingle();
+            
+            if (existingContact) {
+              contactId = existingContact.id;
+            } else {
+              // Create a mirror contact for this artist
+              const { data: newContact } = await supabase
+                .from('contacts')
+                .insert({
+                  name: artistInfo.name,
+                  legal_name: artistInfo.legal_name,
+                  stage_name: artistInfo.name,
+                  artist_id: artistId,
+                  category: 'artista',
+                  role: 'Artista',
+                  created_by: user?.id
+                })
+                .select('id')
+                .single();
+              
+              if (newContact) {
+                contactId = newContact.id;
+              }
+            }
           }
           
           // Only look up profiles/contacts if this is NOT the artist
