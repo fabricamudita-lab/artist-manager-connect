@@ -759,9 +759,33 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const updateCategoryName = async (categoryId: string, newName: string) => {
     try {
+      const trimmedName = newName.trim();
+      if (!trimmedName) {
+        toast({
+          title: "Error",
+          description: "El nombre no puede estar vacío",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Check if name already exists (different category, same user)
+      const existingCategory = budgetCategories.find(
+        c => c.id !== categoryId && c.name.toLowerCase() === trimmedName.toLowerCase()
+      );
+      
+      if (existingCategory) {
+        toast({
+          title: "Error",
+          description: "Ya existe una categoría con ese nombre",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       const { error } = await supabase
         .from('budget_categories')
-        .update({ name: newName })
+        .update({ name: trimmedName })
         .eq('id', categoryId);
 
       if (error) throw error;
