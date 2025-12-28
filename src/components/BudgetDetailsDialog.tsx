@@ -151,6 +151,26 @@ const iconMap = {
   Bed: Bed
 };
 
+// Global category sort function - Artista first, Músicos second, Comisiones always last
+const getCategorySortPriority = (categoryName: string): number => {
+  const name = categoryName.toLowerCase();
+  if (name === 'artista') return 0;
+  if (name === 'músicos' || name === 'musicos') return 1;
+  if (name.includes('comisi')) return 999; // Always last
+  // Everything else in the middle, sorted by their database sort_order
+  return 50;
+};
+
+const sortCategoriesWithPriority = (categories: BudgetCategory[]): BudgetCategory[] => {
+  return [...categories].sort((a, b) => {
+    const priorityA = getCategorySortPriority(a.name);
+    const priorityB = getCategorySortPriority(b.name);
+    if (priorityA !== priorityB) return priorityA - priorityB;
+    // If same priority, use database sort_order
+    return (a.sort_order || 0) - (b.sort_order || 0);
+  });
+};
+
 // Helper functions for billing status mapping
 const mapDbToFrontend = (dbStatus: string): 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada' | 'cancelado' => {
   switch (dbStatus) {
@@ -347,7 +367,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         return;
       }
       
-      setBudgetCategories(data || []);
+      // Apply priority sorting: Artista first, Músicos second, Comisiones last
+      setBudgetCategories(sortCategoriesWithPriority(data || []));
       setOpenCategories(new Set((data || []).map(c => c.id)));
     } catch (error) {
       console.error('Error fetching budget categories:', error);
@@ -532,11 +553,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       '#6366f1'  // indigo
     ];
     
-    // Sort categories by their original order from fetchBudgetCategories
-    const sortedCategories = [...budgetCategories].sort((a, b) => {
-      // Use creation date as tie-breaker to maintain consistency
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    });
+    // Sort categories with priority: Artista first, Músicos second, Comisiones last
+    const sortedCategories = sortCategoriesWithPriority(budgetCategories);
     
     const chartData = sortedCategories.map((category, index) => {
       const categoryItems = getCategoryItems(category.id);
@@ -554,10 +572,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   };
 
   const getCategorySummaryData = () => {
-    // Sort categories by their original order from fetchBudgetCategories
-    const sortedCategories = [...budgetCategories].sort((a, b) => {
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    });
+    // Sort categories with priority: Artista first, Músicos second, Comisiones last
+    const sortedCategories = sortCategoriesWithPriority(budgetCategories);
     
     return sortedCategories.map(category => {
       const categoryItems = getCategoryItems(category.id);
@@ -2052,7 +2068,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                      <div className="bg-gray-800 text-white p-4 border-b border-gray-600">
                        <h3 className="text-md font-bold mb-3">Gestión de Categorías</h3>
                         <div className="space-y-3">
-                          {budgetCategories.map((category, index) => (
+                          {sortCategoriesWithPriority(budgetCategories).map((category, index) => (
                             <div 
                               key={category.id}
                               className={`flex items-center justify-between p-3 rounded-lg transition-all duration-200 cursor-move
@@ -2225,7 +2241,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   </div>
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {budgetCategories.map((category) => {
+                                  {sortCategoriesWithPriority(budgetCategories).map((category) => {
                                     const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
                                     return (
                                       <SelectItem key={category.id} value={category.id}>
@@ -2269,7 +2285,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
                     {/* Categories Section */}
                    <div className="flex-1 overflow-auto">
-                    {budgetCategories.map((category) => {
+                    {sortCategoriesWithPriority(budgetCategories).map((category) => {
                       const categoryItems = getCategoryItems(category.id);
                       const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
                       
