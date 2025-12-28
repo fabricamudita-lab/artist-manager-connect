@@ -755,6 +755,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           let memberName = crew.role_label || 'Miembro del equipo';
           let memberRole = '';
           let memberCategory = 'Músicos / Crew'; // Default category
+          let contactId: string | null = null; // To link budget item to contact
           
           // Try profiles table (workspace members)
           if (crew.member_id && crew.member_type === 'workspace') {
@@ -765,24 +766,38 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
               .maybeSingle();
             
             if (profile) {
-              memberName = profile.stage_name || profile.full_name || memberName;
+              // Use full_name (real name) first, then stage_name as fallback
+              memberName = profile.full_name || profile.stage_name || memberName;
               // Check if this person has management role (manager/booker = commission)
               const roles = profile.roles as string[] | null;
               if (roles && (roles.includes('management') || roles.includes('manager') || roles.includes('booker'))) {
                 memberCategory = 'Comisiones';
               }
+              
+              // Try to find a matching contact to link
+              const { data: matchingContact } = await supabase
+                .from('contacts')
+                .select('id')
+                .or(`name.ilike.%${profile.full_name}%,legal_name.ilike.%${profile.full_name}%`)
+                .maybeSingle();
+              
+              if (matchingContact) {
+                contactId = matchingContact.id;
+              }
             }
           } else if (crew.member_id) {
-            // Try contacts table
+            // Try contacts table - directly link to contact
             const { data: contact } = await supabase
               .from('contacts')
-              .select('name, stage_name, role, category')
+              .select('id, name, legal_name, stage_name, role, category')
               .eq('id', crew.member_id)
               .maybeSingle();
             
             if (contact) {
-              memberName = contact.stage_name || contact.name || memberName;
+              // Use legal_name or name (real name), NOT stage_name for budget items
+              memberName = contact.legal_name || contact.name || memberName;
               memberRole = contact.role || '';
+              contactId = contact.id; // Link to contact
               
               // Determine category based on contact category/role
               if (contact.category === 'tecnico' || 
@@ -846,6 +861,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             billing_status: 'pendiente' as const,
             is_commission_percentage: crew.is_percentage || false,
             commission_percentage: commissionPercentage,
+            contact_id: contactId, // Link budget item to contact profile
             subcategory: crew.is_percentage 
               ? `${commissionPercentage}% del fee`
               : (memberRole || undefined),
