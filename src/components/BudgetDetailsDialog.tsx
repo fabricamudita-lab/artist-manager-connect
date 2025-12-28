@@ -892,7 +892,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 // Check if this person has management role (manager/booker = commission)
                 const roles = profile.roles as string[] | null;
                 if (roles && (roles.includes('management') || roles.includes('manager') || roles.includes('booker'))) {
-                  memberCategory = 'Comisiones';
+                  memberCategory = 'Management';
                 }
                 
                 // Try to find a matching contact to link
@@ -934,7 +934,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 } else if (contact.category === 'management' ||
                            contactRole.includes('manager') ||
                            contactRole.includes('booker')) {
-                  memberCategory = 'Comisiones';
+                  memberCategory = 'Management';
                 } else if (contact.category === 'banda' ||
                            contactRole.includes('músico') ||
                            contactRole.includes('guitarra') ||
@@ -949,7 +949,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           
           // Also check: if is_percentage is true, it's likely a commission (manager/booker)
           if (crew.is_percentage) {
-            memberCategory = 'Comisiones';
+            memberCategory = 'Management';
           }
 
           // Get or create the target category
