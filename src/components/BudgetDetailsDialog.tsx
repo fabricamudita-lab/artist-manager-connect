@@ -873,18 +873,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             memberCategory = 'Artista Principal';
             isArtist = true;
             
-            // Try to find a contact for the artist to link
-            if (artistInfo.name) {
-              const { data: matchingContact } = await supabase
-                .from('contacts')
-                .select('id')
-                .or(`name.ilike.%${artistInfo.name}%,legal_name.ilike.%${artistInfo.legal_name || artistInfo.name}%`)
-                .maybeSingle();
-              
-              if (matchingContact) {
-                contactId = matchingContact.id;
-              }
-            }
+            // Use the artist_id directly - the BudgetContactSelector now supports artists
+            contactId = artistId;
           }
           
           // Only look up profiles/contacts if this is NOT the artist

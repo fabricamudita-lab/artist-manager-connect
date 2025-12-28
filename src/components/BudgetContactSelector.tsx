@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Check, ChevronsUpDown, User, Mail, Phone } from "lucide-react";
+import { Check, ChevronsUpDown, User, Mail, Phone, Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,6 +15,7 @@ interface Contact {
   company?: string;
   role?: string;
   iban?: string;
+  type?: 'contact' | 'artist';
 }
 
 interface BudgetContactSelectorProps {
@@ -27,29 +28,47 @@ interface BudgetContactSelectorProps {
 export function BudgetContactSelector({ value, onValueChange, className, compact = false }: BudgetContactSelectorProps) {
   const [open, setOpen] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [artists, setArtists] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchContacts();
+    fetchData();
   }, []);
 
-  const fetchContacts = async () => {
+  const fetchData = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch contacts
+      const { data: contactsData, error: contactsError } = await supabase
         .from('contacts')
         .select('id, name, email, phone, company, role, iban')
         .order('name');
 
-      if (error) throw error;
-      setContacts(data || []);
+      if (contactsError) throw contactsError;
+      setContacts((contactsData || []).map(c => ({ ...c, type: 'contact' as const })));
+
+      // Fetch artists from roster
+      const { data: artistsData, error: artistsError } = await supabase
+        .from('artists')
+        .select('id, name, stage_name, legal_name, iban')
+        .order('name');
+
+      if (artistsError) throw artistsError;
+      setArtists((artistsData || []).map(a => ({
+        id: a.id,
+        name: a.stage_name || a.name,
+        role: 'Artista',
+        iban: a.iban,
+        type: 'artist' as const
+      })));
     } catch (error) {
-      console.error('Error fetching contacts:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const selectedContact = contacts.find(c => c.id === value);
+  const allItems = [...artists, ...contacts];
+  const selectedContact = allItems.find(c => c.id === value);
 
   if (compact) {
     return (
@@ -106,7 +125,32 @@ export function BudgetContactSelector({ value, onValueChange, className, compact
               <CommandEmpty>
                 {loading ? 'Cargando...' : 'No se encontraron contactos'}
               </CommandEmpty>
-              <CommandGroup>
+              {artists.length > 0 && (
+                <CommandGroup heading="Artistas del roster">
+                  {artists.map((artist) => (
+                    <CommandItem
+                      key={`artist-${artist.id}`}
+                      value={`${artist.name} artista`}
+                      onSelect={() => {
+                        onValueChange(artist.id);
+                        setOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          value === artist.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Music className="w-3 h-3 text-primary" />
+                        <span className="text-sm font-medium">{artist.name}</span>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              <CommandGroup heading="Contactos">
                 <CommandItem
                   value="__clear__"
                   onSelect={() => {
@@ -119,7 +163,7 @@ export function BudgetContactSelector({ value, onValueChange, className, compact
                 </CommandItem>
                 {contacts.map((contact) => (
                   <CommandItem
-                    key={contact.id}
+                    key={`contact-${contact.id}`}
                     value={contact.name}
                     onSelect={() => {
                       onValueChange(contact.id);
@@ -177,42 +221,67 @@ export function BudgetContactSelector({ value, onValueChange, className, compact
             <CommandEmpty>
               {loading ? 'Cargando...' : 'No se encontraron contactos'}
             </CommandEmpty>
-            <CommandGroup>
-              <CommandItem
-                value="__clear__"
-                onSelect={() => {
-                  onValueChange(null);
-                  setOpen(false);
-                }}
-                className="text-muted-foreground"
-              >
-                <span>Sin asignar</span>
-              </CommandItem>
-              {contacts.map((contact) => (
+              {artists.length > 0 && (
+                <CommandGroup heading="Artistas del roster">
+                  {artists.map((artist) => (
+                    <CommandItem
+                      key={`artist-${artist.id}`}
+                      value={`${artist.name} artista`}
+                      onSelect={() => {
+                        onValueChange(artist.id);
+                        setOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          value === artist.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Music className="w-4 h-4 text-primary" />
+                        <span className="font-medium">{artist.name}</span>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              <CommandGroup heading="Contactos">
                 <CommandItem
-                  key={contact.id}
-                  value={contact.name}
+                  value="__clear__"
                   onSelect={() => {
-                    onValueChange(contact.id);
+                    onValueChange(null);
                     setOpen(false);
                   }}
+                  className="text-muted-foreground"
                 >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === contact.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  <div className="flex flex-col">
-                    <span className="font-medium">{contact.name}</span>
-                    <div className="text-xs text-muted-foreground">
-                      {contact.email && <span>{contact.email}</span>}
-                      {contact.role && <span className="ml-2">• {contact.role}</span>}
-                    </div>
-                  </div>
+                  <span>Sin asignar</span>
                 </CommandItem>
-              ))}
-            </CommandGroup>
+                {contacts.map((contact) => (
+                  <CommandItem
+                    key={`contact-${contact.id}`}
+                    value={contact.name}
+                    onSelect={() => {
+                      onValueChange(contact.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        value === contact.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    <div className="flex flex-col">
+                      <span className="font-medium">{contact.name}</span>
+                      <div className="text-xs text-muted-foreground">
+                        {contact.email && <span>{contact.email}</span>}
+                        {contact.role && <span className="ml-2">• {contact.role}</span>}
+                      </div>
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
           </CommandList>
         </Command>
       </PopoverContent>
