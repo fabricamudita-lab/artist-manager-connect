@@ -500,6 +500,7 @@ export default function BookingDetail() {
           <div className="space-y-6">
             <AvailabilityStatusCard
               bookingId={booking.id}
+              artistId={booking.artist_id}
               onRequestAvailability={() => setShowAvailabilityDialog(true)}
               canConfirm={!availabilityBlocked}
               onBlockStatusChange={setAvailabilityBlocked}
