@@ -347,20 +347,6 @@ export function RequestAvailabilityDialog({
               className="min-h-[60px]"
             />
           </div>
-
-          {/* Block confirmation toggle */}
-          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-            <div className="space-y-0.5">
-              <Label>Bloquear confirmación</Label>
-              <p className="text-xs text-muted-foreground">
-                No permitir confirmar el booking hasta resolver conflictos
-              </p>
-            </div>
-            <Switch
-              checked={blockConfirmation}
-              onCheckedChange={setBlockConfirmation}
-            />
-          </div>
         </div>
 
         <DialogFooter className="gap-2">
