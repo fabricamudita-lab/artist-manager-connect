@@ -59,6 +59,10 @@ import {
   ChevronRight,
   Calculator,
   ExternalLink,
+  Receipt,
+  CheckCircle2,
+  Clock,
+  User,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -156,6 +160,15 @@ export function FileExplorer({
   const [nodeToDelete, setNodeToDelete] = useState<StorageNode | null>(null);
   const [activeDragNode, setActiveDragNode] = useState<StorageNode | null>(null);
   const [breadcrumbPath, setBreadcrumbPath] = useState<StorageNode[]>([]);
+  const [showStatusDialog, setShowStatusDialog] = useState(false);
+  const [statusNode, setStatusNode] = useState<StorageNode | null>(null);
+  const [invoiceStatus, setInvoiceStatus] = useState<{
+    found: boolean;
+    billing_status?: string;
+    contact_name?: string;
+    fecha_emision?: string;
+    item_name?: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check if current folder is "Presupuesto" and has a linked budget
@@ -402,6 +415,37 @@ export function FileExplorer({
     buildBreadcrumbs(folderId);
   };
 
+  // Check invoice/payment status for a file
+  const handleViewStatus = async (node: StorageNode) => {
+    setStatusNode(node);
+    setInvoiceStatus(null);
+    setShowStatusDialog(true);
+
+    try {
+      // Look for a budget_item that has this file's URL as invoice_link
+      const { data: budgetItem } = await supabase
+        .from('budget_items')
+        .select('id, name, billing_status, fecha_emision, contacts(name, legal_name)')
+        .eq('invoice_link', node.file_url)
+        .maybeSingle();
+
+      if (budgetItem) {
+        setInvoiceStatus({
+          found: true,
+          billing_status: budgetItem.billing_status || 'pendiente',
+          contact_name: (budgetItem.contacts as any)?.legal_name || (budgetItem.contacts as any)?.name || 'Sin contacto',
+          fecha_emision: budgetItem.fecha_emision,
+          item_name: budgetItem.name,
+        });
+      } else {
+        setInvoiceStatus({ found: false });
+      }
+    } catch (error) {
+      console.error('Error fetching invoice status:', error);
+      setInvoiceStatus({ found: false });
+    }
+  };
+
   // Render grid view item
   const renderGridItem = (node: StorageNode) => {
     const IconComponent = node.node_type === 'folder' ? Folder : getFileIcon(node.file_type);
@@ -457,6 +501,16 @@ export function FileExplorer({
                   >
                     <Download className="h-4 w-4 mr-2" />
                     Descargar
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleViewStatus(node);
+                    }}
+                  >
+                    <Receipt className="h-4 w-4 mr-2" />
+                    Ver estado
                   </DropdownMenuItem>
                 </>
               )}
@@ -582,6 +636,16 @@ export function FileExplorer({
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Descargar
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleViewStatus(node);
+                  }}
+                >
+                  <Receipt className="h-4 w-4 mr-2" />
+                  Ver estado
                 </DropdownMenuItem>
               </>
             )}
@@ -919,6 +983,77 @@ export function FileExplorer({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Invoice Status Dialog */}
+      <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" />
+              Estado de factura
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {invoiceStatus === null ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
+            ) : !invoiceStatus.found ? (
+              <div className="text-center py-4 text-muted-foreground">
+                <Receipt className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                <p>Este archivo no está vinculado a ningún gasto del presupuesto.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-4 rounded-lg bg-muted/50">
+                  <p className="text-sm text-muted-foreground mb-1">Concepto</p>
+                  <p className="font-medium">{invoiceStatus.item_name}</p>
+                </div>
+                
+                <div className="p-4 rounded-lg bg-muted/50">
+                  <p className="text-sm text-muted-foreground mb-1">Proveedor</p>
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <p className="font-medium">{invoiceStatus.contact_name}</p>
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-lg ${
+                  invoiceStatus.billing_status === 'pagado' 
+                    ? 'bg-green-500/10 border border-green-500/20' 
+                    : 'bg-yellow-500/10 border border-yellow-500/20'
+                }`}>
+                  <p className="text-sm text-muted-foreground mb-1">Estado de pago</p>
+                  <div className="flex items-center gap-2">
+                    {invoiceStatus.billing_status === 'pagado' ? (
+                      <>
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        <span className="font-medium text-green-700">Pagado</span>
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="h-5 w-5 text-yellow-600" />
+                        <span className="font-medium text-yellow-700 capitalize">
+                          {invoiceStatus.billing_status || 'Pendiente'}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  {invoiceStatus.fecha_emision && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Fecha emisión: {format(new Date(invoiceStatus.fecha_emision), 'd MMM yyyy', { locale: es })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowStatusDialog(false)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DndContext>
   );
 }
