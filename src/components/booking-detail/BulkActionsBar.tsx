@@ -90,7 +90,7 @@ export function BulkActionsBar({ selectedIds, offerMetaById, onClear, onRefresh,
             const artistLabel = meta?.artistLabel;
             const displayName = artistLabel ? `${bookingName} (${artistLabel})` : bookingName;
             errorMessage = `Solicitud de booking: ${displayName} — ${reason || 'Faltan aprobaciones o hay bloqueos activos.'}`;
-            bookingLink = `/booking/${bookingId}?scrollTo=availability`;
+            bookingLink = `/booking/${bookingId}?scrollTo=viability`;
           } else {
             errorMessage = `No se puede confirmar: ${reason || 'Faltan aprobaciones o hay bloqueos activos.'}`;
           }

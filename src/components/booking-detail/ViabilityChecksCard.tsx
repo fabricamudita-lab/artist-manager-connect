@@ -156,7 +156,8 @@ export function ViabilityChecksCard({
       console.error('Error confirming booking:', error);
 
       let errorMessage = error?.message || "No se pudo confirmar el booking.";
-      const bookingLink = `/booking/${bookingId}?scrollTo=availability`;
+      // Default to viability section for viability errors, availability for availability conflicts
+      let bookingLink = `/booking/${bookingId}?scrollTo=viability`;
 
       try {
         if (error?.message?.includes('AVAILABILITY_CONFLICT|')) {
@@ -165,6 +166,7 @@ export function ViabilityChecksCard({
             const [, bookingName, artistName] = parts;
             const displayName = artistName ? `${bookingName} (${artistName})` : bookingName;
             errorMessage = `Solicitud de disponibilidad pendiente: ${displayName}`;
+            bookingLink = `/booking/${bookingId}?scrollTo=availability`;
           }
         } else if (error?.message?.includes('No se puede confirmar:')) {
           const reason = error.message.match(/No se puede confirmar:\s*(.+)/)?.[1] || '';
