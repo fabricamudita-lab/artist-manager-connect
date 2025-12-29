@@ -3646,7 +3646,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                           file, 
                                                           [], 
                                                           bookingContext?.artistId, 
-                                                          bookingContext?.bookingId
+                                                          bookingContext?.bookingId,
+                                                          item // Pass item for proper naming
                                                         );
                                                         if (result?.fileUrl) {
                                                           await supabase
