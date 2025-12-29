@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -61,8 +61,12 @@ import {
   FileSpreadsheet,
   FolderOpen,
   ExternalLink,
-  Database
+  Database,
+  Upload,
+  Sparkles,
+  Link2
 } from 'lucide-react';
+import { useInvoiceAutoLink } from '@/hooks/useInvoiceAutoLink';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
@@ -280,6 +284,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   }>>([]);
   const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
   const [loadingTeamMembers, setLoadingTeamMembers] = useState(false);
+  
+  // Invoice auto-link hook
+  const invoiceInputRef = useRef<HTMLInputElement>(null);
+  const {
+    isUploading: isUploadingInvoice,
+    autoLinkSuggestions,
+    uploadInvoice,
+    confirmAutoLink,
+    dismissAutoLink,
+    scanAndAutoLink
+  } = useInvoiceAutoLink(budget.id);
 
   useEffect(() => {
     if (open && budget) {
@@ -2671,6 +2686,49 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
               <TabsContent value="items" className="flex-1 overflow-hidden p-0 m-0">
                 <div className="h-full flex flex-col bg-gradient-to-b from-black to-gray-900">
+                  {/* Auto-link suggestions banner */}
+                  {autoLinkSuggestions.size > 0 && (
+                    <div className="bg-amber-500/20 border-b border-amber-500/30 p-3">
+                      <div className="flex items-center gap-2 text-amber-200 mb-2">
+                        <Sparkles className="w-4 h-4" />
+                        <span className="font-medium">Sugerencias de vinculación automática</span>
+                      </div>
+                      <div className="space-y-2">
+                        {Array.from(autoLinkSuggestions.entries()).map(([fileUrl, suggestion]) => (
+                          <div key={fileUrl} className="flex items-center justify-between bg-amber-500/10 rounded p-2">
+                            <div className="text-sm text-amber-100">
+                              <span className="font-medium">{suggestion.itemName}</span>
+                              <span className="text-amber-200/70 ml-2">
+                                ({suggestion.matchReasons.join(' • ')})
+                              </span>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs bg-green-600/30 hover:bg-green-600/50 text-green-200 border-green-400/30"
+                                onClick={() => {
+                                  confirmAutoLink(fileUrl, suggestion.itemId);
+                                  fetchBudgetItems();
+                                }}
+                              >
+                                <Link2 className="w-3 h-3 mr-1" />
+                                Vincular
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-xs text-amber-200 hover:text-amber-100"
+                                onClick={() => dismissAutoLink(fileUrl)}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                    {/* Category Management Header - Compact */}
                   <div className="bg-black text-white p-3 border-b border-gray-700">
                     <div className="flex items-center justify-between">
@@ -2692,14 +2750,40 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                            Añadir equipo
                          </Button>
                          <Button
-                           onClick={() => setShowLiquidarDialog(true)}
+                           onClick={() => invoiceInputRef.current?.click()}
                            size="sm"
                            variant="outline"
-                           className="bg-green-600/20 hover:bg-green-600/30 text-green-200 border-green-400/20 text-xs"
+                           className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-200 border-purple-400/20 text-xs"
+                           disabled={isUploadingInvoice}
                          >
-                           <CheckCircle className="w-3 h-3 mr-1" />
-                           Liquidar Facturas
+                           <Upload className="w-3 h-3 mr-1" />
+                           {isUploadingInvoice ? 'Subiendo...' : 'Subir Factura'}
                          </Button>
+                         <input
+                           ref={invoiceInputRef}
+                           type="file"
+                           accept=".pdf,.jpg,.jpeg,.png,.webp"
+                           multiple
+                           className="hidden"
+                           onChange={async (e) => {
+                             const files = e.target.files;
+                             if (!files?.length) return;
+                             for (const file of Array.from(files)) {
+                               await uploadInvoice(file, items);
+                             }
+                             fetchBudgetItems();
+                             e.target.value = '';
+                           }}
+                         />
+                         <Button
+                            onClick={() => setShowLiquidarDialog(true)}
+                            size="sm"
+                            variant="outline"
+                            className="bg-green-600/20 hover:bg-green-600/30 text-green-200 border-green-400/20 text-xs"
+                          >
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Liquidar Facturas
+                          </Button>
                          <Button
                            onClick={() => setShowCategoryManagement(!showCategoryManagement)}
                            size="sm"
@@ -3461,10 +3545,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                              className="h-8 text-sm border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
                                            />
                                          ) : (
-                                           <div 
-                                             className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded"
-                                             onClick={() => startEditingItem(item)}
-                                           >
+                                           <div className="h-8 flex items-center justify-center gap-1">
                                              {item.invoice_link ? (
                                                <a 
                                                  href={item.invoice_link} 
@@ -3476,7 +3557,36 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                  Ver factura
                                                </a>
                                              ) : (
-                                               <span className="text-gray-400 text-sm">-</span>
+                                               <>
+                                                 <label className="cursor-pointer hover:bg-blue-100 p-1 rounded flex items-center gap-1 text-gray-500 hover:text-blue-600">
+                                                   <Upload className="w-3 h-3" />
+                                                   <input
+                                                     type="file"
+                                                     accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                                     className="hidden"
+                                                     onChange={async (e) => {
+                                                       const file = e.target.files?.[0];
+                                                       if (!file) return;
+                                                       // Upload and link directly to this item
+                                                       const result = await uploadInvoice(file, []);
+                                                       if (result?.fileUrl) {
+                                                         await supabase
+                                                           .from('budget_items')
+                                                           .update({ invoice_link: result.fileUrl })
+                                                           .eq('id', item.id);
+                                                         fetchBudgetItems();
+                                                       }
+                                                       e.target.value = '';
+                                                     }}
+                                                   />
+                                                 </label>
+                                                 <span 
+                                                   className="text-gray-400 text-sm cursor-pointer hover:bg-blue-100 px-1 rounded"
+                                                   onClick={() => startEditingItem(item)}
+                                                 >
+                                                   -
+                                                 </span>
+                                               </>
                                              )}
                                            </div>
                                          )}
