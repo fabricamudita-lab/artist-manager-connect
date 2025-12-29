@@ -30,6 +30,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useBookingFolderAutomation } from '@/hooks/useBookingFolderAutomation';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
+import { ContactSelector } from '@/components/ContactSelector';
 
 interface BookingOffer {
   id: string;
@@ -627,14 +628,13 @@ export function EditBookingDialog({
             </div>
           </TabsContent>
 
-          {/* Details Tab */}
           <TabsContent value="details" className="space-y-4 pt-4">
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Promotor</Label>
-                <Input
-                  value={formData.promotor || ''}
-                  onChange={(e) => updateField('promotor', e.target.value)}
+                <ContactSelector
+                  value={formData.promotor || null}
+                  onValueChange={(contactId) => updateField('promotor', contactId)}
                 />
               </div>
               <div className="space-y-2">
