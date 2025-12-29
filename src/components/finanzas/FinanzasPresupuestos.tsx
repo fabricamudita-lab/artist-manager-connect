@@ -26,7 +26,11 @@ interface Budget {
   created_by: string;
 }
 
-export function FinanzasPresupuestos() {
+interface FinanzasPresupuestosProps {
+  artistId?: string;
+}
+
+export function FinanzasPresupuestos({ artistId }: FinanzasPresupuestosProps = {}) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,7 +41,7 @@ export function FinanzasPresupuestos() {
 
   useEffect(() => {
     fetchBudgets();
-  }, [filterStatus]);
+  }, [filterStatus, artistId]);
 
   const fetchBudgets = async () => {
     setLoading(true);
@@ -46,6 +50,11 @@ export function FinanzasPresupuestos() {
         .from('budgets')
         .select('*')
         .order('created_at', { ascending: false });
+
+      // Filter by artist if provided
+      if (artistId && artistId !== 'all') {
+        query = query.eq('artist_id', artistId);
+      }
 
       if (filterStatus !== 'all') {
         query = query.eq('budget_status', filterStatus as any);
