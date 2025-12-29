@@ -66,18 +66,43 @@ export function BulkActionsBar({ selectedIds, onClear, onRefresh, phases }: Bulk
       
       // Extract the specific error message from the database
       let errorMessage = "No se pudieron mover las ofertas.";
+      let bookingLink: string | null = null;
+      
       if (error?.message) {
-        if (error.message.includes('No se puede confirmar:')) {
+        if (error.message.includes('AVAILABILITY_CONFLICT|')) {
+          // Parse the structured error: AVAILABILITY_CONFLICT|request_id|booking_name|artist_name|booking_id
+          const parts = error.message.split('AVAILABILITY_CONFLICT|')[1]?.split('|');
+          if (parts && parts.length >= 4) {
+            const [, bookingName, artistName, bookingId] = parts;
+            const displayName = artistName ? `${bookingName} (${artistName})` : bookingName;
+            errorMessage = `Solicitud de disponibilidad pendiente: ${displayName}`;
+            bookingLink = `/booking?id=${bookingId}`;
+          } else {
+            errorMessage = "Hay conflictos de disponibilidad del equipo sin resolver";
+          }
+        } else if (error.message.includes('No se puede confirmar:')) {
           const match = error.message.match(/No se puede confirmar: (.+)/);
           errorMessage = match ? match[0] : error.message;
-        } else if (error.message.includes('conflictos de disponibilidad')) {
-          errorMessage = "No se puede confirmar: Hay conflictos de disponibilidad del equipo sin resolver";
         }
       }
       
       toast({
         title: "Error",
-        description: errorMessage,
+        description: bookingLink ? (
+          <span>
+            {errorMessage}.{' '}
+            <a 
+              href={bookingLink} 
+              className="underline font-medium hover:text-primary"
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = bookingLink!;
+              }}
+            >
+              Ver solicitud →
+            </a>
+          </span>
+        ) : errorMessage,
         variant: "destructive",
       });
     } finally {
