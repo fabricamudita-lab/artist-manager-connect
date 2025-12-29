@@ -951,7 +951,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           contact_id: contactId,
           quantity: 1,
           unit_price: 0,
-          iva_percentage: 0,
+          iva_percentage: 21,
           irpf_percentage: 15,
           is_attendee: true,
           billing_status: 'pendiente',
