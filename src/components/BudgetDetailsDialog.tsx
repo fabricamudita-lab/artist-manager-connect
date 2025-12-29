@@ -71,6 +71,7 @@ import EnhancedBudgetItemsView from '@/components/EnhancedBudgetItemsView';
 import LiquidarFacturasDialog from '@/components/LiquidarFacturasDialog';
 import { BudgetContactSelector } from '@/components/BudgetContactSelector';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -259,6 +260,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [expandedQuantity, setExpandedQuantity] = useState<string | null>(null);
   const [showLiquidarDialog, setShowLiquidarDialog] = useState(false);
   const [showLoadFromFormatDialog, setShowLoadFromFormatDialog] = useState(false);
+  const [loadDialogTab, setLoadDialogTab] = useState<'formats' | 'team'>('formats');
   const [availableFormats, setAvailableFormats] = useState<Array<{
     id: string;
     name: string;
@@ -269,6 +271,15 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     fee_international: number | null;
   }>>([]);
   const [loadingFormats, setLoadingFormats] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<Array<{
+    id: string;
+    name: string;
+    role?: string;
+    category?: string;
+    type: 'workspace' | 'contact';
+  }>>([]);
+  const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
+  const [loadingTeamMembers, setLoadingTeamMembers] = useState(false);
 
   useEffect(() => {
     if (open && budget) {
@@ -779,6 +790,183 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       });
     } finally {
       setLoadingFormats(false);
+    }
+  };
+
+  const fetchTeamMembers = async () => {
+    setLoadingTeamMembers(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const members: Array<{id: string; name: string; role?: string; category?: string; type: 'workspace' | 'contact'}> = [];
+
+      // Get user's workspace
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('workspace_id')
+        .eq('user_id', user.id)
+        .single();
+
+      // Workspace members
+      if (profileData?.workspace_id) {
+        const { data: memberships } = await supabase
+          .from('workspace_memberships')
+          .select('user_id, role, team_category')
+          .eq('workspace_id', profileData.workspace_id);
+
+        if (memberships && memberships.length > 0) {
+          const userIds = memberships.map((m: any) => m.user_id);
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('user_id, full_name, stage_name, roles')
+            .in('user_id', userIds);
+
+          const catMap = new Map<string, string>();
+          memberships.forEach((m: any) => catMap.set(m.user_id, m.team_category || 'management'));
+
+          (profiles || []).forEach((p: any) => {
+            const roles = p.roles as string[] | null;
+            let roleLabel: string | undefined;
+            if (roles?.includes('management')) roleLabel = 'Manager';
+            else if (roles?.includes('artist')) roleLabel = 'Artista';
+
+            members.push({
+              id: p.user_id,
+              name: p.stage_name || p.full_name || 'Sin nombre',
+              role: roleLabel,
+              category: catMap.get(p.user_id),
+              type: 'workspace',
+            });
+          });
+        }
+      }
+
+      // Team contacts
+      const { data: contacts } = await supabase
+        .from('contacts')
+        .select('id, name, stage_name, category, role, field_config')
+        .eq('created_by', user.id);
+
+      const teamContacts = (contacts || []).filter((c: any) => {
+        const config = c.field_config as Record<string, any> | null;
+        return config?.is_team_member === true;
+      });
+
+      teamContacts.forEach((c: any) => {
+        members.push({
+          id: c.id,
+          name: c.stage_name || c.name,
+          role: c.role,
+          category: c.category,
+          type: 'contact',
+        });
+      });
+
+      setTeamMembers(members);
+    } catch (error) {
+      console.error('Error fetching team members:', error);
+    } finally {
+      setLoadingTeamMembers(false);
+    }
+  };
+
+  const addSelectedTeamMembersToBudget = async () => {
+    if (selectedTeamMembers.length === 0) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const itemsToInsert = [];
+
+      for (const memberId of selectedTeamMembers) {
+        const member = teamMembers.find(m => m.id === memberId);
+        if (!member) continue;
+
+        let contactId: string | null = null;
+        const categoryName = 'Músicos / Crew';
+
+        // If it's already a contact, use directly
+        if (member.type === 'contact') {
+          contactId = member.id;
+        } else {
+          // For workspace members, find or create mirror contact
+          const { data: existingMirror } = await supabase
+            .from('contacts')
+            .select('id')
+            .eq('field_config->>workspace_user_id', member.id)
+            .maybeSingle();
+
+          if (existingMirror?.id) {
+            contactId = existingMirror.id;
+          } else {
+            // Create mirror contact
+            const { data: newContact } = await supabase
+              .from('contacts')
+              .insert({
+                name: member.name,
+                category: member.category || 'management',
+                role: member.role,
+                created_by: user.id,
+                field_config: {
+                  workspace_user_id: member.id,
+                  mirror_type: 'workspace_member',
+                },
+              })
+              .select('id')
+              .single();
+
+            if (newContact?.id) {
+              contactId = newContact.id;
+            }
+          }
+        }
+
+        // Get or ensure category exists
+        let categoryId = budgetCategories.find(c => c.name === categoryName)?.id;
+        if (!categoryId && budgetCategories.length > 0) {
+          categoryId = budgetCategories[0].id;
+        }
+
+        itemsToInsert.push({
+          budget_id: budget.id,
+          name: member.role || member.name,
+          category: categoryName,
+          category_id: categoryId,
+          contact_id: contactId,
+          quantity: 1,
+          unit_price: 0,
+          iva_percentage: 0,
+          irpf_percentage: 15,
+          is_attendee: true,
+          billing_status: 'pendiente',
+        });
+      }
+
+      if (itemsToInsert.length > 0) {
+        const { error } = await supabase
+          .from('budget_items')
+          .insert(itemsToInsert);
+
+        if (error) throw error;
+
+        toast({
+          title: "Equipo añadido",
+          description: `Se añadieron ${itemsToInsert.length} miembros al presupuesto`,
+        });
+
+        setSelectedTeamMembers([]);
+        setShowLoadFromFormatDialog(false);
+        fetchBudgetItems();
+      }
+    } catch (error) {
+      console.error('Error adding team members:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron añadir los miembros del equipo",
+        variant: "destructive",
+      });
     }
   };
 
@@ -2193,14 +2381,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                          <Button
                            onClick={() => {
                              fetchAvailableFormats();
+                             fetchTeamMembers();
+                             setLoadDialogTab('formats');
+                             setSelectedTeamMembers([]);
                              setShowLoadFromFormatDialog(true);
                            }}
                            size="sm"
                            variant="outline"
                            className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-200 border-blue-400/20 text-xs"
                          >
-                           <Database className="w-3 h-3 mr-1" />
-                           Cargar desde formato
+                           <Users className="w-3 h-3 mr-1" />
+                           Añadir equipo
                          </Button>
                          <Button
                            onClick={() => setShowLiquidarDialog(true)}
@@ -3212,77 +3403,160 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         }}
       />
 
-      {/* Dialog para cargar desde formato */}
+      {/* Dialog para añadir equipo */}
       <Dialog open={showLoadFromFormatDialog} onOpenChange={setShowLoadFromFormatDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Database className="w-5 h-5" />
-              Cargar equipo desde formato
+              <Users className="w-5 h-5" />
+              Añadir equipo al presupuesto
             </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Selecciona un formato de artista para cargar automáticamente los miembros del equipo al presupuesto.
-            </p>
-            
-            {loadingFormats ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
-            ) : availableFormats.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>No hay formatos disponibles</p>
-                <p className="text-xs mt-1">Crea un formato en la configuración del artista</p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {availableFormats.map((format) => (
-                  <Card 
-                    key={format.id} 
-                    className="cursor-pointer hover:border-primary transition-colors"
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{format.name}</p>
-                          <p className="text-sm text-muted-foreground">{format.artist_name}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {format.crew_count} miembros del equipo
-                          </p>
+          <Tabs value={loadDialogTab} onValueChange={(v) => setLoadDialogTab(v as 'formats' | 'team')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="formats">
+                <Database className="w-4 h-4 mr-2" />
+                Desde formato
+              </TabsTrigger>
+              <TabsTrigger value="team">
+                <Users className="w-4 h-4 mr-2" />
+                Miembros
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="formats" className="space-y-4 mt-4">
+              <p className="text-sm text-muted-foreground">
+                Selecciona un formato de artista para cargar automáticamente los miembros del equipo.
+              </p>
+              
+              {loadingFormats ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : availableFormats.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Database className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>No hay formatos disponibles</p>
+                  <p className="text-xs mt-1">Crea un formato en la configuración del artista</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {availableFormats.map((format) => (
+                    <Card 
+                      key={format.id} 
+                      className="cursor-pointer hover:border-primary transition-colors"
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">{format.name}</p>
+                            <p className="text-sm text-muted-foreground">{format.artist_name}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {format.crew_count} miembros del equipo
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => loadCrewFromFormat(format.id, false)}
+                              disabled={format.crew_count === 0}
+                            >
+                              Nacional
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => loadCrewFromFormat(format.id, true)}
+                              disabled={format.crew_count === 0}
+                            >
+                              Internacional
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => loadCrewFromFormat(format.id, false)}
-                            disabled={format.crew_count === 0}
-                          >
-                            Nacional
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => loadCrewFromFormat(format.id, true)}
-                            disabled={format.crew_count === 0}
-                          >
-                            Internacional
-                          </Button>
-                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="team" className="space-y-4 mt-4">
+              <p className="text-sm text-muted-foreground">
+                Selecciona miembros del equipo para añadirlos al presupuesto. Su rol será el concepto.
+              </p>
+              
+              {loadingTeamMembers ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : teamMembers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>No hay miembros del equipo disponibles</p>
+                  <p className="text-xs mt-1">Añade miembros en Contactos o en el workspace</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {teamMembers.map((member) => (
+                    <div
+                      key={member.id}
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                        selectedTeamMembers.includes(member.id)
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      )}
+                      onClick={() => {
+                        setSelectedTeamMembers(prev =>
+                          prev.includes(member.id)
+                            ? prev.filter(id => id !== member.id)
+                            : [...prev, member.id]
+                        );
+                      }}
+                    >
+                      <Checkbox
+                        checked={selectedTeamMembers.includes(member.id)}
+                        onCheckedChange={(checked) => {
+                          setSelectedTeamMembers(prev =>
+                            checked
+                              ? [...prev, member.id]
+                              : prev.filter(id => id !== member.id)
+                          );
+                        }}
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium">{member.name}</p>
+                        {member.role && (
+                          <p className="text-sm text-muted-foreground">{member.role}</p>
+                        )}
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-            
-            <div className="flex justify-end">
-              <Button variant="outline" onClick={() => setShowLoadFromFormatDialog(false)}>
-                Cancelar
-              </Button>
-            </div>
+                      <Badge variant="outline" className="text-xs">
+                        {member.type === 'workspace' ? 'Workspace' : 'Contacto'}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {selectedTeamMembers.length > 0 && (
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    {selectedTeamMembers.length} seleccionados
+                  </p>
+                  <Button onClick={addSelectedTeamMembersToBudget}>
+                    Añadir al presupuesto
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+          
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setShowLoadFromFormatDialog(false)}>
+              Cancelar
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
