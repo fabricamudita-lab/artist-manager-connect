@@ -383,7 +383,20 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
             const artistLabel = offer.artist?.stage_name || offer.artist?.name;
             const displayName = artistLabel ? `${bookingName} (${artistLabel})` : bookingName;
             errorMessage = `Solicitud de booking: ${displayName} — ${reason || 'Faltan aprobaciones o hay bloqueos activos.'}`;
-            bookingLink = `/booking/${offerId}?scrollTo=viability`;
+            
+            // Try to find the associated solicitud in action_center
+            const { data: solicitudData } = await supabase
+              .from('action_center')
+              .select('id')
+              .eq('booking_id', offerId)
+              .eq('item_type', 'booking_request')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            
+            bookingLink = solicitudData?.id 
+              ? `/solicitudes?id=${solicitudData.id}`
+              : `/booking/${offerId}?scrollTo=viability`;
           } else {
             errorMessage = error.message;
           }

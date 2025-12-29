@@ -170,6 +170,21 @@ export function ViabilityChecksCard({
           }
         } else if (error?.message?.includes('No se puede confirmar:')) {
           const reason = error.message.match(/No se puede confirmar:\s*(.+)/)?.[1] || '';
+          
+          // First try to find the associated solicitud in action_center
+          const { data: solicitudData } = await supabase
+            .from('action_center')
+            .select('id')
+            .eq('booking_id', bookingId)
+            .eq('item_type', 'booking_request')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (solicitudData?.id) {
+            bookingLink = `/solicitudes?id=${solicitudData.id}`;
+          }
+          
           const { data } = await supabase
             .from('booking_offers')
             .select('festival_ciclo, venue, lugar, artist:artists(stage_name,name)')
