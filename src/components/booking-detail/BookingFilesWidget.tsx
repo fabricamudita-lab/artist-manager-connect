@@ -110,16 +110,16 @@ export function BookingFilesWidget({ bookingId, artistId }: BookingFilesWidgetPr
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Folder className="w-5 h-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Folder className="w-4 h-4 text-primary" />
             Archivos Vinculados
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
           </div>
         </CardContent>
       </Card>
@@ -129,18 +129,18 @@ export function BookingFilesWidget({ bookingId, artistId }: BookingFilesWidgetPr
   if (!hasContent) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Folder className="w-5 h-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Folder className="w-4 h-4 text-primary" />
             Archivos Vinculados
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-6 text-muted-foreground">
-            <FolderOpen className="w-10 h-10 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No hay archivos vinculados a este evento</p>
-            <p className="text-xs mt-1">
-              Los archivos se vinculan automáticamente cuando el evento se confirma
+          <div className="text-center py-4 text-muted-foreground">
+            <FolderOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <p className="text-xs">No hay archivos vinculados</p>
+            <p className="text-xs mt-1 opacity-75">
+              Se crean al confirmar el evento
             </p>
           </div>
         </CardContent>
@@ -150,74 +150,76 @@ export function BookingFilesWidget({ bookingId, artistId }: BookingFilesWidgetPr
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2">
-          <Folder className="w-5 h-5" />
-          Archivos Vinculados
-        </CardTitle>
-        {subfolder && (
-          <Button variant="outline" size="sm" onClick={handleOpenFolder}>
-            <FolderOpen className="w-4 h-4 mr-2" />
-            Abrir Carpeta
-          </Button>
-        )}
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Folder className="w-4 h-4 text-primary" />
+            Archivos
+          </CardTitle>
+          {subfolder && (
+            <Button variant="outline" size="sm" onClick={handleOpenFolder} className="h-7 text-xs">
+              <FolderOpen className="w-3 h-3 mr-1" />
+              Abrir
+            </Button>
+          )}
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-2">
         {subfolder && (
-          <div className="mb-4 p-3 bg-muted/50 rounded-lg">
-            <div className="flex items-center gap-2 text-sm">
-              <Folder className="w-4 h-4 text-primary" />
+          <div className="p-2 bg-muted/50 rounded-lg">
+            <div className="flex items-center gap-2 text-xs">
+              <Folder className="w-3 h-3 text-primary" />
               <span className="font-medium">CONCIERTOS</span>
               <span className="text-muted-foreground">/</span>
-              <span>{subfolder.name}</span>
+              <span className="truncate">{subfolder.name}</span>
             </div>
           </div>
         )}
 
         {files.length > 0 ? (
-          <div className="space-y-2">
-            {files.map((file) => {
+          <div className="space-y-1.5 max-h-[150px] overflow-y-auto">
+            {files.slice(0, 5).map((file) => {
               const FileIcon = getFileIcon(file.file_type);
               const isPlaceholder = file.file_url === 'placeholder';
 
               return (
                 <div
                   key={file.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                  className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${
                     isPlaceholder 
                       ? 'bg-muted/30 border-dashed' 
                       : 'hover:bg-muted/50 cursor-pointer'
                   }`}
                   onClick={() => !isPlaceholder && handleOpenFile(file)}
                 >
-                  <div className="w-9 h-9 rounded-lg bg-background flex items-center justify-center flex-shrink-0">
-                    <FileIcon className="w-5 h-5 text-muted-foreground" />
+                  <div className="w-7 h-7 rounded bg-background flex items-center justify-center flex-shrink-0">
+                    <FileIcon className="w-4 h-4 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{file.file_name}</p>
+                    <p className="font-medium text-xs truncate">{file.file_name}</p>
                     <p className="text-xs text-muted-foreground">
                       {isPlaceholder ? (
-                        <span className="text-warning">Pendiente de subir</span>
+                        <span className="text-warning">Pendiente</span>
                       ) : (
-                        <>
-                          {formatFileSize(file.file_size)}
-                          {file.created_at && (
-                            <> • {format(new Date(file.created_at), 'dd MMM yyyy', { locale: es })}</>
-                          )}
-                        </>
+                        formatFileSize(file.file_size)
                       )}
                     </p>
                   </div>
                   {!isPlaceholder && (
-                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                    <ExternalLink className="w-3 h-3 text-muted-foreground" />
                   )}
                 </div>
               );
             })}
+            {files.length > 5 && (
+              <p className="text-xs text-center text-muted-foreground pt-1">
+                +{files.length - 5} más
+              </p>
+            )}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No hay archivos en esta carpeta aún
+          <p className="text-xs text-muted-foreground text-center py-2">
+            Carpeta vacía
           </p>
         )}
       </CardContent>

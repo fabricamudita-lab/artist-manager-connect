@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ClipboardList, ExternalLink, Clock, CheckCircle, XCircle, Plus } from 'lucide-react';
+import { ClipboardList, ExternalLink, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -63,10 +63,10 @@ export function LinkedSolicitudesCard({ bookingId }: LinkedSolicitudesCardProps)
     return (
       <Card>
         <CardHeader className="pb-3">
-          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-36" />
         </CardHeader>
         <CardContent>
-          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-12 w-full" />
         </CardContent>
       </Card>
     );
@@ -81,60 +81,54 @@ export function LinkedSolicitudesCard({ bookingId }: LinkedSolicitudesCardProps)
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <ClipboardList className="h-4 w-4 text-primary" />
-          Solicitudes Vinculadas
+          Solicitudes
           {solicitudes.length > 0 && (
-            <Badge variant="secondary" className="ml-auto">
+            <Badge variant="secondary" className="ml-auto text-xs">
               {solicitudes.length}
             </Badge>
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent>
         {solicitudes.length === 0 ? (
           <div className="text-center py-4">
-            <p className="text-sm text-muted-foreground mb-3">
-              No hay solicitudes vinculadas a este booking
+            <p className="text-xs text-muted-foreground">
+              No hay solicitudes vinculadas
             </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/solicitudes')}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Ir a Action Center
-            </Button>
           </div>
         ) : (
-          solicitudes.map((solicitud) => {
-            const statusInfo = getStatusInfo(solicitud.estado);
-            const StatusIcon = statusInfo.icon;
-            
-            return (
-              <div
-                key={solicitud.id}
-                className="flex items-center justify-between p-3 rounded-lg border bg-background/50 hover:bg-accent/50 cursor-pointer transition-colors"
-                onClick={() => handleOpenSolicitud(solicitud.id)}
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">
-                    {solicitud.nombre_festival || solicitud.nombre_solicitante}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant={statusInfo.variant} className="text-xs">
-                      <StatusIcon className="h-3 w-3 mr-1" />
-                      {statusInfo.label}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(solicitud.fecha_creacion), "d MMM yyyy", { locale: es })}
-                    </span>
+          <div className="space-y-2">
+            {solicitudes.map((solicitud) => {
+              const statusInfo = getStatusInfo(solicitud.estado);
+              const StatusIcon = statusInfo.icon;
+              
+              return (
+                <div
+                  key={solicitud.id}
+                  className="flex items-center justify-between p-2.5 rounded-lg border bg-background/50 hover:bg-accent/50 cursor-pointer transition-colors"
+                  onClick={() => handleOpenSolicitud(solicitud.id)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">
+                      {solicitud.nombre_festival || solicitud.nombre_solicitante}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant={statusInfo.variant} className="text-xs h-5">
+                        <StatusIcon className="h-3 w-3 mr-1" />
+                        {statusInfo.label}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(solicitud.fecha_creacion), "d MMM", { locale: es })}
+                      </span>
+                    </div>
                   </div>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-              </div>
-            );
-          })
+              );
+            })}
+          </div>
         )}
       </CardContent>
     </Card>

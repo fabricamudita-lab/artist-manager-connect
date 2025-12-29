@@ -134,245 +134,245 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
   };
 
   return (
-    <div className="grid grid-cols-2 gap-6">
-      {/* Deal Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            Resumen del Deal
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Oferta / Fee</p>
-              <p className="text-2xl font-bold text-primary">
-                {booking.fee ? `${booking.fee.toLocaleString()}€` : '-'}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">PVP Entradas</p>
-              <p className="font-medium">{booking.pvp ? `${booking.pvp.toLocaleString()}€` : '-'}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            {booking.formato && (
+    <div className="space-y-6">
+      {/* Top Row - Deal Summary + Promotor Info */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Deal Summary */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
+              Resumen del Deal
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                  <Music className="h-3 w-3" />
-                  Formato
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Oferta / Fee</p>
+                <p className="text-2xl font-bold text-primary">
+                  {booking.fee ? `${booking.fee.toLocaleString()}€` : '-'}
                 </p>
-                <p className="font-medium">{booking.formato}</p>
               </div>
-            )}
-            {booking.duracion && (
               <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  Duración
-                </p>
-                <p className="font-medium">{booking.duracion}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">PVP Entradas</p>
+                <p className="font-medium">{booking.pvp ? `${booking.pvp.toLocaleString()}€` : '-'}</p>
               </div>
-            )}
-            {booking.publico && (
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Público</p>
-                <p className="font-medium capitalize">{booking.publico.replace('_', ' ')}</p>
-              </div>
-            )}
-          </div>
+            </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            {booking.capacidad && (
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Capacidad</p>
-                <p className="font-medium">{booking.capacidad.toLocaleString()}</p>
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              {booking.formato && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                    <Music className="h-3 w-3" />
+                    Formato
+                  </p>
+                  <p className="font-medium">{booking.formato}</p>
+                </div>
+              )}
+              {booking.duracion && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Duración
+                  </p>
+                  <p className="font-medium">{booking.duracion}</p>
+                </div>
+              )}
+              {booking.publico && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Público</p>
+                  <p className="font-medium capitalize">{booking.publico.replace('_', ' ')}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              {booking.capacidad && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Capacidad</p>
+                  <p className="font-medium">{booking.capacidad.toLocaleString()}</p>
+                </div>
+              )}
+              {booking.invitaciones !== undefined && booking.invitaciones !== null && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Invitaciones</p>
+                  <p className="font-medium">{booking.invitaciones}</p>
+                </div>
+              )}
+              {booking.contratos && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Contrato</p>
+                  <Badge variant={booking.contratos === 'firmado' ? 'default' : 'secondary'} className="text-xs">
+                    {booking.contratos === 'por_hacer' ? 'Por Hacer' : booking.contratos === 'enviado' ? 'Enviado' : 'Firmado'}
+                  </Badge>
+                </div>
+              )}
+            </div>
+
+            {booking.condiciones && (
+              <div className="space-y-1 pt-2 border-t">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Condiciones</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{booking.condiciones}</p>
               </div>
             )}
-            {booking.invitaciones !== undefined && booking.invitaciones !== null && (
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Invitaciones</p>
-                <p className="font-medium">{booking.invitaciones}</p>
-              </div>
-            )}
-            {booking.contratos && (
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Contrato</p>
-                <Badge variant={booking.contratos === 'firmado' ? 'default' : 'secondary'}>
-                  {booking.contratos === 'por_hacer' ? 'Por Hacer' : booking.contratos === 'enviado' ? 'Enviado' : 'Firmado'}
+
+            {booking.es_cityzen && (
+              <div className="pt-2">
+                <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-300">
+                  CityZen
                 </Badge>
               </div>
             )}
-          </div>
-
-          {booking.condiciones && (
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Condiciones</p>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{booking.condiciones}</p>
-            </div>
-          )}
-
-          <div className="flex items-center gap-2 pt-2">
-            {booking.es_cityzen && (
-              <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-300">
-                CityZen
-              </Badge>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Buyer / Promoter Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-primary" />
-            Promotor / Buyer
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {booking.promotor && (
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Empresa</p>
-              {promotorContact ? (
-                <Link 
-                  to={`/contacts?selected=${promotorContact.id}`} 
-                  className="font-medium text-primary hover:underline flex items-center gap-1"
-                >
-                  {booking.promotor}
-                  <ExternalLink className="h-3 w-3" />
-                </Link>
-              ) : (
-                <p className="font-medium">{booking.promotor}</p>
-              )}
-            </div>
-          )}
-
-          {booking.contacto && (
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                <User className="h-3 w-3" />
-                Contacto
-              </p>
-              {contactoContact ? (
-                <Link 
-                  to={`/contacts?selected=${contactoContact.id}`} 
-                  className="font-medium text-primary hover:underline flex items-center gap-1"
-                >
-                  {contactoContact.stage_name || contactoContact.name}
-                  <ExternalLink className="h-3 w-3" />
-                </Link>
-              ) : (
-                <p className="font-medium">{booking.contacto}</p>
-              )}
-            </div>
-          )}
-
-          {(booking.tour_manager || booking.tour_manager_new) && (
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                <Phone className="h-3 w-3" />
-                Tour Manager
-              </p>
-              {tourManagerContact ? (
-                <Link 
-                  to={`/contacts?selected=${tourManagerContact.id}`} 
-                  className="font-medium text-primary hover:underline flex items-center gap-1"
-                >
-                  {tourManagerContact.stage_name || tourManagerContact.name}
-                  <ExternalLink className="h-3 w-3" />
-                </Link>
-              ) : (
-                <p className="font-medium">{booking.tour_manager}</p>
-              )}
-            </div>
-          )}
-
-          {booking.link_venta && (
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                <LinkIcon className="h-3 w-3" />
-                Link de Venta
-              </p>
-              <a 
-                href={booking.link_venta} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:underline text-sm"
-              >
-                {booking.link_venta}
-              </a>
-            </div>
-          )}
-
-          {booking.inicio_venta && (
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                Inicio de Venta
-              </p>
-              <p className="font-medium">{booking.inicio_venta}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Logistics */}
-      {booking.logistica && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              Logística
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{booking.logistica}</p>
           </CardContent>
         </Card>
-      )}
 
-      {/* Artist Notes */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              Notas del Artista
-            </span>
-            <Button 
-              size="sm" 
-              onClick={() => {
-                handleSaveNotes();
-                setHasChanged(false);
+        {/* Buyer / Promoter Info */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-primary" />
+              Promotor / Buyer
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {booking.promotor && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Empresa</p>
+                {promotorContact ? (
+                  <Link 
+                    to={`/contacts?selected=${promotorContact.id}`} 
+                    className="font-medium text-primary hover:underline flex items-center gap-1"
+                  >
+                    {booking.promotor}
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                ) : (
+                  <p className="font-medium">{booking.promotor}</p>
+                )}
+              </div>
+            )}
+
+            {booking.contacto && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <User className="h-3 w-3" />
+                  Contacto
+                </p>
+                {contactoContact ? (
+                  <Link 
+                    to={`/contacts?selected=${contactoContact.id}`} 
+                    className="font-medium text-primary hover:underline flex items-center gap-1"
+                  >
+                    {contactoContact.stage_name || contactoContact.name}
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                ) : (
+                  <p className="font-medium">{booking.contacto}</p>
+                )}
+              </div>
+            )}
+
+            {(booking.tour_manager || booking.tour_manager_new) && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <Phone className="h-3 w-3" />
+                  Tour Manager
+                </p>
+                {tourManagerContact ? (
+                  <Link 
+                    to={`/contacts?selected=${tourManagerContact.id}`} 
+                    className="font-medium text-primary hover:underline flex items-center gap-1"
+                  >
+                    {tourManagerContact.stage_name || tourManagerContact.name}
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                ) : (
+                  <p className="font-medium">{booking.tour_manager}</p>
+                )}
+              </div>
+            )}
+
+            {booking.link_venta && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <LinkIcon className="h-3 w-3" />
+                  Link de Venta
+                </p>
+                <a 
+                  href={booking.link_venta} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline text-sm break-all"
+                >
+                  {booking.link_venta}
+                </a>
+              </div>
+            )}
+
+            {booking.inicio_venta && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  Inicio de Venta
+                </p>
+                <p className="font-medium">{booking.inicio_venta}</p>
+              </div>
+            )}
+
+            {/* Logistics inline if present */}
+            {booking.logistica && (
+              <div className="space-y-1 pt-2 border-t">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Logística</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{booking.logistica}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Notes Section - Side by Side */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Artist Notes */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                Notas del Artista
+              </CardTitle>
+              <Button 
+                size="sm" 
+                variant={hasChanged ? "default" : "outline"}
+                onClick={() => {
+                  handleSaveNotes();
+                  setHasChanged(false);
+                }}
+                disabled={saving || !hasChanged}
+              >
+                <Save className="h-3 w-3 mr-1" />
+                {saving ? 'Guardando...' : 'Guardar'}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Visibles para el artista
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              value={artistNotes}
+              onChange={(e) => {
+                setArtistNotes(e.target.value);
+                setHasChanged(true);
               }}
-              disabled={saving || !hasChanged}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {saving ? 'Guardando...' : 'Guardar'}
-            </Button>
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Notas visibles para el artista
-          </p>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            value={artistNotes}
-            onChange={(e) => {
-              setArtistNotes(e.target.value);
-              setHasChanged(true);
-            }}
-            placeholder="Horarios, requerimientos, acceso..."
-            className="min-h-[100px]"
-          />
-        </CardContent>
-      </Card>
+              placeholder="Horarios, requerimientos, acceso..."
+              className="min-h-[120px] resize-none"
+            />
+          </CardContent>
+        </Card>
 
-      {/* Internal Notes */}
-      <BookingNotes bookingId={booking.id} />
+        {/* Internal Notes */}
+        <BookingNotes bookingId={booking.id} />
+      </div>
     </div>
   );
 }
