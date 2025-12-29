@@ -3,28 +3,33 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ClipboardList, ExternalLink, Clock, CheckCircle, XCircle, AlertCircle, Plus } from 'lucide-react';
+import { ClipboardList, ExternalLink, Clock, CheckCircle, XCircle, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Database } from '@/integrations/supabase/types';
 
-type ActionItem = Database['public']['Tables']['action_center']['Row'];
+interface Solicitud {
+  id: string;
+  tipo: string;
+  nombre_solicitante: string;
+  nombre_festival: string | null;
+  estado: string;
+  fecha_creacion: string;
+}
 
 interface LinkedSolicitudesCardProps {
   bookingId: string;
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: typeof Clock }> = {
-  pending: { label: 'Pendiente', variant: 'secondary', icon: Clock },
-  approved: { label: 'Aprobada', variant: 'default', icon: CheckCircle },
-  rejected: { label: 'Rechazada', variant: 'destructive', icon: XCircle },
-  in_review: { label: 'En revisión', variant: 'outline', icon: AlertCircle },
+  pendiente: { label: 'Pendiente', variant: 'secondary', icon: Clock },
+  aprobada: { label: 'Aprobada', variant: 'default', icon: CheckCircle },
+  denegada: { label: 'Denegada', variant: 'destructive', icon: XCircle },
 };
 
 export function LinkedSolicitudesCard({ bookingId }: LinkedSolicitudesCardProps) {
-  const [solicitudes, setSolicitudes] = useState<ActionItem[]>([]);
+  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -34,11 +39,12 @@ export function LinkedSolicitudesCard({ bookingId }: LinkedSolicitudesCardProps)
 
   const fetchSolicitudes = async () => {
     try {
+      // Query the solicitudes table (legacy) where booking_id matches
       const { data, error } = await supabase
-        .from('action_center')
-        .select('*')
+        .from('solicitudes')
+        .select('id, tipo, nombre_solicitante, nombre_festival, estado, fecha_creacion')
         .eq('booking_id', bookingId)
-        .order('created_at', { ascending: false });
+        .order('fecha_creacion', { ascending: false });
 
       if (error) throw error;
       setSolicitudes(data || []);
@@ -67,7 +73,7 @@ export function LinkedSolicitudesCard({ bookingId }: LinkedSolicitudesCardProps)
   }
 
   const getStatusInfo = (status: string) => {
-    return statusConfig[status] || statusConfig.pending;
+    return statusConfig[status] || statusConfig.pendiente;
   };
 
   return (
@@ -100,7 +106,7 @@ export function LinkedSolicitudesCard({ bookingId }: LinkedSolicitudesCardProps)
           </div>
         ) : (
           solicitudes.map((solicitud) => {
-            const statusInfo = getStatusInfo(solicitud.status);
+            const statusInfo = getStatusInfo(solicitud.estado);
             const StatusIcon = statusInfo.icon;
             
             return (
@@ -110,14 +116,16 @@ export function LinkedSolicitudesCard({ bookingId }: LinkedSolicitudesCardProps)
                 onClick={() => handleOpenSolicitud(solicitud.id)}
               >
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{solicitud.title}</p>
+                  <p className="font-medium text-sm truncate">
+                    {solicitud.nombre_festival || solicitud.nombre_solicitante}
+                  </p>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge variant={statusInfo.variant} className="text-xs">
                       <StatusIcon className="h-3 w-3 mr-1" />
                       {statusInfo.label}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      {format(new Date(solicitud.created_at), "d MMM yyyy", { locale: es })}
+                      {format(new Date(solicitud.fecha_creacion), "d MMM yyyy", { locale: es })}
                     </span>
                   </div>
                 </div>
