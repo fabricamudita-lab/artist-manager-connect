@@ -64,9 +64,11 @@ interface Contact {
 interface AvailabilityStatusCardProps {
   bookingId: string;
   artistId?: string | null;
+  phase?: string;
   onRequestAvailability: () => void;
   canConfirm: boolean;
   onBlockStatusChange: (blocked: boolean) => void;
+  onPhaseChange?: () => void;
 }
 
 export function AvailabilityStatusCard({
