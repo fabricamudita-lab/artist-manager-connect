@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -300,6 +301,29 @@ export function AvailabilityStatusCard({
           </Button>
         </div>
 
+        {/* Block confirmation toggle - only shows when there are conflicts */}
+        {hasConflicts && (
+          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Bloquear confirmación</p>
+              <p className="text-xs text-muted-foreground">
+                No permitir confirmar el booking hasta resolver conflictos
+              </p>
+            </div>
+            <Switch
+              checked={request.block_confirmation}
+              onCheckedChange={async (checked) => {
+                await supabase
+                  .from('booking_availability_requests')
+                  .update({ block_confirmation: checked })
+                  .eq('id', request.id);
+                toast.success(checked ? 'Bloqueo activado' : 'Bloqueo desactivado');
+                fetchAvailability();
+              }}
+            />
+          </div>
+        )}
+
         {/* Warning if blocking confirmation */}
         {hasConflicts && request.block_confirmation && (
           <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-md">
@@ -313,25 +337,6 @@ export function AvailabilityStatusCard({
               </div>
             </div>
           </div>
-        )}
-
-        {/* Proceed anyway option */}
-        {hasConflicts && request.block_confirmation && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full text-xs text-muted-foreground"
-            onClick={async () => {
-              await supabase
-                .from('booking_availability_requests')
-                .update({ block_confirmation: false })
-                .eq('id', request.id);
-              toast.success('Bloqueo desactivado - puedes confirmar con aviso');
-              fetchAvailability();
-            }}
-          >
-            Continuar con aviso (desactivar bloqueo)
-          </Button>
         )}
       </CardContent>
     </Card>
