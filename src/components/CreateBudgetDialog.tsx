@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import SingleProjectSelector from './SingleProjectSelector';
 import { CreateBudgetFromTemplateDialog } from './CreateBudgetFromTemplateDialog';
 import { CreateProjectFolderDialog } from './CreateProjectFolderDialog';
 import { ContactGroupSelector } from './ContactGroupSelector';
-import { Music, Mic, Megaphone, Video, Package, CalendarIcon, FolderPlus, Users } from 'lucide-react';
+import { Music, Mic, Megaphone, Video, Package, CalendarIcon, FolderPlus, Users, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +25,14 @@ interface CreateBudgetDialogProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   projectId?: string;
+}
+
+interface BookingProduct {
+  id: string;
+  name: string;
+  fee_national: number | null;
+  fee_international: number | null;
+  crew_count: number;
 }
 
 const budgetTypes = [
@@ -56,6 +64,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
     festival_ciclo: '',
     capacidad: '',
     formato: '',
+    formato_id: '', // ID del booking_product seleccionado
     status_negociacion: '' as 'interes' | 'oferta' | 'negociacion' | 'cerrado' | 'cancelado' | '',
     oferta: '',
     condiciones: '',
@@ -65,6 +74,8 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
   const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
+  const [artistFormats, setArtistFormats] = useState<BookingProduct[]>([]);
+  const [loadingFormats, setLoadingFormats] = useState(false);
 
   const handleTypeSelection = (type: string) => {
     setSelectedType(type);
@@ -73,6 +84,238 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Load crew from a booking format into the newly created budget
+  const loadCrewFromFormat = async (budgetId: string, formatId: string, isInternational: boolean = false) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get crew members and artist info for this format
+      const { data: crewData, error: crewError } = await supabase
+        .from('booking_product_crew')
+        .select('*')
+        .eq('booking_product_id', formatId);
+
+      if (crewError) throw crewError;
+      if (!crewData || crewData.length === 0) return;
+
+      // Get the format to know the artist_id
+      const { data: formatData } = await supabase
+        .from('booking_products')
+        .select('artist_id, artists(id, name, legal_name)')
+        .eq('id', formatId)
+        .single();
+
+      const artistId = formatData?.artist_id;
+      const artistInfo = formatData?.artists as { id: string; name: string; legal_name: string | null } | null;
+
+      // Get the booking fee for percentage calculations
+      const bookingFee = formData.fee || 0;
+
+      // Helper function to get or create categories
+      const getOrCreateCategory = async (categoryName: string, iconName: string = 'Users') => {
+        const { data: existing } = await supabase
+          .from('budget_categories')
+          .select('id')
+          .eq('name', categoryName)
+          .maybeSingle();
+        
+        if (existing?.id) return existing.id;
+
+        const { data: newCat } = await supabase
+          .from('budget_categories')
+          .insert({
+            name: categoryName,
+            icon_name: iconName,
+            created_by: user.id,
+            sort_order: categoryName === 'Artista Principal' ? 0 : categoryName === 'Músicos' ? 1 : 50
+          })
+          .select('id')
+          .single();
+        
+        return newCat?.id;
+      };
+
+      // Create budget items from crew members
+      const budgetItems = await Promise.all(
+        crewData.map(async (crew) => {
+          let concept = crew.role_label || 'Miembro del equipo';
+          let memberCategory = 'Músicos';
+          let contactId: string | null = null;
+          let isArtist = false;
+
+          // Check if this is the artist themselves
+          if (crew.member_id === artistId && artistInfo) {
+            concept = 'Artista Principal';
+            memberCategory = 'Artista Principal';
+            isArtist = true;
+
+            // Find or create mirror contact for artist
+            const { data: existingContact } = await supabase
+              .from('contacts')
+              .select('id')
+              .eq('field_config->>roster_artist_id', artistId)
+              .maybeSingle();
+
+            if (existingContact?.id) {
+              contactId = existingContact.id;
+            } else {
+              const { data: newContact } = await supabase
+                .from('contacts')
+                .insert({
+                  name: artistInfo.name,
+                  legal_name: artistInfo.legal_name,
+                  stage_name: artistInfo.name,
+                  category: 'artista',
+                  role: 'Artista',
+                  created_by: user.id,
+                  field_config: {
+                    roster_artist_id: artistId,
+                    mirror_type: 'roster_artist',
+                  },
+                })
+                .select('id')
+                .single();
+
+              if (newContact?.id) contactId = newContact.id;
+            }
+          }
+
+          // For non-artist members
+          if (!isArtist) {
+            if (crew.member_type === 'workspace') {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('id, full_name, stage_name, roles')
+                .eq('user_id', crew.member_id)
+                .maybeSingle();
+
+              if (profileData) {
+                const roles = profileData.roles as string[] | null;
+                if (roles && (roles.includes('management') || roles.includes('manager') || roles.includes('booker'))) {
+                  memberCategory = 'Management';
+                }
+
+                // Find or create mirror contact
+                const { data: existingMirror } = await supabase
+                  .from('contacts')
+                  .select('id')
+                  .eq('field_config->>workspace_user_id', crew.member_id)
+                  .maybeSingle();
+
+                if (existingMirror?.id) {
+                  contactId = existingMirror.id;
+                } else if (profileData.full_name) {
+                  const { data: newContact } = await supabase
+                    .from('contacts')
+                    .insert({
+                      name: profileData.stage_name || profileData.full_name,
+                      legal_name: profileData.full_name,
+                      category: 'management',
+                      role: crew.role_label || 'Management',
+                      created_by: user.id,
+                      field_config: {
+                        workspace_user_id: crew.member_id,
+                        mirror_type: 'workspace_member',
+                      },
+                    })
+                    .select('id')
+                    .single();
+
+                  if (newContact?.id) contactId = newContact.id;
+                }
+              }
+            } else if (crew.member_id) {
+              // Contact type
+              const { data: contact } = await supabase
+                .from('contacts')
+                .select('id, name, role, category')
+                .eq('id', crew.member_id)
+                .maybeSingle();
+
+              if (contact) {
+                if (!crew.role_label || crew.role_label === 'Miembro del equipo') {
+                  concept = contact.role || concept;
+                }
+                contactId = contact.id;
+
+                const contactRole = contact.role?.toLowerCase() || '';
+                if (contact.category === 'tecnico' || contactRole.includes('técnico') || contactRole.includes('sonido')) {
+                  memberCategory = 'Equipo técnico';
+                } else if (contact.category === 'management' || contactRole.includes('manager')) {
+                  memberCategory = 'Management';
+                }
+              }
+            }
+          }
+
+          // Check if percentage-based (commission)
+          if (crew.is_percentage) {
+            memberCategory = 'Management';
+          }
+
+          const targetCategoryId = await getOrCreateCategory(
+            memberCategory,
+            memberCategory === 'Artista Principal' ? 'Music' : 
+            memberCategory === 'Management' ? 'DollarSign' : 'Users'
+          );
+
+          // Calculate unit price
+          let unitPrice = 0;
+          if (crew.is_percentage) {
+            const percentage = isInternational
+              ? (crew.percentage_international || crew.percentage_national || 0)
+              : (crew.percentage_national || crew.percentage_international || 0);
+            unitPrice = (bookingFee * percentage) / 100;
+          } else {
+            unitPrice = isInternational
+              ? (crew.fee_international || crew.fee_national || 0)
+              : (crew.fee_national || crew.fee_international || 0);
+          }
+
+          const commissionPercentage = crew.is_percentage
+            ? (isInternational
+                ? (crew.percentage_international || crew.percentage_national || 0)
+                : (crew.percentage_national || crew.percentage_international || 0))
+            : null;
+
+          return {
+            budget_id: budgetId,
+            category_id: targetCategoryId,
+            category: memberCategory,
+            name: concept,
+            quantity: 1,
+            unit_price: unitPrice,
+            iva_percentage: 0,
+            irpf_percentage: 15,
+            is_attendee: true,
+            billing_status: 'pendiente' as const,
+            is_commission_percentage: crew.is_percentage || false,
+            commission_percentage: commissionPercentage,
+            contact_id: contactId,
+            subcategory: crew.is_percentage ? `${commissionPercentage}% del fee` : undefined,
+            observations: 'Cargado desde formato',
+          };
+        })
+      );
+
+      // Insert all items
+      const { error: insertError } = await supabase
+        .from('budget_items')
+        .insert(budgetItems);
+
+      if (insertError) throw insertError;
+
+    } catch (error) {
+      console.error('Error loading crew from format:', error);
+      toast({
+        title: "Aviso",
+        description: "Presupuesto creado pero hubo un error cargando el equipo",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleSubmit = async () => {
@@ -100,7 +343,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
 
     setLoading(true);
     try {
-      const { error } = await supabase
+      const { data: newBudget, error } = await supabase
         .from('budgets')
         .insert({
           type: selectedType as 'concierto' | 'produccion_musical' | 'campana_promocional' | 'videoclip' | 'otros',
@@ -128,19 +371,29 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
             condiciones: formData.condiciones || null,
             invitaciones: formData.invitaciones ? parseInt(formData.invitaciones) : null,
           })
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
+      // If a format with crew was selected, auto-load the team
+      if (newBudget && formData.formato_id) {
+        await loadCrewFromFormat(newBudget.id, formData.formato_id, formData.budget_status === 'internacional');
+      }
+
       toast({
         title: "¡Éxito!",
-        description: "Presupuesto creado correctamente"
+        description: formData.formato_id 
+          ? "Presupuesto creado con equipo cargado automáticamente"
+          : "Presupuesto creado correctamente"
       });
 
       // Reset form
       setStep(1);
       setSelectedType('');
       setFieldErrors({});
+      setArtistFormats([]);
       setFormData({
         name: '',
         city: '',
@@ -157,6 +410,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
         festival_ciclo: '',
         capacidad: '',
         formato: '',
+        formato_id: '',
         status_negociacion: '',
         oferta: '',
         condiciones: '',
@@ -181,6 +435,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
     setStep(1);
     setSelectedType('');
     setFieldErrors({});
+    setArtistFormats([]);
     setFormData({
       name: '',
       city: '',
@@ -197,6 +452,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
       festival_ciclo: '',
       capacidad: '',
       formato: '',
+      formato_id: '',
       status_negociacion: '',
       oferta: '',
       condiciones: '',
@@ -204,6 +460,57 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
     });
     onOpenChange(false);
   };
+
+  // Fetch artist formats when artist is selected
+  useEffect(() => {
+    const fetchArtistFormats = async () => {
+      if (!formData.artist_id) {
+        setArtistFormats([]);
+        return;
+      }
+
+      setLoadingFormats(true);
+      try {
+        // Get formats with crew count
+        const { data, error } = await supabase
+          .from('booking_products')
+          .select(`
+            id,
+            name,
+            fee_national,
+            fee_international
+          `)
+          .eq('artist_id', formData.artist_id)
+          .eq('is_active', true)
+          .order('name');
+
+        if (error) throw error;
+
+        // Get crew counts
+        const formatsWithCrew = await Promise.all(
+          (data || []).map(async (format) => {
+            const { count } = await supabase
+              .from('booking_product_crew')
+              .select('*', { count: 'exact', head: true })
+              .eq('booking_product_id', format.id);
+            
+            return {
+              ...format,
+              crew_count: count || 0
+            };
+          })
+        );
+
+        setArtistFormats(formatsWithCrew);
+      } catch (error) {
+        console.error('Error fetching artist formats:', error);
+      } finally {
+        setLoadingFormats(false);
+      }
+    };
+
+    fetchArtistFormats();
+  }, [formData.artist_id]);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -462,18 +769,57 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
 
                   <div>
                     <Label htmlFor="formato">Formato</Label>
-                    <Select value={formData.formato} onValueChange={(value) => handleInputChange('formato', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar formato" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="acustico">Acústico</SelectItem>
-                        <SelectItem value="electrico">Eléctrico</SelectItem>
-                        <SelectItem value="banda_completa">Banda completa</SelectItem>
-                        <SelectItem value="dj_set">DJ Set</SelectItem>
-                        <SelectItem value="otro">Otro</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    {loadingFormats ? (
+                      <div className="flex items-center gap-2 h-10 px-3 border rounded-md">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-muted-foreground text-sm">Cargando formatos...</span>
+                      </div>
+                    ) : artistFormats.length > 0 ? (
+                      <Select 
+                        value={formData.formato_id} 
+                        onValueChange={(value) => {
+                          const selectedFormat = artistFormats.find(f => f.id === value);
+                          handleInputChange('formato_id', value);
+                          handleInputChange('formato', selectedFormat?.name || '');
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar formato del artista" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {artistFormats.map((format) => (
+                            <SelectItem key={format.id} value={format.id}>
+                              <div className="flex items-center gap-2">
+                                <span>{format.name}</span>
+                                {format.crew_count > 0 && (
+                                  <span className="text-xs text-muted-foreground">
+                                    ({format.crew_count} miembros)
+                                  </span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Select value={formData.formato} onValueChange={(value) => handleInputChange('formato', value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar formato" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="acustico">Acústico</SelectItem>
+                          <SelectItem value="electrico">Eléctrico</SelectItem>
+                          <SelectItem value="banda_completa">Banda completa</SelectItem>
+                          <SelectItem value="dj_set">DJ Set</SelectItem>
+                          <SelectItem value="otro">Otro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {artistFormats.length > 0 && formData.formato_id && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Se cargará automáticamente el equipo de este formato
+                      </p>
+                    )}
                   </div>
 
                   <div>
