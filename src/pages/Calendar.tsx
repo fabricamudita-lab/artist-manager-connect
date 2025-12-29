@@ -2,14 +2,15 @@ import { CalendarExportDialog } from '@/components/CalendarExportDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/useCommon';
 import { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { format, isSameDay, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, addDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, X, Plus } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, X, Plus, Folder, ExternalLink } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { YearlyCalendar } from '@/components/YearlyCalendar';
 import { EditEventDialog } from '@/components/EditEventDialog';
 import { EditEventDialogControlled } from '@/components/EditEventDialogControlled';
@@ -94,6 +95,7 @@ export default function Calendar() {
   const [highestZIndex, setHighestZIndex] = useState(100);
   const [savedPopupPositions, setSavedPopupPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [selectedBookingOffer, setSelectedBookingOffer] = useState<any | null>(null);
   useEffect(() => {
     if (profile) {
       setSelectedArtists([profile.id]);
@@ -327,10 +329,15 @@ export default function Calendar() {
   };
   const fetchBookingOffers = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('booking_offers').select('id, fecha, estado, contratos, link_venta, ciudad, lugar, festival_ciclo, event_id').eq('estado', 'confirmado').not('event_id', 'is', null);
+      const { data, error } = await supabase
+        .from('booking_offers')
+        .select(`
+          id, fecha, estado, contratos, link_venta, ciudad, lugar, venue, 
+          festival_ciclo, event_id, formato, duracion, folder_url,
+          artist_id, artists!booking_offers_artist_id_fkey(name, stage_name)
+        `)
+        .in('estado', ['confirmado', 'pendiente', 'negociacion', 'interes', 'oferta']);
+      
       if (error) {
         console.error('Error fetching booking offers:', error);
       } else {
@@ -343,6 +350,20 @@ export default function Calendar() {
   const getEventsForDate = (date: Date) => {
     return events.filter(event => isSameDay(new Date(event.start_date), date));
   };
+  
+  const getBookingOffersForDate = (date: Date) => {
+    return bookingOffers.filter(offer => {
+      if (!offer.fecha) return false;
+      return isSameDay(new Date(offer.fecha), date);
+    });
+  };
+  
+  const formatBookingTitle = (offer: any) => {
+    const eventName = offer.festival_ciclo || offer.venue || offer.lugar || 'Evento';
+    const city = offer.ciudad || '';
+    return `🎤 ${eventName}${city ? ` - ${city}` : ''}`;
+  };
+  
   const getEventsForWeek = (startDate: Date) => {
     const weekStart = startOfWeek(startDate, {
       weekStartsOn: 1
@@ -749,21 +770,51 @@ export default function Calendar() {
         <div className="grid grid-cols-7">
           {monthWeeks.map((week, weekIndex) => week.map((day: Date, dayIndex: number) => {
           const dayEvents = getEventsForDate(day);
+          const dayBookings = getBookingOffersForDate(day);
           const isCurrentMonth = isSameMonth(day, monthDate);
           const isToday = isSameDay(day, new Date());
+          const allItems = [
+            ...dayEvents.map(e => ({ type: 'event' as const, data: e })),
+            ...dayBookings.map(b => ({ type: 'booking' as const, data: b }))
+          ];
           return <div key={`${weekIndex}-${dayIndex}`} className={`min-h-20 border-r border-b border-muted/30 p-1.5 cursor-pointer hover:bg-muted/10 transition-colors ${!isCurrentMonth ? 'bg-muted/5 text-muted-foreground' : ''}`} onClick={() => setSelectedDate(day)}>
                 <div className={`text-xs font-medium mb-1 ${isToday ? 'bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'}`}>
                   {format(day, 'd')}
                 </div>
                 <div className="space-y-0.5">
-                  {dayEvents.slice(0, 2).map(event => <div key={event.id} className="text-[10px] bg-primary/10 text-primary px-1 py-0.5 rounded truncate cursor-pointer hover:bg-primary/20" onClick={e => {
-                e.stopPropagation();
-                handleEventClick(event, e);
-              }}>
-                      {event.title}
-                    </div>)}
-                  {dayEvents.length > 2 && <div className="text-[10px] text-muted-foreground">
-                      +{dayEvents.length - 2}
+                  {allItems.slice(0, 2).map((item, idx) => {
+                    if (item.type === 'event') {
+                      const event = item.data as Event;
+                      return (
+                        <div 
+                          key={event.id} 
+                          className="text-[10px] bg-primary/10 text-primary px-1 py-0.5 rounded truncate cursor-pointer hover:bg-primary/20" 
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleEventClick(event, e);
+                          }}
+                        >
+                          {event.title}
+                        </div>
+                      );
+                    } else {
+                      const booking = item.data;
+                      return (
+                        <div 
+                          key={booking.id} 
+                          className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-1 py-0.5 rounded truncate cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/50" 
+                          onClick={e => {
+                            e.stopPropagation();
+                            setSelectedBookingOffer(booking);
+                          }}
+                        >
+                          {formatBookingTitle(booking)}
+                        </div>
+                      );
+                    }
+                  })}
+                  {allItems.length > 2 && <div className="text-[10px] text-muted-foreground">
+                      +{allItems.length - 2}
                     </div>}
                 </div>
               </div>;
@@ -881,13 +932,60 @@ export default function Calendar() {
           })}
             </CardTitle>
             <CardDescription>
-              {getEventsForDate(selectedDate).length} evento(s) programado(s)
+              {getEventsForDate(selectedDate).length + getBookingOffersForDate(selectedDate).length} evento(s) programado(s)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {getEventsForDate(selectedDate).length === 0 ? <div className="text-center py-8 text-muted-foreground">
-                No hay eventos programados para esta fecha
-              </div> : getEventsForDate(selectedDate).map(event => <div key={event.id} className="card-interactive p-4 space-y-2 hover-glow">
+            {/* Booking Offers for this date */}
+            {getBookingOffersForDate(selectedDate).map(booking => (
+              <div key={booking.id} className="card-interactive p-4 space-y-2 hover-glow border-l-4 border-l-amber-500">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
+                      <span className="text-white text-sm">🎤</span>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">{formatBookingTitle(booking)}</h3>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        {(booking.lugar || booking.venue) && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {booking.lugar || booking.venue}
+                          </div>
+                        )}
+                        {booking.duracion && (
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {booking.duracion}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={booking.estado === 'confirmado' ? 'default' : 'secondary'}>
+                      {booking.estado}
+                    </Badge>
+                    {booking.formato && <Badge variant="outline">{booking.formato}</Badge>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 pt-2">
+                  {booking.folder_url && (
+                    <Link to={booking.folder_url} className="text-sm text-primary hover:underline flex items-center gap-1">
+                      <Folder className="h-3 w-3" />
+                      Ver carpeta
+                    </Link>
+                  )}
+                  <Link to={`/booking/${booking.id}`} className="text-sm text-primary hover:underline flex items-center gap-1">
+                    <ExternalLink className="h-3 w-3" />
+                    Ver booking
+                  </Link>
+                </div>
+              </div>
+            ))}
+            
+            {/* Regular Events */}
+            {getEventsForDate(selectedDate).map(event => <div key={event.id} className="card-interactive p-4 space-y-2 hover-glow">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
@@ -925,6 +1023,12 @@ export default function Calendar() {
                       {event.description}
                     </p>}
                 </div>)}
+            
+            {getEventsForDate(selectedDate).length === 0 && getBookingOffersForDate(selectedDate).length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                No hay eventos programados para esta fecha
+              </div>
+            )}
           </CardContent>
         </Card>}
 
@@ -940,5 +1044,105 @@ export default function Calendar() {
       <EditEventDialogControlled event={editingEvent} open={!!editingEvent} onOpenChange={open => {
       if (!open) setEditingEvent(null);
     }} onUpdated={fetchEvents} />
+
+      {/* Booking Offer Detail Dialog */}
+      <Dialog open={!!selectedBookingOffer} onOpenChange={(open) => {
+        if (!open) setSelectedBookingOffer(null);
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              🎤 {selectedBookingOffer?.festival_ciclo || selectedBookingOffer?.venue || selectedBookingOffer?.lugar || 'Evento'}
+              {selectedBookingOffer?.ciudad && ` - ${selectedBookingOffer.ciudad}`}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedBookingOffer && (
+            <div className="space-y-4">
+              {/* Fecha */}
+              <div className="flex items-center gap-3 text-sm">
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">Fecha:</span>
+                <span>{format(new Date(selectedBookingOffer.fecha), 'PPPP', { locale: es })}</span>
+              </div>
+              
+              {/* Lugar */}
+              {(selectedBookingOffer.lugar || selectedBookingOffer.venue || selectedBookingOffer.ciudad) && (
+                <div className="flex items-center gap-3 text-sm">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">Lugar:</span>
+                  <span>
+                    {[selectedBookingOffer.lugar || selectedBookingOffer.venue, selectedBookingOffer.ciudad].filter(Boolean).join(', ')}
+                  </span>
+                </div>
+              )}
+              
+              {/* Status */}
+              <div className="flex items-center gap-3 text-sm">
+                <span className="font-medium">Status:</span>
+                <Badge variant={
+                  selectedBookingOffer.estado === 'confirmado' ? 'default' : 
+                  selectedBookingOffer.estado === 'pendiente' ? 'secondary' : 
+                  'outline'
+                }>
+                  {selectedBookingOffer.estado}
+                </Badge>
+              </div>
+              
+              {/* Formato */}
+              {selectedBookingOffer.formato && (
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="font-medium">Formato:</span>
+                  <span>{selectedBookingOffer.formato}</span>
+                </div>
+              )}
+              
+              {/* Duración */}
+              {selectedBookingOffer.duracion && (
+                <div className="flex items-center gap-3 text-sm">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">Duración:</span>
+                  <span>{selectedBookingOffer.duracion}</span>
+                </div>
+              )}
+              
+              {/* Artista */}
+              {selectedBookingOffer.artists && (
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="font-medium">Artista:</span>
+                  <span>{selectedBookingOffer.artists.stage_name || selectedBookingOffer.artists.name}</span>
+                </div>
+              )}
+              
+              {/* Enlace a carpeta */}
+              {selectedBookingOffer.folder_url && (
+                <div className="pt-4 border-t">
+                  <Link 
+                    to={selectedBookingOffer.folder_url}
+                    className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                    onClick={() => setSelectedBookingOffer(null)}
+                  >
+                    <Folder className="h-4 w-4" />
+                    Ver carpeta del evento
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                </div>
+              )}
+              
+              {/* Enlace al booking */}
+              <div className="pt-2">
+                <Link 
+                  to={`/booking/${selectedBookingOffer.id}`}
+                  className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                  onClick={() => setSelectedBookingOffer(null)}
+                >
+                  Ver detalles completos del booking
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>;
 }
