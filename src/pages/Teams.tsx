@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Users, Mail, Building, Shield, UserCheck, Edit2, Settings, MoreVertical, UserMinus, FolderPlus } from 'lucide-react';
+import { Plus, Users, Mail, Building, Shield, UserCheck, Edit2, Settings, MoreVertical, UserMinus, FolderPlus, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { InviteTeamMemberDialog } from '@/components/InviteTeamMemberDialog';
@@ -23,10 +26,12 @@ interface TeamMember {
   id: string;
   user_id: string;
   role: string;
+  functional_role?: string; // Rol funcional (ej: "Business Manager")
   team_category: string;
   full_name: string;
   email: string;
   avatar_url?: string;
+  mirror_contact_id?: string; // ID del contacto espejo si existe
   permissions: {
     documents: 'none' | 'view' | 'edit' | 'owner';
     solicitudes: 'none' | 'view' | 'edit' | 'owner';
@@ -65,6 +70,10 @@ export default function Teams() {
 
   // State for contact quick view
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+
+  // State for editing functional role
+  const [editingMemberRole, setEditingMemberRole] = useState<{ memberId: string; userId: string; name: string; currentRole?: string; mirrorContactId?: string } | null>(null);
+  const [newFunctionalRole, setNewFunctionalRole] = useState('');
 
   // Load custom categories from localStorage
   useEffect(() => {
@@ -222,21 +231,38 @@ export default function Teams() {
 
       if (profilesError) throw profilesError;
 
+      // Fetch mirror contacts for workspace members
+      const { data: mirrorContacts } = await supabase
+        .from('contacts')
+        .select('id, name, role, field_config')
+        .filter('field_config->>workspace_user_id', 'in', `(${userIds.join(',')})`);
+
+      const mirrorContactMap = new Map<string, any>();
+      (mirrorContacts || []).forEach((c: any) => {
+        const config = c.field_config as Record<string, any> | null;
+        if (config?.workspace_user_id) {
+          mirrorContactMap.set(config.workspace_user_id, c);
+        }
+      });
+
       const profileMap = new Map(
         (profiles || []).map(p => [p.user_id, p])
       );
 
       const formattedMembers: TeamMember[] = members.map((m: any) => {
         const memberProfile = profileMap.get(m.user_id);
+        const mirrorContact = mirrorContactMap.get(m.user_id);
         const displayName = memberProfile?.stage_name || memberProfile?.full_name || 'Sin nombre';
         return {
           id: m.id,
           user_id: m.user_id,
           role: m.role,
+          functional_role: mirrorContact?.role || undefined,
           team_category: m.team_category || 'management',
           full_name: displayName,
           email: memberProfile?.email || '',
           avatar_url: memberProfile?.avatar_url,
+          mirror_contact_id: mirrorContact?.id,
           permissions: {
             documents: 'view',
             solicitudes: 'view',
@@ -300,6 +326,57 @@ export default function Teams() {
     } catch (error) {
       console.error('Error updating category:', error);
       toast({ title: 'Error al actualizar', variant: 'destructive' });
+    }
+  };
+
+  const updateFunctionalRole = async () => {
+    if (!editingMemberRole || !newFunctionalRole.trim()) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      if (editingMemberRole.mirrorContactId) {
+        // Update existing mirror contact
+        const { error } = await supabase
+          .from('contacts')
+          .update({ role: newFunctionalRole.trim() })
+          .eq('id', editingMemberRole.mirrorContactId);
+
+        if (error) throw error;
+      } else {
+        // Create new mirror contact
+        const { error } = await supabase
+          .from('contacts')
+          .insert({
+            name: editingMemberRole.name,
+            role: newFunctionalRole.trim(),
+            category: 'management',
+            created_by: user.id,
+            field_config: {
+              workspace_user_id: editingMemberRole.userId,
+              mirror_type: 'workspace_member',
+              is_team_member: true,
+            },
+          });
+
+        if (error) throw error;
+      }
+
+      // Update local state
+      setTeamMembers(prev => prev.map(m =>
+        m.user_id === editingMemberRole.userId
+          ? { ...m, functional_role: newFunctionalRole.trim() }
+          : m
+      ));
+
+      toast({ title: 'Rol funcional actualizado' });
+      setEditingMemberRole(null);
+      setNewFunctionalRole('');
+      fetchTeamMembers(); // Refresh to get mirror contact ID
+    } catch (error) {
+      console.error('Error updating functional role:', error);
+      toast({ title: 'Error al actualizar rol', variant: 'destructive' });
     }
   };
 
@@ -475,9 +552,17 @@ export default function Teams() {
                               </span>
                             </div>
                             <p className="text-sm text-muted-foreground truncate">{member.email}</p>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white dark:bg-background border border-border/40 text-foreground shadow-sm mt-1.5">
-                              {member.role}
-                            </span>
+                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                              {member.functional_role ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white dark:bg-background border border-primary/20 text-foreground shadow-sm">
+                                  {member.functional_role}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white dark:bg-background border border-border/40 text-foreground shadow-sm">
+                                  {member.role}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -486,6 +571,23 @@ export default function Teams() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingMemberRole({
+                                    memberId: member.id,
+                                    userId: member.user_id,
+                                    name: member.full_name,
+                                    currentRole: member.functional_role,
+                                    mirrorContactId: member.mirror_contact_id,
+                                  });
+                                  setNewFunctionalRole(member.functional_role || '');
+                                }}
+                              >
+                                <Pencil className="w-4 h-4 mr-2" />
+                                Editar rol funcional
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               {allCategoriesForDisplay.map(cat => (
                                 <DropdownMenuItem
                                   key={cat.value}
@@ -665,6 +767,36 @@ export default function Teams() {
           fetchArtists();
         }}
       />
+
+      {/* Dialog for editing functional role */}
+      <Dialog open={!!editingMemberRole} onOpenChange={(open) => !open && setEditingMemberRole(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar rol funcional</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Define el rol funcional para <strong>{editingMemberRole?.name}</strong>. Este rol se mostrará en lugar del rol de workspace y se usará al añadir a presupuestos.
+            </p>
+            <div className="space-y-2">
+              <Label>Rol funcional</Label>
+              <Input
+                value={newFunctionalRole}
+                onChange={(e) => setNewFunctionalRole(e.target.value)}
+                placeholder="Ej: Business Manager, Director Artístico, Booker..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingMemberRole(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={updateFunctionalRole} disabled={!newFunctionalRole.trim()}>
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
