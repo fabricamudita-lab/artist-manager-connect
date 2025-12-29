@@ -154,10 +154,53 @@ export function ViabilityChecksCard({
       onUpdate();
     } catch (error: any) {
       console.error('Error confirming booking:', error);
+
+      let errorMessage = error?.message || "No se pudo confirmar el booking.";
+      const bookingLink = `/booking?id=${bookingId}`;
+
+      try {
+        if (error?.message?.includes('AVAILABILITY_CONFLICT|')) {
+          const parts = error.message.split('AVAILABILITY_CONFLICT|')[1]?.split('|');
+          if (parts && parts.length >= 4) {
+            const [, bookingName, artistName] = parts;
+            const displayName = artistName ? `${bookingName} (${artistName})` : bookingName;
+            errorMessage = `Solicitud de disponibilidad pendiente: ${displayName}`;
+          }
+        } else if (error?.message?.includes('No se puede confirmar:')) {
+          const reason = error.message.match(/No se puede confirmar:\s*(.+)/)?.[1] || '';
+          const { data } = await supabase
+            .from('booking_offers')
+            .select('festival_ciclo, venue, lugar, artist:artists(stage_name,name)')
+            .eq('id', bookingId)
+            .maybeSingle();
+
+          const bookingName = (data as any)?.festival_ciclo || (data as any)?.venue || (data as any)?.lugar || 'Booking';
+          const artistLabel = (data as any)?.artist?.stage_name || (data as any)?.artist?.name || '';
+          const displayName = artistLabel ? `${bookingName} (${artistLabel})` : bookingName;
+          errorMessage = `Solicitud de booking: ${displayName} — ${reason || 'Faltan aprobaciones o hay bloqueos activos.'}`;
+        }
+      } catch {
+        // ignore secondary fetch errors; keep base message
+      }
+
       toast({
         title: "Error al confirmar",
-        description: error.message || "No se pudo confirmar el booking.",
-        variant: "destructive"
+        description: (
+          <span>
+            {errorMessage}.{' '}
+            <a
+              href={bookingLink}
+              className="underline font-medium hover:text-primary"
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = bookingLink;
+              }}
+            >
+              Ver solicitud →
+            </a>
+          </span>
+        ),
+        variant: "destructive",
       });
     }
   };
