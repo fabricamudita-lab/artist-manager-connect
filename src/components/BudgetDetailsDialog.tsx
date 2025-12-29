@@ -1690,13 +1690,13 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     
     // Tabla de resumen financiero
     const summaryData = [
-      ['Caché (Ingresos)', `€${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`],
-      ['Presupuesto Gastos', `€${expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`],
-      ['Gastos Reales (Neto)', `€${totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}${expenseBudget > 0 ? ` (${desviacion > 0 ? '+' : ''}${desviacionPct.toFixed(1)}%)` : ''}`],
-      ['IVA Repercutido', `+€${totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`],
-      ['IRPF Retenido', `-€${totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`],
-      ['Total a Facturar', `€${totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`],
-      ['Beneficio', `€${beneficio.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`],
+      ['Caché (Ingresos)', `${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
+      ['Presupuesto Gastos', `${expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
+      ['Gastos Reales (Neto)', `${totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €${expenseBudget > 0 ? ` (${desviacion > 0 ? '+' : ''}${desviacionPct.toFixed(1)}%)` : ''}`],
+      ['IVA Repercutido', `+${totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
+      ['IRPF Retenido', `-${totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
+      ['Total a Facturar', `${totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
+      ['Beneficio', `${beneficio.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`],
       ['Margen', `${margen.toFixed(1)}%`],
     ];
     
@@ -1736,7 +1736,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     const categoryData = Object.entries(categoryTotals).map(([cat, data]) => [
       cat,
       data.count.toString(),
-      `€${data.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`
+      `${data.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`
     ]);
     
     autoTable(doc, {
@@ -1770,12 +1770,13 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     // Tabla de elementos
     const tableData = items.map(item => [
       item.name,
+      item.contacts?.name || '-',
       item.category,
       item.quantity.toString(),
-      `€${item.unit_price.toFixed(2)}`,
+      `${item.unit_price.toFixed(2)} €`,
       `${item.iva_percentage}%`,
       `${item.irpf_percentage || 15}%`,
-      `€${calculateTotal(item).toFixed(2)}`,
+      `${calculateTotal(item).toFixed(2)} €`,
       item.billing_status === 'factura_recibida' ? 'Facturado' : 
         item.billing_status === 'pendiente' ? 'Pendiente' : 
         item.billing_status === 'factura_solicitada' ? 'Solicitada' :
@@ -1783,10 +1784,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     ]);
     
     autoTable(doc, {
-      head: [['Concepto', 'Categoría', 'Cant.', 'P. Unit.', 'IVA', 'IRPF', 'Total', 'Estado']],
+      head: [['Concepto', 'Contacto', 'Categoría', 'Cant.', 'P. Unit.', 'IVA', 'IRPF', 'Total', 'Estado']],
       body: tableData,
       startY: yPos,
-      styles: { fontSize: 8 },
+      styles: { fontSize: 7 },
       headStyles: { fillColor: [0, 0, 0] },
       margin: { left: margin }
     });
@@ -1838,16 +1839,16 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     
     // Resumen financiero
     csvContent += "RESUMEN FINANCIERO\n";
-    csvContent += `Caché (Ingresos),"€${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
-    csvContent += `Presupuesto Gastos,"€${expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
-    csvContent += `Gastos Reales (Neto),"€${totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
+    csvContent += `Caché (Ingresos),"${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
+    csvContent += `Presupuesto Gastos,"${expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
+    csvContent += `Gastos Reales (Neto),"${totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
     if (expenseBudget > 0) {
       csvContent += `Desviación vs Presupuesto,"${desviacion > 0 ? '+' : ''}${desviacionPct.toFixed(1)}%"\n`;
     }
-    csvContent += `IVA Repercutido,"+€${totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
-    csvContent += `IRPF Retenido,"-€${totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
-    csvContent += `Total a Facturar,"€${totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
-    csvContent += `Beneficio,"€${beneficio.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
+    csvContent += `IVA Repercutido,"+${totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
+    csvContent += `IRPF Retenido,"-${totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
+    csvContent += `Total a Facturar,"${totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
+    csvContent += `Beneficio,"${beneficio.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
     csvContent += `Margen,"${margen.toFixed(1)}%"\n`;
     csvContent += "\n";
     
@@ -1864,23 +1865,24 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }, {} as Record<string, { neto: number; count: number }>);
     
     Object.entries(categoryTotals).forEach(([cat, data]) => {
-      csvContent += `"${cat}",${data.count},"€${data.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
+      csvContent += `"${cat}",${data.count},"${data.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
     });
     csvContent += "\n";
     
     // Detalle de elementos
     csvContent += "DETALLE DE ELEMENTOS\n";
-    csvContent += "Concepto,Categoría,Cantidad,Precio Unitario,IVA %,IRPF %,Total,Estado,Fecha Emisión,Enlace Factura\n";
+    csvContent += "Concepto,Contacto,Categoría,Cantidad,Precio Unitario,IVA %,IRPF %,Total,Estado,Fecha Emisión,Enlace Factura\n";
     
     items.forEach(item => {
       const row = [
         `"${item.name}"`,
+        `"${item.contacts?.name || '-'}"`,
         `"${item.category}"`,
         item.quantity,
-        item.unit_price.toFixed(2),
+        `${item.unit_price.toFixed(2)} €`,
         item.iva_percentage,
         item.irpf_percentage || 15,
-        calculateTotal(item).toFixed(2),
+        `${calculateTotal(item).toFixed(2)} €`,
         item.billing_status === 'factura_recibida' ? 'Facturado' : 
           item.billing_status === 'pendiente' ? 'Pendiente' : 
           item.billing_status === 'factura_solicitada' ? 'Solicitada' :
@@ -1893,10 +1895,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     
     // Totales finales
     csvContent += "\n";
-    csvContent += `Total Neto,,,,,,"€${totals.neto.toFixed(2)}"\n`;
-    csvContent += `Total IVA,,,,,,"€${totals.iva.toFixed(2)}"\n`;
-    csvContent += `Total IRPF,,,,,,"€${totals.irpf.toFixed(2)}"\n`;
-    csvContent += `TOTAL FINAL,,,,,,"€${totals.total.toFixed(2)}"\n`;
+    csvContent += `Total Neto,,,,,,,"${totals.neto.toFixed(2)} €"\n`;
+    csvContent += `Total IVA,,,,,,,"${totals.iva.toFixed(2)} €"\n`;
+    csvContent += `Total IRPF,,,,,,,"${totals.irpf.toFixed(2)} €"\n`;
+    csvContent += `TOTAL FINAL,,,,,,,"${totals.total.toFixed(2)} €"\n`;
     csvContent += "\n";
     csvContent += `Generado el ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}\n`;
     
