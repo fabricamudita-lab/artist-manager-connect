@@ -65,6 +65,8 @@ export interface BookingOffer {
     name: string;
     stage_name?: string;
   };
+  // Availability status for pending action indicator
+  availability_status?: 'all_available' | 'has_conflicts' | 'pending' | null;
 }
 
 // Main pipeline phases - displayed prominently
@@ -181,10 +183,53 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
 
       if (error) throw error;
       
+      // Fetch availability status for all bookings in "interes" phase
+      const interesBookingIds = (data || [])
+        .filter(o => o.phase === 'interes')
+        .map(o => o.id);
+      
+      let availabilityMap: Record<string, 'all_available' | 'has_conflicts' | 'pending' | null> = {};
+      
+      if (interesBookingIds.length > 0) {
+        const { data: requests } = await supabase
+          .from('booking_availability_requests')
+          .select('booking_id, id')
+          .in('booking_id', interesBookingIds);
+        
+        if (requests && requests.length > 0) {
+          const requestIds = requests.map(r => r.id);
+          const { data: responses } = await supabase
+            .from('booking_availability_responses')
+            .select('request_id, status')
+            .in('request_id', requestIds);
+          
+          // Build availability status per booking
+          for (const req of requests) {
+            const bookingResponses = (responses || []).filter(r => r.request_id === req.id);
+            if (bookingResponses.length === 0) {
+              availabilityMap[req.booking_id] = null;
+            } else {
+              const hasConflicts = bookingResponses.some(r => r.status === 'unavailable');
+              const allResponded = bookingResponses.every(r => r.status !== 'pending');
+              const allAvailable = allResponded && !hasConflicts;
+              
+              if (allAvailable) {
+                availabilityMap[req.booking_id] = 'all_available';
+              } else if (hasConflicts) {
+                availabilityMap[req.booking_id] = 'has_conflicts';
+              } else {
+                availabilityMap[req.booking_id] = 'pending';
+              }
+            }
+          }
+        }
+      }
+      
       // Map data to ensure artist is a single object, not an array
       const mappedOffers = (data || []).map(offer => ({
         ...offer,
-        artist: Array.isArray(offer.artist) ? offer.artist[0] : offer.artist
+        artist: Array.isArray(offer.artist) ? offer.artist[0] : offer.artist,
+        availability_status: availabilityMap[offer.id] || null
       })) as BookingOffer[];
       
       setOffers(mappedOffers);
