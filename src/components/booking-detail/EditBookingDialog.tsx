@@ -635,6 +635,7 @@ export function EditBookingDialog({
                 <ContactSelector
                   value={formData.promotor || null}
                   onValueChange={(contactId) => updateField('promotor', contactId)}
+                  compact
                 />
               </div>
               <div className="space-y-2">
