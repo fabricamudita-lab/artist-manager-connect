@@ -842,6 +842,16 @@ export type Database = {
           tour_manager_new: string | null
           updated_at: string
           venue: string | null
+          viability_manager_approved: boolean | null
+          viability_manager_at: string | null
+          viability_manager_by: string | null
+          viability_notes: string | null
+          viability_production_approved: boolean | null
+          viability_production_at: string | null
+          viability_production_by: string | null
+          viability_tour_manager_approved: boolean | null
+          viability_tour_manager_at: string | null
+          viability_tour_manager_by: string | null
         }
         Insert: {
           adjuntos?: Json | null
@@ -890,6 +900,16 @@ export type Database = {
           tour_manager_new?: string | null
           updated_at?: string
           venue?: string | null
+          viability_manager_approved?: boolean | null
+          viability_manager_at?: string | null
+          viability_manager_by?: string | null
+          viability_notes?: string | null
+          viability_production_approved?: boolean | null
+          viability_production_at?: string | null
+          viability_production_by?: string | null
+          viability_tour_manager_approved?: boolean | null
+          viability_tour_manager_at?: string | null
+          viability_tour_manager_by?: string | null
         }
         Update: {
           adjuntos?: Json | null
@@ -938,6 +958,16 @@ export type Database = {
           tour_manager_new?: string | null
           updated_at?: string
           venue?: string | null
+          viability_manager_approved?: boolean | null
+          viability_manager_at?: string | null
+          viability_manager_by?: string | null
+          viability_notes?: string | null
+          viability_production_approved?: boolean | null
+          viability_production_at?: string | null
+          viability_production_by?: string | null
+          viability_tour_manager_approved?: boolean | null
+          viability_tour_manager_at?: string | null
+          viability_tour_manager_by?: string | null
         }
         Relationships: [
           {
