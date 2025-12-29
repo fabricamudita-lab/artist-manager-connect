@@ -126,17 +126,22 @@ export function BookingNotes({ bookingId }: BookingNotesProps) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <StickyNote className="h-4 w-4 text-primary" />
-          Notas Internas
-          <Badge variant="secondary" className="ml-auto text-xs">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <StickyNote className="h-4 w-4 text-primary" />
+            Notas Internas
+          </CardTitle>
+          <Badge variant="secondary" className="text-xs">
             {notes.length}
           </Badge>
-        </CardTitle>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Solo visibles para el equipo
+        </p>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         {/* Notes List */}
-        <ScrollArea className="h-[200px] pr-2">
+        <ScrollArea className="h-[120px] pr-2">
           {loading ? (
             <div className="space-y-2">
               {[1, 2].map(i => (
@@ -147,16 +152,16 @@ export function BookingNotes({ bookingId }: BookingNotesProps) {
               ))}
             </div>
           ) : notes.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>No hay notas todavía</p>
+            <div className="text-center py-6 text-muted-foreground text-sm">
+              <MessageSquare className="h-6 w-6 mx-auto mb-1 opacity-50" />
+              <p className="text-xs">No hay notas todavía</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {notes.map((note) => (
                 <div 
                   key={note.id} 
-                  className="bg-muted/50 rounded-lg p-3 space-y-1"
+                  className="bg-muted/50 rounded-lg p-2.5 space-y-1"
                 >
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
@@ -178,14 +183,14 @@ export function BookingNotes({ bookingId }: BookingNotesProps) {
           )}
         </ScrollArea>
 
-        {/* Add Note */}
+        {/* Add Note - More compact */}
         <div className="space-y-2">
           <Textarea
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Escribe una nota... (Cmd+Enter para enviar)"
-            className="min-h-[80px] text-sm"
+            className="min-h-[60px] text-sm resize-none"
           />
           <Button 
             size="sm" 
@@ -193,7 +198,7 @@ export function BookingNotes({ bookingId }: BookingNotesProps) {
             disabled={!newNote.trim() || submitting}
             className="w-full"
           >
-            <Send className="h-4 w-4 mr-2" />
+            <Send className="h-3 w-3 mr-1" />
             {submitting ? 'Añadiendo...' : 'Añadir Nota'}
           </Button>
         </div>
