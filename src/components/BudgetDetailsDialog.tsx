@@ -1761,30 +1761,61 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.line(margin, yPos, pageWidth - margin, yPos);
     yPos += 8;
     
-    // Detalle de elementos
+    // Detalle de elementos - Agrupados por categoría
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('DETALLE DE ELEMENTOS', margin, yPos);
     yPos += 8;
     
-    // Tabla de elementos
-    const tableData = items.map(item => [
-      item.name,
-      item.contacts?.name || '-',
-      item.category,
-      item.quantity.toString(),
-      `${item.unit_price.toFixed(2)} €`,
-      `${item.iva_percentage}%`,
-      `${item.irpf_percentage || 15}%`,
-      `${calculateTotal(item).toFixed(2)} €`,
-      item.billing_status === 'factura_recibida' ? 'Facturado' : 
-        item.billing_status === 'pendiente' ? 'Pendiente' : 
-        item.billing_status === 'factura_solicitada' ? 'Solicitada' :
-        item.billing_status === 'pagada' ? 'Pagada' : item.billing_status
-    ]);
+    // Agrupar items por categoría, ordenados según prioridad
+    const itemsByCategory: Record<string, typeof items> = {};
+    items.forEach(item => {
+      const cat = item.category || 'Sin categoría';
+      if (!itemsByCategory[cat]) itemsByCategory[cat] = [];
+      itemsByCategory[cat].push(item);
+    });
+    
+    // Ordenar categorías según prioridad
+    const sortedCategoryNames = Object.keys(itemsByCategory).sort((a, b) => {
+      return getCategorySortPriority(a) - getCategorySortPriority(b);
+    });
+    
+    // Construir tableData con filas de categoría intercaladas
+    const tableData: (string | { content: string; colSpan: number; styles: any })[][] = [];
+    
+    sortedCategoryNames.forEach(categoryName => {
+      const categoryItems = itemsByCategory[categoryName];
+      const categoryTotal = categoryItems.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
+      
+      // Fila de categoría (header de grupo)
+      tableData.push([
+        { 
+          content: `${categoryName} (${categoryItems.length} elementos - ${categoryTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €)`, 
+          colSpan: 8, 
+          styles: { fontStyle: 'bold', fillColor: [240, 240, 240], textColor: [40, 40, 40] } 
+        }
+      ]);
+      
+      // Filas de items de esta categoría
+      categoryItems.forEach(item => {
+        tableData.push([
+          item.name,
+          item.contacts?.name || '-',
+          item.quantity.toString(),
+          `${item.unit_price.toFixed(2)} €`,
+          `${item.iva_percentage}%`,
+          `${item.irpf_percentage || 15}%`,
+          `${calculateTotal(item).toFixed(2)} €`,
+          item.billing_status === 'factura_recibida' ? 'Facturado' : 
+            item.billing_status === 'pendiente' ? 'Pendiente' : 
+            item.billing_status === 'factura_solicitada' ? 'Solicitada' :
+            item.billing_status === 'pagada' ? 'Pagada' : item.billing_status
+        ]);
+      });
+    });
     
     autoTable(doc, {
-      head: [['Concepto', 'Contacto', 'Categoría', 'Cant.', 'P. Unit.', 'IVA', 'IRPF', 'Total', 'Estado']],
+      head: [['Concepto', 'Contacto', 'Cant.', 'P. Unit.', 'IVA', 'IRPF', 'Total', 'Estado']],
       body: tableData,
       startY: yPos,
       styles: { fontSize: 7 },
@@ -1869,28 +1900,49 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     });
     csvContent += "\n";
     
-    // Detalle de elementos
+    // Detalle de elementos - Agrupados por categoría
     csvContent += "DETALLE DE ELEMENTOS\n";
-    csvContent += "Concepto,Contacto,Categoría,Cantidad,Precio Unitario,IVA %,IRPF %,Total,Estado,Fecha Emisión,Enlace Factura\n";
+    csvContent += "Concepto,Contacto,Cantidad,Precio Unitario,IVA %,IRPF %,Total,Estado,Fecha Emisión,Enlace Factura\n";
     
+    // Agrupar items por categoría
+    const itemsByCategoryExcel: Record<string, typeof items> = {};
     items.forEach(item => {
-      const row = [
-        `"${item.name}"`,
-        `"${item.contacts?.name || '-'}"`,
-        `"${item.category}"`,
-        item.quantity,
-        `${item.unit_price.toFixed(2)} €`,
-        item.iva_percentage,
-        item.irpf_percentage || 15,
-        `${calculateTotal(item).toFixed(2)} €`,
-        item.billing_status === 'factura_recibida' ? 'Facturado' : 
-          item.billing_status === 'pendiente' ? 'Pendiente' : 
-          item.billing_status === 'factura_solicitada' ? 'Solicitada' :
-          item.billing_status === 'pagada' ? 'Pagada' : item.billing_status,
-        item.fecha_emision || '',
-        `"${item.invoice_link || ''}"`
-      ].join(',');
-      csvContent += row + "\n";
+      const cat = item.category || 'Sin categoría';
+      if (!itemsByCategoryExcel[cat]) itemsByCategoryExcel[cat] = [];
+      itemsByCategoryExcel[cat].push(item);
+    });
+    
+    // Ordenar categorías según prioridad
+    const sortedCategoryNamesExcel = Object.keys(itemsByCategoryExcel).sort((a, b) => {
+      return getCategorySortPriority(a) - getCategorySortPriority(b);
+    });
+    
+    sortedCategoryNamesExcel.forEach(categoryName => {
+      const categoryItemsList = itemsByCategoryExcel[categoryName];
+      const categoryTotal = categoryItemsList.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
+      
+      // Fila de categoría (header de grupo)
+      csvContent += `"${categoryName} (${categoryItemsList.length} elementos - ${categoryTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €)",,,,,,,,\n`;
+      
+      // Filas de items
+      categoryItemsList.forEach(item => {
+        const row = [
+          `"${item.name}"`,
+          `"${item.contacts?.name || '-'}"`,
+          item.quantity,
+          `${item.unit_price.toFixed(2)} €`,
+          item.iva_percentage,
+          item.irpf_percentage || 15,
+          `${calculateTotal(item).toFixed(2)} €`,
+          item.billing_status === 'factura_recibida' ? 'Facturado' : 
+            item.billing_status === 'pendiente' ? 'Pendiente' : 
+            item.billing_status === 'factura_solicitada' ? 'Solicitada' :
+            item.billing_status === 'pagada' ? 'Pagada' : item.billing_status,
+          item.fecha_emision || '',
+          `"${item.invoice_link || ''}"`
+        ].join(',');
+        csvContent += row + "\n";
+      });
     });
     
     // Totales finales
