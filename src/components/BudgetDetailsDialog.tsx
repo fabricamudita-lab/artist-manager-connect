@@ -3545,50 +3545,68 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                              className="h-8 text-sm border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
                                            />
                                          ) : (
-                                           <div className="h-8 flex items-center justify-center gap-1">
-                                             {item.invoice_link ? (
-                                               <a 
-                                                 href={item.invoice_link} 
-                                                 target="_blank" 
-                                                 rel="noopener noreferrer"
-                                                 className="text-blue-600 hover:text-blue-800 underline text-sm"
-                                                 onClick={(e) => e.stopPropagation()}
-                                               >
-                                                 Ver factura
-                                               </a>
-                                             ) : (
-                                               <>
-                                                 <label className="cursor-pointer hover:bg-blue-100 p-1 rounded flex items-center gap-1 text-gray-500 hover:text-blue-600">
-                                                   <Upload className="w-3 h-3" />
-                                                   <input
-                                                     type="file"
-                                                     accept=".pdf,.jpg,.jpeg,.png,.webp"
-                                                     className="hidden"
-                                                     onChange={async (e) => {
-                                                       const file = e.target.files?.[0];
-                                                       if (!file) return;
-                                                       // Upload and link directly to this item
-                                                       const result = await uploadInvoice(file, []);
-                                                       if (result?.fileUrl) {
-                                                         await supabase
-                                                           .from('budget_items')
-                                                           .update({ invoice_link: result.fileUrl })
-                                                           .eq('id', item.id);
-                                                         fetchBudgetItems();
-                                                       }
-                                                       e.target.value = '';
-                                                     }}
-                                                   />
-                                                 </label>
-                                                 <span 
-                                                   className="text-gray-400 text-sm cursor-pointer hover:bg-blue-100 px-1 rounded"
-                                                   onClick={() => startEditingItem(item)}
-                                                 >
-                                                   -
-                                                 </span>
-                                               </>
-                                             )}
-                                           </div>
+                                            <div className="h-8 flex items-center justify-center gap-1">
+                                              {item.invoice_link ? (
+                                                <div className="flex items-center gap-1">
+                                                  <a 
+                                                    href={item.invoice_link} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="text-blue-600 hover:text-blue-800 underline text-sm truncate max-w-[80px]"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    title={item.invoice_link.split('/').pop()}
+                                                  >
+                                                    {item.invoice_link.split('/').pop()?.substring(0, 12) || 'Ver factura'}
+                                                  </a>
+                                                  <button
+                                                    onClick={async (e) => {
+                                                      e.stopPropagation();
+                                                      await supabase
+                                                        .from('budget_items')
+                                                        .update({ invoice_link: null })
+                                                        .eq('id', item.id);
+                                                      fetchBudgetItems();
+                                                      toast({ title: 'Enlace de factura eliminado' });
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700 hover:bg-red-100 rounded p-0.5"
+                                                    title="Eliminar enlace"
+                                                  >
+                                                    <X className="w-3 h-3" />
+                                                  </button>
+                                                </div>
+                                              ) : (
+                                                <>
+                                                  <label className="cursor-pointer hover:bg-blue-100 p-1 rounded flex items-center gap-1 text-gray-500 hover:text-blue-600">
+                                                    <Upload className="w-3 h-3" />
+                                                    <input
+                                                      type="file"
+                                                      accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                                      className="hidden"
+                                                      onChange={async (e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (!file) return;
+                                                        // Upload and link directly to this item
+                                                        const result = await uploadInvoice(file, []);
+                                                        if (result?.fileUrl) {
+                                                          await supabase
+                                                            .from('budget_items')
+                                                            .update({ invoice_link: result.fileUrl })
+                                                            .eq('id', item.id);
+                                                          fetchBudgetItems();
+                                                        }
+                                                        e.target.value = '';
+                                                      }}
+                                                    />
+                                                  </label>
+                                                  <span 
+                                                    className="text-gray-400 text-sm cursor-pointer hover:bg-blue-100 px-1 rounded"
+                                                    onClick={() => startEditingItem(item)}
+                                                  >
+                                                    -
+                                                  </span>
+                                                </>
+                                              )}
+                                            </div>
                                          )}
                                        </TableCell>
                                         
