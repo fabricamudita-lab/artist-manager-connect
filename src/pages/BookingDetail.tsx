@@ -518,9 +518,11 @@ export default function BookingDetail() {
             <AvailabilityStatusCard
               bookingId={booking.id}
               artistId={booking.artist_id}
+              phase={booking.phase || 'interes'}
               onRequestAvailability={() => setShowAvailabilityDialog(true)}
               canConfirm={!availabilityBlocked}
               onBlockStatusChange={setAvailabilityBlocked}
+              onPhaseChange={handleBookingUpdate}
             />
             <div ref={viabilityRef}>
               <ViabilityChecksCard
