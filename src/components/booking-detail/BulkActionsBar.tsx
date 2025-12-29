@@ -61,11 +61,23 @@ export function BulkActionsBar({ selectedIds, onClear, onRefresh, phases }: Bulk
       });
       onClear();
       onRefresh();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error moving offers:', error);
+      
+      // Extract the specific error message from the database
+      let errorMessage = "No se pudieron mover las ofertas.";
+      if (error?.message) {
+        if (error.message.includes('No se puede confirmar:')) {
+          const match = error.message.match(/No se puede confirmar: (.+)/);
+          errorMessage = match ? match[0] : error.message;
+        } else if (error.message.includes('conflictos de disponibilidad')) {
+          errorMessage = "No se puede confirmar: Hay conflictos de disponibilidad del equipo sin resolver";
+        }
+      }
+      
       toast({
         title: "Error",
-        description: "No se pudieron mover las ofertas.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

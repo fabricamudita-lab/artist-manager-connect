@@ -348,11 +348,24 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
         title: "Fase actualizada",
         description: `La oferta se movió a ${PHASES.find(p => p.id === newPhase)?.label}`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating phase:', error);
+      
+      // Extract the specific error message from the database
+      let errorMessage = "No se pudo actualizar la fase.";
+      if (error?.message) {
+        if (error.message.includes('No se puede confirmar:')) {
+          // Extract the specific reason from the error message
+          const match = error.message.match(/No se puede confirmar: (.+)/);
+          errorMessage = match ? match[0] : error.message;
+        } else if (error.message.includes('conflictos de disponibilidad')) {
+          errorMessage = "No se puede confirmar: Hay conflictos de disponibilidad del equipo sin resolver";
+        }
+      }
+      
       toast({
         title: "Error",
-        description: "No se pudo actualizar la fase.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
