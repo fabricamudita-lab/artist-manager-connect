@@ -25,13 +25,14 @@ interface Contact {
 }
 
 interface ContactSelectorProps {
-  value?: string;
+  value?: string | null;
   onValueChange: (value: string) => void;
   artistId?: string;
   placeholder?: string;
+  compact?: boolean;
 }
 
-export function ContactSelector({ value, onValueChange, artistId, placeholder = "Seleccionar contacto" }: ContactSelectorProps) {
+export function ContactSelector({ value, onValueChange, artistId, placeholder = "Seleccionar contacto", compact = false }: ContactSelectorProps) {
   const { profile } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(false);
@@ -189,8 +190,8 @@ export function ContactSelector({ value, onValueChange, artistId, placeholder = 
           </Button>
         </div>
 
-        {/* Show selected contact details */}
-        {selectedContact && (
+        {/* Show selected contact details - only when not compact */}
+        {!compact && selectedContact && (
           <div className="bg-muted/30 p-3 rounded-lg">
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
