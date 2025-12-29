@@ -2,9 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { Link } from 'react-router-dom';
 import { 
   Building2, 
   User, 
@@ -13,9 +14,16 @@ import {
   Link as LinkIcon,
   Save,
   Music,
-  Clock
+  Clock,
+  ExternalLink
 } from 'lucide-react';
 import { BookingNotes } from './BookingNotes';
+
+interface Contact {
+  id: string;
+  name: string;
+  stage_name?: string;
+}
 
 interface BookingOverviewTabProps {
   booking: {
@@ -23,6 +31,7 @@ interface BookingOverviewTabProps {
     promotor?: string;
     contacto?: string;
     tour_manager?: string;
+    tour_manager_new?: string;
     formato?: string;
     condiciones?: string;
     info_comentarios?: string;
@@ -45,6 +54,56 @@ interface BookingOverviewTabProps {
 export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProps) {
   const [artistNotes, setArtistNotes] = useState(booking.info_comentarios || '');
   const [saving, setSaving] = useState(false);
+  const [tourManagerContact, setTourManagerContact] = useState<Contact | null>(null);
+  const [contactoContact, setContactoContact] = useState<Contact | null>(null);
+  const [promotorContact, setPromotorContact] = useState<Contact | null>(null);
+
+  // Fetch contacts by name or ID
+  useEffect(() => {
+    const fetchContacts = async () => {
+      // Fetch Tour Manager contact
+      if (booking.tour_manager_new) {
+        const { data } = await supabase
+          .from('contacts')
+          .select('id, name, stage_name')
+          .eq('id', booking.tour_manager_new)
+          .single();
+        if (data) setTourManagerContact(data);
+      } else if (booking.tour_manager) {
+        const { data } = await supabase
+          .from('contacts')
+          .select('id, name, stage_name')
+          .or(`name.ilike.%${booking.tour_manager}%,stage_name.ilike.%${booking.tour_manager}%`)
+          .limit(1)
+          .single();
+        if (data) setTourManagerContact(data);
+      }
+
+      // Fetch Contacto
+      if (booking.contacto) {
+        const { data } = await supabase
+          .from('contacts')
+          .select('id, name, stage_name')
+          .or(`name.ilike.%${booking.contacto}%,stage_name.ilike.%${booking.contacto}%`)
+          .limit(1)
+          .single();
+        if (data) setContactoContact(data);
+      }
+
+      // Fetch Promotor
+      if (booking.promotor) {
+        const { data } = await supabase
+          .from('contacts')
+          .select('id, name, stage_name')
+          .or(`name.ilike.%${booking.promotor}%,stage_name.ilike.%${booking.promotor}%`)
+          .limit(1)
+          .single();
+        if (data) setPromotorContact(data);
+      }
+    };
+
+    fetchContacts();
+  }, [booking.tour_manager, booking.tour_manager_new, booking.contacto, booking.promotor]);
 
   const handleSaveNotes = async () => {
     try {
@@ -176,7 +235,17 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
           {booking.promotor && (
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Empresa</p>
-              <p className="font-medium">{booking.promotor}</p>
+              {promotorContact ? (
+                <Link 
+                  to={`/contacts?selected=${promotorContact.id}`} 
+                  className="font-medium text-primary hover:underline flex items-center gap-1"
+                >
+                  {booking.promotor}
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
+              ) : (
+                <p className="font-medium">{booking.promotor}</p>
+              )}
             </div>
           )}
 
@@ -186,17 +255,37 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
                 <User className="h-3 w-3" />
                 Contacto
               </p>
-              <p className="font-medium">{booking.contacto}</p>
+              {contactoContact ? (
+                <Link 
+                  to={`/contacts?selected=${contactoContact.id}`} 
+                  className="font-medium text-primary hover:underline flex items-center gap-1"
+                >
+                  {contactoContact.stage_name || contactoContact.name}
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
+              ) : (
+                <p className="font-medium">{booking.contacto}</p>
+              )}
             </div>
           )}
 
-          {booking.tour_manager && (
+          {(booking.tour_manager || booking.tour_manager_new) && (
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
                 <Phone className="h-3 w-3" />
                 Tour Manager
               </p>
-              <p className="font-medium">{booking.tour_manager}</p>
+              {tourManagerContact ? (
+                <Link 
+                  to={`/contacts?selected=${tourManagerContact.id}`} 
+                  className="font-medium text-primary hover:underline flex items-center gap-1"
+                >
+                  {tourManagerContact.stage_name || tourManagerContact.name}
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
+              ) : (
+                <p className="font-medium">{booking.tour_manager}</p>
+              )}
             </div>
           )}
 
