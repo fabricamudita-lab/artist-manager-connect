@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText, FolderOpen, AlertTriangle, ExternalLink, Eye } from 'lucide-react';
+import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText, FolderOpen, AlertTriangle, ExternalLink, Eye, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -75,6 +75,7 @@ interface BookingOffer {
   hora?: string;
   folder_url?: string;
   created_at: string;
+  availability_status?: 'all_available' | 'has_conflicts' | 'pending' | null;
 }
 
 interface TemplateField {
@@ -260,8 +261,54 @@ export default function Booking() {
         throw error;
       }
       
-      console.log('Fetched offers:', data);
-      setOffers(data || []);
+      // Fetch availability status for bookings in "interes" phase
+      const interesBookingIds = (data || [])
+        .filter(o => o.phase === 'interes')
+        .map(o => o.id);
+      
+      let availabilityMap: Record<string, 'all_available' | 'has_conflicts' | 'pending' | null> = {};
+      
+      if (interesBookingIds.length > 0) {
+        const { data: requests } = await supabase
+          .from('booking_availability_requests')
+          .select('booking_id, id')
+          .in('booking_id', interesBookingIds);
+        
+        if (requests && requests.length > 0) {
+          const requestIds = requests.map(r => r.id);
+          const { data: responses } = await supabase
+            .from('booking_availability_responses')
+            .select('request_id, status')
+            .in('request_id', requestIds);
+          
+          for (const req of requests) {
+            const bookingResponses = (responses || []).filter(r => r.request_id === req.id);
+            if (bookingResponses.length === 0) {
+              availabilityMap[req.booking_id] = null;
+            } else {
+              const hasConflicts = bookingResponses.some(r => r.status === 'unavailable');
+              const allResponded = bookingResponses.every(r => r.status !== 'pending');
+              const allAvailable = allResponded && !hasConflicts;
+              
+              if (allAvailable) {
+                availabilityMap[req.booking_id] = 'all_available';
+              } else if (hasConflicts) {
+                availabilityMap[req.booking_id] = 'has_conflicts';
+              } else {
+                availabilityMap[req.booking_id] = 'pending';
+              }
+            }
+          }
+        }
+      }
+      
+      const mappedOffers = (data || []).map(offer => ({
+        ...offer,
+        availability_status: availabilityMap[offer.id] || null
+      }));
+      
+      console.log('Fetched offers:', mappedOffers);
+      setOffers(mappedOffers);
     } catch (error) {
       console.error('Error fetching offers:', error);
       toast({
@@ -700,10 +747,18 @@ export default function Booking() {
                         {/* STATUS */}
                         {getColumnVisibility('estado') && (
                           <TableCell className="py-4">
-                            <Badge variant={getStatusBadgeVariant(offer.estado)}>
-                              {offer.estado === 'confirmado' ? 'Confirmado' : 
-                               offer.estado === 'cancelado' ? 'Cancelado' : 'Pendiente'}
-                            </Badge>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant={getStatusBadgeVariant(offer.estado)}>
+                                {offer.estado === 'confirmado' ? 'Confirmado' : 
+                                 offer.estado === 'cancelado' ? 'Cancelado' : 'Pendiente'}
+                              </Badge>
+                              {offer.phase === 'interes' && offer.availability_status === 'all_available' && (
+                                <Badge className="bg-green-500 text-white text-xs px-1.5 py-0.5 animate-pulse">
+                                  <ArrowRight className="h-3 w-3 mr-0.5" />
+                                  Listo
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                         )}
                         
