@@ -158,11 +158,9 @@ export function RequestAvailabilityDialog({
 
       if (responsesError) throw responsesError;
 
-      // Store share token for displaying link
-      setShareToken(request.share_token);
-
       toast.success(`Solicitud enviada a ${selectedContacts.length} miembros del equipo`);
       onRequestCreated();
+      handleClose();
     } catch (error) {
       console.error('Error creating availability request:', error);
       toast.error('Error al crear la solicitud');

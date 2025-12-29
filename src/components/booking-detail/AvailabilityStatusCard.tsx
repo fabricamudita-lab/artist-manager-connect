@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -15,9 +17,10 @@ import {
   XCircle, 
   Clock, 
   AlertTriangle,
-  Link as LinkIcon,
   Copy,
-  RefreshCw
+  RefreshCw,
+  UserPlus,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -40,8 +43,17 @@ interface AvailabilityResponse {
   responded_at: string | null;
 }
 
+interface Contact {
+  id: string;
+  name: string;
+  stage_name?: string | null;
+  email?: string | null;
+  role?: string | null;
+}
+
 interface AvailabilityStatusCardProps {
   bookingId: string;
+  artistId?: string | null;
   onRequestAvailability: () => void;
   canConfirm: boolean;
   onBlockStatusChange: (blocked: boolean) => void;
@@ -49,6 +61,7 @@ interface AvailabilityStatusCardProps {
 
 export function AvailabilityStatusCard({
   bookingId,
+  artistId,
   onRequestAvailability,
   canConfirm,
   onBlockStatusChange
@@ -56,6 +69,10 @@ export function AvailabilityStatusCard({
   const [request, setRequest] = useState<AvailabilityRequest | null>(null);
   const [responses, setResponses] = useState<AvailabilityResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [manageDialogOpen, setManageDialogOpen] = useState(false);
+  const [availableContacts, setAvailableContacts] = useState<Contact[]>([]);
+  const [selectedToAdd, setSelectedToAdd] = useState<string[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
 
   useEffect(() => {
     fetchAvailability();
@@ -64,7 +81,6 @@ export function AvailabilityStatusCard({
   const fetchAvailability = async () => {
     setLoading(true);
     try {
-      // Get the latest open request for this booking
       const { data: requests } = await supabase
         .from('booking_availability_requests')
         .select('*')
@@ -76,7 +92,6 @@ export function AvailabilityStatusCard({
         const req = requests[0] as unknown as AvailabilityRequest;
         setRequest(req);
 
-        // Get all responses for this request
         const { data: resps } = await supabase
           .from('booking_availability_responses')
           .select('*')
@@ -84,7 +99,6 @@ export function AvailabilityStatusCard({
 
         setResponses((resps || []) as unknown as AvailabilityResponse[]);
 
-        // Check if there are any unavailable responses with blocking enabled
         const hasConflicts = (resps || []).some((r: any) => r.status === 'unavailable');
         onBlockStatusChange(req.block_confirmation && hasConflicts);
       } else {
@@ -97,6 +111,74 @@ export function AvailabilityStatusCard({
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchAvailableContacts = async () => {
+    if (!artistId || !request) return;
+    setLoadingContacts(true);
+    try {
+      const { data: assignments } = await supabase
+        .from('contact_artist_assignments')
+        .select('contact_id')
+        .eq('artist_id', artistId);
+
+      const contactIds = assignments?.map(a => a.contact_id) || [];
+      const existingContactIds = responses.map(r => r.contact_id).filter(Boolean);
+
+      if (contactIds.length > 0) {
+        const { data: contacts } = await supabase
+          .from('contacts')
+          .select('id, name, stage_name, email, role')
+          .in('id', contactIds);
+
+        const available = (contacts || []).filter(c => !existingContactIds.includes(c.id));
+        setAvailableContacts(available);
+      }
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
+  const handleAddContacts = async () => {
+    if (!request || selectedToAdd.length === 0) return;
+    try {
+      const newResponses = selectedToAdd.map(contactId => {
+        const contact = availableContacts.find(c => c.id === contactId);
+        return {
+          request_id: request.id,
+          contact_id: contactId,
+          responder_name: contact?.stage_name || contact?.name,
+          responder_email: contact?.email
+        };
+      });
+
+      await supabase.from('booking_availability_responses').insert(newResponses);
+      toast.success(`${selectedToAdd.length} contacto(s) añadido(s)`);
+      setSelectedToAdd([]);
+      setManageDialogOpen(false);
+      fetchAvailability();
+    } catch (error) {
+      console.error('Error adding contacts:', error);
+      toast.error('Error al añadir contactos');
+    }
+  };
+
+  const handleRemoveContact = async (responseId: string) => {
+    try {
+      await supabase.from('booking_availability_responses').delete().eq('id', responseId);
+      toast.success('Contacto eliminado');
+      fetchAvailability();
+    } catch (error) {
+      console.error('Error removing contact:', error);
+      toast.error('Error al eliminar');
+    }
+  };
+
+  const openManageDialog = () => {
+    setManageDialogOpen(true);
+    fetchAvailableContacts();
   };
 
   const getStatusIcon = (status: string) => {
@@ -143,24 +225,6 @@ export function AvailabilityStatusCard({
     const link = `${window.location.origin}/availability/${request.share_token}`;
     navigator.clipboard.writeText(link);
     toast.success('Enlace copiado');
-  };
-
-  const handleUpdateResponse = async (responseId: string, newStatus: 'pending' | 'available' | 'unavailable' | 'tentative') => {
-    try {
-      await supabase
-        .from('booking_availability_responses')
-        .update({ 
-          status: newStatus,
-          responded_at: new Date().toISOString()
-        })
-        .eq('id', responseId);
-
-      toast.success('Estado actualizado');
-      fetchAvailability();
-    } catch (error) {
-      console.error('Error updating response:', error);
-      toast.error('Error al actualizar');
-    }
   };
 
   const stats = {
@@ -210,135 +274,223 @@ export function AvailabilityStatusCard({
   }
 
   return (
-    <Card className={cn(
-      hasConflicts && request.block_confirmation && 'border-destructive/50'
-    )}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Disponibilidad del Equipo
-          </CardTitle>
-          <div className="flex items-center gap-1">
-            {allAvailable && (
-              <Badge variant="default" className="bg-green-500">
-                <CheckCircle2 className="h-3 w-3 mr-1" />
-                Todos OK
-              </Badge>
-            )}
-            {hasConflicts && (
-              <Badge variant="destructive">
-                <XCircle className="h-3 w-3 mr-1" />
-                {stats.unavailable} conflicto(s)
-              </Badge>
-            )}
-            {stats.pending > 0 && (
-              <Badge variant="outline">
-                <Clock className="h-3 w-3 mr-1" />
-                {stats.pending} pendiente(s)
-              </Badge>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Progress summary */}
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Respuestas</span>
-          <span className="font-medium">
-            {stats.available + stats.unavailable + stats.tentative} / {stats.total}
-          </span>
-        </div>
-
-        {/* Deadline */}
-        {request.deadline && (
-          <div className="text-xs text-muted-foreground">
-            Fecha límite: {format(new Date(request.deadline), 'PPP', { locale: es })}
-          </div>
-        )}
-
-        <Separator />
-
-        {/* Response list */}
-        <ScrollArea className="h-40">
-          <div className="space-y-2">
-            {responses.map(response => (
-              <div
-                key={response.id}
-                className="flex items-center justify-between p-2 rounded-md bg-muted/50"
-              >
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(response.status)}
-                  <span className="text-sm font-medium">
-                    {response.responder_name || 'Sin nombre'}
-                  </span>
-                </div>
-                <Badge variant={getStatusBadgeVariant(response.status)}>
-                  {getStatusLabel(response.status)}
+    <>
+      <Card className={cn(
+        hasConflicts && request.block_confirmation && 'border-destructive/50'
+      )}>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Disponibilidad del Equipo
+            </CardTitle>
+            <div className="flex items-center gap-1">
+              {allAvailable && (
+                <Badge variant="default" className="bg-green-500">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Todos OK
                 </Badge>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-
-        {/* Actions */}
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1"
-            onClick={copyShareLink}
-          >
-            <Copy className="h-3 w-3 mr-1" />
-            Copiar enlace
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchAvailability}
-          >
-            <RefreshCw className="h-3 w-3" />
-          </Button>
-        </div>
-
-        {/* Block confirmation toggle - only shows when there are conflicts */}
-        {hasConflicts && (
-          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
-            <div className="space-y-0.5">
-              <p className="text-sm font-medium">Bloquear confirmación</p>
-              <p className="text-xs text-muted-foreground">
-                No permitir confirmar el booking hasta resolver conflictos
-              </p>
+              )}
+              {hasConflicts && (
+                <Badge variant="destructive">
+                  <XCircle className="h-3 w-3 mr-1" />
+                  {stats.unavailable} conflicto(s)
+                </Badge>
+              )}
+              {stats.pending > 0 && (
+                <Badge variant="outline">
+                  <Clock className="h-3 w-3 mr-1" />
+                  {stats.pending} pendiente(s)
+                </Badge>
+              )}
             </div>
-            <Switch
-              checked={request.block_confirmation}
-              onCheckedChange={async (checked) => {
-                await supabase
-                  .from('booking_availability_requests')
-                  .update({ block_confirmation: checked })
-                  .eq('id', request.id);
-                toast.success(checked ? 'Bloqueo activado' : 'Bloqueo desactivado');
-                fetchAvailability();
-              }}
-            />
           </div>
-        )}
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Progress summary */}
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Respuestas</span>
+            <span className="font-medium">
+              {stats.available + stats.unavailable + stats.tentative} / {stats.total}
+            </span>
+          </div>
 
-        {/* Warning if blocking confirmation */}
-        {hasConflicts && request.block_confirmation && (
-          <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-md">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
-              <div className="text-xs">
-                <p className="font-medium text-destructive">Confirmación bloqueada</p>
-                <p className="text-muted-foreground">
-                  Hay {stats.unavailable} miembro(s) no disponible(s). Resuelve los conflictos para poder confirmar.
+          {/* Deadline */}
+          {request.deadline && (
+            <div className="text-xs text-muted-foreground">
+              Fecha límite: {format(new Date(request.deadline), 'PPP', { locale: es })}
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Response list with remove button */}
+          <ScrollArea className="h-40">
+            <div className="space-y-2">
+              {responses.map(response => (
+                <div
+                  key={response.id}
+                  className="flex items-center justify-between p-2 rounded-md bg-muted/50 group"
+                >
+                  <div className="flex items-center gap-2">
+                    {getStatusIcon(response.status)}
+                    <span className="text-sm font-medium">
+                      {response.responder_name || 'Sin nombre'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={getStatusBadgeVariant(response.status)}>
+                      {getStatusLabel(response.status)}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleRemoveContact(response.id)}
+                    >
+                      <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={copyShareLink}
+            >
+              <Copy className="h-3 w-3 mr-1" />
+              Copiar enlace
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openManageDialog}
+            >
+              <UserPlus className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchAvailability}
+            >
+              <RefreshCw className="h-3 w-3" />
+            </Button>
+          </div>
+
+          {/* Block confirmation toggle - only shows when there are conflicts */}
+          {hasConflicts && (
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">Bloquear confirmación</p>
+                <p className="text-xs text-muted-foreground">
+                  No permitir confirmar el booking hasta resolver conflictos
                 </p>
               </div>
+              <Switch
+                checked={request.block_confirmation}
+                onCheckedChange={async (checked) => {
+                  await supabase
+                    .from('booking_availability_requests')
+                    .update({ block_confirmation: checked })
+                    .eq('id', request.id);
+                  toast.success(checked ? 'Bloqueo activado' : 'Bloqueo desactivado');
+                  fetchAvailability();
+                }}
+              />
             </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+
+          {/* Warning if blocking confirmation */}
+          {hasConflicts && request.block_confirmation && (
+            <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-md">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
+                <div className="text-xs">
+                  <p className="font-medium text-destructive">Confirmación bloqueada</p>
+                  <p className="text-muted-foreground">
+                    Hay {stats.unavailable} miembro(s) no disponible(s). Resuelve los conflictos para poder confirmar.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add contacts dialog */}
+      <Dialog open={manageDialogOpen} onOpenChange={setManageDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Añadir Contactos
+            </DialogTitle>
+          </DialogHeader>
+
+          <ScrollArea className="h-64">
+            {loadingContacts ? (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                Cargando contactos...
+              </div>
+            ) : availableContacts.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                No hay más contactos disponibles para añadir
+              </div>
+            ) : (
+              <div className="space-y-2 p-1">
+                {availableContacts.map(contact => (
+                  <div
+                    key={contact.id}
+                    className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
+                    onClick={() => {
+                      setSelectedToAdd(prev =>
+                        prev.includes(contact.id)
+                          ? prev.filter(id => id !== contact.id)
+                          : [...prev, contact.id]
+                      );
+                    }}
+                  >
+                    <Checkbox
+                      checked={selectedToAdd.includes(contact.id)}
+                      onCheckedChange={() => {
+                        setSelectedToAdd(prev =>
+                          prev.includes(contact.id)
+                            ? prev.filter(id => id !== contact.id)
+                            : [...prev, contact.id]
+                        );
+                      }}
+                    />
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">
+                        {contact.stage_name || contact.name}
+                      </p>
+                      {contact.role && (
+                        <p className="text-xs text-muted-foreground">{contact.role}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManageDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddContacts} disabled={selectedToAdd.length === 0}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Añadir ({selectedToAdd.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
