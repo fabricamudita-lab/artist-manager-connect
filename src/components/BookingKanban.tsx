@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, closestCorners } from '@dnd-kit/core';
 import { SortableContext, arrayMove } from '@dnd-kit/sortable';
@@ -122,7 +122,15 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
   
   const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
 
-  // Update filter when URL changes
+  const offerMetaById = useMemo(() => {
+    return Object.fromEntries(
+      offers.map((o) => {
+        const bookingName = o.festival_ciclo || o.venue || o.lugar || 'Booking';
+        const artistLabel = o.artist?.stage_name || o.artist?.name || '';
+        return [o.id, { bookingName, artistLabel }];
+      })
+    ) as Record<string, { bookingName: string; artistLabel: string }>;
+  }, [offers]);
   useEffect(() => {
     if (artistIdFromUrl) {
       setFilters(prev => ({ ...prev, artistFilter: artistIdFromUrl }));
@@ -368,8 +376,17 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
             errorMessage = "Hay conflictos de disponibilidad del equipo sin resolver";
           }
         } else if (error.message.includes('No se puede confirmar:')) {
-          const match = error.message.match(/No se puede confirmar: (.+)/);
-          errorMessage = match ? match[0] : error.message;
+          const reason = error.message.match(/No se puede confirmar:\s*(.+)/)?.[1] || '';
+          const offer = offers.find(o => o.id === offerId);
+          if (offer) {
+            const bookingName = offer.festival_ciclo || offer.venue || offer.lugar || 'Booking';
+            const artistLabel = offer.artist?.stage_name || offer.artist?.name;
+            const displayName = artistLabel ? `${bookingName} (${artistLabel})` : bookingName;
+            errorMessage = `Solicitud de booking: ${displayName} — ${reason || 'Faltan aprobaciones o hay bloqueos activos.'}`;
+            bookingLink = `/booking?id=${offerId}`;
+          } else {
+            errorMessage = error.message;
+          }
         }
       }
       
@@ -759,6 +776,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
       {/* Bulk Actions Bar */}
       <BulkActionsBar
         selectedIds={selectedIds}
+        offerMetaById={offerMetaById}
         onClear={clearSelection}
         onRefresh={fetchOffers}
         phases={PHASES}

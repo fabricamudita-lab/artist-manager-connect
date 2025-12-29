@@ -24,12 +24,13 @@ import { toast } from '@/hooks/use-toast';
 
 interface BulkActionsBarProps {
   selectedIds: string[];
+  offerMetaById?: Record<string, { bookingName: string; artistLabel?: string }>;
   onClear: () => void;
   onRefresh: () => void;
   phases: { id: string; label: string }[];
 }
 
-export function BulkActionsBar({ selectedIds, onClear, onRefresh, phases }: BulkActionsBarProps) {
+export function BulkActionsBar({ selectedIds, offerMetaById, onClear, onRefresh, phases }: BulkActionsBarProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [targetPhase, setTargetPhase] = useState<string>('');
@@ -81,8 +82,18 @@ export function BulkActionsBar({ selectedIds, onClear, onRefresh, phases }: Bulk
             errorMessage = "Hay conflictos de disponibilidad del equipo sin resolver";
           }
         } else if (error.message.includes('No se puede confirmar:')) {
-          const match = error.message.match(/No se puede confirmar: (.+)/);
-          errorMessage = match ? match[0] : error.message;
+          const reason = error.message.match(/No se puede confirmar:\s*(.+)/)?.[1] || '';
+          if (selectedIds.length === 1) {
+            const bookingId = selectedIds[0];
+            const meta = offerMetaById?.[bookingId];
+            const bookingName = meta?.bookingName || 'Booking';
+            const artistLabel = meta?.artistLabel;
+            const displayName = artistLabel ? `${bookingName} (${artistLabel})` : bookingName;
+            errorMessage = `Solicitud de booking: ${displayName} — ${reason || 'Faltan aprobaciones o hay bloqueos activos.'}`;
+            bookingLink = `/booking?id=${bookingId}`;
+          } else {
+            errorMessage = `No se puede confirmar: ${reason || 'Faltan aprobaciones o hay bloqueos activos.'}`;
+          }
         }
       }
       
