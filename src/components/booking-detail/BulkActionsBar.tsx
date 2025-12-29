@@ -90,7 +90,20 @@ export function BulkActionsBar({ selectedIds, offerMetaById, onClear, onRefresh,
             const artistLabel = meta?.artistLabel;
             const displayName = artistLabel ? `${bookingName} (${artistLabel})` : bookingName;
             errorMessage = `Solicitud de booking: ${displayName} — ${reason || 'Faltan aprobaciones o hay bloqueos activos.'}`;
-            bookingLink = `/booking/${bookingId}?scrollTo=viability`;
+            
+            // Try to find the associated solicitud in action_center
+            const { data: solicitudData } = await supabase
+              .from('action_center')
+              .select('id')
+              .eq('booking_id', bookingId)
+              .eq('item_type', 'booking_request')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            
+            bookingLink = solicitudData?.id 
+              ? `/solicitudes?id=${solicitudData.id}`
+              : `/booking/${bookingId}?scrollTo=viability`;
           } else {
             errorMessage = `No se puede confirmar: ${reason || 'Faltan aprobaciones o hay bloqueos activos.'}`;
           }
