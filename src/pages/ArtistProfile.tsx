@@ -13,7 +13,6 @@ import {
   Edit, Plus, MapPin, DollarSign, Mic, FileText, 
   Disc3, ClipboardList, TrendingUp, Settings2, Wallet
 } from 'lucide-react';
-import { FinanzasPresupuestos } from '@/components/finanzas/FinanzasPresupuestos';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AddTeamContactDialog } from '@/components/AddTeamContactDialog';
@@ -71,6 +70,16 @@ interface Solicitud {
   tipo: string;
   estado: string;
   fecha_creacion: string;
+}
+
+interface Budget {
+  id: string;
+  name: string;
+  city?: string;
+  venue?: string;
+  event_date?: string;
+  budget_status?: string;
+  fee?: number;
 }
 
 export default function ArtistProfile() {
@@ -184,6 +193,22 @@ export default function ArtistProfile() {
         .limit(10);
       if (error) throw error;
       return data as Solicitud[];
+    },
+    enabled: !!id,
+  });
+
+  // Fetch budgets for this artist
+  const { data: budgets = [] } = useQuery({
+    queryKey: ['artist-budgets', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('budgets')
+        .select('id, name, city, venue, event_date, budget_status, fee')
+        .eq('artist_id', id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data as Budget[];
     },
     enabled: !!id,
   });
@@ -527,11 +552,64 @@ export default function ArtistProfile() {
 
         <TabsContent value="finanzas" className="space-y-4">
           <div className="flex justify-between items-center">
-            <p className="text-muted-foreground">
-              Presupuestos y finanzas de {artist.stage_name || artist.name}
-            </p>
+            <p className="text-muted-foreground">Presupuestos del artista</p>
+            <Button variant="outline" onClick={() => navigate('/finanzas')}>
+              Ver todos
+            </Button>
           </div>
-          <FinanzasPresupuestos artistId={id} />
+
+          {budgets.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Sin presupuestos</h3>
+                <p className="text-muted-foreground">
+                  No hay presupuestos asociados a este artista
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {budgets.map((budget) => (
+                <Card 
+                  key={budget.id} 
+                  className="cursor-pointer hover:shadow-sm transition-shadow"
+                  onClick={() => navigate(`/finanzas?budget=${budget.id}`)}
+                >
+                  <CardContent className="py-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{budget.name}</span>
+                        </div>
+                        {budget.city && (
+                          <p className="text-sm text-muted-foreground ml-6">
+                            {budget.city}{budget.venue ? ` - ${budget.venue}` : ''}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        {budget.event_date && (
+                          <p className="text-sm">
+                            {format(new Date(budget.event_date), 'd MMM yyyy', { locale: es })}
+                          </p>
+                        )}
+                        {budget.fee && (
+                          <p className="text-sm text-muted-foreground">
+                            €{budget.fee.toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                      <Badge variant={budget.budget_status === 'aprobado' ? 'default' : 'secondary'}>
+                        {budget.budget_status || 'borrador'}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
