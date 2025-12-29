@@ -11,8 +11,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { 
   ArrowLeft, Music, Users, Calendar, FolderOpen, 
   Edit, Plus, MapPin, DollarSign, Mic, FileText, 
-  Disc3, ClipboardList, TrendingUp, Settings2
+  Disc3, ClipboardList, TrendingUp, Settings2, Wallet
 } from 'lucide-react';
+import { FinanzasPresupuestos } from '@/components/finanzas/FinanzasPresupuestos';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AddTeamContactDialog } from '@/components/AddTeamContactDialog';
@@ -522,6 +523,15 @@ export default function ArtistProfile() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="finanzas" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <p className="text-muted-foreground">
+              Presupuestos y finanzas de {artist.stage_name || artist.name}
+            </p>
+          </div>
+          <FinanzasPresupuestos artistId={id} />
         </TabsContent>
       </Tabs>
 
