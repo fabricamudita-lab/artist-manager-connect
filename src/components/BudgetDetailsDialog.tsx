@@ -1636,15 +1636,136 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const downloadPDF = () => {
     const doc = new jsPDF();
     const totals = calculateGrandTotals();
+    const beneficio = budgetAmount - totals.neto;
+    const margen = budgetAmount > 0 ? ((beneficio / budgetAmount) * 100) : 0;
+    const desviacion = expenseBudget > 0 ? totals.neto - expenseBudget : 0;
+    const desviacionPct = expenseBudget > 0 ? ((desviacion / expenseBudget) * 100) : 0;
     
-    // Título
-    doc.setFontSize(20);
-    doc.text(budgetData.name, 14, 22);
+    let yPos = 15;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
     
-    // Información del presupuesto
+    // Título principal
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(budgetData.name, margin, yPos);
+    yPos += 10;
+    
+    // Información del evento
     doc.setFontSize(10);
-    doc.text(`Presupuestado: €${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`, 14, 32);
-    doc.text(`Total final: €${totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`, 14, 38);
+    doc.setFont('helvetica', 'normal');
+    
+    if (budgetData.event_date) {
+      const eventDate = new Date(budgetData.event_date).toLocaleDateString('es-ES', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      doc.text(`Fecha: ${eventDate}${budgetData.event_time ? ` a las ${budgetData.event_time}` : ''}`, margin, yPos);
+      yPos += 5;
+    }
+    
+    if (budgetData.venue || budgetData.city) {
+      const location = [budgetData.venue, budgetData.city, budgetData.country].filter(Boolean).join(', ');
+      doc.text(`Lugar: ${location}`, margin, yPos);
+      yPos += 5;
+    }
+    
+    yPos += 3;
+    
+    // Línea separadora
+    doc.setDrawColor(200);
+    doc.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 8;
+    
+    // Vista General - Resumen Financiero
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RESUMEN FINANCIERO', margin, yPos);
+    yPos += 8;
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    
+    // Tabla de resumen financiero
+    const summaryData = [
+      ['Caché (Ingresos)', `€${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`],
+      ['Presupuesto Gastos', `€${expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`],
+      ['Gastos Reales (Neto)', `€${totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}${expenseBudget > 0 ? ` (${desviacion > 0 ? '+' : ''}${desviacionPct.toFixed(1)}%)` : ''}`],
+      ['IVA Repercutido', `+€${totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`],
+      ['IRPF Retenido', `-€${totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`],
+      ['Total a Facturar', `€${totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`],
+      ['Beneficio', `€${beneficio.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`],
+      ['Margen', `${margen.toFixed(1)}%`],
+    ];
+    
+    autoTable(doc, {
+      body: summaryData,
+      startY: yPos,
+      theme: 'plain',
+      styles: { fontSize: 9, cellPadding: 2 },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 50 },
+        1: { halign: 'right', cellWidth: 50 }
+      },
+      margin: { left: margin }
+    });
+    
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+    
+    // Línea separadora
+    doc.setDrawColor(200);
+    doc.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 8;
+    
+    // Desglose por categorías
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DESGLOSE POR CATEGORÍAS', margin, yPos);
+    yPos += 8;
+    
+    const categoryTotals = items.reduce((acc, item) => {
+      const cat = item.category || 'Sin categoría';
+      if (!acc[cat]) acc[cat] = { neto: 0, count: 0 };
+      acc[cat].neto += item.unit_price * item.quantity;
+      acc[cat].count += 1;
+      return acc;
+    }, {} as Record<string, { neto: number; count: number }>);
+    
+    const categoryData = Object.entries(categoryTotals).map(([cat, data]) => [
+      cat,
+      data.count.toString(),
+      `€${data.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`
+    ]);
+    
+    autoTable(doc, {
+      head: [['Categoría', 'Elementos', 'Total Neto']],
+      body: categoryData,
+      startY: yPos,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [80, 80, 80] },
+      margin: { left: margin }
+    });
+    
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+    
+    // Nueva página si no hay espacio
+    if (yPos > 220) {
+      doc.addPage();
+      yPos = 15;
+    }
+    
+    // Línea separadora
+    doc.setDrawColor(200);
+    doc.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 8;
+    
+    // Detalle de elementos
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DETALLE DE ELEMENTOS', margin, yPos);
+    yPos += 8;
     
     // Tabla de elementos
     const tableData = items.map(item => [
@@ -1655,30 +1776,100 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       `${item.iva_percentage}%`,
       `${item.irpf_percentage || 15}%`,
       `€${calculateTotal(item).toFixed(2)}`,
-      item.billing_status
+      item.billing_status === 'factura_recibida' ? 'Facturado' : 
+        item.billing_status === 'pendiente' ? 'Pendiente' : 
+        item.billing_status === 'factura_solicitada' ? 'Solicitada' :
+        item.billing_status === 'pagada' ? 'Pagada' : item.billing_status
     ]);
     
     autoTable(doc, {
-      head: [['Nombre', 'Categoría', 'Cant.', 'Precio Unit.', 'IVA', 'IRPF', 'Total', 'Estado']],
+      head: [['Concepto', 'Categoría', 'Cant.', 'P. Unit.', 'IVA', 'IRPF', 'Total', 'Estado']],
       body: tableData,
-      startY: 45,
+      startY: yPos,
       styles: { fontSize: 8 },
-      headStyles: { fillColor: [0, 0, 0] }
+      headStyles: { fillColor: [0, 0, 0] },
+      margin: { left: margin }
     });
+    
+    // Pie de página con fecha de generación
+    const finalY = (doc as any).lastAutoTable.finalY + 15;
+    doc.setFontSize(8);
+    doc.setTextColor(128);
+    doc.text(`Generado el ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, margin, finalY);
     
     doc.save(`${budgetData.name}.pdf`);
     
     toast({
       title: "PDF descargado",
-      description: "El presupuesto se ha descargado correctamente",
+      description: "El presupuesto completo se ha descargado correctamente",
     });
   };
 
   // Función para generar Excel del presupuesto
   const downloadExcel = () => {
     const totals = calculateGrandTotals();
+    const beneficio = budgetAmount - totals.neto;
+    const margen = budgetAmount > 0 ? ((beneficio / budgetAmount) * 100) : 0;
+    const desviacion = expenseBudget > 0 ? totals.neto - expenseBudget : 0;
+    const desviacionPct = expenseBudget > 0 ? ((desviacion / expenseBudget) * 100) : 0;
     
-    let csvContent = "data:text/csv;charset=utf-8,";
+    // Usar BOM para compatibilidad con Excel
+    let csvContent = "\uFEFF";
+    
+    // Cabecera del presupuesto
+    csvContent += `PRESUPUESTO: ${budgetData.name}\n`;
+    csvContent += "\n";
+    
+    // Información del evento
+    csvContent += "INFORMACIÓN DEL EVENTO\n";
+    if (budgetData.event_date) {
+      const eventDate = new Date(budgetData.event_date).toLocaleDateString('es-ES', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      csvContent += `Fecha,"${eventDate}${budgetData.event_time ? ` a las ${budgetData.event_time}` : ''}"\n`;
+    }
+    if (budgetData.venue) csvContent += `Venue,"${budgetData.venue}"\n`;
+    if (budgetData.city) csvContent += `Ciudad,"${budgetData.city}"\n`;
+    if (budgetData.country) csvContent += `País,"${budgetData.country}"\n`;
+    csvContent += "\n";
+    
+    // Resumen financiero
+    csvContent += "RESUMEN FINANCIERO\n";
+    csvContent += `Caché (Ingresos),"€${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
+    csvContent += `Presupuesto Gastos,"€${expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
+    csvContent += `Gastos Reales (Neto),"€${totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
+    if (expenseBudget > 0) {
+      csvContent += `Desviación vs Presupuesto,"${desviacion > 0 ? '+' : ''}${desviacionPct.toFixed(1)}%"\n`;
+    }
+    csvContent += `IVA Repercutido,"+€${totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
+    csvContent += `IRPF Retenido,"-€${totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
+    csvContent += `Total a Facturar,"€${totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
+    csvContent += `Beneficio,"€${beneficio.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
+    csvContent += `Margen,"${margen.toFixed(1)}%"\n`;
+    csvContent += "\n";
+    
+    // Desglose por categorías
+    csvContent += "DESGLOSE POR CATEGORÍAS\n";
+    csvContent += "Categoría,Elementos,Total Neto\n";
+    
+    const categoryTotals = items.reduce((acc, item) => {
+      const cat = item.category || 'Sin categoría';
+      if (!acc[cat]) acc[cat] = { neto: 0, count: 0 };
+      acc[cat].neto += item.unit_price * item.quantity;
+      acc[cat].count += 1;
+      return acc;
+    }, {} as Record<string, { neto: number; count: number }>);
+    
+    Object.entries(categoryTotals).forEach(([cat, data]) => {
+      csvContent += `"${cat}",${data.count},"€${data.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}"\n`;
+    });
+    csvContent += "\n";
+    
+    // Detalle de elementos
+    csvContent += "DETALLE DE ELEMENTOS\n";
     csvContent += "Concepto,Categoría,Cantidad,Precio Unitario,IVA %,IRPF %,Total,Estado,Fecha Emisión,Enlace Factura\n";
     
     items.forEach(item => {
@@ -1690,31 +1881,39 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         item.iva_percentage,
         item.irpf_percentage || 15,
         calculateTotal(item).toFixed(2),
-        item.billing_status,
+        item.billing_status === 'factura_recibida' ? 'Facturado' : 
+          item.billing_status === 'pendiente' ? 'Pendiente' : 
+          item.billing_status === 'factura_solicitada' ? 'Solicitada' :
+          item.billing_status === 'pagada' ? 'Pagada' : item.billing_status,
         item.fecha_emision || '',
         `"${item.invoice_link || ''}"`
       ].join(',');
       csvContent += row + "\n";
     });
     
-    // Añadir totales
+    // Totales finales
     csvContent += "\n";
-    csvContent += `Total Neto,,,,,,,${totals.neto.toFixed(2)}\n`;
-    csvContent += `Total IVA,,,,,,,${totals.iva.toFixed(2)}\n`;
-    csvContent += `Total IRPF,,,,,,,${totals.irpf.toFixed(2)}\n`;
-    csvContent += `TOTAL FINAL,,,,,,,${totals.total.toFixed(2)}\n`;
+    csvContent += `Total Neto,,,,,,"€${totals.neto.toFixed(2)}"\n`;
+    csvContent += `Total IVA,,,,,,"€${totals.iva.toFixed(2)}"\n`;
+    csvContent += `Total IRPF,,,,,,"€${totals.irpf.toFixed(2)}"\n`;
+    csvContent += `TOTAL FINAL,,,,,,"€${totals.total.toFixed(2)}"\n`;
+    csvContent += "\n";
+    csvContent += `Generado el ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}\n`;
     
-    const encodedUri = encodeURI(csvContent);
+    // Crear blob y descargar
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", url);
     link.setAttribute("download", `${budgetData.name}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
     
     toast({
       title: "Excel descargado",
-      description: "El presupuesto se ha exportado a CSV",
+      description: "El presupuesto completo se ha exportado a CSV",
     });
   };
 
