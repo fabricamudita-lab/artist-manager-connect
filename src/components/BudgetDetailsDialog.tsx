@@ -285,6 +285,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
   const [loadingTeamMembers, setLoadingTeamMembers] = useState(false);
   
+  // Booking context for invoice folder saving
+  const [bookingContext, setBookingContext] = useState<{ artistId: string; bookingId: string } | null>(null);
+  
   // Invoice auto-link hook
   const invoiceInputRef = useRef<HTMLInputElement>(null);
   const {
@@ -295,6 +298,35 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     dismissAutoLink,
     scanAndAutoLink
   } = useInvoiceAutoLink(budget.id);
+  
+  // Fetch booking context for saving invoices to correct folder
+  useEffect(() => {
+    const fetchBookingContext = async () => {
+      // Try to find a storage_node folder that references this budget or matches by name
+      const { data: eventFolder } = await supabase
+        .from('storage_nodes')
+        .select('artist_id, metadata')
+        .or(`metadata->>budget_id.eq.${budget.id},name.ilike.%${budget.name.replace(/[^a-zA-Z0-9]/g, '%')}%`)
+        .eq('node_type', 'folder')
+        .not('metadata->>booking_id', 'is', null)
+        .limit(1)
+        .maybeSingle();
+      
+      if (eventFolder?.artist_id && eventFolder?.metadata) {
+        const metadata = eventFolder.metadata as Record<string, unknown>;
+        if (metadata.booking_id && typeof metadata.booking_id === 'string') {
+          setBookingContext({
+            artistId: eventFolder.artist_id,
+            bookingId: metadata.booking_id
+          });
+        }
+      }
+    };
+    
+    if (open && budget) {
+      fetchBookingContext();
+    }
+  }, [open, budget]);
 
   useEffect(() => {
     if (open && budget) {
@@ -2769,7 +2801,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                              const files = e.target.files;
                              if (!files?.length) return;
                              for (const file of Array.from(files)) {
-                               await uploadInvoice(file, items);
+                               await uploadInvoice(
+                                 file, 
+                                 items, 
+                                 bookingContext?.artistId, 
+                                 bookingContext?.bookingId
+                               );
                              }
                              fetchBudgetItems();
                              e.target.value = '';
@@ -3585,8 +3622,13 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                       onChange={async (e) => {
                                                         const file = e.target.files?.[0];
                                                         if (!file) return;
-                                                        // Upload and link directly to this item
-                                                        const result = await uploadInvoice(file, []);
+                                                        // Upload and link directly to this item, also save to Facturas folder
+                                                        const result = await uploadInvoice(
+                                                          file, 
+                                                          [], 
+                                                          bookingContext?.artistId, 
+                                                          bookingContext?.bookingId
+                                                        );
                                                         if (result?.fileUrl) {
                                                           await supabase
                                                             .from('budget_items')
