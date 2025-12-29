@@ -302,31 +302,50 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   // Fetch booking context for saving invoices to correct folder
   useEffect(() => {
     const fetchBookingContext = async () => {
-      // Try to find a storage_node folder that references this budget or matches by name
-      const { data: eventFolder } = await supabase
-        .from('storage_nodes')
-        .select('artist_id, metadata')
-        .or(`metadata->>budget_id.eq.${budget.id},name.ilike.%${budget.name.replace(/[^a-zA-Z0-9]/g, '%')}%`)
-        .eq('node_type', 'folder')
-        .not('metadata->>booking_id', 'is', null)
-        .limit(1)
-        .maybeSingle();
-      
-      if (eventFolder?.artist_id && eventFolder?.metadata) {
-        const metadata = eventFolder.metadata as Record<string, unknown>;
-        if (metadata.booking_id && typeof metadata.booking_id === 'string') {
+      try {
+        setBookingContext(null);
+
+        // The booking folder doesn't store budget_id in metadata; instead, the "Presupuesto" subfolder
+        // stores metadata.budget_name like "Presupuesto - <budget.name>".
+        const escapedBudgetName = budget.name.replace(/[%_]/g, '\\$&');
+
+        const { data: presupuestoFolder, error: presupuestoError } = await supabase
+          .from('storage_nodes')
+          .select('id, parent_id, artist_id')
+          .eq('node_type', 'folder')
+          .eq('name', 'Presupuesto')
+          .ilike('metadata->>budget_name', `%${escapedBudgetName}%`)
+          .limit(1)
+          .maybeSingle();
+
+        if (presupuestoError || !presupuestoFolder?.parent_id) return;
+
+        const { data: bookingFolder, error: bookingError } = await supabase
+          .from('storage_nodes')
+          .select('metadata')
+          .eq('id', presupuestoFolder.parent_id)
+          .maybeSingle();
+
+        if (bookingError || !bookingFolder?.metadata) return;
+
+        const metadata = bookingFolder.metadata as Record<string, unknown>;
+        const bookingId = typeof metadata.booking_id === 'string' ? metadata.booking_id : null;
+
+        if (bookingId) {
           setBookingContext({
-            artistId: eventFolder.artist_id,
-            bookingId: metadata.booking_id
+            artistId: presupuestoFolder.artist_id,
+            bookingId,
           });
         }
+      } catch (e) {
+        console.error('Error fetching booking context:', e);
       }
     };
-    
-    if (open && budget) {
+
+    if (open && budget?.name) {
       fetchBookingContext();
     }
-  }, [open, budget]);
+  }, [open, budget.id, budget.name]);
 
   useEffect(() => {
     if (open && budget) {

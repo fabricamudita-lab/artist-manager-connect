@@ -173,35 +173,38 @@ export const useInvoiceAutoLink = (budgetId: string) => {
     bookingId?: string
   ): Promise<{ fileUrl: string; autoLinkedItem?: AutoLinkResult } | null> => {
     setIsUploading(true);
-    
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No autenticado');
-      
+
       const fileExt = file.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const storagePath = `${budgetId}/${fileName}`;
-      
-      // Upload to facturas bucket
+      const uniqueName = `${crypto.randomUUID()}.${fileExt}`;
+
+      // Keep invoices in the same bucket used by the Drive (documents)
+      const bucket = 'documents';
+      const storagePath = artistId ? `${artistId}/${uniqueName}` : `${budgetId}/${uniqueName}`;
+
+      // Upload to storage
       const { error: uploadError } = await supabase.storage
-        .from('facturas')
+        .from(bucket)
         .upload(storagePath, file);
-      
+
       if (uploadError) throw uploadError;
-      
+
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from('facturas')
+        .from(bucket)
         .getPublicUrl(storagePath);
-      
+
       const fileUrl = urlData.publicUrl;
-      
-      // Also save to storage_nodes if we have artist and booking
+
+      // Also save to storage_nodes so it appears inside the Drive "Facturas" folder
       if (artistId && bookingId) {
         const facturasFolderId = await getFacturasFolder(artistId, bookingId);
-        
+
         if (facturasFolderId) {
-          await supabase
+          const { error: nodeError } = await supabase
             .from('storage_nodes')
             .insert({
               artist_id: artistId,
@@ -209,49 +212,58 @@ export const useInvoiceAutoLink = (budgetId: string) => {
               name: file.name,
               node_type: 'file',
               storage_path: storagePath,
-              storage_bucket: 'facturas',
+              storage_bucket: bucket,
               file_url: fileUrl,
               file_size: file.size,
               file_type: file.type,
               metadata: { budget_id: budgetId, original_name: file.name },
               created_by: user.id,
             });
+
+          if (nodeError) {
+            console.error('Error inserting storage_node for invoice:', nodeError);
+            toast({
+              title: 'Factura subida, pero no aparece en Drive',
+              description: nodeError.message,
+              variant: 'destructive',
+            });
+          }
         }
       }
-      
+
       // Try to auto-link
       const autoLinkedItem = findMatchingBudgetItem(file.name, budgetItems);
-      
+
       if (autoLinkedItem && autoLinkedItem.confidence >= 0.6) {
         // High confidence: auto-link immediately
         await supabase
           .from('budget_items')
           .update({ invoice_link: fileUrl })
           .eq('id', autoLinkedItem.itemId);
-        
+
         toast({
           title: 'Factura vinculada automáticamente',
           description: `"${file.name}" → ${autoLinkedItem.itemName} (${Math.round(autoLinkedItem.confidence * 100)}% coincidencia)`,
         });
-        
+
         return { fileUrl, autoLinkedItem };
       } else if (autoLinkedItem) {
         // Lower confidence: suggest but don't auto-link
         setAutoLinkSuggestions(prev => new Map(prev).set(fileUrl, autoLinkedItem));
-        
+
         toast({
           title: 'Posible coincidencia detectada',
           description: `"${file.name}" podría corresponder a "${autoLinkedItem.itemName}"`,
         });
-        
+
         return { fileUrl, autoLinkedItem };
       }
-      
+
       toast({
         title: 'Factura subida',
         description: file.name,
       });
-      
+
       return { fileUrl };
     } catch (error: any) {
       console.error('Error uploading invoice:', error);
