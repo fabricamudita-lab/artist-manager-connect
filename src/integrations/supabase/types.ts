@@ -629,6 +629,104 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_availability_requests: {
+        Row: {
+          block_confirmation: boolean
+          booking_id: string
+          closed_at: string | null
+          created_at: string
+          deadline: string | null
+          id: string
+          notes: string | null
+          requested_by: string
+          share_token: string | null
+          status: Database["public"]["Enums"]["availability_request_status"]
+        }
+        Insert: {
+          block_confirmation?: boolean
+          booking_id: string
+          closed_at?: string | null
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          notes?: string | null
+          requested_by: string
+          share_token?: string | null
+          status?: Database["public"]["Enums"]["availability_request_status"]
+        }
+        Update: {
+          block_confirmation?: boolean
+          booking_id?: string
+          closed_at?: string | null
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          notes?: string | null
+          requested_by?: string
+          share_token?: string | null
+          status?: Database["public"]["Enums"]["availability_request_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_availability_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_availability_responses: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          id: string
+          request_id: string
+          responded_at: string | null
+          responder_email: string | null
+          responder_name: string | null
+          response_notes: string | null
+          status: Database["public"]["Enums"]["availability_response_status"]
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          request_id: string
+          responded_at?: string | null
+          responder_email?: string | null
+          responder_name?: string | null
+          response_notes?: string | null
+          status?: Database["public"]["Enums"]["availability_response_status"]
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          request_id?: string
+          responded_at?: string | null
+          responder_email?: string | null
+          responder_name?: string | null
+          response_notes?: string | null
+          status?: Database["public"]["Enums"]["availability_response_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_availability_responses_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_availability_responses_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "booking_availability_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_documents: {
         Row: {
           booking_id: string
@@ -5321,6 +5419,12 @@ export type Database = {
       approval_status: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED"
       approval_type: "BUDGET" | "PR_REQUEST" | "LOGISTICS"
       artist_role: "ARTIST_MANAGER" | "ARTIST_OBSERVER"
+      availability_request_status: "open" | "closed" | "cancelled"
+      availability_response_status:
+        | "pending"
+        | "available"
+        | "unavailable"
+        | "tentative"
       billing_status:
         | "pendiente"
         | "pagado"
@@ -5546,6 +5650,13 @@ export const Constants = {
       approval_status: ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"],
       approval_type: ["BUDGET", "PR_REQUEST", "LOGISTICS"],
       artist_role: ["ARTIST_MANAGER", "ARTIST_OBSERVER"],
+      availability_request_status: ["open", "closed", "cancelled"],
+      availability_response_status: [
+        "pending",
+        "available",
+        "unavailable",
+        "tentative",
+      ],
       billing_status: [
         "pendiente",
         "pagado",

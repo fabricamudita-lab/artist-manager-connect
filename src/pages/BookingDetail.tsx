@@ -21,6 +21,8 @@ import { BookingDriveTab } from '@/components/booking-detail/BookingDriveTab';
 import { EditBookingDialog } from '@/components/booking-detail/EditBookingDialog';
 import { ShareBookingDialog } from '@/components/booking-detail/ShareBookingDialog';
 import { ViabilityChecksCard } from '@/components/booking-detail/ViabilityChecksCard';
+import { AvailabilityStatusCard } from '@/components/booking-detail/AvailabilityStatusCard';
+import { RequestAvailabilityDialog } from '@/components/booking-detail/RequestAvailabilityDialog';
 interface Artist {
   id: string;
   name: string;
@@ -92,6 +94,8 @@ export default function BookingDetail() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showAvailabilityDialog, setShowAvailabilityDialog] = useState(false);
+  const [availabilityBlocked, setAvailabilityBlocked] = useState(false);
   usePageTitle(booking?.festival_ciclo || booking?.venue || 'Detalle Evento');
   useEffect(() => {
     if (id) {
@@ -195,7 +199,8 @@ export default function BookingDetail() {
   const eventDate = booking.fecha ? format(new Date(booking.fecha), "EEEE d 'de' MMMM, yyyy", {
     locale: es
   }) : null;
-  return <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
       <div className="container-moodita section-spacing space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between">
@@ -491,8 +496,14 @@ export default function BookingDetail() {
             </Tabs>
           </div>
 
-          {/* Sidebar - Viability Checks + Linked Files Widget */}
+          {/* Sidebar - Availability + Viability Checks + Linked Files Widget */}
           <div className="space-y-6">
+            <AvailabilityStatusCard
+              bookingId={booking.id}
+              onRequestAvailability={() => setShowAvailabilityDialog(true)}
+              canConfirm={!availabilityBlocked}
+              onBlockStatusChange={setAvailabilityBlocked}
+            />
             <ViabilityChecksCard
               bookingId={booking.id}
               phase={booking.phase || 'interes'}
@@ -508,6 +519,18 @@ export default function BookingDetail() {
             <BookingFilesWidget bookingId={booking.id} artistId={booking.artist_id} />
           </div>
         </div>
+
+        {/* Availability Dialog */}
+        <RequestAvailabilityDialog
+          open={showAvailabilityDialog}
+          onOpenChange={setShowAvailabilityDialog}
+          bookingId={booking.id}
+          artistId={booking.artist_id}
+          eventDate={booking.fecha}
+          eventName={booking.festival_ciclo || booking.venue}
+          onRequestCreated={handleBookingUpdate}
+        />
       </div>
-    </div>;
+    </div>
+  );
 }
