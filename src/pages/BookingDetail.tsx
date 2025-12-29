@@ -53,6 +53,7 @@ interface BookingOffer {
   formato?: string;
   contacto?: string;
   tour_manager?: string;
+  tour_manager_new?: string;
   info_comentarios?: string;
   condiciones?: string;
   link_venta?: string;
