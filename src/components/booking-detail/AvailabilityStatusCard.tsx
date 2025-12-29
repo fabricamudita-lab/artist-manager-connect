@@ -74,9 +74,11 @@ interface AvailabilityStatusCardProps {
 export function AvailabilityStatusCard({
   bookingId,
   artistId,
+  phase = 'interes',
   onRequestAvailability,
   canConfirm,
-  onBlockStatusChange
+  onBlockStatusChange,
+  onPhaseChange
 }: AvailabilityStatusCardProps) {
   const [request, setRequest] = useState<AvailabilityRequest | null>(null);
   const [responses, setResponses] = useState<AvailabilityResponse[]>([]);
