@@ -885,7 +885,21 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         if (!member) continue;
 
         let contactId: string | null = null;
-        const categoryName = 'Músicos / Crew';
+        
+        // Determine budget category based on member's category/role
+        let categoryName = 'Músicos / Crew';
+        const memberCategory = member.category?.toLowerCase() || '';
+        const memberRole = member.role?.toLowerCase() || '';
+        
+        if (memberCategory === 'management' || memberRole.includes('manager') || memberRole.includes('booker') || memberRole.includes('business')) {
+          categoryName = 'Management';
+        } else if (memberCategory === 'banda' || memberCategory === 'musicos' || memberRole.includes('músico') || memberRole.includes('musico')) {
+          categoryName = 'Músicos / Crew';
+        } else if (memberCategory === 'tecnico' || memberRole.includes('técnico') || memberRole.includes('tecnico') || memberRole.includes('sonido') || memberRole.includes('luces')) {
+          categoryName = 'Producción';
+        } else if (memberCategory === 'artista' || memberRole.includes('artista')) {
+          categoryName = 'Artista Principal';
+        }
 
         // If it's already a contact, use directly
         if (member.type === 'contact') {
