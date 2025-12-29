@@ -929,7 +929,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             if (crew.member_id && crew.member_type === 'workspace') {
               const { data: profile } = await supabase
                 .from('profiles')
-                .select('full_name, stage_name, roles')
+                .select('id, full_name, stage_name, roles')
                 .eq('user_id', crew.member_id)
                 .maybeSingle();
               
@@ -941,16 +941,48 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   memberCategory = 'Management';
                 }
                 
-                // Try to find a matching contact to link
-                if (profile.full_name) {
+                // First, try to find a contact linked to this workspace user via field_config.workspace_user_id
+                const { data: existingMirror } = await supabase
+                  .from('contacts')
+                  .select('id')
+                  .eq('field_config->>workspace_user_id', crew.member_id)
+                  .maybeSingle();
+                
+                if (existingMirror?.id) {
+                  contactId = existingMirror.id;
+                } else if (profile.full_name) {
+                  // Fallback: try to find by name match
                   const { data: matchingContact } = await supabase
                     .from('contacts')
                     .select('id')
                     .or(`name.ilike.%${profile.full_name}%,legal_name.ilike.%${profile.full_name}%`)
                     .maybeSingle();
                   
-                  if (matchingContact) {
+                  if (matchingContact?.id) {
                     contactId = matchingContact.id;
+                  } else {
+                    // Create a mirror contact for this workspace member
+                    const { data: newContact, error: insertErr } = await supabase
+                      .from('contacts')
+                      .insert({
+                        name: profile.stage_name || profile.full_name,
+                        legal_name: profile.full_name,
+                        category: 'management',
+                        role: crew.role_label || 'Management',
+                        created_by: user?.id,
+                        field_config: {
+                          workspace_user_id: crew.member_id,
+                          mirror_type: 'workspace_member',
+                        },
+                      })
+                      .select('id')
+                      .single();
+
+                    if (insertErr) {
+                      console.error('Error creating mirror contact for workspace member:', insertErr);
+                    } else if (newContact?.id) {
+                      contactId = newContact.id;
+                    }
                   }
                 }
               }
