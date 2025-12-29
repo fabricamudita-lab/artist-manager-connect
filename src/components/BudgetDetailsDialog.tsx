@@ -6,6 +6,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -1687,6 +1698,38 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   };
 
+  // Delete selected items with confirmation
+  const deleteSelectedItems = async () => {
+    if (selectedItems.size === 0) return;
+
+    try {
+      const idsToDelete = Array.from(selectedItems);
+
+      const { error } = await supabase
+        .from('budget_items')
+        .delete()
+        .in('id', idsToDelete);
+
+      if (error) throw error;
+
+      // Update local state
+      setItems((prev) => prev.filter((item) => !selectedItems.has(item.id)));
+      setSelectedItems(new Set());
+
+      toast({
+        title: 'Elementos eliminados',
+        description: `${idsToDelete.length} elemento(s) eliminados correctamente`,
+      });
+    } catch (error) {
+      console.error('Error deleting items:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron eliminar los elementos',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const moveItemToCategory = async (itemId: string, targetCategoryId: string) => {
     try {
       const targetCategory = budgetCategories.find(c => c.id === targetCategoryId);
@@ -2366,6 +2409,38 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   <SelectItem value="pagada">Pagada</SelectItem>
                                 </SelectContent>
                               </Select>
+                              {/* Delete selected button with confirmation dialog */}
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-white hover:bg-red-700 bg-red-600"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-1" />
+                                    Eliminar
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Esta acción eliminará <strong>{selectedItems.size} elemento(s)</strong> de forma permanente.
+                                      <br />
+                                      <span className="text-destructive font-medium">Los cambios no podrán recuperarse.</span>
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={deleteSelectedItems}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Sí, eliminar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             <Button
                               onClick={clearSelection}
                               size="sm"
