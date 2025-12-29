@@ -7,6 +7,12 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -20,7 +26,11 @@ import {
   Copy,
   RefreshCw,
   UserPlus,
-  Trash2
+  Trash2,
+  MoreVertical,
+  Check,
+  X,
+  HelpCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -167,12 +177,46 @@ export function AvailabilityStatusCard({
 
   const handleRemoveContact = async (responseId: string) => {
     try {
-      await supabase.from('booking_availability_responses').delete().eq('id', responseId);
+      const { error, count } = await supabase
+        .from('booking_availability_responses')
+        .delete()
+        .eq('id', responseId)
+        .select();
+      
+      if (error) {
+        console.error('Delete error:', error);
+        toast.error('Error al eliminar: ' + error.message);
+        return;
+      }
+      
       toast.success('Contacto eliminado');
       fetchAvailability();
     } catch (error) {
       console.error('Error removing contact:', error);
       toast.error('Error al eliminar');
+    }
+  };
+
+  const handleUpdateStatus = async (responseId: string, newStatus: 'available' | 'unavailable' | 'tentative') => {
+    try {
+      const { error } = await supabase
+        .from('booking_availability_responses')
+        .update({ 
+          status: newStatus,
+          responded_at: new Date().toISOString()
+        })
+        .eq('id', responseId);
+      
+      if (error) {
+        toast.error('Error al actualizar');
+        return;
+      }
+      
+      toast.success(`Estado actualizado a ${getStatusLabel(newStatus)}`);
+      fetchAvailability();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Error al actualizar');
     }
   };
 
@@ -324,7 +368,7 @@ export function AvailabilityStatusCard({
 
           <Separator />
 
-          {/* Response list with remove button */}
+          {/* Response list with actions */}
           <ScrollArea className="h-40">
             <div className="space-y-2">
               {responses.map(response => (
@@ -342,14 +386,38 @@ export function AvailabilityStatusCard({
                     <Badge variant={getStatusBadgeVariant(response.status)}>
                       {getStatusLabel(response.status)}
                     </Badge>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => handleRemoveContact(response.id)}
-                    >
-                      <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                        >
+                          <MoreVertical className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleUpdateStatus(response.id, 'available')}>
+                          <Check className="h-4 w-4 mr-2 text-green-500" />
+                          Marcar disponible
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleUpdateStatus(response.id, 'unavailable')}>
+                          <X className="h-4 w-4 mr-2 text-destructive" />
+                          Marcar no disponible
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleUpdateStatus(response.id, 'tentative')}>
+                          <HelpCircle className="h-4 w-4 mr-2 text-yellow-500" />
+                          Marcar tentativo
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleRemoveContact(response.id)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Eliminar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               ))}
