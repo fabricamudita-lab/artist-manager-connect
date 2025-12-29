@@ -47,6 +47,7 @@ export function ViabilityChecksCard({
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [notes, setNotes] = useState(viabilityNotes);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [hasChanged, setHasChanged] = useState(false);
 
   const allApproved = viabilityManagerApproved && viabilityTourManagerApproved && viabilityProductionApproved;
   const approvalCount = [viabilityManagerApproved, viabilityTourManagerApproved, viabilityProductionApproved].filter(Boolean).length;
@@ -270,15 +271,21 @@ export function ViabilityChecksCard({
           <label className="text-sm font-medium">Notas de viabilidad</label>
           <Textarea
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={(e) => {
+              setNotes(e.target.value);
+              setHasChanged(true);
+            }}
             placeholder="Añade notas sobre la viabilidad logística, técnica o económica..."
             className="min-h-[80px] text-sm"
             disabled={!canEdit}
           />
-          {notes !== viabilityNotes && (
+          {hasChanged && (
             <Button 
               size="sm" 
-              onClick={handleSaveNotes} 
+              onClick={() => {
+                handleSaveNotes();
+                setHasChanged(false);
+              }} 
               disabled={isSavingNotes}
               className="w-full"
             >

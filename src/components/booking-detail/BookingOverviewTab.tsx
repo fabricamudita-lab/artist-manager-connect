@@ -54,6 +54,7 @@ interface BookingOverviewTabProps {
 export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProps) {
   const [artistNotes, setArtistNotes] = useState(booking.info_comentarios || '');
   const [saving, setSaving] = useState(false);
+  const [hasChanged, setHasChanged] = useState(false);
   const [tourManagerContact, setTourManagerContact] = useState<Contact | null>(null);
   const [contactoContact, setContactoContact] = useState<Contact | null>(null);
   const [promotorContact, setPromotorContact] = useState<Contact | null>(null);
@@ -343,8 +344,11 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
             </span>
             <Button 
               size="sm" 
-              onClick={handleSaveNotes}
-              disabled={saving || artistNotes === booking.info_comentarios}
+              onClick={() => {
+                handleSaveNotes();
+                setHasChanged(false);
+              }}
+              disabled={saving || !hasChanged}
             >
               <Save className="h-4 w-4 mr-2" />
               {saving ? 'Guardando...' : 'Guardar'}
@@ -357,7 +361,10 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
         <CardContent>
           <Textarea
             value={artistNotes}
-            onChange={(e) => setArtistNotes(e.target.value)}
+            onChange={(e) => {
+              setArtistNotes(e.target.value);
+              setHasChanged(true);
+            }}
             placeholder="Horarios, requerimientos, acceso..."
             className="min-h-[100px]"
           />
