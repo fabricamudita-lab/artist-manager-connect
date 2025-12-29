@@ -156,7 +156,7 @@ export function ViabilityChecksCard({
       console.error('Error confirming booking:', error);
 
       let errorMessage = error?.message || "No se pudo confirmar el booking.";
-      const bookingLink = `/booking?id=${bookingId}`;
+      const bookingLink = `/booking/${bookingId}?scrollTo=availability`;
 
       try {
         if (error?.message?.includes('AVAILABILITY_CONFLICT|')) {
