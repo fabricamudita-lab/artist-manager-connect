@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Copy, Download, GripVertical, FileText, AlertTriangle } from 'lucide-react';
+import { MoreHorizontal, Copy, Download, GripVertical, FileText, AlertTriangle, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { BookingOffer } from './BookingKanban';
 
 interface CompactBookingCardProps {
@@ -63,6 +63,7 @@ export function CompactBookingCard({
   };
 
   const hasWarning = offer.es_internacional && offer.comision_porcentaje && offer.comision_porcentaje > 10;
+  const canAdvanceToNegociacion = offer.phase === 'interes' && offer.availability_status === 'all_available';
 
   const handleCardClick = (e: React.MouseEvent) => {
     if (selectionMode && onToggleSelect) {
@@ -158,6 +159,18 @@ export function CompactBookingCard({
 
               {/* Badges and indicators */}
               <div className="flex items-center gap-1 flex-wrap">
+                {canAdvanceToNegociacion && (
+                  <Badge className="bg-green-500 text-white text-xs px-1.5 py-0.5 animate-pulse">
+                    <ArrowRight className="h-3 w-3 mr-0.5" />
+                    Listo para avanzar
+                  </Badge>
+                )}
+                {offer.availability_status === 'all_available' && offer.phase !== 'interes' && (
+                  <Badge variant="outline" className="text-xs px-1.5 py-0.5 border-green-300 text-green-700">
+                    <CheckCircle2 className="h-3 w-3 mr-0.5" />
+                    Equipo OK
+                  </Badge>
+                )}
                 {offer.es_cityzen && (
                   <Badge className="bg-orange-500 text-white text-xs px-1.5 py-0.5">
                     CityZen
