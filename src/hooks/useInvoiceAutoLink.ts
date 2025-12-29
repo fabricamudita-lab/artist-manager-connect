@@ -7,11 +7,16 @@ interface BudgetItem {
   name: string;
   unit_price: number;
   quantity: number;
+  iva_percentage?: number;
+  irpf_percentage?: number;
   invoice_link?: string;
   contact_id?: string;
+  fecha_emision?: string | null;
   contacts?: {
     id: string;
     name: string;
+    legal_name?: string;
+    company?: string;
   };
 }
 
@@ -165,12 +170,66 @@ export const useInvoiceAutoLink = (budgetId: string) => {
     return facturasFolder?.id || null;
   }, []);
 
+  // Count existing invoices in folder to generate sequential number
+  const getNextInvoiceNumber = useCallback(async (facturasFolderId: string): Promise<number> => {
+    const { count } = await supabase
+      .from('storage_nodes')
+      .select('*', { count: 'exact', head: true })
+      .eq('parent_id', facturasFolderId)
+      .eq('node_type', 'file');
+    
+    return (count || 0) + 1;
+  }, []);
+
+  // Generate invoice filename: "25.12 FRA01 :: 425€ Pedro Inversiones"
+  const generateInvoiceName = useCallback((
+    item: BudgetItem | null,
+    invoiceNumber: number,
+    originalFileName: string
+  ): string => {
+    const fileExt = originalFileName.split('.').pop() || 'pdf';
+    
+    // Get date (from fecha_emision or current date)
+    const dateSource = item?.fecha_emision ? new Date(item.fecha_emision) : new Date();
+    const year = String(dateSource.getFullYear()).slice(-2);
+    const month = String(dateSource.getMonth() + 1).padStart(2, '0');
+    
+    // Format invoice number: FRA01, FRA02, etc.
+    const fraNumber = `FRA${String(invoiceNumber).padStart(2, '0')}`;
+    
+    // Calculate net amount (base + IVA - IRPF retention)
+    let amountStr = '';
+    if (item) {
+      const base = (item.unit_price || 0) * (item.quantity || 1);
+      const ivaAmount = base * ((item.iva_percentage || 0) / 100);
+      const irpfAmount = base * ((item.irpf_percentage || 0) / 100);
+      const netAmount = base + ivaAmount - irpfAmount;
+      amountStr = `${Math.round(netAmount)}€`;
+    }
+    
+    // Get contact name (prefer legal_name, then company, then name)
+    let contactName = '';
+    if (item?.contacts) {
+      contactName = item.contacts.legal_name || item.contacts.company || item.contacts.name || '';
+    }
+    
+    // Build filename parts
+    const parts = [`${year}.${month}`, fraNumber];
+    if (amountStr || contactName) {
+      const details = [amountStr, contactName].filter(Boolean).join(' ');
+      parts.push(`:: ${details}`);
+    }
+    
+    return `${parts.join(' ')}.${fileExt}`;
+  }, []);
+
   // Upload invoice to storage and optionally to Facturas folder
   const uploadInvoice = useCallback(async (
     file: File,
     budgetItems: BudgetItem[],
     artistId?: string,
-    bookingId?: string
+    bookingId?: string,
+    linkedItem?: BudgetItem | null
   ): Promise<{ fileUrl: string; autoLinkedItem?: AutoLinkResult } | null> => {
     setIsUploading(true);
 
@@ -204,19 +263,23 @@ export const useInvoiceAutoLink = (budgetId: string) => {
         const facturasFolderId = await getFacturasFolder(artistId, bookingId);
 
         if (facturasFolderId) {
+          // Get next invoice number and generate proper filename
+          const invoiceNumber = await getNextInvoiceNumber(facturasFolderId);
+          const generatedName = generateInvoiceName(linkedItem || null, invoiceNumber, file.name);
+
           const { error: nodeError } = await supabase
             .from('storage_nodes')
             .insert({
               artist_id: artistId,
               parent_id: facturasFolderId,
-              name: file.name,
+              name: generatedName,
               node_type: 'file',
               storage_path: storagePath,
               storage_bucket: bucket,
               file_url: fileUrl,
               file_size: file.size,
               file_type: file.type,
-              metadata: { budget_id: budgetId, original_name: file.name },
+              metadata: { budget_id: budgetId, original_name: file.name, invoice_number: invoiceNumber },
               created_by: user.id,
             });
 
@@ -276,7 +339,7 @@ export const useInvoiceAutoLink = (budgetId: string) => {
     } finally {
       setIsUploading(false);
     }
-  }, [budgetId, getFacturasFolder]);
+  }, [budgetId, getFacturasFolder, getNextInvoiceNumber, generateInvoiceName]);
 
   // Confirm auto-link suggestion
   const confirmAutoLink = useCallback(async (fileUrl: string, itemId: string) => {
