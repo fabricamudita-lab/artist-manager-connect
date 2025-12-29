@@ -28,6 +28,7 @@ import { StatusCommentDialog } from '@/components/StatusCommentDialog';
 import { ScheduleEncounterDialog } from '@/components/ScheduleEncounterDialog';
 import CreateProjectDialog from '@/components/CreateProjectDialog';
 import AssociateProjectDialog from '@/components/AssociateProjectDialog';
+import { ApprovalAvailabilityDialog } from '@/components/ApprovalAvailabilityDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -65,6 +66,7 @@ interface Solicitud {
   nombre_festival?: string;
   lugar_concierto?: string;
   ciudad?: string;
+  booking_id?: string | null;
   
   // Campo libre para tipo "otro"
   descripcion_libre?: string;
@@ -143,6 +145,23 @@ export default function Solicitudes() {
   const [solicitudContacts, setSolicitudContacts] = useState<{ id: string; name: string; email?: string | null }[]>([]);
   const [associateDialog, setAssociateDialog] = useState<{ open: boolean; solicitud: Solicitud | null }>({ open: false, solicitud: null });
   const [createProjectForSolicitud, setCreateProjectForSolicitud] = useState<{ open: boolean; solicitud: Solicitud | null }>({ open: false, solicitud: null });
+  const [availabilityDialog, setAvailabilityDialog] = useState<{
+    open: boolean;
+    solicitudId: string;
+    bookingId: string | null;
+    bookingName: string;
+    hasAvailability: boolean;
+    unavailableMembers: string[];
+    comment: string;
+  }>({
+    open: false,
+    solicitudId: '',
+    bookingId: null,
+    bookingName: '',
+    hasAvailability: true,
+    unavailableMembers: [],
+    comment: '',
+  });
 
   // Atajos de teclado
   useSolicitudesKeyboard({
@@ -646,6 +665,94 @@ const handleStatusChange = async (
 const confirmStatusChange = async (comment: string) => {
   const { solicitudId, newStatus } = statusDialog;
   if (!solicitudId) return;
+  
+  // For approvals, check if this is a booking solicitud with linked booking
+  if (newStatus === 'aprobada') {
+    const solicitud = solicitudes.find(s => s.id === solicitudId);
+    
+    if (solicitud?.tipo === 'booking') {
+      // Get booking_id from the solicitud
+      const { data: solicitudData } = await supabase
+        .from('solicitudes')
+        .select('booking_id, nombre_festival')
+        .eq('id', solicitudId)
+        .single();
+      
+      if (solicitudData?.booking_id) {
+        // Check team availability
+        const { data: availabilityRequest } = await supabase
+          .from('booking_availability_requests')
+          .select('id, status')
+          .eq('booking_id', solicitudData.booking_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (availabilityRequest) {
+          // Get responses
+          const { data: responses } = await supabase
+            .from('booking_availability_responses')
+            .select('status, responder_name')
+            .eq('request_id', availabilityRequest.id);
+          
+          const unavailableMembers = responses
+            ?.filter(r => r.status === 'unavailable')
+            .map(r => r.responder_name || 'Miembro') || [];
+          
+          const allAvailable = unavailableMembers.length === 0;
+          const hasResponses = (responses?.length || 0) > 0;
+          
+          // If no availability check done or has conflicts, show dialog
+          if (!hasResponses || !allAvailable) {
+            setStatusDialog({ open: false, solicitudId: '', newStatus: 'aprobada' });
+            setAvailabilityDialog({
+              open: true,
+              solicitudId,
+              bookingId: solicitudData.booking_id,
+              bookingName: solicitudData.nombre_festival || solicitud.nombre_festival || 'Booking',
+              hasAvailability: allAvailable && hasResponses,
+              unavailableMembers,
+              comment,
+            });
+            return;
+          }
+          
+          // All available - approve and move to negociación
+          try {
+            const { error: solicitudError } = await supabase
+              .from('solicitudes')
+              .update({
+                estado: 'aprobada',
+                comentario_estado: comment || null,
+                decision_por: profile?.user_id || null,
+                decision_fecha: new Date().toISOString(),
+              } as any)
+              .eq('id', solicitudId);
+            
+            if (solicitudError) throw solicitudError;
+            
+            // Move booking to negociación
+            await supabase
+              .from('booking_offers')
+              .update({ phase: 'negociacion' })
+              .eq('id', solicitudData.booking_id);
+            
+            toast({ title: 'Solicitud aprobada', description: 'Booking movido a Negociación.' });
+            setStatusDialog({ open: false, solicitudId: '', newStatus: 'aprobada' });
+            fetchSolicitudes();
+            fireCelebration();
+            return;
+          } catch (error) {
+            console.error('Error approving:', error);
+            toast({ title: 'Error', description: 'No se pudo aprobar.', variant: 'destructive' });
+            return;
+          }
+        }
+      }
+    }
+  }
+  
+  // Default flow for non-booking solicitudes
   try {
     const { error } = await supabase
       .from('solicitudes')
@@ -1677,6 +1784,23 @@ const confirmStatusChange = async (comment: string) => {
             description: 'El contenido se ha copiado al portapapeles',
           });
         }}
+      />
+
+      {/* Diálogo de disponibilidad para aprobaciones */}
+      <ApprovalAvailabilityDialog
+        open={availabilityDialog.open}
+        onOpenChange={(open) => setAvailabilityDialog(prev => ({ ...prev, open }))}
+        solicitudId={availabilityDialog.solicitudId}
+        bookingId={availabilityDialog.bookingId}
+        bookingName={availabilityDialog.bookingName}
+        hasAvailability={availabilityDialog.hasAvailability}
+        unavailableMembers={availabilityDialog.unavailableMembers}
+        onApproved={() => {
+          fetchSolicitudes();
+          fireCelebration();
+        }}
+        comment={availabilityDialog.comment}
+        userId={profile?.user_id}
       />
 
       {/* Acciones masivas */}
