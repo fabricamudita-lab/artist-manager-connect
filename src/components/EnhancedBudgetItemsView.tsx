@@ -100,7 +100,7 @@ const statusColors = {
 
 export default function EnhancedBudgetItemsView({ budgetId, className }: EnhancedBudgetItemsViewProps) {
   const [items, setItems] = useState<BudgetItem[]>([]);
-  const [contacts, setContacts] = useState<Contact[]>([]);
+  
   const [loading, setLoading] = useState(true);
   
   // Filter states
@@ -116,13 +116,18 @@ export default function EnhancedBudgetItemsView({ budgetId, className }: Enhance
 
   useEffect(() => {
     fetchItems();
-    fetchContacts();
   }, [budgetId]);
 
-  const fetchContacts = async () => {
-    const { data } = await supabase.from('contacts').select('id, name').order('name');
-    setContacts(data || []);
-  };
+  // Derive contacts from items that have a linked contact
+  const linkedContacts = useMemo(() => {
+    const contactMap = new Map<string, Contact>();
+    items.forEach(item => {
+      if (item.contacts && item.contact_id) {
+        contactMap.set(item.contacts.id, item.contacts);
+      }
+    });
+    return Array.from(contactMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [items]);
 
   const fetchItems = async () => {
     try {
@@ -282,7 +287,7 @@ export default function EnhancedBudgetItemsView({ budgetId, className }: Enhance
     }
 
     if (contactFilter !== 'all') {
-      const contactName = contacts.find(c => c.id === contactFilter)?.name || contactFilter;
+      const contactName = linkedContacts.find(c => c.id === contactFilter)?.name || contactFilter;
       filters.push({
         id: 'contact',
         label: `Contacto: ${contactName}`,
@@ -292,7 +297,7 @@ export default function EnhancedBudgetItemsView({ budgetId, className }: Enhance
     }
 
     return filters;
-  }, [searchTerm, statusFilter, contactFilter, dateFrom, dateTo, minAmount, maxAmount, sortField, sortDirection, contacts]);
+  }, [searchTerm, statusFilter, contactFilter, dateFrom, dateTo, minAmount, maxAmount, sortField, sortDirection, linkedContacts]);
 
   const clearAllFilters = () => {
     setSearchTerm('');
@@ -404,7 +409,7 @@ export default function EnhancedBudgetItemsView({ budgetId, className }: Enhance
               </SelectTrigger>
               <SelectContent className="bg-background border z-50 max-h-60 overflow-auto">
                 <SelectItem value="all">Todos los contactos</SelectItem>
-                {contacts.map((contact) => (
+                {linkedContacts.map((contact) => (
                   <SelectItem key={contact.id} value={contact.id}>
                     {contact.name}
                   </SelectItem>
