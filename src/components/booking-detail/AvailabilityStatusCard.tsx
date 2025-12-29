@@ -64,17 +64,21 @@ interface Contact {
 interface AvailabilityStatusCardProps {
   bookingId: string;
   artistId?: string | null;
+  phase?: string;
   onRequestAvailability: () => void;
   canConfirm: boolean;
   onBlockStatusChange: (blocked: boolean) => void;
+  onPhaseChange?: () => void;
 }
 
 export function AvailabilityStatusCard({
   bookingId,
   artistId,
+  phase = 'interes',
   onRequestAvailability,
   canConfirm,
-  onBlockStatusChange
+  onBlockStatusChange,
+  onPhaseChange
 }: AvailabilityStatusCardProps) {
   const [request, setRequest] = useState<AvailabilityRequest | null>(null);
   const [responses, setResponses] = useState<AvailabilityResponse[]>([]);
@@ -487,6 +491,32 @@ export function AvailabilityStatusCard({
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Advance to Negociación button - only visible in 'interes' phase when team is available */}
+          {phase === 'interes' && allAvailable && (
+            <Button
+              className="w-full bg-green-600 hover:bg-green-700"
+              onClick={async () => {
+                try {
+                  const { error } = await supabase
+                    .from('booking_offers')
+                    .update({ phase: 'negociacion' })
+                    .eq('id', bookingId);
+                  
+                  if (error) throw error;
+                  
+                  toast.success('Booking avanzado a Negociación');
+                  onPhaseChange?.();
+                } catch (error) {
+                  console.error('Error advancing phase:', error);
+                  toast.error('Error al avanzar el booking');
+                }
+              }}
+            >
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Avanzar a Negociación
+            </Button>
           )}
         </CardContent>
       </Card>
