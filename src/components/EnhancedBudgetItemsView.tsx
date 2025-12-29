@@ -27,6 +27,11 @@ import {
   FileText
 } from 'lucide-react';
 
+interface Contact {
+  id: string;
+  name: string;
+}
+
 interface BudgetItem {
   id: string;
   budget_id: string;
@@ -42,17 +47,28 @@ interface BudgetItem {
   invoice_link?: string;
   observations?: string;
   category_id?: string;
+  contact_id?: string;
   fecha_emision?: string;
   created_at: string;
   updated_at: string;
+  contacts?: Contact | null;
 }
 
 interface FilterChip {
   id: string;
   label: string;
   value: string;
-  type: 'search' | 'status' | 'dateRange' | 'sort';
+  type: 'search' | 'status' | 'dateRange' | 'sort' | 'contact';
 }
+
+// Normalize text for flexible search (remove accents, lowercase)
+const normalizeText = (text: string): string => {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, '');
+};
 
 type SortField = 'total' | 'fecha_emision' | 'name' | 'unit_price' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -84,11 +100,13 @@ const statusColors = {
 
 export default function EnhancedBudgetItemsView({ budgetId, className }: EnhancedBudgetItemsViewProps) {
   const [items, setItems] = useState<BudgetItem[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [contactFilter, setContactFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [dateFrom, setDateFrom] = useState<Date>();
@@ -98,19 +116,25 @@ export default function EnhancedBudgetItemsView({ budgetId, className }: Enhance
 
   useEffect(() => {
     fetchItems();
+    fetchContacts();
   }, [budgetId]);
+
+  const fetchContacts = async () => {
+    const { data } = await supabase.from('contacts').select('id, name').order('name');
+    setContacts(data || []);
+  };
 
   const fetchItems = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('budget_items')
-        .select('*')
+        .select('*, contacts(id, name)')
         .eq('budget_id', budgetId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setItems(data || []);
+      setItems((data as BudgetItem[]) || []);
     } catch (error) {
       console.error('Error fetching budget items:', error);
       toast({
@@ -126,17 +150,26 @@ export default function EnhancedBudgetItemsView({ budgetId, className }: Enhance
   // Memoized filtered and sorted items
   const filteredAndSortedItems = useMemo(() => {
     let filtered = items.filter(item => {
-      // Search filter (concept and amounts)
-      const searchLower = searchTerm.toLowerCase();
+      // Flexible search filter (normalized: removes accents, tolerant to typos)
+      const searchNorm = normalizeText(searchTerm);
+      const itemNameNorm = normalizeText(item.name);
+      const itemCategoryNorm = normalizeText(item.category);
+      const itemSubcategoryNorm = normalizeText(item.subcategory || '');
+      const contactNameNorm = normalizeText(item.contacts?.name || '');
+
       const matchesSearch = !searchTerm || 
-        item.name.toLowerCase().includes(searchLower) ||
-        item.category.toLowerCase().includes(searchLower) ||
-        item.subcategory?.toLowerCase().includes(searchLower) ||
-        item.unit_price.toString().includes(searchLower) ||
-        (item.unit_price * item.quantity).toString().includes(searchLower);
+        itemNameNorm.includes(searchNorm) ||
+        itemCategoryNorm.includes(searchNorm) ||
+        itemSubcategoryNorm.includes(searchNorm) ||
+        contactNameNorm.includes(searchNorm) ||
+        item.unit_price.toString().includes(searchTerm) ||
+        (item.unit_price * item.quantity).toString().includes(searchTerm);
 
       // Status filter
       const matchesStatus = statusFilter === 'all' || item.billing_status === statusFilter;
+
+      // Contact filter
+      const matchesContact = contactFilter === 'all' || item.contact_id === contactFilter;
 
       // Date range filter
       const itemDate = item.fecha_emision ? new Date(item.fecha_emision) : null;
@@ -148,7 +181,7 @@ export default function EnhancedBudgetItemsView({ budgetId, className }: Enhance
       const matchesMinAmount = !minAmount || totalAmount >= parseFloat(minAmount);
       const matchesMaxAmount = !maxAmount || totalAmount <= parseFloat(maxAmount);
 
-      return matchesSearch && matchesStatus && matchesDateRange && matchesMinAmount && matchesMaxAmount;
+      return matchesSearch && matchesStatus && matchesContact && matchesDateRange && matchesMinAmount && matchesMaxAmount;
     });
 
     // Sort items
@@ -185,7 +218,7 @@ export default function EnhancedBudgetItemsView({ budgetId, className }: Enhance
     });
 
     return filtered;
-  }, [items, searchTerm, statusFilter, sortField, sortDirection, dateFrom, dateTo, minAmount, maxAmount]);
+  }, [items, searchTerm, statusFilter, contactFilter, sortField, sortDirection, dateFrom, dateTo, minAmount, maxAmount]);
 
   // Generate active filter chips
   const activeFilters = useMemo(() => {
@@ -248,12 +281,23 @@ export default function EnhancedBudgetItemsView({ budgetId, className }: Enhance
       });
     }
 
+    if (contactFilter !== 'all') {
+      const contactName = contacts.find(c => c.id === contactFilter)?.name || contactFilter;
+      filters.push({
+        id: 'contact',
+        label: `Contacto: ${contactName}`,
+        value: contactFilter,
+        type: 'contact'
+      });
+    }
+
     return filters;
-  }, [searchTerm, statusFilter, dateFrom, dateTo, minAmount, maxAmount, sortField, sortDirection]);
+  }, [searchTerm, statusFilter, contactFilter, dateFrom, dateTo, minAmount, maxAmount, sortField, sortDirection, contacts]);
 
   const clearAllFilters = () => {
     setSearchTerm('');
     setStatusFilter('all');
+    setContactFilter('all');
     setSortField('created_at');
     setSortDirection('desc');
     setDateFrom(undefined);
@@ -281,6 +325,9 @@ export default function EnhancedBudgetItemsView({ budgetId, className }: Enhance
       case 'sort':
         setSortField('created_at');
         setSortDirection('desc');
+        break;
+      case 'contact':
+        setContactFilter('all');
         break;
     }
   };
@@ -321,12 +368,12 @@ export default function EnhancedBudgetItemsView({ budgetId, className }: Enhance
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Search and basic filters */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
-                placeholder="Buscar por concepto o importe..."
+                placeholder="Buscar concepto, contacto..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -347,6 +394,21 @@ export default function EnhancedBudgetItemsView({ budgetId, className }: Enhance
                 <SelectItem value="pagado">Pagada</SelectItem>
                 <SelectItem value="facturado">Facturada</SelectItem>
                 <SelectItem value="cancelado">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Contact Filter */}
+            <Select value={contactFilter} onValueChange={setContactFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Contacto" />
+              </SelectTrigger>
+              <SelectContent className="bg-background border z-50 max-h-60 overflow-auto">
+                <SelectItem value="all">Todos los contactos</SelectItem>
+                {contacts.map((contact) => (
+                  <SelectItem key={contact.id} value={contact.id}>
+                    {contact.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
