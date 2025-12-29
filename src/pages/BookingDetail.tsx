@@ -90,8 +90,9 @@ export default function BookingDetail() {
   }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const scrollToAvailability = searchParams.get('scrollTo') === 'availability';
+  const scrollToSection = searchParams.get('scrollTo');
   const availabilityRef = useRef<HTMLDivElement>(null);
+  const viabilityRef = useRef<HTMLDivElement>(null);
   const [booking, setBooking] = useState<BookingOffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -101,14 +102,17 @@ export default function BookingDetail() {
   const [availabilityBlocked, setAvailabilityBlocked] = useState(false);
   usePageTitle(booking?.festival_ciclo || booking?.venue || 'Detalle Evento');
 
-  // Scroll to availability section if requested via URL param
+  // Scroll to section if requested via URL param
   useEffect(() => {
-    if (scrollToAvailability && !loading && availabilityRef.current) {
-      setTimeout(() => {
-        availabilityRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
+    if (!loading && scrollToSection) {
+      const ref = scrollToSection === 'viability' ? viabilityRef : availabilityRef;
+      if (ref.current) {
+        setTimeout(() => {
+          ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
     }
-  }, [scrollToAvailability, loading]);
+  }, [scrollToSection, loading]);
   useEffect(() => {
     if (id) {
       fetchBooking();
@@ -517,18 +521,20 @@ export default function BookingDetail() {
               canConfirm={!availabilityBlocked}
               onBlockStatusChange={setAvailabilityBlocked}
             />
-            <ViabilityChecksCard
-              bookingId={booking.id}
-              phase={booking.phase || 'interes'}
-              viabilityManagerApproved={booking.viability_manager_approved}
-              viabilityManagerAt={booking.viability_manager_at}
-              viabilityTourManagerApproved={booking.viability_tour_manager_approved}
-              viabilityTourManagerAt={booking.viability_tour_manager_at}
-              viabilityProductionApproved={booking.viability_production_approved}
-              viabilityProductionAt={booking.viability_production_at}
-              viabilityNotes={booking.viability_notes}
-              onUpdate={handleBookingUpdate}
-            />
+            <div ref={viabilityRef}>
+              <ViabilityChecksCard
+                bookingId={booking.id}
+                phase={booking.phase || 'interes'}
+                viabilityManagerApproved={booking.viability_manager_approved}
+                viabilityManagerAt={booking.viability_manager_at}
+                viabilityTourManagerApproved={booking.viability_tour_manager_approved}
+                viabilityTourManagerAt={booking.viability_tour_manager_at}
+                viabilityProductionApproved={booking.viability_production_approved}
+                viabilityProductionAt={booking.viability_production_at}
+                viabilityNotes={booking.viability_notes}
+                onUpdate={handleBookingUpdate}
+              />
+            </div>
             <BookingFilesWidget bookingId={booking.id} artistId={booking.artist_id} />
           </div>
         </div>

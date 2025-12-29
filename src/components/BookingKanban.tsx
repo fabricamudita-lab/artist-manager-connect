@@ -383,7 +383,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
             const artistLabel = offer.artist?.stage_name || offer.artist?.name;
             const displayName = artistLabel ? `${bookingName} (${artistLabel})` : bookingName;
             errorMessage = `Solicitud de booking: ${displayName} — ${reason || 'Faltan aprobaciones o hay bloqueos activos.'}`;
-            bookingLink = `/booking/${offerId}?scrollTo=availability`;
+            bookingLink = `/booking/${offerId}?scrollTo=viability`;
           } else {
             errorMessage = error.message;
           }
