@@ -29,6 +29,7 @@ interface Contact {
   role?: string | null;
   iban?: string | null;
   artist_id?: string | null;
+  field_config?: any | null;
   type: "contact";
 }
 
@@ -109,7 +110,7 @@ export function BudgetContactSelector({
       // Fetch contacts (including mirror contacts for artists)
       const { data: contactsData, error: contactsError } = await supabase
         .from("contacts")
-        .select("id, name, email, phone, company, role, iban, artist_id")
+        .select("id, name, email, phone, company, role, iban, artist_id, field_config")
         .order("name");
 
       if (contactsError) throw contactsError;
@@ -119,9 +120,14 @@ export function BudgetContactSelector({
       }));
       setContacts(mappedContacts);
 
+      // Map roster artist -> mirror contact (we store roster artist id in field_config.roster_artist_id)
       const artistContactMap = new Map<string, string>();
       for (const c of mappedContacts) {
-        if (c.artist_id) artistContactMap.set(c.artist_id, c.id);
+        const rosterArtistId =
+          c.field_config && typeof c.field_config === "object"
+            ? (c.field_config as any).roster_artist_id
+            : null;
+        if (rosterArtistId) artistContactMap.set(rosterArtistId, c.id);
       }
 
       // Fetch artists from roster
@@ -155,10 +161,11 @@ export function BudgetContactSelector({
     if (artist.contactId) return artist.contactId;
 
     // Check DB (in case it was created elsewhere)
+    // NOTE: contacts.artist_id points to profiles in this project; for roster artists we store the link in field_config
     const { data: existingContact, error: existingErr } = await supabase
       .from("contacts")
       .select("id")
-      .eq("artist_id", artist.artistId)
+      .eq("field_config->>roster_artist_id", artist.artistId)
       .maybeSingle();
 
     if (existingErr) throw existingErr;
@@ -175,12 +182,15 @@ export function BudgetContactSelector({
         name: artist.name,
         legal_name: artist.legal_name,
         stage_name: artist.name,
-        artist_id: artist.artistId,
         category: "artista",
         role: "Artista",
         created_by: userId,
+        field_config: {
+          roster_artist_id: artist.artistId,
+          mirror_type: "roster_artist",
+        },
       })
-      .select("id, name, email, phone, company, role, iban, artist_id")
+      .select("id, name, email, phone, company, role, iban, artist_id, field_config")
       .single();
 
     if (insertErr) throw insertErr;

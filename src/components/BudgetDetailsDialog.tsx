@@ -873,32 +873,40 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             memberCategory = 'Artista Principal';
             isArtist = true;
             
-            // Find or create a mirror contact for the artist
-            const { data: existingContact } = await supabase
+            // Find or create a mirror contact for the artist.
+            // NOTE: contacts.artist_id points to profiles in this project; for roster artists we store the link in field_config.roster_artist_id
+            const { data: existingContact, error: existingContactErr } = await supabase
               .from('contacts')
               .select('id')
-              .eq('artist_id', artistId)
+              .eq('field_config->>roster_artist_id', artistId)
               .maybeSingle();
-            
-            if (existingContact) {
+
+            if (existingContactErr) {
+              console.error(existingContactErr);
+            } else if (existingContact?.id) {
               contactId = existingContact.id;
             } else {
               // Create a mirror contact for this artist
-              const { data: newContact } = await supabase
+              const { data: newContact, error: insertErr } = await supabase
                 .from('contacts')
                 .insert({
                   name: artistInfo.name,
                   legal_name: artistInfo.legal_name,
                   stage_name: artistInfo.name,
-                  artist_id: artistId,
                   category: 'artista',
                   role: 'Artista',
-                  created_by: user?.id
+                  created_by: user?.id,
+                  field_config: {
+                    roster_artist_id: artistId,
+                    mirror_type: 'roster_artist',
+                  },
                 })
                 .select('id')
                 .single();
-              
-              if (newContact) {
+
+              if (insertErr) {
+                console.error(insertErr);
+              } else if (newContact?.id) {
                 contactId = newContact.id;
               }
             }
