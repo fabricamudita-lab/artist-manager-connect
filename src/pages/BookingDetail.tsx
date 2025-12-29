@@ -20,6 +20,7 @@ import { BookingFilesWidget } from '@/components/booking-detail/BookingFilesWidg
 import { BookingDriveTab } from '@/components/booking-detail/BookingDriveTab';
 import { EditBookingDialog } from '@/components/booking-detail/EditBookingDialog';
 import { ShareBookingDialog } from '@/components/booking-detail/ShareBookingDialog';
+import { ViabilityChecksCard } from '@/components/booking-detail/ViabilityChecksCard';
 interface Artist {
   id: string;
   name: string;
@@ -69,6 +70,14 @@ interface BookingOffer {
   created_at: string;
   artist?: Artist;
   adjuntos?: any;
+  // Viability fields
+  viability_manager_approved?: boolean;
+  viability_manager_at?: string;
+  viability_tour_manager_approved?: boolean;
+  viability_tour_manager_at?: string;
+  viability_production_approved?: boolean;
+  viability_production_at?: string;
+  viability_notes?: string;
 }
 export default function BookingDetail() {
   const {
@@ -481,8 +490,20 @@ export default function BookingDetail() {
             </Tabs>
           </div>
 
-          {/* Sidebar - Linked Files Widget */}
+          {/* Sidebar - Viability Checks + Linked Files Widget */}
           <div className="space-y-6">
+            <ViabilityChecksCard
+              bookingId={booking.id}
+              phase={booking.phase || 'interes'}
+              viabilityManagerApproved={booking.viability_manager_approved}
+              viabilityManagerAt={booking.viability_manager_at}
+              viabilityTourManagerApproved={booking.viability_tour_manager_approved}
+              viabilityTourManagerAt={booking.viability_tour_manager_at}
+              viabilityProductionApproved={booking.viability_production_approved}
+              viabilityProductionAt={booking.viability_production_at}
+              viabilityNotes={booking.viability_notes}
+              onUpdate={handleBookingUpdate}
+            />
             <BookingFilesWidget bookingId={booking.id} artistId={booking.artist_id} />
           </div>
         </div>
