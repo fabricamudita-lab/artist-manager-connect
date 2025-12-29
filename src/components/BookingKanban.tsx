@@ -371,7 +371,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
             const [, bookingName, artistName, bookingId] = parts;
             const displayName = artistName ? `${bookingName} (${artistName})` : bookingName;
             errorMessage = `Solicitud de disponibilidad pendiente: ${displayName}`;
-            bookingLink = `/booking?id=${bookingId}`;
+            bookingLink = `/booking/${bookingId}?scrollTo=availability`;
           } else {
             errorMessage = "Hay conflictos de disponibilidad del equipo sin resolver";
           }
@@ -383,7 +383,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
             const artistLabel = offer.artist?.stage_name || offer.artist?.name;
             const displayName = artistLabel ? `${bookingName} (${artistLabel})` : bookingName;
             errorMessage = `Solicitud de booking: ${displayName} — ${reason || 'Faltan aprobaciones o hay bloqueos activos.'}`;
-            bookingLink = `/booking?id=${offerId}`;
+            bookingLink = `/booking/${offerId}?scrollTo=availability`;
           } else {
             errorMessage = error.message;
           }

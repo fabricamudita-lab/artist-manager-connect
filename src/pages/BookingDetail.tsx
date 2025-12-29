@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -89,6 +89,9 @@ export default function BookingDetail() {
     id: string;
   }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const scrollToAvailability = searchParams.get('scrollTo') === 'availability';
+  const availabilityRef = useRef<HTMLDivElement>(null);
   const [booking, setBooking] = useState<BookingOffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -97,6 +100,15 @@ export default function BookingDetail() {
   const [showAvailabilityDialog, setShowAvailabilityDialog] = useState(false);
   const [availabilityBlocked, setAvailabilityBlocked] = useState(false);
   usePageTitle(booking?.festival_ciclo || booking?.venue || 'Detalle Evento');
+
+  // Scroll to availability section if requested via URL param
+  useEffect(() => {
+    if (scrollToAvailability && !loading && availabilityRef.current) {
+      setTimeout(() => {
+        availabilityRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [scrollToAvailability, loading]);
   useEffect(() => {
     if (id) {
       fetchBooking();
@@ -497,7 +509,7 @@ export default function BookingDetail() {
           </div>
 
           {/* Sidebar - Availability + Viability Checks + Linked Files Widget */}
-          <div className="space-y-6">
+          <div className="space-y-6" ref={availabilityRef}>
             <AvailabilityStatusCard
               bookingId={booking.id}
               artistId={booking.artist_id}
