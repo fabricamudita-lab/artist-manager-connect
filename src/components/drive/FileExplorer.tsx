@@ -388,8 +388,7 @@ export function FileExplorer({
         className={`cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group ${
           compact ? 'p-2' : ''
         }`}
-        onClick={() => isFolder && navigateToFolder(node.id)}
-        onDoubleClick={() => !isFolder && handleDownload(node)}
+        onClick={() => (isFolder ? navigateToFolder(node.id) : handleDownload(node))}
       >
         <CardContent className={`${compact ? 'p-2' : 'p-4'} flex flex-col items-center text-center relative`}>
           <DropdownMenu>
@@ -416,15 +415,26 @@ export function FileExplorer({
                 Renombrar
               </DropdownMenuItem>
               {!isFolder && (
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDownload(node);
-                  }}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Descargar
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownload(node);
+                    }}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Ver
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownload(node);
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Descargar
+                  </DropdownMenuItem>
+                </>
               )}
               {!node.is_system_folder && (
                 <>
@@ -492,8 +502,7 @@ export function FileExplorer({
     const content = (
       <div
         className="flex items-center gap-4 p-3 hover:bg-muted/50 rounded-lg cursor-pointer group"
-        onClick={() => isFolder && navigateToFolder(node.id)}
-        onDoubleClick={() => !isFolder && handleDownload(node)}
+        onClick={() => (isFolder ? navigateToFolder(node.id) : handleDownload(node))}
       >
         <IconComponent
           className={`w-5 h-5 ${isFolder ? 'text-yellow-600' : 'text-primary'}`}
@@ -531,15 +540,26 @@ export function FileExplorer({
               Renombrar
             </DropdownMenuItem>
             {!isFolder && (
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDownload(node);
-                }}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Descargar
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownload(node);
+                  }}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Ver
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownload(node);
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Descargar
+                </DropdownMenuItem>
+              </>
             )}
             {!node.is_system_folder && (
               <>
