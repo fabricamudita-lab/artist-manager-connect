@@ -367,7 +367,31 @@ export function FileExplorer({
     setNodeToDelete(null);
   };
 
-  const handleDownload = (node: StorageNode) => {
+  const handleDownload = async (node: StorageNode) => {
+    if (!node.file_url) return;
+    
+    try {
+      // Fetch the file as a blob to force download
+      const response = await fetch(node.file_url);
+      const blob = await response.blob();
+      
+      // Create a temporary download link
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = node.name; // Use the node name (our generated name)
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      // Fallback to opening in new tab
+      window.open(node.file_url, '_blank');
+    }
+  };
+
+  const handleView = (node: StorageNode) => {
     if (node.file_url) {
       window.open(node.file_url, '_blank');
     }
@@ -388,7 +412,7 @@ export function FileExplorer({
         className={`cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group ${
           compact ? 'p-2' : ''
         }`}
-        onClick={() => (isFolder ? navigateToFolder(node.id) : handleDownload(node))}
+        onClick={() => (isFolder ? navigateToFolder(node.id) : handleView(node))}
       >
         <CardContent className={`${compact ? 'p-2' : 'p-4'} flex flex-col items-center text-center relative`}>
           <DropdownMenu>
@@ -419,7 +443,7 @@ export function FileExplorer({
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDownload(node);
+                      handleView(node);
                     }}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
@@ -502,7 +526,7 @@ export function FileExplorer({
     const content = (
       <div
         className="flex items-center gap-4 p-3 hover:bg-muted/50 rounded-lg cursor-pointer group"
-        onClick={() => (isFolder ? navigateToFolder(node.id) : handleDownload(node))}
+        onClick={() => (isFolder ? navigateToFolder(node.id) : handleView(node))}
       >
         <IconComponent
           className={`w-5 h-5 ${isFolder ? 'text-yellow-600' : 'text-primary'}`}
@@ -544,7 +568,7 @@ export function FileExplorer({
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDownload(node);
+                    handleView(node);
                   }}
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
