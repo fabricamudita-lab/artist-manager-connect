@@ -1727,7 +1727,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.line(margin, yPos, pageWidth - margin, yPos);
     yPos += 8;
     
-    // Desglose por categorías con gráfico de tarta
+    // Desglose por categorías
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('DESGLOSE POR CATEGORÍAS', margin, yPos);
@@ -1752,95 +1752,21 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       const percentage = totalNeto > 0 ? ((data.neto / totalNeto) * 100).toFixed(1) : '0';
       return [
         cat,
-        data.count.toString(),
         `${data.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`,
         `${percentage}%`
       ];
     });
     
-    // Tabla más estrecha para dejar espacio al gráfico
-    const tableWidth = 100;
     autoTable(doc, {
-      head: [['Categoría', 'Elem.', 'Total Neto', '%']],
+      head: [['Categoría', 'Total Neto', '%']],
       body: categoryData,
       startY: yPos,
-      styles: { fontSize: 8 },
+      styles: { fontSize: 9 },
       headStyles: { fillColor: [80, 80, 80] },
-      margin: { left: margin },
-      tableWidth: tableWidth
+      margin: { left: margin }
     });
     
-    // Dibujar gráfico de tarta al lado de la tabla
-    const chartX = margin + tableWidth + 25;
-    const chartY = yPos + 25;
-    const chartRadius = 20;
-    const colors = [
-      [66, 133, 244],   // Azul
-      [234, 67, 53],    // Rojo
-      [52, 168, 83],    // Verde
-      [251, 188, 4],    // Amarillo
-      [156, 39, 176],   // Púrpura
-      [0, 188, 212],    // Cyan
-      [255, 152, 0],    // Naranja
-      [96, 125, 139]    // Gris azulado
-    ];
-    
-    let startAngle = -Math.PI / 2; // Empezar desde arriba
-    sortedCategoryEntries.forEach(([cat, data], index) => {
-      if (data.neto <= 0) return;
-      const percentage = data.neto / totalNeto;
-      const endAngle = startAngle + (percentage * 2 * Math.PI);
-      const color = colors[index % colors.length];
-      
-      // Dibujar sector
-      doc.setFillColor(color[0], color[1], color[2]);
-      
-      // Aproximar el sector con un polígono
-      const points: number[][] = [[chartX, chartY]];
-      const steps = Math.max(Math.floor(percentage * 32), 2);
-      for (let i = 0; i <= steps; i++) {
-        const angle = startAngle + (i / steps) * (endAngle - startAngle);
-        points.push([
-          chartX + Math.cos(angle) * chartRadius,
-          chartY + Math.sin(angle) * chartRadius
-        ]);
-      }
-      
-      // Dibujar el polígono
-      if (points.length > 2) {
-        doc.setDrawColor(255, 255, 255);
-        doc.setLineWidth(0.5);
-        const xPoints = points.map(p => p[0]);
-        const yPoints = points.map(p => p[1]);
-        
-        doc.moveTo(points[0][0], points[0][1]);
-        for (let i = 1; i < points.length; i++) {
-          doc.lineTo(points[i][0], points[i][1]);
-        }
-        doc.lineTo(points[0][0], points[0][1]);
-        doc.fill();
-      }
-      
-      startAngle = endAngle;
-    });
-    
-    // Leyenda del gráfico
-    let legendY = yPos + 50;
-    doc.setFontSize(6);
-    sortedCategoryEntries.forEach(([cat, data], index) => {
-      if (data.neto <= 0) return;
-      const color = colors[index % colors.length];
-      const percentage = totalNeto > 0 ? ((data.neto / totalNeto) * 100).toFixed(1) : '0';
-      
-      doc.setFillColor(color[0], color[1], color[2]);
-      doc.rect(chartX - 15, legendY - 2, 3, 3, 'F');
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(0);
-      doc.text(`${cat}: ${percentage}%`, chartX - 10, legendY);
-      legendY += 4;
-    });
-    
-    yPos = Math.max((doc as any).lastAutoTable.finalY, legendY) + 10;
+    yPos = (doc as any).lastAutoTable.finalY + 10;
     
     // Nueva página si no hay espacio
     if (yPos > 220) {
@@ -1879,10 +1805,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       const categoryItems = itemsByCategory[categoryName];
       const categoryTotal = categoryItems.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
       
-      // Fila de categoría (header de grupo) - usando "|" como separador
+      // Fila de categoría (header de grupo) - solo nombre y total
       tableData.push([
         { 
-          content: `${categoryName} | ${categoryItems.length} elementos | ${categoryTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`, 
+          content: `${categoryName} | ${categoryTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`, 
           colSpan: 8, 
           styles: { fontStyle: 'bold', fillColor: [240, 240, 240], textColor: [40, 40, 40] } 
         }
@@ -2020,8 +1946,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       const categoryItemsList = itemsByCategoryExcel[categoryName];
       const categoryTotal = categoryItemsList.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
       
-      // Fila de categoría (header de grupo) - usando "|" como separador
-      csvContent += `"${categoryName} | ${categoryItemsList.length} elementos | ${categoryTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €",,,,,,,,\n`;
+      // Fila de categoría (header de grupo) - solo nombre y total
+      csvContent += `"${categoryName} | ${categoryTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €",,,,,,,,\n`;
       
       // Filas de items
       categoryItemsList.forEach(item => {
