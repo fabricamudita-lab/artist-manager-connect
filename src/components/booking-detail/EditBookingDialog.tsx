@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -454,23 +455,22 @@ export function EditBookingDialog({
               </div>
             </div>
 
-            <div className="flex items-center gap-6 pt-2">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="es_internacional"
-                  checked={formData.es_internacional || false}
-                  onCheckedChange={(c) => updateField('es_internacional', !!c)}
-                />
-                <Label htmlFor="es_internacional">Internacional</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="es_cityzen"
-                  checked={formData.es_cityzen || false}
-                  onCheckedChange={(c) => updateField('es_cityzen', !!c)}
-                />
-                <Label htmlFor="es_cityzen">CityZen</Label>
-              </div>
+            <div className="space-y-2 pt-2">
+              <Label>Tipo de tarifa</Label>
+              <RadioGroup
+                value={formData.es_internacional ? 'internacional' : 'nacional'}
+                onValueChange={(value) => updateField('es_internacional', value === 'internacional')}
+                className="flex items-center gap-6"
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="nacional" id="tarifa_nacional" />
+                  <Label htmlFor="tarifa_nacional" className="font-normal cursor-pointer">Nacional</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="internacional" id="tarifa_internacional" />
+                  <Label htmlFor="tarifa_internacional" className="font-normal cursor-pointer">Internacional</Label>
+                </div>
+              </RadioGroup>
             </div>
 
             {/* EPK Visibility Options */}
