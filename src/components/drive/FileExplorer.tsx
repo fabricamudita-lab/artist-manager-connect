@@ -69,8 +69,8 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
 import {
   DndContext,
   DragEndEvent,
@@ -151,7 +151,6 @@ export function FileExplorer({
   showBreadcrumbs = true,
   compact = false,
 }: FileExplorerProps) {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(initialFolderId);
   const [searchQuery, setSearchQuery] = useState('');
@@ -167,6 +166,7 @@ export function FileExplorer({
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [statusNode, setStatusNode] = useState<StorageNode | null>(null);
   const [isCreatingBudget, setIsCreatingBudget] = useState(false);
+  const [showBudgetDialog, setShowBudgetDialog] = useState(false);
   const [invoiceStatus, setInvoiceStatus] = useState<{
     found: boolean;
     billing_status?: string;
@@ -506,7 +506,7 @@ export function FileExplorer({
         
         toast({ title: 'Presupuesto creado', description: 'Se ha creado el presupuesto correctamente' });
         refetchBudgetContext();
-        navigate(`/budgets?id=${newBudget.id}`);
+        setShowBudgetDialog(true);
       }
     } catch (err) {
       console.error('Error creating budget:', err);
@@ -904,9 +904,9 @@ export function FileExplorer({
             <div className="flex flex-col items-center justify-center py-12 text-center space-y-6">
               {/* Linked Budget Card */}
               {linkedBudget && (
-                <Card 
+              <Card 
                   className="w-full max-w-md cursor-pointer hover:border-primary/50 hover:shadow-lg transition-all bg-gradient-to-br from-primary/5 to-primary/10"
-                  onClick={() => navigate(`/budgets?id=${linkedBudget.id}`)}
+                  onClick={() => setShowBudgetDialog(true)}
                 >
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
@@ -971,9 +971,9 @@ export function FileExplorer({
             <div className="space-y-4">
               {/* Show linked budget card at top when in Presupuesto folder */}
               {linkedBudget && (
-                <Card 
+              <Card 
                   className="cursor-pointer hover:border-primary/50 hover:shadow-lg transition-all bg-gradient-to-br from-primary/5 to-primary/10"
-                  onClick={() => navigate(`/budgets?id=${linkedBudget.id}`)}
+                  onClick={() => setShowBudgetDialog(true)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
@@ -1000,9 +1000,9 @@ export function FileExplorer({
             <div className="space-y-1">
               {/* Show linked budget in list view too */}
               {linkedBudget && (
-                <div 
+              <div 
                   className="flex items-center gap-4 p-3 hover:bg-primary/5 rounded-lg cursor-pointer border border-primary/20 bg-gradient-to-r from-primary/5 to-transparent"
-                  onClick={() => navigate(`/budgets?id=${linkedBudget.id}`)}
+                  onClick={() => setShowBudgetDialog(true)}
                 >
                   <Calculator className="w-5 h-5 text-primary" />
                   <div className="flex-1 min-w-0">
@@ -1182,6 +1182,31 @@ export function FileExplorer({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Budget Details Dialog */}
+      {linkedBudget && (
+        <BudgetDetailsDialog
+          open={showBudgetDialog}
+          onOpenChange={setShowBudgetDialog}
+          budget={{
+            id: linkedBudget.id,
+            name: linkedBudget.name,
+            type: 'concierto',
+            city: linkedBudget.city || '',
+            country: '',
+            venue: linkedBudget.venue || '',
+            budget_status: '',
+            show_status: '',
+            internal_notes: '',
+            created_at: '',
+            artist_id: artistId || '',
+            event_date: linkedBudget.event_date || '',
+            event_time: '',
+            fee: linkedBudget.fee || 0,
+          }}
+          onUpdate={() => refetchBudgetContext()}
+        />
+      )}
     </DndContext>
   );
 }
