@@ -234,6 +234,26 @@ export default function BookingDetail() {
                 <Badge variant={getStatusBadgeVariant(booking.estado || 'pendiente')}>
                   {booking.estado || 'pendiente'}
                 </Badge>
+                {booking.phase && (
+                  <Badge 
+                    variant="outline" 
+                    className={
+                      booking.phase === 'confirmado' ? 'border-green-500 text-green-600 bg-green-50' :
+                      booking.phase === 'negociacion' ? 'border-yellow-500 text-yellow-600 bg-yellow-50' :
+                      booking.phase === 'interes' ? 'border-blue-500 text-blue-600 bg-blue-50' :
+                      booking.phase === 'oferta' ? 'border-purple-500 text-purple-600 bg-purple-50' :
+                      booking.phase === 'descartado' ? 'border-destructive text-destructive bg-destructive/10' :
+                      'border-muted-foreground text-muted-foreground'
+                    }
+                  >
+                    {booking.phase === 'interes' ? 'Interés' :
+                     booking.phase === 'oferta' ? 'Oferta' :
+                     booking.phase === 'negociacion' ? 'Negociación' :
+                     booking.phase === 'confirmado' ? 'Confirmado' :
+                     booking.phase === 'descartado' ? 'Descartado' :
+                     booking.phase}
+                  </Badge>
+                )}
                 {booking.artist && (
                   <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
                     {booking.artist.stage_name || booking.artist.name}
