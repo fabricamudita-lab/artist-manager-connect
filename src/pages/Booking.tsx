@@ -32,7 +32,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { validateBookingOffer, ValidationResult } from '@/lib/bookingValidations';
 import { useBookingReminders } from '@/hooks/useBookingReminders';
 import { useBookingFolders } from '@/hooks/useBookingFolders';
-import { getStatusBadgeVariant } from '@/lib/statusColors';
+import { getStatusBadgeVariant, getPhaseLabel } from '@/lib/statusColors';
 import { BookingTableColumns, useBookingColumns, ColumnConfig } from '@/components/BookingTableColumns';
 
 interface BookingOffer {
@@ -748,9 +748,8 @@ export default function Booking() {
                         {getColumnVisibility('estado') && (
                           <TableCell className="py-4">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <Badge variant={getStatusBadgeVariant(offer.estado)}>
-                                {offer.estado === 'confirmado' ? 'Confirmado' : 
-                                 offer.estado === 'cancelado' ? 'Cancelado' : 'Pendiente'}
+                              <Badge variant={getStatusBadgeVariant(offer.phase || offer.estado)}>
+                                {getPhaseLabel(offer.phase || offer.estado)}
                               </Badge>
                               {offer.phase === 'interes' && offer.availability_status === 'all_available' && (
                                 <Badge className="bg-green-500 text-white text-xs px-1.5 py-0.5 animate-pulse">
