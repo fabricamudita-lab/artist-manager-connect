@@ -23,7 +23,6 @@ import { ShareBookingDialog } from '@/components/booking-detail/ShareBookingDial
 import { ViabilityChecksCard } from '@/components/booking-detail/ViabilityChecksCard';
 import { AvailabilityStatusCard } from '@/components/booking-detail/AvailabilityStatusCard';
 import { RequestAvailabilityDialog } from '@/components/booking-detail/RequestAvailabilityDialog';
-import { LinkedSolicitudesCard } from '@/components/booking-detail/LinkedSolicitudesCard';
 interface Artist {
   id: string;
   name: string;
@@ -538,7 +537,6 @@ export default function BookingDetail() {
                 onUpdate={handleBookingUpdate}
               />
             </div>
-            <LinkedSolicitudesCard bookingId={booking.id} />
             <BookingFilesWidget bookingId={booking.id} artistId={booking.artist_id} />
           </div>
         </div>
