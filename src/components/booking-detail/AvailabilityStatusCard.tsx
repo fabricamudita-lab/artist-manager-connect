@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +32,13 @@ import {
   MoreVertical,
   Check,
   X,
-  HelpCircle
+  HelpCircle,
+  History,
+  ChevronDown,
+  ChevronRight,
+  UserMinus,
+  ToggleLeft,
+  Edit
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -62,6 +69,15 @@ interface Contact {
   role?: string | null;
 }
 
+interface HistoryEvent {
+  id: string;
+  event_type: string;
+  previous_value: any;
+  new_value: any;
+  created_at: string;
+  actor_user_id: string;
+}
+
 interface AvailabilityStatusCardProps {
   bookingId: string;
   artistId?: string | null;
@@ -88,10 +104,19 @@ export function AvailabilityStatusCard({
   const [availableContacts, setAvailableContacts] = useState<Contact[]>([]);
   const [selectedToAdd, setSelectedToAdd] = useState<string[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState<HistoryEvent[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   useEffect(() => {
     fetchAvailability();
   }, [bookingId]);
+
+  useEffect(() => {
+    if (historyOpen && history.length === 0) {
+      fetchHistory();
+    }
+  }, [historyOpen]);
 
   const fetchAvailability = async () => {
     setLoading(true);
@@ -125,6 +150,64 @@ export function AvailabilityStatusCard({
       console.error('Error fetching availability:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const { data, error } = await supabase
+        .from('booking_availability_history')
+        .select('*')
+        .eq('booking_id', bookingId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setHistory((data || []) as unknown as HistoryEvent[]);
+    } catch (error) {
+      console.error('Error fetching history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const getEventIcon = (eventType: string) => {
+    switch (eventType) {
+      case 'response_added':
+        return <UserPlus className="h-3 w-3 text-green-500" />;
+      case 'response_removed':
+        return <UserMinus className="h-3 w-3 text-destructive" />;
+      case 'status_changed':
+        return <Edit className="h-3 w-3 text-blue-500" />;
+      case 'block_toggled':
+        return <ToggleLeft className="h-3 w-3 text-yellow-500" />;
+      case 'request_created':
+        return <Users className="h-3 w-3 text-primary" />;
+      default:
+        return <History className="h-3 w-3 text-muted-foreground" />;
+    }
+  };
+
+  const getEventDescription = (event: HistoryEvent) => {
+    const name = event.new_value?.responder_name || event.previous_value?.responder_name || 'Contacto';
+    switch (event.event_type) {
+      case 'response_added':
+        return `${name} añadido a la consulta`;
+      case 'response_removed':
+        return `${name} eliminado de la consulta`;
+      case 'status_changed':
+        const oldStatus = event.previous_value?.status || 'pendiente';
+        const newStatus = event.new_value?.status || 'pendiente';
+        return `${name}: ${getStatusLabel(oldStatus)} → ${getStatusLabel(newStatus)}`;
+      case 'block_toggled':
+        return event.new_value?.block_confirmation 
+          ? 'Bloqueo de confirmación activado'
+          : 'Bloqueo de confirmación desactivado';
+      case 'request_created':
+        return 'Solicitud de disponibilidad creada';
+      default:
+        return event.event_type;
     }
   };
 
@@ -565,6 +648,55 @@ export function AvailabilityStatusCard({
               </div>
             </div>
           )}
+
+          {/* History section - expandable */}
+          <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="w-full justify-between text-muted-foreground hover:text-foreground">
+                <span className="flex items-center gap-2">
+                  <History className="h-3 w-3" />
+                  Historial de cambios
+                </span>
+                {historyOpen ? (
+                  <ChevronDown className="h-3 w-3" />
+                ) : (
+                  <ChevronRight className="h-3 w-3" />
+                )}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
+                {loadingHistory ? (
+                  <div className="text-xs text-muted-foreground text-center py-2">
+                    Cargando historial...
+                  </div>
+                ) : history.length === 0 ? (
+                  <div className="text-xs text-muted-foreground text-center py-2">
+                    Sin cambios registrados
+                  </div>
+                ) : (
+                  history.map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex items-start gap-2 p-2 rounded-md bg-muted/30 text-xs"
+                    >
+                      <div className="mt-0.5">
+                        {getEventIcon(event.event_type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground">
+                          {getEventDescription(event)}
+                        </p>
+                        <p className="text-muted-foreground">
+                          {format(new Date(event.created_at), "d MMM yyyy, HH:mm", { locale: es })}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
           {/* Advance to Negociación button - only visible in 'interes' phase when team is available */}
           {phase === 'interes' && allAvailable && (
