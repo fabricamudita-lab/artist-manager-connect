@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
+import { logAvailabilityEvent } from '@/hooks/useAvailabilityAudit';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -168,7 +169,25 @@ export function AvailabilityStatusCard({
         };
       });
 
-      await supabase.from('booking_availability_responses').insert(newResponses);
+      const { data: inserted } = await supabase
+        .from('booking_availability_responses')
+        .insert(newResponses)
+        .select();
+      
+      // Log audit for each added contact
+      for (const resp of (inserted || [])) {
+        await logAvailabilityEvent({
+          requestId: request.id,
+          responseId: resp.id,
+          bookingId,
+          eventType: 'response_added',
+          newValue: { 
+            responder_name: resp.responder_name,
+            contact_id: resp.contact_id 
+          }
+        });
+      }
+      
       toast.success(`${selectedToAdd.length} contacto(s) añadido(s)`);
       setSelectedToAdd([]);
       setManageDialogOpen(false);
@@ -180,17 +199,34 @@ export function AvailabilityStatusCard({
   };
 
   const handleRemoveContact = async (responseId: string) => {
+    // Get the response data before deleting for audit
+    const responseToRemove = responses.find(r => r.id === responseId);
+    
     try {
-      const { error, count } = await supabase
+      const { error } = await supabase
         .from('booking_availability_responses')
         .delete()
-        .eq('id', responseId)
-        .select();
+        .eq('id', responseId);
       
       if (error) {
         console.error('Delete error:', error);
         toast.error('Error al eliminar: ' + error.message);
         return;
+      }
+      
+      // Log audit for removed contact
+      if (request) {
+        await logAvailabilityEvent({
+          requestId: request.id,
+          responseId,
+          bookingId,
+          eventType: 'response_removed',
+          previousValue: responseToRemove ? {
+            responder_name: responseToRemove.responder_name,
+            status: responseToRemove.status,
+            contact_id: responseToRemove.contact_id
+          } : undefined
+        });
       }
       
       toast.success('Contacto eliminado');
@@ -202,6 +238,10 @@ export function AvailabilityStatusCard({
   };
 
   const handleUpdateStatus = async (responseId: string, newStatus: 'available' | 'unavailable' | 'tentative') => {
+    // Get previous status for audit
+    const previousResponse = responses.find(r => r.id === responseId);
+    const previousStatus = previousResponse?.status;
+    
     try {
       const { error } = await supabase
         .from('booking_availability_responses')
@@ -214,6 +254,24 @@ export function AvailabilityStatusCard({
       if (error) {
         toast.error('Error al actualizar');
         return;
+      }
+      
+      // Log audit for status change
+      if (request) {
+        await logAvailabilityEvent({
+          requestId: request.id,
+          responseId,
+          bookingId,
+          eventType: 'status_changed',
+          previousValue: { 
+            status: previousStatus,
+            responder_name: previousResponse?.responder_name 
+          },
+          newValue: { 
+            status: newStatus,
+            responder_name: previousResponse?.responder_name 
+          }
+        });
       }
       
       toast.success(`Estado actualizado a ${getStatusLabel(newStatus)}`);
@@ -429,30 +487,34 @@ export function AvailabilityStatusCard({
           </ScrollArea>
 
           {/* Actions */}
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
-              className="flex-1"
-              onClick={copyShareLink}
-            >
-              <Copy className="h-3 w-3 mr-1" />
-              Copiar enlace
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
+              className="w-full"
               onClick={openManageDialog}
             >
-              <UserPlus className="h-3 w-3" />
+              <UserPlus className="h-4 w-4 mr-2" />
+              Consultar otro contacto
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchAvailability}
-            >
-              <RefreshCw className="h-3 w-3" />
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={copyShareLink}
+              >
+                <Copy className="h-3 w-3 mr-1" />
+                Copiar enlace
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchAvailability}
+              >
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
 
           {/* Block confirmation toggle - only shows when there are conflicts */}
@@ -467,10 +529,21 @@ export function AvailabilityStatusCard({
               <Switch
                 checked={request.block_confirmation}
                 onCheckedChange={async (checked) => {
+                  const previousValue = request.block_confirmation;
                   await supabase
                     .from('booking_availability_requests')
                     .update({ block_confirmation: checked })
                     .eq('id', request.id);
+                  
+                  // Log audit for block toggle
+                  await logAvailabilityEvent({
+                    requestId: request.id,
+                    bookingId,
+                    eventType: 'block_toggled',
+                    previousValue: { block_confirmation: previousValue },
+                    newValue: { block_confirmation: checked }
+                  });
+                  
                   toast.success(checked ? 'Bloqueo activado' : 'Bloqueo desactivado');
                   fetchAvailability();
                 }}

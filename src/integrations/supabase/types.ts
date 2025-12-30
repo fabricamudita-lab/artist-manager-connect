@@ -629,6 +629,60 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_availability_history: {
+        Row: {
+          actor_user_id: string
+          booking_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          new_value: Json | null
+          previous_value: Json | null
+          request_id: string | null
+          response_id: string | null
+        }
+        Insert: {
+          actor_user_id: string
+          booking_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          new_value?: Json | null
+          previous_value?: Json | null
+          request_id?: string | null
+          response_id?: string | null
+        }
+        Update: {
+          actor_user_id?: string
+          booking_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          new_value?: Json | null
+          previous_value?: Json | null
+          request_id?: string | null
+          response_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_availability_history_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_availability_history_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "booking_availability_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_availability_requests: {
         Row: {
           block_confirmation: boolean
