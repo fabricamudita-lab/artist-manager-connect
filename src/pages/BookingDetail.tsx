@@ -531,6 +531,17 @@ export default function BookingDetail() {
                   folderUrl={booking.folder_url}
                   eventName={booking.festival_ciclo || booking.lugar || booking.ciudad || 'Evento'}
                   eventDate={booking.fecha}
+                  bookingData={{
+                    ciudad: booking.ciudad,
+                    pais: booking.pais,
+                    venue: booking.venue,
+                    hora: booking.hora,
+                    fee: booking.fee,
+                    formato: booking.formato,
+                    festival_ciclo: booking.festival_ciclo,
+                    condiciones: booking.condiciones,
+                    es_internacional: booking.es_internacional
+                  }}
                 />
               </TabsContent>
             </Tabs>

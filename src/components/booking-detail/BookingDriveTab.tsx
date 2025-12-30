@@ -15,9 +15,20 @@ interface BookingDriveTabProps {
   folderUrl?: string | null;
   eventName?: string;
   eventDate?: string | null;
+  bookingData?: {
+    ciudad?: string | null;
+    pais?: string | null;
+    venue?: string | null;
+    hora?: string | null;
+    fee?: number | null;
+    formato?: string | null;
+    festival_ciclo?: string | null;
+    condiciones?: string | null;
+    es_internacional?: boolean | null;
+  };
 }
 
-export function BookingDriveTab({ bookingId, artistId, folderUrl, eventName, eventDate }: BookingDriveTabProps) {
+export function BookingDriveTab({ bookingId, artistId, folderUrl, eventName, eventDate, bookingData }: BookingDriveTabProps) {
   const [linkedFolderId, setLinkedFolderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -165,8 +176,70 @@ export function BookingDriveTab({ bookingId, artistId, folderUrl, eventName, eve
         .update({ folder_url: `/carpetas?folder=${eventFolder.id}` })
         .eq('id', bookingId);
 
+      // Create budget for this booking
+      const isInternational = bookingData?.es_internacional || 
+        (bookingData?.pais && !['españa', 'espana', 'spain', 'es'].includes(bookingData.pais.toLowerCase()));
+      
+      const { data: newBudget, error: budgetError } = await supabase
+        .from('budgets')
+        .insert({
+          name: folderName,
+          type: 'concierto',
+          artist_id: artistId,
+          city: bookingData?.ciudad || null,
+          country: bookingData?.pais || null,
+          venue: bookingData?.venue || null,
+          event_date: eventDate || null,
+          event_time: bookingData?.hora || null,
+          fee: bookingData?.fee || null,
+          formato: bookingData?.formato || null,
+          festival_ciclo: bookingData?.festival_ciclo || null,
+          condiciones: bookingData?.condiciones || null,
+          budget_status: isInternational ? 'internacional' : 'nacional',
+          show_status: 'pendiente',
+          created_by: user.id
+        })
+        .select('id')
+        .single();
+
+      if (budgetError) {
+        console.error('Error creating budget:', budgetError);
+      } else if (newBudget) {
+        // Try to copy items from default template
+        const { data: defaultTemplate } = await supabase
+          .from('budget_templates')
+          .select('id')
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .single();
+
+        if (defaultTemplate) {
+          const { data: templateItems } = await supabase
+            .from('budget_template_items')
+            .select('*')
+            .eq('template_id', defaultTemplate.id);
+
+          if (templateItems && templateItems.length > 0) {
+            const budgetItems = templateItems.map(item => ({
+              budget_id: newBudget.id,
+              category: item.category,
+              name: item.name,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              iva_percentage: item.iva_percentage,
+              subcategory: item.subcategory,
+              observations: item.observations,
+              is_attendee: item.is_attendee
+            }));
+
+            await supabase.from('budget_items').insert(budgetItems);
+          }
+        }
+        
+        toast.success('Carpeta y presupuesto creados correctamente');
+      }
+
       setLinkedFolderId(eventFolder.id);
-      toast.success('Carpeta creada correctamente');
     } catch (err) {
       console.error('Error creating folder:', err);
       toast.error('Error al crear la carpeta');
