@@ -23,6 +23,7 @@ import { ShareBookingDialog } from '@/components/booking-detail/ShareBookingDial
 import { ViabilityChecksCard } from '@/components/booking-detail/ViabilityChecksCard';
 import { AvailabilityStatusCard } from '@/components/booking-detail/AvailabilityStatusCard';
 import { RequestAvailabilityDialog } from '@/components/booking-detail/RequestAvailabilityDialog';
+import { BookingHistorySection } from '@/components/booking-detail/BookingHistorySection';
 interface Artist {
   id: string;
   name: string;
@@ -538,6 +539,7 @@ export default function BookingDetail() {
               />
             </div>
             <BookingFilesWidget bookingId={booking.id} artistId={booking.artist_id} />
+            <BookingHistorySection bookingId={booking.id} />
           </div>
         </div>
 
