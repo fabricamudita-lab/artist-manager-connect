@@ -528,7 +528,9 @@ export default function BookingDetail() {
                 <BookingDriveTab 
                   bookingId={booking.id} 
                   artistId={booking.artist_id} 
-                  folderUrl={booking.folder_url} 
+                  folderUrl={booking.folder_url}
+                  eventName={booking.festival_ciclo || booking.lugar || booking.ciudad || 'Evento'}
+                  eventDate={booking.fecha}
                 />
               </TabsContent>
             </Tabs>
