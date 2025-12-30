@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useStorageNodes, StorageNode } from '@/hooks/useStorageNodes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,6 +64,8 @@ import {
   CheckCircle2,
   Clock,
   User,
+  Plus,
+  Loader2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -149,6 +152,7 @@ export function FileExplorer({
   compact = false,
 }: FileExplorerProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(initialFolderId);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -162,6 +166,7 @@ export function FileExplorer({
   const [breadcrumbPath, setBreadcrumbPath] = useState<StorageNode[]>([]);
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [statusNode, setStatusNode] = useState<StorageNode | null>(null);
+  const [isCreatingBudget, setIsCreatingBudget] = useState(false);
   const [invoiceStatus, setInvoiceStatus] = useState<{
     found: boolean;
     billing_status?: string;
@@ -172,7 +177,7 @@ export function FileExplorer({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check if current folder is "Presupuesto" and has a linked budget
-  const { data: linkedBudget } = useQuery({
+  const { data: budgetContext, refetch: refetchBudgetContext } = useQuery({
     queryKey: ['linked-budget', currentFolderId],
     queryFn: async () => {
       if (!currentFolderId) return null;
@@ -189,22 +194,26 @@ export function FileExplorer({
       // Get parent folder (event folder) to find booking_id
       const { data: parentFolder } = await supabase
         .from('storage_nodes')
-        .select('metadata')
+        .select('name, metadata')
         .eq('id', currentFolder.parent_id)
         .single();
       
-      if (!parentFolder?.metadata || !(parentFolder.metadata as any).booking_id) return null;
+      if (!parentFolder?.metadata || !(parentFolder.metadata as any).booking_id) {
+        return { isPresupuestoFolder: true, linkedBudget: null, bookingId: null, eventName: parentFolder?.name || 'Evento' };
+      }
       
       const bookingId = (parentFolder.metadata as any).booking_id;
       
       // Find budget linked to this booking
       const { data: booking } = await supabase
         .from('booking_offers')
-        .select('festival_ciclo, ciudad, lugar, venue, fecha')
+        .select('id, festival_ciclo, ciudad, lugar, venue, fecha, hora, fee, formato, condiciones, pais, es_internacional, artist_id')
         .eq('id', bookingId)
         .single();
       
-      if (!booking) return null;
+      if (!booking) {
+        return { isPresupuestoFolder: true, linkedBudget: null, bookingId: null, eventName: parentFolder?.name || 'Evento' };
+      }
       
       // Try to find budget by name pattern
       const budgetName = booking.festival_ciclo || `${booking.ciudad} - ${booking.lugar || booking.venue || 'TBD'}`;
@@ -214,10 +223,19 @@ export function FileExplorer({
         .ilike('name', `%${budgetName.split(' ')[0]}%`)
         .single();
       
-      return budget;
+      return { 
+        isPresupuestoFolder: true, 
+        linkedBudget: budget, 
+        bookingId: booking.id,
+        bookingData: booking,
+        eventName: parentFolder?.name || 'Evento'
+      };
     },
     enabled: !!currentFolderId,
   });
+  
+  const linkedBudget = budgetContext?.linkedBudget;
+  const isPresupuestoFolder = budgetContext?.isPresupuestoFolder;
 
   const {
     nodes,
@@ -413,6 +431,89 @@ export function FileExplorer({
   const navigateToFolder = (folderId: string | null) => {
     setCurrentFolderId(folderId);
     buildBreadcrumbs(folderId);
+  };
+
+  // Create budget for the linked booking
+  const handleCreateBudget = async () => {
+    if (!budgetContext?.bookingData || !user?.id) {
+      toast({ title: 'Error', description: 'Faltan datos para crear el presupuesto', variant: 'destructive' });
+      return;
+    }
+
+    setIsCreatingBudget(true);
+    try {
+      const booking = budgetContext.bookingData;
+      const isInternational = booking.es_internacional || 
+        (booking.pais && !['españa', 'espana', 'spain', 'es'].includes(booking.pais.toLowerCase()));
+      
+      const budgetName = budgetContext.eventName || booking.festival_ciclo || `${booking.ciudad} - ${booking.lugar || booking.venue || 'Evento'}`;
+
+      const { data: newBudget, error: budgetError } = await supabase
+        .from('budgets')
+        .insert({
+          name: budgetName,
+          type: 'concierto',
+          artist_id: booking.artist_id,
+          city: booking.ciudad || null,
+          country: booking.pais || null,
+          venue: booking.venue || booking.lugar || null,
+          event_date: booking.fecha || null,
+          event_time: booking.hora || null,
+          fee: booking.fee || null,
+          formato: booking.formato || null,
+          festival_ciclo: booking.festival_ciclo || null,
+          condiciones: booking.condiciones || null,
+          budget_status: isInternational ? 'internacional' : 'nacional',
+          show_status: 'pendiente',
+          created_by: user.id
+        })
+        .select('id')
+        .single();
+
+      if (budgetError) throw budgetError;
+
+      if (newBudget) {
+        // Try to copy items from default template
+        const { data: defaultTemplate } = await supabase
+          .from('budget_templates')
+          .select('id')
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .single();
+
+        if (defaultTemplate) {
+          const { data: templateItems } = await supabase
+            .from('budget_template_items')
+            .select('*')
+            .eq('template_id', defaultTemplate.id);
+
+          if (templateItems && templateItems.length > 0) {
+            const budgetItems = templateItems.map(item => ({
+              budget_id: newBudget.id,
+              category: item.category,
+              name: item.name,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              iva_percentage: item.iva_percentage,
+              subcategory: item.subcategory,
+              observations: item.observations,
+              is_attendee: item.is_attendee
+            }));
+
+            await supabase.from('budget_items').insert(budgetItems);
+          }
+        }
+        
+        toast({ title: 'Presupuesto creado', description: 'Se ha creado el presupuesto correctamente' });
+        refetchBudgetContext();
+        navigate(`/budgets?id=${newBudget.id}`);
+      }
+    } catch (err) {
+      console.error('Error creating budget:', err);
+      toast({ title: 'Error', description: 'No se pudo crear el presupuesto', variant: 'destructive' });
+    } finally {
+      setIsCreatingBudget(false);
+    }
   };
 
   // Check invoice/payment status for a file
@@ -824,6 +925,33 @@ export function FileExplorer({
                         )}
                       </div>
                       <ExternalLink className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Create Budget Button when in Presupuesto folder but no budget exists */}
+              {isPresupuestoFolder && !linkedBudget && budgetContext?.bookingData && (
+                <Card className="w-full max-w-md border-dashed">
+                  <CardContent className="p-6">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center">
+                        <Calculator className="w-7 h-7 text-muted-foreground" />
+                      </div>
+                      <div className="text-center">
+                        <h3 className="font-semibold text-lg">Sin presupuesto vinculado</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Crea un presupuesto para este evento
+                        </p>
+                      </div>
+                      <Button onClick={handleCreateBudget} disabled={isCreatingBudget}>
+                        {isCreatingBudget ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Plus className="w-4 h-4 mr-2" />
+                        )}
+                        Crear presupuesto
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
