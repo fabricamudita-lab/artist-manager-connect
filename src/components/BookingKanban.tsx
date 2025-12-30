@@ -183,18 +183,16 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
 
       if (error) throw error;
       
-      // Fetch availability status for all bookings in "interes" phase
-      const interesBookingIds = (data || [])
-        .filter(o => o.phase === 'interes')
-        .map(o => o.id);
+      // Fetch availability status for all bookings (not just interes phase)
+      const allBookingIds = (data || []).map(o => o.id);
       
       let availabilityMap: Record<string, 'all_available' | 'has_conflicts' | 'pending' | null> = {};
       
-      if (interesBookingIds.length > 0) {
+      if (allBookingIds.length > 0) {
         const { data: requests } = await supabase
           .from('booking_availability_requests')
           .select('booking_id, id')
-          .in('booking_id', interesBookingIds);
+          .in('booking_id', allBookingIds);
         
         if (requests && requests.length > 0) {
           const requestIds = requests.map(r => r.id);

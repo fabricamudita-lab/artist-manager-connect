@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText, FolderOpen, AlertTriangle, ExternalLink, Eye, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText, FolderOpen, AlertTriangle, ExternalLink, Eye, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -261,18 +261,16 @@ export default function Booking() {
         throw error;
       }
       
-      // Fetch availability status for bookings in "interes" phase
-      const interesBookingIds = (data || [])
-        .filter(o => o.phase === 'interes')
-        .map(o => o.id);
+      // Fetch availability status for all bookings
+      const allBookingIds = (data || []).map(o => o.id);
       
       let availabilityMap: Record<string, 'all_available' | 'has_conflicts' | 'pending' | null> = {};
       
-      if (interesBookingIds.length > 0) {
+      if (allBookingIds.length > 0) {
         const { data: requests } = await supabase
           .from('booking_availability_requests')
           .select('booking_id, id')
-          .in('booking_id', interesBookingIds);
+          .in('booking_id', allBookingIds);
         
         if (requests && requests.length > 0) {
           const requestIds = requests.map(r => r.id);
@@ -751,6 +749,12 @@ export default function Booking() {
                               <Badge variant={getStatusBadgeVariant(offer.phase || offer.estado)}>
                                 {getPhaseLabel(offer.phase || offer.estado)}
                               </Badge>
+                              {offer.availability_status === 'has_conflicts' && (
+                                <Badge variant="destructive" className="text-xs px-1.5 py-0.5">
+                                  <AlertCircle className="h-3 w-3 mr-0.5" />
+                                  Conflicto
+                                </Badge>
+                              )}
                               {offer.phase === 'interes' && offer.availability_status === 'all_available' && (
                                 <Badge className="bg-green-500 text-white text-xs px-1.5 py-0.5 animate-pulse">
                                   <ArrowRight className="h-3 w-3 mr-0.5" />
