@@ -8,6 +8,8 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +40,11 @@ import {
   ChevronRight,
   UserMinus,
   ToggleLeft,
-  Edit
+  Edit,
+  BookUser,
+  Plus,
+  ArrowLeft,
+  Search
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -107,6 +113,12 @@ export function AvailabilityStatusCard({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<HistoryEvent[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [dialogMode, setDialogMode] = useState<'menu' | 'team' | 'agenda' | 'new'>('menu');
+  const [allContacts, setAllContacts] = useState<Contact[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactEmail, setNewContactEmail] = useState('');
+  const [newContactRole, setNewContactRole] = useState('');
 
   useEffect(() => {
     fetchAvailability();
@@ -239,11 +251,32 @@ export function AvailabilityStatusCard({
     }
   };
 
+  const fetchAllContacts = async () => {
+    if (!request) return;
+    setLoadingContacts(true);
+    try {
+      const existingContactIds = responses.map(r => r.contact_id).filter(Boolean);
+      
+      const { data: contacts } = await supabase
+        .from('contacts')
+        .select('id, name, stage_name, email, role')
+        .order('name');
+
+      const available = (contacts || []).filter(c => !existingContactIds.includes(c.id));
+      setAllContacts(available);
+    } catch (error) {
+      console.error('Error fetching all contacts:', error);
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
   const handleAddContacts = async () => {
     if (!request || selectedToAdd.length === 0) return;
     try {
+      const contactSource = dialogMode === 'agenda' ? allContacts : availableContacts;
       const newResponses = selectedToAdd.map(contactId => {
-        const contact = availableContacts.find(c => c.id === contactId);
+        const contact = contactSource.find(c => c.id === contactId);
         return {
           request_id: request.id,
           contact_id: contactId,
@@ -272,13 +305,74 @@ export function AvailabilityStatusCard({
       }
       
       toast.success(`${selectedToAdd.length} contacto(s) añadido(s)`);
-      setSelectedToAdd([]);
-      setManageDialogOpen(false);
+      resetDialog();
       fetchAvailability();
     } catch (error) {
       console.error('Error adding contacts:', error);
       toast.error('Error al añadir contactos');
     }
+  };
+
+  const handleCreateNewContact = async () => {
+    if (!request || !newContactName.trim()) return;
+    try {
+      // Create new contact
+      const { data: user } = await supabase.auth.getUser();
+      const { data: newContact, error: createError } = await supabase
+        .from('contacts')
+        .insert({
+          name: newContactName.trim(),
+          email: newContactEmail.trim() || null,
+          role: newContactRole.trim() || null,
+          created_by: user?.user?.id
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+
+      // Add to availability request
+      const { data: inserted } = await supabase
+        .from('booking_availability_responses')
+        .insert({
+          request_id: request.id,
+          contact_id: newContact.id,
+          responder_name: newContact.name,
+          responder_email: newContact.email
+        })
+        .select()
+        .single();
+
+      if (inserted) {
+        await logAvailabilityEvent({
+          requestId: request.id,
+          responseId: inserted.id,
+          bookingId,
+          eventType: 'response_added',
+          newValue: { 
+            responder_name: inserted.responder_name,
+            contact_id: inserted.contact_id 
+          }
+        });
+      }
+
+      toast.success('Contacto creado y añadido');
+      resetDialog();
+      fetchAvailability();
+    } catch (error) {
+      console.error('Error creating contact:', error);
+      toast.error('Error al crear el contacto');
+    }
+  };
+
+  const resetDialog = () => {
+    setManageDialogOpen(false);
+    setDialogMode('menu');
+    setSelectedToAdd([]);
+    setSearchQuery('');
+    setNewContactName('');
+    setNewContactEmail('');
+    setNewContactRole('');
   };
 
   const handleRemoveContact = async (responseId: string) => {
@@ -366,8 +460,8 @@ export function AvailabilityStatusCard({
   };
 
   const openManageDialog = () => {
+    setDialogMode('menu');
     setManageDialogOpen(true);
-    fetchAvailableContacts();
   };
 
   const getStatusIcon = (status: string) => {
@@ -727,71 +821,262 @@ export function AvailabilityStatusCard({
       </Card>
 
       {/* Add contacts dialog */}
-      <Dialog open={manageDialogOpen} onOpenChange={setManageDialogOpen}>
+      <Dialog open={manageDialogOpen} onOpenChange={(open) => {
+        if (!open) resetDialog();
+        else setManageDialogOpen(true);
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
+              {dialogMode !== 'menu' && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 mr-1"
+                  onClick={() => {
+                    setDialogMode('menu');
+                    setSelectedToAdd([]);
+                    setSearchQuery('');
+                  }}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              )}
               <UserPlus className="h-5 w-5" />
-              Añadir Contactos
+              {dialogMode === 'menu' && 'Consultar otro contacto'}
+              {dialogMode === 'team' && 'Equipo del artista'}
+              {dialogMode === 'agenda' && 'Contactos de la agenda'}
+              {dialogMode === 'new' && 'Nuevo contacto'}
             </DialogTitle>
           </DialogHeader>
 
-          <ScrollArea className="h-64">
-            {loadingContacts ? (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                Cargando contactos...
-              </div>
-            ) : availableContacts.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                No hay más contactos disponibles para añadir
-              </div>
-            ) : (
-              <div className="space-y-2 p-1">
-                {availableContacts.map(contact => (
-                  <div
-                    key={contact.id}
-                    className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
-                    onClick={() => {
-                      setSelectedToAdd(prev =>
-                        prev.includes(contact.id)
-                          ? prev.filter(id => id !== contact.id)
-                          : [...prev, contact.id]
-                      );
-                    }}
-                  >
-                    <Checkbox
-                      checked={selectedToAdd.includes(contact.id)}
-                      onCheckedChange={() => {
-                        setSelectedToAdd(prev =>
-                          prev.includes(contact.id)
-                            ? prev.filter(id => id !== contact.id)
-                            : [...prev, contact.id]
-                        );
-                      }}
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">
-                        {contact.stage_name || contact.name}
-                      </p>
-                      {contact.role && (
-                        <p className="text-xs text-muted-foreground">{contact.role}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
+          {/* Menu mode - show options */}
+          {dialogMode === 'menu' && (
+            <div className="space-y-3 py-4">
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto py-4"
+                onClick={() => {
+                  setDialogMode('team');
+                  fetchAvailableContacts();
+                }}
+              >
+                <Users className="h-5 w-5 mr-3 text-primary" />
+                <div className="text-left">
+                  <p className="font-medium">Equipo del artista</p>
+                  <p className="text-xs text-muted-foreground">Contactos asignados a este artista</p>
+                </div>
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto py-4"
+                onClick={() => {
+                  setDialogMode('agenda');
+                  fetchAllContacts();
+                }}
+              >
+                <BookUser className="h-5 w-5 mr-3 text-primary" />
+                <div className="text-left">
+                  <p className="font-medium">Contacto de la agenda</p>
+                  <p className="text-xs text-muted-foreground">Buscar en todos tus contactos</p>
+                </div>
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto py-4"
+                onClick={() => setDialogMode('new')}
+              >
+                <Plus className="h-5 w-5 mr-3 text-primary" />
+                <div className="text-left">
+                  <p className="font-medium">Crear nuevo contacto</p>
+                  <p className="text-xs text-muted-foreground">Añadir un contacto nuevo</p>
+                </div>
+              </Button>
+            </div>
+          )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setManageDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleAddContacts} disabled={selectedToAdd.length === 0}>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Añadir ({selectedToAdd.length})
-            </Button>
-          </DialogFooter>
+          {/* Team contacts mode */}
+          {dialogMode === 'team' && (
+            <>
+              <ScrollArea className="h-64">
+                {loadingContacts ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    Cargando contactos...
+                  </div>
+                ) : availableContacts.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                    No hay más contactos del equipo disponibles
+                  </div>
+                ) : (
+                  <div className="space-y-2 p-1">
+                    {availableContacts.map(contact => (
+                      <div
+                        key={contact.id}
+                        className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
+                        onClick={() => {
+                          setSelectedToAdd(prev =>
+                            prev.includes(contact.id)
+                              ? prev.filter(id => id !== contact.id)
+                              : [...prev, contact.id]
+                          );
+                        }}
+                      >
+                        <Checkbox
+                          checked={selectedToAdd.includes(contact.id)}
+                          onCheckedChange={() => {
+                            setSelectedToAdd(prev =>
+                              prev.includes(contact.id)
+                                ? prev.filter(id => id !== contact.id)
+                                : [...prev, contact.id]
+                            );
+                          }}
+                        />
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">
+                            {contact.stage_name || contact.name}
+                          </p>
+                          {contact.role && (
+                            <p className="text-xs text-muted-foreground">{contact.role}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+              <DialogFooter>
+                <Button variant="outline" onClick={resetDialog}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleAddContacts} disabled={selectedToAdd.length === 0}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Añadir ({selectedToAdd.length})
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {/* All contacts (agenda) mode */}
+          {dialogMode === 'agenda' && (
+            <>
+              <div className="relative mb-2">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar contacto..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <ScrollArea className="h-56">
+                {loadingContacts ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    Cargando contactos...
+                  </div>
+                ) : allContacts.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                    No hay contactos disponibles
+                  </div>
+                ) : (
+                  <div className="space-y-2 p-1">
+                    {allContacts
+                      .filter(c => 
+                        !searchQuery || 
+                        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        c.stage_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        c.email?.toLowerCase().includes(searchQuery.toLowerCase())
+                      )
+                      .map(contact => (
+                        <div
+                          key={contact.id}
+                          className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
+                          onClick={() => {
+                            setSelectedToAdd(prev =>
+                              prev.includes(contact.id)
+                                ? prev.filter(id => id !== contact.id)
+                                : [...prev, contact.id]
+                            );
+                          }}
+                        >
+                          <Checkbox
+                            checked={selectedToAdd.includes(contact.id)}
+                            onCheckedChange={() => {
+                              setSelectedToAdd(prev =>
+                                prev.includes(contact.id)
+                                  ? prev.filter(id => id !== contact.id)
+                                  : [...prev, contact.id]
+                              );
+                            }}
+                          />
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">
+                              {contact.stage_name || contact.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {contact.role || contact.email || 'Sin información'}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </ScrollArea>
+              <DialogFooter>
+                <Button variant="outline" onClick={resetDialog}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleAddContacts} disabled={selectedToAdd.length === 0}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Añadir ({selectedToAdd.length})
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {/* New contact mode */}
+          {dialogMode === 'new' && (
+            <>
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label htmlFor="new-contact-name">Nombre *</Label>
+                  <Input
+                    id="new-contact-name"
+                    placeholder="Nombre del contacto"
+                    value={newContactName}
+                    onChange={(e) => setNewContactName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-contact-email">Email</Label>
+                  <Input
+                    id="new-contact-email"
+                    type="email"
+                    placeholder="email@ejemplo.com"
+                    value={newContactEmail}
+                    onChange={(e) => setNewContactEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-contact-role">Rol</Label>
+                  <Input
+                    id="new-contact-role"
+                    placeholder="Ej: Técnico de sonido"
+                    value={newContactRole}
+                    onChange={(e) => setNewContactRole(e.target.value)}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={resetDialog}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleCreateNewContact} disabled={!newContactName.trim()}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crear y añadir
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </>
