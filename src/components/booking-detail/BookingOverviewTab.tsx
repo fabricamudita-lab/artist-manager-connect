@@ -18,6 +18,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { BookingNotes } from './BookingNotes';
+import { LinkedSolicitudesCard } from './LinkedSolicitudesCard';
 
 interface Contact {
   id: string;
@@ -373,6 +374,9 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
         {/* Internal Notes */}
         <BookingNotes bookingId={booking.id} />
       </div>
+
+      {/* Linked Solicitudes */}
+      <LinkedSolicitudesCard bookingId={booking.id} />
     </div>
   );
 }
