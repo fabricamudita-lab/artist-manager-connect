@@ -231,10 +231,7 @@ export default function BookingDetail() {
                 <h1 className="text-3xl font-bold text-gradient-primary tracking-tight">
                   {eventName}
                 </h1>
-                <Badge variant={getStatusBadgeVariant(booking.estado || 'pendiente')}>
-                  {booking.estado || 'pendiente'}
-                </Badge>
-                {booking.phase && (
+                {booking.phase ? (
                   <Badge 
                     variant="outline" 
                     className={
@@ -252,6 +249,10 @@ export default function BookingDetail() {
                      booking.phase === 'confirmado' ? 'Confirmado' :
                      booking.phase === 'descartado' ? 'Descartado' :
                      booking.phase}
+                  </Badge>
+                ) : (
+                  <Badge variant={getStatusBadgeVariant(booking.estado || 'pendiente')}>
+                    {booking.estado || 'pendiente'}
                   </Badge>
                 )}
                 {booking.artist && (
