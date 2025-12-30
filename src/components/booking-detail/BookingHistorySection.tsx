@@ -33,6 +33,11 @@ interface HistoryEvent {
   changed_at: string;
   changed_by: string | null;
   metadata: any;
+  profile?: {
+    first_name: string | null;
+    last_name: string | null;
+    avatar_url: string | null;
+  } | null;
 }
 
 interface BookingHistorySectionProps {
@@ -100,13 +105,42 @@ export function BookingHistorySection({ bookingId }: BookingHistorySectionProps)
         .limit(100);
 
       if (error) throw error;
-      setHistory((data || []) as unknown as HistoryEvent[]);
+      
+      // Fetch profiles for all unique user IDs
+      const historyData = (data || []) as unknown as HistoryEvent[];
+      const userIds = [...new Set(historyData.map(h => h.changed_by).filter(Boolean))];
+      
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, first_name, last_name, avatar_url')
+          .in('user_id', userIds);
+        
+        // Map profiles to history events
+        const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+        historyData.forEach(event => {
+          if (event.changed_by) {
+            event.profile = profileMap.get(event.changed_by) || null;
+          }
+        });
+      }
+      
+      setHistory(historyData);
       setLoaded(true);
     } catch (error) {
       console.error('Error fetching booking history:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getProfileName = (event: HistoryEvent): string => {
+    if (!event.profile) return 'Sistema';
+    const { first_name, last_name } = event.profile;
+    if (first_name || last_name) {
+      return [first_name, last_name].filter(Boolean).join(' ');
+    }
+    return 'Usuario';
   };
 
   const getEventIcon = (eventType: string, fieldChanged: string | null) => {
@@ -306,8 +340,10 @@ export function BookingHistorySection({ bookingId }: BookingHistorySectionProps)
                         </div>
                         {getEventBadge(event.event_type)}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(event.changed_at), "d MMM yyyy, HH:mm", { locale: es })}
+                      <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <span className="font-medium text-foreground/70">{getProfileName(event)}</span>
+                        <span>·</span>
+                        <span>{format(new Date(event.changed_at), "d MMM yyyy, HH:mm", { locale: es })}</span>
                       </div>
                     </div>
                   </div>
