@@ -104,7 +104,7 @@ export function ViabilityChecksCard({
       updateData[timestampField] = newApprovalValue ? new Date().toISOString() : null;
       updateData[byField] = newApprovalValue ? user?.id : null;
       
-      // Append comment to notes if provided and approving
+      // Add comment to internal notes if provided and approving
       if (newApprovalValue && approvalComment.trim()) {
         // Get user profile name
         const { data: profileData } = await supabase
@@ -115,12 +115,45 @@ export function ViabilityChecksCard({
         
         const userName = profileData?.stage_name || profileData?.full_name || 'Usuario';
         const roleLabel = field === 'manager' ? 'Manager' : field === 'tour_manager' ? 'Tour Manager' : 'Producción';
-        const timestamp = format(new Date(), "d MMM yyyy, HH:mm", { locale: es });
         
-        const newNote = `[${roleLabel} - ${userName} - ${timestamp}]\n${approvalComment.trim()}`;
-        const currentNotes = notes || '';
-        updateData.viability_notes = currentNotes ? `${currentNotes}\n\n${newNote}` : newNote;
-        setNotes(updateData.viability_notes);
+        // Get existing notes
+        const { data: bookingData } = await supabase
+          .from('booking_offers')
+          .select('notas')
+          .eq('id', bookingId)
+          .single();
+        
+        let existingNotes: any[] = [];
+        if (bookingData?.notas) {
+          try {
+            const parsed = JSON.parse(bookingData.notas);
+            if (Array.isArray(parsed)) {
+              existingNotes = parsed;
+            }
+          } catch {
+            // If it's not JSON, convert to array format
+            existingNotes = [{
+              id: 'legacy',
+              booking_id: bookingId,
+              content: bookingData.notas,
+              created_by: 'unknown',
+              created_at: new Date().toISOString(),
+              author_name: 'Sistema'
+            }];
+          }
+        }
+        
+        // Add new note
+        const newNote = {
+          id: crypto.randomUUID(),
+          booking_id: bookingId,
+          content: `✅ Aprobación de ${roleLabel}: ${approvalComment.trim()}`,
+          created_by: user?.id || 'unknown',
+          created_at: new Date().toISOString(),
+          author_name: userName
+        };
+        
+        updateData.notas = JSON.stringify([...existingNotes, newNote]);
       }
 
       const { error } = await supabase
@@ -465,7 +498,7 @@ export function ViabilityChecksCard({
                 className="min-h-[100px]"
               />
               <p className="text-xs text-muted-foreground">
-                El comentario se guardará en las notas de viabilidad con tu nombre y la fecha.
+                El comentario se guardará como nota interna con tu nombre.
               </p>
             </div>
           )}
