@@ -755,7 +755,7 @@ export default function Booking() {
                                   Conflicto
                                 </Badge>
                               )}
-                              {offer.phase === 'interes' && offer.availability_status === 'all_available' && (
+                              {(offer.phase === 'interes' || offer.phase === 'oferta') && offer.availability_status === 'all_available' && (
                                 <Badge className="bg-green-500 text-white text-xs px-1.5 py-0.5 animate-pulse">
                                   <ArrowRight className="h-3 w-3 mr-0.5" />
                                   Listo

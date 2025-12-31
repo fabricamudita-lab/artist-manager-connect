@@ -792,8 +792,8 @@ export function AvailabilityStatusCard({
             </CollapsibleContent>
           </Collapsible>
 
-          {/* Advance to Negociación button - only visible in 'interes' phase when team is available */}
-          {phase === 'interes' && allAvailable && (
+          {/* Advance to Negociación button - visible in 'interes' or 'oferta' phase when team is available */}
+          {(phase === 'interes' || phase === 'oferta') && allAvailable && (
             <Button
               className="w-full bg-green-600 hover:bg-green-700"
               onClick={async () => {

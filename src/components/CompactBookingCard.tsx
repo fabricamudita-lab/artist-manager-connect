@@ -64,7 +64,7 @@ export function CompactBookingCard({
 
   const hasWarning = offer.es_internacional && offer.comision_porcentaje && offer.comision_porcentaje > 10;
   const hasConflicts = offer.availability_status === 'has_conflicts';
-  const canAdvanceToNegociacion = offer.phase === 'interes' && offer.availability_status === 'all_available';
+  const canAdvanceToNegociacion = (offer.phase === 'interes' || offer.phase === 'oferta') && offer.availability_status === 'all_available';
 
   const handleCardClick = (e: React.MouseEvent) => {
     if (selectionMode && onToggleSelect) {
