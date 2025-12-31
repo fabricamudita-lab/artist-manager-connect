@@ -96,6 +96,7 @@ interface Budget {
   event_time: string;
   fee: number;
   expense_budget?: number;
+  formato?: string;
   profiles?: { full_name: string };
   projects?: { id: string; name: string };
 }
@@ -2384,7 +2385,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       </Button>
                     )}
                   </div>
-                  <p className="text-gray-400 text-sm">PRESUPUESTO NACIONAL</p>
+                  <p className="text-gray-400 text-sm">
+                    PRESUPUESTO {budgetData.budget_status?.toUpperCase() || 'NACIONAL'}
+                    {budgetData.formato && <span className="ml-2 text-primary">• {budgetData.formato}</span>}
+                  </p>
                 </div>
               </div>
               
