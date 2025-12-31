@@ -119,6 +119,9 @@ export function AvailabilityStatusCard({
   const [newContactName, setNewContactName] = useState('');
   const [newContactEmail, setNewContactEmail] = useState('');
   const [newContactRole, setNewContactRole] = useState('');
+  // Collapse details by default once in negociacion or later phases
+  const isAdvancedPhase = ['negociacion', 'confirmado', 'facturado', 'cerrado'].includes(phase || '');
+  const [detailsOpen, setDetailsOpen] = useState(!isAdvancedPhase);
 
   useEffect(() => {
     fetchAvailability();
@@ -561,42 +564,51 @@ export function AvailabilityStatusCard({
       <Card className={cn(
         hasConflicts && request.block_confirmation && 'border-destructive/50'
       )}>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Disponibilidad del Equipo
-            </CardTitle>
-            <div className="flex items-center gap-1">
-              {allAvailable && (
-                <Badge variant="default" className="bg-green-500">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  Todos OK
-                </Badge>
-              )}
-              {hasConflicts && (
-                <Badge variant="destructive">
-                  <XCircle className="h-3 w-3 mr-1" />
-                  {stats.unavailable} conflicto(s)
-                </Badge>
-              )}
-              {stats.pending > 0 && (
-                <Badge variant="outline">
-                  <Clock className="h-3 w-3 mr-1" />
-                  {stats.pending} pendiente(s)
-                </Badge>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Progress summary */}
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Respuestas</span>
-            <span className="font-medium">
-              {stats.available + stats.unavailable + stats.tentative} / {stats.total}
-            </span>
-          </div>
+        <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+          <CardHeader className="pb-3">
+            <CollapsibleTrigger asChild>
+              <div className="flex items-center justify-between cursor-pointer hover:bg-muted/50 -mx-2 px-2 py-1 rounded-md transition-colors">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Disponibilidad del Equipo
+                  {detailsOpen ? (
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                  )}
+                </CardTitle>
+                <div className="flex items-center gap-1">
+                  {allAvailable && (
+                    <Badge variant="default" className="bg-green-500">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Todos OK
+                    </Badge>
+                  )}
+                  {hasConflicts && (
+                    <Badge variant="destructive">
+                      <XCircle className="h-3 w-3 mr-1" />
+                      {stats.unavailable} conflicto(s)
+                    </Badge>
+                  )}
+                  {stats.pending > 0 && (
+                    <Badge variant="outline">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {stats.pending} pendiente(s)
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="space-y-4">
+              {/* Progress summary */}
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Respuestas</span>
+                <span className="font-medium">
+                  {stats.available + stats.unavailable + stats.tentative} / {stats.total}
+                </span>
+              </div>
 
           {/* Deadline */}
           {request.deadline && (
@@ -817,7 +829,9 @@ export function AvailabilityStatusCard({
               Avanzar a Negociación
             </Button>
           )}
-        </CardContent>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
       {/* Add contacts dialog */}
