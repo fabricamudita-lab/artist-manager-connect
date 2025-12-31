@@ -211,12 +211,30 @@ export function CompactBookingCard({
               </div>
             )}
             
-            {offer.notas && (
-              <div>
-                <span className="font-medium">Notas:</span>
-                <p className="text-muted-foreground mt-1">{offer.notas}</p>
-              </div>
-            )}
+            {offer.notas && (() => {
+              // Parse JSON notes to get the last note content
+              try {
+                const notasData = JSON.parse(offer.notas);
+                if (Array.isArray(notasData) && notasData.length > 0) {
+                  const lastNote = notasData[notasData.length - 1];
+                  return (
+                    <div>
+                      <span className="font-medium">Notas:</span>
+                      <p className="text-muted-foreground mt-1 line-clamp-2">{lastNote.content || ''}</p>
+                    </div>
+                  );
+                }
+              } catch {
+                // Not JSON, show as legacy note
+                return (
+                  <div>
+                    <span className="font-medium">Notas:</span>
+                    <p className="text-muted-foreground mt-1 line-clamp-2">{offer.notas}</p>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
         </TooltipContent>
       </Tooltip>

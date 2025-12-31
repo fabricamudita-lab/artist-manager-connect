@@ -228,13 +228,32 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
         )}
 
         {/* Notes preview */}
-        {offer.notas && (
-          <div className="bg-blue-50 rounded p-2">
-            <p className="text-xs text-blue-800 line-clamp-2">
-              {offer.notas}
-            </p>
-          </div>
-        )}
+        {offer.notas && (() => {
+          // Parse JSON notes to get the last note content
+          try {
+            const notasData = JSON.parse(offer.notas);
+            if (Array.isArray(notasData) && notasData.length > 0) {
+              const lastNote = notasData[notasData.length - 1];
+              return (
+                <div className="bg-blue-50 rounded p-2">
+                  <p className="text-xs text-blue-800 line-clamp-2">
+                    {lastNote.content || offer.notas}
+                  </p>
+                </div>
+              );
+            }
+          } catch {
+            // Not JSON, show as legacy note
+            return (
+              <div className="bg-blue-50 rounded p-2">
+                <p className="text-xs text-blue-800 line-clamp-2">
+                  {offer.notas}
+                </p>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         {/* International warning */}
         {offer.es_internacional && offer.comision_porcentaje && offer.comision_porcentaje > 10 && (
