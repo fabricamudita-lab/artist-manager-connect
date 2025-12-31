@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   CheckCircle2, 
   Circle, 
@@ -14,7 +15,9 @@ import {
   Lock,
   Unlock,
   AlertTriangle,
-  MessageSquare
+  MessageSquare,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -58,6 +61,7 @@ export function ViabilityChecksCard({
   const [notes, setNotes] = useState(viabilityNotes);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [hasChanged, setHasChanged] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   
   // Dialog state for approval with comment
   const [approvalDialog, setApprovalDialog] = useState<{
@@ -370,16 +374,160 @@ export function ViabilityChecksCard({
     );
   }
 
+  // If all approved, render as collapsible
+  if (allApproved) {
+    return (
+      <>
+        <Card>
+          <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="pb-3 cursor-pointer hover:bg-muted/30 transition-colors">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Unlock className="h-5 w-5 text-green-600" />
+                    Viabilidad
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </CardTitle>
+                  <Badge variant="default" className="bg-green-600">
+                    {approvalCount}/3
+                  </Badge>
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="space-y-3 pt-0">
+                <CheckItem 
+                  label="Manager" 
+                  icon={Users} 
+                  approved={viabilityManagerApproved} 
+                  timestamp={viabilityManagerAt}
+                  approvedBy={viabilityManagerBy}
+                  field="manager"
+                  color="primary"
+                />
+                <CheckItem 
+                  label="Tour Manager" 
+                  icon={Truck} 
+                  approved={viabilityTourManagerApproved} 
+                  timestamp={viabilityTourManagerAt}
+                  approvedBy={viabilityTourManagerBy}
+                  field="tour_manager"
+                  color="blue-600"
+                />
+                <CheckItem 
+                  label="Producción" 
+                  icon={Wrench} 
+                  approved={viabilityProductionApproved} 
+                  timestamp={viabilityProductionAt}
+                  approvedBy={viabilityProductionBy}
+                  field="production"
+                  color="orange-600"
+                />
+
+                {/* Confirm button */}
+                {isNegociacion && (
+                  <div className="pt-3 border-t">
+                    <Button 
+                      className="w-full bg-green-600 hover:bg-green-700" 
+                      onClick={handleConfirmBooking}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Confirmar Booking
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+
+        {/* Approval Dialog */}
+        <Dialog open={approvalDialog.open} onOpenChange={(open) => {
+          if (!open) {
+            setApprovalDialog({ open: false, field: null, label: '', currentValue: false });
+            setApprovalComment('');
+          }
+        }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {approvalDialog.currentValue ? (
+                  <>
+                    <Circle className="h-5 w-5 text-muted-foreground" />
+                    Retirar aprobación de {approvalDialog.label}
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    Aprobar {approvalDialog.label}
+                  </>
+                )}
+              </DialogTitle>
+            </DialogHeader>
+            
+            {!approvalDialog.currentValue && (
+              <div className="space-y-3">
+                <Label htmlFor="approval-comment" className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Comentario (opcional)
+                </Label>
+                <Textarea
+                  id="approval-comment"
+                  value={approvalComment}
+                  onChange={(e) => setApprovalComment(e.target.value)}
+                  placeholder={`Añade un comentario sobre la aprobación de ${approvalDialog.label}...`}
+                  className="min-h-[100px]"
+                />
+                <p className="text-xs text-muted-foreground">
+                  El comentario se guardará como nota interna con tu nombre.
+                </p>
+              </div>
+            )}
+
+            {approvalDialog.currentValue && (
+              <p className="text-sm text-muted-foreground">
+                ¿Estás seguro de que deseas retirar la aprobación de {approvalDialog.label}?
+              </p>
+            )}
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setApprovalDialog({ open: false, field: null, label: '', currentValue: false });
+                  setApprovalComment('');
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleApprovalWithComment}
+                disabled={isUpdating !== null}
+                className={approvalDialog.currentValue ? '' : 'bg-green-600 hover:bg-green-700'}
+              >
+                {isUpdating !== null ? 'Guardando...' : approvalDialog.currentValue ? 'Retirar' : 'Aprobar'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+
   return (
     <>
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
-              {allApproved ? <Unlock className="h-5 w-5 text-green-600" /> : <Lock className="h-5 w-5" />}
+              <Lock className="h-5 w-5" />
               Viabilidad
             </CardTitle>
-            <Badge variant={allApproved ? "default" : "secondary"} className={allApproved ? "bg-green-600" : ""}>
+            <Badge variant="secondary">
               {approvalCount}/3
             </Badge>
           </div>
@@ -416,20 +564,10 @@ export function ViabilityChecksCard({
           {/* Confirm button */}
           {isNegociacion && (
             <div className="pt-3 border-t">
-              {allApproved ? (
-                <Button 
-                  className="w-full bg-green-600 hover:bg-green-700" 
-                  onClick={handleConfirmBooking}
-                >
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Confirmar Booking
-                </Button>
-              ) : (
-                <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-500/10 p-3 rounded-lg">
-                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                  <span>Faltan {3 - approvalCount} aprobación(es) para confirmar</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-500/10 p-3 rounded-lg">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                <span>Faltan {3 - approvalCount} aprobación(es) para confirmar</span>
+              </div>
             </div>
           )}
         </CardContent>
