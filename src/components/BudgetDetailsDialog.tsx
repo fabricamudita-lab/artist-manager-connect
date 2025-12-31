@@ -394,6 +394,43 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   }, [open, budget]);
 
+  // Auto-load crew from format if budget has formato but no musicians loaded
+  useEffect(() => {
+    const autoLoadCrewFromFormat = async () => {
+      // Only run if we have items loaded (not empty array from initial state), budget has formato, and artist_id
+      if (!open || !budget?.formato || !budget?.artist_id || items.length > 0 || loading) return;
+      
+      // Check if there's a matching booking product for this format
+      const { data: bookingProduct } = await supabase
+        .from('booking_products')
+        .select('id')
+        .eq('artist_id', budget.artist_id)
+        .ilike('name', budget.formato)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+      
+      if (!bookingProduct) return;
+      
+      // Check if the format has crew members
+      const { data: crewCount } = await supabase
+        .from('booking_product_crew')
+        .select('id', { count: 'exact', head: true })
+        .eq('booking_product_id', bookingProduct.id);
+      
+      if (!crewCount || (crewCount as unknown as number) === 0) return;
+      
+      // Determine if international based on budget_status
+      const isInternational = budget.budget_status === 'internacional';
+      
+      // Auto-load the crew
+      console.log('🎵 Auto-loading crew from format:', budget.formato);
+      await loadCrewFromFormat(bookingProduct.id, isInternational);
+    };
+    
+    autoLoadCrewFromFormat();
+  }, [open, budget?.formato, budget?.artist_id, items.length, loading]);
+
   const saveBudgetAmount = async () => {
     try {
       const { error } = await supabase
