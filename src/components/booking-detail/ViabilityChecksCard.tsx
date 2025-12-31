@@ -413,31 +413,6 @@ export function ViabilityChecksCard({
             color="orange-600"
           />
 
-          {/* Notes section */}
-          <div className="pt-3 border-t space-y-2">
-            <label className="text-sm font-medium">Notas de viabilidad</label>
-            <Textarea
-              value={notes}
-              onChange={(e) => {
-                setNotes(e.target.value);
-                setHasChanged(true);
-              }}
-              placeholder="Añade notas sobre la viabilidad logística, técnica o económica..."
-              className="min-h-[80px] text-sm whitespace-pre-wrap"
-              disabled={!canEdit}
-            />
-            {hasChanged && (
-              <Button 
-                size="sm" 
-                onClick={handleSaveNotes} 
-                disabled={isSavingNotes}
-                className="w-full"
-              >
-                {isSavingNotes ? 'Guardando...' : 'Guardar notas'}
-              </Button>
-            )}
-          </div>
-
           {/* Confirm button */}
           {isNegociacion && (
             <div className="pt-3 border-t">
