@@ -219,7 +219,7 @@ export function FileExplorer({
       const budgetName = booking.festival_ciclo || `${booking.ciudad} - ${booking.lugar || booking.venue || 'TBD'}`;
       const { data: budget } = await supabase
         .from('budgets')
-        .select('id, name, fee, event_date, city, venue')
+        .select('id, name, fee, event_date, city, venue, formato, budget_status')
         .ilike('name', `%${budgetName.split(' ')[0]}%`)
         .single();
       
@@ -1195,7 +1195,7 @@ export function FileExplorer({
             city: linkedBudget.city || '',
             country: '',
             venue: linkedBudget.venue || '',
-            budget_status: '',
+            budget_status: linkedBudget.budget_status || '',
             show_status: '',
             internal_notes: '',
             created_at: '',
@@ -1203,6 +1203,7 @@ export function FileExplorer({
             event_date: linkedBudget.event_date || '',
             event_time: '',
             fee: linkedBudget.fee || 0,
+            formato: linkedBudget.formato || '',
           }}
           onUpdate={() => refetchBudgetContext()}
         />
