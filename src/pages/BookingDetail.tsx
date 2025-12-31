@@ -385,7 +385,22 @@ export default function BookingDetail() {
             if (booking.notas || booking.info_comentarios) {
               sections.push('');
               sections.push('📝 NOTAS');
-              if (booking.notas) sections.push(booking.notas);
+              // Parse JSON notes if they exist
+              if (booking.notas) {
+                try {
+                  const notasData = JSON.parse(booking.notas);
+                  if (Array.isArray(notasData)) {
+                    notasData.forEach((nota: { content?: string; author_name?: string }) => {
+                      if (nota.content) {
+                        sections.push(`- ${nota.author_name ? `[${nota.author_name}] ` : ''}${nota.content}`);
+                      }
+                    });
+                  }
+                } catch {
+                  // Legacy note - use as is
+                  sections.push(booking.notas);
+                }
+              }
               if (booking.info_comentarios) sections.push(booking.info_comentarios);
             }
             
