@@ -24,6 +24,7 @@ import { ViabilityChecksCard } from '@/components/booking-detail/ViabilityChecks
 import { AvailabilityStatusCard } from '@/components/booking-detail/AvailabilityStatusCard';
 import { RequestAvailabilityDialog } from '@/components/booking-detail/RequestAvailabilityDialog';
 import { BookingHistorySection } from '@/components/booking-detail/BookingHistorySection';
+import { LinkedSolicitudesCard } from '@/components/booking-detail/LinkedSolicitudesCard';
 interface Artist {
   id: string;
   name: string;
@@ -485,7 +486,7 @@ export default function BookingDetail() {
           {/* Main Tabs - Takes 2 columns */}
           <div className="lg:col-span-2">
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid w-full grid-cols-5 mb-6">
+              <TabsList className="grid w-full grid-cols-6 mb-6">
                 <TabsTrigger value="overview" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   Overview
@@ -505,6 +506,10 @@ export default function BookingDetail() {
                 <TabsTrigger value="drive" className="flex items-center gap-2">
                   <FolderOpen className="h-4 w-4" />
                   Archivos
+                </TabsTrigger>
+                <TabsTrigger value="solicitudes" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Solicitudes
                 </TabsTrigger>
               </TabsList>
 
@@ -543,6 +548,10 @@ export default function BookingDetail() {
                     es_internacional: booking.es_internacional
                   }}
                 />
+              </TabsContent>
+
+              <TabsContent value="solicitudes">
+                <LinkedSolicitudesCard bookingId={booking.id} />
               </TabsContent>
             </Tabs>
           </div>
