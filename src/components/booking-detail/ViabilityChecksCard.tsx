@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { 
   CheckCircle2, 
   Circle, 
@@ -12,22 +13,27 @@ import {
   Wrench,
   Lock,
   Unlock,
-  AlertTriangle
+  AlertTriangle,
+  MessageSquare
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ViabilityChecksCardProps {
   bookingId: string;
   phase: string;
   viabilityManagerApproved?: boolean;
   viabilityManagerAt?: string;
+  viabilityManagerBy?: string;
   viabilityTourManagerApproved?: boolean;
   viabilityTourManagerAt?: string;
+  viabilityTourManagerBy?: string;
   viabilityProductionApproved?: boolean;
   viabilityProductionAt?: string;
+  viabilityProductionBy?: string;
   viabilityNotes?: string;
   onUpdate: () => void;
 }
@@ -37,17 +43,30 @@ export function ViabilityChecksCard({
   phase,
   viabilityManagerApproved = false,
   viabilityManagerAt,
+  viabilityManagerBy,
   viabilityTourManagerApproved = false,
   viabilityTourManagerAt,
+  viabilityTourManagerBy,
   viabilityProductionApproved = false,
   viabilityProductionAt,
+  viabilityProductionBy,
   viabilityNotes = '',
   onUpdate
 }: ViabilityChecksCardProps) {
+  const { user } = useAuth();
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [notes, setNotes] = useState(viabilityNotes);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [hasChanged, setHasChanged] = useState(false);
+  
+  // Dialog state for approval with comment
+  const [approvalDialog, setApprovalDialog] = useState<{
+    open: boolean;
+    field: 'manager' | 'tour_manager' | 'production' | null;
+    label: string;
+    currentValue: boolean;
+  }>({ open: false, field: null, label: '', currentValue: false });
+  const [approvalComment, setApprovalComment] = useState('');
 
   const allApproved = viabilityManagerApproved && viabilityTourManagerApproved && viabilityProductionApproved;
   const approvalCount = [viabilityManagerApproved, viabilityTourManagerApproved, viabilityProductionApproved].filter(Boolean).length;
@@ -56,7 +75,7 @@ export function ViabilityChecksCard({
   const isNegociacion = phase === 'negociacion';
   const canEdit = isNegociacion;
 
-  const handleToggleApproval = async (field: 'manager' | 'tour_manager' | 'production', currentValue: boolean) => {
+  const openApprovalDialog = (field: 'manager' | 'tour_manager' | 'production', label: string, currentValue: boolean) => {
     if (!canEdit) {
       toast({
         title: "No se puede modificar",
@@ -65,15 +84,44 @@ export function ViabilityChecksCard({
       });
       return;
     }
+    setApprovalDialog({ open: true, field, label, currentValue });
+    setApprovalComment('');
+  };
 
-    setIsUpdating(field);
+  const handleApprovalWithComment = async () => {
+    if (!approvalDialog.field) return;
+    
+    setIsUpdating(approvalDialog.field);
     try {
+      const { field, currentValue } = approvalDialog;
       const updateData: Record<string, any> = {};
       const fieldName = `viability_${field}_approved`;
       const timestampField = `viability_${field}_at`;
+      const byField = `viability_${field}_by`;
       
-      updateData[fieldName] = !currentValue;
-      updateData[timestampField] = !currentValue ? new Date().toISOString() : null;
+      const newApprovalValue = !currentValue;
+      updateData[fieldName] = newApprovalValue;
+      updateData[timestampField] = newApprovalValue ? new Date().toISOString() : null;
+      updateData[byField] = newApprovalValue ? user?.id : null;
+      
+      // Append comment to notes if provided and approving
+      if (newApprovalValue && approvalComment.trim()) {
+        // Get user profile name
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('full_name, stage_name')
+          .eq('user_id', user?.id)
+          .maybeSingle();
+        
+        const userName = profileData?.stage_name || profileData?.full_name || 'Usuario';
+        const roleLabel = field === 'manager' ? 'Manager' : field === 'tour_manager' ? 'Tour Manager' : 'Producción';
+        const timestamp = format(new Date(), "d MMM yyyy, HH:mm", { locale: es });
+        
+        const newNote = `[${roleLabel} - ${userName} - ${timestamp}]\n${approvalComment.trim()}`;
+        const currentNotes = notes || '';
+        updateData.viability_notes = currentNotes ? `${currentNotes}\n\n${newNote}` : newNote;
+        setNotes(updateData.viability_notes);
+      }
 
       const { error } = await supabase
         .from('booking_offers')
@@ -83,9 +131,10 @@ export function ViabilityChecksCard({
       if (error) throw error;
 
       toast({
-        title: !currentValue ? "Aprobación registrada" : "Aprobación retirada",
-        description: `Viabilidad ${field === 'manager' ? 'Manager' : field === 'tour_manager' ? 'Tour Manager' : 'Producción'} ${!currentValue ? 'aprobada' : 'pendiente'}.`
+        title: newApprovalValue ? "Aprobación registrada" : "Aprobación retirada",
+        description: `Viabilidad ${approvalDialog.label} ${newApprovalValue ? 'aprobada' : 'pendiente'}.`
       });
+      setApprovalDialog({ open: false, field: null, label: '', currentValue: false });
       onUpdate();
     } catch (error) {
       console.error('Error updating viability:', error);
@@ -113,6 +162,7 @@ export function ViabilityChecksCard({
         title: "Notas guardadas",
         description: "Las notas de viabilidad se han guardado correctamente."
       });
+      setHasChanged(false);
       onUpdate();
     } catch (error) {
       console.error('Error saving notes:', error);
@@ -156,7 +206,6 @@ export function ViabilityChecksCard({
       console.error('Error confirming booking:', error);
 
       let errorMessage = error?.message || "No se pudo confirmar el booking.";
-      // Default to viability section for viability errors, availability for availability conflicts
       let bookingLink = `/booking/${bookingId}?scrollTo=viability`;
 
       try {
@@ -171,7 +220,6 @@ export function ViabilityChecksCard({
         } else if (error?.message?.includes('No se puede confirmar:')) {
           const reason = error.message.match(/No se puede confirmar:\s*(.+)/)?.[1] || '';
           
-          // First try to find the associated solicitud in action_center
           const { data: solicitudData } = await supabase
             .from('action_center')
             .select('id')
@@ -197,7 +245,7 @@ export function ViabilityChecksCard({
           errorMessage = `Solicitud de booking: ${displayName} — ${reason || 'Faltan aprobaciones o hay bloqueos activos.'}`;
         }
       } catch {
-        // ignore secondary fetch errors; keep base message
+        // ignore secondary fetch errors
       }
 
       toast({
@@ -232,6 +280,7 @@ export function ViabilityChecksCard({
     icon: Icon, 
     approved, 
     timestamp,
+    approvedBy,
     field,
     color
   }: { 
@@ -239,6 +288,7 @@ export function ViabilityChecksCard({
     icon: any; 
     approved: boolean; 
     timestamp?: string;
+    approvedBy?: string;
     field: 'manager' | 'tour_manager' | 'production';
     color: string;
   }) => (
@@ -248,7 +298,7 @@ export function ViabilityChecksCard({
           ? 'bg-green-500/10 border-green-500/30' 
           : 'bg-muted/30 border-border hover:bg-muted/50'
       } ${canEdit ? 'cursor-pointer' : 'opacity-75'}`}
-      onClick={() => canEdit && handleToggleApproval(field, approved)}
+      onClick={() => openApprovalDialog(field, label, approved)}
     >
       <div className="flex items-center gap-3">
         <div className={`p-2 rounded-lg ${approved ? 'bg-green-500/20' : `bg-${color}/20`}`}>
@@ -288,92 +338,167 @@ export function ViabilityChecksCard({
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            {allApproved ? <Unlock className="h-5 w-5 text-green-600" /> : <Lock className="h-5 w-5" />}
-            Viabilidad
-          </CardTitle>
-          <Badge variant={allApproved ? "default" : "secondary"} className={allApproved ? "bg-green-600" : ""}>
-            {approvalCount}/3
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <CheckItem 
-          label="Manager" 
-          icon={Users} 
-          approved={viabilityManagerApproved} 
-          timestamp={viabilityManagerAt}
-          field="manager"
-          color="primary"
-        />
-        <CheckItem 
-          label="Tour Manager" 
-          icon={Truck} 
-          approved={viabilityTourManagerApproved} 
-          timestamp={viabilityTourManagerAt}
-          field="tour_manager"
-          color="blue-600"
-        />
-        <CheckItem 
-          label="Producción" 
-          icon={Wrench} 
-          approved={viabilityProductionApproved} 
-          timestamp={viabilityProductionAt}
-          field="production"
-          color="orange-600"
-        />
-
-        {/* Notes section */}
-        <div className="pt-3 border-t space-y-2">
-          <label className="text-sm font-medium">Notas de viabilidad</label>
-          <Textarea
-            value={notes}
-            onChange={(e) => {
-              setNotes(e.target.value);
-              setHasChanged(true);
-            }}
-            placeholder="Añade notas sobre la viabilidad logística, técnica o económica..."
-            className="min-h-[80px] text-sm"
-            disabled={!canEdit}
+    <>
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              {allApproved ? <Unlock className="h-5 w-5 text-green-600" /> : <Lock className="h-5 w-5" />}
+              Viabilidad
+            </CardTitle>
+            <Badge variant={allApproved ? "default" : "secondary"} className={allApproved ? "bg-green-600" : ""}>
+              {approvalCount}/3
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <CheckItem 
+            label="Manager" 
+            icon={Users} 
+            approved={viabilityManagerApproved} 
+            timestamp={viabilityManagerAt}
+            approvedBy={viabilityManagerBy}
+            field="manager"
+            color="primary"
           />
-          {hasChanged && (
-            <Button 
-              size="sm" 
-              onClick={() => {
-                handleSaveNotes();
-                setHasChanged(false);
-              }} 
-              disabled={isSavingNotes}
-              className="w-full"
-            >
-              {isSavingNotes ? 'Guardando...' : 'Guardar notas'}
-            </Button>
-          )}
-        </div>
+          <CheckItem 
+            label="Tour Manager" 
+            icon={Truck} 
+            approved={viabilityTourManagerApproved} 
+            timestamp={viabilityTourManagerAt}
+            approvedBy={viabilityTourManagerBy}
+            field="tour_manager"
+            color="blue-600"
+          />
+          <CheckItem 
+            label="Producción" 
+            icon={Wrench} 
+            approved={viabilityProductionApproved} 
+            timestamp={viabilityProductionAt}
+            approvedBy={viabilityProductionBy}
+            field="production"
+            color="orange-600"
+          />
 
-        {/* Confirm button */}
-        {isNegociacion && (
-          <div className="pt-3 border-t">
-            {allApproved ? (
+          {/* Notes section */}
+          <div className="pt-3 border-t space-y-2">
+            <label className="text-sm font-medium">Notas de viabilidad</label>
+            <Textarea
+              value={notes}
+              onChange={(e) => {
+                setNotes(e.target.value);
+                setHasChanged(true);
+              }}
+              placeholder="Añade notas sobre la viabilidad logística, técnica o económica..."
+              className="min-h-[80px] text-sm whitespace-pre-wrap"
+              disabled={!canEdit}
+            />
+            {hasChanged && (
               <Button 
-                className="w-full bg-green-600 hover:bg-green-700" 
-                onClick={handleConfirmBooking}
+                size="sm" 
+                onClick={handleSaveNotes} 
+                disabled={isSavingNotes}
+                className="w-full"
               >
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Confirmar Booking
+                {isSavingNotes ? 'Guardando...' : 'Guardar notas'}
               </Button>
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-500/10 p-3 rounded-lg">
-                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                <span>Faltan {3 - approvalCount} aprobación(es) para confirmar</span>
-              </div>
             )}
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          {/* Confirm button */}
+          {isNegociacion && (
+            <div className="pt-3 border-t">
+              {allApproved ? (
+                <Button 
+                  className="w-full bg-green-600 hover:bg-green-700" 
+                  onClick={handleConfirmBooking}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Confirmar Booking
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-500/10 p-3 rounded-lg">
+                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                  <span>Faltan {3 - approvalCount} aprobación(es) para confirmar</span>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Approval Dialog with Comment */}
+      <Dialog open={approvalDialog.open} onOpenChange={(open) => {
+        if (!open) {
+          setApprovalDialog({ open: false, field: null, label: '', currentValue: false });
+          setApprovalComment('');
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {approvalDialog.currentValue ? (
+                <>
+                  <Circle className="h-5 w-5 text-muted-foreground" />
+                  Retirar aprobación de {approvalDialog.label}
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  Aprobar {approvalDialog.label}
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {!approvalDialog.currentValue && (
+            <div className="space-y-3">
+              <Label htmlFor="approval-comment" className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Comentario (opcional)
+              </Label>
+              <Textarea
+                id="approval-comment"
+                value={approvalComment}
+                onChange={(e) => setApprovalComment(e.target.value)}
+                placeholder={`Añade un comentario sobre la aprobación de ${approvalDialog.label}...`}
+                className="min-h-[100px]"
+              />
+              <p className="text-xs text-muted-foreground">
+                El comentario se guardará en las notas de viabilidad con tu nombre y la fecha.
+              </p>
+            </div>
+          )}
+
+          {approvalDialog.currentValue && (
+            <p className="text-sm text-muted-foreground">
+              ¿Estás seguro de que deseas retirar la aprobación de {approvalDialog.label}?
+            </p>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setApprovalDialog({ open: false, field: null, label: '', currentValue: false });
+                setApprovalComment('');
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleApprovalWithComment}
+              disabled={isUpdating !== null}
+              className={approvalDialog.currentValue ? '' : 'bg-green-600 hover:bg-green-700'}
+            >
+              {isUpdating ? (
+                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+              ) : null}
+              {approvalDialog.currentValue ? 'Retirar aprobación' : 'Confirmar aprobación'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
