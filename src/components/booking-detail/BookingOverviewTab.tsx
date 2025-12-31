@@ -374,9 +374,6 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
         {/* Internal Notes */}
         <BookingNotes bookingId={booking.id} />
       </div>
-
-      {/* Linked Solicitudes */}
-      <LinkedSolicitudesCard bookingId={booking.id} />
     </div>
   );
 }
