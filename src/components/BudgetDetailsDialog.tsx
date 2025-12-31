@@ -2890,16 +2890,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                            <Settings className="w-3 h-3 mr-1" />
                            Categorías
                          </Button>
-                         {items.length === 0 && (
-                           <Button
-                             onClick={createTestData}
-                             size="sm"
-                             variant="outline"
-                             className="bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-200 border-yellow-400/20 text-xs"
-                           >
-                             🧪 Datos prueba
-                           </Button>
-                         )}
                        </div>
                     </div>
                    </div>
