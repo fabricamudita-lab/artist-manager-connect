@@ -9,8 +9,10 @@ import {
   Send, 
   Clock, 
   User,
-  StickyNote
+  StickyNote,
+  Copy
 } from 'lucide-react';
+import { CopyButton } from '@/components/ui/copy-button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -161,20 +163,28 @@ export function BookingNotes({ bookingId }: BookingNotesProps) {
               {notes.map((note) => (
                 <div 
                   key={note.id} 
-                  className="bg-muted/50 rounded-lg p-2.5 space-y-1"
+                  className="bg-muted/50 rounded-lg p-2.5 space-y-1 group relative"
                 >
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <User className="h-3 w-3" />
                       {note.author_name || 'Usuario'}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatDistanceToNow(new Date(note.created_at), { 
-                        addSuffix: true, 
-                        locale: es 
-                      })}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatDistanceToNow(new Date(note.created_at), { 
+                          addSuffix: true, 
+                          locale: es 
+                        })}
+                      </span>
+                      <CopyButton 
+                        text={note.content} 
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      />
+                    </div>
                   </div>
                   <p className="text-sm whitespace-pre-wrap">{note.content}</p>
                 </div>
