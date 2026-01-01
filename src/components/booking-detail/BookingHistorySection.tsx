@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -17,10 +18,10 @@ import {
   Calendar,
   MapPin,
   Users,
-  FileText,
   CheckCircle2,
   Clock,
-  Loader2
+  Loader2,
+  Maximize2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -84,15 +85,16 @@ const fieldLabels: Record<string, string> = {
 
 export function BookingHistorySection({ bookingId }: BookingHistorySectionProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [history, setHistory] = useState<HistoryEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (isOpen && !loaded) {
+    if ((isOpen || isFullscreen) && !loaded) {
       fetchHistory();
     }
-  }, [isOpen]);
+  }, [isOpen, isFullscreen]);
 
   const fetchHistory = async () => {
     setLoading(true);
@@ -285,74 +287,110 @@ export function BookingHistorySection({ bookingId }: BookingHistorySectionProps)
     }
   };
 
-  return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-4">
-      <CollapsibleTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="w-full justify-between text-muted-foreground hover:text-foreground border border-dashed"
-        >
-          <span className="flex items-center gap-2">
-            <History className="h-4 w-4" />
-            Historial del Evento
-            {history.length > 0 && (
-              <Badge variant="secondary" className="text-xs">{history.length}</Badge>
-            )}
-          </span>
-          {isOpen ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-        </Button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="mt-3 border rounded-lg bg-muted/20">
-          {loading ? (
-            <div className="flex items-center justify-center py-8 text-muted-foreground">
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Cargando historial...
-            </div>
-          ) : history.length === 0 ? (
-            <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
-              <Clock className="h-4 w-4 mr-2" />
-              Sin cambios registrados
-            </div>
-          ) : (
-            <ScrollArea className="h-80" type="always">
-              <div className="p-3 space-y-2">
-                {history.map((event, index) => (
-                  <div 
-                    key={event.id} 
-                    className={cn(
-                      "flex gap-3 p-2.5 rounded-md bg-background/50 border border-transparent hover:border-border/50 transition-colors",
-                      index === 0 && "bg-primary/5 border-primary/20"
-                    )}
-                  >
-                    <div className="mt-0.5">
-                      {getEventIcon(event.event_type, event.field_changed)}
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="text-sm">
-                          {getEventDescription(event)}
-                        </div>
-                        {getEventBadge(event.event_type)}
-                      </div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        <span className="font-medium text-foreground/70">{getProfileName(event)}</span>
-                        <span>·</span>
-                        <span>{format(new Date(event.changed_at), "d MMM yyyy, HH:mm", { locale: es })}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          )}
+  const HistoryList = ({ maxHeight }: { maxHeight?: string }) => (
+    <>
+      {loading ? (
+        <div className="flex items-center justify-center py-8 text-muted-foreground">
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          Cargando historial...
         </div>
-      </CollapsibleContent>
-    </Collapsible>
+      ) : history.length === 0 ? (
+        <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
+          <Clock className="h-4 w-4 mr-2" />
+          Sin cambios registrados
+        </div>
+      ) : (
+        <ScrollArea className={maxHeight || "h-80"} type="always">
+          <div className="p-3 space-y-2">
+            {history.map((event, index) => (
+              <div 
+                key={event.id} 
+                className={cn(
+                  "flex gap-3 p-2.5 rounded-md bg-background/50 border border-transparent hover:border-border/50 transition-colors",
+                  index === 0 && "bg-primary/5 border-primary/20"
+                )}
+              >
+                <div className="mt-0.5">
+                  {getEventIcon(event.event_type, event.field_changed)}
+                </div>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-sm">
+                      {getEventDescription(event)}
+                    </div>
+                    {getEventBadge(event.event_type)}
+                  </div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <span className="font-medium text-foreground/70">{getProfileName(event)}</span>
+                    <span>·</span>
+                    <span>{format(new Date(event.changed_at), "d MMM yyyy, HH:mm", { locale: es })}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-4">
+        <CollapsibleTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full justify-between text-muted-foreground hover:text-foreground border border-dashed"
+          >
+            <span className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              Historial del Evento
+              {history.length > 0 && (
+                <Badge variant="secondary" className="text-xs">{history.length}</Badge>
+              )}
+            </span>
+            {isOpen ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="mt-3 border rounded-lg bg-muted/20">
+            <div className="flex justify-end p-2 border-b">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsFullscreen(true)}
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Maximize2 className="h-3.5 w-3.5 mr-1" />
+                Pantalla completa
+              </Button>
+            </div>
+            <HistoryList maxHeight="h-80" />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+        <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Historial del Evento
+              {history.length > 0 && (
+                <Badge variant="secondary">{history.length} cambios</Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden border rounded-lg bg-muted/20">
+            <HistoryList maxHeight="h-full" />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
