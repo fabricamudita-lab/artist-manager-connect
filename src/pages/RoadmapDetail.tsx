@@ -1,0 +1,253 @@
+import { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Plus, Trash2, GripVertical, Save } from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useRoadmap, RoadmapBlock } from '@/hooks/useRoadmaps';
+import { SingleArtistSelector } from '@/components/SingleArtistSelector';
+
+import { HeaderBlock } from '@/components/roadmap-blocks/HeaderBlock';
+import { ScheduleBlock } from '@/components/roadmap-blocks/ScheduleBlock';
+import { TravelBlock } from '@/components/roadmap-blocks/TravelBlock';
+import { HospitalityBlock } from '@/components/roadmap-blocks/HospitalityBlock';
+import { ProductionBlock } from '@/components/roadmap-blocks/ProductionBlock';
+import { ContactsBlock } from '@/components/roadmap-blocks/ContactsBlock';
+
+const blockTypeLabels: Record<RoadmapBlock['block_type'], string> = {
+  header: 'Cabecera del Tour',
+  schedule: 'Cronograma (Timeline)',
+  travel: 'Logística de Viaje',
+  hospitality: 'Hospitalidad',
+  production: 'Producción Técnica',
+  contacts: 'Contactos',
+};
+
+const statusOptions = [
+  { value: 'draft', label: 'Borrador' },
+  { value: 'confirmed', label: 'Confirmado' },
+  { value: 'completed', label: 'Completado' },
+  { value: 'cancelled', label: 'Cancelado' },
+];
+
+export default function RoadmapDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { roadmap, blocks, isLoading, updateRoadmap, addBlock, updateBlock, deleteBlock } = useRoadmap(id);
+  
+  const [editingName, setEditingName] = useState(false);
+  const [tempName, setTempName] = useState('');
+
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
+
+  if (!roadmap) {
+    return (
+      <div className="p-6">
+        <p className="text-muted-foreground">Hoja de ruta no encontrada</p>
+      </div>
+    );
+  }
+
+  const handleSaveName = () => {
+    if (tempName.trim() && tempName !== roadmap.name) {
+      updateRoadmap.mutate({ name: tempName });
+    }
+    setEditingName(false);
+  };
+
+  const renderBlock = (block: RoadmapBlock) => {
+    const props = {
+      data: block.data as Record<string, unknown>,
+      onChange: (data: Record<string, unknown>) => updateBlock.mutate({ blockId: block.id, data }),
+    };
+
+    switch (block.block_type) {
+      case 'header':
+        return <HeaderBlock {...props} />;
+      case 'schedule':
+        return <ScheduleBlock {...props} />;
+      case 'travel':
+        return <TravelBlock {...props} />;
+      case 'hospitality':
+        return <HospitalityBlock {...props} />;
+      case 'production':
+        return <ProductionBlock {...props} />;
+      case 'contacts':
+        return <ContactsBlock {...props} />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate('/roadmaps')}>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <div className="flex-1">
+          {editingName ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={tempName}
+                onChange={(e) => setTempName(e.target.value)}
+                className="max-w-md"
+                autoFocus
+                onBlur={handleSaveName}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+              />
+              <Button size="icon" onClick={handleSaveName}>
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : (
+            <h1
+              className="text-2xl font-bold font-playfair cursor-pointer hover:text-primary transition-colors"
+              onClick={() => {
+                setTempName(roadmap.name);
+                setEditingName(true);
+              }}
+            >
+              {roadmap.name}
+            </h1>
+          )}
+        </div>
+        <Select
+          value={roadmap.status}
+          onValueChange={(value) => updateRoadmap.mutate({ status: value as typeof roadmap.status })}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {statusOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Meta info */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label>Artista</Label>
+              <SingleArtistSelector
+                value={roadmap.artist_id}
+                onValueChange={(value) => updateRoadmap.mutate({ artist_id: value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Promotor</Label>
+              <Input
+                value={roadmap.promoter || ''}
+                onChange={(e) => updateRoadmap.mutate({ promoter: e.target.value })}
+                placeholder="Nombre del promotor"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Fecha Inicio</Label>
+              <Input
+                type="date"
+                value={roadmap.start_date || ''}
+                onChange={(e) => updateRoadmap.mutate({ start_date: e.target.value || null })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Fecha Fin</Label>
+              <Input
+                type="date"
+                value={roadmap.end_date || ''}
+                onChange={(e) => updateRoadmap.mutate({ end_date: e.target.value || null })}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Blocks */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Bloques de información</h2>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Plus className="w-4 h-4" />
+                Añadir Bloque
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {(Object.keys(blockTypeLabels) as RoadmapBlock['block_type'][]).map((type) => (
+                <DropdownMenuItem key={type} onClick={() => addBlock.mutate(type)}>
+                  {blockTypeLabels[type]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {blocks && blocks.length > 0 ? (
+          <div className="space-y-4">
+            {blocks.map((block) => (
+              <Card key={block.id} className="group">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
+                      <CardTitle className="text-base">{blockTypeLabels[block.block_type]}</CardTitle>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                      onClick={() => deleteBlock.mutate(block.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>{renderBlock(block)}</CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card className="p-8 text-center">
+            <p className="text-muted-foreground">
+              No hay bloques. Haz clic en "Añadir Bloque" para empezar.
+            </p>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}

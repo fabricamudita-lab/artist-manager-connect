@@ -5014,6 +5014,91 @@ export type Database = {
           },
         ]
       }
+      tour_roadmap_blocks: {
+        Row: {
+          block_type: string
+          created_at: string
+          data: Json
+          id: string
+          roadmap_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          block_type: string
+          created_at?: string
+          data?: Json
+          id?: string
+          roadmap_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          block_type?: string
+          created_at?: string
+          data?: Json
+          id?: string
+          roadmap_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_roadmap_blocks_roadmap_id_fkey"
+            columns: ["roadmap_id"]
+            isOneToOne: false
+            referencedRelation: "tour_roadmaps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tour_roadmaps: {
+        Row: {
+          artist_id: string | null
+          created_at: string
+          created_by: string
+          end_date: string | null
+          id: string
+          name: string
+          promoter: string | null
+          start_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          artist_id?: string | null
+          created_at?: string
+          created_by: string
+          end_date?: string | null
+          id?: string
+          name: string
+          promoter?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string | null
+          created_at?: string
+          created_by?: string
+          end_date?: string | null
+          id?: string
+          name?: string
+          promoter?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_roadmaps_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       track_credits: {
         Row: {
           contact_id: string | null

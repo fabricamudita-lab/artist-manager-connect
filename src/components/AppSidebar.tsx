@@ -17,6 +17,7 @@ import {
   Calculator,
   Folder,
   FolderKanban,
+  Map,
   Mic,
   FileImage,
   Disc3,
@@ -52,6 +53,7 @@ const getNavigationItems = (isManagement: boolean) => {
   // Management-only items
   const managementItems = isManagement ? [
     { title: "Booking", url: "/booking", icon: Mic },
+    { title: "Hojas de Ruta", url: "/roadmaps", icon: Map },
     { title: "Proyectos", url: "/proyectos", icon: FolderKanban },
     { title: "Discografía", url: "/releases", icon: Disc3 },
   ] : [];
