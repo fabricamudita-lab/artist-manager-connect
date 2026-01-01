@@ -9,63 +9,81 @@ const ScrollArea = React.forwardRef<
     enableDragScroll?: boolean;
   }
 >(({ className, children, enableDragScroll = true, ...props }, ref) => {
-  const viewportRef = React.useRef<HTMLDivElement>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
   const isDragging = React.useRef(false);
   const startY = React.useRef(0);
   const scrollTop = React.useRef(0);
 
-  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
-    if (!enableDragScroll || !viewportRef.current) return;
-    isDragging.current = true;
-    startY.current = e.pageY;
-    scrollTop.current = viewportRef.current.scrollTop;
-    viewportRef.current.style.cursor = 'grabbing';
-    viewportRef.current.style.userSelect = 'none';
+  React.useEffect(() => {
+    if (!enableDragScroll) return;
+    
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Find the viewport element inside the container
+    const viewport = container.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+    if (!viewport) return;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      isDragging.current = true;
+      startY.current = e.pageY;
+      scrollTop.current = viewport.scrollTop;
+      viewport.style.cursor = 'grabbing';
+      viewport.style.userSelect = 'none';
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      e.preventDefault();
+      const deltaY = e.pageY - startY.current;
+      viewport.scrollTop = scrollTop.current - deltaY;
+    };
+
+    const handleMouseUp = () => {
+      isDragging.current = false;
+      viewport.style.cursor = '';
+      viewport.style.userSelect = '';
+    };
+
+    const handleMouseLeave = () => {
+      isDragging.current = false;
+      viewport.style.cursor = '';
+      viewport.style.userSelect = '';
+    };
+
+    viewport.addEventListener('mousedown', handleMouseDown);
+    viewport.addEventListener('mousemove', handleMouseMove);
+    viewport.addEventListener('mouseup', handleMouseUp);
+    viewport.addEventListener('mouseleave', handleMouseLeave);
+
+    // Add grab cursor
+    viewport.style.cursor = 'grab';
+
+    return () => {
+      viewport.removeEventListener('mousedown', handleMouseDown);
+      viewport.removeEventListener('mousemove', handleMouseMove);
+      viewport.removeEventListener('mouseup', handleMouseUp);
+      viewport.removeEventListener('mouseleave', handleMouseLeave);
+    };
   }, [enableDragScroll]);
 
-  const handleMouseMove = React.useCallback((e: React.MouseEvent) => {
-    if (!isDragging.current || !viewportRef.current) return;
-    const deltaY = e.pageY - startY.current;
-    viewportRef.current.scrollTop = scrollTop.current - deltaY;
-  }, []);
-
-  const handleMouseUp = React.useCallback(() => {
-    if (!viewportRef.current) return;
-    isDragging.current = false;
-    viewportRef.current.style.cursor = '';
-    viewportRef.current.style.userSelect = '';
-  }, []);
-
-  const handleMouseLeave = React.useCallback(() => {
-    if (!viewportRef.current) return;
-    isDragging.current = false;
-    viewportRef.current.style.cursor = '';
-    viewportRef.current.style.userSelect = '';
-  }, []);
-
   return (
-    <ScrollAreaPrimitive.Root
-      ref={ref}
-      className={cn("relative overflow-hidden", className)}
-      {...props}
-    >
-      <ScrollAreaPrimitive.Viewport
-        ref={viewportRef}
-        className={cn(
-          "h-full w-full rounded-[inherit] overflow-auto touch-pan-y overscroll-contain",
-          enableDragScroll && "cursor-grab"
-        )}
-        style={{ WebkitOverflowScrolling: "touch" }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
+    <div ref={containerRef}>
+      <ScrollAreaPrimitive.Root
+        ref={ref}
+        className={cn("relative overflow-hidden", className)}
+        {...props}
       >
-        {children}
-      </ScrollAreaPrimitive.Viewport>
-      <ScrollBar />
-      <ScrollAreaPrimitive.Corner />
-    </ScrollAreaPrimitive.Root>
+        <ScrollAreaPrimitive.Viewport
+          className="h-full w-full rounded-[inherit] overflow-auto touch-pan-y overscroll-contain"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          {children}
+        </ScrollAreaPrimitive.Viewport>
+        <ScrollBar />
+        <ScrollAreaPrimitive.Corner />
+      </ScrollAreaPrimitive.Root>
+    </div>
   );
 })
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
