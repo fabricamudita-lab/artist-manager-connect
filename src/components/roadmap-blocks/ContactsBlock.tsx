@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Phone, Mail } from 'lucide-react';
+import { Plus, Trash2, Phone, Mail, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -12,12 +13,13 @@ import {
 } from '@/components/ui/table';
 import { useDebounce } from '@/hooks/useDebounce';
 
-interface Contact {
+export interface Contact {
   id: string;
   name: string;
   role: string;
   phone: string;
   email: string;
+  origin: string; // Ciudad base / origen del contacto
 }
 
 interface ContactsBlockData {
@@ -64,6 +66,7 @@ export function ContactsBlock({ data, onChange }: ContactsBlockProps) {
       role: '',
       phone: '',
       email: '',
+      origin: '',
     };
     setLocalContacts((prev) => [...prev, newContact]);
   };
@@ -80,13 +83,18 @@ export function ContactsBlock({ data, onChange }: ContactsBlockProps) {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Label className="text-base font-medium">Contactos de la Gira</Label>
+      </div>
+      
       {localContacts.length > 0 ? (
-        <div className="border rounded-lg overflow-hidden">
+        <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
                 <TableHead>Rol</TableHead>
+                <TableHead>Origen</TableHead>
                 <TableHead>Teléfono</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead className="w-24">Acciones</TableHead>
@@ -108,6 +116,14 @@ export function ContactsBlock({ data, onChange }: ContactsBlockProps) {
                       value={contact.role}
                       onChange={(e) => updateContact(contact.id, { role: e.target.value })}
                       placeholder="Ej: Tour Manager"
+                      className="h-8"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={contact.origin || ''}
+                      onChange={(e) => updateContact(contact.id, { origin: e.target.value })}
+                      placeholder="Madrid"
                       className="h-8"
                     />
                   </TableCell>
