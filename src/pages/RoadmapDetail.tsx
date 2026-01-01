@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, GripVertical, Save, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, GripVertical, Save, ChevronDown, Eye, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -27,9 +27,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useRoadmap, RoadmapBlock } from '@/hooks/useRoadmaps';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 import { HeaderBlock } from '@/components/roadmap-blocks/HeaderBlock';
 import { ScheduleBlock } from '@/components/roadmap-blocks/ScheduleBlock';
@@ -37,6 +46,7 @@ import { TravelBlock } from '@/components/roadmap-blocks/TravelBlock';
 import { HospitalityBlock } from '@/components/roadmap-blocks/HospitalityBlock';
 import { ProductionBlock } from '@/components/roadmap-blocks/ProductionBlock';
 import { ContactsBlock } from '@/components/roadmap-blocks/ContactsBlock';
+import { RoadmapPreview } from '@/components/roadmap-blocks/RoadmapPreview';
 
 const blockTypeLabels: Record<RoadmapBlock['block_type'], string> = {
   header: 'Cabecera del Tour',
@@ -61,6 +71,22 @@ export default function RoadmapDetail() {
   
   const [editingName, setEditingName] = useState(false);
   const [tempName, setTempName] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
+
+  // Fetch artist name for preview
+  const { data: artist } = useQuery({
+    queryKey: ['artist', roadmap?.artist_id],
+    queryFn: async () => {
+      if (!roadmap?.artist_id) return null;
+      const { data } = await supabase
+        .from('artists')
+        .select('name')
+        .eq('id', roadmap.artist_id)
+        .single();
+      return data;
+    },
+    enabled: !!roadmap?.artist_id,
+  });
 
   if (isLoading) {
     return (
@@ -144,6 +170,10 @@ export default function RoadmapDetail() {
             </h1>
           )}
         </div>
+        <Button variant="outline" className="gap-2" onClick={() => setShowPreview(true)}>
+          <Eye className="w-4 h-4" />
+          Previsualizar
+        </Button>
         <Select
           value={roadmap.status}
           onValueChange={(value) => updateRoadmap.mutate({ status: value as typeof roadmap.status })}
@@ -261,6 +291,25 @@ export default function RoadmapDetail() {
           </Card>
         )}
       </div>
+
+      {/* Preview Dialog */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-5xl h-[90vh] p-0">
+          <DialogHeader className="p-4 border-b flex-row items-center justify-between">
+            <DialogTitle>Previsualización de Hoja de Ruta</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="flex-1 h-[calc(90vh-60px)]">
+            <RoadmapPreview
+              roadmapName={roadmap.name}
+              artistName={artist?.name}
+              promoter={roadmap.promoter}
+              startDate={roadmap.start_date}
+              endDate={roadmap.end_date}
+              blocks={blocks || []}
+            />
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
