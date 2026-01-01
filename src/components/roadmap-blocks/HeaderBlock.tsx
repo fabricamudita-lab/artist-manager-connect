@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface HeaderBlockData {
   artistName?: string;
@@ -15,9 +17,43 @@ interface HeaderBlockProps {
 
 export function HeaderBlock({ data, onChange }: HeaderBlockProps) {
   const blockData = data as HeaderBlockData;
+  
+  // Local state for immediate UI updates
+  const [localData, setLocalData] = useState<HeaderBlockData>({
+    artistName: blockData.artistName || '',
+    tourTitle: blockData.tourTitle || '',
+    localPromoter: blockData.localPromoter || '',
+    globalDates: blockData.globalDates || '',
+  });
+
+  // Debounce the local data
+  const debouncedData = useDebounce(localData, 500);
+
+  // Sync from parent when data changes externally
+  useEffect(() => {
+    setLocalData({
+      artistName: blockData.artistName || '',
+      tourTitle: blockData.tourTitle || '',
+      localPromoter: blockData.localPromoter || '',
+      globalDates: blockData.globalDates || '',
+    });
+  }, [blockData.artistName, blockData.tourTitle, blockData.localPromoter, blockData.globalDates]);
+
+  // Save to parent when debounced data changes
+  useEffect(() => {
+    const hasChanges = 
+      debouncedData.artistName !== (blockData.artistName || '') ||
+      debouncedData.tourTitle !== (blockData.tourTitle || '') ||
+      debouncedData.localPromoter !== (blockData.localPromoter || '') ||
+      debouncedData.globalDates !== (blockData.globalDates || '');
+    
+    if (hasChanges) {
+      onChange({ ...data, ...debouncedData });
+    }
+  }, [debouncedData]);
 
   const handleChange = (field: keyof HeaderBlockData, value: string) => {
-    onChange({ ...data, [field]: value });
+    setLocalData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -26,7 +62,7 @@ export function HeaderBlock({ data, onChange }: HeaderBlockProps) {
         <div className="space-y-2">
           <Label>Nombre del Artista</Label>
           <Input
-            value={blockData.artistName || ''}
+            value={localData.artistName}
             onChange={(e) => handleChange('artistName', e.target.value)}
             placeholder="Ej: Bad Bunny"
           />
@@ -34,7 +70,7 @@ export function HeaderBlock({ data, onChange }: HeaderBlockProps) {
         <div className="space-y-2">
           <Label>Título del Tour</Label>
           <Input
-            value={blockData.tourTitle || ''}
+            value={localData.tourTitle}
             onChange={(e) => handleChange('tourTitle', e.target.value)}
             placeholder="Ej: World's Hottest Tour"
           />
@@ -42,7 +78,7 @@ export function HeaderBlock({ data, onChange }: HeaderBlockProps) {
         <div className="space-y-2">
           <Label>Promotor Local</Label>
           <Input
-            value={blockData.localPromoter || ''}
+            value={localData.localPromoter}
             onChange={(e) => handleChange('localPromoter', e.target.value)}
             placeholder="Ej: Live Nation España"
           />
@@ -50,7 +86,7 @@ export function HeaderBlock({ data, onChange }: HeaderBlockProps) {
         <div className="space-y-2">
           <Label>Fechas Globales</Label>
           <Input
-            value={blockData.globalDates || ''}
+            value={localData.globalDates}
             onChange={(e) => handleChange('globalDates', e.target.value)}
             placeholder="Ej: 15 Junio - 30 Agosto 2026"
           />
