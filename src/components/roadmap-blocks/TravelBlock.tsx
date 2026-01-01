@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Plane, Train } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface TravelTrip {
   id: string;
@@ -49,7 +51,36 @@ const mediumOptions = [
 
 export function TravelBlock({ data, onChange }: TravelBlockProps) {
   const blockData = data as TravelBlockData;
-  const trips = blockData.trips || [];
+  const incomingTrips = blockData.trips || [];
+  const incomingLuggagePolicy = blockData.luggagePolicy || '';
+
+  // Local state for immediate UI updates
+  const [localTrips, setLocalTrips] = useState<TravelTrip[]>(incomingTrips);
+  const [localLuggagePolicy, setLocalLuggagePolicy] = useState(incomingLuggagePolicy);
+
+  const lastSyncedRef = useRef<string>(JSON.stringify({ trips: incomingTrips, luggagePolicy: incomingLuggagePolicy }));
+  const debouncedTrips = useDebounce(localTrips, 500);
+  const debouncedLuggagePolicy = useDebounce(localLuggagePolicy, 500);
+
+  // Sync from parent when data changes externally
+  useEffect(() => {
+    const next = JSON.stringify({ trips: incomingTrips, luggagePolicy: incomingLuggagePolicy });
+    if (next !== lastSyncedRef.current) {
+      lastSyncedRef.current = next;
+      setLocalTrips(incomingTrips);
+      setLocalLuggagePolicy(incomingLuggagePolicy);
+    }
+  }, [incomingTrips, incomingLuggagePolicy]);
+
+  // Save to parent when debounced data changes
+  useEffect(() => {
+    const next = JSON.stringify({ trips: debouncedTrips, luggagePolicy: debouncedLuggagePolicy });
+    if (next !== lastSyncedRef.current) {
+      lastSyncedRef.current = next;
+      onChange({ ...data, trips: debouncedTrips, luggagePolicy: debouncedLuggagePolicy });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedTrips, debouncedLuggagePolicy]);
 
   const addTrip = () => {
     const newTrip: TravelTrip = {
@@ -62,16 +93,17 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
       destination: '',
       passengers: '',
     };
-    onChange({ ...data, trips: [...trips, newTrip] });
+    setLocalTrips((prev) => [...prev, newTrip]);
   };
 
   const updateTrip = (tripId: string, updates: Partial<TravelTrip>) => {
-    const newTrips = trips.map((t) => (t.id === tripId ? { ...t, ...updates } : t));
-    onChange({ ...data, trips: newTrips });
+    setLocalTrips((prev) =>
+      prev.map((t) => (t.id === tripId ? { ...t, ...updates } : t))
+    );
   };
 
   const removeTrip = (tripId: string) => {
-    onChange({ ...data, trips: trips.filter((t) => t.id !== tripId) });
+    setLocalTrips((prev) => prev.filter((t) => t.id !== tripId));
   };
 
   return (
@@ -80,8 +112,8 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
       <div className="space-y-2">
         <Label>Política de Equipaje</Label>
         <Textarea
-          value={blockData.luggagePolicy || ''}
-          onChange={(e) => onChange({ ...data, luggagePolicy: e.target.value })}
+          value={localLuggagePolicy}
+          onChange={(e) => setLocalLuggagePolicy(e.target.value)}
           placeholder="Ej: Equipaje de mano: 55x40x23cm, máx 10kg. Facturado: 23kg incluido."
           className="min-h-[80px]"
         />
@@ -90,7 +122,7 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
       {/* Trips Table */}
       <div className="space-y-2">
         <Label>Desplazamientos</Label>
-        {trips.length > 0 ? (
+        {localTrips.length > 0 ? (
           <div className="border rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
@@ -106,7 +138,7 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {trips.map((trip) => (
+                {localTrips.map((trip) => (
                   <TableRow key={trip.id}>
                     <TableCell>
                       <Input

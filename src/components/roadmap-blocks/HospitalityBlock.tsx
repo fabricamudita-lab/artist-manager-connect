@@ -1,4 +1,5 @@
-import { Plus, Trash2, MapPin, ExternalLink } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Trash2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,7 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface Hotel {
   id: string;
@@ -57,8 +59,42 @@ const roomTypes = [
 
 export function HospitalityBlock({ data, onChange }: HospitalityBlockProps) {
   const blockData = data as HospitalityBlockData;
-  const hotels = blockData.hotels || [];
-  const roomingList = blockData.roomingList || [];
+  const incomingHotels = blockData.hotels || [];
+  const incomingRoomingList = blockData.roomingList || [];
+  const incomingDietNotes = blockData.dietNotes || '';
+
+  // Local state for immediate UI updates
+  const [localHotels, setLocalHotels] = useState<Hotel[]>(incomingHotels);
+  const [localRoomingList, setLocalRoomingList] = useState<RoomAssignment[]>(incomingRoomingList);
+  const [localDietNotes, setLocalDietNotes] = useState(incomingDietNotes);
+
+  const lastSyncedRef = useRef<string>(
+    JSON.stringify({ hotels: incomingHotels, roomingList: incomingRoomingList, dietNotes: incomingDietNotes })
+  );
+  const debouncedHotels = useDebounce(localHotels, 500);
+  const debouncedRoomingList = useDebounce(localRoomingList, 500);
+  const debouncedDietNotes = useDebounce(localDietNotes, 500);
+
+  // Sync from parent when data changes externally
+  useEffect(() => {
+    const next = JSON.stringify({ hotels: incomingHotels, roomingList: incomingRoomingList, dietNotes: incomingDietNotes });
+    if (next !== lastSyncedRef.current) {
+      lastSyncedRef.current = next;
+      setLocalHotels(incomingHotels);
+      setLocalRoomingList(incomingRoomingList);
+      setLocalDietNotes(incomingDietNotes);
+    }
+  }, [incomingHotels, incomingRoomingList, incomingDietNotes]);
+
+  // Save to parent when debounced data changes
+  useEffect(() => {
+    const next = JSON.stringify({ hotels: debouncedHotels, roomingList: debouncedRoomingList, dietNotes: debouncedDietNotes });
+    if (next !== lastSyncedRef.current) {
+      lastSyncedRef.current = next;
+      onChange({ ...data, hotels: debouncedHotels, roomingList: debouncedRoomingList, dietNotes: debouncedDietNotes });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedHotels, debouncedRoomingList, debouncedDietNotes]);
 
   const addHotel = () => {
     const newHotel: Hotel = {
@@ -71,16 +107,17 @@ export function HospitalityBlock({ data, onChange }: HospitalityBlockProps) {
       checkOut: '',
       breakfastTime: '',
     };
-    onChange({ ...data, hotels: [...hotels, newHotel] });
+    setLocalHotels((prev) => [...prev, newHotel]);
   };
 
   const updateHotel = (hotelId: string, updates: Partial<Hotel>) => {
-    const newHotels = hotels.map((h) => (h.id === hotelId ? { ...h, ...updates } : h));
-    onChange({ ...data, hotels: newHotels });
+    setLocalHotels((prev) =>
+      prev.map((h) => (h.id === hotelId ? { ...h, ...updates } : h))
+    );
   };
 
   const removeHotel = (hotelId: string) => {
-    onChange({ ...data, hotels: hotels.filter((h) => h.id !== hotelId) });
+    setLocalHotels((prev) => prev.filter((h) => h.id !== hotelId));
   };
 
   const addRoomAssignment = () => {
@@ -89,16 +126,17 @@ export function HospitalityBlock({ data, onChange }: HospitalityBlockProps) {
       passenger: '',
       roomType: 'single',
     };
-    onChange({ ...data, roomingList: [...roomingList, newAssignment] });
+    setLocalRoomingList((prev) => [...prev, newAssignment]);
   };
 
   const updateRoomAssignment = (assignmentId: string, updates: Partial<RoomAssignment>) => {
-    const newList = roomingList.map((r) => (r.id === assignmentId ? { ...r, ...updates } : r));
-    onChange({ ...data, roomingList: newList });
+    setLocalRoomingList((prev) =>
+      prev.map((r) => (r.id === assignmentId ? { ...r, ...updates } : r))
+    );
   };
 
   const removeRoomAssignment = (assignmentId: string) => {
-    onChange({ ...data, roomingList: roomingList.filter((r) => r.id !== assignmentId) });
+    setLocalRoomingList((prev) => prev.filter((r) => r.id !== assignmentId));
   };
 
   return (
@@ -112,9 +150,9 @@ export function HospitalityBlock({ data, onChange }: HospitalityBlockProps) {
             Hotel
           </Button>
         </div>
-        {hotels.length > 0 ? (
+        {localHotels.length > 0 ? (
           <div className="grid grid-cols-1 gap-4">
-            {hotels.map((hotel) => (
+            {localHotels.map((hotel) => (
               <Card key={hotel.id}>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -212,7 +250,7 @@ export function HospitalityBlock({ data, onChange }: HospitalityBlockProps) {
             Pasajero
           </Button>
         </div>
-        {roomingList.length > 0 ? (
+        {localRoomingList.length > 0 ? (
           <div className="border rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
@@ -223,7 +261,7 @@ export function HospitalityBlock({ data, onChange }: HospitalityBlockProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {roomingList.map((assignment) => (
+                {localRoomingList.map((assignment) => (
                   <TableRow key={assignment.id}>
                     <TableCell>
                       <Input
@@ -276,8 +314,8 @@ export function HospitalityBlock({ data, onChange }: HospitalityBlockProps) {
       <div className="space-y-2">
         <Label>Notas de Dietas</Label>
         <Textarea
-          value={blockData.dietNotes || ''}
-          onChange={(e) => onChange({ ...data, dietNotes: e.target.value })}
+          value={localDietNotes}
+          onChange={(e) => setLocalDietNotes(e.target.value)}
           placeholder="Ej: Solo desayunos incluidos. Alergias: María - gluten free."
           className="min-h-[80px]"
         />
