@@ -225,28 +225,28 @@ export default function RoadmapDetail() {
           <Accordion type="multiple" defaultValue={blocks.map(b => b.id)} className="space-y-4">
             {blocks.map((block) => (
               <AccordionItem key={block.id} value={block.id} className="border rounded-lg bg-card group">
-                <div className="flex items-center justify-between px-4 py-3">
-                  <div className="flex items-center gap-2 flex-1">
-                    <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
-                    <AccordionTrigger className="flex-1 hover:no-underline py-0 [&>svg]:hidden">
+                <AccordionTrigger className="px-4 py-3 hover:no-underline [&>svg]:hidden">
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
                       <span className="text-base font-semibold">{blockTypeLabels[block.block_type]}</span>
-                    </AccordionTrigger>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteBlock.mutate(block.id);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                      <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteBlock.mutate(block.id);
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                    <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                  </div>
-                </div>
+                </AccordionTrigger>
                 <AccordionContent className="px-4 pb-4">
                   {renderBlock(block)}
                 </AccordionContent>
