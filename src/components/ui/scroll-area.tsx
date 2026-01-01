@@ -5,23 +5,69 @@ import { cn } from "@/lib/utils"
 
 const ScrollArea = React.forwardRef<
   React.ElementRef<typeof ScrollAreaPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root>
->(({ className, children, ...props }, ref) => (
-  <ScrollAreaPrimitive.Root
-    ref={ref}
-    className={cn("relative overflow-hidden", className)}
-    {...props}
-  >
-    <ScrollAreaPrimitive.Viewport
-      className="h-full w-full rounded-[inherit] overflow-auto touch-pan-y overscroll-contain"
-      style={{ WebkitOverflowScrolling: "touch" }}
+  React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root> & {
+    enableDragScroll?: boolean;
+  }
+>(({ className, children, enableDragScroll = true, ...props }, ref) => {
+  const viewportRef = React.useRef<HTMLDivElement>(null);
+  const isDragging = React.useRef(false);
+  const startY = React.useRef(0);
+  const scrollTop = React.useRef(0);
+
+  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
+    if (!enableDragScroll || !viewportRef.current) return;
+    isDragging.current = true;
+    startY.current = e.pageY;
+    scrollTop.current = viewportRef.current.scrollTop;
+    viewportRef.current.style.cursor = 'grabbing';
+    viewportRef.current.style.userSelect = 'none';
+  }, [enableDragScroll]);
+
+  const handleMouseMove = React.useCallback((e: React.MouseEvent) => {
+    if (!isDragging.current || !viewportRef.current) return;
+    const deltaY = e.pageY - startY.current;
+    viewportRef.current.scrollTop = scrollTop.current - deltaY;
+  }, []);
+
+  const handleMouseUp = React.useCallback(() => {
+    if (!viewportRef.current) return;
+    isDragging.current = false;
+    viewportRef.current.style.cursor = '';
+    viewportRef.current.style.userSelect = '';
+  }, []);
+
+  const handleMouseLeave = React.useCallback(() => {
+    if (!viewportRef.current) return;
+    isDragging.current = false;
+    viewportRef.current.style.cursor = '';
+    viewportRef.current.style.userSelect = '';
+  }, []);
+
+  return (
+    <ScrollAreaPrimitive.Root
+      ref={ref}
+      className={cn("relative overflow-hidden", className)}
+      {...props}
     >
-      {children}
-    </ScrollAreaPrimitive.Viewport>
-    <ScrollBar />
-    <ScrollAreaPrimitive.Corner />
-  </ScrollAreaPrimitive.Root>
-))
+      <ScrollAreaPrimitive.Viewport
+        ref={viewportRef}
+        className={cn(
+          "h-full w-full rounded-[inherit] overflow-auto touch-pan-y overscroll-contain",
+          enableDragScroll && "cursor-grab"
+        )}
+        style={{ WebkitOverflowScrolling: "touch" }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+      >
+        {children}
+      </ScrollAreaPrimitive.Viewport>
+      <ScrollBar />
+      <ScrollAreaPrimitive.Corner />
+    </ScrollAreaPrimitive.Root>
+  );
+})
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
 
 const ScrollBar = React.forwardRef<

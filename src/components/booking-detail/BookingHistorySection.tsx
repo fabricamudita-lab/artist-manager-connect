@@ -320,7 +320,7 @@ export function BookingHistorySection({ bookingId }: BookingHistorySectionProps)
               Sin cambios registrados
             </div>
           ) : (
-            <ScrollArea className="max-h-80">
+            <ScrollArea className="max-h-80" type="always">
               <div className="p-3 space-y-2">
                 {history.map((event, index) => (
                   <div 
