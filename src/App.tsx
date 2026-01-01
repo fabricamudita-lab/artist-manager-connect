@@ -50,6 +50,10 @@ import ReleaseCreditos from "./pages/release-sections/ReleaseCreditos";
 import ReleaseAudio from "./pages/release-sections/ReleaseAudio";
 import ReleaseEPF from "./pages/release-sections/ReleaseEPF";
 
+// Roadmaps pages
+import Roadmaps from "./pages/Roadmaps";
+import RoadmapDetail from "./pages/RoadmapDetail";
+
 // Management pages
 import MyManagement from "./pages/MyManagement";
 import ArtistProfile from "./pages/ArtistProfile";
@@ -337,6 +341,21 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <ReleaseEPF />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              {/* Roadmaps Routes */}
+              <Route path="/roadmaps" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Roadmaps />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/roadmaps/:id" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <RoadmapDetail />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
