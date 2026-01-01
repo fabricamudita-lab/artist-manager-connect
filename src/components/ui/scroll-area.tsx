@@ -6,64 +6,99 @@ import { cn } from "@/lib/utils"
 const ScrollArea = React.forwardRef<
   React.ElementRef<typeof ScrollAreaPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root> & {
+    /** Enables click+drag (grab) scrolling with the mouse. */
     enableDragScroll?: boolean;
   }
 >(({ className, children, enableDragScroll = true, ...props }, ref) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const isDragging = React.useRef(false);
-  const startY = React.useRef(0);
-  const scrollTop = React.useRef(0);
 
   React.useEffect(() => {
     if (!enableDragScroll) return;
-    
+
     const container = containerRef.current;
     if (!container) return;
 
-    // Find the viewport element inside the container
-    const viewport = container.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+    const viewport = container.querySelector(
+      "[data-radix-scroll-area-viewport]"
+    ) as HTMLElement | null;
     if (!viewport) return;
 
-    const handleMouseDown = (e: MouseEvent) => {
-      isDragging.current = true;
-      startY.current = e.pageY;
-      scrollTop.current = viewport.scrollTop;
-      viewport.style.cursor = 'grabbing';
-      viewport.style.userSelect = 'none';
+    const state = {
+      dragging: false,
+      startY: 0,
+      startScrollTop: 0,
+      pointerId: -1,
     };
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging.current) return;
+    const isInteractiveTarget = (target: EventTarget | null) => {
+      if (!(target instanceof Element)) return false;
+      return Boolean(
+        target.closest(
+          "button,a,input,textarea,select,summary,[role='button'],[data-no-drag-scroll]"
+        )
+      );
+    };
+
+    viewport.style.cursor = "grab";
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      if (e.button !== 0) return;
+      if (isInteractiveTarget(e.target)) return;
+
+      state.dragging = true;
+      state.pointerId = e.pointerId;
+      state.startY = e.clientY;
+      state.startScrollTop = viewport.scrollTop;
+
+      viewport.style.cursor = "grabbing";
+      viewport.style.userSelect = "none";
+
+      try {
+        viewport.setPointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!state.dragging) return;
+      if (e.pointerId !== state.pointerId) return;
+
+      // Prevent text selection while dragging
       e.preventDefault();
-      const deltaY = e.pageY - startY.current;
-      viewport.scrollTop = scrollTop.current - deltaY;
+
+      const deltaY = e.clientY - state.startY;
+      viewport.scrollTop = state.startScrollTop - deltaY;
     };
 
-    const handleMouseUp = () => {
-      isDragging.current = false;
-      viewport.style.cursor = '';
-      viewport.style.userSelect = '';
+    const endDrag = (e?: PointerEvent) => {
+      if (!state.dragging) return;
+      state.dragging = false;
+      viewport.style.cursor = "grab";
+      viewport.style.userSelect = "";
+      if (e) {
+        try {
+          viewport.releasePointerCapture(e.pointerId);
+        } catch {
+          // ignore
+        }
+      }
     };
 
-    const handleMouseLeave = () => {
-      isDragging.current = false;
-      viewport.style.cursor = '';
-      viewport.style.userSelect = '';
-    };
+    const onPointerUp = (e: PointerEvent) => endDrag(e);
+    const onPointerCancel = (e: PointerEvent) => endDrag(e);
 
-    viewport.addEventListener('mousedown', handleMouseDown);
-    viewport.addEventListener('mousemove', handleMouseMove);
-    viewport.addEventListener('mouseup', handleMouseUp);
-    viewport.addEventListener('mouseleave', handleMouseLeave);
-
-    // Add grab cursor
-    viewport.style.cursor = 'grab';
+    viewport.addEventListener("pointerdown", onPointerDown);
+    viewport.addEventListener("pointermove", onPointerMove, { passive: false });
+    viewport.addEventListener("pointerup", onPointerUp);
+    viewport.addEventListener("pointercancel", onPointerCancel);
 
     return () => {
-      viewport.removeEventListener('mousedown', handleMouseDown);
-      viewport.removeEventListener('mousemove', handleMouseMove);
-      viewport.removeEventListener('mouseup', handleMouseUp);
-      viewport.removeEventListener('mouseleave', handleMouseLeave);
+      viewport.removeEventListener("pointerdown", onPointerDown);
+      viewport.removeEventListener("pointermove", onPointerMove);
+      viewport.removeEventListener("pointerup", onPointerUp);
+      viewport.removeEventListener("pointercancel", onPointerCancel);
     };
   }, [enableDragScroll]);
 
