@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Trash2, Clock } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface ScheduleItem {
   id: string;
@@ -51,32 +52,62 @@ const activityTypes = [
 
 export function ScheduleBlock({ data, onChange }: ScheduleBlockProps) {
   const blockData = data as ScheduleBlockData;
-  const days = blockData.days || [];
-  const [activeDay, setActiveDay] = useState(days[0]?.id || '');
+  const incomingDays = useMemo(() => blockData.days || [], [blockData.days]);
+
+  // Local state to avoid losing keystrokes due to re-renders + remote saves.
+  const [localDays, setLocalDays] = useState<ScheduleDay[]>(incomingDays);
+  const [activeDay, setActiveDay] = useState(incomingDays[0]?.id || '');
+
+  const lastSyncedRef = useRef<string>(JSON.stringify(incomingDays));
+  const debouncedDays = useDebounce(localDays, 500);
+
+  // Sync from parent when server/queries update the block.
+  useEffect(() => {
+    const next = JSON.stringify(incomingDays);
+    if (next !== lastSyncedRef.current) {
+      lastSyncedRef.current = next;
+      setLocalDays(incomingDays);
+      setActiveDay((prev) => {
+        const exists = incomingDays.some((d) => d.id === prev);
+        return exists ? prev : (incomingDays[0]?.id || '');
+      });
+    }
+  }, [incomingDays]);
+
+  // Persist to parent (and DB) in a debounced way.
+  useEffect(() => {
+    const next = JSON.stringify(debouncedDays);
+    if (next !== lastSyncedRef.current) {
+      lastSyncedRef.current = next;
+      onChange({ ...data, days: debouncedDays });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedDays]);
 
   const addDay = () => {
     const newDay: ScheduleDay = {
       id: crypto.randomUUID(),
-      label: `Día ${days.length + 1}`,
+      label: `Día ${localDays.length + 1}`,
       date: '',
       items: [],
     };
-    const newDays = [...days, newDay];
-    onChange({ ...data, days: newDays });
+    setLocalDays((prev) => [...prev, newDay]);
     setActiveDay(newDay.id);
   };
 
   const updateDay = (dayId: string, updates: Partial<ScheduleDay>) => {
-    const newDays = days.map((d) => (d.id === dayId ? { ...d, ...updates } : d));
-    onChange({ ...data, days: newDays });
+    setLocalDays((prev) => prev.map((d) => (d.id === dayId ? { ...d, ...updates } : d)));
   };
 
   const removeDay = (dayId: string) => {
-    const newDays = days.filter((d) => d.id !== dayId);
-    onChange({ ...data, days: newDays });
-    if (activeDay === dayId && newDays.length > 0) {
-      setActiveDay(newDays[0].id);
-    }
+    setLocalDays((prev) => {
+      const next = prev.filter((d) => d.id !== dayId);
+      setActiveDay((current) => {
+        if (current !== dayId) return current;
+        return next[0]?.id || '';
+      });
+      return next;
+    });
   };
 
   const addItem = (dayId: string) => {
@@ -89,33 +120,33 @@ export function ScheduleBlock({ data, onChange }: ScheduleBlockProps) {
       location: '',
       notes: '',
     };
-    const newDays = days.map((d) =>
-      d.id === dayId ? { ...d, items: [...d.items, newItem] } : d
+
+    setLocalDays((prev) =>
+      prev.map((d) => (d.id === dayId ? { ...d, items: [...d.items, newItem] } : d))
     );
-    onChange({ ...data, days: newDays });
   };
 
   const updateItem = (dayId: string, itemId: string, updates: Partial<ScheduleItem>) => {
-    const newDays = days.map((d) =>
-      d.id === dayId
-        ? { ...d, items: d.items.map((i) => (i.id === itemId ? { ...i, ...updates } : i)) }
-        : d
+    setLocalDays((prev) =>
+      prev.map((d) =>
+        d.id === dayId
+          ? { ...d, items: d.items.map((i) => (i.id === itemId ? { ...i, ...updates } : i)) }
+          : d
+      )
     );
-    onChange({ ...data, days: newDays });
   };
 
   const removeItem = (dayId: string, itemId: string) => {
-    const newDays = days.map((d) =>
-      d.id === dayId ? { ...d, items: d.items.filter((i) => i.id !== itemId) } : d
+    setLocalDays((prev) =>
+      prev.map((d) => (d.id === dayId ? { ...d, items: d.items.filter((i) => i.id !== itemId) } : d))
     );
-    onChange({ ...data, days: newDays });
   };
 
-  const currentDay = days.find((d) => d.id === activeDay);
+  const currentDay = localDays.find((d) => d.id === activeDay);
 
   return (
     <div className="space-y-4">
-      {days.length === 0 ? (
+      {localDays.length === 0 ? (
         <div className="text-center py-8">
           <p className="text-muted-foreground mb-4">No hay días configurados</p>
           <Button onClick={addDay} variant="outline" className="gap-2">
@@ -127,18 +158,29 @@ export function ScheduleBlock({ data, onChange }: ScheduleBlockProps) {
         <Tabs value={activeDay} onValueChange={setActiveDay}>
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             <TabsList className="flex-wrap h-auto">
-              {days.map((day) => (
+              {localDays.map((day) => (
                 <TabsTrigger key={day.id} value={day.id} className="relative group">
                   {day.label}
-                  <button
+                  {/* Avoid nesting <button> inside <button> (TabsTrigger renders a button) */}
+                  <span
+                    role="button"
+                    tabIndex={0}
                     onClick={(e) => {
                       e.stopPropagation();
                       removeDay(day.id);
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        removeDay(day.id);
+                      }
+                    }}
+                    aria-label={`Eliminar ${day.label}`}
                     className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs"
                   >
                     ×
-                  </button>
+                  </span>
                 </TabsTrigger>
               ))}
             </TabsList>
