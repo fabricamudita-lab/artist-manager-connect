@@ -194,47 +194,28 @@ export function CompactBookingCard({
           </Card>
         </TooltipTrigger>
         <TooltipContent side="right" className="max-w-xs">
-          <div className="space-y-2 text-xs">
+          <div className="space-y-1.5 text-xs">
             <div className="font-semibold">{offer.venue || offer.lugar || 'Sin venue'}</div>
             
-            {offer.fee && (
-              <div className="flex justify-between">
-                <span>Fee:</span>
-                <span className="font-medium">{formatCurrency(offer.fee)}</span>
-              </div>
-            )}
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">Oferta:</span>
+              <span className="font-medium">{offer.oferta || '—'}</span>
+            </div>
             
-            {offer.comision_euros && (
-              <div className="flex justify-between">
-                <span>Comisión:</span>
-                <span className="font-medium">{formatCurrency(offer.comision_euros)}</span>
-              </div>
-            )}
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">Formato:</span>
+              <span className="font-medium">{offer.formato || '—'}</span>
+            </div>
             
-            {offer.notas && (() => {
-              // Parse JSON notes to get the last note content
-              try {
-                const notasData = JSON.parse(offer.notas);
-                if (Array.isArray(notasData) && notasData.length > 0) {
-                  const lastNote = notasData[notasData.length - 1];
-                  return (
-                    <div>
-                      <span className="font-medium">Notas:</span>
-                      <p className="text-muted-foreground mt-1 line-clamp-2">{lastNote.content || ''}</p>
-                    </div>
-                  );
-                }
-              } catch {
-                // Not JSON, show as legacy note
-                return (
-                  <div>
-                    <span className="font-medium">Notas:</span>
-                    <p className="text-muted-foreground mt-1 line-clamp-2">{offer.notas}</p>
-                  </div>
-                );
-              }
-              return null;
-            })()}
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">Capacidad:</span>
+              <span className="font-medium">{offer.capacidad ? offer.capacidad.toLocaleString('es-ES') : '—'}</span>
+            </div>
+            
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">Entradas vendidas:</span>
+              <span className="font-medium">{(offer as any).publico || '—'}</span>
+            </div>
           </div>
         </TooltipContent>
       </Tooltip>
