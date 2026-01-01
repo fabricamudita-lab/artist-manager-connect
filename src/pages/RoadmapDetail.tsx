@@ -1,13 +1,18 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, GripVertical, Save } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, GripVertical, Save, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -217,29 +222,37 @@ export default function RoadmapDetail() {
         </div>
 
         {blocks && blocks.length > 0 ? (
-          <div className="space-y-4">
+          <Accordion type="multiple" defaultValue={blocks.map(b => b.id)} className="space-y-4">
             {blocks.map((block) => (
-              <Card key={block.id} className="group">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
-                      <CardTitle className="text-base">{blockTypeLabels[block.block_type]}</CardTitle>
-                    </div>
+              <AccordionItem key={block.id} value={block.id} className="border rounded-lg bg-card group">
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-2 flex-1">
+                    <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
+                    <AccordionTrigger className="flex-1 hover:no-underline py-0 [&>svg]:hidden">
+                      <span className="text-base font-semibold">{blockTypeLabels[block.block_type]}</span>
+                    </AccordionTrigger>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
                       size="icon"
                       className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                      onClick={() => deleteBlock.mutate(block.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteBlock.mutate(block.id);
+                      }}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
                   </div>
-                </CardHeader>
-                <CardContent>{renderBlock(block)}</CardContent>
-              </Card>
+                </div>
+                <AccordionContent className="px-4 pb-4">
+                  {renderBlock(block)}
+                </AccordionContent>
+              </AccordionItem>
             ))}
-          </div>
+          </Accordion>
         ) : (
           <Card className="p-8 text-center">
             <p className="text-muted-foreground">
