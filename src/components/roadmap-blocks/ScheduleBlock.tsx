@@ -111,9 +111,19 @@ export function ScheduleBlock({ data, onChange }: ScheduleBlockProps) {
   };
 
   const addItem = (dayId: string) => {
+    // Find the last known time from the previous activity
+    const day = localDays.find((d) => d.id === dayId);
+    let defaultStartTime = '';
+    
+    if (day && day.items.length > 0) {
+      const lastItem = day.items[day.items.length - 1];
+      // Use endTime if available, otherwise use startTime
+      defaultStartTime = lastItem.endTime || lastItem.startTime || '';
+    }
+
     const newItem: ScheduleItem = {
       id: crypto.randomUUID(),
-      startTime: '',
+      startTime: defaultStartTime,
       endTime: '',
       activityType: 'other',
       title: '',
