@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Plane, Train } from 'lucide-react';
+import { Plus, Trash2, Plane, Train, Bus, Car } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/table';
 import { useDebounce } from '@/hooks/useDebounce';
 
-interface TravelTrip {
+export interface TravelTrip {
   id: string;
   date: string;
   medium: 'plane' | 'train' | 'bus' | 'car';
@@ -29,7 +29,9 @@ interface TravelTrip {
   pnr: string;
   origin: string;
   destination: string;
-  passengers: string;
+  departureTime: string;
+  arrivalTime: string;
+  passengers: string[];
 }
 
 interface TravelBlockData {
@@ -45,8 +47,8 @@ interface TravelBlockProps {
 const mediumOptions = [
   { value: 'plane', label: 'Avión', icon: Plane },
   { value: 'train', label: 'Tren', icon: Train },
-  { value: 'bus', label: 'Bus' },
-  { value: 'car', label: 'Coche' },
+  { value: 'bus', label: 'Bus', icon: Bus },
+  { value: 'car', label: 'Coche', icon: Car },
 ];
 
 export function TravelBlock({ data, onChange }: TravelBlockProps) {
@@ -91,7 +93,9 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
       pnr: '',
       origin: '',
       destination: '',
-      passengers: '',
+      departureTime: '',
+      arrivalTime: '',
+      passengers: [],
     };
     setLocalTrips((prev) => [...prev, newTrip]);
   };
@@ -104,6 +108,18 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
 
   const removeTrip = (tripId: string) => {
     setLocalTrips((prev) => prev.filter((t) => t.id !== tripId));
+  };
+
+  const handlePassengersChange = (tripId: string, value: string) => {
+    // Convert comma-separated string to array
+    const passengers = value.split(',').map((p) => p.trim()).filter(Boolean);
+    updateTrip(tripId, { passengers });
+  };
+
+  const getPassengersString = (passengers: string[] | string | undefined): string => {
+    if (!passengers) return '';
+    if (typeof passengers === 'string') return passengers;
+    return passengers.join(', ');
   };
 
   return (
@@ -123,17 +139,19 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
       <div className="space-y-2">
         <Label>Desplazamientos</Label>
         {localTrips.length > 0 ? (
-          <div className="border rounded-lg overflow-hidden">
+          <div className="border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-28">Fecha</TableHead>
                   <TableHead className="w-24">Medio</TableHead>
-                  <TableHead>Nº Vuelo/Tren</TableHead>
-                  <TableHead>PNR</TableHead>
+                  <TableHead className="w-24">Nº Vuelo</TableHead>
+                  <TableHead className="w-24">PNR</TableHead>
                   <TableHead>Origen</TableHead>
                   <TableHead>Destino</TableHead>
-                  <TableHead>Pasajeros</TableHead>
+                  <TableHead className="w-20">Salida</TableHead>
+                  <TableHead className="w-20">Llegada</TableHead>
+                  <TableHead className="min-w-[150px]">Pasajeros</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -159,7 +177,10 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
                         <SelectContent>
                           {mediumOptions.map((opt) => (
                             <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
+                              <span className="flex items-center gap-1">
+                                <opt.icon className="w-3 h-3" />
+                                {opt.label}
+                              </span>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -185,7 +206,7 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
                       <Input
                         value={trip.origin}
                         onChange={(e) => updateTrip(trip.id, { origin: e.target.value })}
-                        placeholder="MAD"
+                        placeholder="Madrid (MAD)"
                         className="h-8"
                       />
                     </TableCell>
@@ -193,15 +214,31 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
                       <Input
                         value={trip.destination}
                         onChange={(e) => updateTrip(trip.id, { destination: e.target.value })}
-                        placeholder="BCN"
+                        placeholder="Roma (FCO)"
                         className="h-8"
                       />
                     </TableCell>
                     <TableCell>
                       <Input
-                        value={trip.passengers}
-                        onChange={(e) => updateTrip(trip.id, { passengers: e.target.value })}
-                        placeholder="Juan, María..."
+                        type="time"
+                        value={trip.departureTime}
+                        onChange={(e) => updateTrip(trip.id, { departureTime: e.target.value })}
+                        className="h-8"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="time"
+                        value={trip.arrivalTime}
+                        onChange={(e) => updateTrip(trip.id, { arrivalTime: e.target.value })}
+                        className="h-8"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        value={getPassengersString(trip.passengers)}
+                        onChange={(e) => handlePassengersChange(trip.id, e.target.value)}
+                        placeholder="Juan, María, Pedro"
                         className="h-8"
                       />
                     </TableCell>
