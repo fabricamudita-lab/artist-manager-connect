@@ -1,4 +1,5 @@
-import { Plus, Trash2, Check } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +17,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface BacklineItem {
   id: string;
@@ -51,7 +53,31 @@ const categories = [
 
 export function ProductionBlock({ data, onChange }: ProductionBlockProps) {
   const blockData = data as ProductionBlockData;
-  const venues = blockData.venues || [];
+  const incomingVenues = blockData.venues || [];
+
+  // Local state for immediate UI updates
+  const [localVenues, setLocalVenues] = useState<VenueBackline[]>(incomingVenues);
+  const lastSyncedRef = useRef<string>(JSON.stringify(incomingVenues));
+  const debouncedVenues = useDebounce(localVenues, 500);
+
+  // Sync from parent when data changes externally
+  useEffect(() => {
+    const next = JSON.stringify(incomingVenues);
+    if (next !== lastSyncedRef.current) {
+      lastSyncedRef.current = next;
+      setLocalVenues(incomingVenues);
+    }
+  }, [incomingVenues]);
+
+  // Save to parent when debounced data changes
+  useEffect(() => {
+    const next = JSON.stringify(debouncedVenues);
+    if (next !== lastSyncedRef.current) {
+      lastSyncedRef.current = next;
+      onChange({ ...data, venues: debouncedVenues });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedVenues]);
 
   const addVenue = () => {
     const newVenue: VenueBackline = {
@@ -59,16 +85,17 @@ export function ProductionBlock({ data, onChange }: ProductionBlockProps) {
       venueName: '',
       items: [],
     };
-    onChange({ ...data, venues: [...venues, newVenue] });
+    setLocalVenues((prev) => [...prev, newVenue]);
   };
 
   const updateVenue = (venueId: string, updates: Partial<VenueBackline>) => {
-    const newVenues = venues.map((v) => (v.id === venueId ? { ...v, ...updates } : v));
-    onChange({ ...data, venues: newVenues });
+    setLocalVenues((prev) =>
+      prev.map((v) => (v.id === venueId ? { ...v, ...updates } : v))
+    );
   };
 
   const removeVenue = (venueId: string) => {
-    onChange({ ...data, venues: venues.filter((v) => v.id !== venueId) });
+    setLocalVenues((prev) => prev.filter((v) => v.id !== venueId));
   };
 
   const addItem = (venueId: string) => {
@@ -80,33 +107,36 @@ export function ProductionBlock({ data, onChange }: ProductionBlockProps) {
       provider: '',
       confirmed: false,
     };
-    const newVenues = venues.map((v) =>
-      v.id === venueId ? { ...v, items: [...v.items, newItem] } : v
+    setLocalVenues((prev) =>
+      prev.map((v) =>
+        v.id === venueId ? { ...v, items: [...v.items, newItem] } : v
+      )
     );
-    onChange({ ...data, venues: newVenues });
   };
 
   const updateItem = (venueId: string, itemId: string, updates: Partial<BacklineItem>) => {
-    const newVenues = venues.map((v) =>
-      v.id === venueId
-        ? { ...v, items: v.items.map((i) => (i.id === itemId ? { ...i, ...updates } : i)) }
-        : v
+    setLocalVenues((prev) =>
+      prev.map((v) =>
+        v.id === venueId
+          ? { ...v, items: v.items.map((i) => (i.id === itemId ? { ...i, ...updates } : i)) }
+          : v
+      )
     );
-    onChange({ ...data, venues: newVenues });
   };
 
   const removeItem = (venueId: string, itemId: string) => {
-    const newVenues = venues.map((v) =>
-      v.id === venueId ? { ...v, items: v.items.filter((i) => i.id !== itemId) } : v
+    setLocalVenues((prev) =>
+      prev.map((v) =>
+        v.id === venueId ? { ...v, items: v.items.filter((i) => i.id !== itemId) } : v
+      )
     );
-    onChange({ ...data, venues: newVenues });
   };
 
   return (
     <div className="space-y-4">
-      {venues.length > 0 ? (
+      {localVenues.length > 0 ? (
         <Accordion type="multiple" className="space-y-2">
-          {venues.map((venue) => (
+          {localVenues.map((venue) => (
             <AccordionItem key={venue.id} value={venue.id} className="border rounded-lg px-4">
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center gap-2 flex-1">

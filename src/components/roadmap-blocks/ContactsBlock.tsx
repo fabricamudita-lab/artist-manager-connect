@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Phone, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface Contact {
   id: string;
@@ -29,7 +31,31 @@ interface ContactsBlockProps {
 
 export function ContactsBlock({ data, onChange }: ContactsBlockProps) {
   const blockData = data as ContactsBlockData;
-  const contacts = blockData.contacts || [];
+  const incomingContacts = blockData.contacts || [];
+
+  // Local state for immediate UI updates
+  const [localContacts, setLocalContacts] = useState<Contact[]>(incomingContacts);
+  const lastSyncedRef = useRef<string>(JSON.stringify(incomingContacts));
+  const debouncedContacts = useDebounce(localContacts, 500);
+
+  // Sync from parent when data changes externally
+  useEffect(() => {
+    const next = JSON.stringify(incomingContacts);
+    if (next !== lastSyncedRef.current) {
+      lastSyncedRef.current = next;
+      setLocalContacts(incomingContacts);
+    }
+  }, [incomingContacts]);
+
+  // Save to parent when debounced data changes
+  useEffect(() => {
+    const next = JSON.stringify(debouncedContacts);
+    if (next !== lastSyncedRef.current) {
+      lastSyncedRef.current = next;
+      onChange({ ...data, contacts: debouncedContacts });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedContacts]);
 
   const addContact = () => {
     const newContact: Contact = {
@@ -39,21 +65,22 @@ export function ContactsBlock({ data, onChange }: ContactsBlockProps) {
       phone: '',
       email: '',
     };
-    onChange({ ...data, contacts: [...contacts, newContact] });
+    setLocalContacts((prev) => [...prev, newContact]);
   };
 
   const updateContact = (contactId: string, updates: Partial<Contact>) => {
-    const newContacts = contacts.map((c) => (c.id === contactId ? { ...c, ...updates } : c));
-    onChange({ ...data, contacts: newContacts });
+    setLocalContacts((prev) =>
+      prev.map((c) => (c.id === contactId ? { ...c, ...updates } : c))
+    );
   };
 
   const removeContact = (contactId: string) => {
-    onChange({ ...data, contacts: contacts.filter((c) => c.id !== contactId) });
+    setLocalContacts((prev) => prev.filter((c) => c.id !== contactId));
   };
 
   return (
     <div className="space-y-4">
-      {contacts.length > 0 ? (
+      {localContacts.length > 0 ? (
         <div className="border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
@@ -66,7 +93,7 @@ export function ContactsBlock({ data, onChange }: ContactsBlockProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {contacts.map((contact) => (
+              {localContacts.map((contact) => (
                 <TableRow key={contact.id}>
                   <TableCell>
                     <Input
