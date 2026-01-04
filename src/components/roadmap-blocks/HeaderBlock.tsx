@@ -3,10 +3,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useDebounce } from '@/hooks/useDebounce';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { X, Plus, CalendarDays } from 'lucide-react';
+import { X, Plus, CalendarDays, Plane, Calendar } from 'lucide-react';
 
 interface HeaderBlockData {
   artistName?: string;
@@ -148,11 +154,42 @@ export function HeaderBlock({ data, onChange, bookingSuggestion, onTourDatesChan
     setLocalData(prev => ({ ...prev, [field]: value }));
   };
 
-  const addDate = () => {
-    if (newDate && !localData.tourDates?.includes(newDate)) {
-      const updatedDates = [...(localData.tourDates || []), newDate].sort();
+  const addDate = (dateToAdd: string) => {
+    if (dateToAdd && !localData.tourDates?.includes(dateToAdd)) {
+      const updatedDates = [...(localData.tourDates || []), dateToAdd].sort();
       handleChange('tourDates', updatedDates);
       setNewDate('');
+    }
+  };
+
+  const addDayOff = () => {
+    const existingDates = localData.tourDates || [];
+    const eventDate = bookingSuggestion?.eventDate;
+    
+    if (existingDates.length > 0 || eventDate) {
+      const referenceDates = existingDates.length > 0 
+        ? [...existingDates].sort() 
+        : [eventDate!];
+      
+      const firstDate = new Date(referenceDates[0]);
+      const lastDate = new Date(referenceDates[referenceDates.length - 1]);
+      
+      // Try day before first date
+      const dayBefore = new Date(firstDate);
+      dayBefore.setDate(dayBefore.getDate() - 1);
+      const dayBeforeStr = dayBefore.toISOString().split('T')[0];
+      
+      // Try day after last date
+      const dayAfter = new Date(lastDate);
+      dayAfter.setDate(dayAfter.getDate() + 1);
+      const dayAfterStr = dayAfter.toISOString().split('T')[0];
+      
+      // Prefer day before if not already used, otherwise day after
+      if (!existingDates.includes(dayBeforeStr)) {
+        addDate(dayBeforeStr);
+      } else if (!existingDates.includes(dayAfterStr)) {
+        addDate(dayAfterStr);
+      }
     }
   };
 
@@ -291,24 +328,52 @@ export function HeaderBlock({ data, onChange, bookingSuggestion, onTourDatesChan
               </div>
             )}
 
-            {/* Add new date */}
-            <div className="flex gap-2">
+            {/* Add new date options */}
+            <div className="flex gap-2 flex-wrap">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <Plus className="w-4 h-4" />
+                    Añadir
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={addDayOff} className="gap-2">
+                    <Plane className="w-4 h-4" />
+                    Añadir Day Off
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      (día de viaje)
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => {
+                      // Open date picker by focusing the input
+                      const input = document.getElementById('new-tour-date-input') as HTMLInputElement;
+                      input?.showPicker?.();
+                    }} 
+                    className="gap-2"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    Añadir nueva fecha
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      (otro evento)
+                    </span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Input
+                id="new-tour-date-input"
                 type="date"
                 value={newDate}
-                onChange={(e) => setNewDate(e.target.value)}
-                className="flex-1"
+                onChange={(e) => {
+                  setNewDate(e.target.value);
+                  if (e.target.value) {
+                    addDate(e.target.value);
+                  }
+                }}
+                className="w-40"
               />
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={addDate}
-                disabled={!newDate}
-                className="gap-1"
-              >
-                <Plus className="w-4 h-4" />
-                Añadir
-              </Button>
             </div>
 
             {bookingSuggestion?.eventDate && !localData.tourDates?.includes(bookingSuggestion.eventDate) && (
@@ -316,10 +381,7 @@ export function HeaderBlock({ data, onChange, bookingSuggestion, onTourDatesChan
                 variant="ghost"
                 size="sm"
                 className="text-xs text-primary"
-                onClick={() => {
-                  const updatedDates = [...(localData.tourDates || []), bookingSuggestion.eventDate!].sort();
-                  handleChange('tourDates', updatedDates);
-                }}
+                onClick={() => addDate(bookingSuggestion.eventDate!)}
               >
                 + Añadir fecha del evento: {format(new Date(bookingSuggestion.eventDate), 'd MMM yyyy', { locale: es })}
               </Button>
