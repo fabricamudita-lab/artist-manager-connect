@@ -319,18 +319,31 @@ export default function RoadmapDetail() {
             <div className="space-y-2">
               <Label>Promotor</Label>
               <Input
-                value={roadmap.promoter || ''}
-                onChange={(e) => updateRoadmap.mutate({ promoter: e.target.value })}
+                value={resolvedPromoterName || roadmap.promoter || ''}
+                readOnly={!!linkedBooking}
+                onChange={(e) => !linkedBooking && updateRoadmap.mutate({ promoter: e.target.value })}
                 placeholder="Nombre del promotor"
+                className={linkedBooking ? 'bg-muted' : ''}
               />
+              {linkedBooking && resolvedPromoterName && (
+                <p className="text-xs text-muted-foreground">
+                  Promotor del evento vinculado
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Fecha del Evento</Label>
               <Input
                 type="date"
-                value={roadmap.start_date || ''}
-                onChange={(e) => updateRoadmap.mutate({ start_date: e.target.value || null })}
+                value={linkedBooking?.fecha || ''}
+                readOnly
+                className="bg-muted"
               />
+              {linkedBooking?.fecha && (
+                <p className="text-xs text-muted-foreground">
+                  Fecha del evento vinculado
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Hora Concierto</Label>
