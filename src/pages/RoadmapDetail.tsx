@@ -200,6 +200,7 @@ export default function RoadmapDetail() {
             {...props} 
             bookingSuggestion={bookingSuggestion} 
             onTourDatesChange={handleTourDatesChange}
+            onLinkBooking={() => setShowBookingSelector(true)}
           />
         );
       case 'schedule':

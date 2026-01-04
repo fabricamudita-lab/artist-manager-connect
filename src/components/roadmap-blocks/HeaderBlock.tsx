@@ -12,7 +12,7 @@ import {
 import { useDebounce } from '@/hooks/useDebounce';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { X, Plus, CalendarDays, Plane, Calendar } from 'lucide-react';
+import { X, Plus, CalendarDays, Plane, Calendar, Link2 } from 'lucide-react';
 
 interface HeaderBlockData {
   artistName?: string;
@@ -33,9 +33,10 @@ interface HeaderBlockProps {
   onChange: (data: Record<string, unknown>) => void;
   bookingSuggestion?: BookingSuggestion;
   onTourDatesChange?: (dates: string[]) => void; // Callback to sync dates with roadmap
+  onLinkBooking?: () => void; // Callback to open booking selector
 }
 
-export function HeaderBlock({ data, onChange, bookingSuggestion, onTourDatesChange }: HeaderBlockProps) {
+export function HeaderBlock({ data, onChange, bookingSuggestion, onTourDatesChange, onLinkBooking }: HeaderBlockProps) {
   const blockData = data as HeaderBlockData;
   
   // Local state for immediate UI updates
@@ -378,9 +379,11 @@ export function HeaderBlock({ data, onChange, bookingSuggestion, onTourDatesChan
                   )}
                   <DropdownMenuItem 
                     onClick={() => {
-                      // Open date picker by focusing the input
-                      const input = document.getElementById('new-tour-date-input') as HTMLInputElement;
-                      input?.showPicker?.();
+                      // Delay to allow dropdown to close before opening picker
+                      setTimeout(() => {
+                        const input = document.getElementById('new-tour-date-input') as HTMLInputElement;
+                        input?.showPicker?.();
+                      }, 100);
                     }} 
                     className="gap-2"
                   >
@@ -390,6 +393,12 @@ export function HeaderBlock({ data, onChange, bookingSuggestion, onTourDatesChan
                       (otro evento)
                     </span>
                   </DropdownMenuItem>
+                  {onLinkBooking && (
+                    <DropdownMenuItem onClick={onLinkBooking} className="gap-2">
+                      <Link2 className="w-4 h-4" />
+                      Vincular nuevo evento
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
 
