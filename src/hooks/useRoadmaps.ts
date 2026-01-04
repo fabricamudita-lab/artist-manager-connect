@@ -6,6 +6,7 @@ import { toast } from '@/hooks/use-toast';
 export interface TourRoadmap {
   id: string;
   artist_id: string | null;
+  booking_id: string | null;
   name: string;
   promoter: string | null;
   start_date: string | null;
@@ -19,6 +20,14 @@ export interface TourRoadmap {
     name: string;
     avatar_url: string | null;
   };
+  booking?: {
+    id: string;
+    festival_ciclo: string | null;
+    lugar: string | null;
+    ciudad: string | null;
+    fecha: string | null;
+    promotor: string | null;
+  } | null;
 }
 
 export interface RoadmapBlock {
@@ -42,7 +51,8 @@ export function useRoadmaps() {
         .from('tour_roadmaps')
         .select(`
           *,
-          artist:artists(id, name, avatar_url)
+          artist:artists(id, name, avatar_url),
+          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, promotor)
         `)
         .order('created_at', { ascending: false });
       
@@ -112,7 +122,8 @@ export function useRoadmap(id: string | undefined) {
         .from('tour_roadmaps')
         .select(`
           *,
-          artist:artists(id, name, avatar_url)
+          artist:artists(id, name, avatar_url),
+          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, promotor)
         `)
         .eq('id', id)
         .single();

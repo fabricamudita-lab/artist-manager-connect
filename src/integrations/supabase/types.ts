@@ -5055,6 +5055,7 @@ export type Database = {
       tour_roadmaps: {
         Row: {
           artist_id: string | null
+          booking_id: string | null
           created_at: string
           created_by: string
           end_date: string | null
@@ -5067,6 +5068,7 @@ export type Database = {
         }
         Insert: {
           artist_id?: string | null
+          booking_id?: string | null
           created_at?: string
           created_by: string
           end_date?: string | null
@@ -5079,6 +5081,7 @@ export type Database = {
         }
         Update: {
           artist_id?: string | null
+          booking_id?: string | null
           created_at?: string
           created_by?: string
           end_date?: string | null
@@ -5095,6 +5098,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tour_roadmaps_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
             referencedColumns: ["id"]
           },
         ]

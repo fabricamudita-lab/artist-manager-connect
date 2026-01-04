@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Map, Calendar, User, MoreVertical, Trash2 } from 'lucide-react';
+import { Plus, Map, Calendar, User, MoreVertical, Trash2, Filter, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -21,6 +21,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -40,6 +47,52 @@ export default function Roadmaps() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newName, setNewName] = useState('');
   const [newArtistId, setNewArtistId] = useState<string | null>(null);
+
+  // Filters
+  const [filterArtist, setFilterArtist] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string | null>(null);
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+
+  const hasActiveFilters = filterArtist || filterStatus || filterDateFrom || filterDateTo;
+
+  const filteredRoadmaps = useMemo(() => {
+    if (!roadmaps) return [];
+    
+    return roadmaps.filter((roadmap) => {
+      // Filter by artist
+      if (filterArtist && roadmap.artist_id !== filterArtist) {
+        return false;
+      }
+      
+      // Filter by status
+      if (filterStatus && roadmap.status !== filterStatus) {
+        return false;
+      }
+      
+      // Filter by date range
+      if (filterDateFrom && roadmap.start_date) {
+        if (new Date(roadmap.start_date) < new Date(filterDateFrom)) {
+          return false;
+        }
+      }
+      
+      if (filterDateTo && roadmap.end_date) {
+        if (new Date(roadmap.end_date) > new Date(filterDateTo)) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  }, [roadmaps, filterArtist, filterStatus, filterDateFrom, filterDateTo]);
+
+  const clearFilters = () => {
+    setFilterArtist(null);
+    setFilterStatus(null);
+    setFilterDateFrom('');
+    setFilterDateTo('');
+  };
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -74,6 +127,69 @@ export default function Roadmaps() {
         </Button>
       </div>
 
+      {/* Filters */}
+      <Card className="p-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Filter className="w-4 h-4" />
+            Filtros
+          </div>
+          
+          <div className="space-y-1">
+            <Label className="text-xs">Artista</Label>
+            <SingleArtistSelector
+              value={filterArtist}
+              onValueChange={setFilterArtist}
+              placeholder="Todos"
+              className="w-48"
+            />
+          </div>
+          
+          <div className="space-y-1">
+            <Label className="text-xs">Estado</Label>
+            <Select value={filterStatus || ''} onValueChange={(v) => setFilterStatus(v || null)}>
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="draft">Borrador</SelectItem>
+                <SelectItem value="confirmed">Confirmado</SelectItem>
+                <SelectItem value="completed">Completado</SelectItem>
+                <SelectItem value="cancelled">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-1">
+            <Label className="text-xs">Desde</Label>
+            <Input
+              type="date"
+              value={filterDateFrom}
+              onChange={(e) => setFilterDateFrom(e.target.value)}
+              className="w-36"
+            />
+          </div>
+          
+          <div className="space-y-1">
+            <Label className="text-xs">Hasta</Label>
+            <Input
+              type="date"
+              value={filterDateTo}
+              onChange={(e) => setFilterDateTo(e.target.value)}
+              className="w-36"
+            />
+          </div>
+          
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
+              <X className="w-3 h-3" />
+              Limpiar
+            </Button>
+          )}
+        </div>
+      </Card>
+
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
@@ -88,9 +204,9 @@ export default function Roadmaps() {
             </Card>
           ))}
         </div>
-      ) : roadmaps && roadmaps.length > 0 ? (
+      ) : filteredRoadmaps && filteredRoadmaps.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {roadmaps.map((roadmap) => (
+          {filteredRoadmaps.map((roadmap) => (
             <Card
               key={roadmap.id}
               className="cursor-pointer hover:shadow-lg transition-shadow group"
@@ -148,15 +264,21 @@ export default function Roadmaps() {
               <Map className="w-8 h-8 text-primary" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold">No hay hojas de ruta</h3>
+              <h3 className="text-lg font-semibold">
+                {hasActiveFilters ? 'No hay resultados' : 'No hay hojas de ruta'}
+              </h3>
               <p className="text-muted-foreground mt-1">
-                Crea tu primera hoja de ruta para organizar una gira
+                {hasActiveFilters 
+                  ? 'Intenta ajustar los filtros de búsqueda' 
+                  : 'Crea tu primera hoja de ruta para organizar una gira'}
               </p>
             </div>
-            <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-              <Plus className="w-4 h-4" />
-              Nueva Hoja de Ruta
-            </Button>
+            {!hasActiveFilters && (
+              <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+                <Plus className="w-4 h-4" />
+                Nueva Hoja de Ruta
+              </Button>
+            )}
           </div>
         </Card>
       )}

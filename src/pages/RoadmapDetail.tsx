@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, GripVertical, Save, ChevronDown, Eye, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, GripVertical, Save, ChevronDown, Eye, Link2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   Accordion,
@@ -35,8 +35,10 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { useRoadmap, RoadmapBlock } from '@/hooks/useRoadmaps';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
+import { BookingSelectorDialog, BookingForSelector } from '@/components/BookingSelectorDialog';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -72,6 +74,7 @@ export default function RoadmapDetail() {
   const [editingName, setEditingName] = useState(false);
   const [tempName, setTempName] = useState('');
   const [showPreview, setShowPreview] = useState(false);
+  const [showBookingSelector, setShowBookingSelector] = useState(false);
 
   // Fetch artist name for preview
   const { data: artist } = useQuery({
@@ -112,6 +115,31 @@ export default function RoadmapDetail() {
     setEditingName(false);
   };
 
+  const handleBookingSelect = (booking: BookingForSelector) => {
+    // Auto-fill fields from booking
+    const bookingName = booking.festival_ciclo || booking.lugar || roadmap.name;
+    const updates: Record<string, unknown> = {
+      booking_id: booking.id,
+      name: bookingName,
+      promoter: booking.promotor || roadmap.promoter,
+    };
+    
+    if (booking.artist_id) {
+      updates.artist_id = booking.artist_id;
+    }
+    
+    if (booking.fecha) {
+      updates.start_date = booking.fecha;
+      updates.end_date = booking.fecha;
+    }
+    
+    updateRoadmap.mutate(updates as any);
+  };
+
+  const handleUnlinkBooking = () => {
+    updateRoadmap.mutate({ booking_id: null } as any);
+  };
+
   const renderBlock = (block: RoadmapBlock) => {
     const props = {
       data: block.data as Record<string, unknown>,
@@ -135,6 +163,8 @@ export default function RoadmapDetail() {
         return null;
     }
   };
+
+  const linkedBooking = roadmap.booking;
 
   return (
     <div className="p-6 space-y-6">
@@ -191,9 +221,40 @@ export default function RoadmapDetail() {
         </Select>
       </div>
 
-      {/* Meta info */}
+      {/* Booking Link Section */}
       <Card>
         <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Evento Vinculado</span>
+            </div>
+            {linkedBooking ? (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="gap-1">
+                  {linkedBooking.festival_ciclo || linkedBooking.lugar || 'Evento'}
+                  {linkedBooking.fecha && (
+                    <span className="text-muted-foreground ml-1">
+                      · {format(new Date(linkedBooking.fecha), 'd MMM yyyy', { locale: es })}
+                    </span>
+                  )}
+                </Badge>
+                <Button variant="ghost" size="sm" onClick={handleUnlinkBooking}>
+                  Desvincular
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowBookingSelector(true)}>
+                  Cambiar
+                </Button>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => setShowBookingSelector(true)} className="gap-2">
+                <Link2 className="w-4 h-4" />
+                Vincular a Evento
+              </Button>
+            )}
+          </div>
+
+          {/* Editable Meta Fields */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Artista</Label>
@@ -310,6 +371,14 @@ export default function RoadmapDetail() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Booking Selector Dialog */}
+      <BookingSelectorDialog
+        open={showBookingSelector}
+        onOpenChange={setShowBookingSelector}
+        artistId={roadmap.artist_id}
+        onSelect={handleBookingSelect}
+      />
     </div>
   );
 }
