@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Map, Calendar, User, MoreVertical, Trash2, Filter, X } from 'lucide-react';
+import { Plus, Map, Calendar, User, MoreVertical, Trash2, Filter, X, Link2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -33,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRoadmaps, TourRoadmap } from '@/hooks/useRoadmaps';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
+import { BookingSelectorDialog, BookingForSelector } from '@/components/BookingSelectorDialog';
 
 const statusConfig: Record<TourRoadmap['status'], { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   draft: { label: 'Borrador', variant: 'secondary' },
@@ -45,8 +46,10 @@ export default function Roadmaps() {
   const navigate = useNavigate();
   const { roadmaps, isLoading, createRoadmap, deleteRoadmap } = useRoadmaps();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showBookingSelector, setShowBookingSelector] = useState(false);
   const [newName, setNewName] = useState('');
   const [newArtistId, setNewArtistId] = useState<string | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<BookingForSelector | null>(null);
 
   // Filters
   const [filterArtist, setFilterArtist] = useState<string | null>(null);
@@ -99,11 +102,29 @@ export default function Roadmaps() {
     const result = await createRoadmap.mutateAsync({
       name: newName,
       artist_id: newArtistId || undefined,
+      booking_id: selectedBooking?.id,
+      promoter: selectedBooking?.promotor || undefined,
+      start_date: selectedBooking?.fecha || undefined,
+      end_date: selectedBooking?.fecha || undefined,
     });
     setShowCreateDialog(false);
     setNewName('');
     setNewArtistId(null);
+    setSelectedBooking(null);
     navigate(`/roadmaps/${result.id}`);
+  };
+
+  const handleBookingSelect = (booking: BookingForSelector) => {
+    setSelectedBooking(booking);
+    // Auto-fill fields from booking
+    setNewName(booking.festival_ciclo || booking.lugar || '');
+    if (booking.artist_id) {
+      setNewArtistId(booking.artist_id);
+    }
+  };
+
+  const clearSelectedBooking = () => {
+    setSelectedBooking(null);
   };
 
   const formatDateRange = (start: string | null, end: string | null) => {
@@ -283,12 +304,55 @@ export default function Roadmaps() {
         </Card>
       )}
 
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+      <Dialog open={showCreateDialog} onOpenChange={(open) => {
+        setShowCreateDialog(open);
+        if (!open) {
+          setNewName('');
+          setNewArtistId(null);
+          setSelectedBooking(null);
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Nueva Hoja de Ruta</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Booking Link Section */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Link2 className="w-4 h-4" />
+                Vincular a Evento (opcional)
+              </Label>
+              {selectedBooking ? (
+                <div className="flex items-center gap-2 p-3 rounded-lg border bg-muted/50">
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">
+                      {selectedBooking.festival_ciclo || selectedBooking.lugar || 'Evento'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedBooking.fecha && format(new Date(selectedBooking.fecha), 'd MMM yyyy', { locale: es })}
+                      {selectedBooking.ciudad && ` · ${selectedBooking.ciudad}`}
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={clearSelectedBooking}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowBookingSelector(true)}>
+                    Cambiar
+                  </Button>
+                </div>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start gap-2 text-muted-foreground"
+                  onClick={() => setShowBookingSelector(true)}
+                >
+                  <Link2 className="w-4 h-4" />
+                  Seleccionar evento de booking...
+                </Button>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="name">Nombre del Tour</Label>
               <Input
@@ -316,6 +380,13 @@ export default function Roadmaps() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BookingSelectorDialog
+        open={showBookingSelector}
+        onOpenChange={setShowBookingSelector}
+        artistId={newArtistId}
+        onSelect={handleBookingSelect}
+      />
     </div>
   );
 }

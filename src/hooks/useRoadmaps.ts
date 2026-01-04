@@ -63,7 +63,7 @@ export function useRoadmaps() {
   });
 
   const createRoadmap = useMutation({
-    mutationFn: async (values: { name: string; artist_id?: string; promoter?: string; start_date?: string; end_date?: string }) => {
+    mutationFn: async (values: { name: string; artist_id?: string; booking_id?: string; promoter?: string; start_date?: string; end_date?: string }) => {
       if (!user) throw new Error('Not authenticated');
       
       const { data, error } = await supabase
