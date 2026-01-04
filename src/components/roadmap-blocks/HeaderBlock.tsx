@@ -46,10 +46,15 @@ export function HeaderBlock({ data, onChange, bookingSuggestion, onTourDatesChan
     tourDates: blockData.tourDates || [],
   });
 
-  // Default new date to day before or after the event date (if available)
+  // Default new date to the event date first, then nearby dates
   const getDefaultNewDate = () => {
     const existingDates = localData.tourDates || [];
     const eventDate = bookingSuggestion?.eventDate;
+    
+    // If no dates exist yet, suggest the event date first
+    if (existingDates.length === 0 && eventDate) {
+      return eventDate;
+    }
     
     if (existingDates.length > 0 || eventDate) {
       // Use sorted existing dates or event date as reference
