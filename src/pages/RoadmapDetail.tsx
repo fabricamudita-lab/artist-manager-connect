@@ -91,6 +91,24 @@ export default function RoadmapDetail() {
     enabled: !!roadmap?.artist_id,
   });
 
+  // Check if promotor is a UUID and fetch contact name if so
+  const promotorValue = roadmap?.booking?.promotor;
+  const isPromoterUUID = promotorValue && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(promotorValue);
+  
+  const { data: promoterContact } = useQuery({
+    queryKey: ['contact-promoter', promotorValue],
+    queryFn: async () => {
+      if (!promotorValue) return null;
+      const { data } = await supabase
+        .from('contacts')
+        .select('name, company')
+        .eq('id', promotorValue)
+        .single();
+      return data;
+    },
+    enabled: !!isPromoterUUID,
+  });
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -140,11 +158,15 @@ export default function RoadmapDetail() {
     updateRoadmap.mutate({ booking_id: null } as any);
   };
 
-  // Build booking suggestion for HeaderBlock
+  // Build booking suggestion for HeaderBlock - resolve promoter name
+  const resolvedPromoterName = isPromoterUUID 
+    ? (promoterContact?.name || promoterContact?.company || undefined)
+    : promotorValue || undefined;
+
   const bookingSuggestion = roadmap.booking ? {
     artistName: artist?.name,
     tourTitle: roadmap.booking.festival_ciclo || roadmap.booking.lugar || undefined,
-    promoter: roadmap.booking.promotor || undefined,
+    promoter: resolvedPromoterName,
     eventDate: roadmap.booking.fecha || undefined,
   } : undefined;
 
