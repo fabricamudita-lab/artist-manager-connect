@@ -39,7 +39,49 @@ export function HeaderBlock({ data, onChange, bookingSuggestion }: HeaderBlockPr
     tourDates: blockData.tourDates || [],
   });
 
-  const [newDate, setNewDate] = useState('');
+  // Default new date to day before or after the event date (if available)
+  const getDefaultNewDate = () => {
+    const existingDates = localData.tourDates || [];
+    const eventDate = bookingSuggestion?.eventDate;
+    
+    if (existingDates.length > 0 || eventDate) {
+      // Use sorted existing dates or event date as reference
+      const referenceDates = existingDates.length > 0 
+        ? [...existingDates].sort() 
+        : [eventDate!];
+      
+      const firstDate = new Date(referenceDates[0]);
+      const lastDate = new Date(referenceDates[referenceDates.length - 1]);
+      
+      // Try day before first date
+      const dayBefore = new Date(firstDate);
+      dayBefore.setDate(dayBefore.getDate() - 1);
+      const dayBeforeStr = dayBefore.toISOString().split('T')[0];
+      
+      // Try day after last date
+      const dayAfter = new Date(lastDate);
+      dayAfter.setDate(dayAfter.getDate() + 1);
+      const dayAfterStr = dayAfter.toISOString().split('T')[0];
+      
+      // Prefer day before if not already used, otherwise day after
+      if (!existingDates.includes(dayBeforeStr)) {
+        return dayBeforeStr;
+      }
+      if (!existingDates.includes(dayAfterStr)) {
+        return dayAfterStr;
+      }
+    }
+    return '';
+  };
+
+  const [newDate, setNewDate] = useState(getDefaultNewDate);
+
+  // Update default date when tour dates change
+  useEffect(() => {
+    if (!newDate) {
+      setNewDate(getDefaultNewDate());
+    }
+  }, [localData.tourDates, bookingSuggestion?.eventDate]);
 
   // Debounce the local data
   const debouncedData = useDebounce(localData, 500);
