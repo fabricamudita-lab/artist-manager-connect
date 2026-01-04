@@ -167,7 +167,7 @@ export function HeaderBlock({ data, onChange, bookingSuggestion, onTourDatesChan
     }
   };
 
-  const addDayOff = () => {
+  const getDayOffDates = () => {
     const existingDates = localData.tourDates || [];
     const eventDate = bookingSuggestion?.eventDate;
     
@@ -179,23 +179,30 @@ export function HeaderBlock({ data, onChange, bookingSuggestion, onTourDatesChan
       const firstDate = new Date(referenceDates[0]);
       const lastDate = new Date(referenceDates[referenceDates.length - 1]);
       
-      // Try day before first date
       const dayBefore = new Date(firstDate);
       dayBefore.setDate(dayBefore.getDate() - 1);
       const dayBeforeStr = dayBefore.toISOString().split('T')[0];
       
-      // Try day after last date
       const dayAfter = new Date(lastDate);
       dayAfter.setDate(dayAfter.getDate() + 1);
       const dayAfterStr = dayAfter.toISOString().split('T')[0];
       
-      // Prefer day before if not already used, otherwise day after
-      if (!existingDates.includes(dayBeforeStr)) {
-        addDate(dayBeforeStr);
-      } else if (!existingDates.includes(dayAfterStr)) {
-        addDate(dayAfterStr);
-      }
+      return {
+        dayBefore: !existingDates.includes(dayBeforeStr) ? dayBeforeStr : null,
+        dayAfter: !existingDates.includes(dayAfterStr) ? dayAfterStr : null,
+      };
     }
+    return { dayBefore: null, dayAfter: null };
+  };
+
+  const addDayOffBefore = () => {
+    const { dayBefore } = getDayOffDates();
+    if (dayBefore) addDate(dayBefore);
+  };
+
+  const addDayOffAfter = () => {
+    const { dayAfter } = getDayOffDates();
+    if (dayAfter) addDate(dayAfter);
   };
 
   const removeDate = (dateToRemove: string) => {
@@ -343,13 +350,24 @@ export function HeaderBlock({ data, onChange, bookingSuggestion, onTourDatesChan
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  <DropdownMenuItem onClick={addDayOff} className="gap-2">
-                    <Plane className="w-4 h-4" />
-                    Añadir Day Off
-                    <span className="text-xs text-muted-foreground ml-auto">
-                      (día de viaje)
-                    </span>
-                  </DropdownMenuItem>
+                  {getDayOffDates().dayBefore && (
+                    <DropdownMenuItem onClick={addDayOffBefore} className="gap-2">
+                      <Plane className="w-4 h-4" />
+                      Day Off antes
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        ({format(new Date(getDayOffDates().dayBefore!), 'd MMM', { locale: es })})
+                      </span>
+                    </DropdownMenuItem>
+                  )}
+                  {getDayOffDates().dayAfter && (
+                    <DropdownMenuItem onClick={addDayOffAfter} className="gap-2">
+                      <Plane className="w-4 h-4" />
+                      Day Off después
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        ({format(new Date(getDayOffDates().dayAfter!), 'd MMM', { locale: es })})
+                      </span>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem 
                     onClick={() => {
                       // Open date picker by focusing the input
