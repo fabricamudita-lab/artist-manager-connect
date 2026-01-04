@@ -26,6 +26,7 @@ export interface TourRoadmap {
     lugar: string | null;
     ciudad: string | null;
     fecha: string | null;
+    hora: string | null;
     promotor: string | null;
   } | null;
 }
@@ -52,7 +53,7 @@ export function useRoadmaps() {
         .select(`
           *,
           artist:artists(id, name, avatar_url),
-          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, promotor)
+          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, hora, promotor)
         `)
         .order('created_at', { ascending: false });
       
@@ -123,7 +124,7 @@ export function useRoadmap(id: string | undefined) {
         .select(`
           *,
           artist:artists(id, name, avatar_url),
-          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, promotor)
+          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, hora, promotor)
         `)
         .eq('id', id)
         .single();

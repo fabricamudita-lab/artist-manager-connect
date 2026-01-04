@@ -336,9 +336,15 @@ export default function RoadmapDetail() {
               <Label>Hora Concierto</Label>
               <Input
                 type="time"
-                value={roadmap.end_date || ''}
+                value={roadmap.end_date || linkedBooking?.hora || ''}
                 onChange={(e) => updateRoadmap.mutate({ end_date: e.target.value || null })}
+                placeholder={linkedBooking?.hora || ''}
               />
+              {linkedBooking?.hora && !roadmap.end_date && (
+                <p className="text-xs text-muted-foreground">
+                  Hora del evento: {linkedBooking.hora}
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
