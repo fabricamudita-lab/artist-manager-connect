@@ -26,9 +26,10 @@ interface HeaderBlockProps {
   data: Record<string, unknown>;
   onChange: (data: Record<string, unknown>) => void;
   bookingSuggestion?: BookingSuggestion;
+  onTourDatesChange?: (dates: string[]) => void; // Callback to sync dates with roadmap
 }
 
-export function HeaderBlock({ data, onChange, bookingSuggestion }: HeaderBlockProps) {
+export function HeaderBlock({ data, onChange, bookingSuggestion, onTourDatesChange }: HeaderBlockProps) {
   const blockData = data as HeaderBlockData;
   
   // Local state for immediate UI updates
@@ -135,6 +136,11 @@ export function HeaderBlock({ data, onChange, bookingSuggestion }: HeaderBlockPr
     
     if (hasChanges) {
       onChange({ ...data, ...debouncedData });
+      
+      // Sync tour dates with roadmap (for start_date/end_date)
+      if (onTourDatesChange && JSON.stringify(debouncedData.tourDates) !== JSON.stringify(blockData.tourDates || [])) {
+        onTourDatesChange(debouncedData.tourDates || []);
+      }
     }
   }, [debouncedData]);
 

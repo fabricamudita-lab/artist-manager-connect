@@ -170,6 +170,23 @@ export default function RoadmapDetail() {
     eventDate: roadmap.booking.fecha || undefined,
   } : undefined;
 
+  // Sync tour dates from HeaderBlock to roadmap start_date/end_date
+  const handleTourDatesChange = (dates: string[]) => {
+    if (dates.length === 0) return;
+    
+    const sortedDates = [...dates].sort();
+    const newStartDate = sortedDates[0];
+    const newEndDate = sortedDates[sortedDates.length - 1];
+    
+    // Only update if different from current
+    if (newStartDate !== roadmap.start_date || newEndDate !== roadmap.end_date) {
+      updateRoadmap.mutate({ 
+        start_date: newStartDate, 
+        end_date: newEndDate 
+      } as any);
+    }
+  };
+
   const renderBlock = (block: RoadmapBlock) => {
     const props = {
       data: block.data as Record<string, unknown>,
@@ -178,7 +195,13 @@ export default function RoadmapDetail() {
 
     switch (block.block_type) {
       case 'header':
-        return <HeaderBlock {...props} bookingSuggestion={bookingSuggestion} />;
+        return (
+          <HeaderBlock 
+            {...props} 
+            bookingSuggestion={bookingSuggestion} 
+            onTourDatesChange={handleTourDatesChange}
+          />
+        );
       case 'schedule':
         return <ScheduleBlock {...props} tourDates={bookingSuggestion?.eventDate ? [bookingSuggestion.eventDate] : undefined} />;
       case 'travel':
