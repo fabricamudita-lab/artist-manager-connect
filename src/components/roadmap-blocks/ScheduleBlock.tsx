@@ -38,6 +38,7 @@ interface ScheduleBlockData {
 interface ScheduleBlockProps {
   data: Record<string, unknown>;
   onChange: (data: Record<string, unknown>) => void;
+  tourDates?: string[]; // Dates from the tour to auto-initialize days
 }
 
 const activityTypes = [
@@ -50,7 +51,7 @@ const activityTypes = [
   { value: 'other', label: 'Otro' },
 ];
 
-export function ScheduleBlock({ data, onChange }: ScheduleBlockProps) {
+export function ScheduleBlock({ data, onChange, tourDates }: ScheduleBlockProps) {
   const blockData = data as ScheduleBlockData;
   const incomingDays = useMemo(() => blockData.days || [], [blockData.days]);
 
@@ -60,6 +61,24 @@ export function ScheduleBlock({ data, onChange }: ScheduleBlockProps) {
 
   const lastSyncedRef = useRef<string>(JSON.stringify(incomingDays));
   const debouncedDays = useDebounce(localDays, 500);
+  const hasAutoInitialized = useRef(false);
+
+  // Auto-initialize first day from tour dates if block is empty
+  useEffect(() => {
+    if (!hasAutoInitialized.current && incomingDays.length === 0 && tourDates && tourDates.length > 0) {
+      hasAutoInitialized.current = true;
+      const sortedDates = [...tourDates].sort();
+      const firstDate = sortedDates[0];
+      const newDay: ScheduleDay = {
+        id: crypto.randomUUID(),
+        label: 'Día 1',
+        date: firstDate,
+        items: [],
+      };
+      setLocalDays([newDay]);
+      setActiveDay(newDay.id);
+    }
+  }, [incomingDays.length, tourDates]);
 
   // Sync from parent when server/queries update the block.
   useEffect(() => {

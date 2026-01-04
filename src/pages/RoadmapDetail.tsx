@@ -180,7 +180,7 @@ export default function RoadmapDetail() {
       case 'header':
         return <HeaderBlock {...props} bookingSuggestion={bookingSuggestion} />;
       case 'schedule':
-        return <ScheduleBlock {...props} />;
+        return <ScheduleBlock {...props} tourDates={bookingSuggestion?.eventDate ? [bookingSuggestion.eventDate] : undefined} />;
       case 'travel':
         return <TravelBlock {...props} />;
       case 'hospitality':
