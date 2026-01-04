@@ -5052,6 +5052,45 @@ export type Database = {
           },
         ]
       }
+      tour_roadmap_bookings: {
+        Row: {
+          booking_id: string
+          created_at: string
+          id: string
+          roadmap_id: string
+          sort_order: number | null
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          id?: string
+          roadmap_id: string
+          sort_order?: number | null
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          id?: string
+          roadmap_id?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_roadmap_bookings_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tour_roadmap_bookings_roadmap_id_fkey"
+            columns: ["roadmap_id"]
+            isOneToOne: false
+            referencedRelation: "tour_roadmaps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tour_roadmaps: {
         Row: {
           artist_id: string | null
