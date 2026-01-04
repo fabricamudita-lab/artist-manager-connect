@@ -140,6 +140,14 @@ export default function RoadmapDetail() {
     updateRoadmap.mutate({ booking_id: null } as any);
   };
 
+  // Build booking suggestion for HeaderBlock
+  const bookingSuggestion = roadmap.booking ? {
+    artistName: artist?.name,
+    tourTitle: roadmap.booking.festival_ciclo || roadmap.booking.lugar || undefined,
+    promoter: roadmap.booking.promotor || undefined,
+    eventDate: roadmap.booking.fecha || undefined,
+  } : undefined;
+
   const renderBlock = (block: RoadmapBlock) => {
     const props = {
       data: block.data as Record<string, unknown>,
@@ -148,7 +156,7 @@ export default function RoadmapDetail() {
 
     switch (block.block_type) {
       case 'header':
-        return <HeaderBlock {...props} />;
+        return <HeaderBlock {...props} bookingSuggestion={bookingSuggestion} />;
       case 'schedule':
         return <ScheduleBlock {...props} />;
       case 'travel':
