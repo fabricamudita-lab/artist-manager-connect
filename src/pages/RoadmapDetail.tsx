@@ -325,7 +325,7 @@ export default function RoadmapDetail() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Fecha Inicio</Label>
+              <Label>Fecha del Evento</Label>
               <Input
                 type="date"
                 value={roadmap.start_date || ''}
@@ -333,9 +333,9 @@ export default function RoadmapDetail() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Fecha Fin</Label>
+              <Label>Hora Concierto</Label>
               <Input
-                type="date"
+                type="time"
                 value={roadmap.end_date || ''}
                 onChange={(e) => updateRoadmap.mutate({ end_date: e.target.value || null })}
               />
