@@ -147,12 +147,12 @@ export default function Roadmaps() {
           
           <div className="space-y-1">
             <Label className="text-xs">Estado</Label>
-            <Select value={filterStatus || ''} onValueChange={(v) => setFilterStatus(v || null)}>
+            <Select value={filterStatus || 'all'} onValueChange={(v) => setFilterStatus(v === 'all' ? null : v)}>
               <SelectTrigger className="w-36">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="draft">Borrador</SelectItem>
                 <SelectItem value="confirmed">Confirmado</SelectItem>
                 <SelectItem value="completed">Completado</SelectItem>
