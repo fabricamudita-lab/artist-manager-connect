@@ -63,20 +63,23 @@ export function ScheduleBlock({ data, onChange, tourDates }: ScheduleBlockProps)
   const debouncedDays = useDebounce(localDays, 500);
   const hasAutoInitialized = useRef(false);
 
-  // Auto-initialize first day from tour dates if block is empty
+  // Auto-initialize days from tour dates - create a day for each tour date
   useEffect(() => {
-    if (!hasAutoInitialized.current && incomingDays.length === 0 && tourDates && tourDates.length > 0) {
+    if (!tourDates || tourDates.length === 0) return;
+    
+    const sortedDates = [...tourDates].sort();
+    
+    // If block is empty, initialize with all tour dates
+    if (!hasAutoInitialized.current && incomingDays.length === 0) {
       hasAutoInitialized.current = true;
-      const sortedDates = [...tourDates].sort();
-      const firstDate = sortedDates[0];
-      const newDay: ScheduleDay = {
+      const newDays: ScheduleDay[] = sortedDates.map((date, index) => ({
         id: crypto.randomUUID(),
-        label: 'Día 1',
-        date: firstDate,
+        label: `Día ${index + 1}`,
+        date,
         items: [],
-      };
-      setLocalDays([newDay]);
-      setActiveDay(newDay.id);
+      }));
+      setLocalDays(newDays);
+      setActiveDay(newDays[0]?.id || '');
     }
   }, [incomingDays.length, tourDates]);
 
