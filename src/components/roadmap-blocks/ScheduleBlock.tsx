@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2, Clock, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Clock, ChevronDown } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -301,12 +301,12 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo }: Schedu
                     <Collapsible key={item.id} defaultOpen>
                       <div className="border rounded-lg bg-card overflow-hidden">
                         <CollapsibleTrigger asChild>
-                          <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                          <div className="group flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors">
                             <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=closed]_&]:-rotate-90 flex-shrink-0" />
+                              <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90 flex-shrink-0" />
                               <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                               <span className="font-medium">Actividad {idx + 1}</span>
-                              <span className="text-sm text-muted-foreground truncate [[data-state=open]_&]:hidden">
+                              <span className="text-sm text-muted-foreground truncate group-data-[state=open]:hidden">
                                 {summaryText && `— ${summaryText}`}
                               </span>
                             </div>
