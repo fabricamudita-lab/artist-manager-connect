@@ -42,6 +42,10 @@ interface TravelBlockData {
 interface TravelBlockProps {
   data: Record<string, unknown>;
   onChange: (data: Record<string, unknown>) => void;
+  tourDates?: string[];
+  bookingInfo?: {
+    eventDate?: string;
+  };
 }
 
 const mediumOptions = [
@@ -61,9 +65,20 @@ const getServicePlaceholder = (medium: TravelTrip['medium']): string => {
   return option?.placeholder || '';
 };
 
-export function TravelBlock({ data, onChange }: TravelBlockProps) {
+export function TravelBlock({ data, onChange, tourDates, bookingInfo }: TravelBlockProps) {
   const blockData = data as TravelBlockData;
   const incomingTrips = blockData.trips || [];
+  
+  // Get default date: first tour date or booking event date
+  const getDefaultDate = (): string => {
+    if (tourDates && tourDates.length > 0) {
+      return [...tourDates].sort()[0];
+    }
+    if (bookingInfo?.eventDate) {
+      return bookingInfo.eventDate;
+    }
+    return '';
+  };
   const incomingLuggagePolicy = blockData.luggagePolicy || '';
 
   // Local state for immediate UI updates
@@ -97,7 +112,7 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
   const addTrip = () => {
     const newTrip: TravelTrip = {
       id: crypto.randomUUID(),
-      date: '',
+      date: getDefaultDate(),
       medium: 'plane',
       serviceNumber: '',
       pnr: '',
@@ -107,13 +122,34 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
       arrivalTime: '',
       passengers: [],
     };
-    setLocalTrips((prev) => [...prev, newTrip]);
+    setLocalTrips((prev) => sortTripsByDate([...prev, newTrip]));
+  };
+
+  // Sort trips chronologically by date and departure time
+  const sortTripsByDate = (trips: TravelTrip[]): TravelTrip[] => {
+    return [...trips].sort((a, b) => {
+      if (!a.date && !b.date) return 0;
+      if (!a.date) return 1;
+      if (!b.date) return -1;
+      const dateCompare = a.date.localeCompare(b.date);
+      if (dateCompare !== 0) return dateCompare;
+      // Same date - sort by departure time
+      if (!a.departureTime && !b.departureTime) return 0;
+      if (!a.departureTime) return 1;
+      if (!b.departureTime) return -1;
+      return a.departureTime.localeCompare(b.departureTime);
+    });
   };
 
   const updateTrip = (tripId: string, updates: Partial<TravelTrip>) => {
-    setLocalTrips((prev) =>
-      prev.map((t) => (t.id === tripId ? { ...t, ...updates } : t))
-    );
+    setLocalTrips((prev) => {
+      const updated = prev.map((t) => (t.id === tripId ? { ...t, ...updates } : t));
+      // Re-sort if date or departureTime changed
+      if ('date' in updates || 'departureTime' in updates) {
+        return sortTripsByDate(updated);
+      }
+      return updated;
+    });
   };
 
   const removeTrip = (tripId: string) => {
