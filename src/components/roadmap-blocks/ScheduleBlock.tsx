@@ -328,6 +328,7 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo }: Schedu
                                 <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90 flex-shrink-0 md:hidden" />
                                 <span className="font-mono text-base">
                                   {item.startTime || '--:--'}
+                                  {item.endTime && <span className="text-muted-foreground"> - {item.endTime}</span>}
                                 </span>
                               </div>
 
