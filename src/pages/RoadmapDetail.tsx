@@ -394,21 +394,37 @@ export default function RoadmapDetail() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Bloques de información</h2>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Plus className="w-4 h-4" />
-                Añadir Bloque
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              {(Object.keys(blockTypeLabels) as RoadmapBlock['block_type'][]).map((type) => (
-                <DropdownMenuItem key={type} onClick={() => addBlock.mutate(type)}>
-                  {blockTypeLabels[type]}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {(() => {
+            const existingBlockTypes = blocks?.map(b => b.block_type) || [];
+            const availableBlockTypes = (Object.keys(blockTypeLabels) as RoadmapBlock['block_type'][])
+              .filter(type => !existingBlockTypes.includes(type));
+            
+            if (availableBlockTypes.length === 0) {
+              return (
+                <Badge variant="secondary" className="text-muted-foreground">
+                  Todos los bloques añadidos
+                </Badge>
+              );
+            }
+            
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Añadir Bloque
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {availableBlockTypes.map((type) => (
+                    <DropdownMenuItem key={type} onClick={() => addBlock.mutate(type)}>
+                      {blockTypeLabels[type]}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          })()}
         </div>
 
         {blocks && blocks.length > 0 ? (
