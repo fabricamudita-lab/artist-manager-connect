@@ -50,6 +50,16 @@ import { ProductionBlock } from '@/components/roadmap-blocks/ProductionBlock';
 import { ContactsBlock } from '@/components/roadmap-blocks/ContactsBlock';
 import { RoadmapPreview } from '@/components/roadmap-blocks/RoadmapPreview';
 
+// Define the canonical order of block types
+const blockTypeOrder: RoadmapBlock['block_type'][] = [
+  'header',
+  'schedule',
+  'travel',
+  'hospitality',
+  'production',
+  'contacts',
+];
+
 const blockTypeLabels: Record<RoadmapBlock['block_type'], string> = {
   header: 'Cabecera del Tour',
   schedule: 'Cronograma (Timeline)',
@@ -429,7 +439,9 @@ export default function RoadmapDetail() {
 
         {blocks && blocks.length > 0 ? (
           <Accordion type="multiple" defaultValue={blocks.map(b => b.id)} className="space-y-4">
-            {blocks.map((block) => (
+            {[...blocks].sort((a, b) => 
+              blockTypeOrder.indexOf(a.block_type) - blockTypeOrder.indexOf(b.block_type)
+            ).map((block) => (
               <AccordionItem key={block.id} value={block.id} className="border rounded-lg bg-card group">
                 <AccordionTrigger className="px-4 py-3 hover:no-underline [&>svg]:hidden">
                   <div className="flex items-center justify-between w-full">
