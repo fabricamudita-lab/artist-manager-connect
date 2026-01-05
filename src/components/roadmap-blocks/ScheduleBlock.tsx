@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2, Clock, ChevronDown } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,17 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import { useDebounce } from '@/hooks/useDebounce';
 
 interface ScheduleItem {
@@ -288,181 +277,110 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo }: Schedu
               </div>
 
               {/* Table header */}
-              <div className="hidden md:grid grid-cols-[100px_1fr_1fr_1fr_40px] gap-4 px-4 py-2 text-sm font-medium text-muted-foreground uppercase tracking-wide border-b">
-                <div>Hora</div>
-                <div>Actividad</div>
-                <div>Ubicación</div>
-                <div>Notas</div>
-                <div></div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 px-2 font-medium text-muted-foreground w-20">Inicio</th>
+                      <th className="text-left py-2 px-2 font-medium text-muted-foreground w-20">Fin</th>
+                      <th className="text-left py-2 px-2 font-medium text-muted-foreground w-32">Tipo</th>
+                      <th className="text-left py-2 px-2 font-medium text-muted-foreground">Título</th>
+                      <th className="text-left py-2 px-2 font-medium text-muted-foreground">Ubicación</th>
+                      <th className="text-left py-2 px-2 font-medium text-muted-foreground">Notas</th>
+                      <th className="w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...currentDay.items]
+                      .sort((a, b) => {
+                        if (!a.startTime && !b.startTime) return 0;
+                        if (!a.startTime) return 1;
+                        if (!b.startTime) return -1;
+                        return a.startTime.localeCompare(b.startTime);
+                      })
+                      .map((item) => (
+                        <tr key={item.id} className="border-b hover:bg-muted/30">
+                          <td className="py-2 px-2">
+                            <Input
+                              type="time"
+                              value={item.startTime}
+                              onChange={(e) => updateItem(currentDay.id, item.id, { startTime: e.target.value })}
+                              className="h-9 w-full"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <Input
+                              type="time"
+                              value={item.endTime}
+                              onChange={(e) => updateItem(currentDay.id, item.id, { endTime: e.target.value })}
+                              className="h-9 w-full"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <Select
+                              value={item.activityType}
+                              onValueChange={(val) => updateItem(currentDay.id, item.id, { activityType: val })}
+                            >
+                              <SelectTrigger className="h-9 w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {activityTypes.map((t) => (
+                                  <SelectItem key={t.value} value={t.value}>
+                                    {t.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="py-2 px-2">
+                            <Input
+                              value={item.title}
+                              onChange={(e) => updateItem(currentDay.id, item.id, { title: e.target.value })}
+                              placeholder="Título"
+                              className="h-9 w-full"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <Input
+                              value={item.location}
+                              onChange={(e) => updateItem(currentDay.id, item.id, { location: e.target.value })}
+                              placeholder="Ubicación"
+                              className="h-9 w-full"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <Input
+                              value={item.notes}
+                              onChange={(e) => updateItem(currentDay.id, item.id, { notes: e.target.value })}
+                              placeholder="Notas"
+                              className="h-9 w-full"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeItem(currentDay.id, item.id)}
+                              className="text-destructive hover:text-destructive h-8 w-8"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
               </div>
 
-              <div className="divide-y">
-                {[...currentDay.items]
-                  .sort((a, b) => {
-                    if (!a.startTime && !b.startTime) return 0;
-                    if (!a.startTime) return 1;
-                    if (!b.startTime) return -1;
-                    return a.startTime.localeCompare(b.startTime);
-                  })
-                  .map((item) => {
-                    const activityType = activityTypes.find(t => t.value === item.activityType);
-                    const badgeColor = activityType?.value === 'show' 
-                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                      : activityType?.value === 'soundcheck'
-                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                      : activityType?.value === 'travel'
-                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                      : activityType?.value === 'meal'
-                      ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                      : activityType?.value === 'interview'
-                      ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400'
-                      : 'bg-muted text-muted-foreground';
-
-                    return (
-                      <Collapsible key={item.id}>
-                        <div className="bg-card">
-                          <CollapsibleTrigger asChild>
-                            <div className="group grid grid-cols-1 md:grid-cols-[100px_1fr_1fr_1fr_40px] gap-2 md:gap-4 p-4 cursor-pointer hover:bg-muted/50 transition-colors items-center">
-                              {/* Time */}
-                              <div className="flex items-center gap-2">
-                                <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90 flex-shrink-0 md:hidden" />
-                                <span className="font-mono text-base">
-                                  {item.startTime || '--:--'}
-                                  {item.endTime && <span className="text-muted-foreground"> - {item.endTime}</span>}
-                                </span>
-                              </div>
-
-                              {/* Activity type + title */}
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${badgeColor}`}>
-                                  <span>♪</span>
-                                  {activityType?.label || item.activityType}
-                                </span>
-                                <span className="text-foreground">{item.title || '-'}</span>
-                              </div>
-
-                              {/* Location */}
-                              <div className="text-muted-foreground flex items-center gap-1">
-                                {item.location ? (
-                                  <>
-                                    <span className="text-xs">◎</span>
-                                    <span>{item.location}</span>
-                                  </>
-                                ) : (
-                                  <span>-</span>
-                                )}
-                              </div>
-
-                              {/* Notes */}
-                              <div className="text-muted-foreground truncate">
-                                {item.notes || '-'}
-                              </div>
-
-                              {/* Delete button */}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeItem(currentDay.id, item.id);
-                                }}
-                                className="text-destructive hover:text-destructive flex-shrink-0 h-8 w-8"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            <div className="px-4 pb-4 space-y-3 border-t pt-3 bg-muted/30">
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <div className="space-y-1">
-                                  <Label className="text-xs text-muted-foreground">Hora inicio</Label>
-                                  <Input
-                                    type="time"
-                                    value={item.startTime}
-                                    onChange={(e) => updateItem(currentDay.id, item.id, { startTime: e.target.value })}
-                                  />
-                                </div>
-                                <div className="space-y-1">
-                                  <Label className="text-xs text-muted-foreground">Hora fin</Label>
-                                  <Input
-                                    type="time"
-                                    value={item.endTime}
-                                    onChange={(e) => updateItem(currentDay.id, item.id, { endTime: e.target.value })}
-                                  />
-                                </div>
-                                <div className="space-y-1">
-                                  <Label className="text-xs text-muted-foreground">Tipo</Label>
-                                  <Select
-                                    value={item.activityType}
-                                    onValueChange={(val) => updateItem(currentDay.id, item.id, { activityType: val })}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {activityTypes.map((t) => (
-                                        <SelectItem key={t.value} value={t.value}>
-                                          {t.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div className="space-y-1">
-                                  <Label className="text-xs text-muted-foreground">Título</Label>
-                                  <Input
-                                    value={item.title}
-                                    onChange={(e) => updateItem(currentDay.id, item.id, { title: e.target.value })}
-                                    placeholder="Título"
-                                  />
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                  <Label className="text-xs text-muted-foreground">Ubicación</Label>
-                                  <Input
-                                    value={item.location}
-                                    onChange={(e) => updateItem(currentDay.id, item.id, { location: e.target.value })}
-                                    placeholder="Ubicación"
-                                  />
-                                </div>
-                                <div className="space-y-1">
-                                  <Label className="text-xs text-muted-foreground">Notas</Label>
-                                  <Input
-                                    value={item.notes}
-                                    onChange={(e) => updateItem(currentDay.id, item.id, { notes: e.target.value })}
-                                    placeholder="Notas (ej. Clima)"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </CollapsibleContent>
-                        </div>
-                      </Collapsible>
-                    );
-                  })}
-              </div>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full gap-2 mt-3">
-                    <Plus className="w-4 h-4" />
-                    Añadir Actividad
-                    <ChevronDown className="w-4 h-4 ml-auto" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="center" className="w-56 bg-popover">
-                  {activityTypes.map((type) => (
-                    <DropdownMenuItem 
-                      key={type.value} 
-                      onClick={() => addItem(currentDay.id, type.value)}
-                    >
-                      {type.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button 
+                variant="outline" 
+                className="gap-2 mt-3"
+                onClick={() => addItem(currentDay.id, 'other')}
+              >
+                <Plus className="w-4 h-4" />
+                Añadir Actividad
+              </Button>
             </TabsContent>
           )}
         </Tabs>
