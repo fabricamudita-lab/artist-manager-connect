@@ -84,11 +84,12 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo }: Schedu
     // If block is empty, initialize with all tour dates
     if (!hasAutoInitialized.current && incomingDays.length === 0) {
       hasAutoInitialized.current = true;
-      const newDays: ScheduleDay[] = sortedDates.map((date, index) => {
+      const newDays: ScheduleDay[] = sortedDates.map((date) => {
         const items: ScheduleItem[] = [];
+        const isShowDay = bookingInfo?.eventDate === date;
         
         // If this date matches the event date from booking, add show activity
-        if (bookingInfo?.eventDate === date && bookingInfo?.eventTime) {
+        if (isShowDay && bookingInfo?.eventTime) {
           items.push({
             id: crypto.randomUUID(),
             startTime: bookingInfo.eventTime,
@@ -102,7 +103,7 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo }: Schedu
         
         return {
           id: crypto.randomUUID(),
-          label: `Día ${index + 1}`,
+          label: isShowDay ? 'Show' : 'Day Off',
           date,
           items,
         };
