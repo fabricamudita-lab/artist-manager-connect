@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2, Clock, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Clock, ChevronDown, ChevronRight } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { useDebounce } from '@/hooks/useDebounce';
 
 interface ScheduleItem {
@@ -283,70 +288,95 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo }: Schedu
               </div>
 
               <div className="space-y-3">
-                {currentDay.items.map((item, idx) => (
-                  <div key={item.id} className="border rounded-lg p-4 space-y-3 bg-card">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="w-4 h-4" />
-                        <span>Actividad {idx + 1}</span>
+                {currentDay.items.map((item, idx) => {
+                  // Build summary text for collapsed state
+                  const activityLabel = activityTypes.find(t => t.value === item.activityType)?.label || item.activityType;
+                  const timeRange = item.startTime 
+                    ? `${item.startTime}${item.endTime ? ` - ${item.endTime}` : ''}`
+                    : '';
+                  const summaryParts = [timeRange, activityLabel, item.title, item.location].filter(Boolean);
+                  const summaryText = summaryParts.join(' · ');
+
+                  return (
+                    <Collapsible key={item.id} defaultOpen>
+                      <div className="border rounded-lg bg-card overflow-hidden">
+                        <CollapsibleTrigger asChild>
+                          <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors group">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <ChevronRight className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90 flex-shrink-0" />
+                              <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                              <span className="font-medium">Actividad {idx + 1}</span>
+                              <span className="text-sm text-muted-foreground truncate hidden group-data-[state=open]:hidden sm:block">
+                                {summaryText && `— ${summaryText}`}
+                              </span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeItem(currentDay.id, item.id);
+                              }}
+                              className="text-destructive hover:text-destructive flex-shrink-0"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="px-4 pb-4 space-y-3 border-t pt-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              <Input
+                                type="time"
+                                value={item.startTime}
+                                onChange={(e) => updateItem(currentDay.id, item.id, { startTime: e.target.value })}
+                                placeholder="Inicio"
+                              />
+                              <Input
+                                type="time"
+                                value={item.endTime}
+                                onChange={(e) => updateItem(currentDay.id, item.id, { endTime: e.target.value })}
+                                placeholder="Fin"
+                              />
+                              <Select
+                                value={item.activityType}
+                                onValueChange={(val) => updateItem(currentDay.id, item.id, { activityType: val })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {activityTypes.map((t) => (
+                                    <SelectItem key={t.value} value={t.value}>
+                                      {t.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Input
+                                value={item.title}
+                                onChange={(e) => updateItem(currentDay.id, item.id, { title: e.target.value })}
+                                placeholder="Título"
+                              />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <Input
+                                value={item.location}
+                                onChange={(e) => updateItem(currentDay.id, item.id, { location: e.target.value })}
+                                placeholder="Ubicación"
+                              />
+                              <Input
+                                value={item.notes}
+                                onChange={(e) => updateItem(currentDay.id, item.id, { notes: e.target.value })}
+                                placeholder="Notas (ej. Clima)"
+                              />
+                            </div>
+                          </div>
+                        </CollapsibleContent>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeItem(currentDay.id, item.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <Input
-                        type="time"
-                        value={item.startTime}
-                        onChange={(e) => updateItem(currentDay.id, item.id, { startTime: e.target.value })}
-                        placeholder="Inicio"
-                      />
-                      <Input
-                        type="time"
-                        value={item.endTime}
-                        onChange={(e) => updateItem(currentDay.id, item.id, { endTime: e.target.value })}
-                        placeholder="Fin"
-                      />
-                      <Select
-                        value={item.activityType}
-                        onValueChange={(val) => updateItem(currentDay.id, item.id, { activityType: val })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {activityTypes.map((t) => (
-                            <SelectItem key={t.value} value={t.value}>
-                              {t.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        value={item.title}
-                        onChange={(e) => updateItem(currentDay.id, item.id, { title: e.target.value })}
-                        placeholder="Título"
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <Input
-                        value={item.location}
-                        onChange={(e) => updateItem(currentDay.id, item.id, { location: e.target.value })}
-                        placeholder="Ubicación"
-                      />
-                      <Input
-                        value={item.notes}
-                        onChange={(e) => updateItem(currentDay.id, item.id, { notes: e.target.value })}
-                        placeholder="Notas (ej. Clima)"
-                      />
-                    </div>
-                  </div>
-                ))}
+                    </Collapsible>
+                  );
+                })}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="w-full gap-2">
