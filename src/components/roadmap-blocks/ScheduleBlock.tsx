@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2, Clock } from 'lucide-react';
+import { Plus, Trash2, Clock, ChevronDown } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useDebounce } from '@/hooks/useDebounce';
 
 interface ScheduleItem {
@@ -162,7 +168,7 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo }: Schedu
     });
   };
 
-  const addItem = (dayId: string) => {
+  const addItem = (dayId: string, activityType: string = 'other') => {
     // Find the last known time from the previous activity
     const day = localDays.find((d) => d.id === dayId);
     let defaultStartTime = '';
@@ -173,12 +179,15 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo }: Schedu
       defaultStartTime = lastItem.endTime || lastItem.startTime || '';
     }
 
+    // Get the label for the activity type
+    const activityLabel = activityTypes.find(t => t.value === activityType)?.label || '';
+
     const newItem: ScheduleItem = {
       id: crypto.randomUUID(),
       startTime: defaultStartTime,
       endTime: '',
-      activityType: 'other',
-      title: '',
+      activityType,
+      title: activityLabel,
       location: '',
       notes: '',
     };
@@ -338,10 +347,25 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo }: Schedu
                     </div>
                   </div>
                 ))}
-                <Button onClick={() => addItem(currentDay.id)} variant="outline" className="w-full gap-2">
-                  <Plus className="w-4 h-4" />
-                  Añadir Actividad
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full gap-2">
+                      <Plus className="w-4 h-4" />
+                      Añadir Actividad
+                      <ChevronDown className="w-4 h-4 ml-auto" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="center" className="w-56 bg-popover">
+                    {activityTypes.map((type) => (
+                      <DropdownMenuItem 
+                        key={type.value} 
+                        onClick={() => addItem(currentDay.id, type.value)}
+                      >
+                        {type.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </TabsContent>
           )}
