@@ -53,9 +53,11 @@ interface ScheduleBlockData {
 const activityTypes = [
   { value: 'travel', label: 'Viaje' },
   { value: 'soundcheck', label: 'Soundcheck' },
+  { value: 'rehearsal', label: 'Ensayo' },
   { value: 'show', label: 'Show' },
   { value: 'meal', label: 'Comida' },
   { value: 'hotel', label: 'Hotel' },
+  { value: 'apartment', label: 'Apartamento' },
   { value: 'meeting', label: 'Reunión' },
   { value: 'other', label: 'Otro' },
 ];
