@@ -32,6 +32,7 @@ export interface TravelTrip {
   departureTime: string;
   arrivalTime: string;
   passengers: string[];
+  luggagePolicy?: string; // Política de equipaje específica para este desplazamiento
 }
 
 interface TravelBlockData {
@@ -121,6 +122,7 @@ export function TravelBlock({ data, onChange, tourDates, bookingInfo }: TravelBl
       departureTime: '',
       arrivalTime: '',
       passengers: [],
+      luggagePolicy: '',
     };
     setLocalTrips((prev) => sortTripsByDate([...prev, newTrip]));
   };
@@ -198,6 +200,7 @@ export function TravelBlock({ data, onChange, tourDates, bookingInfo }: TravelBl
                   <TableHead className="w-20">Salida</TableHead>
                   <TableHead className="w-20">Llegada</TableHead>
                   <TableHead className="min-w-[150px]">Pasajeros</TableHead>
+                  <TableHead className="min-w-[180px]">Equipaje</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -293,6 +296,14 @@ export function TravelBlock({ data, onChange, tourDates, bookingInfo }: TravelBl
                         value={getPassengersString(trip.passengers)}
                         onChange={(e) => handlePassengersChange(trip.id, e.target.value)}
                         placeholder="Juan, María, Pedro"
+                        className="h-8"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        value={trip.luggagePolicy || ''}
+                        onChange={(e) => updateTrip(trip.id, { luggagePolicy: e.target.value })}
+                        placeholder="55x40x23cm, 10kg"
                         className="h-8"
                       />
                     </TableCell>
