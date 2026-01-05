@@ -204,6 +204,17 @@ export default function RoadmapDetail() {
     return undefined;
   };
 
+  const linkedBooking = roadmap.booking;
+
+  // Build booking info for schedule auto-fill
+  const bookingInfo = linkedBooking ? {
+    eventDate: linkedBooking.fecha || undefined,
+    eventTime: linkedBooking.hora?.substring(0, 5) || undefined,
+    venue: linkedBooking.lugar || undefined,
+    city: linkedBooking.ciudad || undefined,
+    tourTitle: linkedBooking.festival_ciclo || undefined,
+  } : undefined;
+
   const renderBlock = (block: RoadmapBlock) => {
     const props = {
       data: block.data as Record<string, unknown>,
@@ -221,7 +232,7 @@ export default function RoadmapDetail() {
           />
         );
       case 'schedule':
-        return <ScheduleBlock {...props} tourDates={getScheduleTourDates()} />;
+        return <ScheduleBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} />;
       case 'travel':
         return <TravelBlock {...props} />;
       case 'hospitality':
@@ -234,8 +245,6 @@ export default function RoadmapDetail() {
         return null;
     }
   };
-
-  const linkedBooking = roadmap.booking;
 
   return (
     <div className="p-6 space-y-6">

@@ -31,14 +31,23 @@ interface ScheduleDay {
   items: ScheduleItem[];
 }
 
-interface ScheduleBlockData {
-  days?: ScheduleDay[];
+interface BookingInfo {
+  eventDate?: string;
+  eventTime?: string;
+  venue?: string;
+  city?: string;
+  tourTitle?: string;
 }
 
 interface ScheduleBlockProps {
   data: Record<string, unknown>;
   onChange: (data: Record<string, unknown>) => void;
   tourDates?: string[]; // Dates from the tour to auto-initialize days
+  bookingInfo?: BookingInfo; // Booking info to auto-fill activities
+}
+
+interface ScheduleBlockData {
+  days?: ScheduleDay[];
 }
 
 const activityTypes = [
@@ -51,7 +60,7 @@ const activityTypes = [
   { value: 'other', label: 'Otro' },
 ];
 
-export function ScheduleBlock({ data, onChange, tourDates }: ScheduleBlockProps) {
+export function ScheduleBlock({ data, onChange, tourDates, bookingInfo }: ScheduleBlockProps) {
   const blockData = data as ScheduleBlockData;
   const incomingDays = useMemo(() => blockData.days || [], [blockData.days]);
 
@@ -64,6 +73,7 @@ export function ScheduleBlock({ data, onChange, tourDates }: ScheduleBlockProps)
   const hasAutoInitialized = useRef(false);
 
   // Auto-initialize days from tour dates - create a day for each tour date
+  // Also auto-generate show activity on event date
   useEffect(() => {
     if (!tourDates || tourDates.length === 0) return;
     
@@ -72,16 +82,33 @@ export function ScheduleBlock({ data, onChange, tourDates }: ScheduleBlockProps)
     // If block is empty, initialize with all tour dates
     if (!hasAutoInitialized.current && incomingDays.length === 0) {
       hasAutoInitialized.current = true;
-      const newDays: ScheduleDay[] = sortedDates.map((date, index) => ({
-        id: crypto.randomUUID(),
-        label: `Día ${index + 1}`,
-        date,
-        items: [],
-      }));
+      const newDays: ScheduleDay[] = sortedDates.map((date, index) => {
+        const items: ScheduleItem[] = [];
+        
+        // If this date matches the event date from booking, add show activity
+        if (bookingInfo?.eventDate === date && bookingInfo?.eventTime) {
+          items.push({
+            id: crypto.randomUUID(),
+            startTime: bookingInfo.eventTime,
+            endTime: '',
+            activityType: 'show',
+            title: bookingInfo.tourTitle || 'Concierto',
+            location: bookingInfo.venue || '',
+            notes: bookingInfo.city || '',
+          });
+        }
+        
+        return {
+          id: crypto.randomUUID(),
+          label: `Día ${index + 1}`,
+          date,
+          items,
+        };
+      });
       setLocalDays(newDays);
       setActiveDay(newDays[0]?.id || '');
     }
-  }, [incomingDays.length, tourDates]);
+  }, [incomingDays.length, tourDates, bookingInfo]);
 
   // Sync from parent when server/queries update the block.
   useEffect(() => {
