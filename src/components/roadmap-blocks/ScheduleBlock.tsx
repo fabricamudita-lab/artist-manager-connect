@@ -288,7 +288,15 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo }: Schedu
               </div>
 
               <div className="space-y-3">
-                {currentDay.items.map((item, idx) => {
+                {[...currentDay.items]
+                  .sort((a, b) => {
+                    // Sort by start time (empty times go to the end)
+                    if (!a.startTime && !b.startTime) return 0;
+                    if (!a.startTime) return 1;
+                    if (!b.startTime) return -1;
+                    return a.startTime.localeCompare(b.startTime);
+                  })
+                  .map((item, idx) => {
                   // Build summary text for collapsed state
                   const activityLabel = activityTypes.find(t => t.value === item.activityType)?.label || item.activityType;
                   const timeRange = item.startTime 
