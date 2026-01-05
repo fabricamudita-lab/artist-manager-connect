@@ -187,6 +187,23 @@ export default function RoadmapDetail() {
     }
   };
 
+  // Get tour dates from header block (priority), or fall back to booking event date
+  const getScheduleTourDates = (): string[] | undefined => {
+    // First, look for tourDates in the header block
+    const headerBlock = blocks?.find(b => b.block_type === 'header');
+    if (headerBlock) {
+      const headerData = headerBlock.data as { tourDates?: string[] };
+      if (headerData.tourDates && headerData.tourDates.length > 0) {
+        return headerData.tourDates;
+      }
+    }
+    // Fallback to booking event date
+    if (bookingSuggestion?.eventDate) {
+      return [bookingSuggestion.eventDate];
+    }
+    return undefined;
+  };
+
   const renderBlock = (block: RoadmapBlock) => {
     const props = {
       data: block.data as Record<string, unknown>,
@@ -204,7 +221,7 @@ export default function RoadmapDetail() {
           />
         );
       case 'schedule':
-        return <ScheduleBlock {...props} tourDates={bookingSuggestion?.eventDate ? [bookingSuggestion.eventDate] : undefined} />;
+        return <ScheduleBlock {...props} tourDates={getScheduleTourDates()} />;
       case 'travel':
         return <TravelBlock {...props} />;
       case 'hospitality':
