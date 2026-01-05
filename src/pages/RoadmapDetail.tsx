@@ -234,7 +234,7 @@ export default function RoadmapDetail() {
       case 'schedule':
         return <ScheduleBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} />;
       case 'travel':
-        return <TravelBlock {...props} />;
+        return <TravelBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} />;
       case 'hospitality':
         return <HospitalityBlock {...props} />;
       case 'production':
