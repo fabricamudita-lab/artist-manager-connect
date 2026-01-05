@@ -38,13 +38,15 @@ interface TravelTrip {
   id: string;
   date: string;
   medium: 'plane' | 'train' | 'bus' | 'car';
-  flightNumber: string;
+  flightNumber?: string; // Legacy field name
+  serviceNumber?: string; // New field name
   pnr: string;
   origin: string;
   destination: string;
   departureTime?: string;
   arrivalTime?: string;
   passengers: string[] | string;
+  luggagePolicy?: string; // Per-trip luggage policy
 }
 
 interface HotelData {
@@ -99,9 +101,11 @@ interface ScheduleDay {
 const activityTypeLabels: Record<string, string> = {
   travel: 'Viaje',
   soundcheck: 'Soundcheck',
+  rehearsal: 'Ensayo',
   show: 'Show',
   meal: 'Comida',
   hotel: 'Hotel',
+  apartment: 'Apartamento',
   meeting: 'Reunión',
   other: 'Otro',
 };
@@ -320,6 +324,8 @@ export function RoadmapPreview({ roadmapName, artistName, promoter, startDate, e
             
             {dateTrips.map((trip) => {
               const passengers = getPassengersList(trip.passengers);
+              // Support both legacy flightNumber and new serviceNumber
+              const serviceNumber = trip.serviceNumber || trip.flightNumber;
               
               return (
                 <div key={trip.id} className="border rounded-lg overflow-hidden">
@@ -328,9 +334,9 @@ export function RoadmapPreview({ roadmapName, artistName, promoter, startDate, e
                     <div className="flex items-center gap-3">
                       <MediumIcon medium={trip.medium} className="w-5 h-5" />
                       <span className="font-bold">{getMediumLabel(trip.medium)}</span>
-                      {trip.flightNumber && (
+                      {serviceNumber && (
                         <span className="font-mono bg-background px-2 py-0.5 rounded text-sm">
-                          {trip.flightNumber}
+                          {serviceNumber}
                         </span>
                       )}
                     </div>
@@ -379,6 +385,16 @@ export function RoadmapPreview({ roadmapName, artistName, promoter, startDate, e
                             </span>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Trip-specific luggage policy */}
+                    {trip.luggagePolicy && (
+                      <div className="border-t pt-3 mt-3">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                          EQUIPAJE
+                        </p>
+                        <p className="text-sm text-muted-foreground">{trip.luggagePolicy}</p>
                       </div>
                     )}
                   </div>
