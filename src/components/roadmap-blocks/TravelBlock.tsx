@@ -25,8 +25,8 @@ export interface TravelTrip {
   id: string;
   date: string;
   medium: 'plane' | 'train' | 'bus' | 'car';
-  flightNumber: string;
-  pnr: string;
+  serviceNumber: string; // Nº Vuelo, Nº Tren, Nº Línea, etc.
+  pnr: string; // Localizador / Código de reserva
   origin: string;
   destination: string;
   departureTime: string;
@@ -45,11 +45,21 @@ interface TravelBlockProps {
 }
 
 const mediumOptions = [
-  { value: 'plane', label: 'Avión', icon: Plane },
-  { value: 'train', label: 'Tren', icon: Train },
-  { value: 'bus', label: 'Bus', icon: Bus },
-  { value: 'car', label: 'Coche', icon: Car },
+  { value: 'plane', label: 'Avión', icon: Plane, serviceLabel: 'Nº Vuelo', placeholder: 'IB1234' },
+  { value: 'train', label: 'Tren', icon: Train, serviceLabel: 'Nº Tren', placeholder: 'AVE 1234' },
+  { value: 'bus', label: 'Bus', icon: Bus, serviceLabel: 'Nº Línea', placeholder: 'ALSA 123' },
+  { value: 'car', label: 'Coche', icon: Car, serviceLabel: null, placeholder: '' },
 ];
+
+const getServiceLabel = (medium: TravelTrip['medium']): string | null => {
+  const option = mediumOptions.find(o => o.value === medium);
+  return option?.serviceLabel || null;
+};
+
+const getServicePlaceholder = (medium: TravelTrip['medium']): string => {
+  const option = mediumOptions.find(o => o.value === medium);
+  return option?.placeholder || '';
+};
 
 export function TravelBlock({ data, onChange }: TravelBlockProps) {
   const blockData = data as TravelBlockData;
@@ -89,7 +99,7 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
       id: crypto.randomUUID(),
       date: '',
       medium: 'plane',
-      flightNumber: '',
+      serviceNumber: '',
       pnr: '',
       origin: '',
       destination: '',
@@ -145,8 +155,8 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
                 <TableRow>
                   <TableHead className="w-28">Fecha</TableHead>
                   <TableHead className="w-24">Medio</TableHead>
-                  <TableHead className="w-24">Nº Vuelo</TableHead>
-                  <TableHead className="w-24">PNR</TableHead>
+                  <TableHead className="w-28">Nº Servicio</TableHead>
+                  <TableHead className="w-24">Localizador</TableHead>
                   <TableHead>Origen</TableHead>
                   <TableHead>Destino</TableHead>
                   <TableHead className="w-20">Salida</TableHead>
@@ -156,7 +166,11 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {localTrips.map((trip) => (
+                {localTrips.map((trip) => {
+                  const serviceLabel = getServiceLabel(trip.medium);
+                  const servicePlaceholder = getServicePlaceholder(trip.medium);
+                  
+                  return (
                   <TableRow key={trip.id}>
                     <TableCell>
                       <Input
@@ -187,12 +201,16 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
                       </Select>
                     </TableCell>
                     <TableCell>
-                      <Input
-                        value={trip.flightNumber}
-                        onChange={(e) => updateTrip(trip.id, { flightNumber: e.target.value })}
-                        placeholder="IB1234"
-                        className="h-8"
-                      />
+                      {serviceLabel ? (
+                        <Input
+                          value={trip.serviceNumber || ''}
+                          onChange={(e) => updateTrip(trip.id, { serviceNumber: e.target.value })}
+                          placeholder={servicePlaceholder}
+                          className="h-8"
+                        />
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Input
@@ -253,7 +271,8 @@ export function TravelBlock({ data, onChange }: TravelBlockProps) {
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
