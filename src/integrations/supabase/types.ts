@@ -2401,21 +2401,21 @@ export type Database = {
       }
       custom_room_types: {
         Row: {
-          capacity: number
+          capacity: number | null
           created_at: string
           created_by: string
           id: string
           name: string
         }
         Insert: {
-          capacity?: number
+          capacity?: number | null
           created_at?: string
           created_by: string
           id?: string
           name: string
         }
         Update: {
-          capacity?: number
+          capacity?: number | null
           created_at?: string
           created_by?: string
           id?: string
