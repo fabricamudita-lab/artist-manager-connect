@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useDebounce } from '@/hooks/useDebounce';
+import { TeamMemberSelector } from './TeamMemberSelector';
 
 interface Hotel {
   id: string;
@@ -35,7 +36,8 @@ interface Hotel {
 
 interface RoomAssignment {
   id: string;
-  passenger: string;
+  passenger: string; // Text-based passenger name (legacy)
+  passengerIds?: string[]; // Contact IDs for linked team members
   roomType: 'single' | 'double' | 'twin' | 'suite';
 }
 
@@ -48,6 +50,7 @@ interface HospitalityBlockData {
 interface HospitalityBlockProps {
   data: Record<string, unknown>;
   onChange: (data: Record<string, unknown>) => void;
+  artistId?: string | null;
 }
 
 const roomTypes = [
@@ -57,7 +60,7 @@ const roomTypes = [
   { value: 'suite', label: 'Suite' },
 ];
 
-export function HospitalityBlock({ data, onChange }: HospitalityBlockProps) {
+export function HospitalityBlock({ data, onChange, artistId }: HospitalityBlockProps) {
   const blockData = data as HospitalityBlockData;
   const incomingHotels = blockData.hotels || [];
   const incomingRoomingList = blockData.roomingList || [];
@@ -124,6 +127,7 @@ export function HospitalityBlock({ data, onChange }: HospitalityBlockProps) {
     const newAssignment: RoomAssignment = {
       id: crypto.randomUUID(),
       passenger: '',
+      passengerIds: [],
       roomType: 'single',
     };
     setLocalRoomingList((prev) => [...prev, newAssignment]);
@@ -264,11 +268,13 @@ export function HospitalityBlock({ data, onChange }: HospitalityBlockProps) {
                 {localRoomingList.map((assignment) => (
                   <TableRow key={assignment.id}>
                     <TableCell>
-                      <Input
-                        value={assignment.passenger}
-                        onChange={(e) => updateRoomAssignment(assignment.id, { passenger: e.target.value })}
-                        placeholder="Nombre completo"
-                        className="h-8"
+                      <TeamMemberSelector
+                        artistId={artistId}
+                        value={assignment.passengerIds || []}
+                        onValueChange={(ids) => updateRoomAssignment(assignment.id, { passengerIds: ids })}
+                        placeholder="Seleccionar pasajero..."
+                        compact
+                        single
                       />
                     </TableCell>
                     <TableCell>
