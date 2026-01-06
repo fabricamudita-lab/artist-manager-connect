@@ -36,7 +36,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { useRoadmap, RoadmapBlock } from '@/hooks/useRoadmaps';
+import { useRoadmap, RoadmapBlock, LinkedBooking } from '@/hooks/useRoadmaps';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 import { BookingSelectorDialog, BookingForSelector } from '@/components/BookingSelectorDialog';
 import { useQuery } from '@tanstack/react-query';
@@ -76,10 +76,25 @@ const statusOptions = [
   { value: 'cancelled', label: 'Cancelado' },
 ];
 
+interface LinkedBookingWithLinkId extends LinkedBooking {
+  linkId: string;
+}
+
 export default function RoadmapDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { roadmap, blocks, isLoading, updateRoadmap, addBlock, updateBlock, deleteBlock } = useRoadmap(id);
+  const { 
+    roadmap, 
+    blocks, 
+    linkedBookings,
+    isLoading, 
+    updateRoadmap, 
+    addBookingLink,
+    removeBookingLink,
+    addBlock, 
+    updateBlock, 
+    deleteBlock 
+  } = useRoadmap(id);
   
   const [editingName, setEditingName] = useState(false);
   const [tempName, setTempName] = useState('');
@@ -101,22 +116,27 @@ export default function RoadmapDetail() {
     enabled: !!roadmap?.artist_id,
   });
 
-  // Check if promotor is a UUID and fetch contact name if so
-  const promotorValue = roadmap?.booking?.promotor;
-  const isPromoterUUID = promotorValue && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(promotorValue);
+  // Get unique promoter IDs that are UUIDs
+  const promoterIds = linkedBookings
+    .map((b: LinkedBookingWithLinkId) => b.promotor)
+    .filter((p): p is string => !!p && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p));
   
-  const { data: promoterContact } = useQuery({
-    queryKey: ['contact-promoter', promotorValue],
+  const { data: promoterContacts } = useQuery({
+    queryKey: ['contact-promoters', promoterIds],
     queryFn: async () => {
-      if (!promotorValue) return null;
+      if (promoterIds.length === 0) return {};
       const { data } = await supabase
         .from('contacts')
-        .select('name, company')
-        .eq('id', promotorValue)
-        .single();
-      return data;
+        .select('id, name, company')
+        .in('id', promoterIds);
+      
+      const map: Record<string, { name: string | null; company: string | null }> = {};
+      data?.forEach(c => {
+        map[c.id] = { name: c.name, company: c.company };
+      });
+      return map;
     },
-    enabled: !!isPromoterUUID,
+    enabled: promoterIds.length > 0,
   });
 
   if (isLoading) {
@@ -144,41 +164,36 @@ export default function RoadmapDetail() {
   };
 
   const handleBookingSelect = (booking: BookingForSelector) => {
-    // Auto-fill fields from booking
-    const bookingName = booking.festival_ciclo || booking.lugar || roadmap.name;
-    const updates: Record<string, unknown> = {
-      booking_id: booking.id,
-      name: bookingName,
-      promoter: booking.promotor || roadmap.promoter,
-    };
-    
-    if (booking.artist_id) {
-      updates.artist_id = booking.artist_id;
+    // Check if booking is already linked
+    const alreadyLinked = linkedBookings.some((b: LinkedBookingWithLinkId) => b.id === booking.id);
+    if (alreadyLinked) {
+      setShowBookingSelector(false);
+      return;
     }
     
-    if (booking.fecha) {
-      updates.start_date = booking.fecha;
-      updates.end_date = booking.fecha;
+    // Add to junction table
+    addBookingLink.mutate(booking.id);
+    
+    // If this is the first booking, also set artist
+    if (linkedBookings.length === 0 && booking.artist_id && !roadmap.artist_id) {
+      updateRoadmap.mutate({ artist_id: booking.artist_id });
     }
     
-    updateRoadmap.mutate(updates as any);
+    setShowBookingSelector(false);
   };
 
-  const handleUnlinkBooking = () => {
-    updateRoadmap.mutate({ booking_id: null } as any);
+  const handleUnlinkBooking = (linkId: string) => {
+    removeBookingLink.mutate(linkId);
   };
 
-  // Build booking suggestion for HeaderBlock - resolve promoter name
-  const resolvedPromoterName = isPromoterUUID 
-    ? (promoterContact?.name || promoterContact?.company || undefined)
-    : promotorValue || undefined;
-
-  const bookingSuggestion = roadmap.booking ? {
-    artistName: artist?.name,
-    tourTitle: roadmap.booking.festival_ciclo || roadmap.booking.lugar || undefined,
-    promoter: resolvedPromoterName,
-    eventDate: roadmap.booking.fecha || undefined,
-  } : undefined;
+  const getPromoterName = (booking: LinkedBookingWithLinkId): string => {
+    if (!booking.promotor) return '';
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(booking.promotor);
+    if (isUUID && promoterContacts?.[booking.promotor]) {
+      return promoterContacts[booking.promotor].name || promoterContacts[booking.promotor].company || '';
+    }
+    return booking.promotor;
+  };
 
   // Sync tour dates from HeaderBlock to roadmap start_date/end_date
   const handleTourDatesChange = (dates: string[]) => {
@@ -197,7 +212,7 @@ export default function RoadmapDetail() {
     }
   };
 
-  // Get tour dates from header block (priority), or fall back to booking event date
+  // Get tour dates from header block (priority), or fall back to booking event dates
   const getScheduleTourDates = (): string[] | undefined => {
     // First, look for tourDates in the header block
     const headerBlock = blocks?.find(b => b.block_type === 'header');
@@ -207,22 +222,32 @@ export default function RoadmapDetail() {
         return headerData.tourDates;
       }
     }
-    // Fallback to booking event date
-    if (bookingSuggestion?.eventDate) {
-      return [bookingSuggestion.eventDate];
+    // Fallback to all linked booking event dates
+    const bookingDates = linkedBookings
+      .map((b: LinkedBookingWithLinkId) => b.fecha)
+      .filter((d): d is string => !!d);
+    if (bookingDates.length > 0) {
+      return bookingDates;
     }
     return undefined;
   };
 
-  const linkedBooking = roadmap.booking;
+  // Build booking suggestion for HeaderBlock using first linked booking
+  const firstBooking = linkedBookings[0] as LinkedBookingWithLinkId | undefined;
+  const bookingSuggestion = firstBooking ? {
+    artistName: artist?.name,
+    tourTitle: firstBooking.festival_ciclo || firstBooking.lugar || undefined,
+    promoter: getPromoterName(firstBooking),
+    eventDate: firstBooking.fecha || undefined,
+  } : undefined;
 
-  // Build booking info for schedule auto-fill
-  const bookingInfo = linkedBooking ? {
-    eventDate: linkedBooking.fecha || undefined,
-    eventTime: linkedBooking.hora?.substring(0, 5) || undefined,
-    venue: linkedBooking.lugar || undefined,
-    city: linkedBooking.ciudad || undefined,
-    tourTitle: linkedBooking.festival_ciclo || undefined,
+  // Build booking info for schedule auto-fill (use first booking)
+  const bookingInfo = firstBooking ? {
+    eventDate: firstBooking.fecha || undefined,
+    eventTime: firstBooking.hora?.substring(0, 5) || undefined,
+    venue: firstBooking.lugar || undefined,
+    city: firstBooking.ciudad || undefined,
+    tourTitle: firstBooking.festival_ciclo || undefined,
   } : undefined;
 
   const renderBlock = (block: RoadmapBlock) => {
@@ -242,11 +267,11 @@ export default function RoadmapDetail() {
           />
         );
       case 'schedule':
-        return <ScheduleBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} artistId={roadmap.artist_id} bookingId={linkedBooking?.id} />;
+        return <ScheduleBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} artistId={roadmap.artist_id} bookingId={firstBooking?.id} />;
       case 'travel':
-        return <TravelBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} artistId={roadmap.artist_id} bookingId={linkedBooking?.id} />;
+        return <TravelBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} artistId={roadmap.artist_id} bookingId={firstBooking?.id} />;
       case 'hospitality':
-        return <HospitalityBlock {...props} artistId={roadmap.artist_id} bookingId={linkedBooking?.id} />;
+        return <HospitalityBlock {...props} artistId={roadmap.artist_id} bookingId={firstBooking?.id} />;
       case 'production':
         return <ProductionBlock {...props} />;
       case 'contacts':
@@ -311,92 +336,103 @@ export default function RoadmapDetail() {
         </Select>
       </div>
 
-      {/* Booking Link Section */}
+      {/* Linked Bookings Section */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-4">
+        <CardContent className="p-4 space-y-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Link2 className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Evento Vinculado</span>
+              <span className="text-sm font-medium">Eventos Vinculados</span>
             </div>
-            {linkedBooking ? (
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="gap-1">
-                  {linkedBooking.festival_ciclo || linkedBooking.lugar || 'Evento'}
-                  {linkedBooking.fecha && (
-                    <span className="text-muted-foreground ml-1">
-                      · {format(new Date(linkedBooking.fecha), 'd MMM yyyy', { locale: es })}
-                    </span>
-                  )}
-                </Badge>
-                <Button variant="ghost" size="sm" onClick={handleUnlinkBooking}>
-                  Desvincular
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setShowBookingSelector(true)}>
-                  Cambiar
-                </Button>
-              </div>
-            ) : (
-              <Button variant="outline" size="sm" onClick={() => setShowBookingSelector(true)} className="gap-2">
-                <Link2 className="w-4 h-4" />
-                Vincular a Evento
-              </Button>
-            )}
+            <Button variant="outline" size="sm" onClick={() => setShowBookingSelector(true)} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Añadir Evento
+            </Button>
           </div>
 
-          {/* Editable Meta Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Artista</Label>
-              <SingleArtistSelector
-                value={roadmap.artist_id}
-                onValueChange={(value) => updateRoadmap.mutate({ artist_id: value })}
-              />
+          {linkedBookings.length === 0 ? (
+            <div className="text-center py-4 text-muted-foreground text-sm">
+              No hay eventos vinculados. Haz clic en "Añadir Evento" para vincular uno.
             </div>
-            <div className="space-y-2">
-              <Label>Promotor</Label>
-              <Input
-                value={resolvedPromoterName || roadmap.promoter || ''}
-                readOnly={!!linkedBooking}
-                onChange={(e) => !linkedBooking && updateRoadmap.mutate({ promoter: e.target.value })}
-                placeholder="Nombre del promotor"
-                className={linkedBooking ? 'bg-muted' : ''}
-              />
-              {linkedBooking && resolvedPromoterName && (
-                <p className="text-xs text-muted-foreground">
-                  Promotor del evento vinculado
-                </p>
-              )}
+          ) : (
+            <div className="space-y-4">
+              {linkedBookings.map((booking: LinkedBookingWithLinkId) => (
+                <div key={booking.linkId} className="border rounded-lg p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline" className="gap-1">
+                      {booking.festival_ciclo || booking.lugar || 'Evento'}
+                      {booking.fecha && (
+                        <span className="text-muted-foreground ml-1">
+                          · {format(new Date(booking.fecha), 'd MMM yyyy', { locale: es })}
+                        </span>
+                      )}
+                    </Badge>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleUnlinkBooking(booking.linkId)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      Desvincular
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label>Artista</Label>
+                      {linkedBookings.indexOf(booking) === 0 ? (
+                        <SingleArtistSelector
+                          value={roadmap.artist_id}
+                          onValueChange={(value) => updateRoadmap.mutate({ artist_id: value })}
+                        />
+                      ) : (
+                        <Input
+                          value={artist?.name || ''}
+                          readOnly
+                          className="bg-muted"
+                        />
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Promotor</Label>
+                      <Input
+                        value={getPromoterName(booking)}
+                        readOnly
+                        className="bg-muted"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Promotor del evento vinculado
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Fecha del Evento</Label>
+                      <Input
+                        type="date"
+                        value={booking.fecha || ''}
+                        readOnly
+                        className="bg-muted"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Fecha del evento vinculado
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Hora Concierto</Label>
+                      <Input
+                        type="time"
+                        value={booking.hora?.substring(0, 5) || ''}
+                        readOnly
+                        className="bg-muted"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Hora del evento vinculado
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="space-y-2">
-              <Label>Fecha del Evento</Label>
-              <Input
-                type="date"
-                value={linkedBooking?.fecha || ''}
-                readOnly
-                className="bg-muted"
-              />
-              {linkedBooking?.fecha && (
-                <p className="text-xs text-muted-foreground">
-                  Fecha del evento vinculado
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Hora Concierto</Label>
-              <Input
-                type="time"
-                value={linkedBooking?.hora?.substring(0, 5) || ''}
-                readOnly
-                className="bg-muted"
-              />
-              {linkedBooking?.hora && (
-                <p className="text-xs text-muted-foreground">
-                  Hora del evento vinculado
-                </p>
-              )}
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 

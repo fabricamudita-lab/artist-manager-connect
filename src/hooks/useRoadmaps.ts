@@ -3,10 +3,21 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 
+export interface LinkedBooking {
+  id: string;
+  festival_ciclo: string | null;
+  lugar: string | null;
+  ciudad: string | null;
+  fecha: string | null;
+  hora: string | null;
+  promotor: string | null;
+  artist_id: string | null;
+}
+
 export interface TourRoadmap {
   id: string;
   artist_id: string | null;
-  booking_id: string | null;
+  booking_id: string | null; // Legacy single booking
   name: string;
   promoter: string | null;
   start_date: string | null;
@@ -20,15 +31,8 @@ export interface TourRoadmap {
     name: string;
     avatar_url: string | null;
   };
-  booking?: {
-    id: string;
-    festival_ciclo: string | null;
-    lugar: string | null;
-    ciudad: string | null;
-    fecha: string | null;
-    hora: string | null;
-    promotor: string | null;
-  } | null;
+  booking?: LinkedBooking | null; // Legacy single booking
+  linkedBookings?: LinkedBooking[]; // New multiple bookings
 }
 
 export interface RoadmapBlock {
@@ -53,7 +57,7 @@ export function useRoadmaps() {
         .select(`
           *,
           artist:artists(id, name, avatar_url),
-          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, hora, promotor)
+          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, hora, promotor, artist_id)
         `)
         .order('created_at', { ascending: false });
       
@@ -124,13 +128,40 @@ export function useRoadmap(id: string | undefined) {
         .select(`
           *,
           artist:artists(id, name, avatar_url),
-          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, hora, promotor)
+          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, hora, promotor, artist_id)
         `)
         .eq('id', id)
         .single();
       
       if (error) throw error;
       return data as TourRoadmap;
+    },
+    enabled: !!id && !!user,
+  });
+
+  // Fetch multiple linked bookings from junction table
+  const { data: linkedBookings } = useQuery({
+    queryKey: ['tour-roadmap-bookings', id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from('tour_roadmap_bookings')
+        .select(`
+          id,
+          booking_id,
+          sort_order,
+          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, hora, promotor, artist_id)
+        `)
+        .eq('roadmap_id', id)
+        .order('sort_order', { ascending: true });
+      
+      if (error) throw error;
+      
+      // Extract booking data
+      return data.map(item => ({
+        linkId: item.id,
+        ...(item.booking as LinkedBooking),
+      }));
     },
     enabled: !!id && !!user,
   });
@@ -164,6 +195,49 @@ export function useRoadmap(id: string | undefined) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tour-roadmap', id] });
       queryClient.invalidateQueries({ queryKey: ['tour-roadmaps'] });
+    },
+  });
+
+  // Add a booking link (to junction table)
+  const addBookingLink = useMutation({
+    mutationFn: async (bookingId: string) => {
+      if (!id) throw new Error('No roadmap ID');
+      
+      // Get current max sort order
+      const maxOrder = linkedBookings?.reduce((max, b) => Math.max(max, 0), -1) ?? -1;
+      
+      const { error } = await supabase
+        .from('tour_roadmap_bookings')
+        .insert({
+          roadmap_id: id,
+          booking_id: bookingId,
+          sort_order: maxOrder + 1,
+        });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tour-roadmap-bookings', id] });
+      toast({ title: 'Evento vinculado' });
+    },
+    onError: (error) => {
+      toast({ title: 'Error al vincular evento', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Remove a booking link (from junction table)
+  const removeBookingLink = useMutation({
+    mutationFn: async (linkId: string) => {
+      const { error } = await supabase
+        .from('tour_roadmap_bookings')
+        .delete()
+        .eq('id', linkId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tour-roadmap-bookings', id] });
+      toast({ title: 'Evento desvinculado' });
     },
   });
 
@@ -225,8 +299,11 @@ export function useRoadmap(id: string | undefined) {
   return {
     roadmap,
     blocks,
+    linkedBookings: linkedBookings || [],
     isLoading: isLoading || blocksLoading,
     updateRoadmap,
+    addBookingLink,
+    removeBookingLink,
     addBlock,
     updateBlock,
     deleteBlock,
