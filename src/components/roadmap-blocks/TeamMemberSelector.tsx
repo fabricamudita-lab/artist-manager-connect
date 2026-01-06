@@ -30,7 +30,7 @@ interface TeamMemberSelectorProps {
   onValueChange: (value: string[]) => void;
   placeholder?: string;
   compact?: boolean;
-  single?: boolean; // If true, only allow single selection
+  // Note: multi-selection is now the default behavior
 }
 
 export function TeamMemberSelector({
@@ -40,7 +40,6 @@ export function TeamMemberSelector({
   onValueChange,
   placeholder = 'Seleccionar miembros...',
   compact = false,
-  single = false,
 }: TeamMemberSelectorProps) {
   const [open, setOpen] = useState(false);
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -210,17 +209,11 @@ export function TeamMemberSelector({
   }, [members, value]);
 
   const handleSelect = (memberId: string) => {
-    if (single) {
-      // Single selection mode - replace the value
-      onValueChange(value.includes(memberId) ? [] : [memberId]);
-      setOpen(false);
+    // Multi selection mode - toggle
+    if (value.includes(memberId)) {
+      onValueChange(value.filter(id => id !== memberId));
     } else {
-      // Multi selection mode - toggle
-      if (value.includes(memberId)) {
-        onValueChange(value.filter(id => id !== memberId));
-      } else {
-        onValueChange([...value, memberId]);
-      }
+      onValueChange([...value, memberId]);
     }
   };
 
