@@ -2399,6 +2399,30 @@ export type Database = {
           },
         ]
       }
+      custom_room_types: {
+        Row: {
+          capacity: number
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+        }
+        Insert: {
+          capacity?: number
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       default_royalty_splits: {
         Row: {
           artist_id: string
