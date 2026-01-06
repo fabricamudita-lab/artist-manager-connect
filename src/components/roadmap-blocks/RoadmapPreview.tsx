@@ -409,7 +409,9 @@ export function RoadmapPreview({ roadmapName, artistName, promoter, startDate, e
 
   // ============== SCHEDULE SECTION ==============
   const renderSchedule = (data: { days?: ScheduleDay[] }) => {
+    console.log('renderSchedule data:', data);
     const days = data.days || [];
+    console.log('Schedule days:', days);
     if (days.length === 0) return null;
 
     const getActivityIcon = (type: string) => {
@@ -728,6 +730,9 @@ export function RoadmapPreview({ roadmapName, artistName, promoter, startDate, e
   const headerBlock = blocks.find(b => b.block_type === 'header');
   const headerData = headerBlock?.data as HeaderBlockData | undefined;
   const otherBlocks = blocks.filter(b => b.block_type !== 'header');
+  
+  console.log('RoadmapPreview - All blocks:', blocks);
+  console.log('RoadmapPreview - Other blocks (excluding header):', otherBlocks);
 
   return (
     <div className="max-w-4xl mx-auto bg-background">
