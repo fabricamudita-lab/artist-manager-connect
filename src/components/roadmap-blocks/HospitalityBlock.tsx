@@ -40,7 +40,7 @@ interface Hotel {
 interface RoomType {
   id: string;
   name: string;
-  capacity: number;
+  capacity: number | null; // null = unlimited capacity (e.g., Apartamento)
 }
 
 interface RoomAssignment {
@@ -201,6 +201,9 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
   const getCapacityWarning = (assignment: RoomAssignment): string | null => {
     const roomType = roomTypes.find(t => t.name === assignment.roomType);
     if (!roomType || !assignment.passengerIds) return null;
+    
+    // null capacity means unlimited (e.g., Apartamento)
+    if (roomType.capacity === null) return null;
     
     const guestCount = assignment.passengerIds.length;
     if (guestCount === 0) return null;
@@ -430,7 +433,7 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
                           <SelectContent>
                             {roomTypes.map((t) => (
                               <SelectItem key={t.id} value={t.name}>
-                                {t.name} ({t.capacity}p)
+                                {t.name}{t.capacity !== null ? ` (${t.capacity}p)` : ''}
                               </SelectItem>
                             ))}
                           </SelectContent>
