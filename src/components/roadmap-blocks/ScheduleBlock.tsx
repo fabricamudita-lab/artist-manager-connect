@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useDebounce } from '@/hooks/useDebounce';
+import { TeamMemberSelector } from './TeamMemberSelector';
 
 interface ScheduleItem {
   id: string;
@@ -22,6 +23,7 @@ interface ScheduleItem {
   title: string;
   location: string;
   notes: string;
+  assignedMemberIds?: string[]; // Contact IDs for assigned team members
 }
 
 interface ScheduleDay {
@@ -44,6 +46,7 @@ interface ScheduleBlockProps {
   onChange: (data: Record<string, unknown>) => void;
   tourDates?: string[]; // Dates from the tour to auto-initialize days
   bookingInfo?: BookingInfo; // Booking info to auto-fill activities
+  artistId?: string | null;
 }
 
 interface ScheduleBlockData {
@@ -62,7 +65,7 @@ const activityTypes = [
   { value: 'other', label: 'Otro' },
 ];
 
-export function ScheduleBlock({ data, onChange, tourDates, bookingInfo }: ScheduleBlockProps) {
+export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId }: ScheduleBlockProps) {
   const blockData = data as ScheduleBlockData;
   const incomingDays = useMemo(() => blockData.days || [], [blockData.days]);
 
@@ -184,6 +187,7 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo }: Schedu
       title: activityLabel,
       location: '',
       notes: '',
+      assignedMemberIds: [],
     };
 
     setLocalDays((prev) =>

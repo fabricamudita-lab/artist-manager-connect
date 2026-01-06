@@ -242,11 +242,11 @@ export default function RoadmapDetail() {
           />
         );
       case 'schedule':
-        return <ScheduleBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} />;
+        return <ScheduleBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} artistId={roadmap.artist_id} />;
       case 'travel':
-        return <TravelBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} />;
+        return <TravelBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} artistId={roadmap.artist_id} />;
       case 'hospitality':
-        return <HospitalityBlock {...props} />;
+        return <HospitalityBlock {...props} artistId={roadmap.artist_id} />;
       case 'production':
         return <ProductionBlock {...props} />;
       case 'contacts':
@@ -494,6 +494,7 @@ export default function RoadmapDetail() {
               startDate={roadmap.start_date}
               endDate={roadmap.end_date}
               blocks={blocks || []}
+              artistId={roadmap.artist_id}
             />
           </ScrollArea>
         </DialogContent>

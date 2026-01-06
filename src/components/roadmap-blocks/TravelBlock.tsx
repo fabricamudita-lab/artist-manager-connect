@@ -20,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useDebounce } from '@/hooks/useDebounce';
+import { TeamMemberSelector } from './TeamMemberSelector';
 
 export interface TravelTrip {
   id: string;
@@ -31,7 +32,8 @@ export interface TravelTrip {
   destination: string;
   departureTime: string;
   arrivalTime: string;
-  passengers: string[];
+  passengers: string[]; // Text-based passengers (legacy)
+  passengerIds?: string[]; // Contact IDs for linked team members
   luggagePolicy?: string; // Política de equipaje específica para este desplazamiento
 }
 
@@ -47,6 +49,7 @@ interface TravelBlockProps {
   bookingInfo?: {
     eventDate?: string;
   };
+  artistId?: string | null;
 }
 
 const mediumOptions = [
@@ -66,7 +69,7 @@ const getServicePlaceholder = (medium: TravelTrip['medium']): string => {
   return option?.placeholder || '';
 };
 
-export function TravelBlock({ data, onChange, tourDates, bookingInfo }: TravelBlockProps) {
+export function TravelBlock({ data, onChange, tourDates, bookingInfo, artistId }: TravelBlockProps) {
   const blockData = data as TravelBlockData;
   const incomingTrips = blockData.trips || [];
   
@@ -122,6 +125,7 @@ export function TravelBlock({ data, onChange, tourDates, bookingInfo }: TravelBl
       departureTime: '',
       arrivalTime: '',
       passengers: [],
+      passengerIds: [],
       luggagePolicy: '',
     };
     setLocalTrips((prev) => sortTripsByDate([...prev, newTrip]));
@@ -199,8 +203,8 @@ export function TravelBlock({ data, onChange, tourDates, bookingInfo }: TravelBl
                   <TableHead>Destino</TableHead>
                   <TableHead className="w-20">Salida</TableHead>
                   <TableHead className="w-20">Llegada</TableHead>
-                  <TableHead className="min-w-[150px]">Pasajeros</TableHead>
-                  <TableHead className="min-w-[180px]">Equipaje</TableHead>
+                  <TableHead className="min-w-[180px]">Pasajeros</TableHead>
+                  <TableHead className="min-w-[150px]">Equipaje</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -292,11 +296,12 @@ export function TravelBlock({ data, onChange, tourDates, bookingInfo }: TravelBl
                       />
                     </TableCell>
                     <TableCell>
-                      <Input
-                        value={getPassengersString(trip.passengers)}
-                        onChange={(e) => handlePassengersChange(trip.id, e.target.value)}
-                        placeholder="Juan, María, Pedro"
-                        className="h-8"
+                      <TeamMemberSelector
+                        artistId={artistId}
+                        value={trip.passengerIds || []}
+                        onValueChange={(ids) => updateTrip(trip.id, { passengerIds: ids })}
+                        placeholder="Seleccionar..."
+                        compact
                       />
                     </TableCell>
                     <TableCell>

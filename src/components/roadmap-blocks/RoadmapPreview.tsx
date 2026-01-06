@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
@@ -7,6 +8,7 @@ import {
 } from 'lucide-react';
 import { RoadmapBlock } from '@/hooks/useRoadmaps';
 import { Separator } from '@/components/ui/separator';
+import { supabase } from '@/integrations/supabase/client';
 
 interface RoadmapPreviewProps {
   roadmapName: string;
@@ -15,6 +17,7 @@ interface RoadmapPreviewProps {
   startDate?: string | null;
   endDate?: string | null;
   blocks: RoadmapBlock[];
+  artistId?: string | null;
 }
 
 // Type definitions for block data
@@ -46,6 +49,7 @@ interface TravelTrip {
   departureTime?: string;
   arrivalTime?: string;
   passengers: string[] | string;
+  passengerIds?: string[]; // Contact IDs for linked team members
   luggagePolicy?: string; // Per-trip luggage policy
 }
 
@@ -63,6 +67,7 @@ interface HotelData {
 interface RoomAssignment {
   id: string;
   passenger: string;
+  passengerIds?: string[]; // Contact IDs for linked team members
   roomType: 'single' | 'double' | 'twin' | 'suite';
 }
 
@@ -89,6 +94,7 @@ interface ScheduleItem {
   title: string;
   location: string;
   notes: string;
+  assignedMemberIds?: string[]; // Contact IDs for assigned team members
 }
 
 interface ScheduleDay {
@@ -137,7 +143,69 @@ const getMediumLabel = (medium: string) => {
   }
 };
 
-export function RoadmapPreview({ roadmapName, artistName, promoter, startDate, endDate, blocks }: RoadmapPreviewProps) {
+export function RoadmapPreview({ roadmapName, artistName, promoter, startDate, endDate, blocks, artistId }: RoadmapPreviewProps) {
+  // State to store resolved member names
+  const [memberNames, setMemberNames] = useState<Record<string, string>>({});
+  
+  // Collect all member IDs from blocks and resolve them to names
+  useEffect(() => {
+    const allMemberIds = new Set<string>();
+    
+    blocks.forEach(block => {
+      const data = block.data as Record<string, unknown>;
+      
+      // Travel block
+      if (block.block_type === 'travel') {
+        const trips = (data.trips as TravelTrip[]) || [];
+        trips.forEach(trip => {
+          (trip.passengerIds || []).forEach(id => allMemberIds.add(id));
+        });
+      }
+      
+      // Schedule block
+      if (block.block_type === 'schedule') {
+        const days = (data.days as ScheduleDay[]) || [];
+        days.forEach(day => {
+          day.items?.forEach(item => {
+            (item.assignedMemberIds || []).forEach(id => allMemberIds.add(id));
+          });
+        });
+      }
+      
+      // Hospitality block
+      if (block.block_type === 'hospitality') {
+        const roomingList = (data.roomingList as RoomAssignment[]) || [];
+        roomingList.forEach(room => {
+          (room.passengerIds || []).forEach(id => allMemberIds.add(id));
+        });
+      }
+    });
+    
+    if (allMemberIds.size === 0) return;
+    
+    // Fetch names for all member IDs
+    const fetchNames = async () => {
+      const ids = Array.from(allMemberIds);
+      const { data: contacts } = await supabase
+        .from('contacts')
+        .select('id, name, stage_name')
+        .in('id', ids);
+      
+      const namesMap: Record<string, string> = {};
+      (contacts || []).forEach(c => {
+        namesMap[c.id] = c.stage_name || c.name;
+      });
+      setMemberNames(namesMap);
+    };
+    
+    fetchNames();
+  }, [blocks]);
+  
+  // Helper to resolve member IDs to names
+  const resolveMemberNames = (ids: string[]): string[] => {
+    return ids.map(id => memberNames[id] || id).filter(Boolean);
+  };
+  
   const formatDate = (date: string) => {
     try {
       return format(new Date(date), "EEEE d 'de' MMMM yyyy", { locale: es });
@@ -323,7 +391,10 @@ export function RoadmapPreview({ roadmapName, artistName, promoter, startDate, e
             </h3>
             
             {dateTrips.map((trip) => {
-              const passengers = getPassengersList(trip.passengers);
+              // Combine legacy text passengers with resolved member names
+              const textPassengers = getPassengersList(trip.passengers);
+              const linkedPassengers = resolveMemberNames(trip.passengerIds || []);
+              const passengers = [...linkedPassengers, ...textPassengers.filter(p => !linkedPassengers.includes(p))];
               // Support both legacy flightNumber and new serviceNumber
               const serviceNumber = trip.serviceNumber || trip.flightNumber;
               
@@ -409,9 +480,7 @@ export function RoadmapPreview({ roadmapName, artistName, promoter, startDate, e
 
   // ============== SCHEDULE SECTION ==============
   const renderSchedule = (data: { days?: ScheduleDay[] }) => {
-    console.log('renderSchedule data:', data);
     const days = data.days || [];
-    console.log('Schedule days:', days);
     if (days.length === 0) return null;
 
     const getActivityIcon = (type: string) => {
@@ -601,11 +670,15 @@ export function RoadmapPreview({ roadmapName, artistName, promoter, startDate, e
                   </tr>
                 </thead>
                 <tbody>
-                  {roomingList.map((r, idx) => (
+                  {roomingList.map((r, idx) => {
+                    const passengerName = r.passengerIds?.length 
+                      ? resolveMemberNames(r.passengerIds).join(', ') 
+                      : r.passenger;
+                    return (
                     <tr key={r.id} className={idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'}>
                       <td className="p-3 font-medium flex items-center gap-2">
                         <User className="w-4 h-4 text-muted-foreground" />
-                        {r.passenger || '-'}
+                        {passengerName || '-'}
                       </td>
                       <td className="p-3">
                         <span className="inline-flex items-center px-2 py-1 rounded bg-primary/10 text-primary text-xs font-medium">
@@ -613,7 +686,8 @@ export function RoadmapPreview({ roadmapName, artistName, promoter, startDate, e
                         </span>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -730,9 +804,6 @@ export function RoadmapPreview({ roadmapName, artistName, promoter, startDate, e
   const headerBlock = blocks.find(b => b.block_type === 'header');
   const headerData = headerBlock?.data as HeaderBlockData | undefined;
   const otherBlocks = blocks.filter(b => b.block_type !== 'header');
-  
-  console.log('RoadmapPreview - All blocks:', blocks);
-  console.log('RoadmapPreview - Other blocks (excluding header):', otherBlocks);
 
   return (
     <div className="max-w-4xl mx-auto bg-background">
