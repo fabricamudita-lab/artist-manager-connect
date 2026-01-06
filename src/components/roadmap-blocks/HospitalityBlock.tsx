@@ -48,6 +48,7 @@ interface RoomAssignment {
   passenger: string; // Text-based passenger name (legacy)
   passengerIds?: string[]; // Contact IDs for linked team members
   roomType: string;
+  capacityAcknowledged?: boolean; // User confirmed they're okay with over-capacity
 }
 
 interface HospitalityBlockData {
@@ -380,6 +381,7 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
               <TableBody>
                 {localRoomingList.map((assignment) => {
                   const warning = getCapacityWarning(assignment);
+                  const showWarning = warning && !assignment.capacityAcknowledged;
                   return (
                     <TableRow key={assignment.id}>
                       <TableCell>
@@ -388,16 +390,31 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
                             artistId={artistId}
                             bookingId={bookingId}
                             value={assignment.passengerIds || []}
-                            onValueChange={(ids) => updateRoomAssignment(assignment.id, { passengerIds: ids })}
+                            onValueChange={(ids) => updateRoomAssignment(assignment.id, { 
+                              passengerIds: ids,
+                              capacityAcknowledged: false // Reset acknowledgement when passengers change
+                            })}
                             placeholder="Seleccionar equipo..."
                             compact
                           />
-                          {warning && (
+                          {showWarning && (
                             <Alert variant="destructive" className="py-2 px-3">
-                              <AlertTriangle className="h-3 w-3" />
-                              <AlertDescription className="text-xs ml-1">
-                                {warning}
-                              </AlertDescription>
+                              <div className="flex items-center justify-between w-full">
+                                <div className="flex items-center gap-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  <AlertDescription className="text-xs">
+                                    {warning}
+                                  </AlertDescription>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-xs hover:bg-destructive/20"
+                                  onClick={() => updateRoomAssignment(assignment.id, { capacityAcknowledged: true })}
+                                >
+                                  Entendido
+                                </Button>
+                              </div>
                             </Alert>
                           )}
                         </div>
