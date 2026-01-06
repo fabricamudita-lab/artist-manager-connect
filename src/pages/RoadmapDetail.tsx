@@ -242,11 +242,11 @@ export default function RoadmapDetail() {
           />
         );
       case 'schedule':
-        return <ScheduleBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} artistId={roadmap.artist_id} />;
+        return <ScheduleBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} artistId={roadmap.artist_id} bookingId={linkedBooking?.id} />;
       case 'travel':
-        return <TravelBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} artistId={roadmap.artist_id} />;
+        return <TravelBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} artistId={roadmap.artist_id} bookingId={linkedBooking?.id} />;
       case 'hospitality':
-        return <HospitalityBlock {...props} artistId={roadmap.artist_id} />;
+        return <HospitalityBlock {...props} artistId={roadmap.artist_id} bookingId={linkedBooking?.id} />;
       case 'production':
         return <ProductionBlock {...props} />;
       case 'contacts':

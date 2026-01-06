@@ -42,7 +42,7 @@ interface TravelBlockData {
   luggagePolicy?: string;
 }
 
-interface TravelBlockProps {
+export interface TravelBlockProps {
   data: Record<string, unknown>;
   onChange: (data: Record<string, unknown>) => void;
   tourDates?: string[];
@@ -50,6 +50,7 @@ interface TravelBlockProps {
     eventDate?: string;
   };
   artistId?: string | null;
+  bookingId?: string | null; // Booking ID to fetch crew from format
 }
 
 const mediumOptions = [
@@ -69,7 +70,7 @@ const getServicePlaceholder = (medium: TravelTrip['medium']): string => {
   return option?.placeholder || '';
 };
 
-export function TravelBlock({ data, onChange, tourDates, bookingInfo, artistId }: TravelBlockProps) {
+export function TravelBlock({ data, onChange, tourDates, bookingInfo, artistId, bookingId }: TravelBlockProps) {
   const blockData = data as TravelBlockData;
   const incomingTrips = blockData.trips || [];
   
@@ -298,6 +299,7 @@ export function TravelBlock({ data, onChange, tourDates, bookingInfo, artistId }
                     <TableCell>
                       <TeamMemberSelector
                         artistId={artistId}
+                        bookingId={bookingId}
                         value={trip.passengerIds || []}
                         onValueChange={(ids) => updateTrip(trip.id, { passengerIds: ids })}
                         placeholder="Seleccionar..."

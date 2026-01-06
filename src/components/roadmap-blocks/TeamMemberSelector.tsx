@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronsUpDown, User, Users } from 'lucide-react';
+import { Check, ChevronsUpDown, User, Users, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Command,
@@ -19,11 +19,13 @@ interface TeamMember {
   name: string;
   role?: string | null;
   category?: string | null;
-  type: 'contact' | 'artist';
+  type: 'contact' | 'artist' | 'workspace';
+  isFromFormat?: boolean; // If this member comes from the booking format crew
 }
 
 interface TeamMemberSelectorProps {
   artistId?: string | null;
+  bookingId?: string | null; // If provided, will fetch crew from booking's format
   value?: string[]; // Array of contact IDs
   onValueChange: (value: string[]) => void;
   placeholder?: string;
@@ -33,6 +35,7 @@ interface TeamMemberSelectorProps {
 
 export function TeamMemberSelector({
   artistId,
+  bookingId,
   value = [],
   onValueChange,
   placeholder = 'Seleccionar miembros...',
@@ -41,17 +44,123 @@ export function TeamMemberSelector({
 }: TeamMemberSelectorProps) {
   const [open, setOpen] = useState(false);
   const [members, setMembers] = useState<TeamMember[]>([]);
+  const [formatCrewIds, setFormatCrewIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     void fetchMembers();
-  }, [artistId]);
+  }, [artistId, bookingId]);
 
   const fetchMembers = async () => {
     try {
       setLoading(true);
+      const allMembers: TeamMember[] = [];
+      const crewIdsFromFormat = new Set<string>();
 
-      // Fetch contacts assigned to this artist + general team contacts
+      // 1. If we have a bookingId, fetch the format crew first
+      if (bookingId) {
+        // Get booking format
+        const { data: booking } = await supabase
+          .from('booking_offers')
+          .select('formato, artist_id')
+          .eq('id', bookingId)
+          .single();
+
+        if (booking?.formato && (artistId || booking.artist_id)) {
+          const targetArtistId = artistId || booking.artist_id;
+          
+          // Find the booking product for this format
+          const { data: product } = await supabase
+            .from('booking_products')
+            .select('id')
+            .eq('artist_id', targetArtistId)
+            .ilike('name', booking.formato)
+            .eq('is_active', true)
+            .limit(1)
+            .single();
+
+          if (product) {
+            // Get crew members for this format
+            const { data: crewData } = await supabase
+              .from('booking_product_crew')
+              .select('member_id, member_type, role_label')
+              .eq('booking_product_id', product.id);
+
+            if (crewData && crewData.length > 0) {
+              // Separate contacts and workspace members
+              const contactIds = crewData.filter(c => c.member_type === 'contact').map(c => c.member_id);
+              const workspaceIds = crewData.filter(c => c.member_type === 'workspace').map(c => c.member_id);
+
+              // Fetch contact details
+              if (contactIds.length > 0) {
+                const { data: contacts } = await supabase
+                  .from('contacts')
+                  .select('id, name, stage_name, role')
+                  .in('id', contactIds);
+
+                contacts?.forEach(c => {
+                  const crewMember = crewData.find(cm => cm.member_id === c.id);
+                  crewIdsFromFormat.add(c.id);
+                  allMembers.push({
+                    id: c.id,
+                    name: c.stage_name || c.name,
+                    role: crewMember?.role_label || c.role,
+                    category: 'formato',
+                    type: 'contact',
+                    isFromFormat: true,
+                  });
+                });
+              }
+
+              // Fetch workspace member details (artists or profiles)
+              if (workspaceIds.length > 0) {
+                // Check if any are artists
+                const { data: artists } = await supabase
+                  .from('artists')
+                  .select('id, name, stage_name')
+                  .in('id', workspaceIds);
+
+                artists?.forEach(a => {
+                  crewIdsFromFormat.add(a.id);
+                  allMembers.push({
+                    id: a.id,
+                    name: a.stage_name || a.name,
+                    role: 'Artista principal',
+                    category: 'formato',
+                    type: 'workspace',
+                    isFromFormat: true,
+                  });
+                });
+
+                // Check profiles for remaining IDs
+                const foundArtistIds = new Set(artists?.map(a => a.id) || []);
+                const remainingIds = workspaceIds.filter(id => !foundArtistIds.has(id));
+                
+                if (remainingIds.length > 0) {
+                  const { data: profiles } = await supabase
+                    .from('profiles')
+                    .select('user_id, full_name')
+                    .in('user_id', remainingIds);
+
+                  profiles?.forEach(p => {
+                    crewIdsFromFormat.add(p.user_id);
+                    allMembers.push({
+                      id: p.user_id,
+                      name: p.full_name || 'Usuario',
+                      role: 'Miembro del equipo',
+                      category: 'formato',
+                      type: 'workspace',
+                      isFromFormat: true,
+                    });
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 2. Fetch additional contacts (team/management) not already in format
       const { data: contactsData, error: contactsError } = await supabase
         .from('contacts')
         .select('id, name, stage_name, role, category, artist_id, field_config')
@@ -60,9 +169,11 @@ export function TeamMemberSelector({
 
       if (contactsError) throw contactsError;
 
-      // Filter and map contacts - include team members and those linked to the artist
-      const mappedContacts: TeamMember[] = (contactsData || [])
+      // Filter and map contacts - exclude those already added from format
+      (contactsData || [])
         .filter(c => {
+          // Skip if already added from format
+          if (crewIdsFromFormat.has(c.id)) return false;
           // Include if it's a team/management category
           if (c.category === 'equipo' || c.category === 'management') return true;
           // Include if linked to the specific artist
@@ -74,15 +185,19 @@ export function TeamMemberSelector({
           }
           return false;
         })
-        .map(c => ({
-          id: c.id,
-          name: c.stage_name || c.name,
-          role: c.role,
-          category: c.category,
-          type: 'contact' as const,
-        }));
+        .forEach(c => {
+          allMembers.push({
+            id: c.id,
+            name: c.stage_name || c.name,
+            role: c.role,
+            category: c.category,
+            type: 'contact',
+            isFromFormat: false,
+          });
+        });
 
-      setMembers(mappedContacts);
+      setFormatCrewIds(crewIdsFromFormat);
+      setMembers(allMembers);
     } catch (error) {
       console.error('Error fetching team members:', error);
     } finally {
@@ -129,11 +244,15 @@ export function TeamMemberSelector({
   }, [members]);
 
   const categoryLabels: Record<string, string> = {
+    formato: '⭐ Equipo del Formato',
     equipo: 'Equipo',
     management: 'Management',
     artista: 'Artistas',
     otros: 'Otros',
   };
+
+  // Custom sort order for categories - format crew first
+  const categoryOrder = ['formato', 'equipo', 'management', 'artista', 'otros'];
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -162,16 +281,22 @@ export function TeamMemberSelector({
             <CommandEmpty>
               {loading ? 'Cargando...' : 'No se encontraron miembros'}
             </CommandEmpty>
-            {Object.entries(groupedMembers).map(([category, categoryMembers]) => (
+            {categoryOrder
+              .filter(cat => groupedMembers[cat]?.length > 0)
+              .map(category => (
               <CommandGroup key={category} heading={categoryLabels[category] || category}>
-                {categoryMembers.map(member => (
+                {groupedMembers[category].map(member => (
                   <CommandItem
                     key={member.id}
                     value={member.name}
                     onSelect={() => handleSelect(member.id)}
                   >
                     <div className="flex items-center gap-2 flex-1">
-                      <User className="w-3 h-3 text-muted-foreground" />
+                      {member.isFromFormat ? (
+                        <Star className="w-3 h-3 text-amber-500" />
+                      ) : (
+                        <User className="w-3 h-3 text-muted-foreground" />
+                      )}
                       <div className="flex flex-col">
                         <span className="text-sm">{member.name}</span>
                         {member.role && (

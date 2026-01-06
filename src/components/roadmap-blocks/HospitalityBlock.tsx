@@ -47,10 +47,11 @@ interface HospitalityBlockData {
   dietNotes?: string;
 }
 
-interface HospitalityBlockProps {
+export interface HospitalityBlockProps {
   data: Record<string, unknown>;
   onChange: (data: Record<string, unknown>) => void;
   artistId?: string | null;
+  bookingId?: string | null; // Booking ID to fetch crew from format
 }
 
 const roomTypes = [
@@ -60,7 +61,7 @@ const roomTypes = [
   { value: 'suite', label: 'Suite' },
 ];
 
-export function HospitalityBlock({ data, onChange, artistId }: HospitalityBlockProps) {
+export function HospitalityBlock({ data, onChange, artistId, bookingId }: HospitalityBlockProps) {
   const blockData = data as HospitalityBlockData;
   const incomingHotels = blockData.hotels || [];
   const incomingRoomingList = blockData.roomingList || [];
@@ -270,6 +271,7 @@ export function HospitalityBlock({ data, onChange, artistId }: HospitalityBlockP
                     <TableCell>
                       <TeamMemberSelector
                         artistId={artistId}
+                        bookingId={bookingId}
                         value={assignment.passengerIds || []}
                         onValueChange={(ids) => updateRoomAssignment(assignment.id, { passengerIds: ids })}
                         placeholder="Seleccionar pasajero..."

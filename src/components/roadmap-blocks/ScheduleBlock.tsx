@@ -41,12 +41,13 @@ interface BookingInfo {
   tourTitle?: string;
 }
 
-interface ScheduleBlockProps {
+export interface ScheduleBlockProps {
   data: Record<string, unknown>;
   onChange: (data: Record<string, unknown>) => void;
   tourDates?: string[]; // Dates from the tour to auto-initialize days
   bookingInfo?: BookingInfo; // Booking info to auto-fill activities
   artistId?: string | null;
+  bookingId?: string | null; // Booking ID to fetch crew from format
 }
 
 interface ScheduleBlockData {
@@ -65,7 +66,7 @@ const activityTypes = [
   { value: 'other', label: 'Otro' },
 ];
 
-export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId }: ScheduleBlockProps) {
+export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId, bookingId }: ScheduleBlockProps) {
   const blockData = data as ScheduleBlockData;
   const incomingDays = useMemo(() => blockData.days || [], [blockData.days]);
 
@@ -290,6 +291,7 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
                       <th className="text-left py-2 px-2 font-medium text-muted-foreground w-32">Tipo</th>
                       <th className="text-left py-2 px-2 font-medium text-muted-foreground">Título</th>
                       <th className="text-left py-2 px-2 font-medium text-muted-foreground">Ubicación</th>
+                      <th className="text-left py-2 px-2 font-medium text-muted-foreground w-40">Asignados</th>
                       <th className="text-left py-2 px-2 font-medium text-muted-foreground">Notas</th>
                       <th className="w-10"></th>
                     </tr>
@@ -351,6 +353,16 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
                               onChange={(e) => updateItem(currentDay.id, item.id, { location: e.target.value })}
                               placeholder="Ubicación"
                               className="h-9 w-full"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <TeamMemberSelector
+                              artistId={artistId}
+                              bookingId={bookingId}
+                              value={item.assignedMemberIds || []}
+                              onValueChange={(ids) => updateItem(currentDay.id, item.id, { assignedMemberIds: ids })}
+                              placeholder="Asignar..."
+                              compact
                             />
                           </td>
                           <td className="py-2 px-2">
