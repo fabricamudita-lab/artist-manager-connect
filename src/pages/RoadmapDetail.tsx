@@ -232,14 +232,38 @@ export default function RoadmapDetail() {
     return undefined;
   };
 
-  // Build booking suggestion for HeaderBlock using first linked booking
+  // Build booking suggestion for HeaderBlock using ALL linked bookings
   const firstBooking = linkedBookings[0] as LinkedBookingWithLinkId | undefined;
-  const bookingSuggestion = firstBooking ? {
-    artistName: artist?.name,
-    tourTitle: firstBooking.festival_ciclo || firstBooking.lugar || undefined,
-    promoter: getPromoterName(firstBooking),
-    eventDate: firstBooking.fecha || undefined,
-  } : undefined;
+  
+  // Aggregate data from all linked bookings for header auto-fill
+  const aggregatedBookingSuggestion = linkedBookings.length > 0 ? (() => {
+    const allPromoters = linkedBookings
+      .map((b: LinkedBookingWithLinkId) => getPromoterName(b))
+      .filter((p): p is string => !!p);
+    const uniquePromoters = [...new Set(allPromoters)];
+    
+    const allVenues = linkedBookings
+      .map((b: LinkedBookingWithLinkId) => b.festival_ciclo || b.lugar)
+      .filter((v): v is string => !!v);
+    const uniqueVenues = [...new Set(allVenues)];
+    
+    const allDates = linkedBookings
+      .map((b: LinkedBookingWithLinkId) => b.fecha)
+      .filter((d): d is string => !!d)
+      .sort();
+    
+    return {
+      artistName: artist?.name,
+      // Combine unique venues/festivals
+      tourTitle: uniqueVenues.length > 0 ? uniqueVenues.join(' + ') : undefined,
+      // Combine unique promoters
+      promoter: uniquePromoters.length > 0 ? uniquePromoters.join(' / ') : undefined,
+      // All event dates
+      eventDates: allDates,
+      // Keep first date for backwards compatibility
+      eventDate: allDates[0],
+    };
+  })() : undefined;
 
   // Build booking info for schedule auto-fill (use first booking)
   const bookingInfo = firstBooking ? {
@@ -261,7 +285,7 @@ export default function RoadmapDetail() {
         return (
           <HeaderBlock 
             {...props} 
-            bookingSuggestion={bookingSuggestion} 
+            bookingSuggestion={aggregatedBookingSuggestion} 
             onTourDatesChange={handleTourDatesChange}
             onLinkBooking={() => setShowBookingSelector(true)}
           />
