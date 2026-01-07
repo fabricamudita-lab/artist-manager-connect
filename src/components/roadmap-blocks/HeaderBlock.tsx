@@ -26,6 +26,7 @@ interface BookingSuggestion {
   tourTitle?: string;
   promoter?: string;
   eventDate?: string;
+  eventDates?: string[]; // All dates from all linked bookings
 }
 
 interface HeaderBlockProps {
@@ -127,16 +128,23 @@ export function HeaderBlock({ data, onChange, bookingSuggestion, onTourDatesChan
         updates.localPromoter = bookingSuggestion.promoter;
         hasUpdates = true;
       }
-      if ((!localData.tourDates || localData.tourDates.length === 0) && bookingSuggestion.eventDate) {
-        updates.tourDates = [bookingSuggestion.eventDate];
-        hasUpdates = true;
+      
+      // Auto-add ALL linked booking dates (merge with existing, avoid duplicates)
+      const allEventDates = bookingSuggestion.eventDates || (bookingSuggestion.eventDate ? [bookingSuggestion.eventDate] : []);
+      if (allEventDates.length > 0) {
+        const currentDates = localData.tourDates || [];
+        const newDates = allEventDates.filter(d => !currentDates.includes(d));
+        if (newDates.length > 0) {
+          updates.tourDates = [...currentDates, ...newDates].sort();
+          hasUpdates = true;
+        }
       }
 
       if (hasUpdates) {
         setLocalData(prev => ({ ...prev, ...updates }));
       }
     }
-  }, [bookingSuggestion?.artistName, bookingSuggestion?.tourTitle, bookingSuggestion?.promoter, bookingSuggestion?.eventDate]);
+  }, [bookingSuggestion?.artistName, bookingSuggestion?.tourTitle, bookingSuggestion?.promoter, JSON.stringify(bookingSuggestion?.eventDates)]);
 
   // Save to parent when debounced data changes
   useEffect(() => {
@@ -328,18 +336,18 @@ export function HeaderBlock({ data, onChange, bookingSuggestion, onTourDatesChan
             {localData.tourDates && localData.tourDates.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {[...localData.tourDates].sort().map((date) => {
-                  const isEventDate = bookingSuggestion?.eventDate === date;
+                  const isLinkedEventDate = bookingSuggestion?.eventDates?.includes(date) || bookingSuggestion?.eventDate === date;
                   return (
                     <Badge 
                       key={date} 
-                      variant={isEventDate ? "default" : "secondary"} 
-                      className={`gap-1 pr-1 ${isEventDate ? 'bg-primary text-primary-foreground' : ''}`}
-                      title={isEventDate ? 'Fecha del evento vinculado' : undefined}
+                      variant={isLinkedEventDate ? "default" : "secondary"} 
+                      className={`gap-1 pr-1 ${isLinkedEventDate ? 'bg-primary text-primary-foreground' : ''}`}
+                      title={isLinkedEventDate ? 'Fecha de evento vinculado' : 'Fecha manual'}
                     >
                       {format(new Date(date), 'd MMM', { locale: es })}
                       <button
                         onClick={() => removeDate(date)}
-                        className={`ml-1 rounded-full p-0.5 ${isEventDate ? 'hover:bg-primary-foreground/20' : 'hover:bg-destructive/20'}`}
+                        className={`ml-1 rounded-full p-0.5 ${isLinkedEventDate ? 'hover:bg-primary-foreground/20' : 'hover:bg-destructive/20'}`}
                       >
                         <X className="w-3 h-3" />
                       </button>
