@@ -411,7 +411,7 @@ export default function RoadmapDetail() {
                         />
                       ) : (
                         <Input
-                          value={artist?.name || ''}
+                          value={booking.artist?.name || ''}
                           readOnly
                           className="bg-muted"
                         />

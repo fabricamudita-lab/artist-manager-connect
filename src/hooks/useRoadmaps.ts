@@ -12,6 +12,10 @@ export interface LinkedBooking {
   hora: string | null;
   promotor: string | null;
   artist_id: string | null;
+  artist?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 export interface TourRoadmap {
@@ -150,7 +154,7 @@ export function useRoadmap(id: string | undefined) {
           id,
           booking_id,
           sort_order,
-          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, hora, promotor, artist_id)
+          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, hora, promotor, artist_id, artist:artists(id, name))
         `)
         .eq('roadmap_id', id)
         .order('sort_order', { ascending: true });
