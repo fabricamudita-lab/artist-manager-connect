@@ -396,6 +396,12 @@ export default function Teams() {
     
     const contacts = teamContacts.filter(c => {
       const config = c.field_config as Record<string, any> | null;
+      
+      // Skip mirror contacts (they represent workspace members already shown above)
+      if (config?.mirror_type === 'workspace_member' || config?.workspace_user_id) {
+        return false;
+      }
+      
       const isManagementTeam = config?.is_management_team === true;
       const categories = config?.team_categories || [];
       const singleCategory = config?.team_category || c.category;
