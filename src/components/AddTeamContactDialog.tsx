@@ -11,11 +11,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { TeamCategorySelector, TeamCategoryOption } from './TeamCategorySelector';
-import { Check, X, Music, UserPlus, BookOpen, Search, Building2 } from 'lucide-react';
+import { Check, X, Music, UserPlus, BookOpen, Search, Building2, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-
+import { DocumentContactExtractor } from './DocumentContactExtractor';
 interface Artist {
   id: string;
   name: string;
@@ -62,7 +62,7 @@ export function AddTeamContactDialog({
   defaultArtistId,
 }: AddTeamContactDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<'select' | 'existing' | 'new'>('select');
+  const [mode, setMode] = useState<'select' | 'existing' | 'new' | 'document'>('select');
   const [activeTab, setActiveTab] = useState('basico');
   const [teamCategories, setTeamCategories] = useState<string[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
@@ -422,6 +422,20 @@ export function AddTeamContactDialog({
                   </div>
                 </div>
               </Button>
+              
+              <Button
+                variant="outline"
+                className="h-auto p-4 justify-start"
+                onClick={() => setMode('document')}
+              >
+                <FileText className="w-5 h-5 mr-3 text-primary" />
+                <div className="text-left">
+                  <div className="font-medium">Desde Documento</div>
+                  <div className="text-xs text-muted-foreground">
+                    Extraer de factura, contrato, etc.
+                  </div>
+                </div>
+              </Button>
             </div>
           </div>
           
@@ -430,6 +444,71 @@ export function AddTeamContactDialog({
               Cancelar
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Document extraction mode
+  if (mode === 'document') {
+    const handleDocumentEntitySelected = (
+      entity: { type: 'persona' | 'empresa'; name: string; email?: string; phone?: string; address?: string; dni?: string; cif?: string; iban?: string; bank_name?: string; swift_code?: string; website?: string },
+      selectedFields: string[]
+    ) => {
+      // Map extracted entity to form data
+      const newFormData = {
+        name: selectedFields.includes('name') ? entity.name : '',
+        stage_name: '',
+        legal_name: entity.type === 'empresa' && selectedFields.includes('name') ? entity.name : '',
+        role: '',
+        email: selectedFields.includes('email') ? entity.email || '' : '',
+        phone: selectedFields.includes('phone') ? entity.phone || '' : '',
+        preferred_hours: '',
+        address: selectedFields.includes('address') ? entity.address || '' : '',
+        city: '',
+        country: '',
+        clothing_size: '',
+        shoe_size: '',
+        allergies: '',
+        special_needs: '',
+        iban: selectedFields.includes('iban') ? entity.iban || '' : '',
+        bank_info: selectedFields.includes('bank_name') ? entity.bank_name || '' : '',
+        notes: '',
+      };
+      
+      // Add DNI/CIF to notes if present
+      const extraInfo: string[] = [];
+      if (selectedFields.includes('dni') && entity.dni) {
+        extraInfo.push(`DNI/NIE: ${entity.dni}`);
+      }
+      if (selectedFields.includes('cif') && entity.cif) {
+        extraInfo.push(`CIF/NIF: ${entity.cif}`);
+      }
+      if (selectedFields.includes('swift_code') && entity.swift_code) {
+        extraInfo.push(`SWIFT/BIC: ${entity.swift_code}`);
+      }
+      if (selectedFields.includes('website') && entity.website) {
+        extraInfo.push(`Web: ${entity.website}`);
+      }
+      if (extraInfo.length > 0) {
+        newFormData.notes = extraInfo.join('\n');
+      }
+      
+      setFormData(newFormData);
+      setMode('new');
+    };
+
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Extraer de Documento</DialogTitle>
+          </DialogHeader>
+          
+          <DocumentContactExtractor
+            onBack={() => setMode('select')}
+            onSelectEntity={handleDocumentEntitySelected}
+          />
         </DialogContent>
       </Dialog>
     );

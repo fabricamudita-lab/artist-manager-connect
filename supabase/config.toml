@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.google-places-autocomplete]
 verify_jwt = false
+
+[functions.extract-contact-from-document]
+verify_jwt = false
