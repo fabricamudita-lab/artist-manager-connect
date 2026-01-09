@@ -16,6 +16,7 @@ export const TEAM_CATEGORIES: TeamCategoryOption[] = [
   { value: 'legal', label: 'Legal', icon: Shield },
   { value: 'produccion', label: 'Producción', icon: Users },
   { value: 'tourmanager', label: 'Tour Manager', icon: UserCheck },
+  { value: 'booking', label: 'Booking', icon: UserCheck },
   { value: 'compositor', label: 'Compositor', icon: Users },
   { value: 'letrista', label: 'Letrista', icon: Users },
   { value: 'productor', label: 'Productor', icon: Users },
