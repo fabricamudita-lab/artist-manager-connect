@@ -273,15 +273,16 @@ export function RequestAvailabilityDialog({
               ) : (
                 <div className="space-y-2">
                   {teamContacts.map(contact => (
-                    <div
-                      key={contact.id}
-                      className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
-                      onClick={() => toggleContact(contact.id)}
-                    >
-                      <Checkbox
-                        checked={selectedContacts.includes(contact.id)}
-                        onCheckedChange={() => toggleContact(contact.id)}
-                      />
+                                    <label
+                                      key={contact.id}
+                                      htmlFor={`contact-${contact.id}`}
+                                      className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
+                                    >
+                                      <Checkbox
+                                        id={`contact-${contact.id}`}
+                                        checked={selectedContacts.includes(contact.id)}
+                                        onCheckedChange={() => toggleContact(contact.id)}
+                                      />
                       <div className="flex-1">
                         <p className="font-medium text-sm">
                           {contact.stage_name || contact.name}
@@ -295,7 +296,7 @@ export function RequestAvailabilityDialog({
                           Email
                         </Badge>
                       )}
-                    </div>
+                                    </label>
                   ))}
                 </div>
               )}
