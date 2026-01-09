@@ -169,6 +169,11 @@ export function useTeamMembersByArtist(selectedArtistIds: string[] = []) {
       if (member.isManagementTeam) {
         return true; // Management team always visible
       }
+      // Show contacts with management-type categories (tourmanager, booking, produccion, etc.)
+      const managementCategories = ['management', 'tourmanager', 'booking', 'produccion', 'tecnico', 'legal', 'comunicacion'];
+      if (member.category && managementCategories.includes(member.category)) {
+        return true; // These categories are always visible
+      }
       // Only show if assigned to at least one selected artist
       if (!member.artistIds || member.artistIds.length === 0) {
         return false; // No assignment and not management = hide
