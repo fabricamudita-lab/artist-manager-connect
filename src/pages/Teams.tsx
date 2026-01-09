@@ -576,7 +576,7 @@ export default function Teams() {
                                 <Settings className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent align="end" className="bg-popover border shadow-md z-50">
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -686,14 +686,20 @@ export default function Teams() {
                                   <MoreVertical className="w-4 h-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setEditingContact(contact)}>
+                              <DropdownMenuContent align="end" className="bg-popover border shadow-md z-50">
+                                <DropdownMenuItem onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingContact(contact);
+                                }}>
                                   <Edit2 className="w-4 h-4 mr-2" />
                                   Editar
                                 </DropdownMenuItem>
                                 <DropdownMenuItem 
                                   className="text-destructive"
-                                  onClick={() => handleRemoveFromTeam(contact.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveFromTeam(contact.id);
+                                  }}
                                 >
                                   <UserMinus className="w-4 h-4 mr-2" />
                                   Quitar del equipo
