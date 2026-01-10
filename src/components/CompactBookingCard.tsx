@@ -7,12 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Copy, Download, GripVertical, FileText, AlertTriangle, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { MoreHorizontal, Copy, Download, GripVertical, FileText, AlertTriangle, ArrowRight, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { BookingOffer } from './BookingKanban';
 
 interface CompactBookingCardProps {
   offer: BookingOffer;
   onDuplicate: (id: string) => void;
+  onDelete?: (id: string) => void;
   isDragging?: boolean;
   selectionMode?: boolean;
   isSelected?: boolean;
@@ -22,6 +23,7 @@ interface CompactBookingCardProps {
 export function CompactBookingCard({
   offer,
   onDuplicate,
+  onDelete,
   isDragging,
   selectionMode = false,
   isSelected = false,
@@ -153,6 +155,23 @@ export function CompactBookingCard({
                         <Download className="h-3 w-3 mr-2" />
                         Generar PDF
                       </DropdownMenuItem>
+                      {onDelete && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={e => {
+                              e.stopPropagation();
+                              if (window.confirm('¿Seguro que quieres eliminar esta oferta?')) {
+                                onDelete(offer.id);
+                              }
+                            }}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3 mr-2" />
+                            Eliminar
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
