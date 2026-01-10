@@ -486,6 +486,30 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
     }
   };
 
+  const deleteOffer = async (offerId: string) => {
+    try {
+      const { error } = await supabase
+        .from('booking_offers')
+        .delete()
+        .eq('id', offerId);
+
+      if (error) throw error;
+
+      fetchOffers();
+      toast({
+        title: "Oferta eliminada",
+        description: "La oferta se ha eliminado correctamente.",
+      });
+    } catch (error) {
+      console.error('Error deleting offer:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la oferta.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const duplicateOffer = async (offerId: string) => {
     try {
       const originalOffer = offers.find(o => o.id === offerId);
@@ -743,6 +767,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
                         key={offer.id}
                         offer={offer}
                         onDuplicate={duplicateOffer}
+                        onDelete={deleteOffer}
                         isDragging={draggedItem === offer.id}
                         selectionMode={selectionMode}
                         isSelected={selectedIds.includes(offer.id)}
@@ -794,6 +819,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
                               key={offer.id}
                               offer={offer}
                               onDuplicate={duplicateOffer}
+                              onDelete={deleteOffer}
                               isDragging={draggedItem === offer.id}
                               selectionMode={selectionMode}
                               isSelected={selectedIds.includes(offer.id)}
