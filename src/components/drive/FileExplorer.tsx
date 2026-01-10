@@ -215,13 +215,30 @@ export function FileExplorer({
         return { isPresupuestoFolder: true, linkedBudget: null, bookingId: null, eventName: parentFolder?.name || 'Evento' };
       }
       
-      // Try to find budget by name pattern
-      const budgetName = booking.festival_ciclo || `${booking.ciudad} - ${booking.lugar || booking.venue || 'TBD'}`;
-      const { data: budget } = await supabase
-        .from('budgets')
-        .select('id, name, fee, event_date, city, venue, formato, budget_status')
-        .ilike('name', `%${budgetName.split(' ')[0]}%`)
-        .single();
+      // Try to find budget by festival_ciclo match first, then by name pattern
+      let budget = null;
+      
+      // First try exact festival_ciclo match
+      if (booking.festival_ciclo) {
+        const { data: budgetByFestival } = await supabase
+          .from('budgets')
+          .select('id, name, fee, event_date, city, venue, formato, budget_status')
+          .eq('festival_ciclo', booking.festival_ciclo)
+          .eq('artist_id', booking.artist_id)
+          .maybeSingle();
+        budget = budgetByFestival;
+      }
+      
+      // Fallback to name pattern matching
+      if (!budget) {
+        const budgetName = booking.festival_ciclo || `${booking.ciudad} - ${booking.lugar || booking.venue || 'TBD'}`;
+        const { data: budgetByName } = await supabase
+          .from('budgets')
+          .select('id, name, fee, event_date, city, venue, formato, budget_status')
+          .ilike('name', `%${budgetName.split(' ')[0]}%`)
+          .maybeSingle();
+        budget = budgetByName;
+      }
       
       return { 
         isPresupuestoFolder: true, 
