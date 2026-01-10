@@ -161,7 +161,11 @@ export function CompactBookingCard({
                           <DropdownMenuItem 
                             onClick={e => {
                               e.stopPropagation();
-                              if (window.confirm('¿Seguro que quieres eliminar esta oferta?')) {
+                              if (window.confirm(
+                                '⚠️ ¿Eliminar esta oferta?\n\n' +
+                                'Se eliminarán también todos los archivos, documentos y presupuestos vinculados.\n\n' +
+                                '💡 Alternativa: Puedes archivar la oferta arrastrándola a "Cancelado" o "Cerrado" si solo quieres ocultarla.'
+                              )) {
                                 onDelete(offer.id);
                               }
                             }}
