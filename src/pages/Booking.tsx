@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText, FolderOpen, AlertTriangle, ExternalLink, Eye, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText, FolderOpen, AlertTriangle, ExternalLink, Eye, ArrowRight, CheckCircle2, AlertCircle, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -630,37 +630,68 @@ export default function Booking() {
           </TabsContent>
 
           <TabsContent value="table" className="space-y-6">
+            {/* Filters toolbar */}
+            <BookingFiltersToolbar
+              filters={filters}
+              onFiltersChange={(newFilters) => setFilters(prev => ({ ...prev, ...newFilters }))}
+              artists={artists}
+              phases={[
+                { id: 'interes', label: 'Interés' },
+                { id: 'oferta', label: 'Oferta' },
+                { id: 'negociacion', label: 'Negociación' },
+                { id: 'confirmado', label: 'Confirmado' },
+                { id: 'facturado', label: 'Facturado' },
+                { id: 'cerrado', label: 'Cerrado' },
+                { id: 'cancelado', label: 'Cancelado' },
+              ]}
+              countries={getUniqueValues('pais')}
+              promoters={getUniqueValues('promotor')}
+              totalCount={offers.length}
+              filteredCount={filteredOffers.length}
+              onClearFilters={clearAllFilters}
+              onExportCSV={handleExportCSV}
+              onNewOffer={() => setShowCreateDialog(true)}
+            />
+            
             {/* Column selector */}
             <div className="flex justify-between items-center">
               <div className="text-sm text-muted-foreground">
-                {offers.length} {offers.length === 1 ? 'booking' : 'bookings'}
+                {filteredOffers.length} de {offers.length} {offers.length === 1 ? 'booking' : 'bookings'}
               </div>
               <div className="flex gap-2">
                 <BookingTableColumns columns={columns} onColumnsChange={setColumns} />
-                <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Nueva Oferta
-                </Button>
               </div>
             </div>
             
             <div className="card-moodita overflow-hidden">
             <CardContent className="p-0">
-              {offers.length === 0 ? (
-                <EmptyState
-                  icon={<Kanban className="w-10 h-10 text-muted-foreground" />}
-                  title="No hay ofertas de booking"
-                  description="Crea tu primera oferta para comenzar a gestionar tus bookings y organizar conciertos de manera eficiente."
-                  action={{
-                    label: "Crear Booking",
-                    onClick: () => setShowCreateDialog(true)
-                  }}
-                  secondaryAction={{
-                    label: "Ver documentación",
-                    onClick: () => window.open('/docs/booking', '_blank'),
-                    variant: "outline"
-                  }}
-                />
+              {filteredOffers.length === 0 ? (
+                offers.length === 0 ? (
+                  <EmptyState
+                    icon={<Kanban className="w-10 h-10 text-muted-foreground" />}
+                    title="No hay ofertas de booking"
+                    description="Crea tu primera oferta para comenzar a gestionar tus bookings y organizar conciertos de manera eficiente."
+                    action={{
+                      label: "Crear Booking",
+                      onClick: () => setShowCreateDialog(true)
+                    }}
+                    secondaryAction={{
+                      label: "Ver documentación",
+                      onClick: () => window.open('/docs/booking', '_blank'),
+                      variant: "outline"
+                    }}
+                  />
+                ) : (
+                  <EmptyState
+                    icon={<Filter className="w-10 h-10 text-muted-foreground" />}
+                    title="Sin resultados"
+                    description="No hay bookings que coincidan con los filtros aplicados."
+                    action={{
+                      label: "Limpiar filtros",
+                      onClick: clearAllFilters
+                    }}
+                  />
+                )
               ) : (
                 <div className="overflow-x-auto">
                 <Table>
@@ -691,7 +722,7 @@ export default function Booking() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {offers.map((offer) => (
+                    {filteredOffers.map((offer) => (
                       <TableRow 
                         key={offer.id} 
                         className="cursor-pointer hover:bg-muted/30 transition-colors border-0 group"
