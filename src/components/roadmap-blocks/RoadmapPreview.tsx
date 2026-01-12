@@ -183,18 +183,34 @@ export function RoadmapPreview({ roadmapName, artistName, promoter, startDate, e
     
     if (allMemberIds.size === 0) return;
     
-    // Fetch names for all member IDs
+    // Fetch names for all member IDs (both contacts and workspace profiles)
     const fetchNames = async () => {
       const ids = Array.from(allMemberIds);
+      const namesMap: Record<string, string> = {};
+      
+      // 1. Fetch from contacts table
       const { data: contacts } = await supabase
         .from('contacts')
         .select('id, name, stage_name')
         .in('id', ids);
       
-      const namesMap: Record<string, string> = {};
       (contacts || []).forEach(c => {
         namesMap[c.id] = c.stage_name || c.name;
       });
+      
+      // 2. Check for any unresolved IDs - they might be profile user_ids
+      const unresolvedIds = ids.filter(id => !namesMap[id]);
+      if (unresolvedIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, stage_name')
+          .in('user_id', unresolvedIds);
+        
+        (profiles || []).forEach(p => {
+          namesMap[p.user_id] = p.stage_name || p.full_name || 'Sin nombre';
+        });
+      }
+      
       setMemberNames(namesMap);
     };
     
