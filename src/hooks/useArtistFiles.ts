@@ -65,23 +65,48 @@ export const useArtistFiles = (artistId: string | null, category?: string) => {
     enabled: !!artistId,
   });
 
-  // Get file counts per category
+  // Get file counts per category (includes artist_files + storage_nodes files + budgets)
   const { data: fileCounts = {} } = useQuery({
     queryKey: ['artist-files-counts', artistId],
     queryFn: async () => {
       if (!artistId) return {};
       
-      const { data, error } = await supabase
+      const counts: Record<string, number> = {};
+
+      // 1. Count from artist_files
+      const { data: artistFilesData, error: artistFilesError } = await supabase
         .from('artist_files')
         .select('category')
         .eq('artist_id', artistId);
 
-      if (error) throw error;
+      if (!artistFilesError && artistFilesData) {
+        artistFilesData.forEach(file => {
+          counts[file.category] = (counts[file.category] || 0) + 1;
+        });
+      }
 
-      const counts: Record<string, number> = {};
-      data.forEach(file => {
-        counts[file.category] = (counts[file.category] || 0) + 1;
-      });
+      // 2. Count files from storage_nodes (for conciertos category)
+      const { data: storageFiles, error: storageError } = await supabase
+        .from('storage_nodes')
+        .select('id, node_type')
+        .eq('artist_id', artistId)
+        .eq('node_type', 'file');
+
+      if (!storageError && storageFiles) {
+        // All storage_node files go to conciertos category
+        counts['conciertos'] = (counts['conciertos'] || 0) + storageFiles.length;
+      }
+
+      // 3. Count budgets linked to the artist (also part of conciertos)
+      const { data: budgets, error: budgetsError } = await supabase
+        .from('budgets')
+        .select('id')
+        .eq('artist_id', artistId);
+
+      if (!budgetsError && budgets) {
+        counts['conciertos'] = (counts['conciertos'] || 0) + budgets.length;
+      }
+
       return counts;
     },
     enabled: !!artistId,
