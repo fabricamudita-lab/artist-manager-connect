@@ -2471,6 +2471,50 @@ export type Database = {
           },
         ]
       }
+      directors: {
+        Row: {
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          notes: string | null
+          production_company_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          notes?: string | null
+          production_company_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          production_company_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "directors_production_company_id_fkey"
+            columns: ["production_company_id"]
+            isOneToOne: false
+            referencedRelation: "production_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           artist_id: string
@@ -3526,6 +3570,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      production_companies: {
+        Row: {
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          notes: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          notes?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -5048,6 +5131,7 @@ export type Database = {
           currency: string | null
           deadline: string | null
           director: string | null
+          director_id: string | null
           duration_years: number | null
           id: string
           internal_notes: string | null
@@ -5060,6 +5144,7 @@ export type Database = {
           phase: string | null
           priority: string | null
           production_company: string | null
+          production_company_id: string | null
           production_title: string
           production_type: string
           project_id: string | null
@@ -5067,11 +5152,13 @@ export type Database = {
           publishing_holder: string | null
           publishing_percentage: number | null
           requester_company: string | null
+          requester_contact_id: string | null
           requester_email: string | null
           requester_name: string | null
           requester_phone: string | null
           scene_description: string | null
           song_artist: string | null
+          song_id: string | null
           song_title: string
           sync_fee: number | null
           territory: string | null
@@ -5089,6 +5176,7 @@ export type Database = {
           currency?: string | null
           deadline?: string | null
           director?: string | null
+          director_id?: string | null
           duration_years?: number | null
           id?: string
           internal_notes?: string | null
@@ -5101,6 +5189,7 @@ export type Database = {
           phase?: string | null
           priority?: string | null
           production_company?: string | null
+          production_company_id?: string | null
           production_title: string
           production_type: string
           project_id?: string | null
@@ -5108,11 +5197,13 @@ export type Database = {
           publishing_holder?: string | null
           publishing_percentage?: number | null
           requester_company?: string | null
+          requester_contact_id?: string | null
           requester_email?: string | null
           requester_name?: string | null
           requester_phone?: string | null
           scene_description?: string | null
           song_artist?: string | null
+          song_id?: string | null
           song_title: string
           sync_fee?: number | null
           territory?: string | null
@@ -5130,6 +5221,7 @@ export type Database = {
           currency?: string | null
           deadline?: string | null
           director?: string | null
+          director_id?: string | null
           duration_years?: number | null
           id?: string
           internal_notes?: string | null
@@ -5142,6 +5234,7 @@ export type Database = {
           phase?: string | null
           priority?: string | null
           production_company?: string | null
+          production_company_id?: string | null
           production_title?: string
           production_type?: string
           project_id?: string | null
@@ -5149,11 +5242,13 @@ export type Database = {
           publishing_holder?: string | null
           publishing_percentage?: number | null
           requester_company?: string | null
+          requester_contact_id?: string | null
           requester_email?: string | null
           requester_name?: string | null
           requester_phone?: string | null
           scene_description?: string | null
           song_artist?: string | null
+          song_id?: string | null
           song_title?: string
           sync_fee?: number | null
           territory?: string | null
@@ -5178,10 +5273,92 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sync_offers_director_id_fkey"
+            columns: ["director_id"]
+            isOneToOne: false
+            referencedRelation: "directors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_offers_production_company_id_fkey"
+            columns: ["production_company_id"]
+            isOneToOne: false
+            referencedRelation: "production_companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sync_offers_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_offers_requester_contact_id_fkey"
+            columns: ["requester_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_offers_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_splits: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          holder_name: string | null
+          id: string
+          notes: string | null
+          percentage: number
+          split_type: string
+          sync_offer_id: string
+          team_member_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          holder_name?: string | null
+          id?: string
+          notes?: string | null
+          percentage: number
+          split_type: string
+          sync_offer_id: string
+          team_member_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          holder_name?: string | null
+          id?: string
+          notes?: string | null
+          percentage?: number
+          split_type?: string
+          sync_offer_id?: string
+          team_member_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_splits_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_splits_sync_offer_id_fkey"
+            columns: ["sync_offer_id"]
+            isOneToOne: false
+            referencedRelation: "sync_offers"
             referencedColumns: ["id"]
           },
         ]

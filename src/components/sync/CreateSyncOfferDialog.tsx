@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,15 +8,58 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
-import { Film, Music, Users, DollarSign, SplitSquareVertical, X } from 'lucide-react';
+import { Film, Music, Users, DollarSign, SplitSquareVertical, X, Plus, Check, ChevronsUpDown, Trash2 } from 'lucide-react';
+import { SingleArtistSelector } from '@/components/SingleArtistSelector';
+import { ContactSelector } from '@/components/ContactSelector';
+import { cn } from '@/lib/utils';
 
 interface CreateSyncOfferDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOfferCreated: () => void;
+}
+
+interface ProductionCompany {
+  id: string;
+  name: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+}
+
+interface Director {
+  id: string;
+  name: string;
+  contact_email?: string;
+  production_company_id?: string;
+}
+
+interface Song {
+  id: string;
+  title: string;
+  artist_id?: string;
+  isrc?: string;
+}
+
+interface SyncSplit {
+  id: string;
+  split_type: string;
+  percentage: number;
+  holder_name: string;
+  contact_id?: string;
+  team_member_id?: string;
+}
+
+interface TeamMember {
+  id: string;
+  name: string;
+  role?: string;
+  type: 'contact' | 'workspace';
 }
 
 const PRODUCTION_TYPES = [
@@ -50,28 +93,55 @@ const USAGE_TYPES = [
   { value: 'promo', label: 'Promocional' },
 ];
 
+const SPLIT_TYPES = [
+  { value: 'master', label: 'Master (Sello)' },
+  { value: 'publishing', label: 'Publishing (Editorial)' },
+  { value: 'songwriter', label: 'Compositor' },
+  { value: 'producer', label: 'Productor' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'band', label: 'Banda' },
+  { value: 'label', label: 'Sello' },
+  { value: 'editorial', label: 'Editorial' },
+  { value: 'other', label: 'Otro' },
+];
+
 export function CreateSyncOfferDialog({ open, onOpenChange, onOfferCreated }: CreateSyncOfferDialogProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('project');
   
+  // Production Companies & Directors
+  const [productionCompanies, setProductionCompanies] = useState<ProductionCompany[]>([]);
+  const [directors, setDirectors] = useState<Director[]>([]);
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  
   // Project Details
   const [productionTitle, setProductionTitle] = useState('');
   const [productionType, setProductionType] = useState('');
-  const [productionCompany, setProductionCompany] = useState('');
-  const [director, setDirector] = useState('');
+  const [selectedProductionCompanyId, setSelectedProductionCompanyId] = useState<string | null>(null);
+  const [productionCompanyName, setProductionCompanyName] = useState('');
+  const [selectedDirectorId, setSelectedDirectorId] = useState<string | null>(null);
+  const [directorName, setDirectorName] = useState('');
   const [territory, setTerritory] = useState('España');
   const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
   const [durationYears, setDurationYears] = useState(1);
+  
+  // Popovers
+  const [productionCompanyOpen, setProductionCompanyOpen] = useState(false);
+  const [directorOpen, setDirectorOpen] = useState(false);
+  const [songOpen, setSongOpen] = useState(false);
 
   // Music Usage
+  const [selectedArtistId, setSelectedArtistId] = useState<string | null>(null);
+  const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [songTitle, setSongTitle] = useState('');
-  const [songArtist, setSongArtist] = useState('');
   const [usageType, setUsageType] = useState('');
   const [usageDuration, setUsageDuration] = useState('');
   const [sceneDescription, setSceneDescription] = useState('');
 
   // Contact Info
+  const [requesterContactId, setRequesterContactId] = useState<string | null>(null);
   const [requesterName, setRequesterName] = useState('');
   const [requesterEmail, setRequesterEmail] = useState('');
   const [requesterCompany, setRequesterCompany] = useState('');
@@ -82,13 +152,147 @@ export function CreateSyncOfferDialog({ open, onOpenChange, onOfferCreated }: Cr
   const [musicBudget, setMusicBudget] = useState('');
   const [syncFee, setSyncFee] = useState('');
 
-  // Splits
-  const [masterPercentage, setMasterPercentage] = useState(50);
-  const [masterHolder, setMasterHolder] = useState('');
-  const [publishingHolder, setPublishingHolder] = useState('');
+  // Dynamic Splits
+  const [splits, setSplits] = useState<SyncSplit[]>([
+    { id: crypto.randomUUID(), split_type: 'master', percentage: 50, holder_name: '' },
+    { id: crypto.randomUUID(), split_type: 'publishing', percentage: 50, holder_name: '' },
+  ]);
 
   // Notes
   const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      fetchProductionCompanies();
+      fetchDirectors();
+      fetchSongs();
+      fetchTeamMembers();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (selectedArtistId) {
+      fetchSongs();
+      fetchTeamMembers();
+    }
+  }, [selectedArtistId]);
+
+  const fetchProductionCompanies = async () => {
+    const { data } = await supabase
+      .from('production_companies')
+      .select('*')
+      .order('name');
+    setProductionCompanies(data || []);
+  };
+
+  const fetchDirectors = async () => {
+    const { data } = await supabase
+      .from('directors')
+      .select('*')
+      .order('name');
+    setDirectors(data || []);
+  };
+
+  const fetchSongs = async () => {
+    let query = supabase.from('songs').select('id, title, artist_id, isrc').order('title');
+    if (selectedArtistId) {
+      query = query.eq('artist_id', selectedArtistId);
+    }
+    const { data } = await query;
+    setSongs(data || []);
+  };
+
+  const fetchTeamMembers = async () => {
+    if (!user) return;
+    
+    const members: TeamMember[] = [];
+    
+    // Get contacts that are team members
+    let contactQuery = supabase
+      .from('contacts')
+      .select('id, name, stage_name, role, field_config')
+      .eq('created_by', user.id);
+    
+    const { data: contacts } = await contactQuery;
+    
+    (contacts || []).forEach((c: any) => {
+      const config = c.field_config as Record<string, any> | null;
+      if (config?.is_team_member === true) {
+        members.push({
+          id: c.id,
+          name: c.stage_name || c.name,
+          role: c.role,
+          type: 'contact',
+        });
+      }
+    });
+    
+    setTeamMembers(members);
+  };
+
+  const handleSelectProductionCompany = (company: ProductionCompany) => {
+    setSelectedProductionCompanyId(company.id);
+    setProductionCompanyName(company.name);
+    
+    // Auto-fill requester info if available
+    if (company.contact_name) setRequesterName(company.contact_name);
+    if (company.contact_email) setRequesterEmail(company.contact_email);
+    if (company.contact_phone) setRequesterPhone(company.contact_phone);
+    setRequesterCompany(company.name);
+    
+    setProductionCompanyOpen(false);
+  };
+
+  const handleCreateProductionCompany = async () => {
+    if (!productionCompanyName.trim() || !user) return;
+    
+    const { data, error } = await supabase
+      .from('production_companies')
+      .insert({
+        name: productionCompanyName,
+        created_by: user.id,
+      })
+      .select()
+      .single();
+    
+    if (!error && data) {
+      setProductionCompanies(prev => [...prev, data]);
+      setSelectedProductionCompanyId(data.id);
+      setProductionCompanyOpen(false);
+    }
+  };
+
+  const handleSelectDirector = (director: Director) => {
+    setSelectedDirectorId(director.id);
+    setDirectorName(director.name);
+    setDirectorOpen(false);
+  };
+
+  const handleCreateDirector = async () => {
+    if (!directorName.trim() || !user) return;
+    
+    const { data, error } = await supabase
+      .from('directors')
+      .insert({
+        name: directorName,
+        production_company_id: selectedProductionCompanyId,
+        created_by: user.id,
+      })
+      .select()
+      .single();
+    
+    if (!error && data) {
+      setDirectors(prev => [...prev, data]);
+      setSelectedDirectorId(data.id);
+      setDirectorOpen(false);
+    }
+  };
+
+  const handleSelectSong = (song: Song) => {
+    setSelectedSongId(song.id);
+    setSongTitle(song.title);
+    setSongOpen(false);
+  };
 
   const toggleMedia = (media: string) => {
     setSelectedMedia(prev => 
@@ -97,6 +301,23 @@ export function CreateSyncOfferDialog({ open, onOpenChange, onOfferCreated }: Cr
         : [...prev, media]
     );
   };
+
+  const addSplit = () => {
+    setSplits(prev => [
+      ...prev,
+      { id: crypto.randomUUID(), split_type: 'other', percentage: 0, holder_name: '' }
+    ]);
+  };
+
+  const removeSplit = (id: string) => {
+    setSplits(prev => prev.filter(s => s.id !== id));
+  };
+
+  const updateSplit = (id: string, field: keyof SyncSplit, value: any) => {
+    setSplits(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+  };
+
+  const totalSplitPercentage = splits.reduce((sum, s) => sum + s.percentage, 0);
 
   const handleSubmit = async () => {
     if (!productionTitle || !productionType || !songTitle) {
@@ -108,22 +329,41 @@ export function CreateSyncOfferDialog({ open, onOpenChange, onOfferCreated }: Cr
       return;
     }
 
+    if (totalSplitPercentage !== 100) {
+      toast({
+        title: "Splits inválidos",
+        description: "La suma de los porcentajes debe ser exactamente 100%.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const syncFeeValue = syncFee ? parseFloat(syncFee) : null;
+      
+      // Calculate master and publishing from splits
+      const masterSplit = splits.find(s => s.split_type === 'master');
+      const publishingSplit = splits.find(s => s.split_type === 'publishing');
+      const masterPercentage = masterSplit?.percentage || 0;
+      const publishingPercentage = publishingSplit?.percentage || 0;
       const masterFee = syncFeeValue ? (syncFeeValue * masterPercentage) / 100 : null;
-      const publishingFee = syncFeeValue ? (syncFeeValue * (100 - masterPercentage)) / 100 : null;
+      const publishingFee = syncFeeValue ? (syncFeeValue * publishingPercentage) / 100 : null;
 
-      const { error } = await supabase.from('sync_offers').insert({
+      const { data: syncOffer, error } = await supabase.from('sync_offers').insert({
         production_title: productionTitle,
         production_type: productionType,
-        production_company: productionCompany || null,
-        director: director || null,
+        production_company: productionCompanyName || null,
+        production_company_id: selectedProductionCompanyId,
+        director: directorName || null,
+        director_id: selectedDirectorId,
         territory,
         media: selectedMedia,
         duration_years: durationYears,
         song_title: songTitle,
-        song_artist: songArtist || null,
+        song_id: selectedSongId,
+        song_artist: null,
+        artist_id: selectedArtistId,
         usage_type: usageType || null,
         usage_duration: usageDuration || null,
         scene_description: sceneDescription || null,
@@ -131,21 +371,36 @@ export function CreateSyncOfferDialog({ open, onOpenChange, onOfferCreated }: Cr
         requester_email: requesterEmail || null,
         requester_company: requesterCompany || null,
         requester_phone: requesterPhone || null,
+        requester_contact_id: requesterContactId,
         total_budget: totalBudget ? parseFloat(totalBudget) : null,
         music_budget: musicBudget ? parseFloat(musicBudget) : null,
         sync_fee: syncFeeValue,
         master_fee: masterFee,
         publishing_fee: publishingFee,
         master_percentage: masterPercentage,
-        publishing_percentage: 100 - masterPercentage,
-        master_holder: masterHolder || null,
-        publishing_holder: publishingHolder || null,
+        publishing_percentage: publishingPercentage,
+        master_holder: masterSplit?.holder_name || null,
+        publishing_holder: publishingSplit?.holder_name || null,
         notes: notes || null,
         phase: 'solicitud',
         created_by: user?.id,
-      });
+      }).select().single();
 
       if (error) throw error;
+
+      // Insert splits
+      if (syncOffer && splits.length > 0) {
+        const splitsToInsert = splits.map(s => ({
+          sync_offer_id: syncOffer.id,
+          split_type: s.split_type,
+          percentage: s.percentage,
+          holder_name: s.holder_name || null,
+          contact_id: s.contact_id || null,
+          team_member_id: s.team_member_id || null,
+        }));
+        
+        await supabase.from('sync_splits').insert(splitsToInsert);
+      }
 
       toast({
         title: "Oferta creada",
@@ -170,16 +425,20 @@ export function CreateSyncOfferDialog({ open, onOpenChange, onOfferCreated }: Cr
   const resetForm = () => {
     setProductionTitle('');
     setProductionType('');
-    setProductionCompany('');
-    setDirector('');
+    setSelectedProductionCompanyId(null);
+    setProductionCompanyName('');
+    setSelectedDirectorId(null);
+    setDirectorName('');
     setTerritory('España');
     setSelectedMedia([]);
     setDurationYears(1);
+    setSelectedArtistId(null);
+    setSelectedSongId(null);
     setSongTitle('');
-    setSongArtist('');
     setUsageType('');
     setUsageDuration('');
     setSceneDescription('');
+    setRequesterContactId(null);
     setRequesterName('');
     setRequesterEmail('');
     setRequesterCompany('');
@@ -187,9 +446,10 @@ export function CreateSyncOfferDialog({ open, onOpenChange, onOfferCreated }: Cr
     setTotalBudget('');
     setMusicBudget('');
     setSyncFee('');
-    setMasterPercentage(50);
-    setMasterHolder('');
-    setPublishingHolder('');
+    setSplits([
+      { id: crypto.randomUUID(), split_type: 'master', percentage: 50, holder_name: '' },
+      { id: crypto.randomUUID(), split_type: 'publishing', percentage: 50, holder_name: '' },
+    ]);
     setNotes('');
     setActiveTab('project');
   };
@@ -280,23 +540,109 @@ export function CreateSyncOfferDialog({ open, onOpenChange, onOfferCreated }: Cr
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="production-company">Productora</Label>
-                  <Input
-                    id="production-company"
-                    value={productionCompany}
-                    onChange={(e) => setProductionCompany(e.target.value)}
-                    placeholder="Ej: Netflix, Atresmedia..."
-                  />
+                  <Label>Productora</Label>
+                  <Popover open={productionCompanyOpen} onOpenChange={setProductionCompanyOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between"
+                      >
+                        {productionCompanyName || "Seleccionar o crear..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput 
+                          placeholder="Buscar productora..." 
+                          value={productionCompanyName}
+                          onValueChange={setProductionCompanyName}
+                        />
+                        <CommandList>
+                          <CommandEmpty>
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start"
+                              onClick={handleCreateProductionCompany}
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Crear "{productionCompanyName}"
+                            </Button>
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {productionCompanies.map((company) => (
+                              <CommandItem
+                                key={company.id}
+                                onSelect={() => handleSelectProductionCompany(company)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedProductionCompanyId === company.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {company.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="director">Director</Label>
-                  <Input
-                    id="director"
-                    value={director}
-                    onChange={(e) => setDirector(e.target.value)}
-                    placeholder="Nombre del director"
-                  />
+                  <Label>Director</Label>
+                  <Popover open={directorOpen} onOpenChange={setDirectorOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between"
+                      >
+                        {directorName || "Seleccionar o crear..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput 
+                          placeholder="Buscar director..." 
+                          value={directorName}
+                          onValueChange={setDirectorName}
+                        />
+                        <CommandList>
+                          <CommandEmpty>
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start"
+                              onClick={handleCreateDirector}
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Crear "{directorName}"
+                            </Button>
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {directors.map((director) => (
+                              <CommandItem
+                                key={director.id}
+                                onSelect={() => handleSelectDirector(director)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedDirectorId === director.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {director.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 
@@ -337,23 +683,76 @@ export function CreateSyncOfferDialog({ open, onOpenChange, onOfferCreated }: Cr
           <TabsContent value="music" className="space-y-4 mt-4">
             <div className="grid gap-4">
               <div className="space-y-2">
-                <Label htmlFor="song-title">Título de la Canción *</Label>
-                <Input
-                  id="song-title"
-                  value={songTitle}
-                  onChange={(e) => setSongTitle(e.target.value)}
-                  placeholder="Nombre de la obra requerida"
+                <Label>Artista</Label>
+                <SingleArtistSelector
+                  value={selectedArtistId}
+                  onValueChange={setSelectedArtistId}
+                  placeholder="Vincular a un artista..."
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="song-artist">Artista</Label>
-                <Input
-                  id="song-artist"
-                  value={songArtist}
-                  onChange={(e) => setSongArtist(e.target.value)}
-                  placeholder="Intérprete o banda"
-                />
+                <Label>Canción *</Label>
+                {songs.length > 0 ? (
+                  <Popover open={songOpen} onOpenChange={setSongOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between"
+                      >
+                        {songTitle || "Seleccionar canción del catálogo..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Buscar canción..." />
+                        <CommandList>
+                          <CommandEmpty>No se encontraron canciones.</CommandEmpty>
+                          <CommandGroup>
+                            {songs.map((song) => (
+                              <CommandItem
+                                key={song.id}
+                                onSelect={() => handleSelectSong(song)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedSongId === song.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span>{song.title}</span>
+                                  {song.isrc && (
+                                    <span className="text-xs text-muted-foreground">ISRC: {song.isrc}</span>
+                                  )}
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <Input
+                    value={songTitle}
+                    onChange={(e) => setSongTitle(e.target.value)}
+                    placeholder="Nombre de la obra requerida"
+                  />
+                )}
+                {songs.length > 0 && !selectedSongId && (
+                  <div className="mt-2">
+                    <Label className="text-xs text-muted-foreground">O escribe manualmente:</Label>
+                    <Input
+                      value={songTitle}
+                      onChange={(e) => { setSongTitle(e.target.value); setSelectedSongId(null); }}
+                      placeholder="Nombre de la obra requerida"
+                      className="mt-1"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -400,48 +799,62 @@ export function CreateSyncOfferDialog({ open, onOpenChange, onOfferCreated }: Cr
           {/* Contact Tab */}
           <TabsContent value="contact" className="space-y-4 mt-4">
             <div className="grid gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="requester-name">Nombre del Solicitante</Label>
-                  <Input
-                    id="requester-name"
-                    value={requesterName}
-                    onChange={(e) => setRequesterName(e.target.value)}
-                    placeholder="Nombre completo"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="requester-company">Empresa</Label>
-                  <Input
-                    id="requester-company"
-                    value={requesterCompany}
-                    onChange={(e) => setRequesterCompany(e.target.value)}
-                    placeholder="Nombre de la empresa"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>Seleccionar Contacto Existente</Label>
+                <ContactSelector
+                  value={requesterContactId}
+                  onValueChange={(id) => setRequesterContactId(id)}
+                  placeholder="Vincular a un contacto..."
+                  compact
+                />
               </div>
+              
+              <div className="border-t pt-4">
+                <p className="text-sm text-muted-foreground mb-4">O introduce los datos manualmente:</p>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="requester-name">Nombre del Solicitante</Label>
+                    <Input
+                      id="requester-name"
+                      value={requesterName}
+                      onChange={(e) => setRequesterName(e.target.value)}
+                      placeholder="Nombre completo"
+                    />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="requester-email">Email</Label>
-                  <Input
-                    id="requester-email"
-                    type="email"
-                    value={requesterEmail}
-                    onChange={(e) => setRequesterEmail(e.target.value)}
-                    placeholder="email@empresa.com"
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="requester-company">Empresa</Label>
+                    <Input
+                      id="requester-company"
+                      value={requesterCompany}
+                      onChange={(e) => setRequesterCompany(e.target.value)}
+                      placeholder="Nombre de la empresa"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="requester-phone">Teléfono</Label>
-                  <Input
-                    id="requester-phone"
-                    value={requesterPhone}
-                    onChange={(e) => setRequesterPhone(e.target.value)}
-                    placeholder="+34 600 000 000"
-                  />
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="requester-email">Email</Label>
+                    <Input
+                      id="requester-email"
+                      type="email"
+                      value={requesterEmail}
+                      onChange={(e) => setRequesterEmail(e.target.value)}
+                      placeholder="email@empresa.com"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="requester-phone">Teléfono</Label>
+                    <Input
+                      id="requester-phone"
+                      value={requesterPhone}
+                      onChange={(e) => setRequesterPhone(e.target.value)}
+                      placeholder="+34 600 000 000"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -502,69 +915,139 @@ export function CreateSyncOfferDialog({ open, onOpenChange, onOfferCreated }: Cr
             </div>
           </TabsContent>
 
-          {/* Splits Tab */}
+          {/* Dynamic Splits Tab */}
           <TabsContent value="splits" className="space-y-4 mt-4">
-            <div className="grid gap-6">
-              <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold">Master (Sello)</p>
-                    <p className="text-sm text-muted-foreground">Propietario de la grabación</p>
-                  </div>
-                  <span className="text-2xl font-bold text-primary">{masterPercentage}%</span>
+            <div className="grid gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium">Distribución de Royalties</h4>
+                  <p className="text-sm text-muted-foreground">Define cómo se repartirá el sync fee</p>
                 </div>
-                
-                <Slider
-                  value={[masterPercentage]}
-                  onValueChange={(v) => setMasterPercentage(v[0])}
-                  min={0}
-                  max={100}
-                  step={5}
-                />
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold">Publishing (Editorial)</p>
-                    <p className="text-sm text-muted-foreground">Propietario de la composición</p>
-                  </div>
-                  <span className="text-2xl font-bold text-primary">{100 - masterPercentage}%</span>
-                </div>
+                <Badge variant={totalSplitPercentage === 100 ? "default" : "destructive"}>
+                  Total: {totalSplitPercentage}%
+                </Badge>
               </div>
 
-              {syncFee && (
-                <div className="grid grid-cols-2 gap-4 p-4 bg-primary/5 rounded-lg">
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Master Fee</p>
-                    <p className="text-xl font-bold">€{((parseFloat(syncFee) * masterPercentage) / 100).toLocaleString()}</p>
+              <div className="space-y-3">
+                {splits.map((split, index) => (
+                  <div key={split.id} className="p-4 border rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">Split #{index + 1}</span>
+                        {syncFee && split.percentage > 0 && (
+                          <Badge variant="secondary">
+                            €{((parseFloat(syncFee) * split.percentage) / 100).toLocaleString()}
+                          </Badge>
+                        )}
+                      </div>
+                      {splits.length > 2 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeSplit(split.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label>Tipo</Label>
+                        <Select 
+                          value={split.split_type} 
+                          onValueChange={(v) => updateSplit(split.id, 'split_type', v)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SPLIT_TYPES.map((type) => (
+                              <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Porcentaje: {split.percentage}%</Label>
+                        <Slider
+                          value={[split.percentage]}
+                          onValueChange={(v) => updateSplit(split.id, 'percentage', v[0])}
+                          min={0}
+                          max={100}
+                          step={5}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Titular / Beneficiario</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={split.holder_name}
+                          onChange={(e) => updateSplit(split.id, 'holder_name', e.target.value)}
+                          placeholder="Nombre del titular"
+                          className="flex-1"
+                        />
+                      </div>
+                      {teamMembers.length > 0 && (
+                        <Select
+                          value={split.contact_id || ''}
+                          onValueChange={(v) => {
+                            const member = teamMembers.find(m => m.id === v);
+                            updateSplit(split.id, 'contact_id', v || null);
+                            if (member) {
+                              updateSplit(split.id, 'holder_name', member.name);
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="O vincular a miembro del equipo..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {teamMembers.map((member) => (
+                              <SelectItem key={member.id} value={member.id}>
+                                <div className="flex items-center gap-2">
+                                  <span>{member.name}</span>
+                                  {member.role && (
+                                    <Badge variant="outline" className="text-xs">{member.role}</Badge>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Publishing Fee</p>
-                    <p className="text-xl font-bold">€{((parseFloat(syncFee) * (100 - masterPercentage)) / 100).toLocaleString()}</p>
+                ))}
+              </div>
+
+              <Button variant="outline" onClick={addSplit} className="w-full">
+                <Plus className="h-4 w-4 mr-2" />
+                Añadir Split
+              </Button>
+
+              {syncFee && totalSplitPercentage === 100 && (
+                <div className="p-4 bg-primary/5 rounded-lg">
+                  <h5 className="font-medium mb-2">Resumen de Distribución</h5>
+                  <div className="space-y-1">
+                    {splits.map((split) => {
+                      const amount = (parseFloat(syncFee) * split.percentage) / 100;
+                      const typeLabel = SPLIT_TYPES.find(t => t.value === split.split_type)?.label || split.split_type;
+                      return (
+                        <div key={split.id} className="flex justify-between text-sm">
+                          <span>{typeLabel}: {split.holder_name || 'Sin asignar'}</span>
+                          <span className="font-medium">€{amount.toLocaleString()}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="master-holder">Titular del Master</Label>
-                  <Input
-                    id="master-holder"
-                    value={masterHolder}
-                    onChange={(e) => setMasterHolder(e.target.value)}
-                    placeholder="Nombre del sello / distribuidor"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="publishing-holder">Titular del Publishing</Label>
-                  <Input
-                    id="publishing-holder"
-                    value={publishingHolder}
-                    onChange={(e) => setPublishingHolder(e.target.value)}
-                    placeholder="Editorial / Autor"
-                  />
-                </div>
-              </div>
             </div>
           </TabsContent>
         </Tabs>
