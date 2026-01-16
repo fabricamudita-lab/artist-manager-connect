@@ -272,6 +272,7 @@ export default function RoadmapDetail() {
     venue: firstBooking.lugar || undefined,
     city: firstBooking.ciudad || undefined,
     tourTitle: firstBooking.festival_ciclo || undefined,
+    formato: firstBooking.formato || undefined,
   } : undefined;
 
   const renderBlock = (block: RoadmapBlock) => {

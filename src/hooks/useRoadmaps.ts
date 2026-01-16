@@ -12,6 +12,7 @@ export interface LinkedBooking {
   hora: string | null;
   promotor: string | null;
   artist_id: string | null;
+  formato: string | null;
   artist?: {
     id: string;
     name: string;
@@ -61,7 +62,7 @@ export function useRoadmaps() {
         .select(`
           *,
           artist:artists(id, name, avatar_url),
-          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, hora, promotor, artist_id)
+          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, hora, promotor, artist_id, formato)
         `)
         .order('created_at', { ascending: false });
       
@@ -132,7 +133,7 @@ export function useRoadmap(id: string | undefined) {
         .select(`
           *,
           artist:artists(id, name, avatar_url),
-          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, hora, promotor, artist_id)
+          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, hora, promotor, artist_id, formato)
         `)
         .eq('id', id)
         .single();
@@ -154,7 +155,7 @@ export function useRoadmap(id: string | undefined) {
           id,
           booking_id,
           sort_order,
-          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, hora, promotor, artist_id, artist:artists(id, name))
+          booking:booking_offers(id, festival_ciclo, lugar, ciudad, fecha, hora, promotor, artist_id, formato, artist:artists(id, name))
         `)
         .eq('roadmap_id', id)
         .order('sort_order', { ascending: true });

@@ -41,6 +41,7 @@ interface BookingInfo {
   venue?: string;
   city?: string;
   tourTitle?: string;
+  formato?: string;
 }
 
 export interface ScheduleBlockProps {
@@ -526,7 +527,14 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
               </div>
 
               <div className="space-y-2">
-                <Label>Asignados</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Asignados</Label>
+                  {bookingInfo?.formato && (
+                    <Badge variant="outline" className="text-xs font-normal">
+                      Formato: {bookingInfo.formato}
+                    </Badge>
+                  )}
+                </div>
                 <TeamMemberSelector
                   artistId={artistId}
                   bookingId={bookingId}
