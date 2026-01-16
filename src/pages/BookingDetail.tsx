@@ -13,7 +13,7 @@ import { getStatusBadgeVariant } from '@/lib/statusColors';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { BookingOverviewTab } from '@/components/booking-detail/BookingOverviewTab';
-import { BookingItineraryTab } from '@/components/booking-detail/BookingItineraryTab';
+import { BookingRoadmapTab } from '@/components/booking-detail/BookingRoadmapTab';
 import { BookingExpensesTab } from '@/components/booking-detail/BookingExpensesTab';
 import { BookingDocumentsTab } from '@/components/booking-detail/BookingDocumentsTab';
 import { BookingFilesWidget } from '@/components/booking-detail/BookingFilesWidget';
@@ -506,9 +506,9 @@ export default function BookingDetail() {
                   <FileText className="h-4 w-4" />
                   Overview
                 </TabsTrigger>
-                <TabsTrigger value="itinerary" className="flex items-center gap-2">
+                <TabsTrigger value="roadmap" className="flex items-center gap-2">
                   <Plane className="h-4 w-4" />
-                  Itinerary
+                  Hoja de Ruta
                 </TabsTrigger>
                 <TabsTrigger value="expenses" className="flex items-center gap-2">
                   <Receipt className="h-4 w-4" />
@@ -532,8 +532,13 @@ export default function BookingDetail() {
                 <BookingOverviewTab booking={booking} onUpdate={handleBookingUpdate} />
               </TabsContent>
 
-              <TabsContent value="itinerary">
-                <BookingItineraryTab bookingId={booking.id} eventDate={booking.fecha} />
+              <TabsContent value="roadmap">
+                <BookingRoadmapTab 
+                  bookingId={booking.id} 
+                  artistId={booking.artist_id}
+                  eventName={booking.festival_ciclo || booking.venue}
+                  eventDate={booking.fecha}
+                />
               </TabsContent>
 
               <TabsContent value="expenses">
