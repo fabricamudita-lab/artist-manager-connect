@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, ExternalLink, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Pencil, Phone, Mail, MapPin, ExternalLink, Hotel, Utensils, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -11,22 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDebounce } from '@/hooks/useDebounce';
 import { TeamMemberSelector } from './TeamMemberSelector';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
-interface Hotel {
+interface HotelData {
   id: string;
   name: string;
   address: string;
@@ -40,19 +34,19 @@ interface Hotel {
 interface RoomType {
   id: string;
   name: string;
-  capacity: number | null; // null = unlimited capacity (e.g., Apartamento)
+  capacity: number | null;
 }
 
 interface RoomAssignment {
   id: string;
-  passenger: string; // Text-based passenger name (legacy)
-  passengerIds?: string[]; // Contact IDs for linked team members
+  passenger: string;
+  passengerIds?: string[];
   roomType: string;
-  capacityAcknowledged?: boolean; // User confirmed they're okay with over-capacity
+  capacityAcknowledged?: boolean;
 }
 
 interface HospitalityBlockData {
-  hotels?: Hotel[];
+  hotels?: HotelData[];
   roomingList?: RoomAssignment[];
   dietNotes?: string;
 }
@@ -61,7 +55,7 @@ export interface HospitalityBlockProps {
   data: Record<string, unknown>;
   onChange: (data: Record<string, unknown>) => void;
   artistId?: string | null;
-  bookingId?: string | null; // Booking ID to fetch crew from format
+  bookingId?: string | null;
 }
 
 export function HospitalityBlock({ data, onChange, artistId, bookingId }: HospitalityBlockProps) {
@@ -70,12 +64,14 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
   const incomingRoomingList = blockData.roomingList || [];
   const incomingDietNotes = blockData.dietNotes || '';
 
-  // Local state for immediate UI updates
-  const [localHotels, setLocalHotels] = useState<Hotel[]>(incomingHotels);
+  const [localHotels, setLocalHotels] = useState<HotelData[]>(incomingHotels);
   const [localRoomingList, setLocalRoomingList] = useState<RoomAssignment[]>(incomingRoomingList);
   const [localDietNotes, setLocalDietNotes] = useState(incomingDietNotes);
   
-  // Room types from database
+  const [editingHotel, setEditingHotel] = useState<HotelData | null>(null);
+  const [editingRoom, setEditingRoom] = useState<RoomAssignment | null>(null);
+  const [showDietEdit, setShowDietEdit] = useState(false);
+  
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [newRoomTypeName, setNewRoomTypeName] = useState('');
   const [newRoomTypeCapacity, setNewRoomTypeCapacity] = useState(1);
@@ -88,7 +84,6 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
   const debouncedRoomingList = useDebounce(localRoomingList, 500);
   const debouncedDietNotes = useDebounce(localDietNotes, 500);
 
-  // Fetch room types from database
   useEffect(() => {
     const fetchRoomTypes = async () => {
       const { data: types, error } = await supabase
@@ -103,7 +98,6 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
     fetchRoomTypes();
   }, []);
 
-  // Sync from parent when data changes externally
   useEffect(() => {
     const next = JSON.stringify({ hotels: incomingHotels, roomingList: incomingRoomingList, dietNotes: incomingDietNotes });
     if (next !== lastSyncedRef.current) {
@@ -114,18 +108,16 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
     }
   }, [incomingHotels, incomingRoomingList, incomingDietNotes]);
 
-  // Save to parent when debounced data changes
   useEffect(() => {
     const next = JSON.stringify({ hotels: debouncedHotels, roomingList: debouncedRoomingList, dietNotes: debouncedDietNotes });
     if (next !== lastSyncedRef.current) {
       lastSyncedRef.current = next;
       onChange({ ...data, hotels: debouncedHotels, roomingList: debouncedRoomingList, dietNotes: debouncedDietNotes });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedHotels, debouncedRoomingList, debouncedDietNotes]);
 
   const addHotel = () => {
-    const newHotel: Hotel = {
+    const newHotel: HotelData = {
       id: crypto.randomUUID(),
       name: '',
       address: '',
@@ -135,13 +127,21 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
       checkOut: '',
       breakfastTime: '',
     };
-    setLocalHotels((prev) => [...prev, newHotel]);
+    setEditingHotel(newHotel);
   };
 
-  const updateHotel = (hotelId: string, updates: Partial<Hotel>) => {
-    setLocalHotels((prev) =>
-      prev.map((h) => (h.id === hotelId ? { ...h, ...updates } : h))
-    );
+  const saveHotel = () => {
+    if (!editingHotel) return;
+    setLocalHotels((prev) => {
+      const existingIndex = prev.findIndex(h => h.id === editingHotel.id);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = editingHotel;
+        return updated;
+      }
+      return [...prev, editingHotel];
+    });
+    setEditingHotel(null);
   };
 
   const removeHotel = (hotelId: string) => {
@@ -156,20 +156,27 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
       passengerIds: [],
       roomType: defaultType?.name || 'Single',
     };
-    setLocalRoomingList((prev) => [...prev, newAssignment]);
+    setEditingRoom(newAssignment);
   };
 
-  const updateRoomAssignment = (assignmentId: string, updates: Partial<RoomAssignment>) => {
-    setLocalRoomingList((prev) =>
-      prev.map((r) => (r.id === assignmentId ? { ...r, ...updates } : r))
-    );
+  const saveRoom = () => {
+    if (!editingRoom) return;
+    setLocalRoomingList((prev) => {
+      const existingIndex = prev.findIndex(r => r.id === editingRoom.id);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = editingRoom;
+        return updated;
+      }
+      return [...prev, editingRoom];
+    });
+    setEditingRoom(null);
   };
 
   const removeRoomAssignment = (assignmentId: string) => {
     setLocalRoomingList((prev) => prev.filter((r) => r.id !== assignmentId));
   };
 
-  // Add new room type to database
   const handleAddRoomType = async () => {
     if (!newRoomTypeName.trim()) return;
     
@@ -197,130 +204,102 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
     }
   };
 
-  // Get capacity warning for a room assignment
   const getCapacityWarning = (assignment: RoomAssignment): string | null => {
     const roomType = roomTypes.find(t => t.name === assignment.roomType);
     if (!roomType || !assignment.passengerIds) return null;
-    
-    // null capacity means unlimited (e.g., Apartamento)
     if (roomType.capacity === null) return null;
     
     const guestCount = assignment.passengerIds.length;
     if (guestCount === 0) return null;
     
     if (guestCount > roomType.capacity) {
-      return `Esta habitación es para ${roomType.capacity} persona${roomType.capacity > 1 ? 's' : ''}, pero hay ${guestCount} asignados`;
+      return `Capacidad: ${roomType.capacity}, asignados: ${guestCount}`;
     }
-    
     return null;
   };
 
   return (
     <div className="space-y-6">
-      {/* Hotels */}
-      <div className="space-y-4">
+      {/* Hotels Section */}
+      <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label className="text-base font-medium">Hoteles</Label>
+          <h4 className="font-medium flex items-center gap-2">
+            <Hotel className="w-4 h-4" />
+            Hoteles
+          </h4>
           <Button onClick={addHotel} variant="outline" size="sm" className="gap-1">
             <Plus className="w-3 h-3" />
             Hotel
           </Button>
         </div>
+        
         {localHotels.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid gap-3">
             {localHotels.map((hotel) => (
-              <Card key={hotel.id}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <Input
-                      value={hotel.name}
-                      onChange={(e) => updateHotel(hotel.id, { name: e.target.value })}
-                      placeholder="Nombre del hotel"
-                      className="font-medium border-0 p-0 h-auto focus-visible:ring-0"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeHotel(hotel.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs">Dirección</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={hotel.address}
-                        onChange={(e) => updateHotel(hotel.id, { address: e.target.value })}
-                        placeholder="Calle, número, ciudad"
-                        className="flex-1"
-                      />
+              <Card key={hotel.id} className="group">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <h5 className="font-semibold">{hotel.name || 'Sin nombre'}</h5>
+                      {hotel.address && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          {hotel.address}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        {hotel.checkIn && <span>Check-in: {hotel.checkIn}</span>}
+                        {hotel.checkOut && <span>Check-out: {hotel.checkOut}</span>}
+                        {hotel.breakfastTime && <span>Desayuno: {hotel.breakfastTime}</span>}
+                      </div>
+                      {hotel.phone && (
+                        <p className="text-sm flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          {hotel.phone}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {hotel.mapLink && (
-                        <Button variant="outline" size="icon" asChild>
+                        <Button variant="ghost" size="icon" asChild className="h-8 w-8">
                           <a href={hotel.mapLink} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="w-4 h-4" />
                           </a>
                         </Button>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setEditingHotel({ ...hotel })}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => removeHotel(hotel.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <Input
-                      value={hotel.mapLink}
-                      onChange={(e) => updateHotel(hotel.id, { mapLink: e.target.value })}
-                      placeholder="Link a Google Maps"
-                      className="text-xs"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Teléfono</Label>
-                    <Input
-                      value={hotel.phone}
-                      onChange={(e) => updateHotel(hotel.id, { phone: e.target.value })}
-                      placeholder="+34 XXX XXX XXX"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Horario Check-in / Check-out</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="time"
-                        value={hotel.checkIn}
-                        onChange={(e) => updateHotel(hotel.id, { checkIn: e.target.value })}
-                        placeholder="Check-in"
-                      />
-                      <Input
-                        type="time"
-                        value={hotel.checkOut}
-                        onChange={(e) => updateHotel(hotel.id, { checkOut: e.target.value })}
-                        placeholder="Check-out"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Horario Desayuno</Label>
-                    <Input
-                      value={hotel.breakfastTime}
-                      onChange={(e) => updateHotel(hotel.id, { breakfastTime: e.target.value })}
-                      placeholder="Ej: 7:00 - 10:30"
-                    />
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground py-4 text-center border rounded-lg">
+          <div className="text-center py-6 border-2 border-dashed rounded-lg text-muted-foreground">
             No hay hoteles configurados
-          </p>
+          </div>
         )}
       </div>
 
-      {/* Rooming List */}
-      <div className="space-y-2">
+      {/* Rooming List Section */}
+      <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label className="text-base font-medium">Rooming List</Label>
+          <h4 className="font-medium">Rooming List</h4>
           <div className="flex gap-2">
             <Button 
               onClick={() => setShowAddRoomType(!showAddRoomType)} 
@@ -328,7 +307,7 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
               size="sm"
               className="text-xs"
             >
-              + Tipo habitación
+              + Tipo
             </Button>
             <Button onClick={addRoomAssignment} variant="outline" size="sm" className="gap-1">
               <Plus className="w-3 h-3" />
@@ -337,7 +316,6 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
           </div>
         </div>
 
-        {/* Add new room type form */}
         {showAddRoomType && (
           <Card className="p-4">
             <div className="flex items-end gap-3">
@@ -361,117 +339,227 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
                   className="h-8"
                 />
               </div>
-              <Button onClick={handleAddRoomType} size="sm" className="h-8">
-                Añadir
-              </Button>
-              <Button onClick={() => setShowAddRoomType(false)} variant="ghost" size="sm" className="h-8">
-                Cancelar
-              </Button>
+              <Button onClick={handleAddRoomType} size="sm" className="h-8">Añadir</Button>
+              <Button onClick={() => setShowAddRoomType(false)} variant="ghost" size="sm" className="h-8">Cancelar</Button>
             </div>
           </Card>
         )}
 
         {localRoomingList.length > 0 ? (
-          <div className="border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Equipo</TableHead>
-                  <TableHead className="w-40">Tipo de Habitación</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {localRoomingList.map((assignment) => {
-                  const warning = getCapacityWarning(assignment);
-                  const showWarning = warning && !assignment.capacityAcknowledged;
-                  return (
-                    <TableRow key={assignment.id}>
-                      <TableCell>
-                        <div className="space-y-2">
-                          <TeamMemberSelector
-                            artistId={artistId}
-                            bookingId={bookingId}
-                            value={assignment.passengerIds || []}
-                            onValueChange={(ids) => updateRoomAssignment(assignment.id, { 
-                              passengerIds: ids,
-                              capacityAcknowledged: false // Reset acknowledgement when passengers change
-                            })}
-                            placeholder="Seleccionar equipo..."
-                            compact
-                          />
-                          {showWarning && (
-                            <Alert variant="destructive" className="py-2 px-3">
-                              <div className="flex items-center justify-between w-full">
-                                <div className="flex items-center gap-1">
-                                  <AlertTriangle className="h-3 w-3" />
-                                  <AlertDescription className="text-xs">
-                                    {warning}
-                                  </AlertDescription>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 px-2 text-xs hover:bg-destructive/20"
-                                  onClick={() => updateRoomAssignment(assignment.id, { capacityAcknowledged: true })}
-                                >
-                                  Entendido
-                                </Button>
-                              </div>
-                            </Alert>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={assignment.roomType}
-                          onValueChange={(val) => updateRoomAssignment(assignment.id, { roomType: val })}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {roomTypes.map((t) => (
-                              <SelectItem key={t.id} value={t.name}>
-                                {t.name}{t.capacity !== null ? ` (${t.capacity}p)` : ''}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeRoomAssignment(assignment.id)}
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+          <div className="grid gap-2">
+            {localRoomingList.map((assignment) => {
+              const warning = getCapacityWarning(assignment);
+              return (
+                <div
+                  key={assignment.id}
+                  className="border rounded-lg p-3 flex items-center justify-between group hover:bg-muted/30"
+                >
+                  <div className="flex items-center gap-3">
+                    <Badge variant="outline">
+                      {assignment.roomType}
+                    </Badge>
+                    <span className="text-sm">
+                      {assignment.passengerIds?.length || 0} persona{(assignment.passengerIds?.length || 0) !== 1 ? 's' : ''}
+                    </span>
+                    {warning && (
+                      <Badge variant="destructive" className="gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        {warning}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setEditingRoom({ ...assignment })}
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      onClick={() => removeRoomAssignment(assignment.id)}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground py-4 text-center border rounded-lg">
+          <div className="text-center py-6 border-2 border-dashed rounded-lg text-muted-foreground">
             No hay habitaciones asignadas
-          </p>
+          </div>
         )}
       </div>
 
       {/* Diet Notes */}
-      <div className="space-y-2">
-        <Label>Notas de Dietas</Label>
-        <Textarea
-          value={localDietNotes}
-          onChange={(e) => setLocalDietNotes(e.target.value)}
-          placeholder="Ej: Solo desayunos incluidos. Alergias: María - gluten free."
-          className="min-h-[80px]"
-        />
+      <div className="border rounded-lg p-4 bg-muted/30">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2">
+            <Utensils className="w-5 h-5 text-muted-foreground" />
+            <div>
+              <h4 className="font-medium">Notas Dietéticas</h4>
+              {localDietNotes ? (
+                <p className="text-sm text-muted-foreground mt-1">{localDietNotes}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-1 italic">Sin notas</p>
+              )}
+            </div>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => setShowDietEdit(true)}>
+            <Pencil className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
+
+      {/* Edit Hotel Dialog */}
+      <Dialog open={!!editingHotel} onOpenChange={(open) => !open && setEditingHotel(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {editingHotel && localHotels.some(h => h.id === editingHotel.id) ? 'Editar Hotel' : 'Nuevo Hotel'}
+            </DialogTitle>
+          </DialogHeader>
+          {editingHotel && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Nombre del hotel</Label>
+                <Input
+                  value={editingHotel.name}
+                  onChange={(e) => setEditingHotel({ ...editingHotel, name: e.target.value })}
+                  placeholder="Hotel Example"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Dirección</Label>
+                <Input
+                  value={editingHotel.address}
+                  onChange={(e) => setEditingHotel({ ...editingHotel, address: e.target.value })}
+                  placeholder="Calle, número, ciudad"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Link Google Maps</Label>
+                <Input
+                  value={editingHotel.mapLink}
+                  onChange={(e) => setEditingHotel({ ...editingHotel, mapLink: e.target.value })}
+                  placeholder="https://maps.google.com/..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Teléfono</Label>
+                <Input
+                  value={editingHotel.phone}
+                  onChange={(e) => setEditingHotel({ ...editingHotel, phone: e.target.value })}
+                  placeholder="+34 XXX XXX XXX"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Check-in</Label>
+                  <Input
+                    type="time"
+                    value={editingHotel.checkIn}
+                    onChange={(e) => setEditingHotel({ ...editingHotel, checkIn: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Check-out</Label>
+                  <Input
+                    type="time"
+                    value={editingHotel.checkOut}
+                    onChange={(e) => setEditingHotel({ ...editingHotel, checkOut: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Desayuno</Label>
+                  <Input
+                    value={editingHotel.breakfastTime}
+                    onChange={(e) => setEditingHotel({ ...editingHotel, breakfastTime: e.target.value })}
+                    placeholder="7:00-10:30"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingHotel(null)}>Cancelar</Button>
+            <Button onClick={saveHotel}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Room Dialog */}
+      <Dialog open={!!editingRoom} onOpenChange={(open) => !open && setEditingRoom(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingRoom && localRoomingList.some(r => r.id === editingRoom.id) ? 'Editar Habitación' : 'Nueva Habitación'}
+            </DialogTitle>
+          </DialogHeader>
+          {editingRoom && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Tipo de habitación</Label>
+                <Select
+                  value={editingRoom.roomType}
+                  onValueChange={(val) => setEditingRoom({ ...editingRoom, roomType: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roomTypes.map((t) => (
+                      <SelectItem key={t.id} value={t.name}>
+                        {t.name}{t.capacity !== null ? ` (${t.capacity}p)` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Huéspedes</Label>
+                <TeamMemberSelector
+                  artistId={artistId}
+                  bookingId={bookingId}
+                  value={editingRoom.passengerIds || []}
+                  onValueChange={(ids) => setEditingRoom({ ...editingRoom, passengerIds: ids })}
+                  placeholder="Seleccionar huéspedes..."
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingRoom(null)}>Cancelar</Button>
+            <Button onClick={saveRoom}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Diet Notes Dialog */}
+      <Dialog open={showDietEdit} onOpenChange={setShowDietEdit}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Notas Dietéticas</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              value={localDietNotes}
+              onChange={(e) => setLocalDietNotes(e.target.value)}
+              placeholder="Alergias, preferencias alimenticias, etc."
+              className="min-h-[120px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowDietEdit(false)}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,16 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Phone, Mail, MapPin } from 'lucide-react';
+import { Plus, Trash2, Phone, Mail, MapPin, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useDebounce } from '@/hooks/useDebounce';
 
 export interface Contact {
@@ -19,7 +13,7 @@ export interface Contact {
   role: string;
   phone: string;
   email: string;
-  origin: string; // Ciudad base / origen del contacto
+  origin: string;
 }
 
 interface ContactsBlockData {
@@ -35,12 +29,12 @@ export function ContactsBlock({ data, onChange }: ContactsBlockProps) {
   const blockData = data as ContactsBlockData;
   const incomingContacts = blockData.contacts || [];
 
-  // Local state for immediate UI updates
   const [localContacts, setLocalContacts] = useState<Contact[]>(incomingContacts);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  
   const lastSyncedRef = useRef<string>(JSON.stringify(incomingContacts));
   const debouncedContacts = useDebounce(localContacts, 500);
 
-  // Sync from parent when data changes externally
   useEffect(() => {
     const next = JSON.stringify(incomingContacts);
     if (next !== lastSyncedRef.current) {
@@ -49,140 +43,78 @@ export function ContactsBlock({ data, onChange }: ContactsBlockProps) {
     }
   }, [incomingContacts]);
 
-  // Save to parent when debounced data changes
   useEffect(() => {
     const next = JSON.stringify(debouncedContacts);
     if (next !== lastSyncedRef.current) {
       lastSyncedRef.current = next;
       onChange({ ...data, contacts: debouncedContacts });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedContacts]);
 
   const addContact = () => {
-    const newContact: Contact = {
-      id: crypto.randomUUID(),
-      name: '',
-      role: '',
-      phone: '',
-      email: '',
-      origin: '',
-    };
-    setLocalContacts((prev) => [...prev, newContact]);
+    const newContact: Contact = { id: crypto.randomUUID(), name: '', role: '', phone: '', email: '', origin: '' };
+    setEditingContact(newContact);
   };
 
-  const updateContact = (contactId: string, updates: Partial<Contact>) => {
-    setLocalContacts((prev) =>
-      prev.map((c) => (c.id === contactId ? { ...c, ...updates } : c))
-    );
+  const saveContact = () => {
+    if (!editingContact) return;
+    setLocalContacts((prev) => {
+      const idx = prev.findIndex(c => c.id === editingContact.id);
+      if (idx >= 0) { const u = [...prev]; u[idx] = editingContact; return u; }
+      return [...prev, editingContact];
+    });
+    setEditingContact(null);
   };
 
-  const removeContact = (contactId: string) => {
-    setLocalContacts((prev) => prev.filter((c) => c.id !== contactId));
-  };
+  const removeContact = (id: string) => setLocalContacts((prev) => prev.filter((c) => c.id !== id));
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Label className="text-base font-medium">Contactos de la Gira</Label>
-      </div>
-      
       {localContacts.length > 0 ? (
-        <div className="border rounded-lg overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead>Origen</TableHead>
-                <TableHead>Teléfono</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead className="w-24">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {localContacts.map((contact) => (
-                <TableRow key={contact.id}>
-                  <TableCell>
-                    <Input
-                      value={contact.name}
-                      onChange={(e) => updateContact(contact.id, { name: e.target.value })}
-                      placeholder="Nombre completo"
-                      className="h-8"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={contact.role}
-                      onChange={(e) => updateContact(contact.id, { role: e.target.value })}
-                      placeholder="Ej: Tour Manager"
-                      className="h-8"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={contact.origin || ''}
-                      onChange={(e) => updateContact(contact.id, { origin: e.target.value })}
-                      placeholder="Madrid"
-                      className="h-8"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={contact.phone}
-                      onChange={(e) => updateContact(contact.id, { phone: e.target.value })}
-                      placeholder="+34 XXX XXX XXX"
-                      className="h-8"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={contact.email}
-                      onChange={(e) => updateContact(contact.id, { email: e.target.value })}
-                      placeholder="email@ejemplo.com"
-                      className="h-8"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      {contact.phone && (
-                        <Button variant="ghost" size="icon" asChild className="h-8 w-8">
-                          <a href={`tel:${contact.phone}`}>
-                            <Phone className="w-4 h-4" />
-                          </a>
-                        </Button>
-                      )}
-                      {contact.email && (
-                        <Button variant="ghost" size="icon" asChild className="h-8 w-8">
-                          <a href={`mailto:${contact.email}`}>
-                            <Mail className="w-4 h-4" />
-                          </a>
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeContact(contact.id)}
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="border rounded-lg overflow-hidden">
+          <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-4 p-3 bg-muted/50 font-medium text-sm">
+            <div>NOMBRE</div>
+            <div>ROL</div>
+            <div>CONTACTO</div>
+            <div></div>
+          </div>
+          <div className="divide-y">
+            {localContacts.map((contact) => (
+              <div key={contact.id} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-4 p-3 items-center hover:bg-muted/30 group">
+                <div>
+                  <span className="font-medium">{contact.name || '—'}</span>
+                  {contact.origin && <span className="text-xs text-muted-foreground ml-2 flex items-center gap-1 inline-flex"><MapPin className="w-3 h-3" />{contact.origin}</span>}
+                </div>
+                <div><Badge variant="outline">{contact.role || 'Sin rol'}</Badge></div>
+                <div className="flex items-center gap-2">
+                  {contact.phone && <a href={`tel:${contact.phone}`} className="text-sm hover:underline flex items-center gap-1"><Phone className="w-3 h-3" />{contact.phone}</a>}
+                  {contact.email && <a href={`mailto:${contact.email}`} className="text-sm hover:underline flex items-center gap-1"><Mail className="w-3 h-3" /></a>}
+                </div>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingContact({ ...contact })}><Pencil className="w-3 h-3" /></Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeContact(contact.id)}><Trash2 className="w-3 h-3" /></Button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground py-8 text-center border rounded-lg">
-          No hay contactos configurados
-        </p>
+        <div className="text-center py-8 border-2 border-dashed rounded-lg text-muted-foreground">No hay contactos configurados</div>
       )}
-      <Button onClick={addContact} variant="outline" className="gap-2">
-        <Plus className="w-4 h-4" />
-        Añadir Contacto
-      </Button>
+      <Button onClick={addContact} variant="outline" className="gap-2"><Plus className="w-4 h-4" />Añadir Contacto</Button>
+
+      <Dialog open={!!editingContact} onOpenChange={(o) => !o && setEditingContact(null)}>
+        <DialogContent><DialogHeader><DialogTitle>{editingContact && localContacts.some(c => c.id === editingContact.id) ? 'Editar Contacto' : 'Nuevo Contacto'}</DialogTitle></DialogHeader>
+          {editingContact && <div className="py-4 space-y-4">
+            <div className="space-y-2"><Label>Nombre</Label><Input value={editingContact.name} onChange={(e) => setEditingContact({ ...editingContact, name: e.target.value })} placeholder="Nombre completo" /></div>
+            <div className="space-y-2"><Label>Rol</Label><Input value={editingContact.role} onChange={(e) => setEditingContact({ ...editingContact, role: e.target.value })} placeholder="Ej: Tour Manager" /></div>
+            <div className="space-y-2"><Label>Origen</Label><Input value={editingContact.origin} onChange={(e) => setEditingContact({ ...editingContact, origin: e.target.value })} placeholder="Ciudad" /></div>
+            <div className="space-y-2"><Label>Teléfono</Label><Input value={editingContact.phone} onChange={(e) => setEditingContact({ ...editingContact, phone: e.target.value })} placeholder="+34 XXX XXX XXX" /></div>
+            <div className="space-y-2"><Label>Email</Label><Input value={editingContact.email} onChange={(e) => setEditingContact({ ...editingContact, email: e.target.value })} placeholder="email@ejemplo.com" /></div>
+          </div>}
+          <DialogFooter><Button variant="outline" onClick={() => setEditingContact(null)}>Cancelar</Button><Button onClick={saveContact}>Guardar</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
