@@ -118,6 +118,39 @@ export function BookingRoadmapTab({ bookingId, artistId, eventName, eventDate }:
     enabled: !!bookingId && !!user,
   });
 
+  // Get unique promoter IDs that are UUIDs
+  const promoterIds = (linkedRoadmaps || [])
+    .map((r) => r.promoter)
+    .filter((p): p is string => !!p && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p));
+
+  // Fetch promoter names from contacts
+  const { data: promoterContacts } = useQuery({
+    queryKey: ['promoter-contacts', promoterIds],
+    queryFn: async () => {
+      if (promoterIds.length === 0) return {};
+      const { data } = await supabase
+        .from('contacts')
+        .select('id, name, company')
+        .in('id', promoterIds);
+      
+      const map: Record<string, { name: string | null; company: string | null }> = {};
+      data?.forEach(c => {
+        map[c.id] = { name: c.name, company: c.company };
+      });
+      return map;
+    },
+    enabled: promoterIds.length > 0,
+  });
+
+  const getPromoterName = (promoter: string | null): string | null => {
+    if (!promoter) return null;
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(promoter);
+    if (isUUID && promoterContacts?.[promoter]) {
+      return promoterContacts[promoter].name || promoterContacts[promoter].company || null;
+    }
+    return promoter;
+  };
+
   // Create roadmap mutation
   const createRoadmap = useMutation({
     mutationFn: async () => {
@@ -296,10 +329,10 @@ export function BookingRoadmapTab({ bookingId, artistId, eventName, eventDate }:
                     {getStatusBadge(roadmap.status)}
                   </div>
                   
-                  {roadmap.promoter && (
+                  {getPromoterName(roadmap.promoter) && (
                     <p className="text-sm text-muted-foreground flex items-center gap-1">
                       <Users className="h-3.5 w-3.5" />
-                      {roadmap.promoter}
+                      {getPromoterName(roadmap.promoter)}
                     </p>
                   )}
                   
