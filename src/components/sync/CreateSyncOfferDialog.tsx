@@ -555,7 +555,7 @@ export function CreateSyncOfferDialog({ open, onOpenChange, onOfferCreated }: Cr
                     <PopoverContent className="w-full p-0">
                       <Command>
                         <CommandInput 
-                          placeholder="Buscar productora..." 
+                          placeholder="Buscar o crear productora..." 
                           value={productionCompanyName}
                           onValueChange={setProductionCompanyName}
                         />
@@ -608,7 +608,7 @@ export function CreateSyncOfferDialog({ open, onOpenChange, onOfferCreated }: Cr
                     <PopoverContent className="w-full p-0">
                       <Command>
                         <CommandInput 
-                          placeholder="Buscar director..." 
+                          placeholder="Buscar o crear director..." 
                           value={directorName}
                           onValueChange={setDirectorName}
                         />
