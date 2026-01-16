@@ -38,7 +38,7 @@ import { BookingSelectorDialog, BookingForSelector } from '@/components/BookingS
 const statusConfig: Record<TourRoadmap['status'], { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   draft: { label: 'Borrador', variant: 'secondary' },
   confirmed: { label: 'Confirmado', variant: 'default' },
-  completed: { label: 'Completado', variant: 'outline' },
+  completed: { label: 'En Revisión', variant: 'outline' },
   cancelled: { label: 'Cancelado', variant: 'destructive' },
 };
 
@@ -176,7 +176,7 @@ export default function Roadmaps() {
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="draft">Borrador</SelectItem>
                 <SelectItem value="confirmed">Confirmado</SelectItem>
-                <SelectItem value="completed">Completado</SelectItem>
+                <SelectItem value="completed">En Revisión</SelectItem>
                 <SelectItem value="cancelled">Cancelado</SelectItem>
               </SelectContent>
             </Select>
