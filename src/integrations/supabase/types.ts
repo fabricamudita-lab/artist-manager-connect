@@ -5038,6 +5038,154 @@ export type Database = {
           },
         ]
       }
+      sync_offers: {
+        Row: {
+          artist_id: string | null
+          contact_id: string | null
+          contract_url: string | null
+          created_at: string
+          created_by: string
+          currency: string | null
+          deadline: string | null
+          director: string | null
+          duration_years: number | null
+          id: string
+          internal_notes: string | null
+          master_fee: number | null
+          master_holder: string | null
+          master_percentage: number | null
+          media: string[] | null
+          music_budget: number | null
+          notes: string | null
+          phase: string | null
+          priority: string | null
+          production_company: string | null
+          production_title: string
+          production_type: string
+          project_id: string | null
+          publishing_fee: number | null
+          publishing_holder: string | null
+          publishing_percentage: number | null
+          requester_company: string | null
+          requester_email: string | null
+          requester_name: string | null
+          requester_phone: string | null
+          scene_description: string | null
+          song_artist: string | null
+          song_title: string
+          sync_fee: number | null
+          territory: string | null
+          total_budget: number | null
+          updated_at: string
+          usage_duration: string | null
+          usage_type: string | null
+        }
+        Insert: {
+          artist_id?: string | null
+          contact_id?: string | null
+          contract_url?: string | null
+          created_at?: string
+          created_by: string
+          currency?: string | null
+          deadline?: string | null
+          director?: string | null
+          duration_years?: number | null
+          id?: string
+          internal_notes?: string | null
+          master_fee?: number | null
+          master_holder?: string | null
+          master_percentage?: number | null
+          media?: string[] | null
+          music_budget?: number | null
+          notes?: string | null
+          phase?: string | null
+          priority?: string | null
+          production_company?: string | null
+          production_title: string
+          production_type: string
+          project_id?: string | null
+          publishing_fee?: number | null
+          publishing_holder?: string | null
+          publishing_percentage?: number | null
+          requester_company?: string | null
+          requester_email?: string | null
+          requester_name?: string | null
+          requester_phone?: string | null
+          scene_description?: string | null
+          song_artist?: string | null
+          song_title: string
+          sync_fee?: number | null
+          territory?: string | null
+          total_budget?: number | null
+          updated_at?: string
+          usage_duration?: string | null
+          usage_type?: string | null
+        }
+        Update: {
+          artist_id?: string | null
+          contact_id?: string | null
+          contract_url?: string | null
+          created_at?: string
+          created_by?: string
+          currency?: string | null
+          deadline?: string | null
+          director?: string | null
+          duration_years?: number | null
+          id?: string
+          internal_notes?: string | null
+          master_fee?: number | null
+          master_holder?: string | null
+          master_percentage?: number | null
+          media?: string[] | null
+          music_budget?: number | null
+          notes?: string | null
+          phase?: string | null
+          priority?: string | null
+          production_company?: string | null
+          production_title?: string
+          production_type?: string
+          project_id?: string | null
+          publishing_fee?: number | null
+          publishing_holder?: string | null
+          publishing_percentage?: number | null
+          requester_company?: string | null
+          requester_email?: string | null
+          requester_name?: string | null
+          requester_phone?: string | null
+          scene_description?: string | null
+          song_artist?: string | null
+          song_title?: string
+          sync_fee?: number | null
+          territory?: string | null
+          total_budget?: number | null
+          updated_at?: string
+          usage_duration?: string | null
+          usage_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_offers_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_offers_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_offers_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tour_roadmap_blocks: {
         Row: {
           block_type: string
