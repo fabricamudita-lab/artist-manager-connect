@@ -41,6 +41,7 @@ import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import SharedProject from "./pages/SharedProject";
 import SignContractMulti from "./pages/SignContractMulti";
 import SharedFile from "./pages/SharedFile";
+import PublicSyncRequestForm from "./pages/PublicSyncRequestForm";
 
 import Releases from "./pages/Releases";
 import ReleaseDetail from "./pages/ReleaseDetail";
@@ -376,6 +377,8 @@ const App = () => (
               <Route path="/shared/:token" element={<SharedFile />} />
               {/* Public Contract Signature Route */}
               <Route path="/sign/:token" element={<SignContractMulti />} />
+              {/* Public Sync Request Form */}
+              <Route path="/sync-request/:token" element={<PublicSyncRequestForm />} />
               {/* Google Calendar OAuth Callback */}
               <Route path="/calendar/callback" element={<GoogleCalendarCallback />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

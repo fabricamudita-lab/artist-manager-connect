@@ -5121,6 +5121,45 @@ export type Database = {
           },
         ]
       }
+      sync_form_links: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_uses: number | null
+          title: string | null
+          token: string
+          use_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          title?: string | null
+          token?: string
+          use_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          title?: string | null
+          token?: string
+          use_count?: number
+        }
+        Relationships: []
+      }
       sync_offers: {
         Row: {
           artist_id: string | null
@@ -5133,8 +5172,10 @@ export type Database = {
           director: string | null
           director_id: string | null
           duration_years: number | null
+          form_link_id: string | null
           id: string
           internal_notes: string | null
+          is_external_submission: boolean | null
           master_fee: number | null
           master_holder: string | null
           master_percentage: number | null
@@ -5156,10 +5197,13 @@ export type Database = {
           requester_email: string | null
           requester_name: string | null
           requester_phone: string | null
+          review_status: string | null
           scene_description: string | null
           song_artist: string | null
           song_id: string | null
           song_title: string
+          suggested_artist_id: string | null
+          suggested_song_id: string | null
           sync_fee: number | null
           territory: string | null
           total_budget: number | null
@@ -5178,8 +5222,10 @@ export type Database = {
           director?: string | null
           director_id?: string | null
           duration_years?: number | null
+          form_link_id?: string | null
           id?: string
           internal_notes?: string | null
+          is_external_submission?: boolean | null
           master_fee?: number | null
           master_holder?: string | null
           master_percentage?: number | null
@@ -5201,10 +5247,13 @@ export type Database = {
           requester_email?: string | null
           requester_name?: string | null
           requester_phone?: string | null
+          review_status?: string | null
           scene_description?: string | null
           song_artist?: string | null
           song_id?: string | null
           song_title: string
+          suggested_artist_id?: string | null
+          suggested_song_id?: string | null
           sync_fee?: number | null
           territory?: string | null
           total_budget?: number | null
@@ -5223,8 +5272,10 @@ export type Database = {
           director?: string | null
           director_id?: string | null
           duration_years?: number | null
+          form_link_id?: string | null
           id?: string
           internal_notes?: string | null
+          is_external_submission?: boolean | null
           master_fee?: number | null
           master_holder?: string | null
           master_percentage?: number | null
@@ -5246,10 +5297,13 @@ export type Database = {
           requester_email?: string | null
           requester_name?: string | null
           requester_phone?: string | null
+          review_status?: string | null
           scene_description?: string | null
           song_artist?: string | null
           song_id?: string | null
           song_title?: string
+          suggested_artist_id?: string | null
+          suggested_song_id?: string | null
           sync_fee?: number | null
           territory?: string | null
           total_budget?: number | null
@@ -5280,6 +5334,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sync_offers_form_link_id_fkey"
+            columns: ["form_link_id"]
+            isOneToOne: false
+            referencedRelation: "sync_form_links"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sync_offers_production_company_id_fkey"
             columns: ["production_company_id"]
             isOneToOne: false
@@ -5303,6 +5364,20 @@ export type Database = {
           {
             foreignKeyName: "sync_offers_song_id_fkey"
             columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_offers_suggested_artist_id_fkey"
+            columns: ["suggested_artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_offers_suggested_song_id_fkey"
+            columns: ["suggested_song_id"]
             isOneToOne: false
             referencedRelation: "songs"
             referencedColumns: ["id"]

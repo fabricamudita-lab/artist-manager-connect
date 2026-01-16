@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Film, Kanban, List, Download, FileText, DollarSign, Clock, CheckCircle2, TrendingUp } from 'lucide-react';
+import { Plus, Film, Kanban, List, Download, FileText, DollarSign, Clock, CheckCircle2, TrendingUp, Link as LinkIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -12,6 +12,7 @@ import { usePageTitle } from '@/hooks/useCommon';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SyncKanban } from '@/components/sync/SyncKanban';
 import { CreateSyncOfferDialog } from '@/components/sync/CreateSyncOfferDialog';
+import { CreateFormLinkDialog } from '@/components/sync/CreateFormLinkDialog';
 import { exportToCSV } from '@/utils/exportUtils';
 
 export interface SyncOffer {
@@ -63,6 +64,7 @@ export default function Sincronizaciones() {
   const [offers, setOffers] = useState<SyncOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showFormLinkDialog, setShowFormLinkDialog] = useState(false);
 
   useEffect(() => {
     fetchOffers();
@@ -196,6 +198,14 @@ export default function Sincronizaciones() {
             >
               <Download className="h-4 w-4" />
               Exportar CSV
+            </Button>
+            <Button
+              onClick={() => setShowFormLinkDialog(true)}
+              variant="outline"
+              className="gap-2"
+            >
+              <LinkIcon className="h-4 w-4" />
+              Crear Formulario
             </Button>
             <Button
               onClick={() => setShowCreateDialog(true)}
@@ -352,6 +362,11 @@ export default function Sincronizaciones() {
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         onOfferCreated={fetchOffers}
+      />
+
+      <CreateFormLinkDialog
+        open={showFormLinkDialog}
+        onOpenChange={setShowFormLinkDialog}
       />
     </div>
   );
