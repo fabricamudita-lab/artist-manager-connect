@@ -171,7 +171,7 @@ export function BookingRoadmapTab({ bookingId, artistId, eventName, eventDate }:
     const variants: Record<string, { label: string; className: string }> = {
       draft: { label: 'Borrador', className: 'bg-muted text-muted-foreground' },
       confirmed: { label: 'Confirmado', className: 'bg-green-100 text-green-700 border-green-300' },
-      completed: { label: 'Completado', className: 'bg-blue-100 text-blue-700 border-blue-300' },
+      completed: { label: 'En Revisión', className: 'bg-blue-100 text-blue-700 border-blue-300' },
       cancelled: { label: 'Cancelado', className: 'bg-destructive/10 text-destructive border-destructive/20' },
     };
     const variant = variants[status] || variants.draft;

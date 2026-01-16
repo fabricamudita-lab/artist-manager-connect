@@ -72,7 +72,7 @@ const blockTypeLabels: Record<RoadmapBlock['block_type'], string> = {
 const statusOptions = [
   { value: 'draft', label: 'Borrador' },
   { value: 'confirmed', label: 'Confirmado' },
-  { value: 'completed', label: 'Completado' },
+  { value: 'completed', label: 'En Revisión' },
   { value: 'cancelled', label: 'Cancelado' },
 ];
 
