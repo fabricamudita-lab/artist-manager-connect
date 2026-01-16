@@ -26,7 +26,8 @@ import {
   Settings,
   Inbox,
   Wallet,
-  HardDrive
+  HardDrive,
+  Film
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import NotificationBell from './NotificationBell';
@@ -53,6 +54,7 @@ const getNavigationItems = (isManagement: boolean) => {
   // Management-only items
   const managementItems = isManagement ? [
     { title: "Booking", url: "/booking", icon: Mic },
+    { title: "Sincronizaciones", url: "/sincronizaciones", icon: Film },
     { title: "Hojas de Ruta", url: "/roadmaps", icon: Map },
     { title: "Proyectos", url: "/proyectos", icon: FolderKanban },
     { title: "Discografía", url: "/releases", icon: Disc3 },

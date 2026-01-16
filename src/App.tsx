@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import Calendar from "./pages/Calendar";
 import Budgets from "./pages/Budgets";
 import Booking from "./pages/Booking";
+import Sincronizaciones from "./pages/Sincronizaciones";
 import BookingDetail from "./pages/BookingDetail";
 import Royalties from "./pages/Royalties";
 import Finanzas from "./pages/Finanzas";
@@ -134,6 +135,13 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <BookingDetail />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/sincronizaciones" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Sincronizaciones />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
