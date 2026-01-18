@@ -1,20 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Pencil, Guitar, Music, Drum, Piano } from 'lucide-react';
+import { Plus, Trash2, Guitar, Music, Drum, Piano, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDebounce } from '@/hooks/useDebounce';
+import { InlineEditCell, InlineSelectCell, InlineCheckboxCell } from '@/components/ui/inline-edit';
 
 interface BacklineItem {
   id: string;
@@ -55,8 +45,6 @@ export function ProductionBlock({ data, onChange }: ProductionBlockProps) {
   const incomingVenues = blockData.venues || [];
 
   const [localVenues, setLocalVenues] = useState<VenueBackline[]>(incomingVenues);
-  const [editingVenue, setEditingVenue] = useState<VenueBackline | null>(null);
-  const [editingItem, setEditingItem] = useState<{ venueId: string; item: BacklineItem } | null>(null);
   
   const lastSyncedRef = useRef<string>(JSON.stringify(incomingVenues));
   const debouncedVenues = useDebounce(localVenues, 500);
@@ -78,41 +66,56 @@ export function ProductionBlock({ data, onChange }: ProductionBlockProps) {
   }, [debouncedVenues]);
 
   const addVenue = () => {
-    const newVenue: VenueBackline = { id: crypto.randomUUID(), venueName: '', items: [] };
-    setEditingVenue(newVenue);
+    const newVenue: VenueBackline = { 
+      id: crypto.randomUUID(), 
+      venueName: '', 
+      items: [] 
+    };
+    setLocalVenues((prev) => [...prev, newVenue]);
   };
 
-  const saveVenue = () => {
-    if (!editingVenue) return;
-    setLocalVenues((prev) => {
-      const idx = prev.findIndex(v => v.id === editingVenue.id);
-      if (idx >= 0) { const u = [...prev]; u[idx] = editingVenue; return u; }
-      return [...prev, editingVenue];
-    });
-    setEditingVenue(null);
+  const updateVenue = (venueId: string, field: keyof VenueBackline, value: unknown) => {
+    setLocalVenues((prev) => 
+      prev.map((v) => v.id === venueId ? { ...v, [field]: value } : v)
+    );
   };
 
-  const removeVenue = (id: string) => setLocalVenues((prev) => prev.filter((v) => v.id !== id));
+  const removeVenue = (id: string) => {
+    setLocalVenues((prev) => prev.filter((v) => v.id !== id));
+  };
 
   const addItem = (venueId: string) => {
-    const newItem: BacklineItem = { id: crypto.randomUUID(), category: 'guitar', instrument: '', model: '', provider: '', confirmed: false };
-    setEditingItem({ venueId, item: newItem });
+    const newItem: BacklineItem = { 
+      id: crypto.randomUUID(), 
+      category: 'guitar', 
+      instrument: '', 
+      model: '', 
+      provider: '', 
+      confirmed: false 
+    };
+    setLocalVenues((prev) => 
+      prev.map((v) => v.id === venueId ? { ...v, items: [...v.items, newItem] } : v)
+    );
   };
 
-  const saveItem = () => {
-    if (!editingItem) return;
-    const { venueId, item } = editingItem;
-    setLocalVenues((prev) => prev.map((v) => {
-      if (v.id !== venueId) return v;
-      const idx = v.items.findIndex(i => i.id === item.id);
-      if (idx >= 0) { const items = [...v.items]; items[idx] = item; return { ...v, items }; }
-      return { ...v, items: [...v.items, item] };
-    }));
-    setEditingItem(null);
+  const updateItem = (venueId: string, itemId: string, field: keyof BacklineItem, value: unknown) => {
+    setLocalVenues((prev) => 
+      prev.map((v) => {
+        if (v.id !== venueId) return v;
+        return {
+          ...v,
+          items: v.items.map((item) => 
+            item.id === itemId ? { ...item, [field]: value } : item
+          )
+        };
+      })
+    );
   };
 
   const removeItem = (venueId: string, itemId: string) => {
-    setLocalVenues((prev) => prev.map((v) => v.id === venueId ? { ...v, items: v.items.filter(i => i.id !== itemId) } : v));
+    setLocalVenues((prev) => 
+      prev.map((v) => v.id === venueId ? { ...v, items: v.items.filter(i => i.id !== itemId) } : v)
+    );
   };
 
   return (
@@ -123,60 +126,123 @@ export function ProductionBlock({ data, onChange }: ProductionBlockProps) {
             <Card key={venue.id} className="group">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{venue.venueName || 'Sin nombre'}</CardTitle>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingVenue({ ...venue })}><Pencil className="w-3 h-3" /></Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeVenue(venue.id)}><Trash2 className="w-3 h-3" /></Button>
-                  </div>
+                  <CardTitle className="text-base">
+                    <InlineEditCell
+                      value={venue.venueName}
+                      onChange={(v) => updateVenue(venue.id, 'venueName', v)}
+                      placeholder="Nombre del venue"
+                      className="font-semibold"
+                    />
+                  </CardTitle>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" 
+                    onClick={() => removeVenue(venue.id)}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-2">
-                {venue.items.map((item) => {
-                  const cat = getCategoryConfig(item.category);
-                  return (
-                    <div key={item.id} className="flex items-center justify-between p-2 border rounded hover:bg-muted/30 group/item">
-                      <div className="flex items-center gap-3">
-                        <Badge variant="outline" className="gap-1"><cat.icon className="w-3 h-3" />{cat.label}</Badge>
-                        <span className="font-medium">{item.instrument}</span>
-                        {item.model && <span className="text-sm text-muted-foreground">({item.model})</span>}
-                        {item.confirmed && <Badge variant="secondary" className="text-xs">✓ Confirmado</Badge>}
-                      </div>
-                      <div className="flex gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingItem({ venueId: venue.id, item: { ...item } })}><Pencil className="w-3 h-3" /></Button>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(venue.id, item.id)}><Trash2 className="w-3 h-3" /></Button>
-                      </div>
+                {venue.items.length > 0 && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="grid grid-cols-[120px_1fr_1fr_1fr_80px_auto] gap-2 p-2 bg-muted/50 text-xs font-medium">
+                      <div>CATEGORÍA</div>
+                      <div>INSTRUMENTO</div>
+                      <div>MODELO</div>
+                      <div>PROVEEDOR</div>
+                      <div>ESTADO</div>
+                      <div></div>
                     </div>
-                  );
-                })}
-                <Button variant="ghost" size="sm" className="gap-1 mt-2" onClick={() => addItem(venue.id)}><Plus className="w-3 h-3" />Añadir Item</Button>
+                    <div className="divide-y">
+                      {venue.items.map((item) => {
+                        const cat = getCategoryConfig(item.category);
+                        return (
+                          <div 
+                            key={item.id} 
+                            className="grid grid-cols-[120px_1fr_1fr_1fr_80px_auto] gap-2 p-2 items-center hover:bg-muted/30 group/item"
+                          >
+                            <InlineSelectCell
+                              value={item.category}
+                              onChange={(v) => updateItem(venue.id, item.id, 'category', v)}
+                              options={categories}
+                              renderValue={(opt) => (
+                                <Badge variant="outline" className="gap-1">
+                                  {opt?.icon && <opt.icon className="w-3 h-3" />}
+                                  {opt?.label || 'Seleccionar'}
+                                </Badge>
+                              )}
+                            />
+                            <InlineEditCell
+                              value={item.instrument}
+                              onChange={(v) => updateItem(venue.id, item.id, 'instrument', v)}
+                              placeholder="Instrumento"
+                              className="font-medium"
+                            />
+                            <InlineEditCell
+                              value={item.model}
+                              onChange={(v) => updateItem(venue.id, item.id, 'model', v)}
+                              placeholder="Modelo"
+                              className="text-muted-foreground"
+                            />
+                            <InlineEditCell
+                              value={item.provider}
+                              onChange={(v) => updateItem(venue.id, item.id, 'provider', v)}
+                              placeholder="Proveedor"
+                              className="text-muted-foreground"
+                            />
+                            <div 
+                              className="cursor-pointer"
+                              onClick={() => updateItem(venue.id, item.id, 'confirmed', !item.confirmed)}
+                            >
+                              {item.confirmed ? (
+                                <Badge className="bg-primary/10 text-primary border-primary/20 gap-1">
+                                  <Check className="w-3 h-3" />
+                                  Confirmado
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-muted-foreground">
+                                  Pendiente
+                                </Badge>
+                              )}
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 text-destructive opacity-0 group-hover/item:opacity-100 transition-opacity" 
+                              onClick={() => removeItem(venue.id, item.id)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="gap-1 mt-2" 
+                  onClick={() => addItem(venue.id)}
+                >
+                  <Plus className="w-3 h-3" />
+                  Añadir Item
+                </Button>
               </CardContent>
             </Card>
           ))}
         </div>
       ) : (
-        <div className="text-center py-8 border-2 border-dashed rounded-lg text-muted-foreground">No hay venues configurados</div>
+        <div className="text-center py-8 border-2 border-dashed rounded-lg text-muted-foreground">
+          No hay venues configurados
+        </div>
       )}
-      <Button onClick={addVenue} variant="outline" className="gap-2"><Plus className="w-4 h-4" />Añadir Venue/Ciudad</Button>
-
-      <Dialog open={!!editingVenue} onOpenChange={(o) => !o && setEditingVenue(null)}>
-        <DialogContent><DialogHeader><DialogTitle>{editingVenue && localVenues.some(v => v.id === editingVenue.id) ? 'Editar Venue' : 'Nuevo Venue'}</DialogTitle></DialogHeader>
-          {editingVenue && <div className="py-4 space-y-4"><div className="space-y-2"><Label>Nombre</Label><Input value={editingVenue.venueName} onChange={(e) => setEditingVenue({ ...editingVenue, venueName: e.target.value })} placeholder="Venue o ciudad" /></div></div>}
-          <DialogFooter><Button variant="outline" onClick={() => setEditingVenue(null)}>Cancelar</Button><Button onClick={saveVenue}>Guardar</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!editingItem} onOpenChange={(o) => !o && setEditingItem(null)}>
-        <DialogContent><DialogHeader><DialogTitle>Backline Item</DialogTitle></DialogHeader>
-          {editingItem && <div className="py-4 space-y-4">
-            <div className="space-y-2"><Label>Categoría</Label><Select value={editingItem.item.category} onValueChange={(v) => setEditingItem({ ...editingItem, item: { ...editingItem.item, category: v } })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="space-y-2"><Label>Instrumento</Label><Input value={editingItem.item.instrument} onChange={(e) => setEditingItem({ ...editingItem, item: { ...editingItem.item, instrument: e.target.value } })} placeholder="Ej: Guitarra acústica" /></div>
-            <div className="space-y-2"><Label>Modelo</Label><Input value={editingItem.item.model} onChange={(e) => setEditingItem({ ...editingItem, item: { ...editingItem.item, model: e.target.value } })} placeholder="Ej: Taylor 814ce" /></div>
-            <div className="space-y-2"><Label>Proveedor</Label><Input value={editingItem.item.provider} onChange={(e) => setEditingItem({ ...editingItem, item: { ...editingItem.item, provider: e.target.value } })} placeholder="Empresa de backline" /></div>
-            <div className="flex items-center gap-2"><Checkbox checked={editingItem.item.confirmed} onCheckedChange={(c) => setEditingItem({ ...editingItem, item: { ...editingItem.item, confirmed: !!c } })} /><Label>Confirmado</Label></div>
-          </div>}
-          <DialogFooter><Button variant="outline" onClick={() => setEditingItem(null)}>Cancelar</Button><Button onClick={saveItem}>Guardar</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Button onClick={addVenue} variant="outline" className="gap-2">
+        <Plus className="w-4 h-4" />
+        Añadir Venue/Ciudad
+      </Button>
     </div>
   );
 }
