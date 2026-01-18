@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Plane, Train, Bus, Car, Pencil, MapPin, Clock, Briefcase } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Plus, Trash2, Plane, Train, Bus, Car, Pencil, MapPin, Clock, Briefcase, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { TeamMemberSelector } from './TeamMemberSelector';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface TravelTrip {
   id: string;
@@ -69,6 +70,7 @@ export function TravelBlock({ data, onChange, tourDates, bookingInfo, artistId, 
   const [localLuggagePolicy, setLocalLuggagePolicy] = useState(incomingLuggagePolicy);
   const [editingTrip, setEditingTrip] = useState<TravelTrip | null>(null);
   const [showLuggageEdit, setShowLuggageEdit] = useState(false);
+  const [passengerNames, setPassengerNames] = useState<Record<string, string>>({});
 
   const lastSyncedRef = useRef<string>(JSON.stringify({ trips: incomingTrips, luggagePolicy: incomingLuggagePolicy }));
   const debouncedTrips = useDebounce(localTrips, 500);
@@ -79,6 +81,52 @@ export function TravelBlock({ data, onChange, tourDates, bookingInfo, artistId, 
     if (bookingInfo?.eventDate) return bookingInfo.eventDate;
     return '';
   };
+
+  // Collect all passenger IDs and fetch their names
+  const allPassengerIds = useMemo(() => {
+    const ids = new Set<string>();
+    localTrips.forEach(trip => {
+      trip.passengerIds?.forEach(id => ids.add(id));
+    });
+    return Array.from(ids);
+  }, [localTrips]);
+
+  useEffect(() => {
+    const fetchPassengerNames = async () => {
+      if (allPassengerIds.length === 0) return;
+      
+      const names: Record<string, string> = {};
+      
+      // Fetch from contacts
+      const { data: contacts } = await supabase
+        .from('contacts')
+        .select('id, name, stage_name')
+        .in('id', allPassengerIds);
+      
+      contacts?.forEach(c => {
+        names[c.id] = c.stage_name || c.name;
+      });
+
+      // Fetch from artists for any missing
+      const contactIds = new Set(contacts?.map(c => c.id) || []);
+      const missingIds = allPassengerIds.filter(id => !contactIds.has(id));
+      
+      if (missingIds.length > 0) {
+        const { data: artists } = await supabase
+          .from('artists')
+          .select('id, name, stage_name')
+          .in('id', missingIds);
+        
+        artists?.forEach(a => {
+          names[a.id] = a.stage_name || a.name;
+        });
+      }
+
+      setPassengerNames(names);
+    };
+
+    fetchPassengerNames();
+  }, [allPassengerIds]);
 
   useEffect(() => {
     const next = JSON.stringify({ trips: incomingTrips, luggagePolicy: incomingLuggagePolicy });
@@ -233,8 +281,24 @@ export function TravelBlock({ data, onChange, tourDates, bookingInfo, artistId, 
                       </div>
 
                       {trip.passengerIds && trip.passengerIds.length > 0 && (
+                        <div className="mt-3 pt-3 border-t">
+                          <div className="text-xs text-muted-foreground mb-2">
+                            PASAJEROS ({trip.passengerIds.length})
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {trip.passengerIds.map(id => (
+                              <Badge key={id} variant="outline" className="text-xs gap-1">
+                                <User className="w-3 h-3" />
+                                {passengerNames[id] || id.slice(0, 8)}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {trip.luggagePolicy && (
                         <div className="mt-2 text-xs text-muted-foreground">
-                          {trip.passengerIds.length} pasajero{trip.passengerIds.length > 1 ? 's' : ''}
+                          <span className="font-medium">Equipaje:</span> {trip.luggagePolicy}
                         </div>
                       )}
                     </div>
