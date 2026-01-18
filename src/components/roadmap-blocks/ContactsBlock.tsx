@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Phone, Mail, MapPin, Pencil } from 'lucide-react';
+import { Plus, Trash2, Phone, Mail, MapPin, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useDebounce } from '@/hooks/useDebounce';
 
 export interface Contact {
@@ -25,12 +23,78 @@ interface ContactsBlockProps {
   onChange: (data: Record<string, unknown>) => void;
 }
 
+interface InlineEditCellProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+function InlineEditCell({ value, onChange, placeholder, className }: InlineEditCellProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [localValue, setLocalValue] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleSave = () => {
+    onChange(localValue);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setLocalValue(value);
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      handleCancel();
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-1">
+        <Input
+          ref={inputRef}
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={handleSave}
+          placeholder={placeholder}
+          className="h-7 text-sm"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <span
+      onClick={() => setIsEditing(true)}
+      className={`cursor-pointer hover:bg-muted/50 px-1 py-0.5 rounded transition-colors min-w-[20px] inline-block ${className}`}
+    >
+      {value || <span className="text-muted-foreground italic">{placeholder || '—'}</span>}
+    </span>
+  );
+}
+
 export function ContactsBlock({ data, onChange }: ContactsBlockProps) {
   const blockData = data as ContactsBlockData;
   const incomingContacts = blockData.contacts || [];
 
   const [localContacts, setLocalContacts] = useState<Contact[]>(incomingContacts);
-  const [editingContact, setEditingContact] = useState<Contact | null>(null);
   
   const lastSyncedRef = useRef<string>(JSON.stringify(incomingContacts));
   const debouncedContacts = useDebounce(localContacts, 500);
@@ -52,69 +116,103 @@ export function ContactsBlock({ data, onChange }: ContactsBlockProps) {
   }, [debouncedContacts]);
 
   const addContact = () => {
-    const newContact: Contact = { id: crypto.randomUUID(), name: '', role: '', phone: '', email: '', origin: '' };
-    setEditingContact(newContact);
+    const newContact: Contact = { 
+      id: crypto.randomUUID(), 
+      name: '', 
+      role: '', 
+      phone: '', 
+      email: '', 
+      origin: '' 
+    };
+    setLocalContacts((prev) => [...prev, newContact]);
   };
 
-  const saveContact = () => {
-    if (!editingContact) return;
-    setLocalContacts((prev) => {
-      const idx = prev.findIndex(c => c.id === editingContact.id);
-      if (idx >= 0) { const u = [...prev]; u[idx] = editingContact; return u; }
-      return [...prev, editingContact];
-    });
-    setEditingContact(null);
+  const updateContact = (id: string, field: keyof Contact, value: string) => {
+    setLocalContacts((prev) => 
+      prev.map((c) => c.id === id ? { ...c, [field]: value } : c)
+    );
   };
 
-  const removeContact = (id: string) => setLocalContacts((prev) => prev.filter((c) => c.id !== id));
+  const removeContact = (id: string) => {
+    setLocalContacts((prev) => prev.filter((c) => c.id !== id));
+  };
 
   return (
     <div className="space-y-4">
       {localContacts.length > 0 ? (
         <div className="border rounded-lg overflow-hidden">
-          <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-4 p-3 bg-muted/50 font-medium text-sm">
+          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 p-3 bg-muted/50 font-medium text-sm">
             <div>NOMBRE</div>
             <div>ROL</div>
-            <div>CONTACTO</div>
+            <div>TELÉFONO</div>
+            <div>EMAIL</div>
             <div></div>
           </div>
           <div className="divide-y">
             {localContacts.map((contact) => (
-              <div key={contact.id} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-4 p-3 items-center hover:bg-muted/30 group">
-                <div>
-                  <span className="font-medium">{contact.name || '—'}</span>
-                  {contact.origin && <span className="text-xs text-muted-foreground ml-2 flex items-center gap-1 inline-flex"><MapPin className="w-3 h-3" />{contact.origin}</span>}
+              <div key={contact.id} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 p-3 items-center hover:bg-muted/30 group">
+                <div className="flex flex-col gap-1">
+                  <InlineEditCell
+                    value={contact.name}
+                    onChange={(v) => updateContact(contact.id, 'name', v)}
+                    placeholder="Nombre"
+                    className="font-medium"
+                  />
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <MapPin className="w-3 h-3" />
+                    <InlineEditCell
+                      value={contact.origin}
+                      onChange={(v) => updateContact(contact.id, 'origin', v)}
+                      placeholder="Ciudad"
+                    />
+                  </div>
                 </div>
-                <div><Badge variant="outline">{contact.role || 'Sin rol'}</Badge></div>
-                <div className="flex items-center gap-2">
-                  {contact.phone && <a href={`tel:${contact.phone}`} className="text-sm hover:underline flex items-center gap-1"><Phone className="w-3 h-3" />{contact.phone}</a>}
-                  {contact.email && <a href={`mailto:${contact.email}`} className="text-sm hover:underline flex items-center gap-1"><Mail className="w-3 h-3" /></a>}
+                <div>
+                  <InlineEditCell
+                    value={contact.role}
+                    onChange={(v) => updateContact(contact.id, 'role', v)}
+                    placeholder="Sin rol"
+                  />
+                </div>
+                <div className="flex items-center gap-1">
+                  <Phone className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <InlineEditCell
+                    value={contact.phone}
+                    onChange={(v) => updateContact(contact.id, 'phone', v)}
+                    placeholder="+34..."
+                  />
+                </div>
+                <div className="flex items-center gap-1">
+                  <Mail className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <InlineEditCell
+                    value={contact.email}
+                    onChange={(v) => updateContact(contact.id, 'email', v)}
+                    placeholder="email@..."
+                  />
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingContact({ ...contact })}><Pencil className="w-3 h-3" /></Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeContact(contact.id)}><Trash2 className="w-3 h-3" /></Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-7 w-7 text-destructive hover:text-destructive" 
+                    onClick={() => removeContact(contact.id)}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
                 </div>
               </div>
             ))}
           </div>
         </div>
       ) : (
-        <div className="text-center py-8 border-2 border-dashed rounded-lg text-muted-foreground">No hay contactos configurados</div>
+        <div className="text-center py-8 border-2 border-dashed rounded-lg text-muted-foreground">
+          No hay contactos configurados
+        </div>
       )}
-      <Button onClick={addContact} variant="outline" className="gap-2"><Plus className="w-4 h-4" />Añadir Contacto</Button>
-
-      <Dialog open={!!editingContact} onOpenChange={(o) => !o && setEditingContact(null)}>
-        <DialogContent><DialogHeader><DialogTitle>{editingContact && localContacts.some(c => c.id === editingContact.id) ? 'Editar Contacto' : 'Nuevo Contacto'}</DialogTitle></DialogHeader>
-          {editingContact && <div className="py-4 space-y-4">
-            <div className="space-y-2"><Label>Nombre</Label><Input value={editingContact.name} onChange={(e) => setEditingContact({ ...editingContact, name: e.target.value })} placeholder="Nombre completo" /></div>
-            <div className="space-y-2"><Label>Rol</Label><Input value={editingContact.role} onChange={(e) => setEditingContact({ ...editingContact, role: e.target.value })} placeholder="Ej: Tour Manager" /></div>
-            <div className="space-y-2"><Label>Origen</Label><Input value={editingContact.origin} onChange={(e) => setEditingContact({ ...editingContact, origin: e.target.value })} placeholder="Ciudad" /></div>
-            <div className="space-y-2"><Label>Teléfono</Label><Input value={editingContact.phone} onChange={(e) => setEditingContact({ ...editingContact, phone: e.target.value })} placeholder="+34 XXX XXX XXX" /></div>
-            <div className="space-y-2"><Label>Email</Label><Input value={editingContact.email} onChange={(e) => setEditingContact({ ...editingContact, email: e.target.value })} placeholder="email@ejemplo.com" /></div>
-          </div>}
-          <DialogFooter><Button variant="outline" onClick={() => setEditingContact(null)}>Cancelar</Button><Button onClick={saveContact}>Guardar</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Button onClick={addContact} variant="outline" className="gap-2">
+        <Plus className="w-4 h-4" />
+        Añadir Contacto
+      </Button>
     </div>
   );
 }
