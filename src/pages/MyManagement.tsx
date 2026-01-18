@@ -8,8 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { 
-  Users, Music, Calendar, TrendingUp, Plus, 
-  Building2, UserPlus, FolderOpen, ArrowRight 
+  Users, Music, Calendar, Plus, 
+  Building2, UserPlus, FolderOpen, ArrowRight, Film 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { CreateArtistDialog } from '@/components/management/CreateArtistDialog';
@@ -98,11 +98,25 @@ export default function MyManagement() {
     },
   });
 
+  // Fetch sync offers count
+  const { data: syncOffers = 0 } = useQuery({
+    queryKey: ['management-sync-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('sync_offers')
+        .select('*', { count: 'exact', head: true })
+        .not('phase', 'eq', 'facturado');
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
   const stats = [
     { label: 'Artistas', value: artists.length, icon: Music, color: 'text-purple-500', onClick: undefined },
     { label: 'Equipo', value: managementTeam.length, icon: Users, color: 'text-blue-500', onClick: () => navigate('/teams') },
     { label: 'Shows próximos', value: upcomingBookings, icon: Calendar, color: 'text-green-500', onClick: () => navigate('/booking') },
     { label: 'Proyectos activos', value: activeProjects, icon: FolderOpen, color: 'text-orange-500', onClick: () => navigate('/proyectos') },
+    { label: 'Sincronizaciones', value: syncOffers, icon: Film, color: 'text-pink-500', onClick: () => navigate('/sincronizaciones') },
   ];
 
   return (
