@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useReleases, useCreateRelease } from '@/hooks/useReleases';
 import CreateReleaseDialog from '@/components/releases/CreateReleaseDialog';
+import { ReleasesFiltersToolbar, ReleasesFiltersState } from '@/components/releases/ReleasesFiltersToolbar';
+import { useReleasesWithSearch } from '@/hooks/useReleasesSearch';
 
 const TYPE_ICONS = {
   album: Album,
@@ -34,21 +35,25 @@ export default function Releases() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const artistIdFromUrl = searchParams.get('artistId');
-  const { data: releases, isLoading } = useReleases();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [artistFilter, setArtistFilter] = useState(artistIdFromUrl || 'all');
+  
+  const [filters, setFilters] = useState<ReleasesFiltersState>({
+    search: '',
+    status: 'all',
+    artistId: artistIdFromUrl || 'all',
+    startDate: undefined,
+    endDate: undefined,
+    hasBudget: 'all',
+  });
 
   // Update filter when URL changes
   useEffect(() => {
     if (artistIdFromUrl) {
-      setArtistFilter(artistIdFromUrl);
+      setFilters(prev => ({ ...prev, artistId: artistIdFromUrl }));
     }
   }, [artistIdFromUrl]);
 
-  // Filter releases by artist
-  const filteredReleases = artistFilter === 'all' 
-    ? releases 
-    : releases?.filter(r => r.artist_id === artistFilter);
+  const { data: releases, isLoading } = useReleasesWithSearch(filters);
 
   return (
     <div className="space-y-6">
@@ -63,15 +68,17 @@ export default function Releases() {
         </Button>
       </div>
 
+      <ReleasesFiltersToolbar filters={filters} onFiltersChange={setFilters} />
+
       {isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="aspect-square rounded-lg" />
           ))}
         </div>
-      ) : filteredReleases && filteredReleases.length > 0 ? (
+      ) : releases && releases.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {filteredReleases.map((release) => {
+          {releases.map((release) => {
             const TypeIcon = TYPE_ICONS[release.type] || Disc3;
             return (
               <Card
@@ -118,6 +125,16 @@ export default function Releases() {
                       </>
                     )}
                   </div>
+                  {/* Show where the match was found if searching */}
+                  {filters.search && release.matchedIn && release.matchedIn.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {release.matchedIn.map((match) => (
+                        <Badge key={match} variant="outline" className="text-xs">
+                          {match}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </Card>
             );
@@ -126,14 +143,22 @@ export default function Releases() {
       ) : (
         <Card className="p-12 text-center">
           <Disc3 className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Sin lanzamientos</h3>
+          <h3 className="text-lg font-semibold mb-2">
+            {filters.search || filters.status !== 'all' || filters.artistId !== 'all' 
+              ? 'Sin resultados' 
+              : 'Sin lanzamientos'}
+          </h3>
           <p className="text-muted-foreground mb-4">
-            Crea tu primer álbum, EP o single
+            {filters.search || filters.status !== 'all' || filters.artistId !== 'all'
+              ? 'No se encontraron lanzamientos con los filtros aplicados'
+              : 'Crea tu primer álbum, EP o single'}
           </p>
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Lanzamiento
-          </Button>
+          {!(filters.search || filters.status !== 'all' || filters.artistId !== 'all') && (
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Lanzamiento
+            </Button>
+          )}
         </Card>
       )}
 
