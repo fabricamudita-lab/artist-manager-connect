@@ -232,7 +232,7 @@ export function OwnerDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Eventos</p>
+                <p className="text-sm font-medium text-muted-foreground">Próximos Eventos</p>
                 <p className="text-2xl font-bold">{stats.upcomingEvents}</p>
                 <p className="text-xs text-muted-foreground">Próximos 30 días</p>
               </div>
