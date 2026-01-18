@@ -324,11 +324,13 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
 
               {/* Schedule table - inline editable */}
               <div className="border rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[80px_1fr_1fr_1fr_auto] gap-2 p-3 bg-muted/50 font-medium text-sm">
+                <div className="grid grid-cols-[80px_120px_1fr_1fr_1fr_120px_auto] gap-2 p-3 bg-muted/50 font-medium text-sm">
                   <div>HORA</div>
                   <div>ACTIVIDAD</div>
+                  <div>TÍTULO</div>
                   <div>UBICACIÓN</div>
                   <div>NOTAS</div>
+                  <div>EQUIPO</div>
                   <div></div>
                 </div>
                 
@@ -336,11 +338,12 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
                   <div className="divide-y">
                     {sortedItems.map((item) => {
                       const config = getActivityConfig(item.activityType);
+                      const assignedCount = item.assignedMemberIds?.length || 0;
                       
                       return (
                         <div
                           key={item.id}
-                          className="grid grid-cols-[80px_1fr_1fr_1fr_auto] gap-2 p-2 items-center hover:bg-muted/30 group"
+                          className="grid grid-cols-[80px_120px_1fr_1fr_1fr_120px_auto] gap-2 p-2 items-center hover:bg-muted/30 group"
                         >
                           <InlineEditCell
                             value={item.startTime}
@@ -349,31 +352,29 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
                             type="time"
                             className="font-mono text-lg"
                           />
-                          <div className="flex items-center gap-2">
-                            <InlineSelectCell
-                              value={item.activityType}
-                              onChange={(v) => {
-                                const newConfig = getActivityConfig(v);
-                                updateItem(currentDay.id, item.id, 'activityType', v);
-                                if (!item.title) {
-                                  updateItem(currentDay.id, item.id, 'title', newConfig.label);
-                                }
-                              }}
-                              options={activityTypes}
-                              renderValue={(opt) => (
-                                <Badge variant="outline" className={`${opt ? getActivityConfig(opt.value).color : ''} gap-1`}>
-                                  {opt?.icon && <opt.icon className="w-3 h-3" />}
-                                  {opt?.label || 'Tipo'}
-                                </Badge>
-                              )}
-                            />
-                            <InlineEditCell
-                              value={item.title}
-                              onChange={(v) => updateItem(currentDay.id, item.id, 'title', v)}
-                              placeholder="Título"
-                              className="font-medium"
-                            />
-                          </div>
+                          <InlineSelectCell
+                            value={item.activityType}
+                            onChange={(v) => {
+                              const newConfig = getActivityConfig(v);
+                              updateItem(currentDay.id, item.id, 'activityType', v);
+                              if (!item.title) {
+                                updateItem(currentDay.id, item.id, 'title', newConfig.label);
+                              }
+                            }}
+                            options={activityTypes}
+                            renderValue={(opt) => (
+                              <Badge variant="outline" className={`${opt ? getActivityConfig(opt.value).color : ''} gap-1`}>
+                                {opt?.icon && <opt.icon className="w-3 h-3" />}
+                                {opt?.label || 'Tipo'}
+                              </Badge>
+                            )}
+                          />
+                          <InlineEditCell
+                            value={item.title}
+                            onChange={(v) => updateItem(currentDay.id, item.id, 'title', v)}
+                            placeholder="Título"
+                            className="font-medium"
+                          />
                           <div className="flex items-center gap-1 text-muted-foreground">
                             <span className="text-xs">⊙</span>
                             <InlineEditCell
@@ -388,16 +389,20 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
                             placeholder="Notas"
                             className="text-muted-foreground"
                           />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="justify-start h-8 px-2 text-muted-foreground hover:text-foreground"
+                            onClick={() => openAssignmentEditor(currentDay.id, item.id, item.assignedMemberIds || [])}
+                          >
+                            <Users className="w-3 h-3 mr-1" />
+                            {assignedCount > 0 ? (
+                              <span className="text-xs">{assignedCount} asignado{assignedCount > 1 ? 's' : ''}</span>
+                            ) : (
+                              <span className="text-xs">Asignar</span>
+                            )}
+                          </Button>
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => openAssignmentEditor(currentDay.id, item.id, item.assignedMemberIds || [])}
-                              title="Asignar equipo"
-                            >
-                              <Users className="w-3 h-3" />
-                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"
