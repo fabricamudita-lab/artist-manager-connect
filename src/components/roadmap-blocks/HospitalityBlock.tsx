@@ -76,6 +76,7 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
   const [newRoomTypeName, setNewRoomTypeName] = useState('');
   const [newRoomTypeCapacity, setNewRoomTypeCapacity] = useState(1);
   const [showAddRoomType, setShowAddRoomType] = useState(false);
+  const [guestNames, setGuestNames] = useState<Record<string, string>>({});
 
   const lastSyncedRef = useRef<string>(
     JSON.stringify({ hotels: incomingHotels, roomingList: incomingRoomingList, dietNotes: incomingDietNotes })
@@ -97,6 +98,51 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
     };
     fetchRoomTypes();
   }, []);
+
+  // Fetch guest names based on passengerIds in roomingList
+  useEffect(() => {
+    const fetchGuestNames = async () => {
+      const allPassengerIds = localRoomingList
+        .flatMap(r => r.passengerIds || [])
+        .filter(id => id && !guestNames[id]);
+      
+      if (allPassengerIds.length === 0) return;
+
+      const uniqueIds = [...new Set(allPassengerIds)];
+      
+      // Fetch contacts
+      const { data: contacts } = await supabase
+        .from('contacts')
+        .select('id, name, stage_name')
+        .in('id', uniqueIds);
+      
+      if (contacts) {
+        const newNames: Record<string, string> = { ...guestNames };
+        contacts.forEach(c => {
+          newNames[c.id] = c.stage_name || c.name;
+        });
+        
+        // Check for artists too
+        const foundIds = new Set(contacts.map(c => c.id));
+        const remainingIds = uniqueIds.filter(id => !foundIds.has(id));
+        
+        if (remainingIds.length > 0) {
+          const { data: artists } = await supabase
+            .from('artists')
+            .select('id, name, stage_name')
+            .in('id', remainingIds);
+          
+          artists?.forEach(a => {
+            newNames[a.id] = a.stage_name || a.name;
+          });
+        }
+        
+        setGuestNames(newNames);
+      }
+    };
+    
+    fetchGuestNames();
+  }, [localRoomingList]);
 
   useEffect(() => {
     const next = JSON.stringify({ hotels: incomingHotels, roomingList: incomingRoomingList, dietNotes: incomingDietNotes });
@@ -349,18 +395,27 @@ export function HospitalityBlock({ data, onChange, artistId, bookingId }: Hospit
           <div className="grid gap-2">
             {localRoomingList.map((assignment) => {
               const warning = getCapacityWarning(assignment);
+              const guestNamesList = (assignment.passengerIds || [])
+                .map(id => guestNames[id])
+                .filter(Boolean);
+              
               return (
                 <div
                   key={assignment.id}
                   className="border rounded-lg p-3 flex items-center justify-between group hover:bg-muted/30"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <Badge variant="outline">
                       {assignment.roomType}
                     </Badge>
-                    <span className="text-sm">
+                    <span className="text-sm text-muted-foreground">
                       {assignment.passengerIds?.length || 0} persona{(assignment.passengerIds?.length || 0) !== 1 ? 's' : ''}
                     </span>
+                    {guestNamesList.length > 0 && (
+                      <span className="text-sm font-medium">
+                        {guestNamesList.join(', ')}
+                      </span>
+                    )}
                     {warning && (
                       <Badge variant="destructive" className="gap-1">
                         <AlertTriangle className="w-3 h-3" />
