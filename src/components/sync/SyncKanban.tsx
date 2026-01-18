@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { SyncOffer } from '@/pages/Sincronizaciones';
+import { SyncOfferDetailDialog } from './SyncOfferDetailDialog';
 import { 
   Film, 
   Tv, 
@@ -52,7 +53,7 @@ function getProductionIcon(type: string) {
   }
 }
 
-function DraggableSyncCard({ offer }: { offer: SyncOffer }) {
+function DraggableSyncCard({ offer, onClick }: { offer: SyncOffer; onClick: () => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: offer.id,
     data: offer,
@@ -63,16 +64,31 @@ function DraggableSyncCard({ offer }: { offer: SyncOffer }) {
     opacity: isDragging ? 0.5 : 1,
   } : undefined;
 
+  const handleClick = (e: React.MouseEvent) => {
+    // Only trigger click if not dragging
+    if (!isDragging) {
+      onClick();
+    }
+  };
+
   return (
     <div ref={setNodeRef} style={style}>
-      <Card className={`cursor-grab active:cursor-grabbing hover:shadow-md transition-all border-l-4 ${getPhaseColor(offer.phase)}`}>
+      <Card 
+        className={`hover:shadow-md transition-all border-l-4 ${getPhaseColor(offer.phase)}`}
+        onClick={handleClick}
+      >
         <CardContent className="p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              <div {...attributes} {...listeners} className="flex-shrink-0 text-muted-foreground hover:text-foreground">
+              <div 
+                {...attributes} 
+                {...listeners} 
+                className="flex-shrink-0 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <GripVertical className="h-4 w-4" />
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 cursor-pointer">
                 <p className="font-semibold text-sm truncate">{offer.production_title}</p>
                 <p className="text-xs text-muted-foreground truncate">
                   🎵 {offer.song_title}
@@ -114,10 +130,12 @@ function DraggableSyncCard({ offer }: { offer: SyncOffer }) {
 
 function DroppableColumn({ 
   phase, 
-  offers 
+  offers,
+  onOfferClick 
 }: { 
   phase: typeof PHASES[0]; 
   offers: SyncOffer[];
+  onOfferClick: (offer: SyncOffer) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: phase.id,
@@ -144,7 +162,11 @@ function DroppableColumn({
         <ScrollArea className="h-full">
           <div className="space-y-2 pr-2">
             {offers.map((offer) => (
-              <DraggableSyncCard key={offer.id} offer={offer} />
+              <DraggableSyncCard 
+                key={offer.id} 
+                offer={offer} 
+                onClick={() => onOfferClick(offer)}
+              />
             ))}
           </div>
         </ScrollArea>
@@ -155,6 +177,8 @@ function DroppableColumn({
 
 export function SyncKanban({ offers, onUpdate }: SyncKanbanProps) {
   const [activeOffer, setActiveOffer] = useState<SyncOffer | null>(null);
+  const [selectedOffer, setSelectedOffer] = useState<SyncOffer | null>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
 
   const handleDragStart = (event: DragStartEvent) => {
     const offer = offers.find(o => o.id === event.active.id);
@@ -197,38 +221,53 @@ export function SyncKanban({ offers, onUpdate }: SyncKanbanProps) {
     }
   };
 
+  const handleOfferClick = (offer: SyncOffer) => {
+    setSelectedOffer(offer);
+    setShowDetailDialog(true);
+  };
+
   const getOffersByPhase = (phaseId: string) => 
     offers.filter(o => o.phase === phaseId);
 
   return (
-    <DndContext
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="flex gap-4 overflow-x-auto pb-4">
-        {PHASES.map((phase) => (
-          <DroppableColumn
-            key={phase.id}
-            phase={phase}
-            offers={getOffersByPhase(phase.id)}
-          />
-        ))}
-      </div>
+    <>
+      <DndContext
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {PHASES.map((phase) => (
+            <DroppableColumn
+              key={phase.id}
+              phase={phase}
+              offers={getOffersByPhase(phase.id)}
+              onOfferClick={handleOfferClick}
+            />
+          ))}
+        </div>
 
-      <DragOverlay>
-        {activeOffer && (
-          <Card className="cursor-grabbing shadow-xl border-l-4 rotate-3 scale-105">
-            <CardContent className="p-3 space-y-2">
-              <p className="font-semibold text-sm">{activeOffer.production_title}</p>
-              <p className="text-xs text-muted-foreground">
-                🎵 {activeOffer.song_title}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </DragOverlay>
-    </DndContext>
+        <DragOverlay>
+          {activeOffer && (
+            <Card className="cursor-grabbing shadow-xl border-l-4 rotate-3 scale-105">
+              <CardContent className="p-3 space-y-2">
+                <p className="font-semibold text-sm">{activeOffer.production_title}</p>
+                <p className="text-xs text-muted-foreground">
+                  🎵 {activeOffer.song_title}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </DragOverlay>
+      </DndContext>
+
+      <SyncOfferDetailDialog
+        offer={selectedOffer}
+        open={showDetailDialog}
+        onOpenChange={setShowDetailDialog}
+        onUpdate={onUpdate}
+      />
+    </>
   );
 }
 
