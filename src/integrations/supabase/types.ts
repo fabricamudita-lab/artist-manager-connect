@@ -1190,6 +1190,7 @@ export type Database = {
           fee_national: number | null
           id: string
           is_percentage: boolean | null
+          is_tour_party: boolean | null
           member_id: string
           member_type: string
           percentage_international: number | null
@@ -1203,6 +1204,7 @@ export type Database = {
           fee_national?: number | null
           id?: string
           is_percentage?: boolean | null
+          is_tour_party?: boolean | null
           member_id: string
           member_type: string
           percentage_international?: number | null
@@ -1216,6 +1218,7 @@ export type Database = {
           fee_national?: number | null
           id?: string
           is_percentage?: boolean | null
+          is_tour_party?: boolean | null
           member_id?: string
           member_type?: string
           percentage_international?: number | null

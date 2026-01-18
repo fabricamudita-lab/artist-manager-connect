@@ -37,8 +37,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Plus, Trash2, Upload, Loader2, Users, Clock, Euro, 
-  FileText, Music, GripVertical, Settings2, X, UserPlus, ChevronDown
+  FileText, Music, GripVertical, Settings2, X, UserPlus, ChevronDown, Plane
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 
 interface CrewMember {
@@ -52,6 +53,7 @@ interface CrewMember {
   isPercentage?: boolean;
   percentageNational?: number;
   percentageInternational?: number;
+  isTourParty?: boolean; // Whether this member travels with the tour
 }
 
 type CrewSelectableMember = {
@@ -100,6 +102,7 @@ interface SortableCrewMemberProps {
   onUpdatePercentageNational: (formatIndex: number, memberId: string, pct: number | undefined) => void;
   onUpdatePercentageInternational: (formatIndex: number, memberId: string, pct: number | undefined) => void;
   onToggleIsPercentage: (formatIndex: number, memberId: string, isPercentage: boolean) => void;
+  onToggleTourParty: (formatIndex: number, memberId: string, isTourParty: boolean) => void;
   onRemove: (formatIndex: number, memberId: string) => void;
 }
 
@@ -111,6 +114,7 @@ function SortableCrewMember({
   onUpdatePercentageNational,
   onUpdatePercentageInternational,
   onToggleIsPercentage,
+  onToggleTourParty,
   onRemove 
 }: SortableCrewMemberProps) {
   const {
@@ -129,6 +133,7 @@ function SortableCrewMember({
   };
 
   const isPercentage = crew.isPercentage || false;
+  const isTourParty = crew.isTourParty !== false; // Default to true
 
   return (
     <div
@@ -228,6 +233,24 @@ function SortableCrewMember({
             </div>
           </>
         )}
+        
+        {/* Tour Party Toggle */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant={isTourParty ? "default" : "outline"}
+              size="icon"
+              className={`h-8 w-8 ${isTourParty ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'text-muted-foreground'}`}
+              onClick={() => onToggleTourParty(formatIndex, crew.memberId, !isTourParty)}
+            >
+              <Plane className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{isTourParty ? 'Viaja con el tour' : 'No viaja con el tour'}</p>
+          </TooltipContent>
+        </Tooltip>
         
         <Button
           type="button"
@@ -334,6 +357,7 @@ export function ArtistFormatsDialog({
             isPercentage: c.is_percentage || false,
             percentageNational: c.percentage_national || undefined,
             percentageInternational: c.percentage_international || undefined,
+            isTourParty: c.is_tour_party !== false, // Default to true
           });
         });
       }
@@ -413,6 +437,7 @@ export function ArtistFormatsDialog({
               is_percentage: cm.isPercentage || false,
               percentage_national: cm.percentageNational || null,
               percentage_international: cm.percentageInternational || null,
+              is_tour_party: cm.isTourParty !== false, // Default to true
             }));
             
             const { error: crewError } = await supabase
@@ -528,6 +553,15 @@ export function ArtistFormatsDialog({
     handleUpdateFormat(formatIndex, {
       crewMembers: format.crewMembers.map(cm =>
         cm.memberId === memberId ? { ...cm, isPercentage } : cm
+      ),
+    });
+  };
+
+  const handleToggleCrewTourParty = (formatIndex: number, memberId: string, isTourParty: boolean) => {
+    const format = formats[formatIndex];
+    handleUpdateFormat(formatIndex, {
+      crewMembers: format.crewMembers.map(cm =>
+        cm.memberId === memberId ? { ...cm, isTourParty } : cm
       ),
     });
   };
@@ -752,6 +786,7 @@ export function ArtistFormatsDialog({
                                   onUpdatePercentageNational={handleUpdateCrewPercentageNational}
                                   onUpdatePercentageInternational={handleUpdateCrewPercentageInternational}
                                   onToggleIsPercentage={handleToggleCrewIsPercentage}
+                                  onToggleTourParty={handleToggleCrewTourParty}
                                   onRemove={handleRemoveCrewMember}
                                 />
                               ))}
