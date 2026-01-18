@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronsUpDown, User, Users, Star } from 'lucide-react';
+import { Check, ChevronsUpDown, User, Users, Star, CheckSquare, Square, MinusSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Command,
@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface TeamMember {
   id: string;
@@ -217,6 +218,11 @@ export function TeamMemberSelector({
     }
   };
 
+  const handleRemoveMember = (memberId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    onValueChange(value.filter(id => id !== memberId));
+  };
+
   const displayValue = useMemo(() => {
     if (selectedMembers.length === 0) return placeholder;
     if (compact && selectedMembers.length > 2) {
@@ -237,8 +243,8 @@ export function TeamMemberSelector({
   }, [members]);
 
   const categoryLabels: Record<string, string> = {
-    formato: '⭐ Equipo del Formato',
-    equipo: 'Equipo',
+    formato: 'Equipo del Formato',
+    equipo: 'Equipo Artístico',
     management: 'Management',
     artista: 'Artistas',
     otros: 'Otros',
@@ -247,70 +253,155 @@ export function TeamMemberSelector({
   // Custom sort order for categories - format crew first
   const categoryOrder = ['formato', 'equipo', 'management', 'artista', 'otros'];
 
+  // Check if a category is fully selected, partially selected, or not selected
+  const getCategorySelectionState = (category: string): 'all' | 'some' | 'none' => {
+    const categoryMembers = groupedMembers[category] || [];
+    if (categoryMembers.length === 0) return 'none';
+    
+    const selectedCount = categoryMembers.filter(m => value.includes(m.id)).length;
+    if (selectedCount === 0) return 'none';
+    if (selectedCount === categoryMembers.length) return 'all';
+    return 'some';
+  };
+
+  // Toggle all members in a category
+  const handleToggleCategory = (category: string) => {
+    const categoryMembers = groupedMembers[category] || [];
+    const categoryIds = categoryMembers.map(m => m.id);
+    const state = getCategorySelectionState(category);
+
+    if (state === 'all') {
+      // Deselect all in this category
+      onValueChange(value.filter(id => !categoryIds.includes(id)));
+    } else {
+      // Select all in this category
+      const newValue = [...value];
+      categoryIds.forEach(id => {
+        if (!newValue.includes(id)) {
+          newValue.push(id);
+        }
+      });
+      onValueChange(newValue);
+    }
+  };
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className={cn(
-            'justify-between font-normal',
-            compact ? 'h-8 px-2 text-xs' : 'h-9',
-            selectedMembers.length === 0 && 'text-muted-foreground'
-          )}
-        >
-          <span className="truncate flex items-center gap-1">
-            {selectedMembers.length > 0 && <Users className="w-3 h-3 shrink-0" />}
-            {displayValue}
-          </span>
-          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-64 p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Buscar miembro..." className="h-9" />
-          <CommandList>
-            <CommandEmpty>
-              {loading ? 'Cargando...' : 'No se encontraron miembros'}
-            </CommandEmpty>
-            {categoryOrder
-              .filter(cat => groupedMembers[cat]?.length > 0)
-              .map(category => (
-              <CommandGroup key={category} heading={categoryLabels[category] || category}>
-                {groupedMembers[category].map(member => (
-                  <CommandItem
-                    key={member.id}
-                    value={member.name}
-                    onSelect={() => handleSelect(member.id)}
-                  >
-                    <div className="flex items-center gap-2 flex-1">
-                      {member.isFromFormat ? (
-                        <Star className="w-3 h-3 text-amber-500" />
-                      ) : (
-                        <User className="w-3 h-3 text-muted-foreground" />
-                      )}
-                      <div className="flex flex-col">
-                        <span className="text-sm">{member.name}</span>
-                        {member.role && (
-                          <span className="text-xs text-muted-foreground">{member.role}</span>
+    <div className="space-y-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className={cn(
+              'justify-between font-normal w-full',
+              compact ? 'h-8 px-2 text-xs' : 'h-9',
+              selectedMembers.length === 0 && 'text-muted-foreground'
+            )}
+          >
+            <span className="truncate flex items-center gap-1">
+              {selectedMembers.length > 0 && <Users className="w-3 h-3 shrink-0" />}
+              {selectedMembers.length > 0 ? `${selectedMembers.length} seleccionado${selectedMembers.length > 1 ? 's' : ''}` : placeholder}
+            </span>
+            <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-72 p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Buscar miembro..." className="h-9" />
+            <CommandList className="max-h-80">
+              <CommandEmpty>
+                {loading ? 'Cargando...' : 'No se encontraron miembros'}
+              </CommandEmpty>
+              {categoryOrder
+                .filter(cat => groupedMembers[cat]?.length > 0)
+                .map(category => {
+                  const selectionState = getCategorySelectionState(category);
+                  const categoryMemberCount = groupedMembers[category]?.length || 0;
+                  const selectedInCategory = groupedMembers[category]?.filter(m => value.includes(m.id)).length || 0;
+                  
+                  return (
+                    <CommandGroup key={category}>
+                      {/* Category header with group selection checkbox */}
+                      <div 
+                        className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent rounded-sm mx-1"
+                        onClick={() => handleToggleCategory(category)}
+                      >
+                        {selectionState === 'all' ? (
+                          <CheckSquare className="h-4 w-4 text-primary" />
+                        ) : selectionState === 'some' ? (
+                          <MinusSquare className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Square className="h-4 w-4 text-muted-foreground" />
                         )}
+                        <span className="text-xs font-semibold flex items-center gap-1.5">
+                          {category === 'formato' && <Star className="w-3 h-3 text-amber-500" />}
+                          {categoryLabels[category] || category}
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {selectedInCategory}/{categoryMemberCount}
+                        </span>
                       </div>
-                    </div>
-                    <Check
-                      className={cn(
-                        'ml-auto h-4 w-4',
-                        value.includes(member.id) ? 'opacity-100' : 'opacity-0'
-                      )}
-                    />
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            ))}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+                      
+                      {/* Individual members */}
+                      {groupedMembers[category].map(member => (
+                        <CommandItem
+                          key={member.id}
+                          value={member.name}
+                          onSelect={() => handleSelect(member.id)}
+                          className="pl-6"
+                        >
+                          <div className="flex items-center gap-2 flex-1">
+                            {member.isFromFormat ? (
+                              <Star className="w-3 h-3 text-amber-500" />
+                            ) : (
+                              <User className="w-3 h-3 text-muted-foreground" />
+                            )}
+                            <div className="flex flex-col">
+                              <span className="text-sm">{member.name}</span>
+                              {member.role && (
+                                <span className="text-xs text-muted-foreground">{member.role}</span>
+                              )}
+                            </div>
+                          </div>
+                          <Check
+                            className={cn(
+                              'ml-auto h-4 w-4',
+                              value.includes(member.id) ? 'opacity-100' : 'opacity-0'
+                            )}
+                          />
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  );
+                })}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      {/* Display selected members as removable badges */}
+      {selectedMembers.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selectedMembers.map(m => (
+            <Badge 
+              key={m.id} 
+              variant="secondary" 
+              className="text-xs gap-1 pr-1 cursor-pointer hover:bg-secondary/80"
+            >
+              {m.isFromFormat && <Star className="w-2.5 h-2.5 text-amber-500" />}
+              {m.name}
+              <button
+                onClick={(e) => handleRemoveMember(m.id, e)}
+                className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
