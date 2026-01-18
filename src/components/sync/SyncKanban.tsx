@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DndContext, DragOverlay, closestCenter, DragStartEvent, DragEndEvent } from '@dnd-kit/core';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -54,28 +54,39 @@ function getProductionIcon(type: string) {
 }
 
 function DraggableSyncCard({ offer, onClick }: { offer: SyncOffer; onClick: () => void }) {
+  const [hasDragged, setHasDragged] = useState(false);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: offer.id,
     data: offer,
   });
+
+  // Track if we've actually moved during a drag
+  useEffect(() => {
+    if (isDragging) {
+      setHasDragged(true);
+    }
+  }, [isDragging]);
 
   const style = transform ? {
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
     opacity: isDragging ? 0.5 : 1,
   } : undefined;
 
-  const handleClick = (e: React.MouseEvent) => {
-    // Only trigger click if not dragging
-    if (!isDragging) {
+  const handleCardClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Only trigger click if we haven't been dragging
+    if (!isDragging && !hasDragged) {
       onClick();
     }
+    // Reset drag state after click
+    setHasDragged(false);
   };
 
   return (
     <div ref={setNodeRef} style={style}>
       <Card 
-        className={`hover:shadow-md transition-all border-l-4 ${getPhaseColor(offer.phase)}`}
-        onClick={handleClick}
+        className={`hover:shadow-md transition-all border-l-4 cursor-pointer ${getPhaseColor(offer.phase)}`}
+        onClick={handleCardClick}
       >
         <CardContent className="p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
@@ -85,10 +96,11 @@ function DraggableSyncCard({ offer, onClick }: { offer: SyncOffer; onClick: () =
                 {...listeners} 
                 className="flex-shrink-0 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
                 onClick={(e) => e.stopPropagation()}
+                onMouseDown={() => setHasDragged(false)}
               >
                 <GripVertical className="h-4 w-4" />
               </div>
-              <div className="min-w-0 flex-1 cursor-pointer">
+              <div className="min-w-0 flex-1">
                 <p className="font-semibold text-sm truncate">{offer.production_title}</p>
                 <p className="text-xs text-muted-foreground truncate">
                   🎵 {offer.song_title}
