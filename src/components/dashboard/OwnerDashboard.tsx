@@ -15,8 +15,8 @@ import {
   Clock,
   Music,
   Users,
-  TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Film
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -30,6 +30,7 @@ interface GlobalStats {
   upcomingEvents: number;
   pendingSolicitudes: number;
   totalContacts: number;
+  totalSyncOffers: number;
 }
 
 interface UpcomingEvent {
@@ -58,7 +59,8 @@ export function OwnerDashboard() {
     totalRevenue: 0,
     upcomingEvents: 0,
     pendingSolicitudes: 0,
-    totalContacts: 0
+    totalContacts: 0,
+    totalSyncOffers: 0
   });
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [pendingSolicitudes, setPendingSolicitudes] = useState<PendingSolicitud[]>([]);
@@ -119,6 +121,12 @@ export function OwnerDashboard() {
 
       const totalRevenue = bookingsData?.reduce((sum, b) => sum + (b.fee || 0), 0) || 0;
 
+      // Fetch sync offers count (active ones, not yet invoiced)
+      const { count: syncCount } = await supabase
+        .from('sync_offers')
+        .select('*', { count: 'exact', head: true })
+        .not('phase', 'eq', 'facturado');
+
       setStats({
         totalArtists: artistsCount || 0,
         totalBudgets: budgetsCount || 0,
@@ -126,7 +134,8 @@ export function OwnerDashboard() {
         totalRevenue,
         upcomingEvents: eventsCount || 0,
         pendingSolicitudes: solicitudesCount || 0,
-        totalContacts: contactsCount || 0
+        totalContacts: contactsCount || 0,
+        totalSyncOffers: syncCount || 0
       });
 
       setUpcomingEvents(eventsData || []);
@@ -251,7 +260,21 @@ export function OwnerDashboard() {
       </div>
 
       {/* Additional Stats Row */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/sincronizaciones')}>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Sincronizaciones</p>
+                <p className="text-2xl font-bold">{stats.totalSyncOffers}</p>
+                <p className="text-xs text-muted-foreground">Activas</p>
+              </div>
+              <div className="h-12 w-12 bg-pink-500/10 rounded-lg flex items-center justify-center">
+                <Film className="h-6 w-6 text-pink-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
