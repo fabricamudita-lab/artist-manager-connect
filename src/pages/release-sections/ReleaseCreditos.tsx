@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check } from 'lucide-react';
+import { CopyButton } from '@/components/ui/copy-button';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -345,12 +346,7 @@ function TrackCreditsItem({
 
           {/* Lyrics Preview */}
           {track.lyrics && (
-            <div className="p-3 bg-muted/50 rounded-lg">
-              <Label className="text-sm font-medium mb-2 block">Letra</Label>
-              <p className="text-sm text-muted-foreground whitespace-pre-line line-clamp-4">
-                {track.lyrics}
-              </p>
-            </div>
+            <LyricsPreview lyrics={track.lyrics} trackTitle={track.title} />
           )}
 
           {/* Credits Section */}
@@ -517,6 +513,56 @@ function CreditRow({
         </Button>
       </div>
     </div>
+  );
+}
+
+// Lyrics Preview with Dialog
+function LyricsPreview({ lyrics, trackTitle }: { lyrics: string; trackTitle: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      <div 
+        className="p-3 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted transition-colors"
+        onClick={() => setIsOpen(true)}
+      >
+        <div className="flex items-center justify-between mb-2">
+          <Label className="text-sm font-medium">Letra</Label>
+          <CopyButton 
+            text={lyrics} 
+            successMessage="Letra copiada al portapapeles"
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+          />
+        </div>
+        <p className="text-sm text-muted-foreground whitespace-pre-line line-clamp-4">
+          {lyrics}
+        </p>
+      </div>
+
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-8">
+              <DialogTitle>Letra - {trackTitle}</DialogTitle>
+              <CopyButton 
+                text={lyrics} 
+                successMessage="Letra copiada al portapapeles"
+                size="sm"
+                variant="outline"
+                showText
+              />
+            </div>
+          </DialogHeader>
+          <div className="overflow-y-auto max-h-[60vh] pr-2">
+            <p className="text-sm whitespace-pre-line leading-relaxed">
+              {lyrics}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
