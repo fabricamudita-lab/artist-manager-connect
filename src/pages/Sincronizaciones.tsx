@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { SyncKanban } from '@/components/sync/SyncKanban';
 import { CreateSyncOfferDialog } from '@/components/sync/CreateSyncOfferDialog';
 import { CreateFormLinkDialog } from '@/components/sync/CreateFormLinkDialog';
+import { SyncOfferDetailDialog } from '@/components/sync/SyncOfferDetailDialog';
 import { exportToCSV } from '@/utils/exportUtils';
 
 export interface SyncOffer {
@@ -65,6 +66,8 @@ export default function Sincronizaciones() {
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showFormLinkDialog, setShowFormLinkDialog] = useState(false);
+  const [selectedOffer, setSelectedOffer] = useState<SyncOffer | null>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
 
   useEffect(() => {
     fetchOffers();
@@ -324,6 +327,10 @@ export default function Sincronizaciones() {
                       <div
                         key={offer.id}
                         className="p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => {
+                          setSelectedOffer(offer);
+                          setShowDetailDialog(true);
+                        }}
                       >
                         <div className="flex items-center justify-between">
                           <div className="space-y-1">
@@ -367,6 +374,13 @@ export default function Sincronizaciones() {
       <CreateFormLinkDialog
         open={showFormLinkDialog}
         onOpenChange={setShowFormLinkDialog}
+      />
+
+      <SyncOfferDetailDialog
+        offer={selectedOffer}
+        open={showDetailDialog}
+        onOpenChange={setShowDetailDialog}
+        onUpdate={fetchOffers}
       />
     </div>
   );
