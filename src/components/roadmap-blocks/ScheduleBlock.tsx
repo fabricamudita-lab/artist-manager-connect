@@ -1,19 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2, Pencil, Music, Utensils, Hotel, Plane, Users, Clock, X, Check, GripVertical } from 'lucide-react';
+import { Plus, Trash2, Pencil, Music, Utensils, Hotel, Plane, Users, Clock, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useDebounce } from '@/hooks/useDebounce';
 import { TeamMemberSelector } from './TeamMemberSelector';
+import { InlineEditCell, InlineSelectCell } from '@/components/ui/inline-edit';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -79,10 +73,11 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
 
   const [localDays, setLocalDays] = useState<ScheduleDay[]>(incomingDays);
   const [activeDay, setActiveDay] = useState(incomingDays[0]?.id || '');
-  const [editingItem, setEditingItem] = useState<{ dayId: string; item: ScheduleItem } | null>(null);
   const [isAddingDay, setIsAddingDay] = useState(false);
   const [newDayLabel, setNewDayLabel] = useState('');
   const [newDayDate, setNewDayDate] = useState('');
+  const [editingAssignments, setEditingAssignments] = useState<{ dayId: string; itemId: string } | null>(null);
+  const [tempAssignedIds, setTempAssignedIds] = useState<string[]>([]);
 
   const lastSyncedRef = useRef<string>(JSON.stringify(incomingDays));
   const debouncedDays = useDebounce(localDays, 500);
@@ -194,33 +189,41 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
       assignedMemberIds: [],
     };
 
-    setEditingItem({ dayId, item: newItem });
+    setLocalDays((prev) =>
+      prev.map((d) => d.id === dayId ? { ...d, items: [...d.items, newItem] } : d)
+    );
   };
 
-  const saveItem = () => {
-    if (!editingItem) return;
-    
-    const { dayId, item } = editingItem;
-    
+  const updateItem = (dayId: string, itemId: string, field: keyof ScheduleItem, value: unknown) => {
     setLocalDays((prev) =>
       prev.map((d) => {
         if (d.id !== dayId) return d;
-        const existingIndex = d.items.findIndex(i => i.id === item.id);
-        if (existingIndex >= 0) {
-          const newItems = [...d.items];
-          newItems[existingIndex] = item;
-          return { ...d, items: newItems };
-        }
-        return { ...d, items: [...d.items, item] };
+        return {
+          ...d,
+          items: d.items.map((item) =>
+            item.id === itemId ? { ...item, [field]: value } : item
+          )
+        };
       })
     );
-    setEditingItem(null);
   };
 
   const removeItem = (dayId: string, itemId: string) => {
     setLocalDays((prev) =>
       prev.map((d) => (d.id === dayId ? { ...d, items: d.items.filter((i) => i.id !== itemId) } : d))
     );
+  };
+
+  const openAssignmentEditor = (dayId: string, itemId: string, currentIds: string[]) => {
+    setEditingAssignments({ dayId, itemId });
+    setTempAssignedIds(currentIds || []);
+  };
+
+  const saveAssignments = () => {
+    if (editingAssignments) {
+      updateItem(editingAssignments.dayId, editingAssignments.itemId, 'assignedMemberIds', tempAssignedIds);
+      setEditingAssignments(null);
+    }
   };
 
   const currentDay = localDays.find((d) => d.id === activeDay);
@@ -319,64 +322,90 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
                 </div>
               </div>
 
-              {/* Schedule table - visual style */}
+              {/* Schedule table - inline editable */}
               <div className="border rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[100px_1fr_1fr_1fr] gap-4 p-3 bg-muted/50 font-medium text-sm">
+                <div className="grid grid-cols-[80px_1fr_1fr_1fr_auto] gap-2 p-3 bg-muted/50 font-medium text-sm">
                   <div>HORA</div>
                   <div>ACTIVIDAD</div>
                   <div>UBICACIÓN</div>
                   <div>NOTAS</div>
+                  <div></div>
                 </div>
                 
                 {sortedItems.length > 0 ? (
                   <div className="divide-y">
                     {sortedItems.map((item) => {
                       const config = getActivityConfig(item.activityType);
-                      const Icon = config.icon;
                       
                       return (
                         <div
                           key={item.id}
-                          className="grid grid-cols-[100px_1fr_1fr_1fr] gap-4 p-3 items-center hover:bg-muted/30 group"
+                          className="grid grid-cols-[80px_1fr_1fr_1fr_auto] gap-2 p-2 items-center hover:bg-muted/30 group"
                         >
-                          <div className="font-mono text-lg">
-                            {item.startTime || '—'}
-                          </div>
+                          <InlineEditCell
+                            value={item.startTime}
+                            onChange={(v) => updateItem(currentDay.id, item.id, 'startTime', v)}
+                            placeholder="00:00"
+                            type="time"
+                            className="font-mono text-lg"
+                          />
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className={`${config.color} gap-1`}>
-                              <Icon className="w-3 h-3" />
-                              {config.label}
-                            </Badge>
-                            <span className="font-medium">{item.title}</span>
+                            <InlineSelectCell
+                              value={item.activityType}
+                              onChange={(v) => {
+                                const newConfig = getActivityConfig(v);
+                                updateItem(currentDay.id, item.id, 'activityType', v);
+                                if (!item.title) {
+                                  updateItem(currentDay.id, item.id, 'title', newConfig.label);
+                                }
+                              }}
+                              options={activityTypes}
+                              renderValue={(opt) => (
+                                <Badge variant="outline" className={`${opt ? getActivityConfig(opt.value).color : ''} gap-1`}>
+                                  {opt?.icon && <opt.icon className="w-3 h-3" />}
+                                  {opt?.label || 'Tipo'}
+                                </Badge>
+                              )}
+                            />
+                            <InlineEditCell
+                              value={item.title}
+                              onChange={(v) => updateItem(currentDay.id, item.id, 'title', v)}
+                              placeholder="Título"
+                              className="font-medium"
+                            />
                           </div>
-                          <div className="text-muted-foreground flex items-center gap-1">
-                            {item.location ? (
-                              <>
-                                <span className="text-muted-foreground">⊙</span>
-                                {item.location}
-                              </>
-                            ) : '—'}
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <span className="text-xs">⊙</span>
+                            <InlineEditCell
+                              value={item.location}
+                              onChange={(v) => updateItem(currentDay.id, item.id, 'location', v)}
+                              placeholder="Ubicación"
+                            />
                           </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">{item.notes || '—'}</span>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => setEditingItem({ dayId: currentDay.id, item: { ...item } })}
-                              >
-                                <Pencil className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-destructive hover:text-destructive"
-                                onClick={() => removeItem(currentDay.id, item.id)}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
+                          <InlineEditCell
+                            value={item.notes}
+                            onChange={(v) => updateItem(currentDay.id, item.id, 'notes', v)}
+                            placeholder="Notas"
+                            className="text-muted-foreground"
+                          />
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => openAssignmentEditor(currentDay.id, item.id, item.assignedMemberIds || [])}
+                              title="Asignar equipo"
+                            >
+                              <Users className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => removeItem(currentDay.id, item.id)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
                           </div>
                         </div>
                       );
@@ -433,136 +462,34 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
         </DialogContent>
       </Dialog>
 
-      {/* Edit Item Dialog */}
-      <Dialog open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)}>
-        <DialogContent className="max-w-lg">
+      {/* Edit Assignments Dialog */}
+      <Dialog open={!!editingAssignments} onOpenChange={(open) => !open && setEditingAssignments(null)}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {editingItem && localDays.find(d => d.id === editingItem.dayId)?.items.some(i => i.id === editingItem.item.id)
-                ? 'Editar Actividad'
-                : 'Nueva Actividad'}
-            </DialogTitle>
+            <DialogTitle>Asignar Equipo</DialogTitle>
           </DialogHeader>
-          {editingItem && (
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Hora inicio</Label>
-                  <Input
-                    type="time"
-                    value={editingItem.item.startTime}
-                    onChange={(e) => setEditingItem({
-                      ...editingItem,
-                      item: { ...editingItem.item, startTime: e.target.value }
-                    })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Hora fin</Label>
-                  <Input
-                    type="time"
-                    value={editingItem.item.endTime}
-                    onChange={(e) => setEditingItem({
-                      ...editingItem,
-                      item: { ...editingItem.item, endTime: e.target.value }
-                    })}
-                  />
-                </div>
+          <div className="py-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Asignados</Label>
+                {bookingInfo?.formato && (
+                  <Badge variant="outline" className="text-xs font-normal">
+                    Formato: {bookingInfo.formato}
+                  </Badge>
+                )}
               </div>
-              
-              <div className="space-y-2">
-                <Label>Tipo de actividad</Label>
-                <Select
-                  value={editingItem.item.activityType}
-                  onValueChange={(val) => {
-                    const config = getActivityConfig(val);
-                    setEditingItem({
-                      ...editingItem,
-                      item: { 
-                        ...editingItem.item, 
-                        activityType: val,
-                        title: editingItem.item.title || config.label
-                      }
-                    });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activityTypes.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        <span className="flex items-center gap-2">
-                          <t.icon className="w-4 h-4" />
-                          {t.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Título</Label>
-                <Input
-                  value={editingItem.item.title}
-                  onChange={(e) => setEditingItem({
-                    ...editingItem,
-                    item: { ...editingItem.item, title: e.target.value }
-                  })}
-                  placeholder="Nombre de la actividad"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Ubicación</Label>
-                <Input
-                  value={editingItem.item.location}
-                  onChange={(e) => setEditingItem({
-                    ...editingItem,
-                    item: { ...editingItem.item, location: e.target.value }
-                  })}
-                  placeholder="Lugar o dirección"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Asignados</Label>
-                  {bookingInfo?.formato && (
-                    <Badge variant="outline" className="text-xs font-normal">
-                      Formato: {bookingInfo.formato}
-                    </Badge>
-                  )}
-                </div>
-                <TeamMemberSelector
-                  artistId={artistId}
-                  bookingId={bookingId}
-                  value={editingItem.item.assignedMemberIds || []}
-                  onValueChange={(ids) => setEditingItem({
-                    ...editingItem,
-                    item: { ...editingItem.item, assignedMemberIds: ids }
-                  })}
-                  placeholder="Seleccionar equipo..."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Notas</Label>
-                <Input
-                  value={editingItem.item.notes}
-                  onChange={(e) => setEditingItem({
-                    ...editingItem,
-                    item: { ...editingItem.item, notes: e.target.value }
-                  })}
-                  placeholder="Notas adicionales"
-                />
-              </div>
+              <TeamMemberSelector
+                artistId={artistId}
+                bookingId={bookingId}
+                value={tempAssignedIds}
+                onValueChange={setTempAssignedIds}
+                placeholder="Seleccionar equipo..."
+              />
             </div>
-          )}
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingItem(null)}>Cancelar</Button>
-            <Button onClick={saveItem}>Guardar</Button>
+            <Button variant="outline" onClick={() => setEditingAssignments(null)}>Cancelar</Button>
+            <Button onClick={saveAssignments}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
