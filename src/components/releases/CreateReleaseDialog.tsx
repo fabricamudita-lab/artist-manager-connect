@@ -34,11 +34,13 @@ import { useCreateRelease } from '@/hooks/useReleases';
 interface CreateReleaseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  artistId?: string | null;
 }
 
 export default function CreateReleaseDialog({
   open,
   onOpenChange,
+  artistId,
 }: CreateReleaseDialogProps) {
   const navigate = useNavigate();
   const createRelease = useCreateRelease();
@@ -56,6 +58,7 @@ export default function CreateReleaseDialog({
       type,
       release_date: releaseDate ? format(releaseDate, 'yyyy-MM-dd') : null,
       description: description.trim() || null,
+      artist_id: artistId || null,
     });
 
     if (result) {
