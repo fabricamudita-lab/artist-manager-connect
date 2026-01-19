@@ -142,7 +142,7 @@ export function useCreateRelease() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (release: { title: string; type?: string; release_date?: string | null; description?: string | null }) => {
+    mutationFn: async (release: { title: string; type?: string; release_date?: string | null; description?: string | null; artist_id?: string | null }) => {
       if (!user?.id) throw new Error('Not authenticated');
       
       const { data, error } = await supabase
@@ -152,6 +152,7 @@ export function useCreateRelease() {
           type: release.type || 'single',
           release_date: release.release_date,
           description: release.description,
+          artist_id: release.artist_id,
           created_by: user.id,
         })
         .select()
@@ -162,6 +163,7 @@ export function useCreateRelease() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['releases'] });
+      queryClient.invalidateQueries({ queryKey: ['artist-releases'] });
       toast.success('Lanzamiento creado');
     },
     onError: () => {

@@ -18,6 +18,7 @@ import { es } from 'date-fns/locale';
 import { AddTeamContactDialog } from '@/components/AddTeamContactDialog';
 import { ContactProfileSheet } from '@/components/ContactProfileSheet';
 import { ArtistFormatsDialog } from '@/components/ArtistFormatsDialog';
+import CreateReleaseDialog from '@/components/releases/CreateReleaseDialog';
 
 interface Artist {
   id: string;
@@ -88,6 +89,7 @@ export default function ArtistProfile() {
   const [showAddTeamMember, setShowAddTeamMember] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [showFormatsDialog, setShowFormatsDialog] = useState(false);
+  const [showCreateReleaseDialog, setShowCreateReleaseDialog] = useState(false);
 
   // Fetch artist
   const { data: artist, isLoading: loadingArtist } = useQuery({
@@ -550,6 +552,116 @@ export default function ArtistProfile() {
           )}
         </TabsContent>
 
+        <TabsContent value="releases" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <p className="text-muted-foreground">Discografía del artista</p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowCreateReleaseDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nuevo
+              </Button>
+              <Button variant="outline" onClick={() => navigate(`/releases?artistId=${id}`)}>
+                Ver todos
+              </Button>
+            </div>
+          </div>
+
+          {releases.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Disc3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Sin lanzamientos</h3>
+                <p className="text-muted-foreground mb-4">
+                  No hay lanzamientos asociados a este artista
+                </p>
+                <Button onClick={() => setShowCreateReleaseDialog(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crear Lanzamiento
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {releases.map((release) => (
+                <Card 
+                  key={release.id}
+                  className="cursor-pointer hover:shadow-sm transition-shadow"
+                  onClick={() => navigate(`/releases/${release.id}`)}
+                >
+                  <CardContent className="py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 rounded bg-muted flex items-center justify-center">
+                        <Disc3 className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{release.title}</p>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            {release.type === 'album' ? 'Álbum' : release.type === 'ep' ? 'EP' : 'Single'}
+                          </Badge>
+                          {release.release_date && (
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(release.release_date), 'd MMM yyyy', { locale: es })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="solicitudes" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <p className="text-muted-foreground">Solicitudes del artista</p>
+            <Button variant="outline" onClick={() => navigate('/solicitudes')}>
+              Ver todas
+            </Button>
+          </div>
+
+          {solicitudes.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Sin solicitudes</h3>
+                <p className="text-muted-foreground">
+                  No hay solicitudes asociadas a este artista
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {solicitudes.map((solicitud) => (
+                <Card 
+                  key={solicitud.id} 
+                  className="cursor-pointer hover:shadow-sm transition-shadow"
+                  onClick={() => navigate(`/solicitudes?id=${solicitud.id}`)}
+                >
+                  <CardContent className="py-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <p className="font-medium">{solicitud.nombre_solicitante}</p>
+                        <p className="text-sm text-muted-foreground">{solicitud.tipo}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm">
+                          {format(new Date(solicitud.fecha_creacion), 'd MMM yyyy', { locale: es })}
+                        </p>
+                      </div>
+                      <Badge variant={solicitud.estado === 'aprobada' ? 'default' : 'secondary'}>
+                        {solicitud.estado}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
         <TabsContent value="finanzas" className="space-y-4">
           <div className="flex justify-between items-center">
             <p className="text-muted-foreground">Presupuestos del artista</p>
@@ -634,6 +746,12 @@ export default function ArtistProfile() {
         onOpenChange={setShowFormatsDialog}
         artistId={id || ''}
         artistName={artist?.stage_name || artist?.name || ''}
+      />
+
+      <CreateReleaseDialog
+        open={showCreateReleaseDialog}
+        onOpenChange={setShowCreateReleaseDialog}
+        artistId={id}
       />
     </div>
   );
