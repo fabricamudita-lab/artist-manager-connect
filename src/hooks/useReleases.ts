@@ -191,6 +191,7 @@ export function useUpdateRelease() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['releases'] });
       queryClient.invalidateQueries({ queryKey: ['release', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['artist-releases'] });
       toast.success('Lanzamiento actualizado');
     },
     onError: () => {
