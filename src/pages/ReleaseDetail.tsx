@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -26,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useRelease, useDeleteRelease } from '@/hooks/useReleases';
+import EditReleaseDialog from '@/components/releases/EditReleaseDialog';
 
 const TYPE_ICONS = {
   album: Album,
@@ -103,6 +105,7 @@ export default function ReleaseDetail() {
   const navigate = useNavigate();
   const { data: release, isLoading } = useRelease(id);
   const deleteRelease = useDeleteRelease();
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   const handleDelete = async () => {
     if (!id || !confirm('¿Estás seguro de eliminar este lanzamiento?')) return;
@@ -196,7 +199,7 @@ export default function ReleaseDetail() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
               <Edit className="mr-2 h-4 w-4" />
               Editar
             </DropdownMenuItem>
@@ -237,6 +240,12 @@ export default function ReleaseDetail() {
           </Card>
         ))}
       </div>
+
+      <EditReleaseDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        release={release}
+      />
     </div>
   );
 }
