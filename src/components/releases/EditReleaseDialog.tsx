@@ -29,6 +29,7 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useUpdateRelease, Release } from '@/hooks/useReleases';
+import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 
 interface EditReleaseDialogProps {
   open: boolean;
@@ -48,6 +49,7 @@ export default function EditReleaseDialog({
   const [status, setStatus] = useState<'planning' | 'in_progress' | 'released' | 'archived'>('planning');
   const [releaseDate, setReleaseDate] = useState<Date | undefined>();
   const [description, setDescription] = useState('');
+  const [artistId, setArtistId] = useState<string | null>(null);
 
   useEffect(() => {
     if (release) {
@@ -56,6 +58,7 @@ export default function EditReleaseDialog({
       setStatus(release.status);
       setReleaseDate(release.release_date ? new Date(release.release_date) : undefined);
       setDescription(release.description || '');
+      setArtistId(release.artist_id);
     }
   }, [release]);
 
@@ -69,6 +72,7 @@ export default function EditReleaseDialog({
       status,
       release_date: releaseDate ? format(releaseDate, 'yyyy-MM-dd') : null,
       description: description.trim() || null,
+      artist_id: artistId,
     });
 
     onOpenChange(false);
@@ -124,6 +128,15 @@ export default function EditReleaseDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Artista</Label>
+            <SingleArtistSelector
+              value={artistId}
+              onValueChange={setArtistId}
+              placeholder="Seleccionar artista"
+            />
           </div>
 
           <div className="space-y-2">
