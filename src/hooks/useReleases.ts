@@ -18,6 +18,11 @@ export interface Release {
   label: string | null;
   upc: string | null;
   genre: string | null;
+  artist?: {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+  } | null;
 }
 
 export interface ReleaseMilestone {
@@ -125,7 +130,10 @@ export function useRelease(id: string | undefined) {
 
       const { data, error } = await supabase
         .from('releases')
-        .select('*')
+        .select(`
+          *,
+          artist:artists!releases_artist_id_fkey(id, name, avatar_url)
+        `)
         .eq('id', id)
         .single();
 
