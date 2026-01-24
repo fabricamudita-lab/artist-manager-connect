@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -171,7 +172,7 @@ export default function ReleaseDetail() {
                   {STATUS_LABELS[release.status]}
                 </Badge>
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1 flex-wrap">
                 <TypeIcon className="w-4 h-4" />
                 <span className="capitalize">{release.type}</span>
                 {release.release_date && (
@@ -180,6 +181,24 @@ export default function ReleaseDetail() {
                     <span>
                       {format(new Date(release.release_date), 'PPP', { locale: es })}
                     </span>
+                  </>
+                )}
+                {release.artist && (
+                  <>
+                    <span>•</span>
+                    <Link 
+                      to={`/artist/${release.artist.id}`}
+                      className="inline-flex items-center gap-1.5 hover:text-primary transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Avatar className="h-5 w-5">
+                        <AvatarImage src={release.artist.avatar_url || undefined} />
+                        <AvatarFallback className="text-[10px]">
+                          {release.artist.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium">{release.artist.name}</span>
+                    </Link>
                   </>
                 )}
               </div>
