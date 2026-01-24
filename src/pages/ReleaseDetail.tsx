@@ -187,7 +187,7 @@ export default function ReleaseDetail() {
                   <>
                     <span>•</span>
                     <Link 
-                      to={`/artist/${release.artist.id}`}
+                      to={`/artistas/${release.artist.id}`}
                       className="inline-flex items-center gap-1.5 hover:text-primary transition-colors"
                       onClick={(e) => e.stopPropagation()}
                     >
