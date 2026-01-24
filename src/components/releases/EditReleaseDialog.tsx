@@ -1,0 +1,184 @@
+import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { CalendarIcon } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { useUpdateRelease, Release } from '@/hooks/useReleases';
+
+interface EditReleaseDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  release: Release | null;
+}
+
+export default function EditReleaseDialog({
+  open,
+  onOpenChange,
+  release,
+}: EditReleaseDialogProps) {
+  const updateRelease = useUpdateRelease();
+
+  const [title, setTitle] = useState('');
+  const [type, setType] = useState<'album' | 'ep' | 'single'>('single');
+  const [status, setStatus] = useState<'planning' | 'in_progress' | 'released' | 'archived'>('planning');
+  const [releaseDate, setReleaseDate] = useState<Date | undefined>();
+  const [description, setDescription] = useState('');
+
+  useEffect(() => {
+    if (release) {
+      setTitle(release.title);
+      setType(release.type);
+      setStatus(release.status);
+      setReleaseDate(release.release_date ? new Date(release.release_date) : undefined);
+      setDescription(release.description || '');
+    }
+  }, [release]);
+
+  const handleSubmit = async () => {
+    if (!release || !title.trim()) return;
+
+    await updateRelease.mutateAsync({
+      id: release.id,
+      title: title.trim(),
+      type,
+      status,
+      release_date: releaseDate ? format(releaseDate, 'yyyy-MM-dd') : null,
+      description: description.trim() || null,
+    });
+
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar Lanzamiento</DialogTitle>
+          <DialogDescription>
+            Modifica los detalles del lanzamiento
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="title">Título *</Label>
+            <Input
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Nombre del lanzamiento"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select value={type} onValueChange={(v) => setType(v as typeof type)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Single</SelectItem>
+                  <SelectItem value="ep">EP</SelectItem>
+                  <SelectItem value="album">Álbum</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Estado</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="planning">Planificando</SelectItem>
+                  <SelectItem value="in_progress">En Progreso</SelectItem>
+                  <SelectItem value="released">Publicado</SelectItem>
+                  <SelectItem value="archived">Archivado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Fecha de Lanzamiento</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    'w-full justify-start text-left font-normal',
+                    !releaseDate && 'text-muted-foreground'
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {releaseDate
+                    ? format(releaseDate, 'PPP', { locale: es })
+                    : 'Selecciona una fecha'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={releaseDate}
+                  onSelect={setReleaseDate}
+                  initialFocus
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Descripción</Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Descripción del lanzamiento (opcional)"
+              rows={3}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={!title.trim() || updateRelease.isPending}
+          >
+            {updateRelease.isPending ? 'Guardando...' : 'Guardar'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
