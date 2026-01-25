@@ -367,7 +367,8 @@ function TrackAudioCard({ track }: { track: Track }) {
 
 // Track Credits Dialog Component
 function TrackCreditsDialog({ track }: { track: Track }) {
-  const [copied, setCopied] = useState(false);
+  const [copiedLyrics, setCopiedLyrics] = useState(false);
+  const [copiedCredits, setCopiedCredits] = useState(false);
   const { data: credits = [] } = useTrackCredits(track.id);
   const { data: publishingSplits = [] } = usePublishingSplits(track.id);
   const { data: masterSplits = [] } = useMasterSplits(track.id);
@@ -375,10 +376,34 @@ function TrackCreditsDialog({ track }: { track: Track }) {
   const handleCopyLyrics = () => {
     if (track.lyrics) {
       navigator.clipboard.writeText(track.lyrics);
-      setCopied(true);
+      setCopiedLyrics(true);
       toast.success('Letra copiada');
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopiedLyrics(false), 2000);
     }
+  };
+
+  const handleCopyCredits = () => {
+    if (credits.length === 0) return;
+    
+    // Group credits by role
+    const groupedByRole: Record<string, string[]> = {};
+    credits.forEach((credit) => {
+      const role = credit.role || 'Otro';
+      if (!groupedByRole[role]) {
+        groupedByRole[role] = [];
+      }
+      groupedByRole[role].push(credit.name);
+    });
+    
+    // Format: "Rol: Name1 & Name2"
+    const formattedCredits = Object.entries(groupedByRole)
+      .map(([role, names]) => `${role}: ${names.join(' & ')}`)
+      .join('\n');
+    
+    navigator.clipboard.writeText(formattedCredits);
+    setCopiedCredits(true);
+    toast.success('Créditos copiados');
+    setTimeout(() => setCopiedCredits(false), 2000);
   };
 
   const getRoleLabel = (role: string, type: 'publishing' | 'master') => {
@@ -439,7 +464,7 @@ function TrackCreditsDialog({ track }: { track: Track }) {
                       onClick={handleCopyLyrics}
                       className="gap-2"
                     >
-                      {copied ? (
+                      {copiedLyrics ? (
                         <>
                           <Check className="h-4 w-4" />
                           Copiada
@@ -468,27 +493,49 @@ function TrackCreditsDialog({ track }: { track: Track }) {
             {/* Credits Tab */}
             <TabsContent value="credits" className="mt-4">
               {credits.length > 0 ? (
-                <ScrollArea className="h-[400px]">
-                  <div className="space-y-2">
-                    {credits.map((credit) => (
-                      <div
-                        key={credit.id}
-                        className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
-                      >
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium">{credit.name}</p>
-                          <p className="text-sm text-muted-foreground">{credit.role}</p>
-                        </div>
-                        {credit.percentage && (
-                          <Badge variant="secondary">{credit.percentage}%</Badge>
-                        )}
-                      </div>
-                    ))}
+                <div className="space-y-3">
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyCredits}
+                      className="gap-2"
+                    >
+                      {copiedCredits ? (
+                        <>
+                          <Check className="h-4 w-4" />
+                          Copiados
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4" />
+                          Copiar créditos
+                        </>
+                      )}
+                    </Button>
                   </div>
-                </ScrollArea>
+                  <ScrollArea className="h-[400px]">
+                    <div className="space-y-2">
+                      {credits.map((credit) => (
+                        <div
+                          key={credit.id}
+                          className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <User className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium">{credit.name}</p>
+                            <p className="text-sm text-muted-foreground">{credit.role}</p>
+                          </div>
+                          {credit.percentage && (
+                            <Badge variant="secondary">{credit.percentage}%</Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No hay créditos disponibles</p>
