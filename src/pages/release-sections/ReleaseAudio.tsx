@@ -2,16 +2,19 @@ import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Music, Play, Pause, Upload, Trash2, ChevronDown, FileAudio } from 'lucide-react';
+import { ArrowLeft, Plus, Music, Play, Pause, Upload, Trash2, ChevronDown, FileAudio, FileText, Copy, Check, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useRelease, useTracks, useTrackVersions, TrackVersion, Track } from '@/hooks/useReleases';
+import { useRelease, useTracks, useTrackVersions, useTrackCredits, TrackVersion, Track } from '@/hooks/useReleases';
+import { usePublishingSplits, useMasterSplits, PUBLISHING_ROLES, MASTER_ROLES } from '@/hooks/useTrackRightsSplits';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -238,6 +241,7 @@ function TrackAudioCard({ track }: { track: Track }) {
                 <p className="text-xs text-muted-foreground">ISRC: {track.isrc}</p>
               )}
             </div>
+            <TrackCreditsDialog track={track} />
             <span className="text-sm text-muted-foreground">
               {formatDuration(track.duration)}
             </span>
@@ -358,5 +362,217 @@ function TrackAudioCard({ track }: { track: Track }) {
         </CollapsibleContent>
       </div>
     </Collapsible>
+  );
+}
+
+// Track Credits Dialog Component
+function TrackCreditsDialog({ track }: { track: Track }) {
+  const [copied, setCopied] = useState(false);
+  const { data: credits = [] } = useTrackCredits(track.id);
+  const { data: publishingSplits = [] } = usePublishingSplits(track.id);
+  const { data: masterSplits = [] } = useMasterSplits(track.id);
+
+  const handleCopyLyrics = () => {
+    if (track.lyrics) {
+      navigator.clipboard.writeText(track.lyrics);
+      setCopied(true);
+      toast.success('Letra copiada');
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const getRoleLabel = (role: string, type: 'publishing' | 'master') => {
+    const roles = type === 'publishing' ? PUBLISHING_ROLES : MASTER_ROLES;
+    return roles.find(r => r.value === role)?.label || role;
+  };
+
+  const hasContent = track.lyrics || credits.length > 0 || publishingSplits.length > 0 || masterSplits.length > 0;
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <FileText className="h-3.5 w-3.5" />
+          Ver créditos
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Music className="h-5 w-5" />
+            {track.title}
+          </DialogTitle>
+        </DialogHeader>
+
+        {!hasContent ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p>No hay créditos ni letra disponibles</p>
+          </div>
+        ) : (
+          <Tabs defaultValue={track.lyrics ? "lyrics" : "credits"} className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="lyrics" disabled={!track.lyrics}>
+                Letra
+              </TabsTrigger>
+              <TabsTrigger value="credits" disabled={credits.length === 0}>
+                Créditos
+              </TabsTrigger>
+              <TabsTrigger value="splits" disabled={publishingSplits.length === 0 && masterSplits.length === 0}>
+                Derechos
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Lyrics Tab */}
+            <TabsContent value="lyrics" className="mt-4">
+              {track.lyrics ? (
+                <div className="space-y-3">
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyLyrics}
+                      className="gap-2"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="h-4 w-4" />
+                          Copiada
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4" />
+                          Copiar letra
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <ScrollArea className="h-[400px] rounded-lg border p-4">
+                    <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
+                      {track.lyrics}
+                    </pre>
+                  </ScrollArea>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No hay letra disponible</p>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Credits Tab */}
+            <TabsContent value="credits" className="mt-4">
+              {credits.length > 0 ? (
+                <ScrollArea className="h-[400px]">
+                  <div className="space-y-2">
+                    {credits.map((credit) => (
+                      <div
+                        key={credit.id}
+                        className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <User className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium">{credit.name}</p>
+                          <p className="text-sm text-muted-foreground">{credit.role}</p>
+                        </div>
+                        {credit.percentage && (
+                          <Badge variant="secondary">{credit.percentage}%</Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No hay créditos disponibles</p>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Splits Tab */}
+            <TabsContent value="splits" className="mt-4">
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-6">
+                  {/* Publishing Splits */}
+                  {publishingSplits.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded bg-amber-500/10">
+                          <FileText className="h-4 w-4 text-amber-600" />
+                        </div>
+                        <h4 className="font-medium">Derechos de Autor</h4>
+                      </div>
+                      <div className="space-y-2">
+                        {publishingSplits.map((split) => (
+                          <div
+                            key={split.id}
+                            className="flex items-center gap-3 p-3 rounded-lg border bg-amber-500/5"
+                          >
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{split.name}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Badge variant="outline" className="text-xs">
+                                  {getRoleLabel(split.role, 'publishing')}
+                                </Badge>
+                                {split.pro_name && <span>{split.pro_name}</span>}
+                              </div>
+                            </div>
+                            <Badge className="bg-amber-500">{split.percentage}%</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Master Splits */}
+                  {masterSplits.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded bg-blue-500/10">
+                          <Music className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <h4 className="font-medium">Royalties Master</h4>
+                      </div>
+                      <div className="space-y-2">
+                        {masterSplits.map((split) => (
+                          <div
+                            key={split.id}
+                            className="flex items-center gap-3 p-3 rounded-lg border bg-blue-500/5"
+                          >
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{split.name}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Badge variant="outline" className="text-xs">
+                                  {getRoleLabel(split.role, 'master')}
+                                </Badge>
+                                {split.label_name && <span>{split.label_name}</span>}
+                              </div>
+                            </div>
+                            <Badge className="bg-blue-500">{split.percentage}%</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {publishingSplits.length === 0 && masterSplits.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No hay derechos configurados</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
