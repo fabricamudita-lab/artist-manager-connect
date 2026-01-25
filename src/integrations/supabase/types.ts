@@ -3524,6 +3524,7 @@ export type Database = {
           period_end: string
           period_start: string
           platform: string
+          royalty_type: string | null
           song_id: string | null
           streams: number | null
           track_id: string | null
@@ -3538,6 +3539,7 @@ export type Database = {
           period_end: string
           period_start: string
           platform: string
+          royalty_type?: string | null
           song_id?: string | null
           streams?: number | null
           track_id?: string | null
@@ -3552,6 +3554,7 @@ export type Database = {
           period_end?: string
           period_start?: string
           platform?: string
+          royalty_type?: string | null
           song_id?: string | null
           streams?: number | null
           track_id?: string | null
@@ -5616,6 +5619,117 @@ export type Database = {
           },
           {
             foreignKeyName: "track_credits_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      track_master_splits: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          id: string
+          label_name: string | null
+          name: string
+          notes: string | null
+          percentage: number
+          role: string
+          track_id: string
+          updated_at: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          label_name?: string | null
+          name: string
+          notes?: string | null
+          percentage?: number
+          role?: string
+          track_id: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          label_name?: string | null
+          name?: string
+          notes?: string | null
+          percentage?: number
+          role?: string
+          track_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "track_master_splits_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "track_master_splits_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      track_publishing_splits: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          id: string
+          ipi_number: string | null
+          name: string
+          notes: string | null
+          percentage: number
+          pro_name: string | null
+          role: string
+          track_id: string
+          updated_at: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          ipi_number?: string | null
+          name: string
+          notes?: string | null
+          percentage?: number
+          pro_name?: string | null
+          role?: string
+          track_id: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          ipi_number?: string | null
+          name?: string
+          notes?: string | null
+          percentage?: number
+          pro_name?: string | null
+          role?: string
+          track_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "track_publishing_splits_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "track_publishing_splits_track_id_fkey"
             columns: ["track_id"]
             isOneToOne: false
             referencedRelation: "tracks"
