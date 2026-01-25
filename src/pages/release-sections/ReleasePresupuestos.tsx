@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Trash2, Pencil, DollarSign, Users, PieChart, Receipt, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Pencil, DollarSign, Users, PieChart, Receipt, ChevronDown, FileText, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { TrackRightsSplitsManager } from '@/components/releases/TrackRightsSplitsManager';
 import {
   Dialog,
   DialogContent,
@@ -167,14 +168,18 @@ export default function ReleasePresupuestos() {
       </div>
 
       <Tabs defaultValue="costes" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="costes" className="gap-2">
             <Receipt className="h-4 w-4" />
             Costes de Producción
           </TabsTrigger>
-          <TabsTrigger value="splits" className="gap-2">
-            <PieChart className="h-4 w-4" />
-            Splits de Royalties
+          <TabsTrigger value="publishing" className="gap-2">
+            <FileText className="h-4 w-4" />
+            Derechos de Autor
+          </TabsTrigger>
+          <TabsTrigger value="master" className="gap-2">
+            <Music className="h-4 w-4" />
+            Royalties Master
           </TabsTrigger>
         </TabsList>
 
@@ -317,31 +322,80 @@ export default function ReleasePresupuestos() {
           </Card>
         </TabsContent>
 
-        {/* Splits de Royalties Tab */}
-        <TabsContent value="splits" className="space-y-4">
+        {/* Derechos de Autor (Publishing) Tab */}
+        <TabsContent value="publishing" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Distribución de Royalties por Canción</CardTitle>
-              <CardDescription>
-                Define los porcentajes de reparto para cada canción del lanzamiento.
-                Estos splits se conectan con el módulo de Finanzas.
-              </CardDescription>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-500/10 rounded-lg">
+                  <FileText className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <CardTitle>Derechos de Autor (Publishing)</CardTitle>
+                  <CardDescription>
+                    Define los porcentajes de autoría: compositores, letristas y editoriales.
+                    Estos derechos corresponden a la obra musical (composición y letra).
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {loadingTracks ? (
                 <Skeleton className="h-32 w-full" />
               ) : tracks && tracks.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {tracks.map((track) => (
-                    <TrackSplitsCard key={track.id} track={track} />
+                    <TrackRightsSplitsManager key={track.id} track={track} type="publishing" />
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <Users className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                  <FileText className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
                   <h3 className="text-lg font-semibold mb-2">Sin canciones</h3>
                   <p className="text-muted-foreground mb-4">
-                    Primero añade canciones en la sección de Créditos para configurar sus splits.
+                    Primero añade canciones en la sección de Créditos para configurar sus derechos.
+                  </p>
+                  <Button onClick={() => navigate(`/releases/${id}/creditos`)}>
+                    Ir a Créditos
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Royalties Master Tab */}
+        <TabsContent value="master" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 rounded-lg">
+                  <Music className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <CardTitle>Royalties Master (Fonograma)</CardTitle>
+                  <CardDescription>
+                    Define los porcentajes de participación en la grabación: artistas, productores y sello.
+                    Estos royalties corresponden al fonograma (grabación sonora).
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingTracks ? (
+                <Skeleton className="h-32 w-full" />
+              ) : tracks && tracks.length > 0 ? (
+                <div className="space-y-3">
+                  {tracks.map((track) => (
+                    <TrackRightsSplitsManager key={track.id} track={track} type="master" />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Music className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Sin canciones</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Primero añade canciones en la sección de Créditos para configurar sus royalties.
                   </p>
                   <Button onClick={() => navigate(`/releases/${id}/creditos`)}>
                     Ir a Créditos
