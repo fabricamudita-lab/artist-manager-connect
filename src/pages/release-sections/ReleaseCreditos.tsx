@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -350,54 +350,149 @@ function TrackCreditsItem({
           )}
 
           {/* Credits Section */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Créditos y Autoría</Label>
-              <Dialog open={isAddCreditOpen} onOpenChange={setIsAddCreditOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <UserPlus className="w-3 h-3 mr-1" />
-                    Añadir Crédito
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Añadir Crédito</DialogTitle>
-                  </DialogHeader>
-                  <AddCreditForm
-                    onSubmit={(data) => createCredit.mutate(data)}
-                    isLoading={createCredit.isPending}
-                  />
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {isLoading ? (
-              <Skeleton className="h-16 w-full" />
-            ) : credits.length > 0 ? (
-              <div className="space-y-2">
-                {sortCreditsByRole(credits).map((credit) => (
-                  <CreditRow
-                    key={credit.id}
-                    credit={credit}
-                    isEditing={editingCreditId === credit.id}
-                    onStartEdit={() => setEditingCreditId(credit.id)}
-                    onCancelEdit={() => setEditingCreditId(null)}
-                    onSave={(data) => updateCredit.mutate({ creditId: credit.id, data })}
-                    onDelete={() => deleteCredit.mutate(credit.id)}
-                    isSaving={updateCredit.isPending}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Sin créditos ni autorías registrados para esta canción.
-              </p>
-            )}
-          </div>
+          <CreditsSection
+            credits={credits}
+            isLoading={isLoading}
+            isAddCreditOpen={isAddCreditOpen}
+            setIsAddCreditOpen={setIsAddCreditOpen}
+            createCredit={createCredit}
+            editingCreditId={editingCreditId}
+            setEditingCreditId={setEditingCreditId}
+            updateCredit={updateCredit}
+            deleteCredit={deleteCredit}
+          />
         </div>
       </AccordionContent>
     </AccordionItem>
+  );
+}
+
+// Credits Section Component with copy button and percentage validation
+function CreditsSection({
+  credits,
+  isLoading,
+  isAddCreditOpen,
+  setIsAddCreditOpen,
+  createCredit,
+  editingCreditId,
+  setEditingCreditId,
+  updateCredit,
+  deleteCredit,
+}: {
+  credits: TrackCredit[];
+  isLoading: boolean;
+  isAddCreditOpen: boolean;
+  setIsAddCreditOpen: (open: boolean) => void;
+  createCredit: { mutate: (data: { name: string; role: string; percentage?: number }) => void; isPending: boolean };
+  editingCreditId: string | null;
+  setEditingCreditId: (id: string | null) => void;
+  updateCredit: { mutate: (args: { creditId: string; data: Partial<{ role: string; name: string; percentage: number | null }> }) => void; isPending: boolean };
+  deleteCredit: { mutate: (id: string) => void };
+}) {
+  const [copiedCredits, setCopiedCredits] = useState(false);
+
+  // Calculate total percentage
+  const totalPercentage = credits.reduce((sum, c) => sum + (c.percentage ?? 0), 0);
+  const hasPercentageError = credits.length > 0 && totalPercentage !== 100;
+
+  const handleCopyCredits = () => {
+    if (credits.length === 0) return;
+    
+    // Group credits by role
+    const groupedByRole: Record<string, string[]> = {};
+    sortCreditsByRole(credits).forEach((credit) => {
+      const role = credit.role || 'Otro';
+      if (!groupedByRole[role]) {
+        groupedByRole[role] = [];
+      }
+      groupedByRole[role].push(credit.name);
+    });
+    
+    // Format: "Rol: Name1 & Name2"
+    const formattedCredits = Object.entries(groupedByRole)
+      .map(([role, names]) => `${role}: ${names.join(' & ')}`)
+      .join('\n');
+    
+    navigator.clipboard.writeText(formattedCredits);
+    setCopiedCredits(true);
+    toast.success('Créditos copiados');
+    setTimeout(() => setCopiedCredits(false), 2000);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Label className="text-sm font-medium">Créditos y Autoría</Label>
+          {credits.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={handleCopyCredits}
+              title="Copiar créditos"
+            >
+              {copiedCredits ? (
+                <Check className="h-3.5 w-3.5 text-green-600" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          )}
+        </div>
+        <Dialog open={isAddCreditOpen} onOpenChange={setIsAddCreditOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              <UserPlus className="w-3 h-3 mr-1" />
+              Añadir Crédito
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Añadir Crédito</DialogTitle>
+            </DialogHeader>
+            <AddCreditForm
+              onSubmit={(data) => createCredit.mutate(data)}
+              isLoading={createCredit.isPending}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Percentage validation warning */}
+      {hasPercentageError && (
+        <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <span>
+            Los porcentajes suman {totalPercentage.toFixed(1)}% — deben sumar 100%
+          </span>
+        </div>
+      )}
+
+      {isLoading ? (
+        <Skeleton className="h-16 w-full" />
+      ) : credits.length > 0 ? (
+        <div className="space-y-2">
+          {sortCreditsByRole(credits).map((credit) => (
+            <CreditRow
+              key={credit.id}
+              credit={credit}
+              isEditing={editingCreditId === credit.id}
+              onStartEdit={() => setEditingCreditId(credit.id)}
+              onCancelEdit={() => setEditingCreditId(null)}
+              onSave={(data) => updateCredit.mutate({ creditId: credit.id, data })}
+              onDelete={() => deleteCredit.mutate(credit.id)}
+              isSaving={updateCredit.isPending}
+              hasPercentageError={hasPercentageError}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Sin créditos ni autorías registrados para esta canción.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -410,6 +505,7 @@ function CreditRow({
   onSave,
   onDelete,
   isSaving,
+  hasPercentageError = false,
 }: {
   credit: TrackCredit;
   isEditing: boolean;
@@ -418,6 +514,7 @@ function CreditRow({
   onSave: (data: Partial<{ role: string; name: string; percentage: number | null }>) => void;
   onDelete: () => void;
   isSaving: boolean;
+  hasPercentageError?: boolean;
 }) {
   const [editRole, setEditRole] = useState(credit.role);
   const [editName, setEditName] = useState(credit.name);
