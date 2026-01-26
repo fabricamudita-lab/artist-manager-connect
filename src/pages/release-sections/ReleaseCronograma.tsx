@@ -14,7 +14,9 @@ import {
   Mic2,
   List,
   GanttChart as GanttIcon,
-  ArrowLeft
+  ArrowLeft,
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,6 +46,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import AnchorDependencyDialog from '@/components/lanzamientos/AnchorDependencyDialog';
 import { ResponsibleSelector, type ResponsibleRef } from '@/components/releases/ResponsibleSelector';
+import CronogramaSetupWizard from '@/components/releases/CronogramaSetupWizard';
 import {
   Table,
   TableBody,
@@ -54,6 +57,12 @@ import {
 } from '@/components/ui/table';
 import GanttChart from '@/components/lanzamientos/GanttChart';
 import { useRelease } from '@/hooks/useReleases';
+import { 
+  generateTimelineFromConfig, 
+  groupTasksByWorkflow,
+  type ReleaseConfig,
+  type GeneratedTask 
+} from '@/lib/releaseTimelineTemplates';
 
 type TaskStatus = 'pendiente' | 'en_proceso' | 'completado' | 'retrasado';
 
@@ -83,88 +92,23 @@ const STATUS_OPTIONS: { value: TaskStatus; label: string; color: string }[] = [
   { value: 'retrasado', label: 'Retrasado', color: 'bg-red-500/20 text-red-600' },
 ];
 
-const INITIAL_WORKFLOWS: WorkflowSection[] = [
-  {
-    id: 'audio',
-    name: 'Flujo de Audio',
-    icon: Music,
-    color: 'border-l-blue-500',
-    tasks: [
-      { id: 'audio-1', name: 'Grabación', responsible: '', startDate: null, estimatedDays: 14, status: 'pendiente' },
-      { id: 'audio-2', name: 'Edición/Limpieza', responsible: '', startDate: null, estimatedDays: 7, status: 'pendiente' },
-      { id: 'audio-3', name: 'Mezcla', responsible: '', startDate: null, estimatedDays: 10, status: 'pendiente' },
-      { id: 'audio-4', name: 'Mastering', responsible: '', startDate: null, estimatedDays: 5, status: 'pendiente' },
-      { id: 'audio-5', name: 'Label Copy', responsible: '', startDate: null, estimatedDays: 2, status: 'pendiente' },
-      { id: 'audio-6', name: 'Registro Legal', responsible: '', startDate: null, estimatedDays: 3, status: 'pendiente' },
-    ],
-  },
-  {
-    id: 'visual',
-    name: 'Flujo Visual y Arte',
-    icon: Palette,
-    color: 'border-l-pink-500',
-    tasks: [
-      { id: 'visual-1', name: 'Planificación Fotos', responsible: '', startDate: null, estimatedDays: 5, status: 'pendiente' },
-      { id: 'visual-2', name: 'Shooting', responsible: '', startDate: null, estimatedDays: 2, status: 'pendiente' },
-      { id: 'visual-3', name: 'Diseño LP', responsible: '', startDate: null, estimatedDays: 10, status: 'pendiente' },
-      { id: 'visual-4', name: 'Diseño CD', responsible: '', startDate: null, estimatedDays: 7, status: 'pendiente' },
-      { id: 'visual-5', name: 'Fotos Oficiales', responsible: '', startDate: null, estimatedDays: 5, status: 'pendiente' },
-      { id: 'visual-6', name: 'Adaptación Digital', responsible: '', startDate: null, estimatedDays: 3, status: 'pendiente' },
-      { id: 'visual-7', name: 'Cartel Gira', responsible: '', startDate: null, estimatedDays: 5, status: 'pendiente' },
-      { id: 'visual-8', name: 'Web', responsible: '', startDate: null, estimatedDays: 7, status: 'pendiente' },
-    ],
-  },
-  {
-    id: 'fabricacion',
-    name: 'Flujo de Fabricación',
-    icon: Package,
-    color: 'border-l-yellow-500',
-    tasks: [
-      { id: 'fab-1', name: 'Envío a Fábrica', responsible: '', startDate: null, estimatedDays: 2, status: 'pendiente' },
-      { id: 'fab-2', name: 'Test Pressing', responsible: '', startDate: null, estimatedDays: 14, status: 'pendiente' },
-      { id: 'fab-3', name: 'Recepción Stock', responsible: '', startDate: null, estimatedDays: 21, status: 'pendiente' },
-    ],
-  },
-  {
-    id: 'contenido',
-    name: 'Flujo Contenido Promocional',
-    icon: Video,
-    color: 'border-l-purple-500',
-    tasks: [
-      { id: 'cont-1', name: 'Visualisers', responsible: '', startDate: null, estimatedDays: 7, status: 'pendiente' },
-      { id: 'cont-2', name: 'Clips Redes', responsible: '', startDate: null, estimatedDays: 5, status: 'pendiente' },
-      { id: 'cont-3', name: 'Making Of', responsible: '', startDate: null, estimatedDays: 10, status: 'pendiente' },
-      { id: 'cont-4', name: 'Entrevistas', responsible: '', startDate: null, estimatedDays: 3, status: 'pendiente' },
-    ],
-  },
-  {
-    id: 'marketing',
-    name: 'Marketing (Waterfall)',
-    icon: Megaphone,
-    color: 'border-l-orange-500',
-    tasks: [
-      { id: 'mkt-1', name: 'Single 1', responsible: '', startDate: null, estimatedDays: 14, status: 'pendiente' },
-      { id: 'mkt-2', name: 'Single 2', responsible: '', startDate: null, estimatedDays: 14, status: 'pendiente' },
-      { id: 'mkt-3', name: 'Single 3', responsible: '', startDate: null, estimatedDays: 14, status: 'pendiente' },
-      { id: 'mkt-4', name: 'Focus Track', responsible: '', startDate: null, estimatedDays: 7, status: 'pendiente' },
-      { id: 'mkt-5', name: 'Pre-Save', responsible: '', startDate: null, estimatedDays: 14, status: 'pendiente' },
-      { id: 'mkt-6', name: 'Salida Digital', responsible: '', startDate: null, estimatedDays: 1, status: 'pendiente' },
-      { id: 'mkt-7', name: 'Venta Física', responsible: '', startDate: null, estimatedDays: 1, status: 'pendiente' },
-    ],
-  },
-  {
-    id: 'directo',
-    name: 'Flujo de Directo',
-    icon: Mic2,
-    color: 'border-l-green-500',
-    tasks: [
-      { id: 'dir-1', name: 'Diseño Luces', responsible: '', startDate: null, estimatedDays: 14, status: 'pendiente' },
-      { id: 'dir-2', name: 'Ensayos Musicales', responsible: '', startDate: null, estimatedDays: 21, status: 'pendiente' },
-      { id: 'dir-3', name: 'Stage/Residencia', responsible: '', startDate: null, estimatedDays: 7, status: 'pendiente' },
-      { id: 'dir-4', name: 'Inicio Gira', responsible: '', startDate: null, estimatedDays: 1, status: 'pendiente' },
-    ],
-  },
-];
+const WORKFLOW_METADATA: Record<string, { name: string; icon: React.ElementType; color: string }> = {
+  audio: { name: 'Flujo de Audio', icon: Music, color: 'border-l-blue-500' },
+  visual: { name: 'Flujo Visual y Arte', icon: Palette, color: 'border-l-pink-500' },
+  fabricacion: { name: 'Flujo de Fabricación', icon: Package, color: 'border-l-yellow-500' },
+  contenido: { name: 'Flujo Contenido Promocional', icon: Video, color: 'border-l-purple-500' },
+  marketing: { name: 'Marketing (Waterfall)', icon: Megaphone, color: 'border-l-orange-500' },
+  directo: { name: 'Flujo de Directo', icon: Mic2, color: 'border-l-green-500' },
+};
+
+// Default empty workflows structure
+const EMPTY_WORKFLOWS: WorkflowSection[] = Object.entries(WORKFLOW_METADATA).map(([id, meta]) => ({
+  id,
+  name: meta.name,
+  icon: meta.icon,
+  color: meta.color,
+  tasks: [],
+}));
 
 type ViewMode = 'list' | 'gantt';
 
@@ -173,11 +117,13 @@ export default function ReleaseCronograma() {
   const navigate = useNavigate();
   const { data: release, isLoading } = useRelease(id);
   
-  const [workflows, setWorkflows] = useState<WorkflowSection[]>(INITIAL_WORKFLOWS);
+  const [workflows, setWorkflows] = useState<WorkflowSection[]>(EMPTY_WORKFLOWS);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(
-    Object.fromEntries(INITIAL_WORKFLOWS.map(w => [w.id, true]))
+    Object.fromEntries(Object.keys(WORKFLOW_METADATA).map(id => [id, true]))
   );
+  const [showWizard, setShowWizard] = useState(false);
+  const [hasGeneratedOnce, setHasGeneratedOnce] = useState(false);
   
   // Anchor dependency dialog state
   const [anchorDialogOpen, setAnchorDialogOpen] = useState(false);
@@ -190,6 +136,32 @@ export default function ReleaseCronograma() {
     daysDelta: number;
     dependentTasks: { id: string; name: string; workflowId: string; workflowName: string }[];
   } | null>(null);
+
+  // Check if timeline is empty (no tasks with dates)
+  const isTimelineEmpty = useMemo(() => {
+    const allTasks = workflows.flatMap(w => w.tasks);
+    return allTasks.length === 0 || allTasks.every(t => !t.startDate);
+  }, [workflows]);
+
+  // Handle wizard generation
+  const handleGenerateFromWizard = useCallback((config: ReleaseConfig) => {
+    const generatedTasks = generateTimelineFromConfig(config);
+    const groupedTasks = groupTasksByWorkflow(generatedTasks);
+
+    setWorkflows(prev => 
+      prev.map(workflow => {
+        const newTasks = groupedTasks[workflow.id] || [];
+        return {
+          ...workflow,
+          tasks: newTasks.map(t => ({
+            ...t,
+            responsible_ref: null,
+          })) as ReleaseTask[],
+        };
+      })
+    );
+    setHasGeneratedOnce(true);
+  }, []);
 
   // Get all tasks that are anchored to a given task
   const getDependentTasks = useCallback((sourceTaskId: string) => {
@@ -354,8 +326,58 @@ export default function ReleaseCronograma() {
     return addDays(startDate, days);
   };
 
+  // Filter workflows that have tasks
+  const workflowsWithTasks = useMemo(() => 
+    workflows.filter(w => w.tasks.length > 0),
+    [workflows]
+  );
+
   if (isLoading) {
     return <Skeleton className="h-64 w-full" />;
+  }
+
+  // Show empty state with wizard prompt
+  if (isTimelineEmpty && !hasGeneratedOnce) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate(`/releases/${id}`)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <p className="text-sm text-muted-foreground">{release?.title}</p>
+            <h1 className="text-2xl font-bold">Cronograma</h1>
+          </div>
+        </div>
+
+        {/* Empty State Card */}
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <Sparkles className="w-8 h-8 text-primary" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Configura tu cronograma</h3>
+            <p className="text-muted-foreground text-center max-w-md mb-6">
+              Responde algunas preguntas sobre tu lanzamiento y generaremos automáticamente 
+              un cronograma con fechas sugeridas basadas en estándares de la industria musical.
+            </p>
+            <Button onClick={() => setShowWizard(true)} size="lg">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Configurar Cronograma
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Wizard Dialog */}
+        <CronogramaSetupWizard
+          open={showWizard}
+          onOpenChange={setShowWizard}
+          onGenerate={handleGenerateFromWizard}
+          initialReleaseDate={release?.release_date ? new Date(release.release_date) : null}
+        />
+      </div>
+    );
   }
 
   return (
@@ -371,18 +393,24 @@ export default function ReleaseCronograma() {
             <h1 className="text-2xl font-bold">Cronograma</h1>
           </div>
         </div>
-        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
-          <TabsList>
-            <TabsTrigger value="list" className="gap-2">
-              <List className="w-4 h-4" />
-              Lista
-            </TabsTrigger>
-            <TabsTrigger value="gantt" className="gap-2">
-              <GanttIcon className="w-4 h-4" />
-              Cronograma
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowWizard(true)}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Regenerar fechas
+          </Button>
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+            <TabsList>
+              <TabsTrigger value="list" className="gap-2">
+                <List className="w-4 h-4" />
+                Lista
+              </TabsTrigger>
+              <TabsTrigger value="gantt" className="gap-2">
+                <GanttIcon className="w-4 h-4" />
+                Cronograma
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
 
       {/* Progress Card */}
@@ -408,7 +436,7 @@ export default function ReleaseCronograma() {
         <Card>
           <CardContent className="pt-6">
             <GanttChart 
-              workflows={workflows} 
+              workflows={workflowsWithTasks} 
               onUpdateTaskDate={handleTaskDateUpdate}
               onSetAnchor={(workflowId, taskId, anchoredTo) => {
                 updateTask(workflowId, taskId, { anchoredTo });
@@ -420,7 +448,7 @@ export default function ReleaseCronograma() {
       ) : (
         /* Workflow Sections - List View */
         <div className="space-y-4">
-        {workflows.map(workflow => {
+        {workflowsWithTasks.map(workflow => {
           const Icon = workflow.icon;
           const sectionCompleted = workflow.tasks.filter(t => t.status === 'completado').length;
           const sectionTotal = workflow.tasks.length;
@@ -547,7 +575,7 @@ export default function ReleaseCronograma() {
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="none">Sin ancla</SelectItem>
-                                    {workflows.flatMap(w => 
+                                    {workflowsWithTasks.flatMap(w => 
                                       w.tasks
                                         .filter(t => t.id !== task.id)
                                         .map(t => (
@@ -614,6 +642,14 @@ export default function ReleaseCronograma() {
         })}
         </div>
       )}
+
+      {/* Wizard Dialog */}
+      <CronogramaSetupWizard
+        open={showWizard}
+        onOpenChange={setShowWizard}
+        onGenerate={handleGenerateFromWizard}
+        initialReleaseDate={release?.release_date ? new Date(release.release_date) : null}
+      />
 
       {/* Anchor Dependency Dialog */}
       <AnchorDependencyDialog
