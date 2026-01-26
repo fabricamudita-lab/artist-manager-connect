@@ -43,6 +43,7 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import AnchorDependencyDialog from '@/components/lanzamientos/AnchorDependencyDialog';
+import { ResponsibleSelector, type ResponsibleRef } from '@/components/releases/ResponsibleSelector';
 import {
   Table,
   TableBody,
@@ -60,6 +61,7 @@ interface ReleaseTask {
   id: string;
   name: string;
   responsible: string;
+  responsible_ref?: ResponsibleRef | null;
   startDate: Date | null;
   estimatedDays: number;
   status: TaskStatus;
@@ -312,6 +314,7 @@ export default function ReleaseCronograma() {
       id: `${workflowId}-${Date.now()}`,
       name: 'Nueva tarea',
       responsible: '',
+      responsible_ref: null,
       startDate: null,
       estimatedDays: 7,
       status: 'pendiente',
@@ -475,11 +478,15 @@ export default function ReleaseCronograma() {
                                 />
                               </TableCell>
                               <TableCell>
-                                <Input
-                                  value={task.responsible}
-                                  onChange={e => updateTask(workflow.id, task.id, { responsible: e.target.value })}
+                                <ResponsibleSelector
+                                  value={task.responsible_ref ?? null}
+                                  onChange={(ref) =>
+                                    updateTask(workflow.id, task.id, {
+                                      responsible_ref: ref,
+                                      responsible: ref?.name || '',
+                                    })
+                                  }
                                   placeholder="Asignar..."
-                                  className="h-8 border-0 bg-transparent hover:bg-muted/50 focus:bg-muted"
                                 />
                               </TableCell>
                               <TableCell>
