@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format, addDays, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -56,7 +56,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import GanttChart from '@/components/lanzamientos/GanttChart';
-import { useRelease } from '@/hooks/useReleases';
+import { useRelease, useTracks, useReleaseMilestones, type ReleaseMilestone } from '@/hooks/useReleases';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   generateTimelineFromConfig, 
   groupTasksByWorkflow,
@@ -115,7 +118,10 @@ type ViewMode = 'list' | 'gantt';
 export default function ReleaseCronograma() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: release, isLoading } = useRelease(id);
+  const { data: tracks = [] } = useTracks(id);
+  const { data: savedMilestones = [], isLoading: loadingMilestones } = useReleaseMilestones(id);
   
   const [workflows, setWorkflows] = useState<WorkflowSection[]>(EMPTY_WORKFLOWS);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -123,7 +129,7 @@ export default function ReleaseCronograma() {
     Object.fromEntries(Object.keys(WORKFLOW_METADATA).map(id => [id, true]))
   );
   const [showWizard, setShowWizard] = useState(false);
-  const [hasGeneratedOnce, setHasGeneratedOnce] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Anchor dependency dialog state
   const [anchorDialogOpen, setAnchorDialogOpen] = useState(false);
@@ -137,31 +143,125 @@ export default function ReleaseCronograma() {
     dependentTasks: { id: string; name: string; workflowId: string; workflowName: string }[];
   } | null>(null);
 
+  // Number of songs - use tracks count or default to 1
+  const numSongs = useMemo(() => Math.max(tracks.length, 1), [tracks]);
+
+  // Load saved milestones into workflows on mount
+  useEffect(() => {
+    if (savedMilestones.length > 0) {
+      // Convert milestones to workflow tasks
+      const tasksByCategory: Record<string, ReleaseTask[]> = {};
+      
+      savedMilestones.forEach(m => {
+        const category = m.category || 'marketing';
+        if (!tasksByCategory[category]) {
+          tasksByCategory[category] = [];
+        }
+        
+        tasksByCategory[category].push({
+          id: m.id,
+          name: m.title,
+          responsible: m.responsible || '',
+          responsible_ref: null,
+          startDate: m.due_date ? new Date(m.due_date) : null,
+          estimatedDays: 7, // Default, could be stored in notes or metadata
+          status: (m.status === 'pending' ? 'pendiente' : 
+                   m.status === 'in_progress' ? 'en_proceso' :
+                   m.status === 'completed' ? 'completado' : 
+                   m.status === 'delayed' ? 'retrasado' : 'pendiente') as TaskStatus,
+          anchoredTo: m.is_anchor ? undefined : undefined, // Could store anchor info
+        });
+      });
+
+      setWorkflows(prev => 
+        prev.map(workflow => ({
+          ...workflow,
+          tasks: tasksByCategory[workflow.id] || [],
+        }))
+      );
+    }
+  }, [savedMilestones]);
+
   // Check if timeline is empty (no tasks with dates)
   const isTimelineEmpty = useMemo(() => {
     const allTasks = workflows.flatMap(w => w.tasks);
     return allTasks.length === 0 || allTasks.every(t => !t.startDate);
   }, [workflows]);
 
-  // Handle wizard generation
-  const handleGenerateFromWizard = useCallback((config: ReleaseConfig) => {
+  // Has milestones in DB
+  const hasSavedMilestones = savedMilestones.length > 0;
+
+  // Save milestones to database
+  const saveMilestonesToDB = useCallback(async (tasksToSave: { workflowId: string; tasks: ReleaseTask[] }[]) => {
+    if (!id) return;
+    
+    setIsSaving(true);
+    try {
+      // Delete existing milestones for this release
+      await supabase
+        .from('release_milestones')
+        .delete()
+        .eq('release_id', id);
+
+      // Prepare new milestones
+      const milestones = tasksToSave.flatMap(({ workflowId, tasks }) =>
+        tasks.map(task => ({
+          release_id: id,
+          title: task.name,
+          due_date: task.startDate ? format(task.startDate, 'yyyy-MM-dd') : null,
+          days_offset: null, // Could calculate from release date
+          is_anchor: !!task.anchoredTo,
+          status: task.status === 'pendiente' ? 'pending' :
+                  task.status === 'en_proceso' ? 'in_progress' :
+                  task.status === 'completado' ? 'completed' :
+                  task.status === 'retrasado' ? 'delayed' : 'pending',
+          category: workflowId,
+          responsible: task.responsible || null,
+          notes: null,
+        }))
+      );
+
+      if (milestones.length > 0) {
+        const { error } = await supabase
+          .from('release_milestones')
+          .insert(milestones);
+
+        if (error) throw error;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['release-milestones', id] });
+      toast.success('Cronograma guardado');
+    } catch (error) {
+      console.error('Error saving milestones:', error);
+      toast.error('Error al guardar el cronograma');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [id, queryClient]);
+
+  // Handle wizard generation and save to DB
+  const handleGenerateFromWizard = useCallback(async (config: ReleaseConfig) => {
     const generatedTasks = generateTimelineFromConfig(config);
     const groupedTasks = groupTasksByWorkflow(generatedTasks);
 
-    setWorkflows(prev => 
-      prev.map(workflow => {
-        const newTasks = groupedTasks[workflow.id] || [];
-        return {
-          ...workflow,
-          tasks: newTasks.map(t => ({
-            ...t,
-            responsible_ref: null,
-          })) as ReleaseTask[],
-        };
-      })
+    const newWorkflows = EMPTY_WORKFLOWS.map(workflow => {
+      const newTasks = groupedTasks[workflow.id] || [];
+      return {
+        ...workflow,
+        tasks: newTasks.map(t => ({
+          ...t,
+          responsible_ref: null,
+        })) as ReleaseTask[],
+      };
+    });
+
+    setWorkflows(newWorkflows);
+
+    // Save to database
+    await saveMilestonesToDB(
+      newWorkflows.map(w => ({ workflowId: w.id, tasks: w.tasks }))
     );
-    setHasGeneratedOnce(true);
-  }, []);
+  }, [saveMilestonesToDB]);
 
   // Get all tasks that are anchored to a given task
   const getDependentTasks = useCallback((sourceTaskId: string) => {
@@ -332,12 +432,12 @@ export default function ReleaseCronograma() {
     [workflows]
   );
 
-  if (isLoading) {
+  if (isLoading || loadingMilestones) {
     return <Skeleton className="h-64 w-full" />;
   }
 
-  // Show empty state with wizard prompt
-  if (isTimelineEmpty && !hasGeneratedOnce) {
+  // Show empty state with wizard prompt (only if no saved milestones)
+  if (isTimelineEmpty && !hasSavedMilestones) {
     return (
       <div className="space-y-6">
         {/* Header */}
@@ -375,6 +475,7 @@ export default function ReleaseCronograma() {
           onOpenChange={setShowWizard}
           onGenerate={handleGenerateFromWizard}
           initialReleaseDate={release?.release_date ? new Date(release.release_date) : null}
+          initialNumSongs={numSongs}
         />
       </div>
     );
@@ -649,6 +750,7 @@ export default function ReleaseCronograma() {
         onOpenChange={setShowWizard}
         onGenerate={handleGenerateFromWizard}
         initialReleaseDate={release?.release_date ? new Date(release.release_date) : null}
+        initialNumSongs={numSongs}
       />
 
       {/* Anchor Dependency Dialog */}

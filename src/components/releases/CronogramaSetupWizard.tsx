@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon, Music, Disc3, Video, Package, Sparkles } from 'lucide-react';
@@ -27,25 +27,38 @@ interface CronogramaSetupWizardProps {
   onOpenChange: (open: boolean) => void;
   onGenerate: (config: ReleaseConfig) => void;
   initialReleaseDate?: Date | null;
+  initialNumSongs?: number;
 }
 
 const SONG_OPTIONS = [1, 2, 3, 4, 5, '6+'] as const;
-const SINGLES_OPTIONS = [0, 1, 2, 3] as const;
 
 export default function CronogramaSetupWizard({
   open,
   onOpenChange,
   onGenerate,
   initialReleaseDate,
+  initialNumSongs = 1,
 }: CronogramaSetupWizardProps) {
   const [releaseDate, setReleaseDate] = useState<Date | undefined>(
     initialReleaseDate || undefined
   );
   const [physicalDate, setPhysicalDate] = useState<Date | undefined>(undefined);
-  const [numSongs, setNumSongs] = useState<number>(1);
+  const [numSongs, setNumSongs] = useState<number>(initialNumSongs);
   const [numSingles, setNumSingles] = useState<number>(0);
   const [hasVideo, setHasVideo] = useState(false);
   const [hasPhysical, setHasPhysical] = useState(false);
+
+  // Sync numSongs when initialNumSongs changes
+  useEffect(() => {
+    setNumSongs(initialNumSongs);
+    // Reset singles if they exceed new song count
+    if (numSingles >= initialNumSongs) {
+      setNumSingles(Math.max(0, initialNumSongs - 1));
+    }
+  }, [initialNumSongs]);
+
+  // Generate singles options dynamically based on number of songs (0 to numSongs - 1)
+  const singlesOptions = Array.from({ length: numSongs }, (_, i) => i);
 
   const handleGenerate = () => {
     if (!releaseDate) return;
@@ -178,8 +191,8 @@ export default function CronogramaSetupWizard({
               <Disc3 className="w-4 h-4 text-purple-500" />
               Singles a lanzar antes del álbum
             </Label>
-            <div className="flex gap-2">
-              {SINGLES_OPTIONS.map((option) => {
+            <div className="flex flex-wrap gap-2">
+              {singlesOptions.map((option) => {
                 const isSelected = numSingles === option;
                 return (
                   <Button
@@ -188,13 +201,18 @@ export default function CronogramaSetupWizard({
                     variant={isSelected ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setNumSingles(option)}
-                    className="flex-1"
+                    className="w-12"
                   >
                     {option}
                   </Button>
                 );
               })}
             </div>
+            {numSongs > 1 && (
+              <p className="text-xs text-muted-foreground">
+                Puedes lanzar hasta {numSongs - 1} singles antes del lanzamiento principal
+              </p>
+            )}
           </div>
 
           {/* Toggles */}
