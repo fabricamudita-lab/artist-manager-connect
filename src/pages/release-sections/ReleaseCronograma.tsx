@@ -486,6 +486,7 @@ export default function ReleaseCronograma() {
                                       responsible: ref?.name || '',
                                     })
                                   }
+                                  artistId={release?.artist_id}
                                   placeholder="Asignar..."
                                 />
                               </TableCell>
