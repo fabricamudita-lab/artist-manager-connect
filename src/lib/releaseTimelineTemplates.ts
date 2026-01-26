@@ -99,33 +99,52 @@ function taskApplies(template: TimelineTaskTemplate, config: ReleaseConfig): boo
 }
 
 /**
- * Adjusts single release dates dynamically based on number of singles.
- * Spaces them evenly before release.
+ * Generates dynamic single task templates based on the number of singles.
+ * Spaces them evenly before release (minimum 2 weeks apart).
+ */
+function generateSingleTasks(numSingles: number): TimelineTaskTemplate[] {
+  if (numSingles === 0) return [];
+
+  const tasks: TimelineTaskTemplate[] = [];
+  
+  // Space singles evenly, starting from -8 weeks and ending at -2 weeks before release
+  // Each single is at least 2 weeks apart
+  const startOffset = -56; // 8 weeks before
+  const endOffset = -14;   // 2 weeks before
+  const range = endOffset - startOffset;
+  const spacing = numSingles > 1 ? Math.floor(range / (numSingles - 1)) : 0;
+
+  for (let i = 0; i < numSingles; i++) {
+    const offset = numSingles === 1 
+      ? -42 // Single single: 6 weeks before
+      : startOffset + (i * spacing);
+    
+    tasks.push({
+      id: `mkt-single${i + 1}`,
+      workflowId: 'marketing',
+      name: `Single ${i + 1}`,
+      offsetDays: offset,
+      estimatedDays: 1,
+      condition: 'always', // These are dynamically generated, so always include
+    });
+  }
+
+  return tasks;
+}
+
+/**
+ * Adjusts templates to include dynamic single tasks.
  */
 function adjustSingleOffsets(templates: TimelineTaskTemplate[], numSingles: number): TimelineTaskTemplate[] {
-  if (numSingles === 0) return templates;
+  // Remove static single templates (single1, single2, single3)
+  const filteredTemplates = templates.filter(t => 
+    !['single1', 'single2', 'single3'].includes(t.condition)
+  );
 
-  // Default offsets for 1, 2, 3 singles (in weeks before release)
-  const singleOffsets: Record<number, number[]> = {
-    1: [-42],           // 6 weeks before
-    2: [-56, -28],      // 8 and 4 weeks before  
-    3: [-56, -42, -28], // 8, 6, and 4 weeks before
-  };
+  // Add dynamic single tasks
+  const singleTasks = generateSingleTasks(numSingles);
 
-  const offsets = singleOffsets[numSingles] || singleOffsets[3];
-
-  return templates.map(t => {
-    if (t.condition === 'single1' && offsets[0]) {
-      return { ...t, offsetDays: offsets[0] };
-    }
-    if (t.condition === 'single2' && offsets[1]) {
-      return { ...t, offsetDays: offsets[1] };
-    }
-    if (t.condition === 'single3' && offsets[2]) {
-      return { ...t, offsetDays: offsets[2] };
-    }
-    return t;
-  });
+  return [...filteredTemplates, ...singleTasks];
 }
 
 /**
