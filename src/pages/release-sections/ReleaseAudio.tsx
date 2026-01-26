@@ -2,13 +2,14 @@ import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Music, Play, Pause, Upload, Trash2, ChevronDown, FileAudio, FileText, Copy, Check, User } from 'lucide-react';
+import { ArrowLeft, Plus, Music, Play, Pause, Upload, Trash2, ChevronDown, FileAudio, FileText, Copy, Check, User, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRelease, useTracks, useTrackVersions, useTrackCredits, TrackVersion, Track } from '@/hooks/useReleases';
-import { usePublishingSplits, useMasterSplits, PUBLISHING_ROLES, MASTER_ROLES } from '@/hooks/useTrackRightsSplits';
+import { usePublishingSplits, useMasterSplits, useTrackRightsStats, PUBLISHING_ROLES, MASTER_ROLES } from '@/hooks/useTrackRightsSplits';
+import { TrackRightsSplitsManager } from '@/components/releases/TrackRightsSplitsManager';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -370,8 +371,7 @@ function TrackCreditsDialog({ track }: { track: Track }) {
   const [copiedLyrics, setCopiedLyrics] = useState(false);
   const [copiedCredits, setCopiedCredits] = useState(false);
   const { data: credits = [] } = useTrackCredits(track.id);
-  const { data: publishingSplits = [] } = usePublishingSplits(track.id);
-  const { data: masterSplits = [] } = useMasterSplits(track.id);
+  const stats = useTrackRightsStats(track.id);
 
   const handleCopyLyrics = () => {
     if (track.lyrics) {
@@ -406,12 +406,9 @@ function TrackCreditsDialog({ track }: { track: Track }) {
     setTimeout(() => setCopiedCredits(false), 2000);
   };
 
-  const getRoleLabel = (role: string, type: 'publishing' | 'master') => {
-    const roles = type === 'publishing' ? PUBLISHING_ROLES : MASTER_ROLES;
-    return roles.find(r => r.value === role)?.label || role;
-  };
-
-  const hasContent = track.lyrics || credits.length > 0 || publishingSplits.length > 0 || masterSplits.length > 0;
+  // Check if percentages are not 100% for error display
+  const publishingHasError = stats.publishingCount > 0 && !stats.publishingComplete;
+  const masterHasError = stats.masterCount > 0 && !stats.masterComplete;
 
   return (
     <Dialog>
@@ -434,24 +431,21 @@ function TrackCreditsDialog({ track }: { track: Track }) {
           </DialogTitle>
         </DialogHeader>
 
-        {!hasContent ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p>No hay créditos ni letra disponibles</p>
-          </div>
-        ) : (
-          <Tabs defaultValue={track.lyrics ? "lyrics" : "credits"} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="lyrics" disabled={!track.lyrics}>
-                Letra
-              </TabsTrigger>
-              <TabsTrigger value="credits" disabled={credits.length === 0}>
-                Créditos
-              </TabsTrigger>
-              <TabsTrigger value="splits" disabled={publishingSplits.length === 0 && masterSplits.length === 0}>
-                Derechos
-              </TabsTrigger>
-            </TabsList>
+        <Tabs defaultValue="splits" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="lyrics" disabled={!track.lyrics}>
+              Letra
+            </TabsTrigger>
+            <TabsTrigger value="credits" disabled={credits.length === 0}>
+              Créditos
+            </TabsTrigger>
+            <TabsTrigger value="splits" className="relative">
+              Derechos
+              {(publishingHasError || masterHasError) && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full" />
+              )}
+            </TabsTrigger>
+          </TabsList>
 
             {/* Lyrics Tab */}
             <TabsContent value="lyrics" className="mt-4">
@@ -546,79 +540,16 @@ function TrackCreditsDialog({ track }: { track: Track }) {
             {/* Splits Tab */}
             <TabsContent value="splits" className="mt-4">
               <ScrollArea className="h-[400px]">
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {/* Publishing Splits */}
-                  {publishingSplits.length > 0 && (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded bg-amber-500/10">
-                          <FileText className="h-4 w-4 text-amber-600" />
-                        </div>
-                        <h4 className="font-medium">Derechos de Autor</h4>
-                      </div>
-                      <div className="space-y-2">
-                        {publishingSplits.map((split) => (
-                          <div
-                            key={split.id}
-                            className="flex items-center gap-3 p-3 rounded-lg border bg-amber-500/5"
-                          >
-                            <div className="flex-1">
-                              <p className="font-medium text-sm">{split.name}</p>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Badge variant="outline" className="text-xs">
-                                  {getRoleLabel(split.role, 'publishing')}
-                                </Badge>
-                                {split.pro_name && <span>{split.pro_name}</span>}
-                              </div>
-                            </div>
-                            <Badge className="bg-amber-500">{split.percentage}%</Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
+                  <TrackRightsSplitsManager track={track} type="publishing" />
+                  
                   {/* Master Splits */}
-                  {masterSplits.length > 0 && (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded bg-blue-500/10">
-                          <Music className="h-4 w-4 text-blue-600" />
-                        </div>
-                        <h4 className="font-medium">Royalties Master</h4>
-                      </div>
-                      <div className="space-y-2">
-                        {masterSplits.map((split) => (
-                          <div
-                            key={split.id}
-                            className="flex items-center gap-3 p-3 rounded-lg border bg-blue-500/5"
-                          >
-                            <div className="flex-1">
-                              <p className="font-medium text-sm">{split.name}</p>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Badge variant="outline" className="text-xs">
-                                  {getRoleLabel(split.role, 'master')}
-                                </Badge>
-                                {split.label_name && <span>{split.label_name}</span>}
-                              </div>
-                            </div>
-                            <Badge className="bg-blue-500">{split.percentage}%</Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {publishingSplits.length === 0 && masterSplits.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <p>No hay derechos configurados</p>
-                    </div>
-                  )}
+                  <TrackRightsSplitsManager track={track} type="master" />
                 </div>
               </ScrollArea>
             </TabsContent>
           </Tabs>
-        )}
       </DialogContent>
     </Dialog>
   );
