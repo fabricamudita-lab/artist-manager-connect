@@ -37,6 +37,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -73,15 +79,21 @@ import {
 
 type TaskStatus = 'pendiente' | 'en_proceso' | 'completado' | 'retrasado';
 
+type SubtaskType = 'full' | 'checkbox';
+
 interface Subtask {
   id: string;
   name: string;
-  responsible: string;
+  type: SubtaskType;
+  // Full subtask fields
+  responsible?: string;
   responsible_ref?: ResponsibleRef | null;
-  startDate: Date | null;
-  estimatedDays: number;
-  status: TaskStatus;
+  startDate?: Date | null;
+  estimatedDays?: number;
+  status?: TaskStatus;
   anchoredTo?: string;
+  // Checkbox fields
+  completed?: boolean;
 }
 
 interface ReleaseTask {
@@ -443,11 +455,12 @@ export default function ReleaseCronograma() {
     );
   };
 
-  // Add a subtask to a task
+  // Add a full subtask to a task
   const addSubtask = (workflowId: string, taskId: string) => {
     const newSubtask: Subtask = {
       id: `subtask-${Date.now()}`,
       name: 'Nueva subtarea',
+      type: 'full',
       responsible: '',
       responsible_ref: null,
       startDate: null,
@@ -462,6 +475,30 @@ export default function ReleaseCronograma() {
               tasks: workflow.tasks.map(t =>
                 t.id === taskId
                   ? { ...t, subtasks: [...(t.subtasks || []), newSubtask], expanded: true }
+                  : t
+              ),
+            }
+          : workflow
+      )
+    );
+  };
+
+  // Add a checkbox item to a task
+  const addChecklistItem = (workflowId: string, taskId: string) => {
+    const newItem: Subtask = {
+      id: `checklist-${Date.now()}`,
+      name: 'Nuevo elemento',
+      type: 'checkbox',
+      completed: false,
+    };
+    setWorkflows(prev =>
+      prev.map(workflow =>
+        workflow.id === workflowId
+          ? {
+              ...workflow,
+              tasks: workflow.tasks.map(t =>
+                t.id === taskId
+                  ? { ...t, subtasks: [...(t.subtasks || []), newItem], expanded: true }
                   : t
               ),
             }
@@ -696,7 +733,9 @@ export default function ReleaseCronograma() {
                           const dueDate = getDueDate(task.startDate, task.estimatedDays);
                           const statusOption = STATUS_OPTIONS.find(s => s.value === task.status);
                           const hasSubtasks = (task.subtasks?.length || 0) > 0;
-                          const completedSubtasks = (task.subtasks || []).filter(st => st.status === 'completado').length;
+                          const completedSubtasks = (task.subtasks || []).filter(st => 
+                            st.type === 'checkbox' ? st.completed : st.status === 'completado'
+                          ).length;
                           const totalSubtasks = task.subtasks?.length || 0;
 
                           return (
@@ -838,15 +877,28 @@ export default function ReleaseCronograma() {
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex items-center gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7 text-muted-foreground hover:text-primary"
-                                      onClick={() => addSubtask(workflow.id, task.id)}
-                                      title="Añadir subtarea"
-                                    >
-                                      <ListTodo className="w-4 h-4" />
-                                    </Button>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-muted-foreground hover:text-primary"
+                                          title="Añadir subtarea"
+                                        >
+                                          <ListTodo className="w-4 h-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => addSubtask(workflow.id, task.id)}>
+                                          <ListTodo className="w-4 h-4 mr-2" />
+                                          Subtarea completa
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => addChecklistItem(workflow.id, task.id)}>
+                                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                                          Casilla de verificación
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
                                     <Button
                                       variant="ghost"
                                       size="icon"
@@ -860,6 +912,49 @@ export default function ReleaseCronograma() {
                               </TableRow>
                               {/* Subtasks rows */}
                               {task.expanded && (task.subtasks || []).map(subtask => {
+                                // Checkbox type - simple row
+                                if (subtask.type === 'checkbox') {
+                                  return (
+                                    <TableRow key={subtask.id} className="bg-muted/30">
+                                      <TableCell colSpan={5}>
+                                        <div className="flex items-center gap-2 pl-8">
+                                          <button
+                                            onClick={() => updateSubtask(workflow.id, task.id, subtask.id, { 
+                                              completed: !subtask.completed 
+                                            })}
+                                            className="shrink-0"
+                                          >
+                                            {subtask.completed ? (
+                                              <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                            ) : (
+                                              <Circle className="w-4 h-4 text-muted-foreground" />
+                                            )}
+                                          </button>
+                                          <Input
+                                            value={subtask.name}
+                                            onChange={e => updateSubtask(workflow.id, task.id, subtask.id, { name: e.target.value })}
+                                            className={cn(
+                                              'h-7 border-0 bg-transparent hover:bg-muted/50 focus:bg-muted text-sm flex-1',
+                                              subtask.completed && 'line-through text-muted-foreground'
+                                            )}
+                                          />
+                                        </div>
+                                      </TableCell>
+                                      <TableCell>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                          onClick={() => deleteSubtask(workflow.id, task.id, subtask.id)}
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                }
+
+                                // Full subtask type - complete row with all fields
                                 const subtaskDueDate = getDueDate(subtask.startDate, subtask.estimatedDays);
                                 const subtaskStatusOption = STATUS_OPTIONS.find(s => s.value === subtask.status);
                                 
@@ -1000,15 +1095,28 @@ export default function ReleaseCronograma() {
                               {task.expanded && (
                                 <TableRow className="bg-muted/20 hover:bg-muted/30">
                                   <TableCell colSpan={6}>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 text-xs text-muted-foreground ml-8"
-                                      onClick={() => addSubtask(workflow.id, task.id)}
-                                    >
-                                      <Plus className="w-3 h-3 mr-1" />
-                                      Añadir subtarea
-                                    </Button>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 text-xs text-muted-foreground ml-8"
+                                        >
+                                          <Plus className="w-3 h-3 mr-1" />
+                                          Añadir elemento
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="start">
+                                        <DropdownMenuItem onClick={() => addSubtask(workflow.id, task.id)}>
+                                          <ListTodo className="w-4 h-4 mr-2" />
+                                          Subtarea completa
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => addChecklistItem(workflow.id, task.id)}>
+                                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                                          Casilla de verificación
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
                                   </TableCell>
                                 </TableRow>
                               )}
