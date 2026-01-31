@@ -23,7 +23,11 @@ import {
   ListTodo,
   Calendar as CalendarIcon,
   Bell,
-  StickyNote
+  StickyNote,
+  MessageCircle,
+  CheckCheck,
+  Send,
+  AtSign
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -96,7 +100,15 @@ import {
 
 type TaskStatus = 'pendiente' | 'en_proceso' | 'completado' | 'retrasado';
 
-type SubtaskType = 'full' | 'checkbox' | 'note';
+type SubtaskType = 'full' | 'checkbox' | 'note' | 'comment';
+
+interface CommentMessage {
+  id: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  createdAt: Date;
+}
 
 interface Subtask {
   id: string;
@@ -114,8 +126,12 @@ interface Subtask {
   anchoredTo?: string;
   // Checkbox fields
   completed?: boolean;
-  // Note fields
+  // Note fields (directed to a specific person)
   content?: string;
+  directedTo?: ResponsibleRef | null;
+  // Comment thread fields
+  thread?: CommentMessage[];
+  resolved?: boolean;
 }
 
 interface ReleaseTask {
@@ -580,13 +596,14 @@ export default function ReleaseCronograma() {
     );
   };
 
-  // Add a note/comment to a task
+  // Add a note (directed to a team member)
   const addNote = (workflowId: string, taskId: string) => {
     const newNote: Subtask = {
       id: `note-${Date.now()}`,
       name: '',
       type: 'note',
       content: '',
+      directedTo: null,
     };
     setWorkflows(prev =>
       prev.map(workflow =>
@@ -596,6 +613,31 @@ export default function ReleaseCronograma() {
               tasks: workflow.tasks.map(t =>
                 t.id === taskId
                   ? { ...t, subtasks: [...(t.subtasks || []), newNote], expanded: true }
+                  : t
+              ),
+            }
+          : workflow
+      )
+    );
+  };
+
+  // Add a comment thread
+  const addComment = (workflowId: string, taskId: string) => {
+    const newComment: Subtask = {
+      id: `comment-${Date.now()}`,
+      name: '',
+      type: 'comment',
+      thread: [],
+      resolved: false,
+    };
+    setWorkflows(prev =>
+      prev.map(workflow =>
+        workflow.id === workflowId
+          ? {
+              ...workflow,
+              tasks: workflow.tasks.map(t =>
+                t.id === taskId
+                  ? { ...t, subtasks: [...(t.subtasks || []), newComment], expanded: true }
                   : t
               ),
             }
@@ -969,7 +1011,11 @@ export default function ReleaseCronograma() {
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => addNote(workflow.id, task.id)}>
                                           <StickyNote className="w-4 h-4 mr-2" />
-                                          Nota / Comentario
+                                          Nota (para un miembro)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => addComment(workflow.id, task.id)}>
+                                          <MessageCircle className="w-4 h-4 mr-2" />
+                                          Comentario (hilo)
                                         </DropdownMenuItem>
                                       </DropdownMenuContent>
                                     </DropdownMenu>
@@ -986,19 +1032,140 @@ export default function ReleaseCronograma() {
                               </TableRow>
                               {/* Subtasks rows */}
                               {task.expanded && (task.subtasks || []).map(subtask => {
-                                // Note type - simple text area for comments
+                                // Note type - directed to a specific team member
                                 if (subtask.type === 'note') {
                                   return (
                                     <TableRow key={subtask.id} className="bg-amber-50/50 dark:bg-amber-950/20">
                                       <TableCell colSpan={5}>
-                                        <div className="flex items-start gap-2 pl-8">
-                                          <StickyNote className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-2 shrink-0" />
+                                        <div className="flex flex-col gap-2 pl-8">
+                                          <div className="flex items-center gap-2">
+                                            <StickyNote className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                                            <span className="text-xs text-muted-foreground">Nota para:</span>
+                                            <ResponsibleSelector
+                                              artistId={release?.artist_id || null}
+                                              value={subtask.directedTo || null}
+                                              onChange={(ref) => updateSubtask(workflow.id, task.id, subtask.id, { directedTo: ref })}
+                                              placeholder="Seleccionar destinatario"
+                                            />
+                                          </div>
                                           <Textarea
                                             value={subtask.content || ''}
                                             onChange={e => updateSubtask(workflow.id, task.id, subtask.id, { content: e.target.value })}
-                                            placeholder="Escribe una nota o comentario..."
-                                            className="min-h-[60px] border-0 bg-transparent hover:bg-muted/50 focus:bg-muted text-sm flex-1 resize-none"
+                                            placeholder="Escribe una nota para este miembro del equipo..."
+                                            className="min-h-[50px] border-0 bg-transparent hover:bg-muted/50 focus:bg-muted text-sm flex-1 resize-none ml-6"
                                           />
+                                        </div>
+                                      </TableCell>
+                                      <TableCell>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                          onClick={() => deleteSubtask(workflow.id, task.id, subtask.id)}
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                }
+
+                                // Comment thread type - discussion with multiple replies
+                                if (subtask.type === 'comment') {
+                                  return (
+                                    <TableRow key={subtask.id} className={cn(
+                                      "border-l-2",
+                                      subtask.resolved 
+                                        ? "bg-green-50/50 dark:bg-green-950/20 border-l-green-500" 
+                                        : "bg-blue-50/50 dark:bg-blue-950/20 border-l-blue-500"
+                                    )}>
+                                      <TableCell colSpan={5}>
+                                        <div className="flex flex-col gap-2 pl-8">
+                                          <div className="flex items-center gap-2">
+                                            <MessageCircle className={cn(
+                                              "w-4 h-4 shrink-0",
+                                              subtask.resolved ? "text-green-600" : "text-blue-600"
+                                            )} />
+                                            <span className="text-xs font-medium">
+                                              Hilo de comentarios
+                                              {subtask.thread && subtask.thread.length > 0 && (
+                                                <Badge variant="secondary" className="ml-2 text-xs">
+                                                  {subtask.thread.length} {subtask.thread.length === 1 ? 'mensaje' : 'mensajes'}
+                                                </Badge>
+                                              )}
+                                            </span>
+                                            {subtask.resolved && (
+                                              <Badge variant="outline" className="text-green-600 border-green-300 text-xs gap-1">
+                                                <CheckCheck className="w-3 h-3" />
+                                                Resuelto
+                                              </Badge>
+                                            )}
+                                          </div>
+                                          
+                                          {/* Thread messages */}
+                                          {subtask.thread && subtask.thread.length > 0 && (
+                                            <div className="ml-6 space-y-2 border-l-2 border-muted pl-3">
+                                              {subtask.thread.map(msg => (
+                                                <div key={msg.id} className="text-sm">
+                                                  <span className="font-medium text-xs">{msg.authorName}</span>
+                                                  <span className="text-xs text-muted-foreground ml-2">
+                                                    {format(new Date(msg.createdAt), 'd MMM HH:mm', { locale: es })}
+                                                  </span>
+                                                  <p className="text-sm mt-0.5">{msg.content}</p>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                          
+                                          {/* Add new message input */}
+                                          {!subtask.resolved && (
+                                            <div className="ml-6 flex gap-2 items-end">
+                                              <Input
+                                                placeholder="Escribe un comentario..."
+                                                className="flex-1 h-8 text-sm"
+                                                onKeyDown={(e) => {
+                                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    const input = e.target as HTMLInputElement;
+                                                    if (input.value.trim()) {
+                                                      const newMessage: CommentMessage = {
+                                                        id: `msg-${Date.now()}`,
+                                                        authorId: 'current-user',
+                                                        authorName: 'Tú',
+                                                        content: input.value.trim(),
+                                                        createdAt: new Date(),
+                                                      };
+                                                      updateSubtask(workflow.id, task.id, subtask.id, {
+                                                        thread: [...(subtask.thread || []), newMessage],
+                                                      });
+                                                      input.value = '';
+                                                    }
+                                                  }
+                                                }}
+                                              />
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                onClick={() => updateSubtask(workflow.id, task.id, subtask.id, { resolved: true })}
+                                              >
+                                                <CheckCheck className="w-4 h-4 mr-1" />
+                                                Resolver
+                                              </Button>
+                                            </div>
+                                          )}
+                                          
+                                          {/* Reopen if resolved */}
+                                          {subtask.resolved && (
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="ml-6 w-fit h-7 text-xs text-muted-foreground"
+                                              onClick={() => updateSubtask(workflow.id, task.id, subtask.id, { resolved: false })}
+                                            >
+                                              Reabrir hilo
+                                            </Button>
+                                          )}
                                         </div>
                                       </TableCell>
                                       <TableCell>
@@ -1309,7 +1476,11 @@ export default function ReleaseCronograma() {
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => addNote(workflow.id, task.id)}>
                                           <StickyNote className="w-4 h-4 mr-2" />
-                                          Nota / Comentario
+                                          Nota (para un miembro)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => addComment(workflow.id, task.id)}>
+                                          <MessageCircle className="w-4 h-4 mr-2" />
+                                          Comentario (hilo)
                                         </DropdownMenuItem>
                                       </DropdownMenuContent>
                                     </DropdownMenu>
