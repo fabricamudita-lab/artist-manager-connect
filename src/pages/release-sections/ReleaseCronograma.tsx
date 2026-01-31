@@ -683,13 +683,11 @@ export default function ReleaseCronograma() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[180px]">Tarea</TableHead>
-                          <TableHead className="w-[130px]">Responsable</TableHead>
-                          <TableHead className="w-[130px]">Fecha Inicio</TableHead>
-                          <TableHead className="w-[80px]">Días</TableHead>
-                          <TableHead className="w-[130px]">Vencimiento</TableHead>
-                          <TableHead className="w-[150px]">Anclada a</TableHead>
-                          <TableHead className="w-[130px]">Estado</TableHead>
+                          <TableHead className="w-[200px]">Tarea</TableHead>
+                          <TableHead className="w-[120px]">Responsable</TableHead>
+                          <TableHead className="w-[180px]">Fechas</TableHead>
+                          <TableHead className="w-[130px]">Anclada a</TableHead>
+                          <TableHead className="w-[110px]">Estado</TableHead>
                           <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -754,9 +752,15 @@ export default function ReleaseCronograma() {
                                           !task.startDate && 'text-muted-foreground'
                                         )}
                                       >
-                                        {task.startDate
-                                          ? format(task.startDate, 'dd MMM yyyy', { locale: es })
-                                          : 'Seleccionar'}
+                                        {task.startDate && dueDate ? (
+                                          <span className="text-xs">
+                                            {format(task.startDate, 'dd MMM', { locale: es })} → {format(dueDate, 'dd MMM yyyy', { locale: es })}
+                                          </span>
+                                        ) : task.startDate ? (
+                                          <span className="text-xs">{format(task.startDate, 'dd MMM yyyy', { locale: es })}</span>
+                                        ) : (
+                                          'Seleccionar fechas'
+                                        )}
                                       </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0" align="start">
@@ -775,51 +779,6 @@ export default function ReleaseCronograma() {
                                             });
                                           }
                                         }}
-                                        initialFocus
-                                        className="pointer-events-auto"
-                                      />
-                                    </PopoverContent>
-                                  </Popover>
-                                </TableCell>
-                                <TableCell>
-                                  <Input
-                                    type="number"
-                                    value={task.estimatedDays}
-                                    onChange={e => updateTask(workflow.id, task.id, { estimatedDays: parseInt(e.target.value) || 0 })}
-                                    className="h-8 w-16 border-0 bg-transparent hover:bg-muted/50 focus:bg-muted text-center"
-                                    min={1}
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className={cn(
-                                          'h-8 w-full justify-start text-left font-normal',
-                                          !dueDate && 'text-muted-foreground'
-                                        )}
-                                      >
-                                        {dueDate
-                                          ? format(dueDate, 'dd MMM yyyy', { locale: es })
-                                          : '—'}
-                                      </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                      <Calendar
-                                        mode="single"
-                                        selected={dueDate || undefined}
-                                        defaultMonth={dueDate || task.startDate || undefined}
-                                        onSelect={date => {
-                                          if (date && task.startDate) {
-                                            const newDays = differenceInDays(date, task.startDate);
-                                            if (newDays > 0) {
-                                              updateTask(workflow.id, task.id, { estimatedDays: newDays });
-                                            }
-                                          }
-                                        }}
-                                        disabled={(date) => task.startDate ? date <= task.startDate : false}
                                         initialFocus
                                         className="pointer-events-auto"
                                       />
@@ -954,18 +913,31 @@ export default function ReleaseCronograma() {
                                               !subtask.startDate && 'text-muted-foreground'
                                             )}
                                           >
-                                            {subtask.startDate
-                                              ? format(subtask.startDate, 'dd MMM yyyy', { locale: es })
-                                              : 'Seleccionar'}
+                                            {subtask.startDate && subtaskDueDate ? (
+                                              <span className="text-xs">
+                                                {format(subtask.startDate, 'dd MMM', { locale: es })} → {format(subtaskDueDate, 'dd MMM', { locale: es })}
+                                              </span>
+                                            ) : subtask.startDate ? (
+                                              <span className="text-xs">{format(subtask.startDate, 'dd MMM', { locale: es })}</span>
+                                            ) : (
+                                              'Seleccionar'
+                                            )}
                                           </Button>
                                         </PopoverTrigger>
                                         <PopoverContent className="w-auto p-0" align="start">
                                           <Calendar
-                                            mode="single"
-                                            selected={subtask.startDate || undefined}
-                                            onSelect={(date) => {
-                                              if (date) {
-                                                updateSubtask(workflow.id, task.id, subtask.id, { startDate: date });
+                                            mode="range"
+                                            selected={subtask.startDate && subtaskDueDate ? { from: subtask.startDate, to: subtaskDueDate } : undefined}
+                                            defaultMonth={subtask.startDate || undefined}
+                                            onSelect={(range) => {
+                                              if (range?.from) {
+                                                const newStart = range.from;
+                                                const newEnd = range.to || range.from;
+                                                const newDays = Math.max(1, differenceInDays(newEnd, newStart));
+                                                updateSubtask(workflow.id, task.id, subtask.id, { 
+                                                  startDate: newStart, 
+                                                  estimatedDays: newDays 
+                                                });
                                               }
                                             }}
                                             initialFocus
@@ -973,22 +945,6 @@ export default function ReleaseCronograma() {
                                           />
                                         </PopoverContent>
                                       </Popover>
-                                    </TableCell>
-                                    <TableCell>
-                                      <Input
-                                        type="number"
-                                        value={subtask.estimatedDays}
-                                        onChange={e => updateSubtask(workflow.id, task.id, subtask.id, { estimatedDays: parseInt(e.target.value) || 0 })}
-                                        className="h-7 w-14 border-0 bg-transparent hover:bg-muted/50 focus:bg-muted text-center text-xs"
-                                        min={1}
-                                      />
-                                    </TableCell>
-                                    <TableCell>
-                                      <span className="text-xs text-muted-foreground">
-                                        {subtaskDueDate
-                                          ? format(subtaskDueDate, 'dd MMM yyyy', { locale: es })
-                                          : '—'}
-                                      </span>
                                     </TableCell>
                                     <TableCell>
                                       <Select
@@ -1057,7 +1013,7 @@ export default function ReleaseCronograma() {
                               {/* Add subtask inline button when expanded */}
                               {task.expanded && (
                                 <TableRow className="bg-muted/20 hover:bg-muted/30">
-                                  <TableCell colSpan={8}>
+                                  <TableCell colSpan={6}>
                                     <Button
                                       variant="ghost"
                                       size="sm"
