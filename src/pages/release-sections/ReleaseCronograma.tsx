@@ -90,6 +90,8 @@ interface Subtask {
   responsible_ref?: ResponsibleRef | null;
   startDate?: Date | null;
   estimatedDays?: number;
+  // Checkbox fields
+  dueDate?: Date | null;
   status?: TaskStatus;
   anchoredTo?: string;
   // Checkbox fields
@@ -912,11 +914,12 @@ export default function ReleaseCronograma() {
                               </TableRow>
                               {/* Subtasks rows */}
                               {task.expanded && (task.subtasks || []).map(subtask => {
-                                // Checkbox type - simple row
+                                // Checkbox type - simple row with optional due date
                                 if (subtask.type === 'checkbox') {
+                                  const isOverdue = subtask.dueDate && !subtask.completed && new Date() > subtask.dueDate;
                                   return (
                                     <TableRow key={subtask.id} className="bg-muted/30">
-                                      <TableCell colSpan={5}>
+                                      <TableCell colSpan={4}>
                                         <div className="flex items-center gap-2 pl-8">
                                           <button
                                             onClick={() => updateSubtask(workflow.id, task.id, subtask.id, { 
@@ -939,6 +942,39 @@ export default function ReleaseCronograma() {
                                             )}
                                           />
                                         </div>
+                                      </TableCell>
+                                      <TableCell>
+                                        <Popover>
+                                          <PopoverTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className={cn(
+                                                'h-7 text-xs font-normal',
+                                                !subtask.dueDate && 'text-muted-foreground',
+                                                isOverdue && 'text-destructive'
+                                              )}
+                                            >
+                                              {subtask.dueDate ? (
+                                                <span className={cn(isOverdue && 'text-destructive')}>
+                                                  {format(subtask.dueDate, 'dd MMM', { locale: es })}
+                                                </span>
+                                              ) : (
+                                                'Sin fecha'
+                                              )}
+                                            </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar
+                                              mode="single"
+                                              selected={subtask.dueDate || undefined}
+                                              defaultMonth={subtask.dueDate || undefined}
+                                              onSelect={(date) => updateSubtask(workflow.id, task.id, subtask.id, { dueDate: date })}
+                                              initialFocus
+                                              className="pointer-events-auto"
+                                            />
+                                          </PopoverContent>
+                                        </Popover>
                                       </TableCell>
                                       <TableCell>
                                         <Button
