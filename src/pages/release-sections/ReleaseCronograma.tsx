@@ -59,6 +59,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import AnchorDependencyDialog from '@/components/lanzamientos/AnchorDependencyDialog';
 import MultiAnchorSelector from '@/components/lanzamientos/MultiAnchorSelector';
+import TaskDatePopover from '@/components/lanzamientos/TaskDatePopover';
 import { ResponsibleSelector, type ResponsibleRef } from '@/components/releases/ResponsibleSelector';
 import CronogramaSetupWizard from '@/components/releases/CronogramaSetupWizard';
 import {
@@ -850,48 +851,36 @@ export default function ReleaseCronograma() {
                                   />
                                 </TableCell>
                                 <TableCell className="py-1">
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className={cn(
-                                          'h-8 px-2 justify-start text-left font-normal text-xs',
-                                          !task.startDate && 'text-muted-foreground'
-                                        )}
-                                      >
-                                        {task.startDate && dueDate ? (
-                                          <span className="whitespace-nowrap">
-                                            {format(task.startDate, 'd MMM', { locale: es })} → {format(dueDate, 'd MMM', { locale: es })}
-                                          </span>
-                                        ) : task.startDate ? (
-                                          <span>{format(task.startDate, 'd MMM yy', { locale: es })}</span>
-                                        ) : (
-                                          'Fechas'
-                                        )}
-                                      </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                      <Calendar
-                                        mode="range"
-                                        selected={task.startDate && dueDate ? { from: task.startDate, to: dueDate } : undefined}
-                                        defaultMonth={task.startDate || undefined}
-                                        onSelect={(range) => {
-                                          if (range?.from) {
-                                            const newStart = range.from;
-                                            const newEnd = range.to || range.from;
-                                            const newDays = Math.max(1, differenceInDays(newEnd, newStart));
-                                            updateTask(workflow.id, task.id, { 
-                                              startDate: newStart, 
-                                              estimatedDays: newDays 
-                                            });
-                                          }
-                                        }}
-                                        initialFocus
-                                        className="pointer-events-auto"
-                                      />
-                                    </PopoverContent>
-                                  </Popover>
+                                  <TaskDatePopover
+                                    startDate={task.startDate}
+                                    dueDate={dueDate}
+                                    placeholder="Fechas"
+                                    triggerClassName={cn(
+                                      'h-8 px-2 justify-start text-left font-normal text-xs',
+                                      !task.startDate && 'text-muted-foreground'
+                                    )}
+                                    onStartSelect={(date) => {
+                                      if (!date) return;
+                                      const newDays = dueDate
+                                        ? Math.max(1, differenceInDays(dueDate, date))
+                                        : Math.max(1, task.estimatedDays || 1);
+                                      handleTaskDateUpdate(workflow.id, task.id, date, newDays);
+                                    }}
+                                    onEndSelect={(date) => {
+                                      if (!date) return;
+                                      if (!task.startDate) {
+                                        handleTaskDateUpdate(
+                                          workflow.id,
+                                          task.id,
+                                          date,
+                                          Math.max(1, task.estimatedDays || 1)
+                                        );
+                                        return;
+                                      }
+                                      const newDays = Math.max(1, differenceInDays(date, task.startDate));
+                                      handleTaskDateUpdate(workflow.id, task.id, task.startDate, newDays);
+                                    }}
+                                  />
                                 </TableCell>
                                 <TableCell className="py-1">
                                   <MultiAnchorSelector
@@ -1125,48 +1114,40 @@ export default function ReleaseCronograma() {
                                       />
                                     </TableCell>
                                     <TableCell>
-                                      <Popover>
-                                        <PopoverTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className={cn(
-                                              'h-7 w-full justify-start text-left font-normal text-xs',
-                                              !subtask.startDate && 'text-muted-foreground'
-                                            )}
-                                          >
-                                            {subtask.startDate && subtaskDueDate ? (
-                                              <span className="text-xs">
-                                                {format(subtask.startDate, 'dd MMM', { locale: es })} → {format(subtaskDueDate, 'dd MMM', { locale: es })}
-                                              </span>
-                                            ) : subtask.startDate ? (
-                                              <span className="text-xs">{format(subtask.startDate, 'dd MMM', { locale: es })}</span>
-                                            ) : (
-                                              'Seleccionar'
-                                            )}
-                                          </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                          <Calendar
-                                            mode="range"
-                                            selected={subtask.startDate && subtaskDueDate ? { from: subtask.startDate, to: subtaskDueDate } : undefined}
-                                            defaultMonth={subtask.startDate || undefined}
-                                            onSelect={(range) => {
-                                              if (range?.from) {
-                                                const newStart = range.from;
-                                                const newEnd = range.to || range.from;
-                                                const newDays = Math.max(1, differenceInDays(newEnd, newStart));
-                                                updateSubtask(workflow.id, task.id, subtask.id, { 
-                                                  startDate: newStart, 
-                                                  estimatedDays: newDays 
-                                                });
-                                              }
-                                            }}
-                                            initialFocus
-                                            className="pointer-events-auto"
-                                          />
-                                        </PopoverContent>
-                                      </Popover>
+                                      <TaskDatePopover
+                                        startDate={subtask.startDate ?? null}
+                                        dueDate={subtaskDueDate}
+                                        placeholder="Seleccionar"
+                                        triggerClassName={cn(
+                                          'h-7 w-full justify-start text-left font-normal text-xs',
+                                          !subtask.startDate && 'text-muted-foreground'
+                                        )}
+                                        onStartSelect={(date) => {
+                                          if (!date) return;
+                                          const newDays = subtaskDueDate
+                                            ? Math.max(1, differenceInDays(subtaskDueDate, date))
+                                            : Math.max(1, subtask.estimatedDays || 1);
+                                          updateSubtask(workflow.id, task.id, subtask.id, {
+                                            startDate: date,
+                                            estimatedDays: newDays,
+                                          });
+                                        }}
+                                        onEndSelect={(date) => {
+                                          if (!date) return;
+                                          if (!subtask.startDate) {
+                                            updateSubtask(workflow.id, task.id, subtask.id, {
+                                              startDate: date,
+                                              estimatedDays: Math.max(1, subtask.estimatedDays || 1),
+                                            });
+                                            return;
+                                          }
+                                          const newDays = Math.max(1, differenceInDays(date, subtask.startDate));
+                                          updateSubtask(workflow.id, task.id, subtask.id, {
+                                            startDate: subtask.startDate,
+                                            estimatedDays: newDays,
+                                          });
+                                        }}
+                                      />
                                     </TableCell>
                                     <TableCell>
                                       <Select
