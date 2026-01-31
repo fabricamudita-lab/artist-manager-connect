@@ -637,10 +637,20 @@ export default function ReleaseCronograma() {
                                   </PopoverTrigger>
                                   <PopoverContent className="w-auto p-0" align="start">
                                     <Calendar
-                                      mode="single"
-                                      selected={task.startDate || undefined}
+                                      mode="range"
+                                      selected={task.startDate && dueDate ? { from: task.startDate, to: dueDate } : undefined}
                                       defaultMonth={task.startDate || undefined}
-                                      onSelect={date => updateTask(workflow.id, task.id, { startDate: date || null })}
+                                      onSelect={(range) => {
+                                        if (range?.from) {
+                                          const newStart = range.from;
+                                          const newEnd = range.to || range.from;
+                                          const newDays = Math.max(1, differenceInDays(newEnd, newStart));
+                                          updateTask(workflow.id, task.id, { 
+                                            startDate: newStart, 
+                                            estimatedDays: newDays 
+                                          });
+                                        }
+                                      }}
                                       initialFocus
                                       className="pointer-events-auto"
                                     />
