@@ -28,6 +28,7 @@ interface ResponsibleSelectorProps {
   artistId?: string | null; // Filter contacts/profiles linked to this artist
   placeholder?: string;
   className?: string;
+  compact?: boolean; // Show icon only when no value
 }
 
 export function ResponsibleSelector({
@@ -36,6 +37,7 @@ export function ResponsibleSelector({
   artistId,
   placeholder = "Asignar...",
   className,
+  compact = false,
 }: ResponsibleSelectorProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -175,16 +177,19 @@ export function ResponsibleSelector({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "h-8 w-full justify-between border-0 bg-transparent px-2 font-normal hover:bg-muted/50 focus:bg-muted",
+            "h-7 justify-between border-0 bg-transparent px-2 font-normal hover:bg-muted/50 focus:bg-muted text-xs",
+            compact ? "w-auto min-w-0" : "w-full",
             !value && "text-muted-foreground",
             className
           )}
         >
-          <span className="truncate flex items-center gap-2">
+          <span className="truncate flex items-center gap-1.5">
             <User className="h-3 w-3 shrink-0 text-muted-foreground" />
-            {value?.name || placeholder}
+            {compact && !value ? null : (
+              <span className="truncate max-w-[70px]">{value?.name || placeholder}</span>
+            )}
           </span>
-          <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="start">

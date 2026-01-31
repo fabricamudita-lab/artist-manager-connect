@@ -774,12 +774,12 @@ export default function ReleaseCronograma() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[200px]">Tarea</TableHead>
-                          <TableHead className="w-[120px]">Responsable</TableHead>
-                          <TableHead className="w-[180px]">Fechas</TableHead>
-                          <TableHead className="w-[130px]">Anclada a</TableHead>
-                          <TableHead className="w-[110px]">Estado</TableHead>
-                          <TableHead className="w-[50px]"></TableHead>
+                          <TableHead className="min-w-[200px]">Tarea</TableHead>
+                          <TableHead className="w-[90px]">Responsable</TableHead>
+                          <TableHead className="w-[150px]">Fechas</TableHead>
+                          <TableHead className="w-[100px]">Anclada a</TableHead>
+                          <TableHead className="w-[90px]">Estado</TableHead>
+                          <TableHead className="w-[60px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -821,7 +821,7 @@ export default function ReleaseCronograma() {
                                     )}
                                   </div>
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="py-1">
                                   <ResponsibleSelector
                                     value={task.responsible_ref ?? null}
                                     onChange={(ref) =>
@@ -831,28 +831,29 @@ export default function ReleaseCronograma() {
                                       })
                                     }
                                     artistId={release?.artist_id}
-                                    placeholder="Asignar..."
+                                    placeholder="Asignar"
+                                    compact
                                   />
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="py-1">
                                   <Popover>
                                     <PopoverTrigger asChild>
                                       <Button
                                         variant="ghost"
                                         size="sm"
                                         className={cn(
-                                          'h-8 w-full justify-start text-left font-normal',
+                                          'h-7 px-2 justify-start text-left font-normal text-xs',
                                           !task.startDate && 'text-muted-foreground'
                                         )}
                                       >
                                         {task.startDate && dueDate ? (
-                                          <span className="text-xs">
-                                            {format(task.startDate, 'dd MMM', { locale: es })} → {format(dueDate, 'dd MMM yyyy', { locale: es })}
+                                          <span className="whitespace-nowrap">
+                                            {format(task.startDate, 'dd/MM', { locale: es })}→{format(dueDate, 'dd/MM', { locale: es })}
                                           </span>
                                         ) : task.startDate ? (
-                                          <span className="text-xs">{format(task.startDate, 'dd MMM yyyy', { locale: es })}</span>
+                                          <span>{format(task.startDate, 'dd/MM/yy', { locale: es })}</span>
                                         ) : (
-                                          'Seleccionar fechas'
+                                          'Fechas'
                                         )}
                                       </Button>
                                     </PopoverTrigger>
@@ -878,17 +879,17 @@ export default function ReleaseCronograma() {
                                     </PopoverContent>
                                   </Popover>
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="py-1">
                                   <Select
                                     value={task.anchoredTo || 'none'}
                                     onValueChange={(value) => updateTask(workflow.id, task.id, { anchoredTo: value === 'none' ? undefined : value })}
                                   >
-                                    <SelectTrigger className="h-8 border-0 bg-transparent text-xs">
-                                      <SelectValue placeholder="Sin ancla">
+                                    <SelectTrigger className="h-7 border-0 bg-transparent text-xs px-2 w-auto">
+                                      <SelectValue placeholder="—">
                                         {task.anchoredTo ? (
-                                          <span className="text-xs">🔗 {getTaskName(task.anchoredTo)}</span>
+                                          <span className="text-xs truncate max-w-[60px]">🔗</span>
                                         ) : (
-                                          <span className="text-muted-foreground text-xs">Sin ancla</span>
+                                          <span className="text-muted-foreground text-xs">—</span>
                                         )}
                                       </SelectValue>
                                     </SelectTrigger>
@@ -906,14 +907,14 @@ export default function ReleaseCronograma() {
                                     </SelectContent>
                                   </Select>
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="py-1">
                                   <Select
                                     value={task.status}
                                     onValueChange={(value: TaskStatus) => updateTask(workflow.id, task.id, { status: value })}
                                   >
-                                    <SelectTrigger className="h-8 border-0 bg-transparent">
+                                    <SelectTrigger className="h-7 border-0 bg-transparent px-1 w-auto">
                                       <SelectValue>
-                                        <Badge className={cn('font-normal', statusOption?.color)}>
+                                        <Badge className={cn('font-normal text-[10px] px-1.5 py-0', statusOption?.color)}>
                                           {statusOption?.label}
                                         </Badge>
                                       </SelectValue>
@@ -921,7 +922,7 @@ export default function ReleaseCronograma() {
                                     <SelectContent>
                                       {STATUS_OPTIONS.map(option => (
                                         <SelectItem key={option.value} value={option.value}>
-                                          <Badge className={cn('font-normal', option.color)}>
+                                          <Badge className={cn('font-normal text-xs', option.color)}>
                                             {option.label}
                                           </Badge>
                                         </SelectItem>
@@ -929,17 +930,17 @@ export default function ReleaseCronograma() {
                                     </SelectContent>
                                   </Select>
                                 </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-1">
+                                <TableCell className="py-1">
+                                  <div className="flex items-center gap-0.5">
                                     <DropdownMenu>
                                       <DropdownMenuTrigger asChild>
                                         <Button
                                           variant="ghost"
                                           size="icon"
-                                          className="h-7 w-7 text-muted-foreground hover:text-primary"
+                                          className="h-6 w-6 text-muted-foreground hover:text-primary"
                                           title="Añadir subtarea"
                                         >
-                                          <ListTodo className="w-4 h-4" />
+                                          <ListTodo className="w-3.5 h-3.5" />
                                         </Button>
                                       </DropdownMenuTrigger>
                                       <DropdownMenuContent align="end">
@@ -956,10 +957,10 @@ export default function ReleaseCronograma() {
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
                                       onClick={() => requestDeleteTask(workflow.id, task.id)}
                                     >
-                                      <Trash2 className="w-4 h-4" />
+                                      <Trash2 className="w-3.5 h-3.5" />
                                     </Button>
                                   </div>
                                 </TableCell>
