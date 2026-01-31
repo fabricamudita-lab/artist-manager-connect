@@ -177,19 +177,19 @@ export function ResponsibleSelector({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "h-7 justify-between border-0 bg-transparent px-2 font-normal hover:bg-muted/50 focus:bg-muted text-xs",
+            "h-8 justify-between border-0 bg-transparent px-2 font-normal hover:bg-muted/50 focus:bg-muted text-xs",
             compact ? "w-auto min-w-0" : "w-full",
             !value && "text-muted-foreground",
             className
           )}
         >
           <span className="truncate flex items-center gap-1.5">
-            <User className="h-3 w-3 shrink-0 text-muted-foreground" />
+            <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             {compact && !value ? null : (
-              <span className="truncate max-w-[70px]">{value?.name || placeholder}</span>
+              <span className="truncate max-w-[80px]">{value?.name || placeholder}</span>
             )}
           </span>
-          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+          <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="start">
