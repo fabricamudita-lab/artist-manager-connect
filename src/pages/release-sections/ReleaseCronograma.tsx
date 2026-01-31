@@ -20,7 +20,9 @@ import {
   Sparkles,
   CheckCircle2,
   Circle,
-  ListTodo
+  ListTodo,
+  Calendar as CalendarIcon,
+  Bell
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,6 +55,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import AnchorDependencyDialog from '@/components/lanzamientos/AnchorDependencyDialog';
 import { ResponsibleSelector, type ResponsibleRef } from '@/components/releases/ResponsibleSelector';
@@ -92,6 +95,7 @@ interface Subtask {
   estimatedDays?: number;
   // Checkbox fields
   dueDate?: Date | null;
+  reminderDays?: number | null; // Days before due date to remind
   status?: TaskStatus;
   anchoredTo?: string;
   // Checkbox fields
@@ -950,29 +954,67 @@ export default function ReleaseCronograma() {
                                               variant="ghost"
                                               size="sm"
                                               className={cn(
-                                                'h-7 text-xs font-normal',
+                                                'h-7 text-xs font-normal gap-1',
                                                 !subtask.dueDate && 'text-muted-foreground',
                                                 isOverdue && 'text-destructive'
                                               )}
                                             >
+                                              <CalendarIcon className="w-3 h-3" />
                                               {subtask.dueDate ? (
                                                 <span className={cn(isOverdue && 'text-destructive')}>
-                                                  {format(subtask.dueDate, 'dd MMM', { locale: es })}
+                                                  Vence: {format(subtask.dueDate, 'dd MMM', { locale: es })}
                                                 </span>
                                               ) : (
-                                                'Sin fecha'
+                                                'Vencimiento'
+                                              )}
+                                              {subtask.reminderDays && subtask.reminderDays > 0 && (
+                                                <Bell className="w-3 h-3 ml-1 text-amber-500" />
                                               )}
                                             </Button>
                                           </PopoverTrigger>
                                           <PopoverContent className="w-auto p-0" align="start">
-                                            <Calendar
-                                              mode="single"
-                                              selected={subtask.dueDate || undefined}
-                                              defaultMonth={subtask.dueDate || undefined}
-                                              onSelect={(date) => updateSubtask(workflow.id, task.id, subtask.id, { dueDate: date })}
-                                              initialFocus
-                                              className="pointer-events-auto"
-                                            />
+                                            <div className="p-3 space-y-3">
+                                              <div>
+                                                <p className="text-xs font-medium mb-2">Fecha de vencimiento</p>
+                                                <Calendar
+                                                  mode="single"
+                                                  selected={subtask.dueDate || undefined}
+                                                  defaultMonth={subtask.dueDate || undefined}
+                                                  onSelect={(date) => updateSubtask(workflow.id, task.id, subtask.id, { dueDate: date })}
+                                                  initialFocus
+                                                  className="pointer-events-auto"
+                                                />
+                                              </div>
+                                              <Separator />
+                                              <div className="space-y-2">
+                                                <p className="text-xs font-medium flex items-center gap-1">
+                                                  <Bell className="w-3 h-3" />
+                                                  Aviso previo
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                  Notificar al responsable X días antes del vencimiento
+                                                </p>
+                                                <Select
+                                                  value={subtask.reminderDays?.toString() || '0'}
+                                                  onValueChange={(val) => updateSubtask(workflow.id, task.id, subtask.id, { 
+                                                    reminderDays: parseInt(val) || null 
+                                                  })}
+                                                >
+                                                  <SelectTrigger className="h-8 text-xs">
+                                                    <SelectValue />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    <SelectItem value="0">Sin aviso</SelectItem>
+                                                    <SelectItem value="1">1 día antes</SelectItem>
+                                                    <SelectItem value="2">2 días antes</SelectItem>
+                                                    <SelectItem value="3">3 días antes</SelectItem>
+                                                    <SelectItem value="5">5 días antes</SelectItem>
+                                                    <SelectItem value="7">1 semana antes</SelectItem>
+                                                    <SelectItem value="14">2 semanas antes</SelectItem>
+                                                  </SelectContent>
+                                                </Select>
+                                              </div>
+                                            </div>
                                           </PopoverContent>
                                         </Popover>
                                       </TableCell>
