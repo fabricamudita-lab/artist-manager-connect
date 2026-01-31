@@ -639,6 +639,7 @@ export default function ReleaseCronograma() {
                                     <Calendar
                                       mode="single"
                                       selected={task.startDate || undefined}
+                                      defaultMonth={task.startDate || undefined}
                                       onSelect={date => updateTask(workflow.id, task.id, { startDate: date || null })}
                                       initialFocus
                                       className="pointer-events-auto"
