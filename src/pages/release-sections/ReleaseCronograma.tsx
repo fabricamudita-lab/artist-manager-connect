@@ -22,11 +22,13 @@ import {
   Circle,
   ListTodo,
   Calendar as CalendarIcon,
-  Bell
+  Bell,
+  StickyNote
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -94,7 +96,7 @@ import {
 
 type TaskStatus = 'pendiente' | 'en_proceso' | 'completado' | 'retrasado';
 
-type SubtaskType = 'full' | 'checkbox';
+type SubtaskType = 'full' | 'checkbox' | 'note';
 
 interface Subtask {
   id: string;
@@ -112,6 +114,8 @@ interface Subtask {
   anchoredTo?: string;
   // Checkbox fields
   completed?: boolean;
+  // Note fields
+  content?: string;
 }
 
 interface ReleaseTask {
@@ -576,6 +580,30 @@ export default function ReleaseCronograma() {
     );
   };
 
+  // Add a note/comment to a task
+  const addNote = (workflowId: string, taskId: string) => {
+    const newNote: Subtask = {
+      id: `note-${Date.now()}`,
+      name: '',
+      type: 'note',
+      content: '',
+    };
+    setWorkflows(prev =>
+      prev.map(workflow =>
+        workflow.id === workflowId
+          ? {
+              ...workflow,
+              tasks: workflow.tasks.map(t =>
+                t.id === taskId
+                  ? { ...t, subtasks: [...(t.subtasks || []), newNote], expanded: true }
+                  : t
+              ),
+            }
+          : workflow
+      )
+    );
+  };
+
   // Update a subtask
   const updateSubtask = (workflowId: string, taskId: string, subtaskId: string, updates: Partial<Subtask>) => {
     setWorkflows(prev =>
@@ -939,6 +967,10 @@ export default function ReleaseCronograma() {
                                           <CheckCircle2 className="w-4 h-4 mr-2" />
                                           Casilla de verificación
                                         </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => addNote(workflow.id, task.id)}>
+                                          <StickyNote className="w-4 h-4 mr-2" />
+                                          Nota / Comentario
+                                        </DropdownMenuItem>
                                       </DropdownMenuContent>
                                     </DropdownMenu>
                                     <Button
@@ -954,6 +986,35 @@ export default function ReleaseCronograma() {
                               </TableRow>
                               {/* Subtasks rows */}
                               {task.expanded && (task.subtasks || []).map(subtask => {
+                                // Note type - simple text area for comments
+                                if (subtask.type === 'note') {
+                                  return (
+                                    <TableRow key={subtask.id} className="bg-amber-50/50 dark:bg-amber-950/20">
+                                      <TableCell colSpan={5}>
+                                        <div className="flex items-start gap-2 pl-8">
+                                          <StickyNote className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-2 shrink-0" />
+                                          <Textarea
+                                            value={subtask.content || ''}
+                                            onChange={e => updateSubtask(workflow.id, task.id, subtask.id, { content: e.target.value })}
+                                            placeholder="Escribe una nota o comentario..."
+                                            className="min-h-[60px] border-0 bg-transparent hover:bg-muted/50 focus:bg-muted text-sm flex-1 resize-none"
+                                          />
+                                        </div>
+                                      </TableCell>
+                                      <TableCell>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                          onClick={() => deleteSubtask(workflow.id, task.id, subtask.id)}
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                }
+
                                 // Checkbox type - simple row with optional due date
                                 if (subtask.type === 'checkbox') {
                                   const isOverdue = subtask.dueDate && !subtask.completed && new Date() > subtask.dueDate;
@@ -1245,6 +1306,10 @@ export default function ReleaseCronograma() {
                                         <DropdownMenuItem onClick={() => addChecklistItem(workflow.id, task.id)}>
                                           <CheckCircle2 className="w-4 h-4 mr-2" />
                                           Casilla de verificación
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => addNote(workflow.id, task.id)}>
+                                          <StickyNote className="w-4 h-4 mr-2" />
+                                          Nota / Comentario
                                         </DropdownMenuItem>
                                       </DropdownMenuContent>
                                     </DropdownMenu>
