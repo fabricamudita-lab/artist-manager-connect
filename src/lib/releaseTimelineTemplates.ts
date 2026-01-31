@@ -71,7 +71,8 @@ export interface GeneratedTask {
   status: 'pendiente' | 'en_proceso' | 'completado' | 'retrasado';
   responsible: string;
   responsible_ref?: null;
-  anchoredTo?: string;
+  anchoredTo?: string[];
+  customStartDate?: boolean;
 }
 
 /**

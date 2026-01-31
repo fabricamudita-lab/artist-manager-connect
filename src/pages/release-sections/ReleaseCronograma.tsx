@@ -58,6 +58,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import AnchorDependencyDialog from '@/components/lanzamientos/AnchorDependencyDialog';
+import MultiAnchorSelector from '@/components/lanzamientos/MultiAnchorSelector';
 import { ResponsibleSelector, type ResponsibleRef } from '@/components/releases/ResponsibleSelector';
 import CronogramaSetupWizard from '@/components/releases/CronogramaSetupWizard';
 import {
@@ -120,7 +121,8 @@ interface ReleaseTask {
   startDate: Date | null;
   estimatedDays: number;
   status: TaskStatus;
-  anchoredTo?: string;
+  anchoredTo?: string[];
+  customStartDate?: boolean;
   subtasks?: Subtask[];
   expanded?: boolean;
 }
@@ -322,7 +324,7 @@ export default function ReleaseCronograma() {
     const dependents: { id: string; name: string; workflowId: string; workflowName: string }[] = [];
     workflows.forEach(workflow => {
       workflow.tasks.forEach(task => {
-        if (task.anchoredTo === sourceTaskId) {
+        if (task.anchoredTo?.includes(sourceTaskId) && !task.customStartDate) {
           dependents.push({
             id: task.id,
             name: task.name,
@@ -342,6 +344,18 @@ export default function ReleaseCronograma() {
       if (task) return task.name;
     }
     return '';
+  }, [workflows]);
+
+  // Available tasks for multi-anchor selector
+  const availableTasksForAnchor = useMemo(() => {
+    return workflows.flatMap(w => 
+      w.tasks.map(t => ({
+        id: t.id,
+        name: t.name,
+        workflowId: w.id,
+        workflowName: w.name,
+      }))
+    );
   }, [workflows]);
 
   // Handle date update with anchor check
@@ -880,32 +894,16 @@ export default function ReleaseCronograma() {
                                   </Popover>
                                 </TableCell>
                                 <TableCell className="py-1">
-                                  <Select
-                                    value={task.anchoredTo || 'none'}
-                                    onValueChange={(value) => updateTask(workflow.id, task.id, { anchoredTo: value === 'none' ? undefined : value })}
-                                  >
-                                    <SelectTrigger className="h-7 border-0 bg-transparent text-xs px-2 w-auto">
-                                      <SelectValue placeholder="—">
-                                        {task.anchoredTo ? (
-                                          <span className="text-xs truncate max-w-[60px]">🔗</span>
-                                        ) : (
-                                          <span className="text-muted-foreground text-xs">—</span>
-                                        )}
-                                      </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="none">Sin ancla</SelectItem>
-                                      {workflowsWithTasks.flatMap(w => 
-                                        w.tasks
-                                          .filter(t => t.id !== task.id)
-                                          .map(t => (
-                                            <SelectItem key={t.id} value={t.id}>
-                                              {t.name} ({w.name})
-                                            </SelectItem>
-                                          ))
-                                      )}
-                                    </SelectContent>
-                                  </Select>
+                                  <MultiAnchorSelector
+                                    value={task.anchoredTo || []}
+                                    onChange={(anchors) => updateTask(workflow.id, task.id, { 
+                                      anchoredTo: anchors.length > 0 ? anchors : undefined 
+                                    })}
+                                    availableTasks={availableTasksForAnchor}
+                                    currentTaskId={task.id}
+                                    getTaskName={getTaskName}
+                                    compact
+                                  />
                                 </TableCell>
                                 <TableCell className="py-1">
                                   <Select

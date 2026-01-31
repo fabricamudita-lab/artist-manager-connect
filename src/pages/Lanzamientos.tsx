@@ -59,7 +59,8 @@ interface ReleaseTask {
   startDate: Date | null;
   estimatedDays: number;
   status: TaskStatus;
-  anchoredTo?: string; // ID of task this one is anchored to
+  anchoredTo?: string[]; // IDs of tasks this one is anchored to
+  customStartDate?: boolean; // Whether the date is manually set
 }
 
 interface WorkflowSection {
@@ -188,7 +189,7 @@ export default function Lanzamientos() {
     const dependents: { id: string; name: string; workflowId: string; workflowName: string }[] = [];
     workflows.forEach(workflow => {
       workflow.tasks.forEach(task => {
-        if (task.anchoredTo === sourceTaskId) {
+        if (task.anchoredTo?.includes(sourceTaskId)) {
           dependents.push({
             id: task.id,
             name: task.name,
@@ -516,13 +517,15 @@ export default function Lanzamientos() {
                               </TableCell>
                               <TableCell>
                                 <Select
-                                  value={task.anchoredTo || 'none'}
-                                  onValueChange={(value) => updateTask(workflow.id, task.id, { anchoredTo: value === 'none' ? undefined : value })}
+                                  value={task.anchoredTo?.[0] || 'none'}
+                                  onValueChange={(value) => updateTask(workflow.id, task.id, { 
+                                    anchoredTo: value === 'none' ? undefined : [value] 
+                                  })}
                                 >
                                   <SelectTrigger className="h-8 border-0 bg-transparent text-xs">
                                     <SelectValue placeholder="Sin ancla">
-                                      {task.anchoredTo ? (
-                                        <span className="text-xs">🔗 {getTaskName(task.anchoredTo)}</span>
+                                      {task.anchoredTo && task.anchoredTo.length > 0 ? (
+                                        <span className="text-xs">🔗 {task.anchoredTo.length > 1 ? `${task.anchoredTo.length} anclas` : getTaskName(task.anchoredTo[0])}</span>
                                       ) : (
                                         <span className="text-muted-foreground text-xs">Sin ancla</span>
                                       )}

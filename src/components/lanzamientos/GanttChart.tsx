@@ -26,7 +26,8 @@ interface ReleaseTask {
   startDate: Date | null;
   estimatedDays: number;
   status: TaskStatus;
-  anchoredTo?: string;
+  anchoredTo?: string[];
+  customStartDate?: boolean;
 }
 
 interface WorkflowSection {
@@ -40,7 +41,7 @@ interface WorkflowSection {
 interface GanttChartProps {
   workflows: WorkflowSection[];
   onUpdateTaskDate?: (workflowId: string, taskId: string, newStartDate: Date, newEstimatedDays: number) => void;
-  onSetAnchor?: (workflowId: string, taskId: string, anchoredTo: string | undefined) => void;
+  onSetAnchor?: (workflowId: string, taskId: string, anchoredTo: string[] | undefined) => void;
   getTaskName?: (taskId: string) => string;
 }
 
@@ -203,9 +204,12 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                     return (
                       <div key={task.id} className="flex items-center gap-3">
                         <div className="w-32 text-sm truncate text-muted-foreground flex items-center gap-1">
-                          {task.anchoredTo && (
-                            <span className="text-primary" title={`Anclada a: ${getTaskName?.(task.anchoredTo) || task.anchoredTo}`}>
-                              🔗
+                          {task.anchoredTo && task.anchoredTo.length > 0 && (
+                            <span 
+                              className="text-primary" 
+                              title={`Anclada a: ${task.anchoredTo.map(id => getTaskName?.(id) || id).join(', ')}`}
+                            >
+                              🔗{task.anchoredTo.length > 1 && <sup className="text-[10px]">{task.anchoredTo.length}</sup>}
                             </span>
                           )}
                           {task.name}
@@ -241,9 +245,14 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                                   <span>Inicio: {format(task.startDate!, 'dd MMM yyyy', { locale: es })}</span>
                                   <span>Fin: {format(dueDate, 'dd MMM yyyy', { locale: es })}</span>
                                 </div>
-                                {task.anchoredTo && getTaskName && (
+                                {task.anchoredTo && task.anchoredTo.length > 0 && getTaskName && (
                                   <p className="text-xs text-primary mt-1">
-                                    🔗 Anclada a: {getTaskName(task.anchoredTo)}
+                                    🔗 Anclada a: {task.anchoredTo.map(id => getTaskName(id)).join(', ')}
+                                  </p>
+                                )}
+                                {task.customStartDate && (
+                                  <p className="text-xs text-amber-500 mt-0.5">
+                                    ⚠️ Fecha personalizada
                                   </p>
                                 )}
                               </div>
