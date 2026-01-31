@@ -287,7 +287,9 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                                   {editingDateType === 'start' ? 'Seleccionar fecha de inicio' : 'Seleccionar fecha de fin'}
                                 </Label>
                                 <Calendar
+                                  key={editingDateType}
                                   mode="single"
+                                  defaultMonth={editingDateType === 'start' ? task.startDate! : dueDate}
                                   selected={editingDateType === 'start' ? task.startDate! : dueDate}
                                   onSelect={(date) => {
                                     if (editingDateType === 'start') {
@@ -300,6 +302,9 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                                   disabled={(date) => {
                                     if (editingDateType === 'end') {
                                       return date <= task.startDate!;
+                                    }
+                                    if (editingDateType === 'start') {
+                                      return date >= dueDate;
                                     }
                                     return false;
                                   }}
