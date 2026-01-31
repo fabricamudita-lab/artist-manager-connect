@@ -68,6 +68,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import GanttChart from '@/components/lanzamientos/GanttChart';
 import { useRelease, useTracks, useReleaseMilestones, type ReleaseMilestone } from '@/hooks/useReleases';
 import { supabase } from '@/integrations/supabase/client';
@@ -165,6 +175,15 @@ export default function ReleaseCronograma() {
   );
   const [showWizard, setShowWizard] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Delete task confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<{
+    workflowId: string;
+    taskId: string;
+    taskName: string;
+    isCompleted: boolean;
+  } | null>(null);
   
   // Anchor dependency dialog state
   const [anchorDialogOpen, setAnchorDialogOpen] = useState(false);
@@ -435,14 +454,43 @@ export default function ReleaseCronograma() {
     );
   };
 
-  const deleteTask = (workflowId: string, taskId: string) => {
+  // Request to delete a task - show confirmation dialog
+  const requestDeleteTask = (workflowId: string, taskId: string) => {
+    const workflow = workflows.find(w => w.id === workflowId);
+    const task = workflow?.tasks.find(t => t.id === taskId);
+    if (task) {
+      setTaskToDelete({
+        workflowId,
+        taskId,
+        taskName: task.name,
+        isCompleted: task.status === 'completado'
+      });
+      setDeleteDialogOpen(true);
+    }
+  };
+
+  // Actually delete the task
+  const confirmDeleteTask = () => {
+    if (!taskToDelete) return;
     setWorkflows(prev =>
       prev.map(workflow =>
-        workflow.id === workflowId
-          ? { ...workflow, tasks: workflow.tasks.filter(t => t.id !== taskId) }
+        workflow.id === taskToDelete.workflowId
+          ? { ...workflow, tasks: workflow.tasks.filter(t => t.id !== taskToDelete.taskId) }
           : workflow
       )
     );
+    setDeleteDialogOpen(false);
+    setTaskToDelete(null);
+    toast.success('Tarea eliminada');
+  };
+
+  // Archive the task (mark as completed instead of deleting)
+  const archiveTask = () => {
+    if (!taskToDelete) return;
+    updateTask(taskToDelete.workflowId, taskToDelete.taskId, { status: 'completado' });
+    setDeleteDialogOpen(false);
+    setTaskToDelete(null);
+    toast.success('Tarea marcada como completada');
   };
 
   // Toggle task expansion for subtasks
@@ -909,7 +957,7 @@ export default function ReleaseCronograma() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                      onClick={() => deleteTask(workflow.id, task.id)}
+                                      onClick={() => requestDeleteTask(workflow.id, task.id)}
                                     >
                                       <Trash2 className="w-4 h-4" />
                                     </Button>
@@ -1255,6 +1303,43 @@ export default function ReleaseCronograma() {
         dependentTasks={pendingDateChange?.dependentTasks || []}
         onConfirm={handleAnchorConfirm}
       />
+
+      {/* Delete Task Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-destructive" />
+              Eliminar tarea
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                ¿Estás seguro de que quieres eliminar <strong>"{taskToDelete?.taskName}"</strong>?
+              </p>
+              {!taskToDelete?.isCompleted && (
+                <p className="text-muted-foreground">
+                  Esta acción no se puede deshacer. Si la tarea está terminada, considera marcarla como completada para no perder la información.
+                </p>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            {!taskToDelete?.isCompleted && (
+              <Button variant="outline" onClick={archiveTask} className="gap-1">
+                <CheckCircle2 className="w-4 h-4" />
+                Marcar completada
+              </Button>
+            )}
+            <AlertDialogAction
+              onClick={confirmDeleteTask}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
