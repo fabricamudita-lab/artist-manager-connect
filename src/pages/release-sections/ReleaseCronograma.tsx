@@ -107,7 +107,7 @@ interface Subtask {
   estimatedDays?: number;
   // Checkbox fields
   dueDate?: Date | null;
-  reminderDays?: number | null; // Days before due date to remind
+  reminderDays?: number[] | null; // Days before due date to remind (supports multiple)
   status?: TaskStatus;
   anchoredTo?: string;
   // Checkbox fields
@@ -1003,7 +1003,7 @@ export default function ReleaseCronograma() {
                                               ) : (
                                                 'Vencimiento'
                                               )}
-                                              {subtask.reminderDays && subtask.reminderDays > 0 && (
+                                              {subtask.reminderDays && subtask.reminderDays.length > 0 && (
                                                 <Bell className="w-3 h-3 ml-1 text-amber-500" />
                                               )}
                                             </Button>
@@ -1028,12 +1028,12 @@ export default function ReleaseCronograma() {
                                                     <Bell className="w-3.5 h-3.5" />
                                                     Recordatorio
                                                   </p>
-                                                  {subtask.reminderDays && subtask.reminderDays > 0 && (
+                                                  {subtask.reminderDays && subtask.reminderDays.length > 0 && (
                                                     <button
                                                       onClick={() => updateSubtask(workflow.id, task.id, subtask.id, { reminderDays: null })}
                                                       className="text-xs text-muted-foreground hover:text-foreground"
                                                     >
-                                                      Quitar
+                                                      Quitar todo
                                                     </button>
                                                   )}
                                                 </div>
@@ -1045,22 +1045,31 @@ export default function ReleaseCronograma() {
                                                     { value: 5, label: '5d' },
                                                     { value: 7, label: '1sem' },
                                                     { value: 14, label: '2sem' },
-                                                  ].map(option => (
-                                                    <button
-                                                      key={option.value}
-                                                      onClick={() => updateSubtask(workflow.id, task.id, subtask.id, { 
-                                                        reminderDays: subtask.reminderDays === option.value ? null : option.value 
-                                                      })}
-                                                      className={cn(
-                                                        'px-2.5 py-1 text-xs rounded-md border transition-colors',
-                                                        subtask.reminderDays === option.value
-                                                          ? 'bg-amber-500/20 border-amber-500/50 text-amber-600 dark:text-amber-400'
-                                                          : 'border-border hover:bg-muted'
-                                                      )}
-                                                    >
-                                                      {option.label}
-                                                    </button>
-                                                  ))}
+                                                  ].map(option => {
+                                                    const currentReminders = subtask.reminderDays || [];
+                                                    const isSelected = currentReminders.includes(option.value);
+                                                    return (
+                                                      <button
+                                                        key={option.value}
+                                                        onClick={() => {
+                                                          const updated = isSelected
+                                                            ? currentReminders.filter(v => v !== option.value)
+                                                            : [...currentReminders, option.value];
+                                                          updateSubtask(workflow.id, task.id, subtask.id, {
+                                                            reminderDays: updated.length > 0 ? updated : null,
+                                                          });
+                                                        }}
+                                                        className={cn(
+                                                          'px-2.5 py-1 text-xs rounded-md border transition-colors',
+                                                          isSelected
+                                                            ? 'bg-amber-500/20 border-amber-500/50 text-amber-600 dark:text-amber-400'
+                                                            : 'border-border hover:bg-muted'
+                                                        )}
+                                                      >
+                                                        {option.label}
+                                                      </button>
+                                                    );
+                                                  })}
                                                 </div>
                                                 <p className="text-[10px] text-muted-foreground">
                                                   Aviso antes de la fecha de vencimiento
