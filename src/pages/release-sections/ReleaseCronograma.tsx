@@ -657,9 +657,40 @@ export default function ReleaseCronograma() {
                                 />
                               </TableCell>
                               <TableCell>
-                                <span className={cn('text-sm', !dueDate && 'text-muted-foreground')}>
-                                  {dueDate ? format(dueDate, 'dd MMM yyyy', { locale: es }) : '—'}
-                                </span>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className={cn(
+                                        'h-8 w-full justify-start text-left font-normal',
+                                        !dueDate && 'text-muted-foreground'
+                                      )}
+                                    >
+                                      {dueDate
+                                        ? format(dueDate, 'dd MMM yyyy', { locale: es })
+                                        : '—'}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                      mode="single"
+                                      selected={dueDate || undefined}
+                                      defaultMonth={dueDate || task.startDate || undefined}
+                                      onSelect={date => {
+                                        if (date && task.startDate) {
+                                          const newDays = differenceInDays(date, task.startDate);
+                                          if (newDays > 0) {
+                                            updateTask(workflow.id, task.id, { estimatedDays: newDays });
+                                          }
+                                        }
+                                      }}
+                                      disabled={(date) => task.startDate ? date <= task.startDate : false}
+                                      initialFocus
+                                      className="pointer-events-auto"
+                                    />
+                                  </PopoverContent>
+                                </Popover>
                               </TableCell>
                               <TableCell>
                                 <Select
