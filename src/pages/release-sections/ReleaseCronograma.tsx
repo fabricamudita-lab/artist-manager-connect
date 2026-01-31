@@ -866,26 +866,12 @@ export default function ReleaseCronograma() {
                                 return (
                                   <TableRow key={subtask.id} className="bg-muted/30">
                                     <TableCell>
-                                      <div className="flex items-center gap-1 pl-6">
-                                        <button
-                                          onClick={() => updateSubtask(workflow.id, task.id, subtask.id, { 
-                                            status: subtask.status === 'completado' ? 'pendiente' : 'completado' 
-                                          })}
-                                          className="shrink-0"
-                                        >
-                                          {subtask.status === 'completado' ? (
-                                            <CheckCircle2 className="w-4 h-4 text-green-500" />
-                                          ) : (
-                                            <Circle className="w-4 h-4 text-muted-foreground" />
-                                          )}
-                                        </button>
+                                      <div className="flex items-center gap-1 pl-8">
+                                        <span className="text-muted-foreground mr-1">↳</span>
                                         <Input
                                           value={subtask.name}
                                           onChange={e => updateSubtask(workflow.id, task.id, subtask.id, { name: e.target.value })}
-                                          className={cn(
-                                            'h-7 border-0 bg-transparent hover:bg-muted/50 focus:bg-muted text-sm',
-                                            subtask.status === 'completado' && 'line-through text-muted-foreground'
-                                          )}
+                                          className="h-7 border-0 bg-transparent hover:bg-muted/50 focus:bg-muted text-sm"
                                         />
                                       </div>
                                     </TableCell>
