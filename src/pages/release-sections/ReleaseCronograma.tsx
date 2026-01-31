@@ -1,9 +1,10 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, Fragment } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format, addDays, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
   ChevronDown, 
+  ChevronRight,
   Plus, 
   Trash2,
   Music,
@@ -16,7 +17,10 @@ import {
   GanttChart as GanttIcon,
   ArrowLeft,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  CheckCircle2,
+  Circle,
+  ListTodo
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -69,6 +73,12 @@ import {
 
 type TaskStatus = 'pendiente' | 'en_proceso' | 'completado' | 'retrasado';
 
+interface Subtask {
+  id: string;
+  name: string;
+  completed: boolean;
+}
+
 interface ReleaseTask {
   id: string;
   name: string;
@@ -78,6 +88,8 @@ interface ReleaseTask {
   estimatedDays: number;
   status: TaskStatus;
   anchoredTo?: string;
+  subtasks?: Subtask[];
+  expanded?: boolean;
 }
 
 interface WorkflowSection {
@@ -410,6 +422,86 @@ export default function ReleaseCronograma() {
     );
   };
 
+  // Toggle task expansion for subtasks
+  const toggleTaskExpanded = (workflowId: string, taskId: string) => {
+    setWorkflows(prev =>
+      prev.map(workflow =>
+        workflow.id === workflowId
+          ? {
+              ...workflow,
+              tasks: workflow.tasks.map(t =>
+                t.id === taskId ? { ...t, expanded: !t.expanded } : t
+              ),
+            }
+          : workflow
+      )
+    );
+  };
+
+  // Add a subtask to a task
+  const addSubtask = (workflowId: string, taskId: string) => {
+    const newSubtask: Subtask = {
+      id: `subtask-${Date.now()}`,
+      name: 'Nueva subtarea',
+      completed: false,
+    };
+    setWorkflows(prev =>
+      prev.map(workflow =>
+        workflow.id === workflowId
+          ? {
+              ...workflow,
+              tasks: workflow.tasks.map(t =>
+                t.id === taskId
+                  ? { ...t, subtasks: [...(t.subtasks || []), newSubtask], expanded: true }
+                  : t
+              ),
+            }
+          : workflow
+      )
+    );
+  };
+
+  // Update a subtask
+  const updateSubtask = (workflowId: string, taskId: string, subtaskId: string, updates: Partial<Subtask>) => {
+    setWorkflows(prev =>
+      prev.map(workflow =>
+        workflow.id === workflowId
+          ? {
+              ...workflow,
+              tasks: workflow.tasks.map(t =>
+                t.id === taskId
+                  ? {
+                      ...t,
+                      subtasks: (t.subtasks || []).map(st =>
+                        st.id === subtaskId ? { ...st, ...updates } : st
+                      ),
+                    }
+                  : t
+              ),
+            }
+          : workflow
+      )
+    );
+  };
+
+  // Delete a subtask
+  const deleteSubtask = (workflowId: string, taskId: string, subtaskId: string) => {
+    setWorkflows(prev =>
+      prev.map(workflow =>
+        workflow.id === workflowId
+          ? {
+              ...workflow,
+              tasks: workflow.tasks.map(t =>
+                t.id === taskId
+                  ? { ...t, subtasks: (t.subtasks || []).filter(st => st.id !== subtaskId) }
+                  : t
+              ),
+            }
+          : workflow
+      )
+    );
+  };
+
   const { totalTasks, completedTasks, progressPercent } = useMemo(() => {
     const allTasks = workflows.flatMap(w => w.tasks);
     const total = allTasks.length;
@@ -596,174 +688,262 @@ export default function ReleaseCronograma() {
                         {workflow.tasks.map(task => {
                           const dueDate = getDueDate(task.startDate, task.estimatedDays);
                           const statusOption = STATUS_OPTIONS.find(s => s.value === task.status);
+                          const hasSubtasks = (task.subtasks?.length || 0) > 0;
+                          const completedSubtasks = (task.subtasks || []).filter(st => st.completed).length;
+                          const totalSubtasks = task.subtasks?.length || 0;
 
                           return (
-                            <TableRow key={task.id}>
-                              <TableCell>
-                                <Input
-                                  value={task.name}
-                                  onChange={e => updateTask(workflow.id, task.id, { name: e.target.value })}
-                                  className="h-8 border-0 bg-transparent hover:bg-muted/50 focus:bg-muted"
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <ResponsibleSelector
-                                  value={task.responsible_ref ?? null}
-                                  onChange={(ref) =>
-                                    updateTask(workflow.id, task.id, {
-                                      responsible_ref: ref,
-                                      responsible: ref?.name || '',
-                                    })
-                                  }
-                                  artistId={release?.artist_id}
-                                  placeholder="Asignar..."
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Popover>
-                                  <PopoverTrigger asChild>
+                            <Fragment key={task.id}>
+                              <TableRow>
+                                <TableCell>
+                                  <div className="flex items-center gap-1">
                                     <Button
                                       variant="ghost"
-                                      size="sm"
-                                      className={cn(
-                                        'h-8 w-full justify-start text-left font-normal',
-                                        !task.startDate && 'text-muted-foreground'
-                                      )}
+                                      size="icon"
+                                      className="h-6 w-6 shrink-0"
+                                      onClick={() => toggleTaskExpanded(workflow.id, task.id)}
                                     >
-                                      {task.startDate
-                                        ? format(task.startDate, 'dd MMM yyyy', { locale: es })
-                                        : 'Seleccionar'}
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                      mode="range"
-                                      selected={task.startDate && dueDate ? { from: task.startDate, to: dueDate } : undefined}
-                                      defaultMonth={task.startDate || undefined}
-                                      onSelect={(range) => {
-                                        if (range?.from) {
-                                          const newStart = range.from;
-                                          const newEnd = range.to || range.from;
-                                          const newDays = Math.max(1, differenceInDays(newEnd, newStart));
-                                          updateTask(workflow.id, task.id, { 
-                                            startDate: newStart, 
-                                            estimatedDays: newDays 
-                                          });
-                                        }
-                                      }}
-                                      initialFocus
-                                      className="pointer-events-auto"
-                                    />
-                                  </PopoverContent>
-                                </Popover>
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  value={task.estimatedDays}
-                                  onChange={e => updateTask(workflow.id, task.id, { estimatedDays: parseInt(e.target.value) || 0 })}
-                                  className="h-8 w-16 border-0 bg-transparent hover:bg-muted/50 focus:bg-muted text-center"
-                                  min={1}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className={cn(
-                                        'h-8 w-full justify-start text-left font-normal',
-                                        !dueDate && 'text-muted-foreground'
-                                      )}
-                                    >
-                                      {dueDate
-                                        ? format(dueDate, 'dd MMM yyyy', { locale: es })
-                                        : '—'}
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                      mode="single"
-                                      selected={dueDate || undefined}
-                                      defaultMonth={dueDate || task.startDate || undefined}
-                                      onSelect={date => {
-                                        if (date && task.startDate) {
-                                          const newDays = differenceInDays(date, task.startDate);
-                                          if (newDays > 0) {
-                                            updateTask(workflow.id, task.id, { estimatedDays: newDays });
-                                          }
-                                        }
-                                      }}
-                                      disabled={(date) => task.startDate ? date <= task.startDate : false}
-                                      initialFocus
-                                      className="pointer-events-auto"
-                                    />
-                                  </PopoverContent>
-                                </Popover>
-                              </TableCell>
-                              <TableCell>
-                                <Select
-                                  value={task.anchoredTo || 'none'}
-                                  onValueChange={(value) => updateTask(workflow.id, task.id, { anchoredTo: value === 'none' ? undefined : value })}
-                                >
-                                  <SelectTrigger className="h-8 border-0 bg-transparent text-xs">
-                                    <SelectValue placeholder="Sin ancla">
-                                      {task.anchoredTo ? (
-                                        <span className="text-xs">🔗 {getTaskName(task.anchoredTo)}</span>
+                                      {task.expanded ? (
+                                        <ChevronDown className="w-3 h-3" />
                                       ) : (
-                                        <span className="text-muted-foreground text-xs">Sin ancla</span>
+                                        <ChevronRight className="w-3 h-3" />
                                       )}
-                                    </SelectValue>
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="none">Sin ancla</SelectItem>
-                                    {workflowsWithTasks.flatMap(w => 
-                                      w.tasks
-                                        .filter(t => t.id !== task.id)
-                                        .map(t => (
-                                          <SelectItem key={t.id} value={t.id}>
-                                            {t.name} ({w.name})
-                                          </SelectItem>
-                                        ))
-                                    )}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                              <TableCell>
-                                <Select
-                                  value={task.status}
-                                  onValueChange={(value: TaskStatus) => updateTask(workflow.id, task.id, { status: value })}
-                                >
-                                  <SelectTrigger className="h-8 border-0 bg-transparent">
-                                    <SelectValue>
-                                      <Badge className={cn('font-normal', statusOption?.color)}>
-                                        {statusOption?.label}
+                                    </Button>
+                                    <Input
+                                      value={task.name}
+                                      onChange={e => updateTask(workflow.id, task.id, { name: e.target.value })}
+                                      className="h-8 border-0 bg-transparent hover:bg-muted/50 focus:bg-muted"
+                                    />
+                                    {hasSubtasks && (
+                                      <Badge variant="outline" className="text-xs shrink-0">
+                                        {completedSubtasks}/{totalSubtasks}
                                       </Badge>
-                                    </SelectValue>
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {STATUS_OPTIONS.map(option => (
-                                      <SelectItem key={option.value} value={option.value}>
-                                        <Badge className={cn('font-normal', option.color)}>
-                                          {option.label}
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <ResponsibleSelector
+                                    value={task.responsible_ref ?? null}
+                                    onChange={(ref) =>
+                                      updateTask(workflow.id, task.id, {
+                                        responsible_ref: ref,
+                                        responsible: ref?.name || '',
+                                      })
+                                    }
+                                    artistId={release?.artist_id}
+                                    placeholder="Asignar..."
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className={cn(
+                                          'h-8 w-full justify-start text-left font-normal',
+                                          !task.startDate && 'text-muted-foreground'
+                                        )}
+                                      >
+                                        {task.startDate
+                                          ? format(task.startDate, 'dd MMM yyyy', { locale: es })
+                                          : 'Seleccionar'}
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                      <Calendar
+                                        mode="range"
+                                        selected={task.startDate && dueDate ? { from: task.startDate, to: dueDate } : undefined}
+                                        defaultMonth={task.startDate || undefined}
+                                        onSelect={(range) => {
+                                          if (range?.from) {
+                                            const newStart = range.from;
+                                            const newEnd = range.to || range.from;
+                                            const newDays = Math.max(1, differenceInDays(newEnd, newStart));
+                                            updateTask(workflow.id, task.id, { 
+                                              startDate: newStart, 
+                                              estimatedDays: newDays 
+                                            });
+                                          }
+                                        }}
+                                        initialFocus
+                                        className="pointer-events-auto"
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    value={task.estimatedDays}
+                                    onChange={e => updateTask(workflow.id, task.id, { estimatedDays: parseInt(e.target.value) || 0 })}
+                                    className="h-8 w-16 border-0 bg-transparent hover:bg-muted/50 focus:bg-muted text-center"
+                                    min={1}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className={cn(
+                                          'h-8 w-full justify-start text-left font-normal',
+                                          !dueDate && 'text-muted-foreground'
+                                        )}
+                                      >
+                                        {dueDate
+                                          ? format(dueDate, 'dd MMM yyyy', { locale: es })
+                                          : '—'}
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                      <Calendar
+                                        mode="single"
+                                        selected={dueDate || undefined}
+                                        defaultMonth={dueDate || task.startDate || undefined}
+                                        onSelect={date => {
+                                          if (date && task.startDate) {
+                                            const newDays = differenceInDays(date, task.startDate);
+                                            if (newDays > 0) {
+                                              updateTask(workflow.id, task.id, { estimatedDays: newDays });
+                                            }
+                                          }
+                                        }}
+                                        disabled={(date) => task.startDate ? date <= task.startDate : false}
+                                        initialFocus
+                                        className="pointer-events-auto"
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
+                                </TableCell>
+                                <TableCell>
+                                  <Select
+                                    value={task.anchoredTo || 'none'}
+                                    onValueChange={(value) => updateTask(workflow.id, task.id, { anchoredTo: value === 'none' ? undefined : value })}
+                                  >
+                                    <SelectTrigger className="h-8 border-0 bg-transparent text-xs">
+                                      <SelectValue placeholder="Sin ancla">
+                                        {task.anchoredTo ? (
+                                          <span className="text-xs">🔗 {getTaskName(task.anchoredTo)}</span>
+                                        ) : (
+                                          <span className="text-muted-foreground text-xs">Sin ancla</span>
+                                        )}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="none">Sin ancla</SelectItem>
+                                      {workflowsWithTasks.flatMap(w => 
+                                        w.tasks
+                                          .filter(t => t.id !== task.id)
+                                          .map(t => (
+                                            <SelectItem key={t.id} value={t.id}>
+                                              {t.name} ({w.name})
+                                            </SelectItem>
+                                          ))
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell>
+                                  <Select
+                                    value={task.status}
+                                    onValueChange={(value: TaskStatus) => updateTask(workflow.id, task.id, { status: value })}
+                                  >
+                                    <SelectTrigger className="h-8 border-0 bg-transparent">
+                                      <SelectValue>
+                                        <Badge className={cn('font-normal', statusOption?.color)}>
+                                          {statusOption?.label}
                                         </Badge>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                  onClick={() => deleteTask(workflow.id, task.id)}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {STATUS_OPTIONS.map(option => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          <Badge className={cn('font-normal', option.color)}>
+                                            {option.label}
+                                          </Badge>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-muted-foreground hover:text-primary"
+                                      onClick={() => addSubtask(workflow.id, task.id)}
+                                      title="Añadir subtarea"
+                                    >
+                                      <ListTodo className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                      onClick={() => deleteTask(workflow.id, task.id)}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                              {/* Subtasks rows */}
+                              {task.expanded && (task.subtasks || []).map(subtask => (
+                                <TableRow key={subtask.id} className="bg-muted/30">
+                                  <TableCell colSpan={6}>
+                                    <div className="flex items-center gap-2 pl-8">
+                                      <button
+                                        onClick={() => updateSubtask(workflow.id, task.id, subtask.id, { completed: !subtask.completed })}
+                                        className="shrink-0"
+                                      >
+                                        {subtask.completed ? (
+                                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                        ) : (
+                                          <Circle className="w-4 h-4 text-muted-foreground" />
+                                        )}
+                                      </button>
+                                      <Input
+                                        value={subtask.name}
+                                        onChange={e => updateSubtask(workflow.id, task.id, subtask.id, { name: e.target.value })}
+                                        className={cn(
+                                          'h-7 border-0 bg-transparent hover:bg-muted/50 focus:bg-muted text-sm',
+                                          subtask.completed && 'line-through text-muted-foreground'
+                                        )}
+                                      />
+                                    </div>
+                                  </TableCell>
+                                  <TableCell colSpan={2}>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                      onClick={() => deleteSubtask(workflow.id, task.id, subtask.id)}
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                              {/* Add subtask inline button when expanded */}
+                              {task.expanded && (
+                                <TableRow className="bg-muted/20 hover:bg-muted/30">
+                                  <TableCell colSpan={8}>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 text-xs text-muted-foreground ml-8"
+                                      onClick={() => addSubtask(workflow.id, task.id)}
+                                    >
+                                      <Plus className="w-3 h-3 mr-1" />
+                                      Añadir subtarea
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </Fragment>
                           );
                         })}
                       </TableBody>
