@@ -111,6 +111,16 @@ export default function TaskDatePopover({
               if (editing === "start" && dueDate) return date >= dueDate;
               return false;
             }}
+            modifiers={{
+              otherDate: editing === "start" && dueDate 
+                ? [dueDate] 
+                : editing === "end" && startDate 
+                  ? [startDate] 
+                  : [],
+            }}
+            modifiersClassNames={{
+              otherDate: "bg-primary/30 text-primary/70 rounded-md",
+            }}
             initialFocus
             className="p-0 pointer-events-auto"
           />
