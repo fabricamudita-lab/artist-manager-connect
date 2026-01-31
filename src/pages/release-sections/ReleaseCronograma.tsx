@@ -987,32 +987,48 @@ export default function ReleaseCronograma() {
                                               </div>
                                               <Separator />
                                               <div className="space-y-2">
-                                                <p className="text-xs font-medium flex items-center gap-1">
-                                                  <Bell className="w-3 h-3" />
-                                                  Aviso previo
+                                                <div className="flex items-center justify-between">
+                                                  <p className="text-xs font-medium flex items-center gap-1.5">
+                                                    <Bell className="w-3.5 h-3.5" />
+                                                    Recordatorio
+                                                  </p>
+                                                  {subtask.reminderDays && subtask.reminderDays > 0 && (
+                                                    <button
+                                                      onClick={() => updateSubtask(workflow.id, task.id, subtask.id, { reminderDays: null })}
+                                                      className="text-xs text-muted-foreground hover:text-foreground"
+                                                    >
+                                                      Quitar
+                                                    </button>
+                                                  )}
+                                                </div>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                  {[
+                                                    { value: 1, label: '1d' },
+                                                    { value: 2, label: '2d' },
+                                                    { value: 3, label: '3d' },
+                                                    { value: 5, label: '5d' },
+                                                    { value: 7, label: '1sem' },
+                                                    { value: 14, label: '2sem' },
+                                                  ].map(option => (
+                                                    <button
+                                                      key={option.value}
+                                                      onClick={() => updateSubtask(workflow.id, task.id, subtask.id, { 
+                                                        reminderDays: subtask.reminderDays === option.value ? null : option.value 
+                                                      })}
+                                                      className={cn(
+                                                        'px-2.5 py-1 text-xs rounded-md border transition-colors',
+                                                        subtask.reminderDays === option.value
+                                                          ? 'bg-amber-500/20 border-amber-500/50 text-amber-600 dark:text-amber-400'
+                                                          : 'border-border hover:bg-muted'
+                                                      )}
+                                                    >
+                                                      {option.label}
+                                                    </button>
+                                                  ))}
+                                                </div>
+                                                <p className="text-[10px] text-muted-foreground">
+                                                  Aviso antes de la fecha de vencimiento
                                                 </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                  Notificar al responsable X días antes del vencimiento
-                                                </p>
-                                                <Select
-                                                  value={subtask.reminderDays?.toString() || '0'}
-                                                  onValueChange={(val) => updateSubtask(workflow.id, task.id, subtask.id, { 
-                                                    reminderDays: parseInt(val) || null 
-                                                  })}
-                                                >
-                                                  <SelectTrigger className="h-8 text-xs">
-                                                    <SelectValue />
-                                                  </SelectTrigger>
-                                                  <SelectContent>
-                                                    <SelectItem value="0">Sin aviso</SelectItem>
-                                                    <SelectItem value="1">1 día antes</SelectItem>
-                                                    <SelectItem value="2">2 días antes</SelectItem>
-                                                    <SelectItem value="3">3 días antes</SelectItem>
-                                                    <SelectItem value="5">5 días antes</SelectItem>
-                                                    <SelectItem value="7">1 semana antes</SelectItem>
-                                                    <SelectItem value="14">2 semanas antes</SelectItem>
-                                                  </SelectContent>
-                                                </Select>
                                               </div>
                                             </div>
                                           </PopoverContent>
