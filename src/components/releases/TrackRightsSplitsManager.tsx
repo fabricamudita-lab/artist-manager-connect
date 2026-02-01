@@ -42,15 +42,16 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
   // Use existing track_credits data
   const { data: allCredits = [] } = useTrackCredits(track.id);
 
-  // Filter credits by role type (case-insensitive)
+  // Filter credits by the specific percentage column (publishing or master)
+  const percentageKey = type === 'publishing' ? 'publishing_percentage' : 'master_percentage';
+  
   const splits = useMemo(() => {
-    const roleValues = type === 'publishing' ? PUBLISHING_ROLE_VALUES : MASTER_ROLE_VALUES;
     return allCredits.filter(credit => 
-      credit.percentage !== null && roleValues.includes(credit.role.toLowerCase())
+      credit[percentageKey] !== null && credit[percentageKey]! > 0
     );
-  }, [allCredits, type]);
+  }, [allCredits, percentageKey]);
 
-  const totalPercentage = splits.reduce((sum, s) => sum + (s.percentage || 0), 0);
+  const totalPercentage = splits.reduce((sum, s) => sum + (s[percentageKey] || 0), 0);
   const isComplete = totalPercentage === 100;
 
   const roles = type === 'publishing' ? PUBLISHING_ROLES : MASTER_ROLES;
@@ -159,6 +160,7 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
             key={credit.id}
             credit={credit}
             type={type}
+            percentageKey={percentageKey}
             roles={roles}
             isEditing={editingId === credit.id}
             onEdit={() => setEditingId(credit.id)}
@@ -172,6 +174,7 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
         {isAdding ? (
           <AddSplitForm
             type={type}
+            percentageKey={percentageKey}
             roles={roles}
             onSave={handleCreate}
             onCancel={() => setIsAdding(false)}
@@ -197,6 +200,7 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
 function SplitRow({
   credit,
   type,
+  percentageKey,
   roles,
   isEditing,
   onEdit,
@@ -206,6 +210,7 @@ function SplitRow({
 }: {
   credit: TrackCredit;
   type: 'publishing' | 'master';
+  percentageKey: 'publishing_percentage' | 'master_percentage';
   roles: { value: string; label: string }[];
   isEditing: boolean;
   onEdit: () => void;
@@ -215,13 +220,13 @@ function SplitRow({
 }) {
   const [editName, setEditName] = useState(credit.name);
   const [editRole, setEditRole] = useState(credit.role);
-  const [editPercentage, setEditPercentage] = useState(credit.percentage || 0);
+  const [editPercentage, setEditPercentage] = useState(credit[percentageKey] || 0);
 
   const handleSave = () => {
     onSave({
       name: editName,
       role: editRole,
-      percentage: editPercentage,
+      [percentageKey]: editPercentage,
     });
   };
 
@@ -292,7 +297,7 @@ function SplitRow({
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Badge variant="secondary">{credit.percentage || 0}%</Badge>
+        <Badge variant="secondary">{credit[percentageKey] || 0}%</Badge>
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
           <Pencil className="h-3.5 w-3.5" />
         </Button>
@@ -317,12 +322,14 @@ interface Contact {
 // Add Split Form with Contact Selection
 function AddSplitForm({
   type,
+  percentageKey,
   roles,
   onSave,
   onCancel,
   isLoading,
 }: {
   type: 'publishing' | 'master';
+  percentageKey: 'publishing_percentage' | 'master_percentage';
   roles: { value: string; label: string }[];
   onSave: (data: any) => void;
   onCancel: () => void;
@@ -382,11 +389,11 @@ function AddSplitForm({
       
       if (error) throw error;
       
-      // Now save credit with contact_id
+      // Now save credit with contact_id - use the correct percentage column
       onSave({ 
         name, 
         role, 
-        percentage,
+        [percentageKey]: percentage,
         contact_id: newContact.id 
       });
       toast.success('Contacto creado y vinculado');
@@ -402,10 +409,11 @@ function AddSplitForm({
     const contact = contacts.find(c => c.id === selectedContactId);
     if (!contact) return;
     
+    // Use the correct percentage column based on type
     onSave({ 
       name: contact.stage_name || contact.name, 
       role, 
-      percentage,
+      [percentageKey]: percentage,
       contact_id: selectedContactId 
     });
   };

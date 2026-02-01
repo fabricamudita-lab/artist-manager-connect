@@ -5583,9 +5583,11 @@ export type Database = {
           contact_id: string | null
           created_at: string
           id: string
+          master_percentage: number | null
           name: string
           notes: string | null
           percentage: number | null
+          publishing_percentage: number | null
           role: string
           track_id: string
         }
@@ -5593,9 +5595,11 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           id?: string
+          master_percentage?: number | null
           name: string
           notes?: string | null
           percentage?: number | null
+          publishing_percentage?: number | null
           role: string
           track_id: string
         }
@@ -5603,9 +5607,11 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           id?: string
+          master_percentage?: number | null
           name?: string
           notes?: string | null
           percentage?: number | null
+          publishing_percentage?: number | null
           role?: string
           track_id?: string
         }
