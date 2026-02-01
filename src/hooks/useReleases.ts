@@ -71,7 +71,9 @@ export interface TrackCredit {
   contact_id: string | null;
   name: string;
   role: string;
-  percentage: number | null;
+  percentage: number | null; // Deprecated - use publishing_percentage or master_percentage
+  publishing_percentage: number | null; // % de autoría (sobre 100%)
+  master_percentage: number | null;     // % de royalties master (sobre 100%)
   notes: string | null;
   created_at: string;
 }

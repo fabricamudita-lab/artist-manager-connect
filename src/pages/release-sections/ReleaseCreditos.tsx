@@ -247,7 +247,7 @@ function TrackCreditsItem({
   const [editingCreditId, setEditingCreditId] = useState<string | null>(null);
 
   const createCredit = useMutation({
-    mutationFn: async (data: { name: string; role: string; percentage?: number }) => {
+    mutationFn: async (data: { name: string; role: string; publishing_percentage?: number; master_percentage?: number }) => {
       const { error } = await supabase.from('track_credits').insert({
         track_id: track.id,
         ...data,
@@ -265,7 +265,7 @@ function TrackCreditsItem({
   });
 
   const updateCredit = useMutation({
-    mutationFn: async ({ creditId, data }: { creditId: string; data: Partial<{ role: string; name: string; percentage: number | null }> }) => {
+    mutationFn: async ({ creditId, data }: { creditId: string; data: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null }> }) => {
       const { error } = await supabase.from('track_credits').update(data).eq('id', creditId);
       if (error) throw error;
     },
@@ -365,17 +365,21 @@ function CreditsSection({
   isLoading: boolean;
   isAddCreditOpen: boolean;
   setIsAddCreditOpen: (open: boolean) => void;
-  createCredit: { mutate: (data: { name: string; role: string; percentage?: number }) => void; isPending: boolean };
+  createCredit: { mutate: (data: { name: string; role: string; publishing_percentage?: number; master_percentage?: number }) => void; isPending: boolean };
   editingCreditId: string | null;
   setEditingCreditId: (id: string | null) => void;
-  updateCredit: { mutate: (args: { creditId: string; data: Partial<{ role: string; name: string; percentage: number | null }> }) => void; isPending: boolean };
+  updateCredit: { mutate: (args: { creditId: string; data: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null }> }) => void; isPending: boolean };
   deleteCredit: { mutate: (id: string) => void };
 }) {
   const [copiedCredits, setCopiedCredits] = useState(false);
 
-  // Calculate total percentage
-  const totalPercentage = credits.reduce((sum, c) => sum + (c.percentage ?? 0), 0);
-  const hasPercentageError = credits.length > 0 && totalPercentage !== 100;
+  // Calculate total percentages for publishing and master separately
+  const publishingTotal = credits.reduce((sum, c) => sum + (c.publishing_percentage ?? 0), 0);
+  const masterTotal = credits.reduce((sum, c) => sum + (c.master_percentage ?? 0), 0);
+  const hasPublishingCredits = credits.some(c => c.publishing_percentage != null && c.publishing_percentage > 0);
+  const hasMasterCredits = credits.some(c => c.master_percentage != null && c.master_percentage > 0);
+  const hasPublishingError = hasPublishingCredits && publishingTotal !== 100;
+  const hasMasterError = hasMasterCredits && masterTotal !== 100;
 
   const handleCopyCredits = () => {
     if (credits.length === 0) return;
@@ -441,12 +445,20 @@ function CreditsSection({
         </Dialog>
       </div>
 
-      {/* Percentage validation warning */}
-      {hasPercentageError && (
-        <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+      {/* Percentage validation warnings */}
+      {hasPublishingError && (
+        <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 text-sm">
           <AlertTriangle className="h-4 w-4 flex-shrink-0" />
           <span>
-            Los porcentajes suman {totalPercentage.toFixed(1)}% — deben sumar 100%
+            Autoría suma {publishingTotal.toFixed(1)}% — debe sumar 100%
+          </span>
+        </div>
+      )}
+      {hasMasterError && (
+        <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 text-sm">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <span>
+            Master suma {masterTotal.toFixed(1)}% — debe sumar 100%
           </span>
         </div>
       )}
@@ -465,7 +477,6 @@ function CreditsSection({
               onSave={(data) => updateCredit.mutate({ creditId: credit.id, data })}
               onDelete={() => deleteCredit.mutate(credit.id)}
               isSaving={updateCredit.isPending}
-              hasPercentageError={hasPercentageError}
             />
           ))}
         </div>
@@ -487,30 +498,33 @@ function CreditRow({
   onSave,
   onDelete,
   isSaving,
-  hasPercentageError = false,
 }: {
   credit: TrackCredit;
   isEditing: boolean;
   onStartEdit: () => void;
   onCancelEdit: () => void;
-  onSave: (data: Partial<{ role: string; name: string; percentage: number | null }>) => void;
+  onSave: (data: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null }>) => void;
   onDelete: () => void;
   isSaving: boolean;
-  hasPercentageError?: boolean;
 }) {
   const [editRole, setEditRole] = useState(credit.role);
   const [editName, setEditName] = useState(credit.name);
-  const [editPercentage, setEditPercentage] = useState<string>(
-    credit.percentage != null ? String(credit.percentage) : ''
+  const [editPublishingPct, setEditPublishingPct] = useState<string>(
+    credit.publishing_percentage != null ? String(credit.publishing_percentage) : ''
+  );
+  const [editMasterPct, setEditMasterPct] = useState<string>(
+    credit.master_percentage != null ? String(credit.master_percentage) : ''
   );
   const hasContact = !!credit.contact_id;
 
   const handleSave = () => {
-    const updates: Partial<{ role: string; name: string; percentage: number | null }> = {};
+    const updates: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null }> = {};
     if (editRole !== credit.role) updates.role = editRole;
     if (!hasContact && editName !== credit.name) updates.name = editName;
-    const newPercentage = editPercentage === '' ? null : Number(editPercentage);
-    if (newPercentage !== credit.percentage) updates.percentage = newPercentage;
+    const newPublishing = editPublishingPct === '' ? null : Number(editPublishingPct);
+    const newMaster = editMasterPct === '' ? null : Number(editMasterPct);
+    if (newPublishing !== credit.publishing_percentage) updates.publishing_percentage = newPublishing;
+    if (newMaster !== credit.master_percentage) updates.master_percentage = newMaster;
     if (Object.keys(updates).length > 0) {
       onSave(updates);
     } else {
@@ -548,13 +562,27 @@ function CreditRow({
             min="0"
             max="100"
             step="0.01"
-            value={editPercentage}
-            onChange={(e) => setEditPercentage(e.target.value)}
+            value={editPublishingPct}
+            onChange={(e) => setEditPublishingPct(e.target.value)}
             className="w-[70px] h-8"
-            placeholder="Autoría"
-            title="Porcentaje de autoría"
+            placeholder="Auto."
+            title="% Autoría (Publishing)"
           />
-          <span className="text-sm text-muted-foreground">%</span>
+          <span className="text-xs text-amber-600">A</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            value={editMasterPct}
+            onChange={(e) => setEditMasterPct(e.target.value)}
+            className="w-[70px] h-8"
+            placeholder="Mast."
+            title="% Master (Royalties)"
+          />
+          <span className="text-xs text-blue-600">M</span>
         </div>
         <Button size="sm" variant="default" onClick={handleSave} disabled={isSaving}>
           Guardar
@@ -592,8 +620,15 @@ function CreditRow({
         </div>
       </div>
       <div className="flex items-center gap-2">
-        {credit.percentage != null && (
-          <Badge variant="outline" title="Porcentaje">{credit.percentage}%</Badge>
+        {credit.publishing_percentage != null && credit.publishing_percentage > 0 && (
+          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20" title="% Autoría">
+            {credit.publishing_percentage}% A
+          </Badge>
+        )}
+        {credit.master_percentage != null && credit.master_percentage > 0 && (
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20" title="% Master">
+            {credit.master_percentage}% M
+          </Badge>
         )}
         <Button
           variant="ghost"
@@ -813,12 +848,13 @@ function AddCreditForm({
   onSubmit,
   isLoading,
 }: {
-  onSubmit: (data: { name: string; role: string; percentage?: number }) => void;
+  onSubmit: (data: { name: string; role: string; publishing_percentage?: number; master_percentage?: number }) => void;
   isLoading: boolean;
 }) {
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
-  const [percentage, setPercentage] = useState('');
+  const [publishingPct, setPublishingPct] = useState('');
+  const [masterPct, setMasterPct] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -826,7 +862,8 @@ function AddCreditForm({
     onSubmit({
       name: name.trim(),
       role,
-      percentage: percentage ? parseFloat(percentage) : undefined,
+      publishing_percentage: publishingPct ? parseFloat(publishingPct) : undefined,
+      master_percentage: masterPct ? parseFloat(masterPct) : undefined,
     });
   };
 
@@ -859,18 +896,33 @@ function AddCreditForm({
         </Select>
       </div>
 
-      <div>
-        <Label htmlFor="credit_percentage">Porcentaje (%)</Label>
-        <Input
-          id="credit_percentage"
-          type="number"
-          min={0}
-          max={100}
-          step={0.1}
-          value={percentage}
-          onChange={(e) => setPercentage(e.target.value)}
-          placeholder="Opcional"
-        />
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label htmlFor="credit_publishing">% Autoría</Label>
+          <Input
+            id="credit_publishing"
+            type="number"
+            min={0}
+            max={100}
+            step={0.1}
+            value={publishingPct}
+            onChange={(e) => setPublishingPct(e.target.value)}
+            placeholder="Opcional"
+          />
+        </div>
+        <div>
+          <Label htmlFor="credit_master">% Master</Label>
+          <Input
+            id="credit_master"
+            type="number"
+            min={0}
+            max={100}
+            step={0.1}
+            value={masterPct}
+            onChange={(e) => setMasterPct(e.target.value)}
+            placeholder="Opcional"
+          />
+        </div>
       </div>
 
       <div className="flex justify-end gap-2">
