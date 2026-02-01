@@ -20,31 +20,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { useTrackCredits, TrackCredit, Track } from '@/hooks/useReleases';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-
-// Publishing roles - correspond to composition/lyrics rights (Derechos de Autor)
-const PUBLISHING_ROLES = [
-  { value: 'compositor', label: 'Compositor' },
-  { value: 'letrista', label: 'Letrista' },
-  { value: 'editorial', label: 'Editorial' },
-  { value: 'co-autor', label: 'Co-autor' },
-  { value: 'arreglista', label: 'Arreglista' },
-];
-
-// Master roles - correspond to recording/phonogram rights (Royalties Master)
-const MASTER_ROLES = [
-  { value: 'productor', label: 'Productor' },
-  { value: 'interprete', label: 'Intérprete' },
-  { value: 'vocalista', label: 'Vocalista' },
-  { value: 'featured', label: 'Featuring' },
-  { value: 'sello', label: 'Sello' },
-  { value: 'mezclador', label: 'Mezclador' },
-  { value: 'masterizador', label: 'Masterizador' },
-  { value: 'musico_sesion', label: 'Músico de Sesión' },
-];
-
-// Combined role values for filtering (lowercase for case-insensitive matching)
-const PUBLISHING_ROLE_VALUES = PUBLISHING_ROLES.map(r => r.value.toLowerCase());
-const MASTER_ROLE_VALUES = MASTER_ROLES.map(r => r.value.toLowerCase());
+import {
+  PUBLISHING_ROLES,
+  MASTER_ROLES,
+  PUBLISHING_ROLE_VALUES,
+  MASTER_ROLE_VALUES,
+  getRoleLabel,
+} from '@/lib/creditRoles';
 
 interface TrackRightsSplitsManagerProps {
   track: Track;
@@ -243,7 +225,7 @@ function SplitRow({
     });
   };
 
-  const roleLabel = roles.find(r => r.value === credit.role)?.label || credit.role;
+  const roleLabel = getRoleLabel(credit.role);
 
   if (isEditing) {
     return (

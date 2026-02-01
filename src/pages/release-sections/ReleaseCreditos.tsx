@@ -38,35 +38,17 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-
-const CREDIT_ROLES = [
-  'Compositor',
-  'Letrista',
-  'Productor',
-  'Intérprete',
-  'Featuring',
-  'Sello',
-  'Editorial',
-];
-
-// Order for sorting credits by role
-const ROLE_ORDER: Record<string, number> = {
-  'Compositor': 1,
-  'Letrista': 2,
-  'Productor': 3,
-  'Intérprete': 4,
-  'Featuring': 5,
-  'Sello': 6,
-  'Editorial': 7,
-};
+import { 
+  ALL_CREDIT_ROLES, 
+  getRoleLabel, 
+  getRoleCategory, 
+  sortByRoleOrder,
+  isPublishingRole,
+  isMasterRole 
+} from '@/lib/creditRoles';
 
 const sortCreditsByRole = (credits: TrackCredit[]) => {
-  return [...credits].sort((a, b) => {
-    const orderA = ROLE_ORDER[a.role] ?? 99;
-    const orderB = ROLE_ORDER[b.role] ?? 99;
-    if (orderA !== orderB) return orderA - orderB;
-    return a.name.localeCompare(b.name);
-  });
+  return sortByRoleOrder(credits).sort((a, b) => a.name.localeCompare(b.name));
 };
 
 export default function ReleaseCreditos() {
@@ -555,8 +537,8 @@ function CreditRow({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {CREDIT_ROLES.map((role) => (
-              <SelectItem key={role} value={role}>{role}</SelectItem>
+            {ALL_CREDIT_ROLES.map((role) => (
+              <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -584,18 +566,34 @@ function CreditRow({
     );
   }
 
+  const category = getRoleCategory(credit.role);
+
   return (
     <div
       className="flex items-center justify-between p-2 bg-background rounded border cursor-pointer hover:bg-muted/50 transition-colors"
       onClick={onStartEdit}
     >
-      <div>
-        <p className="font-medium text-sm">{credit.name}</p>
-        <p className="text-xs text-muted-foreground">{credit.role}</p>
+      <div className="flex items-center gap-2">
+        <div>
+          <p className="font-medium text-sm">{credit.name}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-xs text-muted-foreground">{getRoleLabel(credit.role)}</p>
+            {category === 'publishing' && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-600 border-amber-500/20">
+                Autoría
+              </Badge>
+            )}
+            {category === 'master' && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-blue-500/10 text-blue-600 border-blue-500/20">
+                Master
+              </Badge>
+            )}
+          </div>
+        </div>
       </div>
       <div className="flex items-center gap-2">
         {credit.percentage != null && (
-          <Badge variant="outline" title="Porcentaje de autoría">{credit.percentage}%</Badge>
+          <Badge variant="outline" title="Porcentaje">{credit.percentage}%</Badge>
         )}
         <Button
           variant="ghost"
@@ -852,9 +850,9 @@ function AddCreditForm({
             <SelectValue placeholder="Selecciona un rol" />
           </SelectTrigger>
           <SelectContent>
-            {CREDIT_ROLES.map((r) => (
-              <SelectItem key={r} value={r}>
-                {r}
+            {ALL_CREDIT_ROLES.map((r) => (
+              <SelectItem key={r.value} value={r.value}>
+                {r.label}
               </SelectItem>
             ))}
           </SelectContent>
