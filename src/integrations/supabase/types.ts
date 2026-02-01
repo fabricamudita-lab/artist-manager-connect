@@ -5589,6 +5589,7 @@ export type Database = {
           percentage: number | null
           publishing_percentage: number | null
           role: string
+          sort_order: number | null
           track_id: string
         }
         Insert: {
@@ -5601,6 +5602,7 @@ export type Database = {
           percentage?: number | null
           publishing_percentage?: number | null
           role: string
+          sort_order?: number | null
           track_id: string
         }
         Update: {
@@ -5613,6 +5615,7 @@ export type Database = {
           percentage?: number | null
           publishing_percentage?: number | null
           role?: string
+          sort_order?: number | null
           track_id?: string
         }
         Relationships: [

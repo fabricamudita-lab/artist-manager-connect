@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,9 +46,12 @@ import {
   isPublishingRole,
   isMasterRole 
 } from '@/lib/creditRoles';
+import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
-const sortCreditsByRole = (credits: TrackCredit[]) => {
-  return sortByRoleOrder(credits).sort((a, b) => a.name.localeCompare(b.name));
+const sortCreditsBySortOrder = (credits: TrackCredit[]) => {
+  return [...credits].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 };
 
 export default function ReleaseCreditos() {
@@ -342,6 +345,7 @@ function TrackCreditsItem({
             setEditingCreditId={setEditingCreditId}
             updateCredit={updateCredit}
             deleteCredit={deleteCredit}
+            trackId={track.id}
           />
         </div>
       </AccordionContent>
@@ -349,7 +353,7 @@ function TrackCreditsItem({
   );
 }
 
-// Credits Section Component with copy button and percentage validation
+// Credits Section Component with copy button, percentage validation and drag-and-drop
 function CreditsSection({
   credits,
   isLoading,
@@ -360,6 +364,7 @@ function CreditsSection({
   setEditingCreditId,
   updateCredit,
   deleteCredit,
+  trackId,
 }: {
   credits: TrackCredit[];
   isLoading: boolean;
@@ -368,10 +373,21 @@ function CreditsSection({
   createCredit: { mutate: (data: { name: string; role: string; publishing_percentage?: number; master_percentage?: number }) => void; isPending: boolean };
   editingCreditId: string | null;
   setEditingCreditId: (id: string | null) => void;
-  updateCredit: { mutate: (args: { creditId: string; data: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null }> }) => void; isPending: boolean };
+  updateCredit: { mutate: (args: { creditId: string; data: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null; sort_order: number }> }) => void; isPending: boolean };
   deleteCredit: { mutate: (id: string) => void };
+  trackId: string;
 }) {
   const [copiedCredits, setCopiedCredits] = useState(false);
+  const queryClient = useQueryClient();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor)
+  );
+
+  const sortedCredits = useMemo(() => sortCreditsBySortOrder(credits), [credits]);
 
   // Calculate total percentages for publishing and master separately
   const publishingTotal = credits.reduce((sum, c) => sum + (c.publishing_percentage ?? 0), 0);
@@ -386,7 +402,7 @@ function CreditsSection({
     
     // Group credits by role
     const groupedByRole: Record<string, string[]> = {};
-    sortCreditsByRole(credits).forEach((credit) => {
+    sortedCredits.forEach((credit) => {
       const role = credit.role || 'Otro';
       if (!groupedByRole[role]) {
         groupedByRole[role] = [];
@@ -396,13 +412,47 @@ function CreditsSection({
     
     // Format: "Rol: Name1 & Name2"
     const formattedCredits = Object.entries(groupedByRole)
-      .map(([role, names]) => `${role}: ${names.join(' & ')}`)
+      .map(([role, names]) => `${getRoleLabel(role)}: ${names.join(' & ')}`)
       .join('\n');
     
     navigator.clipboard.writeText(formattedCredits);
     setCopiedCredits(true);
     toast.success('Créditos copiados');
     setTimeout(() => setCopiedCredits(false), 2000);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = sortedCredits.findIndex(c => c.id === active.id);
+    const newIndex = sortedCredits.findIndex(c => c.id === over.id);
+    
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reorderedCredits = arrayMove(sortedCredits, oldIndex, newIndex);
+    
+    // Optimistically update the UI
+    queryClient.setQueryData(['track-credits', trackId], reorderedCredits);
+
+    // Update sort_order in database for all affected items
+    const updates = reorderedCredits.map((credit, index) => ({
+      id: credit.id,
+      sort_order: index + 1,
+    }));
+
+    try {
+      for (const update of updates) {
+        await supabase
+          .from('track_credits')
+          .update({ sort_order: update.sort_order })
+          .eq('id', update.id);
+      }
+    } catch (error) {
+      console.error('Error updating credit order:', error);
+      toast.error('Error al reordenar los créditos');
+      queryClient.invalidateQueries({ queryKey: ['track-credits', trackId] });
+    }
   };
 
   return (
@@ -466,20 +516,31 @@ function CreditsSection({
       {isLoading ? (
         <Skeleton className="h-16 w-full" />
       ) : credits.length > 0 ? (
-        <div className="space-y-2">
-          {sortCreditsByRole(credits).map((credit) => (
-            <CreditRow
-              key={credit.id}
-              credit={credit}
-              isEditing={editingCreditId === credit.id}
-              onStartEdit={() => setEditingCreditId(credit.id)}
-              onCancelEdit={() => setEditingCreditId(null)}
-              onSave={(data) => updateCredit.mutate({ creditId: credit.id, data })}
-              onDelete={() => deleteCredit.mutate(credit.id)}
-              isSaving={updateCredit.isPending}
-            />
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={sortedCredits.map(c => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-2">
+              {sortedCredits.map((credit) => (
+                <SortableCreditRow
+                  key={credit.id}
+                  credit={credit}
+                  isEditing={editingCreditId === credit.id}
+                  onStartEdit={() => setEditingCreditId(credit.id)}
+                  onCancelEdit={() => setEditingCreditId(null)}
+                  onSave={(data) => updateCredit.mutate({ creditId: credit.id, data })}
+                  onDelete={() => deleteCredit.mutate(credit.id)}
+                  isSaving={updateCredit.isPending}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       ) : (
         <p className="text-sm text-muted-foreground">
           Sin créditos ni autorías registrados para esta canción.
@@ -489,8 +550,8 @@ function CreditsSection({
   );
 }
 
-// Credit Row with inline editing
-function CreditRow({
+// Sortable Credit Row wrapper for drag-and-drop
+function SortableCreditRow({
   credit,
   isEditing,
   onStartEdit,
@@ -507,6 +568,21 @@ function CreditRow({
   onDelete: () => void;
   isSaving: boolean;
 }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: credit.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   const [editRole, setEditRole] = useState(credit.role);
   const [editName, setEditName] = useState(credit.name);
   const [editPublishingPct, setEditPublishingPct] = useState<string>(
@@ -534,7 +610,7 @@ function CreditRow({
 
   if (isEditing) {
     return (
-      <div className="flex items-center gap-2 p-2 bg-background rounded border flex-wrap">
+      <div ref={setNodeRef} style={style} className="flex items-center gap-2 p-2 bg-background rounded border flex-wrap">
         {!hasContact && (
           <Input
             value={editName}
@@ -598,11 +674,20 @@ function CreditRow({
 
   return (
     <div
-      className="flex items-center justify-between p-2 bg-background rounded border cursor-pointer hover:bg-muted/50 transition-colors"
-      onClick={onStartEdit}
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between p-2 bg-background rounded border hover:bg-muted/50 transition-colors"
     >
       <div className="flex items-center gap-2">
-        <div>
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1 -ml-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical className="h-4 w-4" />
+        </div>
+        <div className="cursor-pointer" onClick={onStartEdit}>
           <p className="font-medium text-sm">{credit.name}</p>
           <div className="flex items-center gap-1.5">
             <p className="text-xs text-muted-foreground">{getRoleLabel(credit.role)}</p>
