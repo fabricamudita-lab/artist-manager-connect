@@ -430,27 +430,31 @@ function CreditsSection({
     
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const reorderedCredits = arrayMove(sortedCredits, oldIndex, newIndex);
-    
-    // Optimistically update the UI
-    queryClient.setQueryData(['track-credits', trackId], reorderedCredits);
-
-    // Update sort_order in database for all affected items
-    const updates = reorderedCredits.map((credit, index) => ({
-      id: credit.id,
+    const reorderedCredits = arrayMove(sortedCredits, oldIndex, newIndex).map((credit, index) => ({
+      ...credit,
       sort_order: index + 1,
     }));
+    
+    // Optimistically update the UI with new sort_order values
+    queryClient.setQueryData(['track-credits', trackId], reorderedCredits);
 
     try {
-      for (const update of updates) {
-        await supabase
+      // Update sort_order in database for all items
+      for (const credit of reorderedCredits) {
+        const { error } = await supabase
           .from('track_credits')
-          .update({ sort_order: update.sort_order })
-          .eq('id', update.id);
+          .update({ sort_order: credit.sort_order })
+          .eq('id', credit.id);
+        
+        if (error) throw error;
       }
+      
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['track-credits', trackId] });
     } catch (error) {
       console.error('Error updating credit order:', error);
       toast.error('Error al reordenar los créditos');
+      // Revert on error
       queryClient.invalidateQueries({ queryKey: ['track-credits', trackId] });
     }
   };
