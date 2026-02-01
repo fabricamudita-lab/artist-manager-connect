@@ -1,108 +1,125 @@
 
-# Plan: Unificar Créditos, Autoría y Royalties
+# Plan: Separar Publishing y Master en porcentajes independientes
 
-## Contexto del Problema
+## Problema Actual
 
-Actualmente existe confusión y desincronización entre tres conceptos relacionados:
+La tabla `track_credits` usa una sola columna `percentage` para ambos conceptos. Esto significa que si alguien tiene "20% del Master", el sistema lo interpreta como 20% del total, cuando en realidad son dos tartas separadas:
 
-1. **Créditos** (`ReleaseCreditos.tsx`) - Lista de todos los colaboradores de una canción
-2. **Derechos de Autor / Publishing** (`ReleasePresupuestos.tsx`) - Porcentajes para compositores, letristas, editoriales  
-3. **Royalties Master** (`ReleasePresupuestos.tsx`) - Porcentajes para productores, intérpretes, sello
+- **Publishing (Derechos de Autor)**: Debe sumar 100% por separado
+- **Master (Royalties)**: Debe sumar 100% por separado
 
-El problema raíz es que ambas secciones escriben/leen de la misma tabla `track_credits`, pero:
-- Créditos guarda roles capitalizados (`"Productor"`)
-- Presupuestos busca roles en minúsculas (`"productor"`)
-- Hay roles que no aparecen en ambos lados (ej: `"Vocalista"` no está en Créditos)
+## Solución
 
-## Solución Propuesta
+Añadir dos columnas de porcentaje separadas a la tabla `track_credits`:
 
-Establecer **una única fuente de verdad** (`track_credits`) con una **lista de roles unificada** que ambas secciones compartan.
+| Columna | Descripción |
+|---------|-------------|
+| `publishing_percentage` | % sobre el 100% de derechos de autor |
+| `master_percentage` | % sobre el 100% de royalties master |
 
-### Arquitectura Final
+La columna actual `percentage` se puede mantener temporalmente para compatibilidad o eliminar después de la migración.
+
+## Arquitectura Final
 
 ```text
+                      track_credits
 ┌─────────────────────────────────────────────────────────────┐
-│                      track_credits                           │
-│   Tabla única con: name, role, percentage, contact_id        │
+│ id, track_id, contact_id, name, role                        │
+│ publishing_percentage (0-100)  ← Para Autoría               │
+│ master_percentage (0-100)      ← Para Royalties             │
 └─────────────────────────────────────────────────────────────┘
-                              │
-       ┌──────────────────────┼──────────────────────┐
-       ▼                      ▼                      ▼
-┌────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-│   CRÉDITOS     │   │  DERECHOS AUTOR │   │ ROYALTIES MASTER│
-│ (Todos)        │   │  (Publishing)   │   │   (Fonograma)   │
-│                │   │ compositor      │   │ productor       │
-│ Muestra todos  │   │ letrista        │   │ interprete      │
-│ los créditos   │   │ co-autor        │   │ vocalista       │
-│ con/sin %      │   │ arreglista      │   │ featured        │
-│                │   │ editorial       │   │ sello           │
-│                │   │                 │   │ mezclador       │
-│                │   │ (Solo con %)    │   │ masterizador    │
-│                │   │                 │   │                 │
-│                │   │ (Solo con %)    │   │ (Solo con %)    │
-└────────────────┘   └─────────────────┘   └─────────────────┘
+
+     CRÉDITOS                Publishing (100%)    Master (100%)
+┌────────────────┐          ┌──────────────┐    ┌──────────────┐
+│ Juan - Letrista│    →     │ Juan: 50%    │    │              │
+│ Ana - Productor│    →     │              │    │ Ana: 60%     │
+│ Pedro - Comp.  │    →     │ Pedro: 50%   │    │              │
+│ Sello XYZ      │    →     │              │    │ Sello: 40%   │
+└────────────────┘          └──────────────┘    └──────────────┘
+                               Total: 100%        Total: 100%
 ```
 
-## Cambios Técnicos
+## Cambios en Base de Datos
 
-### 1. Crear constantes compartidas de roles
-
-Crear un nuevo archivo `src/lib/creditRoles.ts` con:
-
-- Lista unificada de roles con `value` (lowercase) y `label` (display)
-- Clasificación en categorías: `publishing` vs `master`
-- Función helper para obtener el label de un role
-
-### 2. Actualizar ReleaseCreditos.tsx
-
-- Importar roles desde el archivo compartido
-- Cambiar el formato de roles de strings simples a `{value, label}`
-- Guardar roles en minúsculas con el `value`
-- Mostrar el `label` en la UI
-- Añadir badge visual indicando si el crédito es "Autoría" o "Master" según su rol
-
-### 3. Actualizar ReleasePresupuestos.tsx  
-
-- Importar roles desde el archivo compartido
-- Eliminar la definición duplicada de `CREDIT_ROLES`
-- Asegurar consistencia en el filtrado
-
-### 4. Actualizar TrackRightsSplitsManager.tsx
-
-- Importar roles desde el archivo compartido
-- Simplificar la lógica de filtrado usando las categorías predefinidas
-- Mostrar en cada crédito si está "vinculado" (tiene contact_id)
-
-### 5. Normalización de datos existentes (Migración)
-
-Crear una migración SQL para normalizar los roles existentes a minúsculas:
-
+**Migración SQL:**
 ```sql
+-- Añadir nuevas columnas
+ALTER TABLE track_credits 
+  ADD COLUMN publishing_percentage NUMERIC DEFAULT NULL,
+  ADD COLUMN master_percentage NUMERIC DEFAULT NULL;
+
+-- Migrar datos existentes según el rol
 UPDATE track_credits 
-SET role = LOWER(role) 
-WHERE role != LOWER(role);
+SET publishing_percentage = percentage 
+WHERE role IN ('compositor', 'letrista', 'co-autor', 'arreglista', 'editorial');
+
+UPDATE track_credits 
+SET master_percentage = percentage 
+WHERE role IN ('productor', 'interprete', 'intérprete', 'vocalista', 'featured', 'sello', 'mezclador', 'masterizador', 'musico_sesion');
 ```
+
+## Cambios en Código
+
+### 1. Actualizar interfaz `TrackCredit` (useReleases.ts)
+
+Añadir las nuevas propiedades:
+```typescript
+export interface TrackCredit {
+  id: string;
+  track_id: string;
+  contact_id: string | null;
+  name: string;
+  role: string;
+  percentage: number | null; // Deprecated
+  publishing_percentage: number | null; // NUEVO
+  master_percentage: number | null;     // NUEVO
+  notes: string | null;
+  created_at: string;
+}
+```
+
+### 2. Actualizar `TrackRightsSplitsManager.tsx`
+
+- Cambiar la lectura/escritura para usar `publishing_percentage` o `master_percentage` según el tipo
+- El filtro ya no necesita comprobar rol, solo si el porcentaje correspondiente existe:
+
+```typescript
+const splits = useMemo(() => {
+  const percentageKey = type === 'publishing' ? 'publishing_percentage' : 'master_percentage';
+  return allCredits.filter(credit => credit[percentageKey] !== null && credit[percentageKey] > 0);
+}, [allCredits, type]);
+```
+
+### 3. Actualizar `ReleaseCreditos.tsx`
+
+- Mostrar ambos porcentajes si existen (con badges diferenciados)
+- Permitir editar ambos porcentajes desde la sección de créditos
+- Ejemplo: "Juan - Letrista [50% Autoría] [30% Master]"
+
+### 4. Regenerar tipos de Supabase
+
+Después de la migración, regenerar `src/integrations/supabase/types.ts` para que incluya las nuevas columnas.
 
 ## Flujo de Usuario Final
 
-1. **En Créditos**: Usuario añade colaboradores con sus roles. Puede asignar porcentaje opcional.
-2. **En Presupuestos > Derechos de Autor**: Se muestran automáticamente los créditos con roles de autoría (compositor, letrista, etc.) que tengan porcentaje. Usuario puede editar porcentajes.
-3. **En Presupuestos > Royalties Master**: Se muestran automáticamente los créditos con roles de master (productor, intérprete, etc.) que tengan porcentaje. Usuario puede editar porcentajes.
-
-Cualquier edición en una sección se refleja instantáneamente en las otras (son la misma data).
+1. **En Créditos**: Usuario añade "Juan" como "Compositor" con 50% de Publishing y 0% de Master
+2. **En Presupuestos > Publishing**: Ve "Juan - Compositor: 50%" (de 100% Publishing)
+3. **En Presupuestos > Master**: No aparece Juan porque tiene 0% Master
+4. Si añade a "Ana" como "Productor" con 60% Master, aparece solo en la pestaña Master
 
 ## Archivos a Modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/lib/creditRoles.ts` | **Crear** - Constantes compartidas de roles |
-| `src/pages/release-sections/ReleaseCreditos.tsx` | Usar roles compartidos, guardar en lowercase |
-| `src/pages/release-sections/ReleasePresupuestos.tsx` | Usar roles compartidos, eliminar duplicados |
-| `src/components/releases/TrackRightsSplitsManager.tsx` | Usar roles compartidos |
-| Migración SQL | Normalizar roles existentes a lowercase |
+| Migración SQL | Añadir `publishing_percentage` y `master_percentage` |
+| `src/integrations/supabase/types.ts` | Regenerar con nuevas columnas |
+| `src/hooks/useReleases.ts` | Actualizar interfaz `TrackCredit` |
+| `src/components/releases/TrackRightsSplitsManager.tsx` | Usar porcentaje correcto según tipo |
+| `src/pages/release-sections/ReleaseCreditos.tsx` | Mostrar/editar ambos porcentajes |
+| `src/lib/creditRoles.ts` | Sin cambios (roles ya correctos) |
 
-## Mejoras UX Adicionales
+## Beneficios
 
-- En la sección de Créditos, añadir un indicador visual (badge de color) que muestre si el crédito es de tipo "Autoría" (ámbar) o "Master" (azul)
-- Mostrar el porcentaje directamente en la lista de créditos si existe
-- Añadir tooltip explicando qué significa cada categoría
+- **Claridad**: 100% Publishing + 100% Master = gestión correcta de derechos
+- **Flexibilidad**: Un colaborador puede participar en ambos (ej: artista-compositor)
+- **Sincronización**: Editar en cualquier sección actualiza la misma fila
