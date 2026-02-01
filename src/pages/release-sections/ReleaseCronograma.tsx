@@ -123,8 +123,7 @@ interface Subtask {
   dueDate?: Date | null;
   reminderDays?: number[] | null; // Days before due date to remind (supports multiple)
   status?: TaskStatus;
-  anchoredTo?: string;
-  // Checkbox fields
+  anchoredTo?: string[]; // Support multiple anchors like main tasks
   completed?: boolean;
   // Note fields (directed to a specific person)
   content?: string;
@@ -1387,32 +1386,16 @@ export default function ReleaseCronograma() {
                                       />
                                     </TableCell>
                                     <TableCell>
-                                      <Select
-                                        value={subtask.anchoredTo || 'none'}
-                                        onValueChange={(value) => updateSubtask(workflow.id, task.id, subtask.id, { anchoredTo: value === 'none' ? undefined : value })}
-                                      >
-                                        <SelectTrigger className="h-7 border-0 bg-transparent text-xs">
-                                          <SelectValue placeholder="Sin ancla">
-                                            {subtask.anchoredTo ? (
-                                              <span className="text-xs">🔗 {getTaskName(subtask.anchoredTo)}</span>
-                                            ) : (
-                                              <span className="text-muted-foreground text-xs">Sin ancla</span>
-                                            )}
-                                          </SelectValue>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="none">Sin ancla</SelectItem>
-                                          {workflowsWithTasks.flatMap(w => 
-                                            w.tasks
-                                              .filter(t => t.id !== task.id)
-                                              .map(t => (
-                                                <SelectItem key={t.id} value={t.id}>
-                                                  {t.name} ({w.name})
-                                                </SelectItem>
-                                              ))
-                                          )}
-                                        </SelectContent>
-                                      </Select>
+                                      <MultiAnchorSelector
+                                        value={subtask.anchoredTo || []}
+                                        onChange={(anchors) => updateSubtask(workflow.id, task.id, subtask.id, { 
+                                          anchoredTo: anchors.length > 0 ? anchors : undefined 
+                                        })}
+                                        availableTasks={availableTasksForAnchor.filter(t => t.id !== task.id)}
+                                        currentTaskId={subtask.id}
+                                        getTaskName={getTaskName}
+                                        compact
+                                      />
                                     </TableCell>
                                     <TableCell>
                                       <Select
