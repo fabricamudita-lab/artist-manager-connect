@@ -19,6 +19,16 @@ import { cn } from '@/lib/utils';
 
 type TaskStatus = 'pendiente' | 'en_proceso' | 'completado' | 'retrasado';
 
+interface Subtask {
+  id: string;
+  name: string;
+  type: 'full' | 'checkbox' | 'note' | 'comment';
+  startDate?: Date | null;
+  estimatedDays?: number;
+  status?: TaskStatus;
+  anchoredTo?: string[];
+}
+
 interface ReleaseTask {
   id: string;
   name: string;
@@ -28,6 +38,7 @@ interface ReleaseTask {
   status: TaskStatus;
   anchoredTo?: string[];
   customStartDate?: boolean;
+  subtasks?: Subtask[];
 }
 
 interface WorkflowSection {
@@ -40,7 +51,7 @@ interface WorkflowSection {
 
 interface GanttChartProps {
   workflows: WorkflowSection[];
-  onUpdateTaskDate?: (workflowId: string, taskId: string, newStartDate: Date, newEstimatedDays: number) => void;
+  onUpdateTaskDate?: (workflowId: string, taskId: string, newStartDate: Date, newEstimatedDays: number, subtaskId?: string) => void;
   onSetAnchor?: (workflowId: string, taskId: string, anchoredTo: string[] | undefined) => void;
   getTaskName?: (taskId: string) => string;
 }
@@ -68,14 +79,62 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
   const today = useMemo(() => startOfDay(new Date()), []);
 
   const { timelineStart, timelineEnd, totalDays, tasksWithDates } = useMemo(() => {
-    const allTasks = workflows.flatMap(w => 
-      w.tasks.filter(t => t.startDate).map(t => ({
-        ...t,
-        workflowId: w.id,
-        workflowName: w.name,
-        endDate: addDays(t.startDate!, t.estimatedDays),
-      }))
-    );
+    type TaskWithMeta = {
+      id: string;
+      name: string;
+      startDate: Date;
+      estimatedDays: number;
+      status: TaskStatus;
+      anchoredTo?: string[];
+      workflowId: string;
+      workflowName: string;
+      endDate: Date;
+      isSubtask: boolean;
+      parentTaskId?: string;
+      parentTaskName?: string;
+    };
+
+    const allTasks: TaskWithMeta[] = [];
+    
+    workflows.forEach(w => {
+      w.tasks.forEach(t => {
+        // Add main task if it has a date
+        if (t.startDate) {
+          allTasks.push({
+            id: t.id,
+            name: t.name,
+            startDate: t.startDate,
+            estimatedDays: t.estimatedDays,
+            status: t.status,
+            anchoredTo: t.anchoredTo,
+            workflowId: w.id,
+            workflowName: w.name,
+            endDate: addDays(t.startDate, t.estimatedDays),
+            isSubtask: false,
+          });
+        }
+        
+        // Add subtasks with dates (only 'full' type with startDate)
+        (t.subtasks || []).forEach(st => {
+          if (st.type === 'full' && st.startDate && st.estimatedDays) {
+            allTasks.push({
+              id: st.id,
+              name: st.name,
+              startDate: st.startDate,
+              estimatedDays: st.estimatedDays,
+              status: st.status || 'pendiente',
+              anchoredTo: st.anchoredTo,
+              workflowId: w.id,
+              workflowName: w.name,
+              endDate: addDays(st.startDate, st.estimatedDays),
+              isSubtask: true,
+              parentTaskId: t.id,
+              parentTaskName: t.name,
+            });
+          }
+        });
+      });
+    });
 
     if (allTasks.length === 0) {
       const todayStart = startOfDay(new Date());
@@ -83,11 +142,11 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
         timelineStart: todayStart,
         timelineEnd: addDays(todayStart, 90),
         totalDays: 90,
-        tasksWithDates: [],
+        tasksWithDates: [] as TaskWithMeta[],
       };
     }
 
-    const startDates = allTasks.map(t => t.startDate!);
+    const startDates = allTasks.map(t => t.startDate);
     const endDates = allTasks.map(t => t.endDate);
     
     const earliest = startOfDay(min(startDates));
@@ -197,13 +256,22 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                 </h3>
                 <div className="space-y-2">
                   {workflowTasks.map(task => {
-                    const { left, width } = getBarPosition(task.startDate!, task.estimatedDays);
-                    const dueDate = addDays(task.startDate!, task.estimatedDays);
+                    const { left, width } = getBarPosition(task.startDate, task.estimatedDays);
+                    const dueDate = addDays(task.startDate, task.estimatedDays);
                     const popoverId = `${workflow.id}-${task.id}`;
 
                     return (
-                      <div key={task.id} className="flex items-center gap-3">
-                        <div className="w-32 text-sm truncate text-muted-foreground flex items-center gap-1">
+                      <div key={task.id} className={cn(
+                        "flex items-center gap-3",
+                        task.isSubtask && "ml-4"
+                      )}>
+                        <div className={cn(
+                          "text-sm truncate text-muted-foreground flex items-center gap-1",
+                          task.isSubtask ? "w-28" : "w-32"
+                        )}>
+                          {task.isSubtask && (
+                            <span className="text-muted-foreground/50 mr-0.5">↳</span>
+                          )}
                           {task.anchoredTo && task.anchoredTo.length > 0 && (
                             <span 
                               className="text-primary" 
@@ -212,9 +280,14 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                               🔗{task.anchoredTo.length > 1 && <sup className="text-[10px]">{task.anchoredTo.length}</sup>}
                             </span>
                           )}
-                          {task.name}
+                          <span className={cn(task.isSubtask && "text-xs")} title={task.isSubtask ? `Subtarea de: ${task.parentTaskName}` : undefined}>
+                            {task.name}
+                          </span>
                         </div>
-                        <div className="flex-1 relative h-8 bg-muted/20 rounded">
+                        <div className={cn(
+                          "flex-1 relative rounded",
+                          task.isSubtask ? "h-6 bg-muted/10" : "h-8 bg-muted/20"
+                        )}>
                           {/* Today line in task row */}
                           {todayPosition !== null && (
                             <div 
@@ -232,10 +305,12 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                             <PopoverTrigger asChild>
                               <div
                                 className={cn(
-                                  'absolute top-1 h-6 rounded cursor-pointer transition-all hover:opacity-80 hover:ring-2 hover:ring-primary/50',
-                                  STATUS_BAR_COLORS[task.status]
+                                  'absolute rounded cursor-pointer transition-all hover:opacity-80 hover:ring-2 hover:ring-primary/50',
+                                  STATUS_BAR_COLORS[task.status],
+                                  task.isSubtask ? 'top-0.5 h-5' : 'top-1 h-6',
+                                  task.isSubtask && 'opacity-70'
                                 )}
-                                style={{ left, width, minWidth: '20px' }}
+                                style={{ left, width, minWidth: '16px' }}
                               />
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start" side="top">
