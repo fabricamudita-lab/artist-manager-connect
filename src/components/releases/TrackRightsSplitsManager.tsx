@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, Pencil, Check, X, FileText, Music, User, UserPlus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,27 +15,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import {
-  usePublishingSplits,
-  useMasterSplits,
-  useCreatePublishingSplit,
-  useUpdatePublishingSplit,
-  useDeletePublishingSplit,
-  useCreateMasterSplit,
-  useUpdateMasterSplit,
-  useDeleteMasterSplit,
-  useTrackRightsStats,
-  PUBLISHING_ROLES,
-  MASTER_ROLES,
-  PRO_OPTIONS,
-  type PublishingSplit,
-  type MasterSplit,
-} from '@/hooks/useTrackRightsSplits';
-import { Track } from '@/hooks/useReleases';
+import { useTrackCredits, TrackCredit, Track } from '@/hooks/useReleases';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
+
+// Publishing roles - correspond to composition/lyrics rights (Derechos de Autor)
+const PUBLISHING_ROLES = [
+  { value: 'compositor', label: 'Compositor' },
+  { value: 'letrista', label: 'Letrista' },
+  { value: 'editorial', label: 'Editorial' },
+  { value: 'co-autor', label: 'Co-autor' },
+  { value: 'arreglista', label: 'Arreglista' },
+];
+
+// Master roles - correspond to recording/phonogram rights (Royalties Master)
+const MASTER_ROLES = [
+  { value: 'productor', label: 'Productor' },
+  { value: 'interprete', label: 'Intérprete' },
+  { value: 'featured', label: 'Featuring' },
+  { value: 'sello', label: 'Sello' },
+  { value: 'mezclador', label: 'Mezclador' },
+  { value: 'masterizador', label: 'Masterizador' },
+  { value: 'musico_sesion', label: 'Músico de Sesión' },
+];
+
+// Combined role values for filtering
+const PUBLISHING_ROLE_VALUES = PUBLISHING_ROLES.map(r => r.value);
+const MASTER_ROLE_VALUES = MASTER_ROLES.map(r => r.value);
 
 interface TrackRightsSplitsManagerProps {
   track: Track;
@@ -43,56 +51,85 @@ interface TrackRightsSplitsManagerProps {
 }
 
 export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManagerProps) {
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const { data: publishingSplits = [] } = usePublishingSplits(track.id);
-  const { data: masterSplits = [] } = useMasterSplits(track.id);
-  const stats = useTrackRightsStats(track.id);
+  // Use existing track_credits data
+  const { data: allCredits = [] } = useTrackCredits(track.id);
 
-  const splits = type === 'publishing' ? publishingSplits : masterSplits;
-  const totalPercentage = type === 'publishing' ? stats.publishingTotal : stats.masterTotal;
+  // Filter credits by role type
+  const splits = useMemo(() => {
+    const roleValues = type === 'publishing' ? PUBLISHING_ROLE_VALUES : MASTER_ROLE_VALUES;
+    return allCredits.filter(credit => 
+      credit.percentage !== null && roleValues.includes(credit.role)
+    );
+  }, [allCredits, type]);
+
+  const totalPercentage = splits.reduce((sum, s) => sum + (s.percentage || 0), 0);
   const isComplete = totalPercentage === 100;
-
-  const createPublishing = useCreatePublishingSplit();
-  const updatePublishing = useUpdatePublishingSplit();
-  const deletePublishing = useDeletePublishingSplit();
-  const createMaster = useCreateMasterSplit();
-  const updateMaster = useUpdateMasterSplit();
-  const deleteMaster = useDeleteMasterSplit();
 
   const roles = type === 'publishing' ? PUBLISHING_ROLES : MASTER_ROLES;
   const Icon = type === 'publishing' ? FileText : Music;
-  const title = type === 'publishing' ? 'Derechos de Autor' : 'Royalties Master';
-  const subtitle = type === 'publishing' 
-    ? 'Compositores, letristas, editoriales' 
-    : 'Artistas, productores, sello';
+
+  // Create credit mutation
+  const createCredit = useMutation({
+    mutationFn: async (data: Omit<TrackCredit, 'id' | 'created_at'>) => {
+      const { error } = await supabase.from('track_credits').insert(data);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
+      toast.success('Crédito añadido');
+    },
+    onError: () => {
+      toast.error('Error al añadir');
+    },
+  });
+
+  // Update credit mutation
+  const updateCredit = useMutation({
+    mutationFn: async ({ id, ...data }: Partial<TrackCredit> & { id: string }) => {
+      const { error } = await supabase.from('track_credits').update(data).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
+      toast.success('Crédito actualizado');
+    },
+    onError: () => {
+      toast.error('Error al actualizar');
+    },
+  });
+
+  // Delete credit mutation
+  const deleteCredit = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('track_credits').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
+      toast.success('Crédito eliminado');
+    },
+    onError: () => {
+      toast.error('Error al eliminar');
+    },
+  });
 
   const handleCreate = async (data: any) => {
-    if (type === 'publishing') {
-      await createPublishing.mutateAsync({ ...data, track_id: track.id });
-    } else {
-      await createMaster.mutateAsync({ ...data, track_id: track.id });
-    }
+    await createCredit.mutateAsync({ ...data, track_id: track.id });
     setIsAdding(false);
   };
 
   const handleUpdate = async (id: string, data: any) => {
-    if (type === 'publishing') {
-      await updatePublishing.mutateAsync({ id, trackId: track.id, ...data });
-    } else {
-      await updateMaster.mutateAsync({ id, trackId: track.id, ...data });
-    }
+    await updateCredit.mutateAsync({ id, ...data });
     setEditingId(null);
   };
 
   const handleDelete = async (id: string) => {
-    if (type === 'publishing') {
-      await deletePublishing.mutateAsync({ id, trackId: track.id });
-    } else {
-      await deleteMaster.mutateAsync({ id, trackId: track.id });
-    }
+    await deleteCredit.mutateAsync(id);
   };
 
   return (
@@ -134,17 +171,17 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
         </div>
 
         {/* Existing splits */}
-        {splits.map((split) => (
+        {splits.map((credit) => (
           <SplitRow
-            key={split.id}
-            split={split}
+            key={credit.id}
+            credit={credit}
             type={type}
             roles={roles}
-            isEditing={editingId === split.id}
-            onEdit={() => setEditingId(split.id)}
+            isEditing={editingId === credit.id}
+            onEdit={() => setEditingId(credit.id)}
             onCancelEdit={() => setEditingId(null)}
-            onSave={(data) => handleUpdate(split.id, data)}
-            onDelete={() => handleDelete(split.id)}
+            onSave={(data) => handleUpdate(credit.id, data)}
+            onDelete={() => handleDelete(credit.id)}
           />
         ))}
 
@@ -155,7 +192,7 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
             roles={roles}
             onSave={handleCreate}
             onCancel={() => setIsAdding(false)}
-            isLoading={createPublishing.isPending || createMaster.isPending}
+            isLoading={createCredit.isPending}
           />
         ) : (
           <Button 
@@ -175,7 +212,7 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
 
 // Split Row Component
 function SplitRow({
-  split,
+  credit,
   type,
   roles,
   isEditing,
@@ -184,7 +221,7 @@ function SplitRow({
   onSave,
   onDelete,
 }: {
-  split: PublishingSplit | MasterSplit;
+  credit: TrackCredit;
   type: 'publishing' | 'master';
   roles: { value: string; label: string }[];
   isEditing: boolean;
@@ -193,27 +230,19 @@ function SplitRow({
   onSave: (data: any) => void;
   onDelete: () => void;
 }) {
-  const [editName, setEditName] = useState(split.name);
-  const [editRole, setEditRole] = useState(split.role);
-  const [editPercentage, setEditPercentage] = useState(split.percentage);
-  const [editPro, setEditPro] = useState((split as PublishingSplit).pro_name || '');
-  const [editLabel, setEditLabel] = useState((split as MasterSplit).label_name || '');
+  const [editName, setEditName] = useState(credit.name);
+  const [editRole, setEditRole] = useState(credit.role);
+  const [editPercentage, setEditPercentage] = useState(credit.percentage || 0);
 
   const handleSave = () => {
-    const data: any = {
+    onSave({
       name: editName,
       role: editRole,
       percentage: editPercentage,
-    };
-    if (type === 'publishing') {
-      data.pro_name = editPro || null;
-    } else {
-      data.label_name = editLabel || null;
-    }
-    onSave(data);
+    });
   };
 
-  const roleLabel = roles.find(r => r.value === split.role)?.label || split.role;
+  const roleLabel = roles.find(r => r.value === credit.role)?.label || credit.role;
 
   if (isEditing) {
     return (
@@ -247,28 +276,6 @@ function SplitRow({
           />
           <div className="w-16 text-right font-medium">{editPercentage}%</div>
         </div>
-        {type === 'publishing' && (
-          <Select value={editPro} onValueChange={setEditPro}>
-            <SelectTrigger>
-              <SelectValue placeholder="PRO (Sociedad de Gestión)" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">Sin especificar</SelectItem>
-              {PRO_OPTIONS.map((p) => (
-                <SelectItem key={p.value} value={p.value}>
-                  {p.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        {type === 'master' && (
-          <Input
-            value={editLabel}
-            onChange={(e) => setEditLabel(e.target.value)}
-            placeholder="Sello discográfico (opcional)"
-          />
-        )}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={onCancelEdit}>
             <X className="h-4 w-4" />
@@ -285,21 +292,15 @@ function SplitRow({
     <div className="flex items-center justify-between p-2 rounded-lg border bg-background">
       <div className="flex items-center gap-3">
         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-          split.contact_id ? 'bg-primary/10' : 'bg-muted'
+          credit.contact_id ? 'bg-primary/10' : 'bg-muted'
         }`}>
-          <User className={`h-4 w-4 ${split.contact_id ? 'text-primary' : 'text-muted-foreground'}`} />
+          <User className={`h-4 w-4 ${credit.contact_id ? 'text-primary' : 'text-muted-foreground'}`} />
         </div>
         <div className="min-w-0">
-          <p className="font-medium text-sm truncate">{split.name}</p>
+          <p className="font-medium text-sm truncate">{credit.name}</p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Badge variant="outline" className="text-xs">{roleLabel}</Badge>
-            {type === 'publishing' && (split as PublishingSplit).pro_name && (
-              <span>{(split as PublishingSplit).pro_name}</span>
-            )}
-            {type === 'master' && (split as MasterSplit).label_name && (
-              <span>{(split as MasterSplit).label_name}</span>
-            )}
-            {split.contact_id && (
+            {credit.contact_id && (
               <Badge variant="secondary" className="text-xs bg-primary/10">
                 Vinculado
               </Badge>
@@ -308,7 +309,7 @@ function SplitRow({
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Badge variant="secondary">{split.percentage}%</Badge>
+        <Badge variant="secondary">{credit.percentage || 0}%</Badge>
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
           <Pencil className="h-3.5 w-3.5" />
         </Button>
@@ -357,8 +358,6 @@ function AddSplitForm({
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState(roles[0]?.value || '');
   const [percentage, setPercentage] = useState(50);
-  const [pro, setPro] = useState('');
-  const [label, setLabel] = useState('');
 
   useEffect(() => {
     if (mode === 'select') {
@@ -400,17 +399,13 @@ function AddSplitForm({
       
       if (error) throw error;
       
-      // Now save split with contact_id
-      const splitData: any = { 
+      // Now save credit with contact_id
+      onSave({ 
         name, 
         role, 
         percentage,
         contact_id: newContact.id 
-      };
-      if (type === 'publishing' && pro) splitData.pro_name = pro;
-      if (type === 'master' && label) splitData.label_name = label;
-      
-      onSave(splitData);
+      });
       toast.success('Contacto creado y vinculado');
     } catch (error) {
       console.error('Error creating contact:', error);
@@ -424,16 +419,12 @@ function AddSplitForm({
     const contact = contacts.find(c => c.id === selectedContactId);
     if (!contact) return;
     
-    const splitData: any = { 
+    onSave({ 
       name: contact.stage_name || contact.name, 
       role, 
       percentage,
       contact_id: selectedContactId 
-    };
-    if (type === 'publishing' && pro) splitData.pro_name = pro;
-    if (type === 'master' && label) splitData.label_name = label;
-    
-    onSave(splitData);
+    });
   };
 
   const filteredContacts = contacts.filter(c => 
@@ -499,23 +490,23 @@ function AddSplitForm({
         </div>
         
         {/* Contact list */}
-        <div className="max-h-40 overflow-y-auto border rounded-md">
+        <div className="max-h-40 overflow-y-auto space-y-1">
           {loadingContacts ? (
-            <p className="text-sm text-muted-foreground p-3 text-center">Cargando...</p>
+            <p className="text-sm text-muted-foreground text-center py-4">Cargando...</p>
           ) : filteredContacts.length === 0 ? (
-            <p className="text-sm text-muted-foreground p-3 text-center">No hay contactos</p>
+            <p className="text-sm text-muted-foreground text-center py-4">No se encontraron contactos</p>
           ) : (
-            filteredContacts.map(contact => (
+            filteredContacts.map((contact) => (
               <div
                 key={contact.id}
-                className={`p-2 cursor-pointer hover:bg-muted/50 flex items-center gap-2 border-b last:border-b-0 ${
-                  selectedContactId === contact.id ? 'bg-primary/10' : ''
+                className={`p-2 rounded cursor-pointer flex items-center gap-2 ${
+                  selectedContactId === contact.id 
+                    ? 'bg-primary/10 border border-primary' 
+                    : 'hover:bg-muted'
                 }`}
                 onClick={() => setSelectedContactId(contact.id)}
               >
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                  <User className="h-4 w-4" />
-                </div>
+                <User className="h-4 w-4 text-muted-foreground" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">
                     {contact.stage_name || contact.name}
@@ -524,14 +515,11 @@ function AddSplitForm({
                     <p className="text-xs text-muted-foreground truncate">{contact.email}</p>
                   )}
                 </div>
-                {selectedContactId === contact.id && (
-                  <Check className="h-4 w-4 text-primary" />
-                )}
               </div>
             ))
           )}
         </div>
-        
+
         {/* Role and percentage */}
         {selectedContactId && (
           <>
@@ -547,9 +535,8 @@ function AddSplitForm({
                 ))}
               </SelectContent>
             </Select>
-            
             <div className="flex items-center gap-4">
-              <Label className="text-sm text-muted-foreground">Porcentaje</Label>
+              <Label className="shrink-0">Porcentaje:</Label>
               <Slider
                 value={[percentage]}
                 onValueChange={([val]) => setPercentage(val)}
@@ -559,40 +546,17 @@ function AddSplitForm({
               />
               <div className="w-16 text-right font-medium">{percentage}%</div>
             </div>
-            
-            {type === 'publishing' && (
-              <Select value={pro} onValueChange={setPro}>
-                <SelectTrigger>
-                  <SelectValue placeholder="PRO / Sociedad de Gestión (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Sin especificar</SelectItem>
-                  {PRO_OPTIONS.map((p) => (
-                    <SelectItem key={p.value} value={p.value}>
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {type === 'master' && (
-              <Input
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="Sello discográfico (opcional)"
-              />
-            )}
           </>
         )}
-        
-        <div className="flex justify-end gap-2">
+
+        <div className="flex justify-end gap-2 pt-2">
           <Button variant="ghost" size="sm" onClick={onCancel}>
             Cancelar
           </Button>
           <Button 
             size="sm" 
-            onClick={handleSelectContactAndSave} 
-            disabled={isLoading || !selectedContactId}
+            disabled={!selectedContactId || isLoading}
+            onClick={handleSelectContactAndSave}
           >
             Añadir
           </Button>
@@ -601,52 +565,47 @@ function AddSplitForm({
     );
   }
 
-  // Create new profile mode
+  // Create new contact mode
   return (
     <div className="p-3 border rounded-lg space-y-3 bg-muted/30">
       <div className="flex items-center gap-2 mb-2">
         <Button variant="ghost" size="sm" onClick={() => setMode(null)}>
           ← Volver
         </Button>
-        <span className="text-sm font-medium">Crear nuevo perfil</span>
+        <span className="text-sm font-medium">Crear Nuevo Perfil</span>
       </div>
       
-      <div className="grid grid-cols-2 gap-3">
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Nombre *"
-        />
-        <Select value={role} onValueChange={setRole}>
-          <SelectTrigger>
-            <SelectValue placeholder="Rol" />
-          </SelectTrigger>
-          <SelectContent>
-            {roles.map((r) => (
-              <SelectItem key={r.value} value={r.value}>
-                {r.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-3">
-        <Input
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email (opcional)"
-          type="email"
-        />
-        <Input
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="Teléfono (opcional)"
-        />
-      </div>
-      
+      <Input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Nombre *"
+      />
+      <Input
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Email (opcional)"
+        type="email"
+      />
+      <Input
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        placeholder="Teléfono (opcional)"
+        type="tel"
+      />
+      <Select value={role} onValueChange={setRole}>
+        <SelectTrigger>
+          <SelectValue placeholder="Rol *" />
+        </SelectTrigger>
+        <SelectContent>
+          {roles.map((r) => (
+            <SelectItem key={r.value} value={r.value}>
+              {r.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <div className="flex items-center gap-4">
-        <Label className="text-sm text-muted-foreground">Porcentaje</Label>
+        <Label className="shrink-0">Porcentaje:</Label>
         <Slider
           value={[percentage]}
           onValueChange={([val]) => setPercentage(val)}
@@ -656,38 +615,15 @@ function AddSplitForm({
         />
         <div className="w-16 text-right font-medium">{percentage}%</div>
       </div>
-      
-      {type === 'publishing' && (
-        <Select value={pro} onValueChange={setPro}>
-          <SelectTrigger>
-            <SelectValue placeholder="PRO / Sociedad de Gestión (opcional)" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Sin especificar</SelectItem>
-            {PRO_OPTIONS.map((p) => (
-              <SelectItem key={p.value} value={p.value}>
-                {p.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-      {type === 'master' && (
-        <Input
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="Sello discográfico (opcional)"
-        />
-      )}
-      
-      <div className="flex justify-end gap-2">
+
+      <div className="flex justify-end gap-2 pt-2">
         <Button variant="ghost" size="sm" onClick={onCancel}>
           Cancelar
         </Button>
         <Button 
           size="sm" 
-          onClick={handleCreateContactAndSave} 
-          disabled={isLoading || !name}
+          disabled={!name || !role || isLoading}
+          onClick={handleCreateContactAndSave}
         >
           Crear y Añadir
         </Button>
