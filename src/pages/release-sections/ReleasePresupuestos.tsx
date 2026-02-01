@@ -16,6 +16,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { TrackRightsSplitsManager } from '@/components/releases/TrackRightsSplitsManager';
+import { ALL_CREDIT_ROLES, getRoleLabel } from '@/lib/creditRoles';
 import {
   Dialog,
   DialogContent,
@@ -63,15 +64,7 @@ const BUDGET_CATEGORIES = [
   { value: 'otros', label: 'Otros' },
 ];
 
-const CREDIT_ROLES = [
-  { value: 'compositor', label: 'Compositor' },
-  { value: 'letrista', label: 'Letrista' },
-  { value: 'productor', label: 'Productor' },
-  { value: 'interprete', label: 'Intérprete' },
-  { value: 'featured', label: 'Featuring' },
-  { value: 'sello', label: 'Sello' },
-  { value: 'editorial', label: 'Editorial' },
-];
+// Roles now imported from shared creditRoles.ts via TrackRightsSplitsManager
 
 export default function ReleasePresupuestos() {
   const { id } = useParams<{ id: string }>();
@@ -765,7 +758,7 @@ function CreditRow({
                 <SelectValue placeholder="Selecciona rol" />
               </SelectTrigger>
               <SelectContent>
-                {CREDIT_ROLES.map((r) => (
+                {ALL_CREDIT_ROLES.map((r) => (
                   <SelectItem key={r.value} value={r.value}>
                     {r.label}
                   </SelectItem>
@@ -798,7 +791,7 @@ function CreditRow({
         <div>
           <p className="font-medium text-sm">{credit.name}</p>
           <p className="text-xs text-muted-foreground">
-            {CREDIT_ROLES.find(r => r.value === credit.role)?.label || credit.role}
+            {getRoleLabel(credit.role)}
           </p>
         </div>
       </div>
@@ -872,7 +865,7 @@ function AddSplitForm({
             <SelectValue placeholder="Selecciona rol" />
           </SelectTrigger>
           <SelectContent>
-            {CREDIT_ROLES.map((r) => (
+            {ALL_CREDIT_ROLES.map((r) => (
               <SelectItem key={r.value} value={r.value}>
                 {r.label}
               </SelectItem>
