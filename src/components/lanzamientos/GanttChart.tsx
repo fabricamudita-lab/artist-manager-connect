@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { format, addDays, differenceInDays, startOfDay, min, max } from 'date-fns';
+import { format, addDays, differenceInDays, startOfDay, min, max, eachDayOfInterval, isAfter, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon } from 'lucide-react';
 import {
@@ -307,6 +307,24 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                                       return date >= dueDate;
                                     }
                                     return false;
+                                  }}
+                                  modifiers={{
+                                    otherDate: editingDateType === 'start' 
+                                      ? [dueDate] 
+                                      : [task.startDate!],
+                                    inRange: isAfter(dueDate, task.startDate!)
+                                      ? eachDayOfInterval({ start: task.startDate!, end: dueDate }).filter(
+                                          d => !isSameDay(d, task.startDate!) && !isSameDay(d, dueDate)
+                                        )
+                                      : [],
+                                    rangeStart: [task.startDate!],
+                                    rangeEnd: [dueDate],
+                                  }}
+                                  modifiersClassNames={{
+                                    otherDate: "bg-primary/30 text-primary/70 rounded-md",
+                                    inRange: "bg-accent/40 rounded-none",
+                                    rangeStart: "bg-primary/20 rounded-l-md rounded-r-none",
+                                    rangeEnd: "bg-primary/20 rounded-r-md rounded-l-none",
                                   }}
                                   initialFocus
                                   className="p-0 pointer-events-auto"
