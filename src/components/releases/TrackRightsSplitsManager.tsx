@@ -34,6 +34,7 @@ const PUBLISHING_ROLES = [
 const MASTER_ROLES = [
   { value: 'productor', label: 'Productor' },
   { value: 'interprete', label: 'Intérprete' },
+  { value: 'vocalista', label: 'Vocalista' },
   { value: 'featured', label: 'Featuring' },
   { value: 'sello', label: 'Sello' },
   { value: 'mezclador', label: 'Mezclador' },
@@ -41,9 +42,9 @@ const MASTER_ROLES = [
   { value: 'musico_sesion', label: 'Músico de Sesión' },
 ];
 
-// Combined role values for filtering
-const PUBLISHING_ROLE_VALUES = PUBLISHING_ROLES.map(r => r.value);
-const MASTER_ROLE_VALUES = MASTER_ROLES.map(r => r.value);
+// Combined role values for filtering (lowercase for case-insensitive matching)
+const PUBLISHING_ROLE_VALUES = PUBLISHING_ROLES.map(r => r.value.toLowerCase());
+const MASTER_ROLE_VALUES = MASTER_ROLES.map(r => r.value.toLowerCase());
 
 interface TrackRightsSplitsManagerProps {
   track: Track;
@@ -59,11 +60,11 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
   // Use existing track_credits data
   const { data: allCredits = [] } = useTrackCredits(track.id);
 
-  // Filter credits by role type
+  // Filter credits by role type (case-insensitive)
   const splits = useMemo(() => {
     const roleValues = type === 'publishing' ? PUBLISHING_ROLE_VALUES : MASTER_ROLE_VALUES;
     return allCredits.filter(credit => 
-      credit.percentage !== null && roleValues.includes(credit.role)
+      credit.percentage !== null && roleValues.includes(credit.role.toLowerCase())
     );
   }, [allCredits, type]);
 
