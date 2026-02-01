@@ -1145,12 +1145,12 @@ export default function ReleaseCronograma() {
                                               />
                                               <Button
                                                 size="sm"
-                                                variant="ghost"
-                                                className="h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                variant="outline"
+                                                className="h-8 px-3 border-green-500 text-green-600 hover:bg-green-500 hover:text-white shrink-0"
                                                 onClick={() => updateSubtask(workflow.id, task.id, subtask.id, { resolved: true })}
                                               >
-                                                <CheckCheck className="w-4 h-4 mr-1" />
-                                                Resolver
+                                                <CheckCheck className="w-4 h-4 mr-1.5" />
+                                                Marcar resuelto
                                               </Button>
                                             </div>
                                           )}
