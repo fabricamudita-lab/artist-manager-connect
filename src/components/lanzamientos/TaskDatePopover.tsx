@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { format } from "date-fns";
+import { format, eachDayOfInterval, isAfter, isBefore, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 
@@ -8,7 +8,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-
 type EditingDateType = "start" | "end";
 
 interface TaskDatePopoverProps {
@@ -117,9 +116,19 @@ export default function TaskDatePopover({
                 : editing === "end" && startDate 
                   ? [startDate] 
                   : [],
+              inRange: startDate && dueDate && isAfter(dueDate, startDate)
+                ? eachDayOfInterval({ start: startDate, end: dueDate }).filter(
+                    d => !isSameDay(d, startDate) && !isSameDay(d, dueDate)
+                  )
+                : [],
+              rangeStart: startDate ? [startDate] : [],
+              rangeEnd: dueDate ? [dueDate] : [],
             }}
             modifiersClassNames={{
               otherDate: "bg-primary/30 text-primary/70 rounded-md",
+              inRange: "bg-accent/40 rounded-none",
+              rangeStart: "bg-primary/20 rounded-l-md rounded-r-none",
+              rangeEnd: "bg-primary/20 rounded-r-md rounded-l-none",
             }}
             initialFocus
             className="p-0 pointer-events-auto"
