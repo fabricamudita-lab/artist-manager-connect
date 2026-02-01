@@ -240,24 +240,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start" side="top">
                               <div className="p-3 border-b">
-                                <p className="font-medium text-sm">{task.name}</p>
-                                <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
-                                  <span>Inicio: {format(task.startDate!, 'dd MMM yyyy', { locale: es })}</span>
-                                  <span>Fin: {format(dueDate, 'dd MMM yyyy', { locale: es })}</span>
-                                </div>
-                                {task.anchoredTo && task.anchoredTo.length > 0 && getTaskName && (
-                                  <p className="text-xs text-primary mt-1">
-                                    🔗 Anclada a: {task.anchoredTo.map(id => getTaskName(id)).join(', ')}
-                                  </p>
-                                )}
-                                {task.customStartDate && (
-                                  <p className="text-xs text-amber-500 mt-0.5">
-                                    ⚠️ Fecha personalizada
-                                  </p>
-                                )}
-                              </div>
-                              <div className="p-3">
-                                <div className="flex gap-2 mb-3">
+                                <div className="flex gap-2">
                                   <button
                                     onClick={() => setEditingDateType('start')}
                                     className={cn(
@@ -282,6 +265,12 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                                     <CalendarIcon className="w-3 h-3 inline mr-1" />
                                     Fin
                                   </button>
+                                </div>
+                              </div>
+                              <div className="p-3">
+                                <div className="flex gap-4 mb-2 text-xs text-muted-foreground">
+                                  <span>Inicio: {format(task.startDate!, 'dd MMM', { locale: es })}</span>
+                                  <span>Fin: {format(dueDate, 'dd MMM', { locale: es })}</span>
                                 </div>
                                 <Label className="text-xs text-muted-foreground mb-2 block">
                                   {editingDateType === 'start' ? 'Seleccionar fecha de inicio' : 'Seleccionar fecha de fin'}
