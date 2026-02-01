@@ -19,7 +19,8 @@ export const PUBLISHING_ROLES: CreditRole[] = [
 // Master roles - correspond to recording/phonogram rights (Royalties Master)
 export const MASTER_ROLES: CreditRole[] = [
   { value: 'productor', label: 'Productor', category: 'master' },
-  { value: 'interprete', label: 'Intérprete', category: 'master' },
+  { value: 'intérprete', label: 'Intérprete', category: 'master' },
+  { value: 'interprete', label: 'Intérprete', category: 'master' }, // alias without accent
   { value: 'vocalista', label: 'Vocalista', category: 'master' },
   { value: 'featured', label: 'Featuring', category: 'master' },
   { value: 'sello', label: 'Sello', category: 'master' },
