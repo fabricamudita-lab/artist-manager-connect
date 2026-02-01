@@ -75,6 +75,7 @@ export interface TrackCredit {
   publishing_percentage: number | null; // % de autoría (sobre 100%)
   master_percentage: number | null;     // % de royalties master (sobre 100%)
   notes: string | null;
+  sort_order: number;
   created_at: string;
 }
 
