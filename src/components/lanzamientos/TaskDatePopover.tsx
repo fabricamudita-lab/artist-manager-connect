@@ -61,7 +61,7 @@ export default function TaskDatePopover({
           {triggerLabel}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="w-auto p-0" align="start" sideOffset={8} collisionPadding={16}>
         <div className="p-3 border-b">
           <div className="flex gap-2">
             <button
