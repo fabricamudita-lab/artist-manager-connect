@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, Link2 } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,6 +49,8 @@ import {
 import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { LinkCreditContactDialog } from '@/components/credits/LinkCreditContactDialog';
+import { AddCreditWithProfileForm } from '@/components/credits/AddCreditWithProfileForm';
 
 const sortCreditsBySortOrder = (credits: TrackCredit[]) => {
   return [...credits].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
@@ -170,6 +172,7 @@ export default function ReleaseCreditos() {
                 <TrackCreditsItem
                   key={track.id}
                   track={track}
+                  releaseArtistId={release?.artist_id}
                   onEdit={() => {
                     setSelectedTrack(track);
                     setIsEditTrackOpen(true);
@@ -237,10 +240,12 @@ export default function ReleaseCreditos() {
 // Track Credits Item Component
 function TrackCreditsItem({
   track,
+  releaseArtistId,
   onEdit,
   onDelete,
 }: {
   track: Track;
+  releaseArtistId?: string | null;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -250,7 +255,7 @@ function TrackCreditsItem({
   const [editingCreditId, setEditingCreditId] = useState<string | null>(null);
 
   const createCredit = useMutation({
-    mutationFn: async (data: { name: string; role: string; publishing_percentage?: number; master_percentage?: number }) => {
+    mutationFn: async (data: { name: string; role: string; contact_id?: string; publishing_percentage?: number; master_percentage?: number }) => {
       const { error } = await supabase.from('track_credits').insert({
         track_id: track.id,
         ...data,
@@ -346,6 +351,7 @@ function TrackCreditsItem({
             updateCredit={updateCredit}
             deleteCredit={deleteCredit}
             trackId={track.id}
+            releaseArtistId={releaseArtistId}
           />
         </div>
       </AccordionContent>
@@ -365,17 +371,19 @@ function CreditsSection({
   updateCredit,
   deleteCredit,
   trackId,
+  releaseArtistId,
 }: {
   credits: TrackCredit[];
   isLoading: boolean;
   isAddCreditOpen: boolean;
   setIsAddCreditOpen: (open: boolean) => void;
-  createCredit: { mutate: (data: { name: string; role: string; publishing_percentage?: number; master_percentage?: number }) => void; isPending: boolean };
+  createCredit: { mutate: (data: { name: string; role: string; contact_id?: string; publishing_percentage?: number; master_percentage?: number }) => void; isPending: boolean };
   editingCreditId: string | null;
   setEditingCreditId: (id: string | null) => void;
   updateCredit: { mutate: (args: { creditId: string; data: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null; sort_order: number }> }) => void; isPending: boolean };
   deleteCredit: { mutate: (id: string) => void };
   trackId: string;
+  releaseArtistId?: string | null;
 }) {
   const [copiedCredits, setCopiedCredits] = useState(false);
   const queryClient = useQueryClient();
@@ -487,13 +495,14 @@ function CreditsSection({
               Añadir Crédito
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Añadir Crédito</DialogTitle>
             </DialogHeader>
-            <AddCreditForm
+            <AddCreditWithProfileForm
               onSubmit={(data) => createCredit.mutate(data)}
               isLoading={createCredit.isPending}
+              releaseArtistId={releaseArtistId}
             />
           </DialogContent>
         </Dialog>
@@ -692,7 +701,12 @@ function SortableCreditRow({
           <GripVertical className="h-4 w-4" />
         </div>
         <div className="cursor-pointer" onClick={onStartEdit}>
-          <p className="font-medium text-sm">{credit.name}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="font-medium text-sm">{credit.name}</p>
+            {credit.contact_id && (
+              <span title="Vinculado a perfil"><Check className="h-3 w-3 text-green-600" /></span>
+            )}
+          </div>
           <div className="flex items-center gap-1.5">
             <p className="text-xs text-muted-foreground">{getRoleLabel(credit.role)}</p>
             {category === 'publishing' && (
@@ -719,6 +733,7 @@ function SortableCreditRow({
             {credit.master_percentage}% M
           </Badge>
         )}
+        <LinkCreditContactDialog credit={credit} />
         <Button
           variant="ghost"
           size="icon"
@@ -932,93 +947,4 @@ function EditTrackForm({
   );
 }
 
-// Add Credit Form
-function AddCreditForm({
-  onSubmit,
-  isLoading,
-}: {
-  onSubmit: (data: { name: string; role: string; publishing_percentage?: number; master_percentage?: number }) => void;
-  isLoading: boolean;
-}) {
-  const [name, setName] = useState('');
-  const [role, setRole] = useState('');
-  const [publishingPct, setPublishingPct] = useState('');
-  const [masterPct, setMasterPct] = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !role) return;
-    onSubmit({
-      name: name.trim(),
-      role,
-      publishing_percentage: publishingPct ? parseFloat(publishingPct) : undefined,
-      master_percentage: masterPct ? parseFloat(masterPct) : undefined,
-    });
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="credit_name">Nombre *</Label>
-        <Input
-          id="credit_name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Nombre del colaborador"
-          required
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="credit_role">Rol *</Label>
-        <Select value={role} onValueChange={setRole}>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecciona un rol" />
-          </SelectTrigger>
-          <SelectContent>
-            {ALL_CREDIT_ROLES.map((r) => (
-              <SelectItem key={r.value} value={r.value}>
-                {r.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label htmlFor="credit_publishing">% Autoría</Label>
-          <Input
-            id="credit_publishing"
-            type="number"
-            min={0}
-            max={100}
-            step={0.1}
-            value={publishingPct}
-            onChange={(e) => setPublishingPct(e.target.value)}
-            placeholder="Opcional"
-          />
-        </div>
-        <div>
-          <Label htmlFor="credit_master">% Master</Label>
-          <Input
-            id="credit_master"
-            type="number"
-            min={0}
-            max={100}
-            step={0.1}
-            value={masterPct}
-            onChange={(e) => setMasterPct(e.target.value)}
-            placeholder="Opcional"
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-end gap-2">
-        <Button type="submit" disabled={isLoading || !name.trim() || !role}>
-          {isLoading ? 'Guardando...' : 'Añadir Crédito'}
-        </Button>
-      </div>
-    </form>
-  );
-}
+// AddCreditForm has been replaced by AddCreditWithProfileForm component
