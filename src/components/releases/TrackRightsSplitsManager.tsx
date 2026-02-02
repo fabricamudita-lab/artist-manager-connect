@@ -118,30 +118,28 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger asChild>
-        <div className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${type === 'publishing' ? 'bg-amber-500/10' : 'bg-blue-500/10'}`}>
-              <Icon className={`h-4 w-4 ${type === 'publishing' ? 'text-amber-600' : 'text-blue-600'}`} />
-            </div>
-            <div>
-              <p className="font-medium text-sm">
-                {type === 'publishing' ? 'Derechos de Autor' : 'Royalties Master'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {splits.length} {splits.length === 1 ? 'participante' : 'participantes'}
-              </p>
-            </div>
+      <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors text-left">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg ${type === 'publishing' ? 'bg-amber-500/10' : 'bg-blue-500/10'}`}>
+            <Icon className={`h-4 w-4 ${type === 'publishing' ? 'text-amber-600' : 'text-blue-600'}`} />
           </div>
-          <div className="flex items-center gap-3">
-            <Badge 
-              variant={isComplete ? 'default' : 'outline'} 
-              className={isComplete ? 'bg-green-500' : totalPercentage > 100 ? 'border-red-500 text-red-500' : ''}
-            >
-              {totalPercentage}%
-            </Badge>
-            <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <div>
+            <p className="font-medium text-sm">
+              {type === 'publishing' ? 'Derechos de Autor' : 'Royalties Master'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {splits.length} {splits.length === 1 ? 'participante' : 'participantes'}
+            </p>
           </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge 
+            variant={isComplete ? 'default' : 'outline'} 
+            className={isComplete ? 'bg-green-500' : totalPercentage > 100 ? 'border-red-500 text-red-500' : ''}
+          >
+            {totalPercentage}%
+          </Badge>
+          <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </div>
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-3 pl-4 space-y-3">
