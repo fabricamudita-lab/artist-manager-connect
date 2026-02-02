@@ -1,40 +1,59 @@
-# Plan: Separar Publishing y Master en porcentajes independientes - ✅ COMPLETADO
 
-## Implementación Realizada
+# Plan: Mostrar etiquetas claras para Publishing y Master en Audio
 
-### Base de Datos
-- ✅ Añadidas columnas `publishing_percentage` y `master_percentage` a `track_credits`
-- ✅ Migrados datos existentes según el rol del colaborador
+## Problema Actual
 
-### Código Actualizado
-- ✅ `src/hooks/useReleases.ts` - Interfaz `TrackCredit` con nuevos campos
-- ✅ `src/components/releases/TrackRightsSplitsManager.tsx` - Usa columna correcta según tipo (publishing/master)
-- ✅ `src/pages/release-sections/ReleaseCreditos.tsx` - Muestra/edita ambos porcentajes con badges diferenciados
+En la pestaña "Derechos" del diálogo de créditos de Audio, ambos componentes `TrackRightsSplitsManager` muestran el nombre de la canción (ej: "roto") en lugar de mostrar claramente:
+- **Derechos de Autor** (Publishing) - icono ámbar
+- **Royalties Master** (Master) - icono azul
 
-## Arquitectura Final
+## Solución
 
-```text
-                      track_credits
-┌─────────────────────────────────────────────────────────────┐
-│ id, track_id, contact_id, name, role                        │
-│ publishing_percentage (0-100)  ← Para Autoría               │
-│ master_percentage (0-100)      ← Para Royalties             │
-└─────────────────────────────────────────────────────────────┘
+Modificar el componente `TrackRightsSplitsManager` para mostrar un título descriptivo que indique el tipo de derecho:
 
-     CRÉDITOS                Publishing (100%)    Master (100%)
-┌────────────────┐          ┌──────────────┐    ┌──────────────┐
-│ Juan - Letrista│    →     │ Juan: 50%    │    │              │
-│ Ana - Productor│    →     │              │    │ Ana: 60%     │
-│ Pedro - Comp.  │    →     │ Pedro: 50%   │    │              │
-│ Sello XYZ      │    →     │              │    │ Sello: 40%   │
-└────────────────┘          └──────────────┘    └──────────────┘
-                               Total: 100%        Total: 100%
+| Tipo | Etiqueta actual | Nueva etiqueta |
+|------|-----------------|----------------|
+| `publishing` | (título de la canción) | **Derechos de Autor** |
+| `master` | (título de la canción) | **Royalties Master** |
+
+## Cambios Técnicos
+
+### Archivo: `src/components/releases/TrackRightsSplitsManager.tsx`
+
+Modificar líneas 127-130 para reemplazar el título del track por una etiqueta descriptiva del tipo de derecho:
+
+```typescript
+// Antes (línea 128):
+<p className="font-medium text-sm">{track.title}</p>
+
+// Después:
+<p className="font-medium text-sm">
+  {type === 'publishing' ? 'Derechos de Autor' : 'Royalties Master'}
+</p>
 ```
 
-## Flujo de Usuario
+## Resultado Visual Esperado
 
-1. **En Créditos**: Usuario añade colaboradores con % Autoría y/o % Master independientes
-2. **En Presupuestos > Autoría**: Solo aparecen créditos con `publishing_percentage > 0`
-3. **En Presupuestos > Master**: Solo aparecen créditos con `master_percentage > 0`
+En la pestaña "Derechos" del diálogo de Audio:
 
-Cada "tarta" suma 100% de forma independiente.
+```text
+┌─────────────────────────────────────────────────┐
+│ Derechos                                        │
+├─────────────────────────────────────────────────┤
+│ ┌───────────────────────────────────────────┐   │
+│ │ 📄 Derechos de Autor           [0%] [v]   │   │
+│ │    0 participantes                        │   │
+│ └───────────────────────────────────────────┘   │
+│                                                 │
+│ ┌───────────────────────────────────────────┐   │
+│ │ 🎵 Royalties Master         [100%] [v]    │   │
+│ │    2 participantes                        │   │
+│ └───────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────┘
+```
+
+## Archivos a Modificar
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/releases/TrackRightsSplitsManager.tsx` | Cambiar título de `track.title` a etiqueta descriptiva del tipo |
