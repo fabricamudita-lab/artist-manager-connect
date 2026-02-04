@@ -1,168 +1,277 @@
 
 
-# Plan: Simplificar Sistema de Categorías vs Roles
+# Plan: Gestor de Equipos en Panel Lateral
 
-## Problema Identificado
+## Cambio Propuesto
 
-Actualmente hay confusión entre dos conceptos que se solapan:
-
-| Concepto | Ejemplo | Propósito |
-|----------|---------|-----------|
-| **Rol principal** | "Batería", "Ingeniero de sonido" | Describe QUÉ hace específicamente |
-| **Categorías de equipo** | "Banda", "Equipo Artístico", "Productor" | Agrupa para filtrar en la UI |
-
-El problema:
-- Un miembro puede tener MUCHAS categorías redundantes
-- "Productor" aparece como categoría Y podría ser un rol
-- Se muestran badges "+Equipo Artístico", "+Productor" que añaden ruido visual
-
-## Solución Propuesta
-
-Simplificar a **una sola categoría primaria** y usar el **rol** para el detalle:
+Reemplazar la opción "Nuevo Equipo" en el dropdown por "Editar Equipos", que abrirá un panel lateral (Sheet) con todas las operaciones de gestión de equipos.
 
 ```text
-ANTES (confuso):
-┌────────────────────┐
-│      [JR]          │
-│  Juan R. Berbín    │
-│     Batería        │  <- rol
-│ +Equipo Artístico  │  <- categoría extra (redundante)
-│    +Productor      │  <- categoría extra (¿rol o categoría?)
-└────────────────────┘
-
-DESPUES (limpio):
-┌────────────────────┐
-│      [JR]          │
-│  Juan R. Berbín    │
-│ Batería · Productor│  <- roles combinados
-│                    │
-└────────────────────┘
+ANTES:                          DESPUES:
+┌────────────────────┐          ┌────────────────────┐
+│ 00 Management (1)  │          │ 00 Management (1)  │
+│─────────────────── │          │─────────────────── │
+│ Rita Payés (5)     │          │ Rita Payés (5)     │
+│ ✓ VIC (6)          │          │ ✓ VIC (6)          │
+│─────────────────── │          │─────────────────── │
+│ + Nuevo Equipo     │          │ ⚙️ Editar Equipos   │
+└────────────────────┘          └────────────────────┘
+                                         │
+                                         ▼
+                              ┌──────────────────────────┐
+                              │ Gestor de Equipos    [X] │
+                              │─────────────────────────-│
+                              │ Administra tus equipos   │
+                              │                          │
+                              │ [+ Nuevo Equipo]         │
+                              │                          │
+                              │ ┌──────────────────────┐ │
+                              │ │ 🎵 Rita Payés        │ │
+                              │ │    5 miembros        │ │
+                              │ │    [✏️] [📋] [🗑️]    │ │
+                              │ └──────────────────────┘ │
+                              │ ┌──────────────────────┐ │
+                              │ │ 🎵 VIC               │ │
+                              │ │    6 miembros        │ │
+                              │ │    [✏️] [📋] [🗑️]    │ │
+                              │ └──────────────────────┘ │
+                              └──────────────────────────┘
 ```
 
-### Cambios Propuestos
+## Implementacion Tecnica
 
-1. **Una sola categoría primaria** para agrupación/filtro
-2. **Rol puede tener múltiples valores** separados por coma o "·"
-3. **Eliminar badges de categorías extra** de las tarjetas
+### Archivos a Crear/Modificar
 
-## Implementación Técnica
+| Archivo | Accion | Descripcion |
+|---------|--------|-------------|
+| `src/components/TeamManagerSheet.tsx` | Crear | Nuevo panel lateral con lista de equipos y acciones |
+| `src/components/TeamDropdown.tsx` | Modificar | Cambiar "Nuevo Equipo" por "Editar Equipos" |
+| `src/pages/Teams.tsx` | Modificar | Conectar el nuevo panel |
 
-### Archivos a Modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/components/TeamMemberCard.tsx` | Eliminar sección de extraCategories badges |
-| `src/pages/Teams.tsx` | Simplificar lógica de categorías |
-| `src/components/EditContactDialog.tsx` | Permitir múltiples roles en un campo |
-
-### 1. Simplificar TeamMemberCard
-
-Eliminar los badges de categorías extra:
+### 1. Nuevo Componente: TeamManagerSheet
 
 ```tsx
-// ELIMINAR esta sección completa (líneas 130-144):
-{/* Extra categories badges */}
-{extraCategories.length > 0 && (
-  <div className="flex gap-1 mt-1 flex-wrap justify-center">
-    {extraCategories.slice(0, 2).map((cat) => (
-      <Badge key={cat} variant="outline" className="text-[10px] px-1.5 py-0">
-        +{cat}
-      </Badge>
-    ))}
-    ...
-  </div>
+// src/components/TeamManagerSheet.tsx
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { 
+  Plus, MoreVertical, Pencil, Copy, Trash2, Users, Music 
+} from 'lucide-react';
+
+interface Team {
+  id: string;
+  name: string;
+  stageName?: string | null;
+  avatarUrl?: string | null;
+  memberCount: number;
+  description?: string | null;
+}
+
+interface TeamManagerSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  teams: Team[];
+  onCreateNew: () => void;
+  onEdit: (teamId: string) => void;
+  onDuplicate: (teamId: string) => void;
+  onDelete: (teamId: string) => void;
+}
+
+export function TeamManagerSheet({
+  open,
+  onOpenChange,
+  teams,
+  onCreateNew,
+  onEdit,
+  onDuplicate,
+  onDelete,
+}: TeamManagerSheetProps) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Gestor de Equipos
+          </SheetTitle>
+          <SheetDescription>
+            Administra, edita o elimina equipos
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-6 space-y-4">
+          <Button onClick={onCreateNew} className="w-full">
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Equipo
+          </Button>
+
+          <div className="space-y-3">
+            {teams.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Music className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No hay equipos creados</p>
+              </div>
+            ) : (
+              teams.map((team) => (
+                <Card key={team.id}>
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        {team.avatarUrl && (
+                          <AvatarImage src={team.avatarUrl} />
+                        )}
+                        <AvatarFallback>
+                          {(team.stageName || team.name).slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">
+                          {team.stageName || team.name}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {team.memberCount} miembros
+                        </p>
+                      </div>
+                    </div>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onEdit(team.id)}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onDuplicate(team.id)}>
+                          <Copy className="h-4 w-4 mr-2" />
+                          Duplicar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => onDelete(team.id)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Eliminar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+```
+
+### 2. Modificar TeamDropdown
+
+Cambiar la prop y el texto del boton final:
+
+```tsx
+// Cambios en TeamDropdown.tsx
+
+interface TeamDropdownProps {
+  // ... props existentes ...
+  onCreateNew?: () => void;    // ELIMINAR
+  onManageTeams?: () => void;  // NUEVO
+}
+
+// En el JSX, cambiar:
+{onManageTeams && (
+  <>
+    <SelectSeparator />
+    <SelectItem value="__manage__" className="text-primary">
+      <div className="flex items-center gap-2">
+        <Settings className="h-4 w-4" />  {/* Cambiar icono */}
+        <span>Editar Equipos</span>        {/* Cambiar texto */}
+      </div>
+    </SelectItem>
+  </>
 )}
-```
 
-La tarjeta quedará más limpia mostrando solo:
-- Avatar
-- Nombre
-- Rol(es)
-
-### 2. Mejorar visualización de múltiples roles
-
-Si el contacto tiene múltiples funciones, combinarlas en el campo rol:
-
-```tsx
-// En Teams.tsx buildGridMembers
-const contact = {
-  // ...
-  role: formatRoles(contact.role, contact.field_config?.team_categories)
-};
-
-// Helper para formatear roles
-const formatRoles = (mainRole: string, categories: string[]) => {
-  // Si el rol principal ya está definido, usarlo
-  if (mainRole) return mainRole;
-  
-  // Si no hay rol pero hay categorías, usar la primera como rol
-  if (categories?.length > 0) {
-    return categories
-      .map(c => getTeamCategoryLabel(c))
-      .slice(0, 2)
-      .join(' · ');
+// En handleValueChange:
+const handleValueChange = (value: string) => {
+  if (value === '__manage__') {
+    onManageTeams?.();
+  } else {
+    onTeamChange(value);
   }
-  
-  return undefined;
 };
 ```
 
-### 3. Simplificar formulario de edición
+### 3. Modificar Teams.tsx
 
-En EditContactDialog, cambiar la UI de categorías:
+Conectar el nuevo panel:
 
 ```tsx
-// Cambiar de múltiples categorías a:
-<div className="space-y-2">
-  <Label>Categoría principal</Label>
-  <Select value={primaryCategory} onValueChange={setPrimaryCategory}>
-    <SelectTrigger>
-      <SelectValue placeholder="Selecciona una categoría" />
-    </SelectTrigger>
-    <SelectContent>
-      {TEAM_CATEGORIES.map(cat => (
-        <SelectItem key={cat.value} value={cat.value}>
-          {cat.label}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-</div>
+// Nuevo estado
+const [teamManagerOpen, setTeamManagerOpen] = useState(false);
 
-<div className="space-y-2">
-  <Label>Rol/Función específica</Label>
-  <Input 
-    value={role}
-    onChange={e => setRole(e.target.value)}
-    placeholder="Ej: Batería, Ingeniero de sonido, Productor musical..."
-  />
-  <p className="text-xs text-muted-foreground">
-    Puedes añadir varios roles separados por coma
-  </p>
-</div>
+// Cambiar props de TeamDropdown
+<TeamDropdown
+  teams={...}
+  selectedTeamId={selectedArtistId}
+  onTeamChange={setSelectedArtistId}
+  managementMemberCount={teamMembers.length}
+  onManageTeams={() => setTeamManagerOpen(true)}  // NUEVO
+/>
+
+// Añadir el Sheet al final
+<TeamManagerSheet
+  open={teamManagerOpen}
+  onOpenChange={setTeamManagerOpen}
+  teams={artists.map(a => ({
+    id: a.id,
+    name: a.name,
+    stageName: a.stage_name,
+    avatarUrl: a.avatar_url,
+    memberCount: teamMemberCounts.get(a.id) || 0,
+    description: a.description,
+  }))}
+  onCreateNew={() => {
+    setTeamManagerOpen(false);
+    setCreateTeamDialogOpen(true);
+  }}
+  onEdit={(teamId) => {
+    setTeamManagerOpen(false);
+    handleEditTeam(teamId);
+  }}
+  onDuplicate={handleDuplicateTeam}
+  onDelete={handleDeleteTeam}
+/>
 ```
+
+## Flujo de Usuario
+
+1. Usuario hace clic en dropdown de Equipo
+2. Selecciona "Editar Equipos" al final
+3. Se abre panel lateral con lista de equipos
+4. Puede hacer clic en "Nuevo Equipo" o usar el menu de 3 puntos para Editar/Duplicar/Eliminar
+5. Al seleccionar una accion, el panel se cierra y se abre el dialogo correspondiente
 
 ## Resultado Visual
 
-```text
-Vista Grid limpia:
-┌────────────────────────────────────────────────────────┐
-│                                                        │
-│  [JR]        [MP]        [TM]        [SC]        [ER] │
-│  Juan R.     María P.    Tom M.      Sara C.     Eva R│
-│  Batería     Productora  Tour Mgr    Bajo        Keys │
-│                                                        │
-│  [KS]        [L]         [PB]        [RM]        [CN] │
-│  Kevin S.    Laura       Pablo B.    Rosa M.     Carlos│
-│  Guitarra    Legal       Sonido      Booking     Lights│
-│                                                        │
-└────────────────────────────────────────────────────────┘
-```
-
-## Resumen de Beneficios
-
-1. **Menos ruido visual**: Sin badges extra debajo de cada nombre
-2. **Concepto claro**: Categoría = agrupación, Rol = función específica
-3. **Más espacio**: Tarjetas más compactas
-4. **Filtro funcional**: El dropdown de categorías sigue funcionando para filtrar
+El dropdown se mantiene limpio con la opcion de gestion al final, y todas las operaciones de equipo se centralizan en un panel lateral dedicado, evitando saturar la interfaz principal.
 
