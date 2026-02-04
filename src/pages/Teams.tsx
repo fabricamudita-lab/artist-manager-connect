@@ -510,9 +510,14 @@ export default function Teams() {
     setArtists(orderedArtists);
   };
 
-  // Handle category reordering
+  // Handle category reordering (both system and custom)
   const handleCategoryReorder = (orderedValues: string[]) => {
+    // Save the complete order of all categories
+    localStorage.setItem('category_order', JSON.stringify(orderedValues));
+    
+    // Also reorder custom categories for state consistency
     const reorderedCustomCategories = orderedValues
+      .filter(value => customCategories.some(c => c.value === value))
       .map(value => customCategories.find(c => c.value === value))
       .filter(Boolean) as typeof customCategories;
     setCustomCategories(reorderedCustomCategories);

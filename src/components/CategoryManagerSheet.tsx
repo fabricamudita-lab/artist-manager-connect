@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Plus, Pencil, Trash2, Tags, Check, X, Lock, GripVertical
+  Plus, Pencil, Trash2, Tags, Check, X, GripVertical, Tag
 } from 'lucide-react';
 import { TeamCategoryOption } from '@/lib/teamCategories';
 import {
@@ -35,6 +35,7 @@ import { CSS } from '@dnd-kit/utilities';
 interface SortableCategoryCardProps {
   category: TeamCategoryOption;
   count: number;
+  isCustom: boolean;
   isEditing: boolean;
   editValue: string;
   onStartEdit: () => void;
@@ -48,6 +49,7 @@ interface SortableCategoryCardProps {
 function SortableCategoryCard({
   category,
   count,
+  isCustom,
   isEditing,
   editValue,
   onStartEdit,
@@ -73,18 +75,22 @@ function SortableCategoryCard({
     zIndex: isDragging ? 10 : undefined,
   };
 
+  const Icon = category.icon || Tag;
+
   return (
     <Card ref={setNodeRef} style={style} className={isDragging ? 'shadow-lg' : ''}>
       <CardContent className="p-3 flex items-center justify-between gap-2">
+        {/* Handle de drag - SIEMPRE visible */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted"
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
+        
         {isEditing ? (
           <>
-            <div
-              {...attributes}
-              {...listeners}
-              className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted"
-            >
-              <GripVertical className="h-4 w-4 text-muted-foreground" />
-            </div>
             <Input
               value={editValue}
               onChange={(e) => onEditValueChange(e.target.value)}
@@ -113,37 +119,44 @@ function SortableCategoryCard({
           </>
         ) : (
           <>
-            <div
-              {...attributes}
-              {...listeners}
-              className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted"
-            >
-              <GripVertical className="h-4 w-4 text-muted-foreground" />
-            </div>
             <div className="flex items-center gap-3 flex-1">
+              <Icon className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm">{category.label}</span>
-              <Badge variant="secondary" className="text-xs">
-                {count}
+            </div>
+            
+            {/* Badge del sistema - solo para no-custom */}
+            {!isCustom && (
+              <Badge variant="outline" className="text-xs text-muted-foreground">
+                Sistema
               </Badge>
-            </div>
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={onStartEdit}
-              >
-                <Pencil className="h-4 w-4 text-muted-foreground" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={onDelete}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            </div>
+            )}
+            
+            {/* Contador */}
+            <Badge variant="secondary" className="text-xs">
+              {count}
+            </Badge>
+            
+            {/* Botones editar/eliminar - solo para personalizadas */}
+            {isCustom && (
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={onStartEdit}
+                >
+                  <Pencil className="h-4 w-4 text-muted-foreground" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={onDelete}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            )}
           </>
         )}
       </CardContent>
@@ -177,11 +190,29 @@ export function CategoryManagerSheet({
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
-  const [localCustomCategories, setLocalCustomCategories] = useState<TeamCategoryOption[]>(customCategories);
+  const [localCategories, setLocalCategories] = useState<TeamCategoryOption[]>([]);
 
+  // Combine all categories and apply saved order
   useEffect(() => {
-    setLocalCustomCategories(customCategories);
-  }, [customCategories]);
+    const allCategories = [...systemCategories, ...customCategories];
+    const savedOrder = localStorage.getItem('category_order');
+    
+    if (savedOrder) {
+      try {
+        const orderIds: string[] = JSON.parse(savedOrder);
+        const ordered = orderIds
+          .map(id => allCategories.find(c => c.value === id))
+          .filter(Boolean) as TeamCategoryOption[];
+        // Add any new categories not in saved order
+        const newCats = allCategories.filter(c => !orderIds.includes(c.value));
+        setLocalCategories([...ordered, ...newCats]);
+      } catch {
+        setLocalCategories(allCategories);
+      }
+    } else {
+      setLocalCategories(allCategories);
+    }
+  }, [systemCategories, customCategories]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -237,11 +268,11 @@ export function CategoryManagerSheet({
     const { active, over } = event;
     
     if (over && active.id !== over.id) {
-      const oldIndex = localCustomCategories.findIndex(c => c.value === active.id);
-      const newIndex = localCustomCategories.findIndex(c => c.value === over.id);
+      const oldIndex = localCategories.findIndex(c => c.value === active.id);
+      const newIndex = localCategories.findIndex(c => c.value === over.id);
       
-      const reordered = arrayMove(localCustomCategories, oldIndex, newIndex);
-      setLocalCustomCategories(reordered);
+      const reordered = arrayMove(localCategories, oldIndex, newIndex);
+      setLocalCategories(reordered);
       onReorder?.(reordered.map(c => c.value));
     }
   };
@@ -255,7 +286,7 @@ export function CategoryManagerSheet({
             Gestor de Categorías
           </SheetTitle>
           <SheetDescription>
-            Administra las categorías de tu equipo. Arrastra para reordenar las personalizadas.
+            Arrastra para cambiar el orden. Las personalizadas se pueden editar.
           </SheetDescription>
         </SheetHeader>
 
@@ -276,79 +307,47 @@ export function CategoryManagerSheet({
             </div>
           </div>
 
-          {/* System Categories Section */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Lock className="h-3.5 w-3.5" />
-              Categorías del sistema
-            </div>
-            <div className="space-y-2">
-              {systemCategories.map((cat) => {
-                const Icon = cat.icon;
-                const count = categoryCounts.get(cat.value) || 0;
-                return (
-                  <Card key={cat.value} className="bg-muted/30">
-                    <CardContent className="p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
-                        <span className="text-sm">{cat.label}</span>
-                      </div>
-                      <Badge variant="secondary" className="text-xs">
-                        {count}
-                      </Badge>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Custom Categories Section with Drag & Drop */}
-          {localCustomCategories.length > 0 && (
-            <div className="space-y-3">
-              <div className="text-sm font-medium text-muted-foreground">
-                Categorías personalizadas
-              </div>
-              <DndContext 
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
+          {/* Unified Categories List with Drag & Drop */}
+          {localCategories.length > 0 ? (
+            <DndContext 
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext 
+                items={localCategories.map(c => c.value)}
+                strategy={verticalListSortingStrategy}
               >
-                <SortableContext 
-                  items={localCustomCategories.map(c => c.value)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div className="space-y-2">
-                    {localCustomCategories.map((cat) => {
-                      const count = categoryCounts.get(cat.value) || 0;
-                      const isEditing = editingCategory === cat.value;
+                <div className="space-y-2">
+                  {localCategories.map((cat) => {
+                    const count = categoryCounts.get(cat.value) || 0;
+                    const isEditing = editingCategory === cat.value;
+                    const isCustom = cat.isCustom === true;
 
-                      return (
-                        <SortableCategoryCard
-                          key={cat.value}
-                          category={cat}
-                          count={count}
-                          isEditing={isEditing}
-                          editValue={editValue}
-                          onStartEdit={() => handleStartEdit(cat)}
-                          onSaveEdit={handleSaveEdit}
-                          onCancelEdit={handleCancelEdit}
-                          onEditValueChange={setEditValue}
-                          onEditKeyDown={handleEditKeyDown}
-                          onDelete={() => onDelete(cat.value)}
-                        />
-                      );
-                    })}
-                  </div>
-                </SortableContext>
-              </DndContext>
-            </div>
-          )}
-
-          {localCustomCategories.length === 0 && (
+                    return (
+                      <SortableCategoryCard
+                        key={cat.value}
+                        category={cat}
+                        count={count}
+                        isCustom={isCustom}
+                        isEditing={isEditing}
+                        editValue={editValue}
+                        onStartEdit={() => handleStartEdit(cat)}
+                        onSaveEdit={handleSaveEdit}
+                        onCancelEdit={handleCancelEdit}
+                        onEditValueChange={setEditValue}
+                        onEditKeyDown={handleEditKeyDown}
+                        onDelete={() => onDelete(cat.value)}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
+          ) : (
             <div className="text-center py-6 text-muted-foreground text-sm">
               <Tags className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>No hay categorías personalizadas</p>
+              <p>No hay categorías</p>
               <p className="text-xs mt-1">Crea una nueva categoría arriba</p>
             </div>
           )}
