@@ -18,7 +18,7 @@ import { EditContactDialog } from '@/components/EditContactDialog';
 import { ContactProfileSheet } from '@/components/ContactProfileSheet';
 import { TeamCard } from '@/components/TeamCard';
 import { TeamMemberGrid } from '@/components/TeamMemberGrid';
-import { CategoryPills } from '@/components/CategoryPills';
+import { CategoryDropdown } from '@/components/CategoryDropdown';
 import { TEAM_CATEGORIES } from '@/lib/teamCategories';
 import { MemberType } from '@/components/TeamMemberCard';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -693,14 +693,24 @@ export default function Teams() {
             {allTeamByCategory.reduce((sum, cat) => sum + cat.total, 0)} miembros
           </Badge>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
+          {/* Category Dropdown */}
+          {categoryPillsData.length > 0 && (
+            <CategoryDropdown
+              categories={categoryPillsData}
+              selectedCategory={selectedCategoryFilter}
+              onCategoryChange={setSelectedCategoryFilter}
+              allCount={allTeamByCategory.reduce((sum, cat) => sum + cat.total, 0)}
+            />
+          )}
+          
           {/* View Toggle */}
-          <div className="flex gap-1 mr-2">
+          <div className="flex gap-1 border rounded-md p-1">
             <Button
               variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
               size="icon"
               onClick={() => setViewMode('grid')}
-              className="h-9 w-9"
+              className="h-8 w-8"
             >
               <Grid3X3 className="h-4 w-4" />
             </Button>
@@ -708,7 +718,7 @@ export default function Teams() {
               variant={viewMode === 'list' ? 'secondary' : 'ghost'}
               size="icon"
               onClick={() => setViewMode('list')}
-              className="h-9 w-9"
+              className="h-8 w-8"
             >
               <List className="h-4 w-4" />
             </Button>
@@ -724,16 +734,6 @@ export default function Teams() {
           </Button>
         </div>
       </div>
-
-      {/* Category Pills */}
-      {categoryPillsData.length > 0 && (
-        <CategoryPills
-          categories={categoryPillsData}
-          selectedCategory={selectedCategoryFilter}
-          onCategoryChange={setSelectedCategoryFilter}
-          allCount={allTeamByCategory.reduce((sum, cat) => sum + cat.total, 0)}
-        />
-      )}
 
       {/* Members Grid/List */}
       {teamMembers.length === 0 && teamContacts.length === 0 ? (
