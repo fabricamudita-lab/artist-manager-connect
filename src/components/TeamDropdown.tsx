@@ -1,7 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Building2, Settings } from 'lucide-react';
+import { Building2, Settings, Eye } from 'lucide-react';
 
 interface Team {
   id: string;
@@ -37,6 +37,9 @@ export function TeamDropdown({
   onManageTeams,
 }: TeamDropdownProps) {
   const getSelectedLabel = () => {
+    if (selectedTeamId === 'all') {
+      return 'Ver todo';
+    }
     if (selectedTeamId === '00-management') {
       return '00 Management';
     }
@@ -64,6 +67,16 @@ export function TeamDropdown({
           </SelectValue>
         </SelectTrigger>
         <SelectContent className="bg-popover">
+          {/* Ver todo - View All */}
+          <SelectItem value="all">
+            <div className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-muted-foreground" />
+              <span>Ver todo</span>
+            </div>
+          </SelectItem>
+          
+          <SelectSeparator />
+          
           {/* Management Team */}
           <SelectItem value="00-management">
             <div className="flex items-center gap-2">
