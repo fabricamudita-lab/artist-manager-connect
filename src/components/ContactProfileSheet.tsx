@@ -222,12 +222,12 @@ export function ContactProfileSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col">
-        <SheetHeader className="p-6 pb-0">
+      <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col h-full max-h-screen">
+        <SheetHeader className="p-6 pb-0 shrink-0">
           <SheetTitle className="sr-only">Perfil de {contact.name}</SheetTitle>
         </SheetHeader>
         
-        <ScrollArea className="flex-1 px-6">
+        <ScrollArea className="flex-1 px-6 overflow-y-auto">
           <div className="space-y-6 pb-6">
             {/* Header */}
             <div className="flex items-center gap-4 pt-2">
