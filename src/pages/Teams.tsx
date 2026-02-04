@@ -20,6 +20,7 @@ import { TeamMemberGrid } from '@/components/TeamMemberGrid';
 import { CategoryDropdown } from '@/components/CategoryDropdown';
 import { TeamDropdown } from '@/components/TeamDropdown';
 import { TeamManagerSheet } from '@/components/TeamManagerSheet';
+import { CategoryManagerSheet } from '@/components/CategoryManagerSheet';
 import { TEAM_CATEGORIES } from '@/lib/teamCategories';
 import { MemberType } from '@/components/TeamMemberCard';
 
@@ -58,6 +59,7 @@ export default function Teams() {
   const [editTeamDialogOpen, setEditTeamDialogOpen] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [teamManagerOpen, setTeamManagerOpen] = useState(false);
+  const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
   
@@ -120,13 +122,38 @@ export default function Teams() {
     fetchTeamContacts();
   }, []);
 
-  const handleAddCustomCategory = (category: { value: string; label: string; icon: any; isCustom?: boolean }) => {
+  const handleAddCustomCategory = (category: { value: string; label: string; icon?: any; isCustom?: boolean }) => {
     const newCat = { ...category, icon: Users, isCustom: true };
     setCustomCategories(prev => {
       const updated = [...prev, newCat];
       localStorage.setItem('custom_team_categories', JSON.stringify(updated.map(c => ({ value: c.value, label: c.label }))));
       return updated;
     });
+    toast({ title: 'Categoría creada' });
+  };
+
+  const handleRenameCategory = (value: string, newLabel: string) => {
+    setCustomCategories(prev => {
+      const updated = prev.map(c => 
+        c.value === value ? { ...c, label: newLabel } : c
+      );
+      localStorage.setItem('custom_team_categories', JSON.stringify(
+        updated.map(c => ({ value: c.value, label: c.label }))
+      ));
+      return updated;
+    });
+    toast({ title: 'Categoría actualizada' });
+  };
+
+  const handleDeleteCategory = (value: string) => {
+    setCustomCategories(prev => {
+      const updated = prev.filter(c => c.value !== value);
+      localStorage.setItem('custom_team_categories', JSON.stringify(
+        updated.map(c => ({ value: c.value, label: c.label }))
+      ));
+      return updated;
+    });
+    toast({ title: 'Categoría eliminada' });
   };
 
   const allCategoriesForDisplay = [...TEAM_CATEGORIES, ...customCategories];
@@ -705,6 +732,7 @@ export default function Teams() {
               selectedCategory={selectedCategoryFilter}
               onCategoryChange={setSelectedCategoryFilter}
               allCount={allTeamByCategory.reduce((sum, cat) => sum + cat.total, 0)}
+              onManageCategories={() => setCategoryManagerOpen(true)}
             />
           )}
           
@@ -968,7 +996,22 @@ export default function Teams() {
         onDelete={handleDeleteTeam}
       />
 
-      {/* Dialog for editing functional role */}
+      <CategoryManagerSheet
+        open={categoryManagerOpen}
+        onOpenChange={setCategoryManagerOpen}
+        systemCategories={TEAM_CATEGORIES}
+        customCategories={customCategories}
+        categoryCounts={new Map(categoryPillsData.map(c => [c.value, c.count]))}
+        onCreateNew={(name) => {
+          handleAddCustomCategory({ 
+            value: name.toLowerCase().replace(/\s+/g, '_'), 
+            label: name 
+          });
+        }}
+        onRename={handleRenameCategory}
+        onDelete={handleDeleteCategory}
+      />
+
       <Dialog open={!!editingMemberRole} onOpenChange={(open) => !open && setEditingMemberRole(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
