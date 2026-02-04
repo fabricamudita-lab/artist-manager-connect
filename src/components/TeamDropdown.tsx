@@ -1,7 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Building2, Plus, Users } from 'lucide-react';
+import { Building2, Settings } from 'lucide-react';
 
 interface Team {
   id: string;
@@ -17,7 +17,7 @@ interface TeamDropdownProps {
   selectedTeamId: string;
   onTeamChange: (teamId: string) => void;
   managementMemberCount?: number;
-  onCreateNew?: () => void;
+  onManageTeams?: () => void;
 }
 
 const getInitials = (name: string) => {
@@ -34,7 +34,7 @@ export function TeamDropdown({
   selectedTeamId,
   onTeamChange,
   managementMemberCount = 0,
-  onCreateNew,
+  onManageTeams,
 }: TeamDropdownProps) {
   const getSelectedLabel = () => {
     if (selectedTeamId === '00-management') {
@@ -45,8 +45,8 @@ export function TeamDropdown({
   };
 
   const handleValueChange = (value: string) => {
-    if (value === '__new__') {
-      onCreateNew?.();
+    if (value === '__manage__') {
+      onManageTeams?.();
     } else {
       onTeamChange(value);
     }
@@ -91,14 +91,14 @@ export function TeamDropdown({
             </SelectItem>
           ))}
           
-          {/* New Team Option */}
-          {onCreateNew && (
+          {/* Manage Teams Option */}
+          {onManageTeams && (
             <>
               <SelectSeparator />
-              <SelectItem value="__new__" className="text-primary">
+              <SelectItem value="__manage__" className="text-primary">
                 <div className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  <span>Nuevo Equipo</span>
+                  <Settings className="h-4 w-4" />
+                  <span>Editar Equipos</span>
                 </div>
               </SelectItem>
             </>
