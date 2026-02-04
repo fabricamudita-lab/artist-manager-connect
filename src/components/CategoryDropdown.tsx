@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Settings } from 'lucide-react';
@@ -28,10 +29,29 @@ export function CategoryDropdown({
 }: CategoryDropdownProps) {
   const totalCount = allCount ?? categories.reduce((sum, cat) => sum + cat.count, 0);
   
-  // Ordenar por cantidad de miembros (mayor a menor), filtrando categorías vacías
-  const sortedCategories = [...categories]
-    .filter(cat => cat.count > 0)
-    .sort((a, b) => b.count - a.count);
+  // Apply saved order from localStorage, filter empty categories
+  const sortedCategories = useMemo(() => {
+    const savedOrder = localStorage.getItem('category_order');
+    const nonEmptyCategories = categories.filter(cat => cat.count > 0);
+    
+    if (savedOrder) {
+      try {
+        const orderIds: string[] = JSON.parse(savedOrder);
+        return [...nonEmptyCategories].sort((a, b) => {
+          const aIndex = orderIds.indexOf(a.value);
+          const bIndex = orderIds.indexOf(b.value);
+          // Categories not in saved order go to the end
+          if (aIndex === -1 && bIndex === -1) return 0;
+          if (aIndex === -1) return 1;
+          if (bIndex === -1) return -1;
+          return aIndex - bIndex;
+        });
+      } catch {
+        return nonEmptyCategories;
+      }
+    }
+    return nonEmptyCategories;
+  }, [categories]);
 
   // Obtener el label de la categoría seleccionada
   const getSelectedLabel = () => {
