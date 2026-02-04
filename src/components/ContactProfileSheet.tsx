@@ -24,8 +24,10 @@ import {
   Globe,
   Link,
   Calendar,
-  Home
+  Home,
+  Music
 } from "lucide-react";
+import { getTeamCategoryLabel } from '@/lib/teamCategories';
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,6 +65,18 @@ interface ContactData {
   public_slug?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  field_config?: {
+    is_team_member?: boolean;
+    is_management_team?: boolean;
+    team_categories?: string[];
+    [key: string]: any;
+  } | null;
+}
+
+interface AssignedArtist {
+  id: string;
+  name: string;
+  stage_name?: string | null;
 }
 
 interface ProjectRole {
@@ -78,12 +92,14 @@ export function ContactProfileSheet({
 }: ContactProfileSheetProps) {
   const [contact, setContact] = useState<ContactData | null>(null);
   const [projectRoles, setProjectRoles] = useState<ProjectRole[]>([]);
+  const [assignedArtists, setAssignedArtists] = useState<AssignedArtist[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open && contactId) {
       fetchContact();
       fetchProjectRoles();
+      fetchAssignedArtists();
     }
   }, [open, contactId]);
 
@@ -97,7 +113,7 @@ export function ContactProfileSheet({
         .single();
       
       if (error) throw error;
-      setContact(data);
+      setContact(data as ContactData);
     } catch (error) {
       console.error('Error fetching contact:', error);
     } finally {
@@ -133,6 +149,30 @@ export function ContactProfileSheet({
       }
     } catch (error) {
       console.error('Error fetching project roles:', error);
+    }
+  };
+
+  const fetchAssignedArtists = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('contact_artist_assignments')
+        .select('artist_id, artists:artist_id(id, name, stage_name)')
+        .eq('contact_id', contactId);
+      
+      if (error) throw error;
+      
+      if (data) {
+        setAssignedArtists(data.map((a: any) => ({
+          id: a.artists?.id,
+          name: a.artists?.name,
+          stage_name: a.artists?.stage_name,
+        })).filter((a: AssignedArtist) => a.id));
+      } else {
+        setAssignedArtists([]);
+      }
+    } catch (error) {
+      console.error('Error fetching assigned artists:', error);
+      setAssignedArtists([]);
     }
   };
 
@@ -237,6 +277,55 @@ export function ContactProfileSheet({
                     </Badge>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Configuración de equipo - solo si es miembro de equipo */}
+            {contact.field_config?.is_team_member && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  Configuración de equipo
+                </h3>
+                
+                <InfoCard 
+                  icon={Building} 
+                  label="Tipo de equipo" 
+                  value={contact.field_config?.is_management_team 
+                    ? "00 Management (empresa)" 
+                    : "Equipo de artista"} 
+                />
+
+                {assignedArtists.length > 0 && (
+                  <InfoCard 
+                    icon={Music} 
+                    label="Artistas" 
+                    value={
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {assignedArtists.map((artist) => (
+                          <Badge key={artist.id} variant="outline">
+                            {artist.stage_name || artist.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    } 
+                  />
+                )}
+
+                {contact.field_config?.team_categories && contact.field_config.team_categories.length > 0 && (
+                  <InfoCard 
+                    icon={Tag} 
+                    label="Categoría de equipo" 
+                    value={
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {contact.field_config.team_categories.map((cat: string) => (
+                          <Badge key={cat} variant="secondary">
+                            {getTeamCategoryLabel(cat)}
+                          </Badge>
+                        ))}
+                      </div>
+                    } 
+                  />
+                )}
               </div>
             )}
 
