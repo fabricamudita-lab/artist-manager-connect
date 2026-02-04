@@ -312,7 +312,7 @@ export default function Agenda() {
             <SelectContent>
               <SelectItem value="all">Todas</SelectItem>
               {allTags.map((tag) => (
-                <SelectItem key={tag} value={tag}>
+                <SelectItem key={`tag-${tag}`} value={tag}>
                   <span className="flex items-center gap-1">
                     <span className="text-muted-foreground">#</span>
                     {tag}
