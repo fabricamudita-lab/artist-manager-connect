@@ -1,167 +1,171 @@
 
-# Plan: Editor de Categorias en Panel Lateral
 
-## Cambio Propuesto
+# Plan: Añadir Información de Equipo al Panel Lateral de Perfil
 
-Similar al Gestor de Equipos, el dropdown de categorias tendra una opcion "Editar Categorias" al final que abrira un panel lateral para gestionar las categorias (crear, renombrar, eliminar).
+## Problema Identificado
+
+El panel lateral de perfil (`ContactProfileSheet`) no muestra la configuración de equipo que sí está disponible en el diálogo de edición:
+
+| Campo | En EditDialog | En ProfileSheet |
+|-------|---------------|-----------------|
+| Tipo de equipo | ✅ | ❌ Falta |
+| Artistas asignados | ✅ | ❌ Falta |
+| Categoría de equipo | ✅ | ❌ Solo muestra `category`, no `team_categories` |
+
+## Solución Propuesta
+
+Añadir una nueva sección "Configuración de Equipo" en el panel lateral que muestre:
 
 ```text
-ANTES:                          DESPUES:
-┌────────────────────┐          ┌────────────────────┐
-│ ✓ Todas (10)       │          │ ✓ Todas (10)       │
-│─────────────────── │          │─────────────────── │
-│   Banda (4)        │          │   Banda (4)        │
-│   Equipo Tecnico   │          │   Equipo Tecnico   │
-│   Management (1)   │          │   Management (1)   │
-│   Legal (1)        │          │   Legal (1)        │
-│─────────────────── │          │─────────────────── │
-│ + Nueva Categoria  │          │ ⚙️ Editar Categorias│
-└────────────────────┘          └────────────────────┘
-                                         │
-                                         ▼
-                              ┌──────────────────────────┐
-                              │ Gestor de Categorias [X] │
-                              │─────────────────────────-│
-                              │ Administra tus categorias│
-                              │                          │
-                              │ [+ Nueva Categoria]      │
-                              │                          │
-                              │ ┌ CATEGORIAS DEL SISTEMA │
-                              │ │ Banda           (4)    │
-                              │ │ Equipo Tecnico  (1)    │
-                              │ │ Management      (1)    │
-                              │ │ Legal           (1)    │
-                              │ └────────────────────────┘
-                              │                          │
-                              │ ┌ CATEGORIAS CUSTOM ─────│
-                              │ │ [Mi Categoria]  [🗑️]   │
-                              │ └────────────────────────┘
-                              └──────────────────────────┘
+┌──────────────────────────────────────────┐
+│ [Avatar] Juan Rodriguez Berbín           │
+│          Juan R. Berbín                  │
+│          [Batería]                       │
+│                                          │
+│ [Email]  [Llamar]                        │
+├──────────────────────────────────────────┤
+│ Configuración de equipo     <- NUEVO     │
+│ ┌──────────────────────────────────────┐ │
+│ │ 🏢 Tipo de equipo                    │ │
+│ │    Equipo de artista                 │ │
+│ └──────────────────────────────────────┘ │
+│ ┌──────────────────────────────────────┐ │
+│ │ 🎵 Artistas                          │ │
+│ │    [Rita Payés] [M00DITA]            │ │
+│ └──────────────────────────────────────┘ │
+│ ┌──────────────────────────────────────┐ │
+│ │ 🏷️ Categoría                         │ │
+│ │    [Banda] [Productor]               │ │
+│ └──────────────────────────────────────┘ │
+├──────────────────────────────────────────┤
+│ Información de contacto                  │
+│ ...                                      │
+└──────────────────────────────────────────┘
 ```
 
-## Notas de Diseño
+## Implementación Técnica
 
-- Las categorias del sistema (TEAM_CATEGORIES) son de solo lectura, no se pueden eliminar
-- Las categorias personalizadas (custom) se pueden renombrar y eliminar
-- Al eliminar una categoria custom, los contactos que la tenian quedaran sin categoria (o se asignan a "otro")
+### Archivo a Modificar
 
-## Implementacion Tecnica
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/ContactProfileSheet.tsx` | Añadir sección de configuración de equipo |
 
-### Archivos a Crear/Modificar
-
-| Archivo | Accion | Descripcion |
-|---------|--------|-------------|
-| `src/components/CategoryManagerSheet.tsx` | Crear | Panel lateral con lista de categorias y acciones |
-| `src/components/CategoryDropdown.tsx` | Modificar | Cambiar "Nueva Categoria" por "Editar Categorias" |
-| `src/pages/Teams.tsx` | Modificar | Conectar el nuevo panel y handlers |
-
-### 1. Nuevo Componente: CategoryManagerSheet
+### 1. Actualizar Interface ContactData
 
 ```tsx
-// src/components/CategoryManagerSheet.tsx
-interface CategoryManagerSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  systemCategories: TeamCategoryOption[];  // TEAM_CATEGORIES
-  customCategories: TeamCategoryOption[];  // Categorias del usuario
-  categoryCounts: Map<string, number>;     // Conteo de miembros por categoria
-  onCreateNew: (name: string) => void;
-  onRename: (categoryValue: string, newLabel: string) => void;
-  onDelete: (categoryValue: string) => void;
+interface ContactData {
+  // ... campos existentes ...
+  field_config?: {
+    is_team_member?: boolean;
+    is_management_team?: boolean;
+    team_categories?: string[];
+    [key: string]: any;
+  } | null;
 }
-
-// Estructura del panel:
-// - Header con titulo "Gestor de Categorias"
-// - Input + boton para crear nueva categoria
-// - Seccion "Categorias del sistema" (solo lectura, con conteo)
-// - Seccion "Categorias personalizadas" (con acciones editar/eliminar)
 ```
 
-### 2. Modificar CategoryDropdown
+### 2. Añadir Estado para Artistas Asignados
 
 ```tsx
-// Cambios en la interfaz:
-interface CategoryDropdownProps {
-  // ... props existentes ...
-  onCreateNew?: () => void;        // ELIMINAR
-  onManageCategories?: () => void;  // NUEVO
-}
+const [assignedArtists, setAssignedArtists] = useState<Array<{
+  id: string;
+  name: string;
+  stage_name?: string;
+}>>([]);
 
-// Cambiar el item del footer:
-{onManageCategories && (
-  <SelectItem value="__manage__" className="text-primary">
-    <div className="flex items-center gap-2">
-      <Settings className="h-4 w-4" />
-      <span>Editar Categorias</span>
-    </div>
-  </SelectItem>
+const fetchAssignedArtists = async () => {
+  try {
+    const { data } = await supabase
+      .from('contact_artist_assignments')
+      .select('artist_id, artists:artist_id(id, name, stage_name)')
+      .eq('contact_id', contactId);
+    
+    if (data) {
+      setAssignedArtists(data.map((a: any) => ({
+        id: a.artists?.id,
+        name: a.artists?.name,
+        stage_name: a.artists?.stage_name,
+      })).filter(a => a.id));
+    }
+  } catch (error) {
+    console.error('Error fetching assigned artists:', error);
+  }
+};
+```
+
+### 3. Nueva Sección de Configuración de Equipo
+
+```tsx
+{/* Configuración de equipo - solo si es miembro de equipo */}
+{contact.field_config?.is_team_member && (
+  <div className="space-y-3">
+    <h3 className="text-sm font-medium text-muted-foreground">
+      Configuración de equipo
+    </h3>
+    
+    {/* Tipo de equipo */}
+    <InfoCard 
+      icon={Building} 
+      label="Tipo de equipo" 
+      value={contact.field_config?.is_management_team 
+        ? "00 Management (empresa)" 
+        : "Equipo de artista"} 
+    />
+
+    {/* Artistas asignados */}
+    {assignedArtists.length > 0 && (
+      <InfoCard 
+        icon={Music} 
+        label="Artistas" 
+        value={
+          <div className="flex flex-wrap gap-1 mt-1">
+            {assignedArtists.map((artist) => (
+              <Badge key={artist.id} variant="outline">
+                {artist.stage_name || artist.name}
+              </Badge>
+            ))}
+          </div>
+        } 
+      />
+    )}
+
+    {/* Categoría de equipo */}
+    {contact.field_config?.team_categories?.length > 0 && (
+      <InfoCard 
+        icon={Tag} 
+        label="Categoría de equipo" 
+        value={
+          <div className="flex flex-wrap gap-1 mt-1">
+            {contact.field_config.team_categories.map((cat) => (
+              <Badge key={cat} variant="secondary">
+                {getTeamCategoryLabel(cat)}
+              </Badge>
+            ))}
+          </div>
+        } 
+      />
+    )}
+  </div>
 )}
 ```
 
-### 3. Modificar Teams.tsx
+### 4. Importar Dependencias
 
 ```tsx
-// Nuevo estado
-const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
-
-// Nuevos handlers
-const handleRenameCategory = (value: string, newLabel: string) => {
-  setCustomCategories(prev => {
-    const updated = prev.map(c => 
-      c.value === value ? { ...c, label: newLabel } : c
-    );
-    localStorage.setItem('custom_team_categories', JSON.stringify(
-      updated.map(c => ({ value: c.value, label: c.label }))
-    ));
-    return updated;
-  });
-};
-
-const handleDeleteCategory = (value: string) => {
-  setCustomCategories(prev => {
-    const updated = prev.filter(c => c.value !== value);
-    localStorage.setItem('custom_team_categories', JSON.stringify(
-      updated.map(c => ({ value: c.value, label: c.label }))
-    ));
-    return updated;
-  });
-  toast.success('Categoria eliminada');
-};
-
-// Calcular conteos por categoria
-const categoryCounts = useMemo(() => {
-  const counts = new Map<string, number>();
-  // Contar miembros por cada categoria...
-  return counts;
-}, [teamMembers, teamContacts]);
-
-// Cambiar props de CategoryDropdown
-<CategoryDropdown
-  categories={categoryPillsData}
-  selectedCategory={selectedCategoryFilter}
-  onCategoryChange={setSelectedCategoryFilter}
-  allCount={...}
-  onManageCategories={() => setCategoryManagerOpen(true)}
-/>
-
-// Añadir el Sheet
-<CategoryManagerSheet
-  open={categoryManagerOpen}
-  onOpenChange={setCategoryManagerOpen}
-  systemCategories={TEAM_CATEGORIES}
-  customCategories={customCategories}
-  categoryCounts={categoryCounts}
-  onCreateNew={(name) => {
-    handleAddCustomCategory({ value: name.toLowerCase().replace(/\s+/g, '_'), label: name });
-  }}
-  onRename={handleRenameCategory}
-  onDelete={handleDeleteCategory}
-/>
+import { Music } from "lucide-react";
+import { getTeamCategoryLabel } from '@/lib/teamCategories';
 ```
 
-## Resumen
+## Resumen de Cambios
 
-1. **Dropdown simplificado**: Solo muestra "Editar Categorias" en lugar de "Nueva Categoria"
-2. **Panel centralizado**: Todas las operaciones de gestion en un panel lateral
-3. **Categorias protegidas**: Las del sistema no se pueden eliminar, solo las custom
-4. **Coherencia visual**: Mismo estilo que el Gestor de Equipos
+1. Añadir `field_config` a la interfaz ContactData
+2. Crear estado y función para obtener artistas asignados
+3. Añadir sección "Configuración de equipo" después del header
+4. Mostrar: Tipo de equipo, Artistas asignados, Categoría de equipo
+5. Solo mostrar la sección si `is_team_member` es true
+
+## Resultado Visual Esperado
+
+El panel lateral mostrará toda la información disponible en el diálogo de edición, organizada en secciones claras, incluyendo la configuración de equipo que antes no era visible.
+
