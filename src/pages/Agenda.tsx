@@ -73,6 +73,7 @@ export default function Agenda() {
   const [isManageGroupsOpen, setIsManageGroupsOpen] = useState(false);
   const [groups, setGroups] = useState<Array<{ id: string; name: string; color: string }>>([]);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [contactRefreshTrigger, setContactRefreshTrigger] = useState(0);
 
   const cities = Array.from(new Set(contacts.map(c => c.city).filter(Boolean))).sort();
   
@@ -182,9 +183,14 @@ export default function Agenda() {
     setIsCreateDialogOpen(false);
   };
 
-  const handleContactUpdated = () => {
+  const handleContactUpdated = (contactId?: string) => {
     fetchContacts();
     setEditingContact(null);
+    // Refresh and reopen the profile sheet if we have a contact ID
+    if (contactId) {
+      setContactRefreshTrigger(prev => prev + 1);
+      setSelectedContactId(contactId);
+    }
   };
 
   const getCategoryInfo = (category: string) => {
@@ -470,7 +476,7 @@ export default function Agenda() {
           contact={editingContact}
           open={!!editingContact}
           onOpenChange={(open) => !open && setEditingContact(null)}
-          onContactUpdated={handleContactUpdated}
+          onContactUpdated={() => handleContactUpdated(editingContact.id)}
         />
       )}
 
@@ -498,11 +504,11 @@ export default function Agenda() {
         open={!!selectedContactId}
         onOpenChange={(open) => !open && setSelectedContactId(null)}
         contactId={selectedContactId || ''}
+        refreshTrigger={contactRefreshTrigger}
         onEdit={(contactId) => {
           const contact = contacts.find(c => c.id === contactId);
           if (contact) {
             setEditingContact(contact);
-            setSelectedContactId(null);
           }
         }}
       />

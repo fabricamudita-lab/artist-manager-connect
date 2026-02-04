@@ -80,6 +80,7 @@ export default function Teams() {
 
   // Contact quick view state
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [contactRefreshTrigger, setContactRefreshTrigger] = useState(0);
 
   // Editing functional role state
   const [editingMemberRole, setEditingMemberRole] = useState<{ memberId: string; userId: string; name: string; currentRole?: string; mirrorContactId?: string } | null>(null);
@@ -970,8 +971,12 @@ export default function Teams() {
           onOpenChange={(open) => !open && setEditingContact(null)}
           contact={editingContact}
           onContactUpdated={() => {
+            const contactId = editingContact.id;
             setEditingContact(null);
             fetchTeamContacts();
+            // Refresh the profile sheet and reopen it
+            setContactRefreshTrigger(prev => prev + 1);
+            setSelectedContactId(contactId);
           }}
         />
       )}
@@ -986,11 +991,11 @@ export default function Teams() {
         open={!!selectedContactId}
         onOpenChange={(open) => !open && setSelectedContactId(null)}
         contactId={selectedContactId || ''}
+        refreshTrigger={contactRefreshTrigger}
         onEdit={(contactId) => {
           const contact = teamContacts.find(c => c.id === contactId);
           if (contact) {
             setEditingContact(contact);
-            setSelectedContactId(null);
           }
         }}
       />

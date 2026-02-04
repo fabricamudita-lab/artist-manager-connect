@@ -38,6 +38,7 @@ interface ContactProfileSheetProps {
   onOpenChange: (open: boolean) => void;
   contactId: string;
   onEdit?: (contactId: string) => void;
+  refreshTrigger?: number;
 }
 
 interface ContactData {
@@ -91,7 +92,8 @@ export function ContactProfileSheet({
   open,
   onOpenChange,
   contactId,
-  onEdit
+  onEdit,
+  refreshTrigger
 }: ContactProfileSheetProps) {
   const [contact, setContact] = useState<ContactData | null>(null);
   const [projectRoles, setProjectRoles] = useState<ProjectRole[]>([]);
@@ -104,7 +106,7 @@ export function ContactProfileSheet({
       fetchProjectRoles();
       fetchAssignedArtists();
     }
-  }, [open, contactId]);
+  }, [open, contactId, refreshTrigger]);
 
   const fetchContact = async () => {
     setLoading(true);
