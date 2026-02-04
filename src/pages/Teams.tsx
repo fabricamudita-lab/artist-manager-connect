@@ -1,16 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Users, Mail, Building, Shield, UserCheck, Edit2, Settings, MoreVertical, UserMinus, FolderPlus, Pencil, ChevronDown } from 'lucide-react';
+import { Plus, Users, Mail, Grid3X3, List, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { InviteTeamMemberDialog } from '@/components/InviteTeamMemberDialog';
@@ -21,7 +17,12 @@ import { EditTeamDialog } from '@/components/EditTeamDialog';
 import { EditContactDialog } from '@/components/EditContactDialog';
 import { ContactProfileSheet } from '@/components/ContactProfileSheet';
 import { TeamCard } from '@/components/TeamCard';
+import { TeamMemberGrid } from '@/components/TeamMemberGrid';
+import { CategoryPills } from '@/components/CategoryPills';
 import { TEAM_CATEGORIES } from '@/lib/teamCategories';
+import { MemberType } from '@/components/TeamMemberCard';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
 
 type TeamCategory = 'banda' | 'artistico' | 'tecnico' | 'management' | 'comunicacion' | 'legal' | 'produccion' | 'otro';
 
@@ -29,12 +30,12 @@ interface TeamMember {
   id: string;
   user_id: string;
   role: string;
-  functional_role?: string; // Rol funcional (ej: "Business Manager")
+  functional_role?: string;
   team_category: string;
   full_name: string;
   email: string;
   avatar_url?: string;
-  mirror_contact_id?: string; // ID del contacto espejo si existe
+  mirror_contact_id?: string;
   permissions: {
     documents: 'none' | 'view' | 'edit' | 'owner';
     solicitudes: 'none' | 'view' | 'edit' | 'owner';
@@ -57,14 +58,15 @@ export default function Teams() {
   const [createTeamDialogOpen, setCreateTeamDialogOpen] = useState(false);
   const [editTeamDialogOpen, setEditTeamDialogOpen] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
-  const [gestorExpanded, setGestorExpanded] = useState(true);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
   
-  // Artist filter state - initialize from URL param if present
+  // Artist filter state
   const [artists, setArtists] = useState<Array<{ id: string; name: string; stage_name?: string | null; description?: string | null; avatar_url?: string | null }>>([]);
   const artistIdFromUrl = searchParams.get('artistId');
   const [selectedArtistId, setSelectedArtistId] = useState<string>(artistIdFromUrl || 'all');
 
-  // State for activity dialog
+  // Activity dialog state
   const [activityMember, setActivityMember] = useState<{
     id: string;
     name: string;
@@ -74,10 +76,10 @@ export default function Teams() {
     type: 'contact' | 'profile';
   } | null>(null);
 
-  // State for contact quick view
+  // Contact quick view state
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
-  // State for editing functional role
+  // Editing functional role state
   const [editingMemberRole, setEditingMemberRole] = useState<{ memberId: string; userId: string; name: string; currentRole?: string; mirrorContactId?: string } | null>(null);
   const [newFunctionalRole, setNewFunctionalRole] = useState('');
 
@@ -237,7 +239,6 @@ export default function Teams() {
 
       if (profilesError) throw profilesError;
 
-      // Fetch mirror contacts for workspace members
       const { data: mirrorContacts } = await supabase
         .from('contacts')
         .select('id, name, role, field_config')
@@ -343,7 +344,6 @@ export default function Teams() {
       if (!user) return;
 
       if (editingMemberRole.mirrorContactId) {
-        // Update existing mirror contact
         const { error } = await supabase
           .from('contacts')
           .update({ role: newFunctionalRole.trim() })
@@ -351,7 +351,6 @@ export default function Teams() {
 
         if (error) throw error;
       } else {
-        // Create new mirror contact
         const { error } = await supabase
           .from('contacts')
           .insert({
@@ -369,7 +368,6 @@ export default function Teams() {
         if (error) throw error;
       }
 
-      // Update local state
       setTeamMembers(prev => prev.map(m =>
         m.user_id === editingMemberRole.userId
           ? { ...m, functional_role: newFunctionalRole.trim() }
@@ -379,7 +377,7 @@ export default function Teams() {
       toast({ title: 'Rol funcional actualizado' });
       setEditingMemberRole(null);
       setNewFunctionalRole('');
-      fetchTeamMembers(); // Refresh to get mirror contact ID
+      fetchTeamMembers();
     } catch (error) {
       console.error('Error updating functional role:', error);
       toast({ title: 'Error al actualizar rol', variant: 'destructive' });
@@ -404,7 +402,6 @@ export default function Teams() {
       toast({ title: 'Equipo eliminado correctamente' });
       fetchArtists();
       
-      // Reset selection if deleted team was selected
       if (selectedArtistId === teamId) {
         setSelectedArtistId('all');
       }
@@ -460,7 +457,6 @@ export default function Teams() {
   const teamMemberCounts = useMemo(() => {
     const counts = new Map<string, number>();
     
-    // Count contacts assigned to each artist
     teamContacts.forEach(contact => {
       const assignedIds = (contact as any).assigned_artist_ids || [];
       assignedIds.forEach((artistId: string) => {
@@ -473,72 +469,153 @@ export default function Teams() {
 
   const editingTeam = editingTeamId ? artists.find(a => a.id === editingTeamId) : null;
 
-  // Get selected artist info to show as team member
+  // Get selected artist info
   const selectedArtist = selectedArtistId !== 'all' && selectedArtistId !== '00-management' 
     ? artists.find(a => a.id === selectedArtistId) 
     : null;
 
-  const allTeamByCategory = allCategoriesForDisplay.map(cat => {
-    const wsMembers = teamMembers.filter(m => {
-      if (selectedArtistId === '00-management') {
-        // For 00 Management, show all workspace members grouped by category
+  // Get team name for display
+  const getSelectedTeamName = () => {
+    if (selectedArtistId === 'all') return 'Todos los equipos';
+    if (selectedArtistId === '00-management') return '00 Management';
+    return selectedArtist?.stage_name || selectedArtist?.name || 'Equipo';
+  };
+
+  // Build members data for the grid with category information
+  const allTeamByCategory = useMemo(() => {
+    return allCategoriesForDisplay.map(cat => {
+      const wsMembers = teamMembers.filter(m => {
+        if (selectedArtistId === '00-management') {
+          return m.team_category === cat.value;
+        }
         return m.team_category === cat.value;
-      }
-      return m.team_category === cat.value;
-    });
-    
-    const contacts = teamContacts.filter(c => {
-      const config = c.field_config as Record<string, any> | null;
+      });
       
-      // Skip mirror contacts (they represent workspace members already shown above)
-      if (config?.mirror_type === 'workspace_member' || config?.workspace_user_id) {
-        return false;
-      }
-      
-      const isManagementTeam = config?.is_management_team === true;
-      const categories = config?.team_categories || [];
-      const singleCategory = config?.team_category || c.category;
-      
-      if (selectedArtistId === '00-management') {
-        // Only show contacts marked as management team (empresa)
-        if (!isManagementTeam) return false;
-        return categories.includes(cat.value) || singleCategory === cat.value;
-      }
-      
-      if (selectedArtistId !== 'all') {
-        // For specific artist, show contacts that have this artist assigned
-        // regardless of whether they are management team or not
-        const assignedArtists = (c as any).assigned_artist_ids || [];
-        if (!assignedArtists.includes(selectedArtistId)) {
+      const contacts = teamContacts.filter(c => {
+        const config = c.field_config as Record<string, any> | null;
+        
+        if (config?.mirror_type === 'workspace_member' || config?.workspace_user_id) {
           return false;
         }
-      } else {
-        // For "all", show both management and artist team contacts
-      }
-      
-      return categories.includes(cat.value) || singleCategory === cat.value;
-    });
+        
+        const isManagementTeam = config?.is_management_team === true;
+        const categories = config?.team_categories || [];
+        const singleCategory = config?.team_category || c.category;
+        
+        if (selectedArtistId === '00-management') {
+          if (!isManagementTeam) return false;
+          return categories.includes(cat.value) || singleCategory === cat.value;
+        }
+        
+        if (selectedArtistId !== 'all') {
+          const assignedArtists = (c as any).assigned_artist_ids || [];
+          if (!assignedArtists.includes(selectedArtistId)) {
+            return false;
+          }
+        }
+        
+        return categories.includes(cat.value) || singleCategory === cat.value;
+      });
 
-    // Add the artist as a virtual member in "artistico" or "banda" category
-    let artistAsMember: any = null;
-    if (selectedArtist && (cat.value === 'artistico' || cat.value === 'banda')) {
-      artistAsMember = {
-        id: `artist-${selectedArtist.id}`,
-        isArtist: true,
-        name: selectedArtist.stage_name || selectedArtist.name,
-        role: 'Artista principal',
-        artistId: selectedArtist.id
+      let artistAsMember: any = null;
+      if (selectedArtist && (cat.value === 'artistico' || cat.value === 'banda')) {
+        artistAsMember = {
+          id: `artist-${selectedArtist.id}`,
+          isArtist: true,
+          name: selectedArtist.stage_name || selectedArtist.name,
+          role: 'Artista principal',
+          artistId: selectedArtist.id
+        };
+      }
+
+      return {
+        ...cat,
+        members: wsMembers,
+        contacts: contacts,
+        artistMember: artistAsMember,
+        total: wsMembers.length + contacts.length + (artistAsMember ? 1 : 0),
       };
+    }).filter(cat => cat.total > 0);
+  }, [allCategoriesForDisplay, teamMembers, teamContacts, selectedArtistId, selectedArtist]);
+
+  // Build flat member list for grid view
+  const buildGridMembers = (categoryValue: string) => {
+    const category = allTeamByCategory.find(c => c.value === categoryValue);
+    if (!category) return [];
+
+    const members: Array<{
+      id: string;
+      name: string;
+      email?: string;
+      role?: string;
+      avatarUrl?: string;
+      type: MemberType;
+      extraCategories?: string[];
+      currentCategory?: string;
+      rawData: any;
+    }> = [];
+
+    // Add artist if present
+    if (category.artistMember) {
+      members.push({
+        id: category.artistMember.id,
+        name: category.artistMember.name,
+        role: category.artistMember.role,
+        type: 'artist' as MemberType,
+        currentCategory: categoryValue,
+        rawData: category.artistMember,
+      });
     }
 
-    return {
-      ...cat,
-      members: wsMembers,
-      contacts: contacts,
-      artistMember: artistAsMember,
-      total: wsMembers.length + contacts.length + (artistAsMember ? 1 : 0),
-    };
-  }).filter(cat => cat.total > 0);
+    // Add workspace members
+    category.members.forEach((member) => {
+      members.push({
+        id: member.id,
+        name: member.full_name,
+        email: member.email,
+        role: member.functional_role || member.role,
+        avatarUrl: member.avatar_url,
+        type: 'user' as MemberType,
+        currentCategory: member.team_category,
+        rawData: member,
+      });
+    });
+
+    // Add contacts
+    category.contacts.forEach((contact: any) => {
+      const config = contact.field_config as Record<string, any> | null;
+      const categories = config?.team_categories || [];
+      const otherCategories = categories
+        .filter((c: string) => c !== categoryValue)
+        .map((c: string) => allCategoriesForDisplay.find(cat => cat.value === c)?.label || c);
+
+      members.push({
+        id: contact.id,
+        name: contact.stage_name || contact.name,
+        email: contact.email,
+        role: contact.role,
+        type: 'profile' as MemberType,
+        extraCategories: otherCategories,
+        currentCategory: categoryValue,
+        rawData: contact,
+      });
+    });
+
+    return members;
+  };
+
+  // Categories for filter pills
+  const categoryPillsData = allTeamByCategory.map(cat => ({
+    value: cat.value,
+    label: cat.label,
+    count: cat.total,
+    icon: cat.icon,
+  }));
+
+  // Filter categories based on selected filter
+  const filteredCategories = selectedCategoryFilter === 'all' 
+    ? allTeamByCategory 
+    : allTeamByCategory.filter(c => c.value === selectedCategoryFilter);
 
   if (loading) {
     return (
@@ -554,6 +631,7 @@ export default function Teams() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold">Equipos</h1>
         <p className="text-muted-foreground">
@@ -561,89 +639,81 @@ export default function Teams() {
         </p>
       </div>
 
-      {/* Gestor de Equipos Section */}
-      <Collapsible open={gestorExpanded} onOpenChange={setGestorExpanded}>
-        <Card>
-          <CardContent className="p-4">
-            <CollapsibleTrigger className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold">Gestor de Equipos</h2>
-                <Badge variant="secondary">{artists.length}</Badge>
-              </div>
-              <ChevronDown className={`h-5 w-5 transition-transform ${gestorExpanded ? 'rotate-180' : ''}`} />
-            </CollapsibleTrigger>
-            
-            <CollapsibleContent className="mt-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {/* Management Team Card - always first */}
-                <TeamCard
-                  id="00-management"
-                  name="00 Management"
-                  description="Equipo de gestión general"
-                  memberCount={teamMembers.length}
-                  isManagement
-                  isSelected={selectedArtistId === '00-management'}
-                  onSelect={(id) => setSelectedArtistId(id)}
-                  onEdit={() => {/* Management can't be edited */}}
-                  onDelete={() => {/* Management can't be deleted */}}
-                  onDuplicate={() => {/* Management can't be duplicated */}}
-                />
-                
-                {/* Artist/Team Cards */}
-                {artists.map((artist) => (
-                  <TeamCard
-                    key={artist.id}
-                    id={artist.id}
-                    name={artist.name}
-                    stageName={artist.stage_name}
-                    description={artist.description}
-                    avatarUrl={artist.avatar_url}
-                    memberCount={teamMemberCounts.get(artist.id) || 0}
-                    isSelected={selectedArtistId === artist.id}
-                    onSelect={(id) => setSelectedArtistId(id)}
-                    onEdit={handleEditTeam}
-                    onDelete={handleDeleteTeam}
-                    onDuplicate={handleDuplicateTeam}
-                  />
-                ))}
-              </div>
-              
-              <div className="mt-4 pt-4 border-t">
-                <Button variant="outline" onClick={() => setCreateTeamDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nuevo Equipo
-                </Button>
-              </div>
-            </CollapsibleContent>
-          </CardContent>
-        </Card>
-      </Collapsible>
+      {/* Team Selector - Horizontal chips */}
+      <div className="flex flex-wrap gap-3 items-center">
+        {/* Management Team Chip */}
+        <TeamCard
+          id="00-management"
+          name="00 Management"
+          description="Equipo de gestión"
+          memberCount={teamMembers.length}
+          isManagement
+          isSelected={selectedArtistId === '00-management'}
+          onSelect={(id) => setSelectedArtistId(id)}
+          onEdit={() => {}}
+          onDelete={() => {}}
+          onDuplicate={() => {}}
+        />
+        
+        {/* Artist/Team Chips */}
+        {artists.map((artist) => (
+          <TeamCard
+            key={artist.id}
+            id={artist.id}
+            name={artist.name}
+            stageName={artist.stage_name}
+            description={artist.description}
+            avatarUrl={artist.avatar_url}
+            memberCount={teamMemberCounts.get(artist.id) || 0}
+            isSelected={selectedArtistId === artist.id}
+            onSelect={(id) => setSelectedArtistId(id)}
+            onEdit={handleEditTeam}
+            onDelete={handleDeleteTeam}
+            onDuplicate={handleDuplicateTeam}
+          />
+        ))}
 
-      {/* Team Members Section */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2 items-center">
-          <Select value={selectedArtistId} onValueChange={setSelectedArtistId}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filtrar por equipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los equipos</SelectItem>
-              <SelectItem value="00-management">00 Management</SelectItem>
-              {artists.map((artist) => (
-                <SelectItem key={artist.id} value={artist.id}>
-                  {artist.stage_name || artist.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {selectedArtistId !== 'all' && (
-            <Badge variant="outline" className="ml-2">
-              Mostrando: {selectedArtistId === '00-management' ? '00 Management' : (artists.find(a => a.id === selectedArtistId)?.stage_name || artists.find(a => a.id === selectedArtistId)?.name)}
-            </Badge>
-          )}
+        {/* New Team Button */}
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="rounded-full px-4"
+          onClick={() => setCreateTeamDialogOpen(true)}
+        >
+          <Plus className="w-4 h-4 mr-1" />
+          Nuevo
+        </Button>
+      </div>
+
+      {/* Selected Team Header with Actions */}
+      <div className="flex items-center justify-between border-t pt-6">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-semibold">{getSelectedTeamName()}</h2>
+          <Badge variant="secondary">
+            {allTeamByCategory.reduce((sum, cat) => sum + cat.total, 0)} miembros
+          </Badge>
         </div>
         <div className="flex gap-2">
+          {/* View Toggle */}
+          <div className="flex gap-1 mr-2">
+            <Button
+              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+              size="icon"
+              onClick={() => setViewMode('grid')}
+              className="h-9 w-9"
+            >
+              <Grid3X3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+              size="icon"
+              onClick={() => setViewMode('list')}
+              className="h-9 w-9"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+          
           <Button variant="outline" onClick={() => setAddContactDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Añadir Perfil
@@ -655,6 +725,17 @@ export default function Teams() {
         </div>
       </div>
 
+      {/* Category Pills */}
+      {categoryPillsData.length > 0 && (
+        <CategoryPills
+          categories={categoryPillsData}
+          selectedCategory={selectedCategoryFilter}
+          onCategoryChange={setSelectedCategoryFilter}
+          allCount={allTeamByCategory.reduce((sum, cat) => sum + cat.total, 0)}
+        />
+      )}
+
+      {/* Members Grid/List */}
       {teamMembers.length === 0 && teamContacts.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
@@ -677,200 +758,74 @@ export default function Teams() {
         </Card>
       ) : (
         <div className="space-y-8">
-          {allTeamByCategory.map((category) => {
+          {filteredCategories.map((category) => {
             const CategoryIcon = category.icon;
+            const gridMembers = buildGridMembers(category.value);
+            
             return (
-              <div key={category.value} className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <CategoryIcon className="w-5 h-5 text-primary" />
-                  <h3 className="text-lg font-semibold">{category.label}</h3>
-                  <Badge variant="secondary" className="ml-2">{category.total}</Badge>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {/* Workspace members with accounts */}
-                  {category.members.map((member) => (
-                    <Card key={member.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActivityMember({
-                      id: member.user_id,
-                      name: member.full_name,
-                      email: member.email,
-                      role: member.role,
-                      type: 'profile'
-                    })}>
-                      <CardContent className="py-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={member.avatar_url || ''} />
-                            <AvatarFallback className="text-sm">
-                              {member.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-medium truncate">{member.full_name}</h4>
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 border border-primary/20 text-primary shadow-sm">
-                                Usuario
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground truncate">{member.email}</p>
-                            <div className="flex flex-wrap gap-1.5 mt-1.5">
-                              {member.functional_role ? (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white dark:bg-background border border-primary/20 text-foreground shadow-sm">
-                                  {member.functional_role}
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white dark:bg-background border border-border/40 text-foreground shadow-sm">
-                                  {member.role}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                              <Button variant="ghost" size="sm">
-                                <Settings className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-popover border shadow-md z-50">
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingMemberRole({
-                                    memberId: member.id,
-                                    userId: member.user_id,
-                                    name: member.full_name,
-                                    currentRole: member.functional_role,
-                                    mirrorContactId: member.mirror_contact_id,
-                                  });
-                                  setNewFunctionalRole(member.functional_role || '');
-                                }}
-                              >
-                                <Pencil className="w-4 h-4 mr-2" />
-                                Editar rol funcional
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              {allCategoriesForDisplay.map(cat => (
-                                <DropdownMenuItem
-                                  key={cat.value}
-                                  onClick={() => updateMemberCategory(member.id, cat.value)}
-                                  className={member.team_category === cat.value ? 'bg-accent' : ''}
-                                >
-                                  Mover a {cat.label}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-
-                  {/* Artist as team member */}
-                  {category.artistMember && (
-                    <Card key={category.artistMember.id} className="hover:shadow-md transition-shadow border-primary/30 bg-primary/5">
-                      <CardContent className="py-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12 ring-2 ring-primary/30">
-                            <AvatarFallback className="text-sm bg-primary/20 text-primary font-semibold">
-                              {category.artistMember.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-semibold truncate">{category.artistMember.name}</h4>
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/20 border border-primary/30 text-primary shadow-sm">
-                                Artista
-                              </span>
-                            </div>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white dark:bg-background border border-primary/20 text-foreground shadow-sm mt-1.5">
-                              {category.artistMember.role}
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
+              <Collapsible key={category.value} defaultOpen>
+                <div className="space-y-4">
+                  <CollapsibleTrigger className="flex items-center gap-2 w-full group">
+                    <CategoryIcon className="w-5 h-5 text-primary" />
+                    <h3 className="text-lg font-semibold">{category.label}</h3>
+                    <Badge variant="secondary" className="ml-2">{category.total}</Badge>
+                    <ChevronDown className="h-4 w-4 ml-auto transition-transform group-data-[state=open]:rotate-180" />
+                  </CollapsibleTrigger>
                   
-                  {/* Team contacts without accounts */}
-                  {category.contacts.map((contact: any) => {
-                    const config = contact.field_config as Record<string, any> | null;
-                    const categories = config?.team_categories || [];
-                    const otherCategories = categories.filter((c: string) => c !== category.value);
-                    
-                    return (
-                      <Card key={contact.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedContactId(contact.id)}>
-                        <CardContent className="py-4">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-12 w-12">
-                              <AvatarFallback className="text-sm bg-secondary">
-                                {contact.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-medium truncate">{contact.stage_name || contact.name}</h4>
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white dark:bg-background border border-border/40 text-muted-foreground shadow-sm">
-                                  Perfil
-                                </span>
-                              </div>
-                              {contact.email && (
-                                <p className="text-sm text-muted-foreground truncate">{contact.email}</p>
-                              )}
-                              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                {contact.role && (
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white dark:bg-background border border-primary/20 text-foreground shadow-sm">
-                                    {contact.role}
-                                  </span>
-                                )}
-                                {otherCategories.map((catValue: string) => {
-                                  const catInfo = allCategoriesForDisplay.find(c => c.value === catValue);
-                                  return catInfo ? (
-                                    <span 
-                                      key={catValue} 
-                                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/5 dark:bg-primary/10 border border-primary/20 text-primary shadow-sm"
-                                    >
-                                      +{catInfo.label}
-                                    </span>
-                                  ) : null;
-                                })}
-                              </div>
-                            </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                <Button variant="ghost" size="sm">
-                                  <MoreVertical className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="bg-popover border shadow-md z-50">
-                                <DropdownMenuItem onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingContact(contact);
-                                }}>
-                                  <Edit2 className="w-4 h-4 mr-2" />
-                                  Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  className="text-destructive"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRemoveFromTeam(contact.id);
-                                  }}
-                                >
-                                  <UserMinus className="w-4 h-4 mr-2" />
-                                  Quitar del equipo
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                  <CollapsibleContent>
+                    <TeamMemberGrid
+                      members={gridMembers}
+                      onMemberClick={(member) => {
+                        if (member.type === 'user') {
+                          setActivityMember({
+                            id: member.rawData.user_id,
+                            name: member.name,
+                            email: member.email,
+                            role: member.rawData.role,
+                            type: 'profile'
+                          });
+                        } else if (member.type === 'profile') {
+                          setSelectedContactId(member.rawData.id);
+                        }
+                      }}
+                      onMemberEdit={(member) => {
+                        if (member.type === 'profile') {
+                          setEditingContact(member.rawData);
+                        }
+                      }}
+                      onMemberRemove={(member) => {
+                        if (member.type === 'profile') {
+                          handleRemoveFromTeam(member.rawData.id);
+                        }
+                      }}
+                      onMemberEditRole={(member) => {
+                        if (member.type === 'user') {
+                          setEditingMemberRole({
+                            memberId: member.rawData.id,
+                            userId: member.rawData.user_id,
+                            name: member.name,
+                            currentRole: member.rawData.functional_role,
+                            mirrorContactId: member.rawData.mirror_contact_id,
+                          });
+                          setNewFunctionalRole(member.rawData.functional_role || '');
+                        }
+                      }}
+                      onCategoryChange={(memberId, newCategory) => {
+                        const member = teamMembers.find(m => m.id === memberId);
+                        if (member) {
+                          updateMemberCategory(memberId, newCategory);
+                        }
+                      }}
+                      categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
+                      showActions
+                    />
+                  </CollapsibleContent>
                 </div>
-              </div>
+              </Collapsible>
             );
           })}
 
-          {allTeamByCategory.length < allCategoriesForDisplay.length && (
+          {allTeamByCategory.length < allCategoriesForDisplay.length && selectedCategoryFilter === 'all' && (
             <div className="border-2 border-dashed border-muted rounded-lg p-6 text-center">
               <p className="text-sm text-muted-foreground">
                 Organiza mejor tu equipo añadiendo miembros a categorías como: {' '}
@@ -883,6 +838,7 @@ export default function Teams() {
         </div>
       )}
 
+      {/* Dialogs */}
       {workspaceId && (
         <InviteTeamMemberDialog
           open={inviteDialogOpen}
