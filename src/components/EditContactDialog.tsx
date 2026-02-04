@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 import { ContactTagsInput } from './ContactTagsInput';
-import { TeamCategorySelector, TeamCategoryOption } from './TeamCategorySelector';
+import { TEAM_CATEGORIES } from '@/lib/teamCategories';
 import { Check, X, Music, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -391,13 +391,16 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
 
               {/* Main Role */}
               <div className="space-y-2">
-                <Label htmlFor="role">Rol principal</Label>
+                <Label htmlFor="role">Rol / Funciones</Label>
                 <Input
                   id="role"
                   value={formData.role}
                   onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
-                  placeholder="Ej: Batería, Manager, Productor..."
+                  placeholder="Ej: Batería, Productor, Ingeniero de sonido..."
                 />
+                <p className="text-xs text-muted-foreground">
+                  Puedes añadir varias funciones separadas por coma
+                </p>
               </div>
 
               {/* Project-specific roles - Show if contact has roles in projects */}
@@ -532,14 +535,27 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                         </Popover>
                       </div>
 
-                    {/* Team Categories */}
+                    {/* Primary Team Category */}
                     <div className="space-y-2">
-                      <Label>Etiquetas de equipo</Label>
-                      <TeamCategorySelector
-                        selectedCategories={teamCategories}
-                        onCategoriesChange={setTeamCategories}
-                        placeholder="Seleccionar etiquetas..."
-                      />
+                      <Label>Categoría principal</Label>
+                      <Select 
+                        value={teamCategories[0] || ''} 
+                        onValueChange={(value) => setTeamCategories([value])}
+                      >
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Seleccionar categoría..." />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover">
+                          {TEAM_CATEGORIES.map(cat => (
+                            <SelectItem key={cat.value} value={cat.value}>
+                              {cat.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Define cómo se agrupa este miembro en la vista de equipo
+                      </p>
                     </div>
                   </div>
                 </>

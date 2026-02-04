@@ -548,7 +548,6 @@ export default function Teams() {
       role?: string;
       avatarUrl?: string;
       type: MemberType;
-      extraCategories?: string[];
       currentCategory?: string;
       rawData: any;
     }> = [];
@@ -583,17 +582,23 @@ export default function Teams() {
     category.contacts.forEach((contact: any) => {
       const config = contact.field_config as Record<string, any> | null;
       const categories = config?.team_categories || [];
-      const otherCategories = categories
-        .filter((c: string) => c !== categoryValue)
-        .map((c: string) => allCategoriesForDisplay.find(cat => cat.value === c)?.label || c);
+      
+      // Format role: use contact.role, or combine category labels if multiple categories
+      const formattedRole = contact.role 
+        ? contact.role 
+        : categories.length > 0 
+          ? categories
+              .slice(0, 2)
+              .map((c: string) => allCategoriesForDisplay.find(cat => cat.value === c)?.label || c)
+              .join(' · ')
+          : undefined;
 
       members.push({
         id: contact.id,
         name: contact.stage_name || contact.name,
         email: contact.email,
-        role: contact.role,
+        role: formattedRole,
         type: 'profile' as MemberType,
-        extraCategories: otherCategories,
         currentCategory: categoryValue,
         rawData: contact,
       });
@@ -624,7 +629,6 @@ export default function Teams() {
       role?: string;
       avatarUrl?: string;
       type: MemberType;
-      extraCategories?: string[];
       currentCategory?: string;
       rawData: any;
     }> = [];
