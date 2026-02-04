@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { CreateContactDialog } from '@/components/CreateContactDialog';
 import { EditContactDialog } from '@/components/EditContactDialog';
 import { ContactShareDialog } from '@/components/ContactShareDialog';
+import { ContactProfileSheet } from '@/components/ContactProfileSheet';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -71,6 +72,7 @@ export default function Agenda() {
   const [viewMode, setViewMode] = useState<'grid' | 'rolodex'>('grid');
   const [isManageGroupsOpen, setIsManageGroupsOpen] = useState(false);
   const [groups, setGroups] = useState<Array<{ id: string; name: string; color: string }>>([]);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
   const cities = Array.from(new Set(contacts.map(c => c.city).filter(Boolean))).sort();
   
@@ -341,7 +343,11 @@ export default function Agenda() {
             const contactTags = (contact.tags as string[] | null) || [];
             
             return (
-              <Card key={contact.id} className="hover:shadow-md transition-shadow">
+              <Card 
+                key={contact.id} 
+                className="hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => setSelectedContactId(contact.id)}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-4">
                     <Avatar className="h-12 w-12">
@@ -487,6 +493,19 @@ export default function Agenda() {
           onClose={() => setViewMode('grid')}
         />
       )}
+
+      <ContactProfileSheet
+        open={!!selectedContactId}
+        onOpenChange={(open) => !open && setSelectedContactId(null)}
+        contactId={selectedContactId || ''}
+        onEdit={(contactId) => {
+          const contact = contacts.find(c => c.id === contactId);
+          if (contact) {
+            setEditingContact(contact);
+            setSelectedContactId(null);
+          }
+        }}
+      />
     </div>
   );
 }
