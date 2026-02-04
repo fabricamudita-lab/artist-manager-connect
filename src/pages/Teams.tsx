@@ -617,6 +617,38 @@ export default function Teams() {
     ? allTeamByCategory 
     : allTeamByCategory.filter(c => c.value === selectedCategoryFilter);
 
+  // Build flattened member list for unified grid view (when "all" is selected)
+  const allMembersFlattened = useMemo(() => {
+    const members: Array<{
+      id: string;
+      name: string;
+      email?: string;
+      role?: string;
+      avatarUrl?: string;
+      type: MemberType;
+      extraCategories?: string[];
+      currentCategory?: string;
+      rawData: any;
+    }> = [];
+    const addedIds = new Set<string>();
+
+    allTeamByCategory.forEach(category => {
+      const categoryMembers = buildGridMembers(category.value);
+      categoryMembers.forEach(member => {
+        if (!addedIds.has(member.id)) {
+          addedIds.add(member.id);
+          // Add role/category label if not already set
+          members.push({
+            ...member,
+            role: member.role || category.label,
+          });
+        }
+      });
+    });
+
+    return members;
+  }, [allTeamByCategory, buildGridMembers]);
+
   if (loading) {
     return (
       <div className="container mx-auto p-6">
@@ -756,85 +788,120 @@ export default function Teams() {
             </div>
           </CardContent>
         </Card>
+      ) : selectedCategoryFilter === 'all' ? (
+        /* Unified grid view - all members in one grid */
+        <div className="space-y-4">
+          <TeamMemberGrid
+            members={allMembersFlattened}
+            onMemberClick={(member) => {
+              if (member.type === 'user') {
+                setActivityMember({
+                  id: member.rawData.user_id,
+                  name: member.name,
+                  email: member.email,
+                  role: member.rawData.role,
+                  type: 'profile'
+                });
+              } else if (member.type === 'profile') {
+                setSelectedContactId(member.rawData.id);
+              }
+            }}
+            onMemberEdit={(member) => {
+              if (member.type === 'profile') {
+                setEditingContact(member.rawData);
+              }
+            }}
+            onMemberRemove={(member) => {
+              if (member.type === 'profile') {
+                handleRemoveFromTeam(member.rawData.id);
+              }
+            }}
+            onMemberEditRole={(member) => {
+              if (member.type === 'user') {
+                setEditingMemberRole({
+                  memberId: member.rawData.id,
+                  userId: member.rawData.user_id,
+                  name: member.name,
+                  currentRole: member.rawData.functional_role,
+                  mirrorContactId: member.rawData.mirror_contact_id,
+                });
+                setNewFunctionalRole(member.rawData.functional_role || '');
+              }
+            }}
+            onCategoryChange={(memberId, newCategory) => {
+              const member = teamMembers.find(m => m.id === memberId);
+              if (member) {
+                updateMemberCategory(memberId, newCategory);
+              }
+            }}
+            categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
+            showActions
+          />
+        </div>
       ) : (
-        <div className="space-y-8">
+        /* Filtered view - show only selected category */
+        <div className="space-y-4">
           {filteredCategories.map((category) => {
             const CategoryIcon = category.icon;
             const gridMembers = buildGridMembers(category.value);
             
             return (
-              <Collapsible key={category.value} defaultOpen>
-                <div className="space-y-4">
-                  <CollapsibleTrigger className="flex items-center gap-2 w-full group">
-                    <CategoryIcon className="w-5 h-5 text-primary" />
-                    <h3 className="text-lg font-semibold">{category.label}</h3>
-                    <Badge variant="secondary" className="ml-2">{category.total}</Badge>
-                    <ChevronDown className="h-4 w-4 ml-auto transition-transform group-data-[state=open]:rotate-180" />
-                  </CollapsibleTrigger>
-                  
-                  <CollapsibleContent>
-                    <TeamMemberGrid
-                      members={gridMembers}
-                      onMemberClick={(member) => {
-                        if (member.type === 'user') {
-                          setActivityMember({
-                            id: member.rawData.user_id,
-                            name: member.name,
-                            email: member.email,
-                            role: member.rawData.role,
-                            type: 'profile'
-                          });
-                        } else if (member.type === 'profile') {
-                          setSelectedContactId(member.rawData.id);
-                        }
-                      }}
-                      onMemberEdit={(member) => {
-                        if (member.type === 'profile') {
-                          setEditingContact(member.rawData);
-                        }
-                      }}
-                      onMemberRemove={(member) => {
-                        if (member.type === 'profile') {
-                          handleRemoveFromTeam(member.rawData.id);
-                        }
-                      }}
-                      onMemberEditRole={(member) => {
-                        if (member.type === 'user') {
-                          setEditingMemberRole({
-                            memberId: member.rawData.id,
-                            userId: member.rawData.user_id,
-                            name: member.name,
-                            currentRole: member.rawData.functional_role,
-                            mirrorContactId: member.rawData.mirror_contact_id,
-                          });
-                          setNewFunctionalRole(member.rawData.functional_role || '');
-                        }
-                      }}
-                      onCategoryChange={(memberId, newCategory) => {
-                        const member = teamMembers.find(m => m.id === memberId);
-                        if (member) {
-                          updateMemberCategory(memberId, newCategory);
-                        }
-                      }}
-                      categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
-                      showActions
-                    />
-                  </CollapsibleContent>
+              <div key={category.value} className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <CategoryIcon className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-semibold">{category.label}</h3>
+                  <Badge variant="secondary">{category.total}</Badge>
                 </div>
-              </Collapsible>
+                
+                <TeamMemberGrid
+                  members={gridMembers}
+                  onMemberClick={(member) => {
+                    if (member.type === 'user') {
+                      setActivityMember({
+                        id: member.rawData.user_id,
+                        name: member.name,
+                        email: member.email,
+                        role: member.rawData.role,
+                        type: 'profile'
+                      });
+                    } else if (member.type === 'profile') {
+                      setSelectedContactId(member.rawData.id);
+                    }
+                  }}
+                  onMemberEdit={(member) => {
+                    if (member.type === 'profile') {
+                      setEditingContact(member.rawData);
+                    }
+                  }}
+                  onMemberRemove={(member) => {
+                    if (member.type === 'profile') {
+                      handleRemoveFromTeam(member.rawData.id);
+                    }
+                  }}
+                  onMemberEditRole={(member) => {
+                    if (member.type === 'user') {
+                      setEditingMemberRole({
+                        memberId: member.rawData.id,
+                        userId: member.rawData.user_id,
+                        name: member.name,
+                        currentRole: member.rawData.functional_role,
+                        mirrorContactId: member.rawData.mirror_contact_id,
+                      });
+                      setNewFunctionalRole(member.rawData.functional_role || '');
+                    }
+                  }}
+                  onCategoryChange={(memberId, newCategory) => {
+                    const member = teamMembers.find(m => m.id === memberId);
+                    if (member) {
+                      updateMemberCategory(memberId, newCategory);
+                    }
+                  }}
+                  categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
+                  showActions
+                />
+              </div>
             );
           })}
-
-          {allTeamByCategory.length < allCategoriesForDisplay.length && selectedCategoryFilter === 'all' && (
-            <div className="border-2 border-dashed border-muted rounded-lg p-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                Organiza mejor tu equipo añadiendo miembros a categorías como: {' '}
-                {allCategoriesForDisplay.filter(c => !allTeamByCategory.find(m => m.value === c.value))
-                  .slice(0, 5)
-                  .map(c => c.label).join(', ')}
-              </p>
-            </div>
-          )}
         </div>
       )}
 
