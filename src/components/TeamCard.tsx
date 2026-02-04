@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Edit2, Trash2, Copy, Users, Eye } from 'lucide-react';
+import { MoreVertical, Edit2, Trash2, Copy, Users, Building } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,50 +57,63 @@ export function TeamCard({
 
   return (
     <>
-      <Card 
-        className={`cursor-pointer transition-all hover:shadow-md ${
-          isSelected ? 'ring-2 ring-primary border-primary' : ''
-        }`}
+      {/* Horizontal chip-style card */}
+      <div
+        className={cn(
+          'group relative flex items-center gap-3 px-3 py-2 rounded-full border cursor-pointer transition-all',
+          'hover:shadow-md hover:border-primary/50',
+          isSelected 
+            ? 'bg-primary/10 border-primary ring-2 ring-primary/20' 
+            : 'bg-card border-border hover:bg-accent/30'
+        )}
         onClick={() => onSelect(id)}
       >
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <Avatar className="h-12 w-12">
-              {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
-              <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold truncate">{displayName}</h3>
-                {isManagement && (
-                  <Badge variant="secondary" className="text-xs">Management</Badge>
-                )}
-              </div>
-              {description && (
-                <p className="text-sm text-muted-foreground truncate mt-0.5">
-                  {description}
-                </p>
-              )}
-              <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
-                <Users className="h-3.5 w-3.5" />
-                <span>{memberCount} miembros</span>
-              </div>
-            </div>
+        {/* Avatar */}
+        <Avatar className={cn(
+          'h-9 w-9 shrink-0',
+          isManagement ? 'bg-secondary' : ''
+        )}>
+          {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
+          <AvatarFallback className={cn(
+            'text-xs font-semibold',
+            isManagement 
+              ? 'bg-secondary text-muted-foreground' 
+              : 'bg-primary/10 text-primary'
+          )}>
+            {isManagement ? <Building className="h-4 w-4" /> : initials}
+          </AvatarFallback>
+        </Avatar>
+        
+        {/* Name and count */}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={cn(
+            'font-medium truncate max-w-[120px]',
+            isSelected ? 'text-primary' : ''
+          )}>
+            {displayName}
+          </span>
+          <Badge 
+            variant="secondary" 
+            className={cn(
+              'shrink-0 text-xs px-2 py-0',
+              isSelected ? 'bg-primary/20 text-primary' : ''
+            )}
+          >
+            <Users className="h-3 w-3 mr-1" />
+            {memberCount}
+          </Badge>
+        </div>
 
+        {/* Actions - visible on hover for non-management */}
+        {!isManagement && (
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <MoreVertical className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onSelect(id); }}>
-                  <Eye className="h-4 w-4 mr-2" />
-                  Ver miembros
-                </DropdownMenuItem>
+              <DropdownMenuContent align="end" className="bg-popover border shadow-md z-50">
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(id); }}>
                   <Edit2 className="h-4 w-4 mr-2" />
                   Editar
@@ -120,8 +133,8 @@ export function TeamCard({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
