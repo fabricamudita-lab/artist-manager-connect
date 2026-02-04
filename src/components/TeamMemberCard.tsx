@@ -1,5 +1,4 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -14,7 +13,6 @@ interface TeamMemberCardProps {
   role?: string;
   avatarUrl?: string;
   type: MemberType;
-  extraCategories?: string[];
   onClick?: () => void;
   onEdit?: () => void;
   onRemove?: () => void;
@@ -71,7 +69,6 @@ export function TeamMemberCard({
   role,
   avatarUrl,
   type,
-  extraCategories = [],
   onClick,
   onEdit,
   onRemove,
@@ -127,21 +124,6 @@ export function TeamMemberCard({
           </p>
         )}
 
-        {/* Extra categories badges */}
-        {extraCategories.length > 0 && (
-          <div className="flex gap-1 mt-1 flex-wrap justify-center">
-            {extraCategories.slice(0, 2).map((cat) => (
-              <Badge key={cat} variant="outline" className="text-[10px] px-1.5 py-0">
-                +{cat}
-              </Badge>
-            ))}
-            {extraCategories.length > 2 && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                +{extraCategories.length - 2}
-              </Badge>
-            )}
-          </div>
-        )}
 
         {/* Actions dropdown - visible on hover */}
         {showActions && (onEdit || onRemove || onEditRole || onCategoryChange) && (

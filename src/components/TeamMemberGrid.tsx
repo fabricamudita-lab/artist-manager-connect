@@ -7,7 +7,6 @@ export interface Member {
   role?: string;
   avatarUrl?: string;
   type: MemberType;
-  extraCategories?: string[];
   currentCategory?: string;
   rawData?: any;
 }
@@ -48,7 +47,6 @@ export function TeamMemberGrid({
           role={member.role}
           avatarUrl={member.avatarUrl}
           type={member.type}
-          extraCategories={member.extraCategories}
           onClick={() => onMemberClick?.(member)}
           onEdit={onMemberEdit ? () => onMemberEdit(member) : undefined}
           onRemove={onMemberRemove ? () => onMemberRemove(member) : undefined}
