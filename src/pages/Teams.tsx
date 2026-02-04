@@ -16,13 +16,11 @@ import { CreateTeamDialog } from '@/components/CreateTeamDialog';
 import { EditTeamDialog } from '@/components/EditTeamDialog';
 import { EditContactDialog } from '@/components/EditContactDialog';
 import { ContactProfileSheet } from '@/components/ContactProfileSheet';
-import { TeamCard } from '@/components/TeamCard';
 import { TeamMemberGrid } from '@/components/TeamMemberGrid';
 import { CategoryDropdown } from '@/components/CategoryDropdown';
+import { TeamDropdown } from '@/components/TeamDropdown';
 import { TEAM_CATEGORIES } from '@/lib/teamCategories';
 import { MemberType } from '@/components/TeamMemberCard';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
 
 type TeamCategory = 'banda' | 'artistico' | 'tecnico' | 'management' | 'comunicacion' | 'legal' | 'produccion' | 'otro';
 
@@ -671,61 +669,29 @@ export default function Teams() {
         </p>
       </div>
 
-      {/* Team Selector - Horizontal chips */}
-      <div className="flex flex-wrap gap-3 items-center">
-        {/* Management Team Chip */}
-        <TeamCard
-          id="00-management"
-          name="00 Management"
-          description="Equipo de gestión"
-          memberCount={teamMembers.length}
-          isManagement
-          isSelected={selectedArtistId === '00-management'}
-          onSelect={(id) => setSelectedArtistId(id)}
-          onEdit={() => {}}
-          onDelete={() => {}}
-          onDuplicate={() => {}}
-        />
-        
-        {/* Artist/Team Chips */}
-        {artists.map((artist) => (
-          <TeamCard
-            key={artist.id}
-            id={artist.id}
-            name={artist.name}
-            stageName={artist.stage_name}
-            description={artist.description}
-            avatarUrl={artist.avatar_url}
-            memberCount={teamMemberCounts.get(artist.id) || 0}
-            isSelected={selectedArtistId === artist.id}
-            onSelect={(id) => setSelectedArtistId(id)}
-            onEdit={handleEditTeam}
-            onDelete={handleDeleteTeam}
-            onDuplicate={handleDuplicateTeam}
-          />
-        ))}
-
-        {/* New Team Button */}
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="rounded-full px-4"
-          onClick={() => setCreateTeamDialogOpen(true)}
-        >
-          <Plus className="w-4 h-4 mr-1" />
-          Nuevo
-        </Button>
-      </div>
-
-      {/* Selected Team Header with Actions */}
+      {/* Team Header with Dropdowns and Actions */}
       <div className="flex items-center justify-between border-t pt-6">
         <div className="flex items-center gap-3">
-          <h2 className="text-xl font-semibold">{getSelectedTeamName()}</h2>
           <Badge variant="secondary">
             {allTeamByCategory.reduce((sum, cat) => sum + cat.total, 0)} miembros
           </Badge>
         </div>
         <div className="flex items-center gap-3">
+          {/* Team Dropdown */}
+          <TeamDropdown
+            teams={artists.map(a => ({
+              id: a.id,
+              name: a.name,
+              stageName: a.stage_name,
+              avatarUrl: a.avatar_url,
+              memberCount: teamMemberCounts.get(a.id) || 0,
+            }))}
+            selectedTeamId={selectedArtistId}
+            onTeamChange={setSelectedArtistId}
+            managementMemberCount={teamMembers.length}
+            onCreateNew={() => setCreateTeamDialogOpen(true)}
+          />
+          
           {/* Category Dropdown */}
           {categoryPillsData.length > 0 && (
             <CategoryDropdown

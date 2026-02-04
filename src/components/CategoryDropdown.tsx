@@ -1,5 +1,6 @@
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Plus } from 'lucide-react';
 
 interface Category {
   value: string;
@@ -14,6 +15,7 @@ interface CategoryDropdownProps {
   onCategoryChange: (category: string) => void;
   allLabel?: string;
   allCount?: number;
+  onCreateNew?: () => void;
 }
 
 export function CategoryDropdown({
@@ -22,6 +24,7 @@ export function CategoryDropdown({
   onCategoryChange,
   allLabel = 'Todas las categorías',
   allCount,
+  onCreateNew,
 }: CategoryDropdownProps) {
   const totalCount = allCount ?? categories.reduce((sum, cat) => sum + cat.count, 0);
   
@@ -39,12 +42,20 @@ export function CategoryDropdown({
     return cat ? `${cat.label} (${cat.count})` : allLabel;
   };
 
+  const handleValueChange = (value: string) => {
+    if (value === '__new__') {
+      onCreateNew?.();
+    } else {
+      onCategoryChange(value);
+    }
+  };
+
   return (
     <div className="flex items-center gap-2">
       <Label className="text-sm text-muted-foreground whitespace-nowrap">
         Categoría:
       </Label>
-      <Select value={selectedCategory} onValueChange={onCategoryChange}>
+      <Select value={selectedCategory} onValueChange={handleValueChange}>
         <SelectTrigger className="w-[220px] bg-background">
           <SelectValue placeholder={allLabel}>
             {getSelectedLabel()}
@@ -70,6 +81,19 @@ export function CategoryDropdown({
               </SelectItem>
             );
           })}
+          
+          {/* New Category Option */}
+          {onCreateNew && (
+            <>
+              <SelectSeparator />
+              <SelectItem value="__new__" className="text-primary">
+                <div className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  <span>Nueva Categoría</span>
+                </div>
+              </SelectItem>
+            </>
+          )}
         </SelectContent>
       </Select>
     </div>
