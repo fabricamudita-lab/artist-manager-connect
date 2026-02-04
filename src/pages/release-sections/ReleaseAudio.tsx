@@ -522,9 +522,6 @@ function TrackCreditsDialog({ track }: { track: Track }) {
                             <p className="font-medium">{credit.name}</p>
                             <p className="text-sm text-muted-foreground">{credit.role}</p>
                           </div>
-                          {credit.percentage && (
-                            <Badge variant="secondary">{credit.percentage}%</Badge>
-                          )}
                         </div>
                       ))}
                     </div>
