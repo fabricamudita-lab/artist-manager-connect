@@ -1,171 +1,121 @@
 
+# Plan: Arreglar Scroll y Añadir Botón Editar al Panel de Perfil
 
-# Plan: Añadir Información de Equipo al Panel Lateral de Perfil
+## Problemas Identificados
 
-## Problema Identificado
-
-El panel lateral de perfil (`ContactProfileSheet`) no muestra la configuración de equipo que sí está disponible en el diálogo de edición:
-
-| Campo | En EditDialog | En ProfileSheet |
-|-------|---------------|-----------------|
-| Tipo de equipo | ✅ | ❌ Falta |
-| Artistas asignados | ✅ | ❌ Falta |
-| Categoría de equipo | ✅ | ❌ Solo muestra `category`, no `team_categories` |
+1. **Scroll no funciona**: El contenido del panel lateral se corta y no permite desplazarse para ver toda la información
+2. **Falta botón Editar**: Solo está el botón "Cerrar perfil" en el footer
 
 ## Solución Propuesta
 
-Añadir una nueva sección "Configuración de Equipo" en el panel lateral que muestre:
-
 ```text
-┌──────────────────────────────────────────┐
-│ [Avatar] Juan Rodriguez Berbín           │
-│          Juan R. Berbín                  │
-│          [Batería]                       │
-│                                          │
-│ [Email]  [Llamar]                        │
-├──────────────────────────────────────────┤
-│ Configuración de equipo     <- NUEVO     │
-│ ┌──────────────────────────────────────┐ │
-│ │ 🏢 Tipo de equipo                    │ │
-│ │    Equipo de artista                 │ │
-│ └──────────────────────────────────────┘ │
-│ ┌──────────────────────────────────────┐ │
-│ │ 🎵 Artistas                          │ │
-│ │    [Rita Payés] [M00DITA]            │ │
-│ └──────────────────────────────────────┘ │
-│ ┌──────────────────────────────────────┐ │
-│ │ 🏷️ Categoría                         │ │
-│ │    [Banda] [Productor]               │ │
-│ └──────────────────────────────────────┘ │
-├──────────────────────────────────────────┤
-│ Información de contacto                  │
-│ ...                                      │
-└──────────────────────────────────────────┘
+ANTES:                          DESPUES:
+┌──────────────────────────┐    ┌──────────────────────────┐
+│ [Avatar] Juan Rodriguez  │    │ [Avatar] Juan Rodriguez  │
+│          Batería         │    │          Batería         │
+│                          │    │                          │
+│ [Email]  [Llamar]        │    │ [Email]  [Llamar]        │
+│──────────────────────────│    │──────────────────────────│
+│ Configuración de equipo  │    │ Configuración de equipo  │
+│ ...                      │    │ ...                      │
+│ Información de contacto  │    │ Información de contacto  │  <- SCROLL
+│ ...                      │    │ ...                      │     FUNCIONA
+│                          │    │ ...más secciones...      │
+│ (contenido cortado!)     │    │ ...                      │
+│                          │    │──────────────────────────│
+│──────────────────────────│    │ [✏️ Editar] [✕ Cerrar]   │  <- DOS BOTONES
+│ [✕ Cerrar perfil]        │    └──────────────────────────┘
+└──────────────────────────┘
 ```
 
-## Implementación Técnica
+## Implementacion Tecnica
 
 ### Archivo a Modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/ContactProfileSheet.tsx` | Añadir sección de configuración de equipo |
+| `src/components/ContactProfileSheet.tsx` | Arreglar scroll + añadir callback onEdit + botón Editar |
+| `src/pages/Teams.tsx` | Pasar handler onEdit al componente |
+| `src/pages/ArtistProfile.tsx` | Pasar handler onEdit al componente |
 
-### 1. Actualizar Interface ContactData
+### 1. Modificar ContactProfileSheet.tsx
 
+**Añadir prop `onEdit` a la interfaz:**
 ```tsx
-interface ContactData {
-  // ... campos existentes ...
-  field_config?: {
-    is_team_member?: boolean;
-    is_management_team?: boolean;
-    team_categories?: string[];
-    [key: string]: any;
-  } | null;
+interface ContactProfileSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  contactId: string;
+  onEdit?: (contactId: string) => void;  // NUEVO
 }
 ```
 
-### 2. Añadir Estado para Artistas Asignados
+**Añadir icono Pencil a las importaciones:**
+```tsx
+import { 
+  Mail, Phone, Building, ... , Pencil  // AÑADIR Pencil
+} from "lucide-react";
+```
+
+**Arreglar estructura del SheetContent para scroll correcto:**
+```tsx
+<SheetContent className="w-full sm:max-w-lg p-0 flex flex-col h-full overflow-hidden">
+```
+
+**Modificar el footer con dos botones:**
+```tsx
+<div className="p-4 border-t bg-background flex gap-2">
+  {onEdit && (
+    <Button 
+      variant="default" 
+      className="flex-1" 
+      onClick={() => {
+        onEdit(contact.id);
+        onOpenChange(false);
+      }}
+    >
+      <Pencil className="h-4 w-4 mr-2" />
+      Editar
+    </Button>
+  )}
+  <Button 
+    variant="outline" 
+    className={onEdit ? "flex-1" : "w-full"}
+    onClick={() => onOpenChange(false)}
+  >
+    <X className="h-4 w-4 mr-2" />
+    Cerrar
+  </Button>
+</div>
+```
+
+### 2. Modificar Teams.tsx
+
+Pasar el handler `onEdit` que abre el diálogo de edición:
 
 ```tsx
-const [assignedArtists, setAssignedArtists] = useState<Array<{
-  id: string;
-  name: string;
-  stage_name?: string;
-}>>([]);
-
-const fetchAssignedArtists = async () => {
-  try {
-    const { data } = await supabase
-      .from('contact_artist_assignments')
-      .select('artist_id, artists:artist_id(id, name, stage_name)')
-      .eq('contact_id', contactId);
-    
-    if (data) {
-      setAssignedArtists(data.map((a: any) => ({
-        id: a.artists?.id,
-        name: a.artists?.name,
-        stage_name: a.artists?.stage_name,
-      })).filter(a => a.id));
+<ContactProfileSheet
+  open={!!selectedContactId}
+  onOpenChange={(open) => !open && setSelectedContactId(null)}
+  contactId={selectedContactId || ''}
+  onEdit={(contactId) => {
+    // Buscar el contacto completo para pasarlo al EditContactDialog
+    const contact = teamContacts.find(c => c.id === contactId);
+    if (contact) {
+      setEditingContact(contact);
+      setSelectedContactId(null);
     }
-  } catch (error) {
-    console.error('Error fetching assigned artists:', error);
-  }
-};
+  }}
+/>
 ```
 
-### 3. Nueva Sección de Configuración de Equipo
+### 3. Modificar ArtistProfile.tsx
 
-```tsx
-{/* Configuración de equipo - solo si es miembro de equipo */}
-{contact.field_config?.is_team_member && (
-  <div className="space-y-3">
-    <h3 className="text-sm font-medium text-muted-foreground">
-      Configuración de equipo
-    </h3>
-    
-    {/* Tipo de equipo */}
-    <InfoCard 
-      icon={Building} 
-      label="Tipo de equipo" 
-      value={contact.field_config?.is_management_team 
-        ? "00 Management (empresa)" 
-        : "Equipo de artista"} 
-    />
-
-    {/* Artistas asignados */}
-    {assignedArtists.length > 0 && (
-      <InfoCard 
-        icon={Music} 
-        label="Artistas" 
-        value={
-          <div className="flex flex-wrap gap-1 mt-1">
-            {assignedArtists.map((artist) => (
-              <Badge key={artist.id} variant="outline">
-                {artist.stage_name || artist.name}
-              </Badge>
-            ))}
-          </div>
-        } 
-      />
-    )}
-
-    {/* Categoría de equipo */}
-    {contact.field_config?.team_categories?.length > 0 && (
-      <InfoCard 
-        icon={Tag} 
-        label="Categoría de equipo" 
-        value={
-          <div className="flex flex-wrap gap-1 mt-1">
-            {contact.field_config.team_categories.map((cat) => (
-              <Badge key={cat} variant="secondary">
-                {getTeamCategoryLabel(cat)}
-              </Badge>
-            ))}
-          </div>
-        } 
-      />
-    )}
-  </div>
-)}
-```
-
-### 4. Importar Dependencias
-
-```tsx
-import { Music } from "lucide-react";
-import { getTeamCategoryLabel } from '@/lib/teamCategories';
-```
+Similar al de Teams.tsx - pasar handler que abra el diálogo de edición.
 
 ## Resumen de Cambios
 
-1. Añadir `field_config` a la interfaz ContactData
-2. Crear estado y función para obtener artistas asignados
-3. Añadir sección "Configuración de equipo" después del header
-4. Mostrar: Tipo de equipo, Artistas asignados, Categoría de equipo
-5. Solo mostrar la sección si `is_team_member` es true
-
-## Resultado Visual Esperado
-
-El panel lateral mostrará toda la información disponible en el diálogo de edición, organizada en secciones claras, incluyendo la configuración de equipo que antes no era visible.
-
+1. Añadir `h-full overflow-hidden` al SheetContent para que el scroll funcione
+2. Añadir prop `onEdit?: (contactId: string) => void` al componente
+3. Cambiar el footer para mostrar dos botones: "Editar" (primario) y "Cerrar" (outline)
+4. Actualizar Teams.tsx y ArtistProfile.tsx para pasar el handler de edición
