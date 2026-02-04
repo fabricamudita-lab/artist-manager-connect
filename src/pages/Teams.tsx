@@ -98,7 +98,7 @@ export default function Teams() {
     }
   }, []);
 
-  // Fetch artists (teams)
+  // Fetch artists (teams) and apply stored order
   const fetchArtists = async () => {
     try {
       const { data, error } = await supabase
@@ -107,7 +107,27 @@ export default function Teams() {
         .order('name');
       
       if (error) throw error;
-      setArtists(data || []);
+      
+      // Apply stored order if exists
+      const storedOrder = localStorage.getItem('team_order');
+      if (storedOrder && data) {
+        try {
+          const orderIds: string[] = JSON.parse(storedOrder);
+          const orderedArtists = [...data].sort((a, b) => {
+            const aIndex = orderIds.indexOf(a.id);
+            const bIndex = orderIds.indexOf(b.id);
+            if (aIndex === -1 && bIndex === -1) return 0;
+            if (aIndex === -1) return 1;
+            if (bIndex === -1) return -1;
+            return aIndex - bIndex;
+          });
+          setArtists(orderedArtists);
+        } catch {
+          setArtists(data || []);
+        }
+      } else {
+        setArtists(data || []);
+      }
     } catch (error) {
       console.error('Error fetching artists:', error);
     }
@@ -478,6 +498,26 @@ export default function Teams() {
       console.error('Error duplicating team:', error);
       toast({ title: 'Error al duplicar equipo', description: error.message, variant: 'destructive' });
     }
+  };
+
+  // Handle team reordering
+  const handleTeamReorder = (orderedIds: string[]) => {
+    localStorage.setItem('team_order', JSON.stringify(orderedIds));
+    const orderedArtists = orderedIds
+      .map(id => artists.find(a => a.id === id))
+      .filter(Boolean) as typeof artists;
+    setArtists(orderedArtists);
+  };
+
+  // Handle category reordering
+  const handleCategoryReorder = (orderedValues: string[]) => {
+    const reorderedCustomCategories = orderedValues
+      .map(value => customCategories.find(c => c.value === value))
+      .filter(Boolean) as typeof customCategories;
+    setCustomCategories(reorderedCustomCategories);
+    localStorage.setItem('custom_team_categories', JSON.stringify(
+      reorderedCustomCategories.map(c => ({ value: c.value, label: c.label }))
+    ));
   };
 
   // Compute member counts per team
@@ -1001,6 +1041,7 @@ export default function Teams() {
         }}
         onDuplicate={handleDuplicateTeam}
         onDelete={handleDeleteTeam}
+        onReorder={handleTeamReorder}
       />
 
       <CategoryManagerSheet
@@ -1017,6 +1058,7 @@ export default function Teams() {
         }}
         onRename={handleRenameCategory}
         onDelete={handleDeleteCategory}
+        onReorder={handleCategoryReorder}
       />
 
       <Dialog open={!!editingMemberRole} onOpenChange={(open) => !open && setEditingMemberRole(null)}>
