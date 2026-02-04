@@ -19,6 +19,7 @@ import { ContactProfileSheet } from '@/components/ContactProfileSheet';
 import { TeamMemberGrid } from '@/components/TeamMemberGrid';
 import { CategoryDropdown } from '@/components/CategoryDropdown';
 import { TeamDropdown } from '@/components/TeamDropdown';
+import { TeamManagerSheet } from '@/components/TeamManagerSheet';
 import { TEAM_CATEGORIES } from '@/lib/teamCategories';
 import { MemberType } from '@/components/TeamMemberCard';
 
@@ -56,6 +57,7 @@ export default function Teams() {
   const [createTeamDialogOpen, setCreateTeamDialogOpen] = useState(false);
   const [editTeamDialogOpen, setEditTeamDialogOpen] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+  const [teamManagerOpen, setTeamManagerOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
   
@@ -693,7 +695,7 @@ export default function Teams() {
             selectedTeamId={selectedArtistId}
             onTeamChange={setSelectedArtistId}
             managementMemberCount={teamMembers.length}
-            onCreateNew={() => setCreateTeamDialogOpen(true)}
+            onManageTeams={() => setTeamManagerOpen(true)}
           />
           
           {/* Category Dropdown */}
@@ -941,6 +943,29 @@ export default function Teams() {
           setEditingTeamId(null);
           fetchArtists();
         }}
+      />
+
+      <TeamManagerSheet
+        open={teamManagerOpen}
+        onOpenChange={setTeamManagerOpen}
+        teams={artists.map(a => ({
+          id: a.id,
+          name: a.name,
+          stageName: a.stage_name,
+          avatarUrl: a.avatar_url,
+          memberCount: teamMemberCounts.get(a.id) || 0,
+          description: a.description,
+        }))}
+        onCreateNew={() => {
+          setTeamManagerOpen(false);
+          setCreateTeamDialogOpen(true);
+        }}
+        onEdit={(teamId) => {
+          setTeamManagerOpen(false);
+          handleEditTeam(teamId);
+        }}
+        onDuplicate={handleDuplicateTeam}
+        onDelete={handleDeleteTeam}
       />
 
       {/* Dialog for editing functional role */}
