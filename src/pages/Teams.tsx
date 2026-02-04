@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Users, Mail, Building, Shield, UserCheck, Edit2, Settings, MoreVertical, UserMinus, FolderPlus, Pencil } from 'lucide-react';
+import { Plus, Users, Mail, Building, Shield, UserCheck, Edit2, Settings, MoreVertical, UserMinus, FolderPlus, Pencil, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,14 +10,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { InviteTeamMemberDialog } from '@/components/InviteTeamMemberDialog';
 import { AddTeamContactDialog } from '@/components/AddTeamContactDialog';
 import { TeamMemberActivityDialog } from '@/components/TeamMemberActivityDialog';
 import { CreateTeamDialog } from '@/components/CreateTeamDialog';
+import { EditTeamDialog } from '@/components/EditTeamDialog';
 import { EditContactDialog } from '@/components/EditContactDialog';
 import { ContactProfileSheet } from '@/components/ContactProfileSheet';
+import { TeamCard } from '@/components/TeamCard';
 import { TEAM_CATEGORIES } from '@/lib/teamCategories';
 
 type TeamCategory = 'banda' | 'artistico' | 'tecnico' | 'management' | 'comunicacion' | 'legal' | 'produccion' | 'otro';
@@ -52,9 +55,12 @@ export default function Teams() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [customCategories, setCustomCategories] = useState<Array<{ value: string; label: string; icon: any; isCustom: boolean }>>([]);
   const [createTeamDialogOpen, setCreateTeamDialogOpen] = useState(false);
+  const [editTeamDialogOpen, setEditTeamDialogOpen] = useState(false);
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+  const [gestorExpanded, setGestorExpanded] = useState(true);
   
   // Artist filter state - initialize from URL param if present
-  const [artists, setArtists] = useState<Array<{ id: string; name: string; stage_name?: string }>>([]);
+  const [artists, setArtists] = useState<Array<{ id: string; name: string; stage_name?: string | null; description?: string | null; avatar_url?: string | null }>>([]);
   const artistIdFromUrl = searchParams.get('artistId');
   const [selectedArtistId, setSelectedArtistId] = useState<string>(artistIdFromUrl || 'all');
 
@@ -88,12 +94,12 @@ export default function Teams() {
     }
   }, []);
 
-  // Fetch artists
+  // Fetch artists (teams)
   const fetchArtists = async () => {
     try {
       const { data, error } = await supabase
         .from('artists')
-        .select('id, name, stage_name')
+        .select('id, name, stage_name, description, avatar_url')
         .order('name');
       
       if (error) throw error;
@@ -380,6 +386,93 @@ export default function Teams() {
     }
   };
 
+  // Team management functions
+  const handleEditTeam = (teamId: string) => {
+    setEditingTeamId(teamId);
+    setEditTeamDialogOpen(true);
+  };
+
+  const handleDeleteTeam = async (teamId: string) => {
+    try {
+      const { error } = await supabase
+        .from('artists')
+        .delete()
+        .eq('id', teamId);
+
+      if (error) throw error;
+
+      toast({ title: 'Equipo eliminado correctamente' });
+      fetchArtists();
+      
+      // Reset selection if deleted team was selected
+      if (selectedArtistId === teamId) {
+        setSelectedArtistId('all');
+      }
+    } catch (error: any) {
+      console.error('Error deleting team:', error);
+      toast({ title: 'Error al eliminar equipo', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleDuplicateTeam = async (teamId: string) => {
+    try {
+      const team = artists.find(a => a.id === teamId);
+      if (!team) return;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: 'Error', description: 'Usuario no autenticado', variant: 'destructive' });
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('workspace_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!profile?.workspace_id) {
+        toast({ title: 'Error', description: 'No se encontró workspace', variant: 'destructive' });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('artists')
+        .insert({
+          name: `${team.name} (copia)`,
+          stage_name: team.stage_name ? `${team.stage_name} (copia)` : null,
+          description: team.description,
+          workspace_id: profile.workspace_id,
+          created_by: user.id,
+        });
+
+      if (error) throw error;
+
+      toast({ title: 'Equipo duplicado correctamente' });
+      fetchArtists();
+    } catch (error: any) {
+      console.error('Error duplicating team:', error);
+      toast({ title: 'Error al duplicar equipo', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  // Compute member counts per team
+  const teamMemberCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    
+    // Count contacts assigned to each artist
+    teamContacts.forEach(contact => {
+      const assignedIds = (contact as any).assigned_artist_ids || [];
+      assignedIds.forEach((artistId: string) => {
+        counts.set(artistId, (counts.get(artistId) || 0) + 1);
+      });
+    });
+    
+    return counts;
+  }, [teamContacts]);
+
+  const editingTeam = editingTeamId ? artists.find(a => a.id === editingTeamId) : null;
+
   // Get selected artist info to show as team member
   const selectedArtist = selectedArtistId !== 'all' && selectedArtistId !== '00-management' 
     ? artists.find(a => a.id === selectedArtistId) 
@@ -468,8 +561,68 @@ export default function Teams() {
         </p>
       </div>
 
+      {/* Gestor de Equipos Section */}
+      <Collapsible open={gestorExpanded} onOpenChange={setGestorExpanded}>
+        <Card>
+          <CardContent className="p-4">
+            <CollapsibleTrigger className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">Gestor de Equipos</h2>
+                <Badge variant="secondary">{artists.length}</Badge>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform ${gestorExpanded ? 'rotate-180' : ''}`} />
+            </CollapsibleTrigger>
+            
+            <CollapsibleContent className="mt-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {/* Management Team Card - always first */}
+                <TeamCard
+                  id="00-management"
+                  name="00 Management"
+                  description="Equipo de gestión general"
+                  memberCount={teamMembers.length}
+                  isManagement
+                  isSelected={selectedArtistId === '00-management'}
+                  onSelect={(id) => setSelectedArtistId(id)}
+                  onEdit={() => {/* Management can't be edited */}}
+                  onDelete={() => {/* Management can't be deleted */}}
+                  onDuplicate={() => {/* Management can't be duplicated */}}
+                />
+                
+                {/* Artist/Team Cards */}
+                {artists.map((artist) => (
+                  <TeamCard
+                    key={artist.id}
+                    id={artist.id}
+                    name={artist.name}
+                    stageName={artist.stage_name}
+                    description={artist.description}
+                    avatarUrl={artist.avatar_url}
+                    memberCount={teamMemberCounts.get(artist.id) || 0}
+                    isSelected={selectedArtistId === artist.id}
+                    onSelect={(id) => setSelectedArtistId(id)}
+                    onEdit={handleEditTeam}
+                    onDelete={handleDeleteTeam}
+                    onDuplicate={handleDuplicateTeam}
+                  />
+                ))}
+              </div>
+              
+              <div className="mt-4 pt-4 border-t">
+                <Button variant="outline" onClick={() => setCreateTeamDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nuevo Equipo
+                </Button>
+              </div>
+            </CollapsibleContent>
+          </CardContent>
+        </Card>
+      </Collapsible>
+
+      {/* Team Members Section */}
       <div className="flex items-center justify-between">
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <Select value={selectedArtistId} onValueChange={setSelectedArtistId}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Filtrar por equipo" />
@@ -484,12 +637,13 @@ export default function Teams() {
               ))}
             </SelectContent>
           </Select>
+          {selectedArtistId !== 'all' && (
+            <Badge variant="outline" className="ml-2">
+              Mostrando: {selectedArtistId === '00-management' ? '00 Management' : (artists.find(a => a.id === selectedArtistId)?.stage_name || artists.find(a => a.id === selectedArtistId)?.name)}
+            </Badge>
+          )}
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setCreateTeamDialogOpen(true)}>
-            <FolderPlus className="w-4 h-4 mr-2" />
-            Crear Equipo
-          </Button>
           <Button variant="outline" onClick={() => setAddContactDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Añadir Perfil
@@ -776,6 +930,22 @@ export default function Teams() {
         onOpenChange={setCreateTeamDialogOpen}
         onSuccess={() => {
           setCreateTeamDialogOpen(false);
+          fetchArtists();
+        }}
+      />
+
+      <EditTeamDialog
+        open={editTeamDialogOpen}
+        onOpenChange={setEditTeamDialogOpen}
+        teamId={editingTeamId}
+        initialData={editingTeam ? {
+          name: editingTeam.name,
+          stage_name: editingTeam.stage_name,
+          description: editingTeam.description,
+        } : undefined}
+        onSuccess={() => {
+          setEditTeamDialogOpen(false);
+          setEditingTeamId(null);
           fetchArtists();
         }}
       />
