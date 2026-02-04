@@ -177,7 +177,31 @@ export default function Teams() {
     toast({ title: 'Categoría eliminada' });
   };
 
-  const allCategoriesForDisplay = [...TEAM_CATEGORIES, ...customCategories];
+  // State to force recalculation when category order changes
+  const [categoryOrderVersion, setCategoryOrderVersion] = useState(0);
+
+  // Apply saved order from localStorage to all categories
+  const allCategoriesForDisplay = useMemo(() => {
+    const allCategories = [...TEAM_CATEGORIES, ...customCategories];
+    const savedOrder = localStorage.getItem('category_order');
+    
+    if (savedOrder) {
+      try {
+        const orderIds: string[] = JSON.parse(savedOrder);
+        return [...allCategories].sort((a, b) => {
+          const aIndex = orderIds.indexOf(a.value);
+          const bIndex = orderIds.indexOf(b.value);
+          if (aIndex === -1 && bIndex === -1) return 0;
+          if (aIndex === -1) return 1;
+          if (bIndex === -1) return -1;
+          return aIndex - bIndex;
+        });
+      } catch {
+        return allCategories;
+      }
+    }
+    return allCategories;
+  }, [customCategories, categoryOrderVersion]);
 
   const fetchTeamContacts = async () => {
     try {
@@ -524,6 +548,9 @@ export default function Teams() {
     localStorage.setItem('custom_team_categories', JSON.stringify(
       reorderedCustomCategories.map(c => ({ value: c.value, label: c.label }))
     ));
+    
+    // Force recalculation of allCategoriesForDisplay
+    setCategoryOrderVersion(v => v + 1);
   };
 
   // Compute member counts per team
