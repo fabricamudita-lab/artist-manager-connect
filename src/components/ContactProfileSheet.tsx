@@ -25,7 +25,8 @@ import {
   Link,
   Calendar,
   Home,
-  Music
+  Music,
+  Pencil
 } from "lucide-react";
 import { getTeamCategoryLabel } from '@/lib/teamCategories';
 import { format } from "date-fns";
@@ -36,6 +37,7 @@ interface ContactProfileSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   contactId: string;
+  onEdit?: (contactId: string) => void;
 }
 
 interface ContactData {
@@ -88,7 +90,8 @@ interface ProjectRole {
 export function ContactProfileSheet({
   open,
   onOpenChange,
-  contactId
+  contactId,
+  onEdit
 }: ContactProfileSheetProps) {
   const [contact, setContact] = useState<ContactData | null>(null);
   const [projectRoles, setProjectRoles] = useState<ProjectRole[]>([]);
@@ -575,14 +578,26 @@ export function ContactProfileSheet({
         </ScrollArea>
 
         {/* Footer */}
-        <div className="p-4 border-t bg-background">
+        <div className="p-4 border-t bg-background flex gap-2">
+          {onEdit && (
+            <Button 
+              className="flex-1" 
+              onClick={() => {
+                onEdit(contact.id);
+                onOpenChange(false);
+              }}
+            >
+              <Pencil className="h-4 w-4 mr-2" />
+              Editar
+            </Button>
+          )}
           <Button 
             variant="outline" 
-            className="w-full" 
+            className={onEdit ? "flex-1" : "w-full"}
             onClick={() => onOpenChange(false)}
           >
             <X className="h-4 w-4 mr-2" />
-            Cerrar perfil
+            Cerrar
           </Button>
         </div>
       </SheetContent>

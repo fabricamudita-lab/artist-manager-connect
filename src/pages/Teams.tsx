@@ -946,6 +946,13 @@ export default function Teams() {
         open={!!selectedContactId}
         onOpenChange={(open) => !open && setSelectedContactId(null)}
         contactId={selectedContactId || ''}
+        onEdit={(contactId) => {
+          const contact = teamContacts.find(c => c.id === contactId);
+          if (contact) {
+            setEditingContact(contact);
+            setSelectedContactId(null);
+          }
+        }}
       />
 
       <CreateTeamDialog
