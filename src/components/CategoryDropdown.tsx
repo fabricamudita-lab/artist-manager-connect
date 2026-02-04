@@ -1,6 +1,6 @@
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Plus } from 'lucide-react';
+import { Settings } from 'lucide-react';
 
 interface Category {
   value: string;
@@ -15,7 +15,7 @@ interface CategoryDropdownProps {
   onCategoryChange: (category: string) => void;
   allLabel?: string;
   allCount?: number;
-  onCreateNew?: () => void;
+  onManageCategories?: () => void;
 }
 
 export function CategoryDropdown({
@@ -24,7 +24,7 @@ export function CategoryDropdown({
   onCategoryChange,
   allLabel = 'Todas las categorías',
   allCount,
-  onCreateNew,
+  onManageCategories,
 }: CategoryDropdownProps) {
   const totalCount = allCount ?? categories.reduce((sum, cat) => sum + cat.count, 0);
   
@@ -43,8 +43,8 @@ export function CategoryDropdown({
   };
 
   const handleValueChange = (value: string) => {
-    if (value === '__new__') {
-      onCreateNew?.();
+    if (value === '__manage__') {
+      onManageCategories?.();
     } else {
       onCategoryChange(value);
     }
@@ -82,14 +82,14 @@ export function CategoryDropdown({
             );
           })}
           
-          {/* New Category Option */}
-          {onCreateNew && (
+          {/* Manage Categories Option */}
+          {onManageCategories && (
             <>
               <SelectSeparator />
-              <SelectItem value="__new__" className="text-primary">
+              <SelectItem value="__manage__" className="text-primary">
                 <div className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  <span>Nueva Categoría</span>
+                  <Settings className="h-4 w-4" />
+                  <span>Editar Categorías</span>
                 </div>
               </SelectItem>
             </>
