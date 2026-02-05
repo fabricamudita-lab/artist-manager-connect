@@ -29,15 +29,14 @@ export function CategoryDropdown({
 }: CategoryDropdownProps) {
   const totalCount = allCount ?? categories.reduce((sum, cat) => sum + cat.count, 0);
   
-  // Apply saved order from localStorage, filter empty categories
+  // Apply saved order from localStorage (show all categories including empty ones)
   const sortedCategories = useMemo(() => {
     const savedOrder = localStorage.getItem('category_order');
-    const nonEmptyCategories = categories.filter(cat => cat.count > 0);
     
     if (savedOrder) {
       try {
         const orderIds: string[] = JSON.parse(savedOrder);
-        return [...nonEmptyCategories].sort((a, b) => {
+        return [...categories].sort((a, b) => {
           const aIndex = orderIds.indexOf(a.value);
           const bIndex = orderIds.indexOf(b.value);
           // Categories not in saved order go to the end
@@ -47,10 +46,10 @@ export function CategoryDropdown({
           return aIndex - bIndex;
         });
       } catch {
-        return nonEmptyCategories;
+        return categories;
       }
     }
-    return nonEmptyCategories;
+    return categories;
   }, [categories]);
 
   // Obtener el label de la categoría seleccionada
