@@ -218,25 +218,29 @@ export function ContactProfileSheet({
     field: string;
     multiline?: boolean;
     className?: string;
-  }) => (
-    <Card className={className}>
-      <CardContent className="py-3 flex items-start gap-3 group">
-        <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-        <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <InlineEdit
-            value={value || ''}
-            onSave={async (newValue) => {
-              await updateContactField(field, newValue);
-            }}
-            placeholder={`Añadir ${label.toLowerCase()}...`}
-            multiline={multiline}
-          />
-        </div>
-        <Pencil className="h-4 w-4 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5" />
-      </CardContent>
-    </Card>
-  );
+  }) => {
+    const isEmpty = !value || value.trim() === '';
+    
+    return (
+      <Card className={`${className} ${isEmpty ? 'bg-muted/30 border-dashed' : ''}`}>
+        <CardContent className="py-3 flex items-start gap-3 group">
+          <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${isEmpty ? 'text-muted-foreground/50' : 'text-muted-foreground'}`} />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <InlineEdit
+              value={value || ''}
+              onSave={async (newValue) => {
+                await updateContactField(field, newValue);
+              }}
+              placeholder={`Añadir ${label.toLowerCase()}...`}
+              multiline={multiline}
+            />
+          </div>
+          <Pencil className="h-4 w-4 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5" />
+        </CardContent>
+      </Card>
+    );
+  };
 
   const ReadOnlyInfoCard = ({ icon: Icon, label, value, className = "" }: { 
     icon: React.ElementType; 
