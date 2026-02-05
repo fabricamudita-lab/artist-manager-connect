@@ -29,6 +29,7 @@ import {
   Music,
   Settings
 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { getTeamCategoryLabel } from '@/lib/teamCategories';
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -219,10 +220,13 @@ export function ContactProfileSheet({
     className?: string;
   }) => (
     <Card className={className}>
-      <CardContent className="py-3 flex items-start gap-3">
+      <CardContent className="py-3 flex items-start gap-3 group">
         <Icon className="h-4 w-4 text-muted-foreground mt-2 shrink-0" />
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground">{label}</p>
+           <div className="flex items-center gap-1.5">
+             <p className="text-xs text-muted-foreground">{label}</p>
+             <Pencil className="h-3 w-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+           </div>
           <InlineEdit
             value={value || ''}
             onSave={async (newValue) => {
