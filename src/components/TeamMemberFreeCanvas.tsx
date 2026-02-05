@@ -175,7 +175,19 @@ export function TeamMemberFreeCanvas({
       </div>
       
       {/* Scrollable Canvas Container */}
-      <div className="overflow-auto border rounded-lg bg-muted/20" style={{ maxHeight: '70vh' }}>
+      <div 
+        className="overflow-auto border rounded-lg bg-muted/20" 
+        style={{ 
+          maxHeight: '70vh',
+          overscrollBehavior: 'contain',
+        }}
+        onWheel={(e) => {
+          // Prevent browser back navigation on horizontal scroll
+          if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+            e.preventDefault();
+          }
+        }}
+      >
         <div
           ref={containerRef}
           className="relative"

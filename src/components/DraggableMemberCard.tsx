@@ -6,6 +6,13 @@ interface Position {
   y: number;
 }
 
+const GRID_SNAP_SIZE = 24; // Matches background dot-grid size
+
+const snapToGrid = (pos: Position): Position => ({
+  x: Math.round(pos.x / GRID_SNAP_SIZE) * GRID_SNAP_SIZE,
+  y: Math.round(pos.y / GRID_SNAP_SIZE) * GRID_SNAP_SIZE,
+});
+
 interface DraggableMemberCardProps {
   id: string;
   name: string;
@@ -122,14 +129,18 @@ export function DraggableMemberCard({
     const handleMouseUp = () => {
       if (isDragging) {
         setIsDragging(false);
-        onPositionChange(currentPosition);
+        const snappedPosition = snapToGrid(currentPosition);
+        setCurrentPosition(snappedPosition);
+        onPositionChange(snappedPosition);
       }
     };
 
     const handleTouchEnd = () => {
       if (isDragging) {
         setIsDragging(false);
-        onPositionChange(currentPosition);
+        const snappedPosition = snapToGrid(currentPosition);
+        setCurrentPosition(snappedPosition);
+        onPositionChange(snappedPosition);
       }
     };
 
