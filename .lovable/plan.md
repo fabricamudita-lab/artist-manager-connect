@@ -1,60 +1,112 @@
 
-# Plan: Deshabilitar Apertura del Panel en Vista Libre
+# Plan: Mejorar Navegación y Añadir Snap-to-Grid
 
-## Problema
+## Problemas Identificados
 
-En el modo "Vista Libre", al hacer clic en un perfil para moverlo, se abre la barra lateral de perfil. El usuario quiere poder seleccionar y arrastrar los perfiles sin que se dispare esta acción.
+1. **Scroll horizontal conflictivo**: Los gestos de swipe hacia la izquierda activan la navegación del navegador (volver atrás) en lugar de hacer scroll en el canvas
+2. **Falta de alineación**: Los perfiles pueden quedar en posiciones irregulares, superpuestos o desalineados
 
 ## Solución
 
-Modificar la lógica del componente `DraggableMemberCard` para distinguir entre un clic intencional (para ver perfil) y un clic de arrastre (para mover). La estrategia será:
+### 1. Prevenir Navegación del Navegador
 
-1. **Detectar movimiento**: Solo considerar como "clic" si el usuario suelta el mouse sin haber movido el elemento
-2. **Umbral de movimiento**: Establecer un umbral mínimo de 5 píxeles para considerar que hubo movimiento
-3. **No pasar onClick en modo libre**: La opción más simple - en el modo libre, simplemente no pasar el callback `onClick` al componente
-
-## Cambios a Realizar
-
-### Archivo: `src/components/DraggableMemberCard.tsx`
-
-Añadir lógica para rastrear si hubo movimiento durante el arrastre:
+Capturar los eventos de scroll/wheel en el contenedor y prevenir la propagación cuando el usuario intenta hacer scroll horizontal:
 
 ```typescript
-const [hasMoved, setHasMoved] = useState(false);
-const startPositionRef = useRef<Position>({ x: 0, y: 0 });
-
-// En handleMouseDown:
-startPositionRef.current = { x: e.clientX, y: e.clientY };
-setHasMoved(false);
-
-// En handleMouseMove:
-const distance = Math.sqrt(
-  Math.pow(e.clientX - startPositionRef.current.x, 2) +
-  Math.pow(e.clientY - startPositionRef.current.y, 2)
-);
-if (distance > 5) setHasMoved(true);
-
-// En handleMouseUp:
-// Solo ejecutar onClick si NO hubo movimiento
-if (!hasMoved && onClick) {
-  onClick();
-}
+// En el contenedor scrollable
+onWheel={(e) => {
+  // Prevenir que el navegador interprete el scroll horizontal como navegación
+  if (Math.abs(e.deltaX) > 0) {
+    e.stopPropagation();
+  }
+}}
 ```
 
-### Archivo: `src/pages/Teams.tsx`
+Además, añadir `overscroll-behavior: contain` en CSS para evitar que el scroll se propague al body.
 
-Alternativa más simple: no pasar `onMemberClick` al `TeamMemberFreeCanvas`, de modo que en la vista libre los clics nunca abran el panel lateral. El usuario puede acceder al perfil a través del menú de acciones (tres puntos).
+### 2. Snap-to-Grid al Soltar
 
-## Enfoque Recomendado
+Cuando el usuario suelta una tarjeta, la posición se ajustará automáticamente a la cuadrícula más cercana:
 
-Usar la alternativa simple en `Teams.tsx`: no pasar el callback de clic al canvas libre. Esto hace que:
-- En modo cuadrícula y lista: clic abre el panel lateral
-- En modo libre: clic permite arrastrar, el menú de acciones permite ver/editar
+```typescript
+const GRID_SNAP_SIZE = 24; // Coincide con el tamaño de los puntos del fondo
 
-Esto mantiene la experiencia consistente y predecible.
+const snapToGrid = (position: Position): Position => ({
+  x: Math.round(position.x / GRID_SNAP_SIZE) * GRID_SNAP_SIZE,
+  y: Math.round(position.y / GRID_SNAP_SIZE) * GRID_SNAP_SIZE,
+});
 
-## Resumen de Cambios
+// Al soltar (handleMouseUp/handleTouchEnd):
+const snappedPosition = snapToGrid(currentPosition);
+setCurrentPosition(snappedPosition);
+onPositionChange(snappedPosition);
+```
 
-| Archivo | Cambio |
-|---------|--------|
-| `src/pages/Teams.tsx` | No pasar `onMemberClick` al `TeamMemberFreeCanvas` |
+### 3. Guías Visuales (Opcional pero recomendado)
+
+Mostrar líneas guía cuando una tarjeta está siendo arrastrada y se alinea con otras:
+- Línea vertical cuando X coincide con otra tarjeta
+- Línea horizontal cuando Y coincide
+
+## Cambios por Archivo
+
+| Archivo | Cambios |
+|---------|---------|
+| `TeamMemberFreeCanvas.tsx` | Añadir `overscroll-behavior: contain`, handler `onWheel` para prevenir navegación |
+| `DraggableMemberCard.tsx` | Implementar función `snapToGrid()` y aplicarla al soltar |
+
+## Detalles Técnicos
+
+### TeamMemberFreeCanvas.tsx
+
+```tsx
+{/* Scrollable Canvas Container */}
+<div 
+  className="overflow-auto border rounded-lg bg-muted/20" 
+  style={{ 
+    maxHeight: '70vh',
+    overscrollBehavior: 'contain', // Previene scroll encadenado
+  }}
+  onWheel={(e) => {
+    // Prevenir navegación del navegador en scroll horizontal
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      e.preventDefault();
+    }
+  }}
+>
+```
+
+### DraggableMemberCard.tsx
+
+```tsx
+const GRID_SNAP_SIZE = 24; // Tamaño de la cuadrícula de puntos
+
+const snapToGrid = (pos: Position): Position => ({
+  x: Math.round(pos.x / GRID_SNAP_SIZE) * GRID_SNAP_SIZE,
+  y: Math.round(pos.y / GRID_SNAP_SIZE) * GRID_SNAP_SIZE,
+});
+
+// En handleMouseUp:
+const handleMouseUp = () => {
+  if (isDragging) {
+    setIsDragging(false);
+    const snappedPosition = snapToGrid(currentPosition);
+    setCurrentPosition(snappedPosition);
+    onPositionChange(snappedPosition);
+  }
+};
+
+// Igual para handleTouchEnd
+```
+
+## Comportamiento Esperado
+
+1. **Scroll horizontal**: Funciona normalmente dentro del canvas sin activar el "volver atrás" del navegador
+2. **Al soltar una tarjeta**: Se ajusta automáticamente a la cuadrícula de 24px (visible como los puntos del fondo)
+3. **Alineación visual**: Las tarjetas quedan perfectamente alineadas si se colocan cerca unas de otras
+
+## Consideraciones Adicionales
+
+- El snap de 24px coincide con el `backgroundSize` del grid de puntos, creando coherencia visual
+- La función snap es bidireccional (X e Y), permitiendo alineación tanto horizontal como vertical
+- El contenedor ahora "atrapa" el scroll, evitando efectos no deseados en el resto de la página
