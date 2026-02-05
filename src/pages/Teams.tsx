@@ -17,6 +17,7 @@ import { EditTeamDialog } from '@/components/EditTeamDialog';
 import { EditContactDialog } from '@/components/EditContactDialog';
 import { ContactProfileSheet } from '@/components/ContactProfileSheet';
 import { TeamMemberGrid } from '@/components/TeamMemberGrid';
+import { TeamMemberList } from '@/components/TeamMemberList';
 import { CategoryDropdown } from '@/components/CategoryDropdown';
 import { TeamDropdown } from '@/components/TeamDropdown';
 import { TeamManagerSheet } from '@/components/TeamManagerSheet';
@@ -888,54 +889,85 @@ export default function Teams() {
           </CardContent>
         </Card>
       ) : selectedCategoryFilter === 'all' ? (
-        /* Unified grid view - all members in one grid */
+        /* Unified view - all members */
         <div className="space-y-4">
-          <TeamMemberGrid
-            members={allMembersFlattened}
-            onMemberClick={(member) => {
-              if (member.type === 'user') {
-                setActivityMember({
-                  id: member.rawData.user_id,
-                  name: member.name,
-                  email: member.email,
-                  role: member.rawData.role,
-                  type: 'profile'
-                });
-              } else if (member.type === 'profile') {
-                setSelectedContactId(member.rawData.id);
-              }
-            }}
-            onMemberEdit={(member) => {
-              if (member.type === 'profile') {
-                setEditingContact(member.rawData);
-              }
-            }}
-            onMemberRemove={(member) => {
-              if (member.type === 'profile') {
-                handleRemoveFromTeam(member.rawData.id);
-              }
-            }}
-            onMemberEditRole={(member) => {
-              if (member.type === 'user') {
-                setEditingMemberRole({
-                  memberId: member.rawData.id,
-                  userId: member.rawData.user_id,
-                  name: member.name,
-                  currentRole: member.rawData.functional_role,
-                  mirrorContactId: member.rawData.mirror_contact_id,
-                });
-                setNewFunctionalRole(member.rawData.functional_role || '');
-              }
-            }}
-            onCategoryChange={(memberId, newCategory) => {
-              const member = teamMembers.find(m => m.id === memberId);
-              if (member) {
-                updateMemberCategory(memberId, newCategory);
-              }
-            }}
-            categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
-            showActions
-          />
+          {viewMode === 'grid' ? (
+            <TeamMemberGrid
+              members={allMembersFlattened}
+              onMemberClick={(member) => {
+                if (member.type === 'user') {
+                  setActivityMember({
+                    id: member.rawData.user_id,
+                    name: member.name,
+                    email: member.email,
+                    role: member.rawData.role,
+                    type: 'profile'
+                  });
+                } else if (member.type === 'profile') {
+                  setSelectedContactId(member.rawData.id);
+                }
+              }}
+              onMemberEdit={(member) => {
+                if (member.type === 'profile') {
+                  setEditingContact(member.rawData);
+                }
+              }}
+              onMemberRemove={(member) => {
+                if (member.type === 'profile') {
+                  handleRemoveFromTeam(member.rawData.id);
+                }
+              }}
+              onMemberEditRole={(member) => {
+                if (member.type === 'user') {
+                  setEditingMemberRole({
+                    memberId: member.rawData.id,
+                    userId: member.rawData.user_id,
+                    name: member.name,
+                    currentRole: member.rawData.functional_role,
+                    mirrorContactId: member.rawData.mirror_contact_id,
+                  });
+                  setNewFunctionalRole(member.rawData.functional_role || '');
+                }
+              }}
+              onCategoryChange={(memberId, newCategory) => {
+                const member = teamMembers.find(m => m.id === memberId);
+                if (member) {
+                  updateMemberCategory(memberId, newCategory);
+                }
+              }}
+              categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
+              showActions
+            />
+          ) : (
+            <TeamMemberList
+              members={allMembersFlattened}
+              onMemberClick={(member) => {
+                if (member.type === 'user') {
+                  setActivityMember({
+                    id: member.rawData.user_id,
+                    name: member.name,
+                    email: member.email,
+                    role: member.rawData.role,
+                    type: 'profile'
+                  });
+                } else if (member.type === 'profile') {
+                  setSelectedContactId(member.rawData.id);
+                }
+              }}
+              onMemberEdit={(member) => {
+                if (member.type === 'profile') {
+                  setEditingContact(member.rawData);
+                }
+              }}
+              onMemberRemove={(member) => {
+                if (member.type === 'profile') {
+                  handleRemoveFromTeam(member.rawData.id);
+                }
+              }}
+              categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
+              showActions
+            />
+          )}
         </div>
       ) : (
         /* Filtered view - show only selected category */
@@ -952,52 +984,83 @@ export default function Teams() {
                   <Badge variant="secondary">{category.total}</Badge>
                 </div>
                 
-                <TeamMemberGrid
-                  members={gridMembers}
-                  onMemberClick={(member) => {
-                    if (member.type === 'user') {
-                      setActivityMember({
-                        id: member.rawData.user_id,
-                        name: member.name,
-                        email: member.email,
-                        role: member.rawData.role,
-                        type: 'profile'
-                      });
-                    } else if (member.type === 'profile') {
-                      setSelectedContactId(member.rawData.id);
-                    }
-                  }}
-                  onMemberEdit={(member) => {
-                    if (member.type === 'profile') {
-                      setEditingContact(member.rawData);
-                    }
-                  }}
-                  onMemberRemove={(member) => {
-                    if (member.type === 'profile') {
-                      handleRemoveFromTeam(member.rawData.id);
-                    }
-                  }}
-                  onMemberEditRole={(member) => {
-                    if (member.type === 'user') {
-                      setEditingMemberRole({
-                        memberId: member.rawData.id,
-                        userId: member.rawData.user_id,
-                        name: member.name,
-                        currentRole: member.rawData.functional_role,
-                        mirrorContactId: member.rawData.mirror_contact_id,
-                      });
-                      setNewFunctionalRole(member.rawData.functional_role || '');
-                    }
-                  }}
-                  onCategoryChange={(memberId, newCategory) => {
-                    const member = teamMembers.find(m => m.id === memberId);
-                    if (member) {
-                      updateMemberCategory(memberId, newCategory);
-                    }
-                  }}
-                  categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
-                  showActions
-                />
+                {viewMode === 'grid' ? (
+                  <TeamMemberGrid
+                    members={gridMembers}
+                    onMemberClick={(member) => {
+                      if (member.type === 'user') {
+                        setActivityMember({
+                          id: member.rawData.user_id,
+                          name: member.name,
+                          email: member.email,
+                          role: member.rawData.role,
+                          type: 'profile'
+                        });
+                      } else if (member.type === 'profile') {
+                        setSelectedContactId(member.rawData.id);
+                      }
+                    }}
+                    onMemberEdit={(member) => {
+                      if (member.type === 'profile') {
+                        setEditingContact(member.rawData);
+                      }
+                    }}
+                    onMemberRemove={(member) => {
+                      if (member.type === 'profile') {
+                        handleRemoveFromTeam(member.rawData.id);
+                      }
+                    }}
+                    onMemberEditRole={(member) => {
+                      if (member.type === 'user') {
+                        setEditingMemberRole({
+                          memberId: member.rawData.id,
+                          userId: member.rawData.user_id,
+                          name: member.name,
+                          currentRole: member.rawData.functional_role,
+                          mirrorContactId: member.rawData.mirror_contact_id,
+                        });
+                        setNewFunctionalRole(member.rawData.functional_role || '');
+                      }
+                    }}
+                    onCategoryChange={(memberId, newCategory) => {
+                      const member = teamMembers.find(m => m.id === memberId);
+                      if (member) {
+                        updateMemberCategory(memberId, newCategory);
+                      }
+                    }}
+                    categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
+                    showActions
+                  />
+                ) : (
+                  <TeamMemberList
+                    members={gridMembers}
+                    onMemberClick={(member) => {
+                      if (member.type === 'user') {
+                        setActivityMember({
+                          id: member.rawData.user_id,
+                          name: member.name,
+                          email: member.email,
+                          role: member.rawData.role,
+                          type: 'profile'
+                        });
+                      } else if (member.type === 'profile') {
+                        setSelectedContactId(member.rawData.id);
+                      }
+                    }}
+                    onMemberEdit={(member) => {
+                      if (member.type === 'profile') {
+                        setEditingContact(member.rawData);
+                      }
+                    }}
+                    onMemberRemove={(member) => {
+                      if (member.type === 'profile') {
+                        handleRemoveFromTeam(member.rawData.id);
+                      }
+                    }}
+                    categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
+                    showActions
+                  />
+                )}
               </div>
             );
           })}
