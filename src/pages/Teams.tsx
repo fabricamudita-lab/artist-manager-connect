@@ -710,12 +710,21 @@ export default function Teams() {
   };
 
   // Categories for filter pills
-  const categoryPillsData = allTeamByCategory.map(cat => ({
-    value: cat.value,
-    label: cat.label,
-    count: cat.total,
-    icon: cat.icon,
-  }));
+  const categoryPillsData = useMemo(() => {
+    // Build counts from allTeamByCategory
+    const countsMap = new Map<string, number>();
+    allTeamByCategory.forEach(cat => {
+      countsMap.set(cat.value, cat.total);
+    });
+    
+    // Include ALL categories (system + custom), even those with 0 members
+    return allCategoriesForDisplay.map(cat => ({
+      value: cat.value,
+      label: cat.label,
+      count: countsMap.get(cat.value) || 0,
+      icon: cat.icon,
+    }));
+  }, [allCategoriesForDisplay, allTeamByCategory]);
 
   // Filter categories based on selected filter
   const filteredCategories = selectedCategoryFilter === 'all' 
