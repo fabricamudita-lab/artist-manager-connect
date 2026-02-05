@@ -29,35 +29,40 @@ interface TeamMemberFreeCanvasProps {
   onCategoryChange?: (memberId: string, newCategory: string) => void;
   categories?: Array<{ value: string; label: string }>;
   showActions?: boolean;
+  /** Context key to separate position storage (e.g., artistId or 'all') */
+  contextKey?: string;
 }
 
-const STORAGE_KEY = 'team_member_positions';
+const STORAGE_KEY_PREFIX = 'team_member_positions';
 const CARD_WIDTH = 120;
 const CARD_HEIGHT = 100;
 const GRID_COLS = 6;
 const GRID_PADDING = 20;
 const GRID_GAP = 16;
 
-// Load positions from localStorage
-const loadPositions = (): Record<string, Position> => {
+// Get storage key for a specific context
+const getStorageKey = (contextKey: string) => `${STORAGE_KEY_PREFIX}_${contextKey}`;
+
+// Load positions from localStorage for a specific context
+const loadPositions = (contextKey: string): Record<string, Position> => {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(getStorageKey(contextKey));
     return stored ? JSON.parse(stored) : {};
   } catch {
     return {};
   }
 };
 
-// Save positions to localStorage
-const savePosition = (memberId: string, position: Position) => {
-  const stored = loadPositions();
+// Save positions to localStorage for a specific context
+const savePosition = (contextKey: string, memberId: string, position: Position) => {
+  const stored = loadPositions(contextKey);
   stored[memberId] = position;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+  localStorage.setItem(getStorageKey(contextKey), JSON.stringify(stored));
 };
 
-// Clear all positions from localStorage
-const clearAllPositions = () => {
-  localStorage.removeItem(STORAGE_KEY);
+// Clear all positions from localStorage for a specific context
+const clearAllPositions = (contextKey: string) => {
+  localStorage.removeItem(getStorageKey(contextKey));
 };
 
 // Calculate initial grid position for a member without saved position
@@ -80,13 +85,14 @@ export function TeamMemberFreeCanvas({
   onCategoryChange,
   categories = [],
   showActions = true,
+  contextKey = 'default',
 }: TeamMemberFreeCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [positions, setPositions] = useState<Record<string, Position>>({});
   
   // Load saved positions on mount and calculate initial positions for new members
   useEffect(() => {
-    const savedPositions = loadPositions();
+    const savedPositions = loadPositions(contextKey);
     const newPositions: Record<string, Position> = {};
     
     members.forEach((member, index) => {
@@ -97,12 +103,12 @@ export function TeamMemberFreeCanvas({
         const position = calculateInitialPosition(index);
         newPositions[member.id] = position;
         // Save the initial position
-        savePosition(member.id, position);
+        savePosition(contextKey, member.id, position);
       }
     });
     
     setPositions(newPositions);
-  }, [members]);
+  }, [members, contextKey]);
 
   // Handle position change from drag
   const handlePositionChange = (memberId: string, position: Position) => {
@@ -110,18 +116,18 @@ export function TeamMemberFreeCanvas({
       ...prev,
       [memberId]: position,
     }));
-    savePosition(memberId, position);
+    savePosition(contextKey, memberId, position);
   };
 
   // Reset all positions to grid
   const handleResetPositions = () => {
-    clearAllPositions();
+    clearAllPositions(contextKey);
     const newPositions: Record<string, Position> = {};
     
     members.forEach((member, index) => {
       const position = calculateInitialPosition(index);
       newPositions[member.id] = position;
-      savePosition(member.id, position);
+      savePosition(contextKey, member.id, position);
     });
     
     setPositions(newPositions);
