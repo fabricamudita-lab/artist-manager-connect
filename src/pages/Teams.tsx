@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Users, Mail, Grid3X3, List, Pencil } from 'lucide-react';
+import { Plus, Users, Mail, Grid3X3, List, Pencil, Move } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,7 @@ import { EditContactDialog } from '@/components/EditContactDialog';
 import { ContactProfileSheet } from '@/components/ContactProfileSheet';
 import { TeamMemberGrid } from '@/components/TeamMemberGrid';
 import { TeamMemberList } from '@/components/TeamMemberList';
+import { TeamMemberFreeCanvas } from '@/components/TeamMemberFreeCanvas';
 import { CategoryDropdown } from '@/components/CategoryDropdown';
 import { TeamDropdown } from '@/components/TeamDropdown';
 import { TeamManagerSheet } from '@/components/TeamManagerSheet';
@@ -61,7 +62,7 @@ export default function Teams() {
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [teamManagerOpen, setTeamManagerOpen] = useState(false);
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'free'>('grid');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
   
   // Artist filter state
@@ -843,6 +844,7 @@ export default function Teams() {
               size="icon"
               onClick={() => setViewMode('grid')}
               className="h-8 w-8"
+              title="Cuadrícula"
             >
               <Grid3X3 className="h-4 w-4" />
             </Button>
@@ -851,8 +853,18 @@ export default function Teams() {
               size="icon"
               onClick={() => setViewMode('list')}
               className="h-8 w-8"
+              title="Lista"
             >
               <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'free' ? 'secondary' : 'ghost'}
+              size="icon"
+              onClick={() => setViewMode('free')}
+              className="h-8 w-8"
+              title="Vista libre"
+            >
+              <Move className="h-4 w-4" />
             </Button>
           </div>
           
@@ -891,7 +903,7 @@ export default function Teams() {
       ) : selectedCategoryFilter === 'all' ? (
         /* Unified view - all members */
         <div className="space-y-4">
-          {viewMode === 'grid' ? (
+          {viewMode === 'grid' && (
             <TeamMemberGrid
               members={allMembersFlattened}
               onMemberClick={(member) => {
@@ -938,7 +950,8 @@ export default function Teams() {
               categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
               showActions
             />
-          ) : (
+          )}
+          {viewMode === 'list' && (
             <TeamMemberList
               members={allMembersFlattened}
               onMemberClick={(member) => {
@@ -968,6 +981,54 @@ export default function Teams() {
               showActions
             />
           )}
+          {viewMode === 'free' && (
+            <TeamMemberFreeCanvas
+              members={allMembersFlattened}
+              onMemberClick={(member) => {
+                if (member.type === 'user') {
+                  setActivityMember({
+                    id: member.rawData.user_id,
+                    name: member.name,
+                    email: member.email,
+                    role: member.rawData.role,
+                    type: 'profile'
+                  });
+                } else if (member.type === 'profile') {
+                  setSelectedContactId(member.rawData.id);
+                }
+              }}
+              onMemberEdit={(member) => {
+                if (member.type === 'profile') {
+                  setEditingContact(member.rawData);
+                }
+              }}
+              onMemberRemove={(member) => {
+                if (member.type === 'profile') {
+                  handleRemoveFromTeam(member.rawData.id);
+                }
+              }}
+              onMemberEditRole={(member) => {
+                if (member.type === 'user') {
+                  setEditingMemberRole({
+                    memberId: member.rawData.id,
+                    userId: member.rawData.user_id,
+                    name: member.name,
+                    currentRole: member.rawData.functional_role,
+                    mirrorContactId: member.rawData.mirror_contact_id,
+                  });
+                  setNewFunctionalRole(member.rawData.functional_role || '');
+                }
+              }}
+              onCategoryChange={(memberId, newCategory) => {
+                const member = teamMembers.find(m => m.id === memberId);
+                if (member) {
+                  updateMemberCategory(memberId, newCategory);
+                }
+              }}
+              categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
+              showActions
+            />
+          )}
         </div>
       ) : (
         /* Filtered view - show only selected category */
@@ -984,7 +1045,7 @@ export default function Teams() {
                   <Badge variant="secondary">{category.total}</Badge>
                 </div>
                 
-                {viewMode === 'grid' ? (
+                {viewMode === 'grid' && (
                   <TeamMemberGrid
                     members={gridMembers}
                     onMemberClick={(member) => {
@@ -1031,7 +1092,8 @@ export default function Teams() {
                     categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
                     showActions
                   />
-                ) : (
+                )}
+                {viewMode === 'list' && (
                   <TeamMemberList
                     members={gridMembers}
                     onMemberClick={(member) => {
@@ -1055,6 +1117,54 @@ export default function Teams() {
                     onMemberRemove={(member) => {
                       if (member.type === 'profile') {
                         handleRemoveFromTeam(member.rawData.id);
+                      }
+                    }}
+                    categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
+                    showActions
+                  />
+                )}
+                {viewMode === 'free' && (
+                  <TeamMemberFreeCanvas
+                    members={gridMembers}
+                    onMemberClick={(member) => {
+                      if (member.type === 'user') {
+                        setActivityMember({
+                          id: member.rawData.user_id,
+                          name: member.name,
+                          email: member.email,
+                          role: member.rawData.role,
+                          type: 'profile'
+                        });
+                      } else if (member.type === 'profile') {
+                        setSelectedContactId(member.rawData.id);
+                      }
+                    }}
+                    onMemberEdit={(member) => {
+                      if (member.type === 'profile') {
+                        setEditingContact(member.rawData);
+                      }
+                    }}
+                    onMemberRemove={(member) => {
+                      if (member.type === 'profile') {
+                        handleRemoveFromTeam(member.rawData.id);
+                      }
+                    }}
+                    onMemberEditRole={(member) => {
+                      if (member.type === 'user') {
+                        setEditingMemberRole({
+                          memberId: member.rawData.id,
+                          userId: member.rawData.user_id,
+                          name: member.name,
+                          currentRole: member.rawData.functional_role,
+                          mirrorContactId: member.rawData.mirror_contact_id,
+                        });
+                        setNewFunctionalRole(member.rawData.functional_role || '');
+                      }
+                    }}
+                    onCategoryChange={(memberId, newCategory) => {
+                      const member = teamMembers.find(m => m.id === memberId);
+                      if (member) {
+                        updateMemberCategory(memberId, newCategory);
                       }
                     }}
                     categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
