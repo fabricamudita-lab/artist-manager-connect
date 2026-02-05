@@ -5,6 +5,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { InlineEdit } from "@/components/ui/inline-edit";
+import { toast } from "@/hooks/use-toast";
 import { 
   Mail, 
   Phone, 
@@ -25,7 +27,7 @@ import {
   Calendar,
   Home,
   Music,
-  Pencil
+  Settings
 } from "lucide-react";
 import { getTeamCategoryLabel } from '@/lib/teamCategories';
 import { format } from "date-fns";
@@ -107,6 +109,23 @@ export function ContactProfileSheet({
     }
   }, [open, contactId, refreshTrigger]);
 
+  const updateContactField = async (field: string, value: string) => {
+    try {
+      const { error } = await supabase
+        .from('contacts')
+        .update({ [field]: value })
+        .eq('id', contactId);
+      
+      if (error) throw error;
+      
+      setContact(prev => prev ? { ...prev, [field]: value } : null);
+      toast({ title: "Guardado" });
+    } catch (error) {
+      console.error('Error updating contact:', error);
+      throw error;
+    }
+  };
+
   const fetchContact = async () => {
     setLoading(true);
     try {
@@ -184,7 +203,40 @@ export function ContactProfileSheet({
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
-  const InfoCard = ({ icon: Icon, label, value, className = "" }: { 
+  const EditableInfoCard = ({ 
+    icon: Icon, 
+    label, 
+    value, 
+    field,
+    multiline = false,
+    className = "" 
+  }: { 
+    icon: React.ElementType; 
+    label: string; 
+    value: string | null | undefined;
+    field: string;
+    multiline?: boolean;
+    className?: string;
+  }) => (
+    <Card className={className}>
+      <CardContent className="py-3 flex items-start gap-3">
+        <Icon className="h-4 w-4 text-muted-foreground mt-2 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <InlineEdit
+            value={value || ''}
+            onSave={async (newValue) => {
+              await updateContactField(field, newValue);
+            }}
+            placeholder={`Añadir ${label.toLowerCase()}...`}
+            multiline={multiline}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const ReadOnlyInfoCard = ({ icon: Icon, label, value, className = "" }: { 
     icon: React.ElementType; 
     label: string; 
     value: React.ReactNode;
@@ -199,10 +251,6 @@ export function ContactProfileSheet({
         </div>
       </CardContent>
     </Card>
-  );
-
-  const EmptyValue = () => (
-    <span className="text-muted-foreground italic">No especificado</span>
   );
 
   if (loading) {
@@ -236,13 +284,30 @@ export function ContactProfileSheet({
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <h2 className="text-2xl font-semibold truncate">{contact.name}</h2>
-                {contact.stage_name && (
-                  <p className="text-muted-foreground truncate">{contact.stage_name}</p>
-                )}
-                {contact.role && (
-                  <Badge variant="secondary" className="mt-2">{contact.role}</Badge>
-                )}
+                <InlineEdit
+                  value={contact.name}
+                  onSave={async (newValue) => {
+                    await updateContactField('name', newValue);
+                  }}
+                  placeholder="Nombre"
+                  className="text-2xl font-semibold"
+                />
+                <InlineEdit
+                  value={contact.stage_name || ''}
+                  onSave={async (newValue) => {
+                    await updateContactField('stage_name', newValue);
+                  }}
+                  placeholder="Nombre artístico"
+                  className="text-muted-foreground"
+                />
+                <InlineEdit
+                  value={contact.role || ''}
+                  onSave={async (newValue) => {
+                    await updateContactField('role', newValue);
+                  }}
+                  placeholder="Rol"
+                  className="text-sm mt-1"
+                />
               </div>
             </div>
 
@@ -291,7 +356,7 @@ export function ContactProfileSheet({
                   Configuración de equipo
                 </h3>
                 
-                <InfoCard 
+                <ReadOnlyInfoCard 
                   icon={Building} 
                   label="Tipo de equipo" 
                   value={contact.field_config?.is_management_team 
@@ -300,7 +365,7 @@ export function ContactProfileSheet({
                 />
 
                 {assignedArtists.length > 0 && (
-                  <InfoCard 
+                  <ReadOnlyInfoCard 
                     icon={Music} 
                     label="Artistas" 
                     value={
@@ -316,7 +381,7 @@ export function ContactProfileSheet({
                 )}
 
                 {contact.field_config?.team_categories && contact.field_config.team_categories.length > 0 && (
-                  <InfoCard 
+                  <ReadOnlyInfoCard 
                     icon={Tag} 
                     label="Categoría de equipo" 
                     value={
@@ -337,186 +402,67 @@ export function ContactProfileSheet({
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-muted-foreground">Información de contacto</h3>
               
-              {contact.email && (
-                <InfoCard 
-                  icon={Mail} 
-                  label="Email" 
-                  value={contact.email} 
-                />
-              )}
-
-              {contact.phone && (
-                <InfoCard 
-                  icon={Phone} 
-                  label="Teléfono" 
-                  value={contact.phone} 
-                />
-              )}
-
-              {contact.company && (
-                <InfoCard 
-                  icon={Building} 
-                  label="Empresa" 
-                  value={contact.company} 
-                />
-              )}
-
-              {contact.address && (
-                <InfoCard 
-                  icon={Home} 
-                  label="Dirección" 
-                  value={contact.address} 
-                />
-              )}
-
-              {contact.city && (
-                <InfoCard 
-                  icon={MapPin} 
-                  label="Ciudad" 
-                  value={contact.city} 
-                />
-              )}
-
-              {contact.country && (
-                <InfoCard 
-                  icon={Globe} 
-                  label="País" 
-                  value={contact.country} 
-                />
-              )}
-
-              {!contact.email && !contact.phone && !contact.company && !contact.address && !contact.city && !contact.country && (
-                <p className="text-sm text-muted-foreground italic">Sin información de contacto</p>
-              )}
+              <EditableInfoCard icon={Mail} label="Email" value={contact.email} field="email" />
+              <EditableInfoCard icon={Phone} label="Teléfono" value={contact.phone} field="phone" />
+              <EditableInfoCard icon={Building} label="Empresa" value={contact.company} field="company" />
+              <EditableInfoCard icon={Home} label="Dirección" value={contact.address} field="address" multiline />
+              <EditableInfoCard icon={MapPin} label="Ciudad" value={contact.city} field="city" />
+              <EditableInfoCard icon={Globe} label="País" value={contact.country} field="country" />
             </div>
 
             {/* Información personal */}
-            {(contact.legal_name || contact.category || (contact.tags && contact.tags.length > 0) || contact.preferred_hours) && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-muted-foreground">Información personal</h3>
-                
-                {contact.legal_name && (
-                  <InfoCard 
-                    icon={User} 
-                    label="Nombre legal" 
-                    value={contact.legal_name} 
-                  />
-                )}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Información personal</h3>
+              
+              <EditableInfoCard icon={User} label="Nombre legal" value={contact.legal_name} field="legal_name" />
+              <EditableInfoCard icon={Clock} label="Horario preferido" value={contact.preferred_hours} field="preferred_hours" />
+              
+              {contact.category && (
+                <ReadOnlyInfoCard 
+                  icon={Briefcase} 
+                  label="Categoría" 
+                  value={<Badge variant="outline">{contact.category}</Badge>} 
+                />
+              )}
 
-                {contact.category && (
-                  <InfoCard 
-                    icon={Briefcase} 
-                    label="Categoría" 
-                    value={<Badge variant="outline">{contact.category}</Badge>} 
-                  />
-                )}
-
-                {contact.tags && contact.tags.length > 0 && (
-                  <InfoCard 
-                    icon={Tag} 
-                    label="Etiquetas" 
-                    value={
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {contact.tags.map((tag, idx) => (
-                          <Badge key={idx} variant="secondary" className="text-xs">{tag}</Badge>
-                        ))}
-                      </div>
-                    } 
-                  />
-                )}
-
-                {contact.preferred_hours && (
-                  <InfoCard 
-                    icon={Clock} 
-                    label="Horario preferido" 
-                    value={contact.preferred_hours} 
-                  />
-                )}
-              </div>
-            )}
-
-            {/* Información adicional */}
-            {(contact.clothing_size || contact.shoe_size || contact.allergies || contact.special_needs) && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-muted-foreground">Información adicional</h3>
-                
-                {contact.clothing_size && (
-                  <InfoCard 
-                    icon={Shirt} 
-                    label="Talla de ropa" 
-                    value={contact.clothing_size} 
-                  />
-                )}
-
-                {contact.shoe_size && (
-                  <InfoCard 
-                    icon={Shirt} 
-                    label="Talla de calzado" 
-                    value={contact.shoe_size} 
-                  />
-                )}
-
-                {contact.allergies && (
-                  <InfoCard 
-                    icon={AlertTriangle} 
-                    label="Alergias" 
-                    value={contact.allergies} 
-                  />
-                )}
-
-                {contact.special_needs && (
-                  <InfoCard 
-                    icon={AlertTriangle} 
-                    label="Necesidades especiales" 
-                    value={contact.special_needs} 
-                  />
-                )}
-              </div>
-            )}
-
-            {/* Información bancaria */}
-            {(contact.iban || contact.bank_info) && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-muted-foreground">Información bancaria</h3>
-                
-                {contact.iban && (
-                  <InfoCard 
-                    icon={CreditCard} 
-                    label="IBAN" 
-                    value={contact.iban} 
-                  />
-                )}
-
-                {contact.bank_info && (
-                  <InfoCard 
-                    icon={CreditCard} 
-                    label="Información bancaria" 
-                    value={contact.bank_info} 
-                  />
-                )}
-              </div>
-            )}
-
-            {/* Contrato */}
-            {contact.contract_url && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-muted-foreground">Contrato</h3>
-                <InfoCard 
-                  icon={Link} 
-                  label="URL del contrato" 
+              {contact.tags && contact.tags.length > 0 && (
+                <ReadOnlyInfoCard 
+                  icon={Tag} 
+                  label="Etiquetas" 
                   value={
-                    <a 
-                      href={contact.contract_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline break-all"
-                    >
-                      {contact.contract_url}
-                    </a>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {contact.tags.map((tag, idx) => (
+                        <Badge key={idx} variant="secondary" className="text-xs">{tag}</Badge>
+                      ))}
+                    </div>
                   } 
                 />
-              </div>
-            )}
+              )}
+            </div>
+
+            {/* Información adicional */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Información adicional</h3>
+              
+              <EditableInfoCard icon={Shirt} label="Talla de ropa" value={contact.clothing_size} field="clothing_size" />
+              <EditableInfoCard icon={Shirt} label="Talla de calzado" value={contact.shoe_size} field="shoe_size" />
+              <EditableInfoCard icon={AlertTriangle} label="Alergias" value={contact.allergies} field="allergies" multiline />
+              <EditableInfoCard icon={AlertTriangle} label="Necesidades especiales" value={contact.special_needs} field="special_needs" multiline />
+            </div>
+
+            {/* Información bancaria */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Información bancaria</h3>
+              
+              <EditableInfoCard icon={CreditCard} label="IBAN" value={contact.iban} field="iban" />
+              <EditableInfoCard icon={CreditCard} label="Banco" value={contact.bank_info} field="bank_info" />
+            </div>
+
+            {/* Contrato */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Contrato</h3>
+              <EditableInfoCard icon={Link} label="URL del contrato" value={contact.contract_url} field="contract_url" />
+            </div>
 
             {/* Visibilidad */}
             {(contact.is_public || contact.public_slug) && (
@@ -524,7 +470,7 @@ export function ContactProfileSheet({
                 <h3 className="text-sm font-medium text-muted-foreground">Visibilidad</h3>
                 
                 {contact.is_public !== null && (
-                  <InfoCard 
+                  <ReadOnlyInfoCard 
                     icon={Globe} 
                     label="Contacto público" 
                     value={contact.is_public ? "Sí" : "No"} 
@@ -532,7 +478,7 @@ export function ContactProfileSheet({
                 )}
 
                 {contact.public_slug && (
-                  <InfoCard 
+                  <ReadOnlyInfoCard 
                     icon={Link} 
                     label="Slug público" 
                     value={contact.public_slug} 
@@ -542,16 +488,10 @@ export function ContactProfileSheet({
             )}
 
             {/* Notas */}
-            {contact.notes && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-muted-foreground">Notas</h3>
-                <InfoCard 
-                  icon={FileText} 
-                  label="Notas" 
-                  value={<p className="whitespace-pre-wrap">{contact.notes}</p>} 
-                />
-              </div>
-            )}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Notas</h3>
+              <EditableInfoCard icon={FileText} label="Notas" value={contact.notes} field="notes" multiline />
+            </div>
 
             {/* Fechas */}
             {(contact.created_at || contact.updated_at) && (
@@ -559,7 +499,7 @@ export function ContactProfileSheet({
                 <h3 className="text-sm font-medium text-muted-foreground">Registro</h3>
                 
                 {contact.created_at && (
-                  <InfoCard 
+                  <ReadOnlyInfoCard 
                     icon={Calendar} 
                     label="Creado" 
                     value={format(new Date(contact.created_at), "d 'de' MMMM, yyyy", { locale: es })} 
@@ -567,7 +507,7 @@ export function ContactProfileSheet({
                 )}
 
                 {contact.updated_at && (
-                  <InfoCard 
+                  <ReadOnlyInfoCard 
                     icon={Calendar} 
                     label="Última actualización" 
                     value={format(new Date(contact.updated_at), "d 'de' MMMM, yyyy", { locale: es })} 
@@ -582,19 +522,20 @@ export function ContactProfileSheet({
         <div className="p-4 border-t bg-background flex gap-2">
           {onEdit && (
             <Button 
-              className="flex-1" 
+              variant="outline"
+              className="flex-1"
               onClick={() => {
                 onEdit(contact.id);
                 onOpenChange(false);
               }}
             >
-              <Pencil className="h-4 w-4 mr-2" />
-              Editar
+              <Settings className="h-4 w-4 mr-2" />
+              Configuración
             </Button>
           )}
           <Button 
             variant="outline" 
-            className={onEdit ? "flex-1" : "w-full"}
+            className="flex-1"
             onClick={() => onOpenChange(false)}
           >
             <X className="h-4 w-4 mr-2" />
