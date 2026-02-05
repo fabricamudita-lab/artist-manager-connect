@@ -39,6 +39,9 @@ const CARD_HEIGHT = 100;
 const GRID_COLS = 6;
 const GRID_PADDING = 20;
 const GRID_GAP = 16;
+const MIN_CANVAS_WIDTH = 1200;
+const MIN_CANVAS_HEIGHT = 600;
+const CANVAS_EXPAND_BUFFER = 200; // Extra space beyond the furthest element
 
 // Get storage key for a specific context
 const getStorageKey = (contextKey: string) => `${STORAGE_KEY_PREFIX}_${contextKey}`;
@@ -133,15 +136,23 @@ export function TeamMemberFreeCanvas({
     setPositions(newPositions);
   };
 
-  // Calculate minimum canvas height based on member positions
-  const canvasHeight = useMemo(() => {
+  // Calculate canvas dimensions based on member positions (dynamic expansion)
+  const canvasDimensions = useMemo(() => {
     if (Object.keys(positions).length === 0) {
       const rows = Math.ceil(members.length / GRID_COLS);
-      return Math.max(400, rows * (CARD_HEIGHT + GRID_GAP) + GRID_PADDING * 2);
+      return {
+        width: MIN_CANVAS_WIDTH,
+        height: Math.max(MIN_CANVAS_HEIGHT, rows * (CARD_HEIGHT + GRID_GAP) + GRID_PADDING * 2),
+      };
     }
     
+    const maxX = Math.max(...Object.values(positions).map(p => p.x));
     const maxY = Math.max(...Object.values(positions).map(p => p.y));
-    return Math.max(400, maxY + CARD_HEIGHT + GRID_PADDING);
+    
+    return {
+      width: Math.max(MIN_CANVAS_WIDTH, maxX + CARD_WIDTH + CANVAS_EXPAND_BUFFER),
+      height: Math.max(MIN_CANVAS_HEIGHT, maxY + CARD_HEIGHT + CANVAS_EXPAND_BUFFER),
+    };
   }, [positions, members.length]);
 
   if (members.length === 0) {
@@ -163,16 +174,18 @@ export function TeamMemberFreeCanvas({
         </Button>
       </div>
       
-      {/* Canvas */}
-      <div
-        ref={containerRef}
-        className="relative border rounded-lg bg-muted/20 overflow-hidden"
-        style={{ 
-          minHeight: canvasHeight,
-          backgroundImage: 'radial-gradient(circle, hsl(var(--muted-foreground) / 0.1) 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
-        }}
-      >
+      {/* Scrollable Canvas Container */}
+      <div className="overflow-auto border rounded-lg bg-muted/20" style={{ maxHeight: '70vh' }}>
+        <div
+          ref={containerRef}
+          className="relative"
+          style={{ 
+            width: canvasDimensions.width,
+            height: canvasDimensions.height,
+            backgroundImage: 'radial-gradient(circle, hsl(var(--muted-foreground) / 0.1) 1px, transparent 1px)',
+            backgroundSize: '24px 24px',
+          }}
+        >
         {members.map((member) => {
           const position = positions[member.id] || { x: 0, y: 0 };
           
@@ -199,6 +212,7 @@ export function TeamMemberFreeCanvas({
             />
           );
         })}
+        </div>
       </div>
     </div>
   );
