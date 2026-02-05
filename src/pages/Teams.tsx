@@ -984,19 +984,6 @@ export default function Teams() {
           {viewMode === 'free' && (
             <TeamMemberFreeCanvas
               members={allMembersFlattened}
-              onMemberClick={(member) => {
-                if (member.type === 'user') {
-                  setActivityMember({
-                    id: member.rawData.user_id,
-                    name: member.name,
-                    email: member.email,
-                    role: member.rawData.role,
-                    type: 'profile'
-                  });
-                } else if (member.type === 'profile') {
-                  setSelectedContactId(member.rawData.id);
-                }
-              }}
               onMemberEdit={(member) => {
                 if (member.type === 'profile') {
                   setEditingContact(member.rawData);
@@ -1126,19 +1113,6 @@ export default function Teams() {
                 {viewMode === 'free' && (
                   <TeamMemberFreeCanvas
                     members={gridMembers}
-                    onMemberClick={(member) => {
-                      if (member.type === 'user') {
-                        setActivityMember({
-                          id: member.rawData.user_id,
-                          name: member.name,
-                          email: member.email,
-                          role: member.rawData.role,
-                          type: 'profile'
-                        });
-                      } else if (member.type === 'profile') {
-                        setSelectedContactId(member.rawData.id);
-                      }
-                    }}
                     onMemberEdit={(member) => {
                       if (member.type === 'profile') {
                         setEditingContact(member.rawData);
