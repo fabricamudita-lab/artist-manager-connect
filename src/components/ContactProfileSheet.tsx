@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { 
   Mail, 
@@ -227,8 +226,7 @@ export function ContactProfileSheet({
           <SheetTitle className="sr-only">Perfil de {contact.name}</SheetTitle>
         </SheetHeader>
         
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <ScrollArea className="h-full px-6">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6">
           <div className="space-y-6 pb-6">
             {/* Header */}
             <div className="flex items-center gap-4 pt-2">
@@ -578,7 +576,6 @@ export function ContactProfileSheet({
               </div>
             )}
           </div>
-          </ScrollArea>
         </div>
 
         {/* Footer */}
