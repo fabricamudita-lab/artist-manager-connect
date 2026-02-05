@@ -180,9 +180,26 @@ export default function Teams() {
   // State to force recalculation when category order changes
   const [categoryOrderVersion, setCategoryOrderVersion] = useState(0);
 
-  // Apply saved order from localStorage to all categories
+  // Apply saved order and label overrides from localStorage to all categories
   const allCategoriesForDisplay = useMemo(() => {
-    const allCategories = [...TEAM_CATEGORIES, ...customCategories];
+    // Load label overrides for system categories
+    const labelOverrides: Record<string, string> = {};
+    const storedLabels = localStorage.getItem('category_label_overrides');
+    if (storedLabels) {
+      try {
+        Object.assign(labelOverrides, JSON.parse(storedLabels));
+      } catch (e) {
+        console.error('Error loading label overrides:', e);
+      }
+    }
+
+    // Apply label overrides to system categories
+    const systemWithLabels = TEAM_CATEGORIES.map(cat => ({
+      ...cat,
+      label: labelOverrides[cat.value] || cat.label,
+    }));
+
+    const allCategories = [...systemWithLabels, ...customCategories];
     const savedOrder = localStorage.getItem('category_order');
     
     if (savedOrder) {
