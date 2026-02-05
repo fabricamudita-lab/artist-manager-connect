@@ -781,10 +781,19 @@ export default function Teams() {
       });
     });
 
-    // Filter by search query
+    // Filter by search query (search in name, stage_name, company from rawData)
     if (debouncedSearch.trim()) {
       const searchLower = debouncedSearch.toLowerCase();
-      return members.filter(m => m.name.toLowerCase().includes(searchLower));
+      return members.filter(m => {
+        const displayName = m.name?.toLowerCase() || '';
+        const rawName = m.rawData?.name?.toLowerCase() || '';
+        const stageName = m.rawData?.stage_name?.toLowerCase() || '';
+        const company = m.rawData?.company?.toLowerCase() || '';
+        return displayName.includes(searchLower) || 
+               rawName.includes(searchLower) || 
+               stageName.includes(searchLower) ||
+               company.includes(searchLower);
+      });
     }
 
     return members;
@@ -1046,10 +1055,19 @@ export default function Teams() {
             const CategoryIcon = category.icon;
             let gridMembers = buildGridMembers(category.value);
             
-            // Filter by search query
+            // Filter by search query (search in name, stage_name, company from rawData)
             if (debouncedSearch.trim()) {
               const searchLower = debouncedSearch.toLowerCase();
-              gridMembers = gridMembers.filter(m => m.name.toLowerCase().includes(searchLower));
+              gridMembers = gridMembers.filter(m => {
+                const displayName = m.name?.toLowerCase() || '';
+                const rawName = m.rawData?.name?.toLowerCase() || '';
+                const stageName = m.rawData?.stage_name?.toLowerCase() || '';
+                const company = m.rawData?.company?.toLowerCase() || '';
+                return displayName.includes(searchLower) || 
+                       rawName.includes(searchLower) || 
+                       stageName.includes(searchLower) ||
+                       company.includes(searchLower);
+              });
             }
             return (
               <div key={category.value} className="space-y-4">
