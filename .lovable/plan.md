@@ -1,73 +1,94 @@
 
-
-# Plan: Arreglar el scroll del panel lateral de perfil de contacto
+# Plan: Corregir el scroll del panel lateral ContactProfileSheet
 
 ## Problema Identificado
 
-El panel lateral (`ContactProfileSheet`) no permite hacer scroll para ver toda la información del perfil. En la captura del usuario se ve que el contenido se corta después de "Teléfono" y no hay forma de ver el resto de la información (información adicional, bancaria, notas, etc.).
+El panel lateral (`ContactProfileSheet`) no permite hacer scroll para ver toda la información del perfil (Banco "Caixa Bank", Alergias "Plátano", Horarios preferidos "09:00-22:00").
 
-## Causa Raiz
+| Campo | Valor en BD | ¿Visible en panel? |
+|-------|-------------|-------------------|
+| bank_info | "Caixa Bank" | NO (requiere scroll) |
+| allergies | "Plátano" | NO (requiere scroll) |
+| preferred_hours | "09:00-22:00" | NO (requiere scroll) |
 
-El componente `ScrollArea` de Radix UI requiere una **altura explícita** para funcionar correctamente. Actualmente:
-- `SheetContent` tiene `flex flex-col h-full max-h-screen`
-- `ScrollArea` tiene `flex-1` pero NO tiene altura explícita
+## Causa Raíz
 
-El `flex-1` por sí solo no es suficiente porque el `ScrollArea` de Radix necesita que su contenedor tenga una altura fija o calculable para activar el overflow interno.
-
-## Solución
-
-Añadir estilos que fuercen el scroll correctamente:
-
-| Cambio | Descripción |
-|--------|-------------|
-| Añadir `min-h-0` al ScrollArea | Permite que flex-1 calcule la altura correctamente |
-| Añadir `h-full` al contenedor del ScrollArea | Fuerza el contenedor a respetar la altura del padre |
-| Usar un div wrapper con overflow | Como alternativa más robusta |
-
-## Cambio en `ContactProfileSheet.tsx`
-
-```tsx
-// ANTES (línea 230):
-<ScrollArea className="flex-1 px-6 overflow-y-auto">
-
-// DESPUÉS:
-<div className="flex-1 min-h-0 overflow-hidden">
-  <ScrollArea className="h-full px-6">
-```
-
-El truco clave es:
-1. **`min-h-0`**: En flexbox, los hijos tienen `min-height: auto` por defecto, lo que impide que se reduzcan. Con `min-h-0` permitimos que el contenedor se reduzca y active el scroll.
-2. **`overflow-hidden`** en el wrapper: Fuerza al contenido a no expandirse más allá.
-3. **`h-full`** en ScrollArea: Le da una altura definida basada en el wrapper.
-
-## Estructura Final
+El componente `ScrollArea` de este proyecto tiene un wrapper `div` adicional (línea 106 de scroll-area.tsx) que **no hereda la altura del contenedor**:
 
 ```text
 ┌─────────────────────────────────────┐
-│ SheetContent (h-full max-h-screen)  │
+│ div className="flex-1 min-h-0       │ <- Tiene altura correcta
+│       overflow-hidden"              │
 │ ┌─────────────────────────────────┐ │
-│ │ SheetHeader (shrink-0)          │ │
-│ └─────────────────────────────────┘ │
-│ ┌─────────────────────────────────┐ │
-│ │ div (flex-1 min-h-0 overflow-   │ │
-│ │      hidden)                    │ │
+│ │ <div> (wrapper interno del      │ │ <- SIN altura = PROBLEMA
+│ │       ScrollArea)               │ │
 │ │ ┌─────────────────────────────┐ │ │
-│ │ │ ScrollArea (h-full)         │ │ │ <- SCROLL AQUI
-│ │ │ ┌─────────────────────────┐ │ │ │
-│ │ │ │ Contenido del perfil    │ │ │ │
-│ │ │ │ (puede exceder altura)  │ │ │ │
-│ │ │ └─────────────────────────┘ │ │ │
+│ │ │ ScrollAreaPrimitive.Root    │ │ │
+│ │ │ h-full px-6                 │ │ │
 │ │ └─────────────────────────────┘ │ │
-│ └─────────────────────────────────┘ │
-│ ┌─────────────────────────────────┐ │
-│ │ Footer (shrink-0)               │ │
 │ └─────────────────────────────────┘ │
 └─────────────────────────────────────┘
 ```
+
+El `h-full` del ScrollArea se aplica al `Root`, pero el `div` wrapper no tiene altura definida, así que no hay limitación de altura y el scroll nunca se activa.
+
+## Solución
+
+Modificar el `ContactProfileSheet` para que el `ScrollArea` tenga una altura calculada explícita, no dependiente de `h-full`:
+
+```tsx
+// ANTES:
+<div className="flex-1 min-h-0 overflow-hidden">
+  <ScrollArea className="h-full px-6">
+
+// DESPUÉS:
+<ScrollArea className="flex-1 min-h-0 px-6">
+```
+
+Pero dado que el wrapper interno del `ScrollArea` no tiene altura, necesitamos una alternativa más robusta: usar un `div` con overflow nativo en lugar del componente `ScrollArea`:
+
+```tsx
+// SOLUCIÓN ALTERNATIVA MÁS ROBUSTA:
+<div className="flex-1 min-h-0 overflow-y-auto px-6">
+  <div className="space-y-6 pb-6">
+    {/* Contenido del perfil */}
+  </div>
+</div>
+```
+
+Esto evita el problema del wrapper interno del `ScrollArea` y proporciona scroll nativo que funciona correctamente con flexbox.
 
 ## Archivo a Modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/ContactProfileSheet.tsx` | Envolver ScrollArea en div con min-h-0 y ajustar clases |
+| `src/components/ContactProfileSheet.tsx` | Reemplazar `ScrollArea` por un `div` con `overflow-y-auto` |
 
+## Cambio Específico
+
+Líneas ~230-232 actuales:
+```tsx
+<div className="flex-1 min-h-0 overflow-hidden">
+  <ScrollArea className="h-full px-6">
+  <div className="space-y-6 pb-6">
+```
+
+Cambiar a:
+```tsx
+<div className="flex-1 min-h-0 overflow-y-auto px-6">
+  <div className="space-y-6 pb-6">
+```
+
+Y eliminar el cierre correspondiente del `ScrollArea` (línea ~578-579).
+
+## Resultado Esperado
+
+El usuario podrá hacer scroll y ver todas las secciones del perfil:
+- Información de contacto
+- Información personal (incluyendo Horarios preferidos)
+- Información adicional (incluyendo Alergias)
+- Información bancaria (incluyendo Banco)
+- Contrato
+- Visibilidad
+- Notas
+- Fechas de registro
