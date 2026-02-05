@@ -984,6 +984,7 @@ export default function Teams() {
           {viewMode === 'free' && (
             <TeamMemberFreeCanvas
               members={allMembersFlattened}
+              contextKey={selectedArtistId === 'all' ? 'all' : selectedArtistId}
               onMemberEdit={(member) => {
                 if (member.type === 'profile') {
                   setEditingContact(member.rawData);
@@ -1113,6 +1114,7 @@ export default function Teams() {
                 {viewMode === 'free' && (
                   <TeamMemberFreeCanvas
                     members={gridMembers}
+                    contextKey={`${selectedArtistId}_${category.value}`}
                     onMemberEdit={(member) => {
                       if (member.type === 'profile') {
                         setEditingContact(member.rawData);
