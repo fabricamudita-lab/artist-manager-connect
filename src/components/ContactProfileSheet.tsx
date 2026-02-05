@@ -227,7 +227,8 @@ export function ContactProfileSheet({
           <SheetTitle className="sr-only">Perfil de {contact.name}</SheetTitle>
         </SheetHeader>
         
-        <ScrollArea className="flex-1 px-6 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ScrollArea className="h-full px-6">
           <div className="space-y-6 pb-6">
             {/* Header */}
             <div className="flex items-center gap-4 pt-2">
@@ -577,7 +578,8 @@ export function ContactProfileSheet({
               </div>
             )}
           </div>
-        </ScrollArea>
+          </ScrollArea>
+        </div>
 
         {/* Footer */}
         <div className="p-4 border-t bg-background flex gap-2">
