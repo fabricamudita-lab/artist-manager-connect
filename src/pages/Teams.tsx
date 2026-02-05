@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Users, Mail, Grid3X3, List, Pencil, Move } from 'lucide-react';
+import { Plus, Users, Mail, Grid3X3, List, Pencil, Move, Search } from 'lucide-react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,6 +65,8 @@ export default function Teams() {
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'free'>('grid');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
   
   // Artist filter state
   const [artists, setArtists] = useState<Array<{ id: string; name: string; stage_name?: string | null; description?: string | null; avatar_url?: string | null }>>([]);
@@ -778,8 +781,14 @@ export default function Teams() {
       });
     });
 
+    // Filter by search query
+    if (debouncedSearch.trim()) {
+      const searchLower = debouncedSearch.toLowerCase();
+      return members.filter(m => m.name.toLowerCase().includes(searchLower));
+    }
+
     return members;
-  }, [allTeamByCategory, buildGridMembers]);
+  }, [allTeamByCategory, buildGridMembers, debouncedSearch]);
 
   if (loading) {
     return (
@@ -836,6 +845,18 @@ export default function Teams() {
               onManageCategories={() => setCategoryManagerOpen(true)}
             />
           )}
+          
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Buscar por nombre..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 w-48 h-9"
+            />
+          </div>
           
           {/* View Toggle */}
           <div className="flex gap-1 border rounded-md p-1">
@@ -1023,8 +1044,13 @@ export default function Teams() {
         <div className="space-y-4">
           {filteredCategories.map((category) => {
             const CategoryIcon = category.icon;
-            const gridMembers = buildGridMembers(category.value);
+            let gridMembers = buildGridMembers(category.value);
             
+            // Filter by search query
+            if (debouncedSearch.trim()) {
+              const searchLower = debouncedSearch.toLowerCase();
+              gridMembers = gridMembers.filter(m => m.name.toLowerCase().includes(searchLower));
+            }
             return (
               <div key={category.value} className="space-y-4">
                 <div className="flex items-center gap-2">
