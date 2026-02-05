@@ -1,93 +1,73 @@
 
-# Plan: Sincronizar Orden de Categorías entre Gestor y Dropdown
 
-## Problema Detectado
+# Plan: Arreglar el scroll del panel lateral de perfil de contacto
 
-| Componente | ¿Aplica orden guardado? | Resultado |
-|------------|------------------------|-----------|
-| CategoryManagerSheet | SÍ (línea 196-214) | "Test" aparece primero |
-| CategoryDropdown | SÍ (línea 33-54) | **Pero recibe datos desordenados** |
-| Teams.tsx (`allCategoriesForDisplay`) | **NO** | Origen del problema |
+## Problema Identificado
 
-El `CategoryDropdown` tiene el código correcto para ordenar, pero recibe `categoryPillsData` que ya viene del array `allCategoriesForDisplay` que **no respeta el orden guardado**.
+El panel lateral (`ContactProfileSheet`) no permite hacer scroll para ver toda la información del perfil. En la captura del usuario se ve que el contenido se corta después de "Teléfono" y no hay forma de ver el resto de la información (información adicional, bancaria, notas, etc.).
+
+## Causa Raiz
+
+El componente `ScrollArea` de Radix UI requiere una **altura explícita** para funcionar correctamente. Actualmente:
+- `SheetContent` tiene `flex flex-col h-full max-h-screen`
+- `ScrollArea` tiene `flex-1` pero NO tiene altura explícita
+
+El `flex-1` por sí solo no es suficiente porque el `ScrollArea` de Radix necesita que su contenedor tenga una altura fija o calculable para activar el overflow interno.
 
 ## Solución
 
-Modificar `Teams.tsx` para que `allCategoriesForDisplay` aplique el orden guardado en `localStorage`:
+Añadir estilos que fuercen el scroll correctamente:
+
+| Cambio | Descripción |
+|--------|-------------|
+| Añadir `min-h-0` al ScrollArea | Permite que flex-1 calcule la altura correctamente |
+| Añadir `h-full` al contenedor del ScrollArea | Fuerza el contenedor a respetar la altura del padre |
+| Usar un div wrapper con overflow | Como alternativa más robusta |
+
+## Cambio en `ContactProfileSheet.tsx`
 
 ```tsx
-// ANTES (línea 180 de Teams.tsx):
-const allCategoriesForDisplay = [...TEAM_CATEGORIES, ...customCategories];
+// ANTES (línea 230):
+<ScrollArea className="flex-1 px-6 overflow-y-auto">
 
 // DESPUÉS:
-const allCategoriesForDisplay = useMemo(() => {
-  const allCategories = [...TEAM_CATEGORIES, ...customCategories];
-  const savedOrder = localStorage.getItem('category_order');
-  
-  if (savedOrder) {
-    try {
-      const orderIds: string[] = JSON.parse(savedOrder);
-      return [...allCategories].sort((a, b) => {
-        const aIndex = orderIds.indexOf(a.value);
-        const bIndex = orderIds.indexOf(b.value);
-        if (aIndex === -1 && bIndex === -1) return 0;
-        if (aIndex === -1) return 1;
-        if (bIndex === -1) return -1;
-        return aIndex - bIndex;
-      });
-    } catch {
-      return allCategories;
-    }
-  }
-  return allCategories;
-}, [customCategories]);
+<div className="flex-1 min-h-0 overflow-hidden">
+  <ScrollArea className="h-full px-6">
 ```
 
-## Actualización Inmediata
+El truco clave es:
+1. **`min-h-0`**: En flexbox, los hijos tienen `min-height: auto` por defecto, lo que impide que se reduzcan. Con `min-h-0` permitimos que el contenedor se reduzca y active el scroll.
+2. **`overflow-hidden`** en el wrapper: Fuerza al contenido a no expandirse más allá.
+3. **`h-full`** en ScrollArea: Le da una altura definida basada en el wrapper.
 
-Además, necesitamos que cuando el usuario reordene en el gestor, el orden se refleje inmediatamente sin recargar la página. Para esto, añadiremos un estado que fuerce la recalculación:
+## Estructura Final
 
-```tsx
-// Nuevo estado para disparar recálculo
-const [categoryOrderVersion, setCategoryOrderVersion] = useState(0);
-
-// En handleCategoryReorder, incrementar versión
-const handleCategoryReorder = (orderedValues: string[]) => {
-  localStorage.setItem('category_order', JSON.stringify(orderedValues));
-  // ... resto del código ...
-  setCategoryOrderVersion(v => v + 1); // Forzar recálculo
-};
-
-// Añadir a dependencias de useMemo
-const allCategoriesForDisplay = useMemo(() => {
-  // ... lógica de ordenación ...
-}, [customCategories, categoryOrderVersion]);
+```text
+┌─────────────────────────────────────┐
+│ SheetContent (h-full max-h-screen)  │
+│ ┌─────────────────────────────────┐ │
+│ │ SheetHeader (shrink-0)          │ │
+│ └─────────────────────────────────┘ │
+│ ┌─────────────────────────────────┐ │
+│ │ div (flex-1 min-h-0 overflow-   │ │
+│ │      hidden)                    │ │
+│ │ ┌─────────────────────────────┐ │ │
+│ │ │ ScrollArea (h-full)         │ │ │ <- SCROLL AQUI
+│ │ │ ┌─────────────────────────┐ │ │ │
+│ │ │ │ Contenido del perfil    │ │ │ │
+│ │ │ │ (puede exceder altura)  │ │ │ │
+│ │ │ └─────────────────────────┘ │ │ │
+│ │ └─────────────────────────────┘ │ │
+│ └─────────────────────────────────┘ │
+│ ┌─────────────────────────────────┐ │
+│ │ Footer (shrink-0)               │ │
+│ └─────────────────────────────────┘ │
+└─────────────────────────────────────┘
 ```
 
 ## Archivo a Modificar
 
-| Archivo | Cambios |
-|---------|---------|
-| `src/pages/Teams.tsx` | Convertir `allCategoriesForDisplay` a `useMemo` con orden guardado + añadir `categoryOrderVersion` |
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/ContactProfileSheet.tsx` | Envolver ScrollArea en div con min-h-0 y ajustar clases |
 
-## Flujo Final
-
-```text
-Usuario arrastra categoría en Gestor
-         ↓
-handleCategoryReorder guarda en localStorage
-         ↓
-setCategoryOrderVersion(v + 1)
-         ↓
-allCategoriesForDisplay se recalcula con nuevo orden
-         ↓
-categoryPillsData hereda el orden
-         ↓
-CategoryDropdown muestra el orden correcto
-```
-
-## Resumen
-
-- **1 archivo a modificar**: `src/pages/Teams.tsx`
-- **Cambio principal**: Convertir `allCategoriesForDisplay` de variable simple a `useMemo` que lea el orden desde `localStorage`
-- **Cambio secundario**: Añadir `categoryOrderVersion` para forzar actualización inmediata al reordenar
