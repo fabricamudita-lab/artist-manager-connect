@@ -10,10 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { 
-  Plus, Pencil, Trash2, Tags, Check, X, GripVertical, Tag
+  Plus, Pencil, Trash2, Tags, Check, X, GripVertical, Tag, Settings
 } from 'lucide-react';
-import { TeamCategoryOption } from '@/lib/teamCategories';
+import { TeamCategoryOption, TEAM_CATEGORIES } from '@/lib/teamCategories';
 import {
   DndContext,
   closestCenter,
@@ -31,6 +32,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { toast } from '@/hooks/use-toast';
 
 interface SortableCategoryCardProps {
   category: TeamCategoryOption;
@@ -191,10 +193,32 @@ export function CategoryManagerSheet({
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [localCategories, setLocalCategories] = useState<TeamCategoryOption[]>([]);
+  const [showCategoryConfig, setShowCategoryConfig] = useState(false);
+  const [categoryLabels, setCategoryLabels] = useState<Record<string, string>>({});
+  const [editingSystemCategory, setEditingSystemCategory] = useState<string | null>(null);
+  const [editSystemValue, setEditSystemValue] = useState('');
+
+  // Load custom category labels from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('category_label_overrides');
+    if (stored) {
+      try {
+        setCategoryLabels(JSON.parse(stored));
+      } catch (e) {
+        console.error('Error loading category labels:', e);
+      }
+    }
+  }, []);
 
   // Combine all categories and apply saved order
   useEffect(() => {
-    const allCategories = [...systemCategories, ...customCategories];
+    // Apply label overrides to system categories
+    const systemWithLabels = systemCategories.map(cat => ({
+      ...cat,
+      label: categoryLabels[cat.value] || cat.label,
+    }));
+    
+    const allCategories = [...systemWithLabels, ...customCategories];
     const savedOrder = localStorage.getItem('category_order');
     
     if (savedOrder) {
@@ -212,7 +236,7 @@ export function CategoryManagerSheet({
     } else {
       setLocalCategories(allCategories);
     }
-  }, [systemCategories, customCategories]);
+  }, [systemCategories, customCategories, categoryLabels]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -276,6 +300,154 @@ export function CategoryManagerSheet({
       onReorder?.(reordered.map(c => c.value));
     }
   };
+
+  // System category renaming
+  const handleStartSystemEdit = (category: TeamCategoryOption) => {
+    setEditingSystemCategory(category.value);
+    setEditSystemValue(categoryLabels[category.value] || category.label);
+  };
+
+  const handleSaveSystemEdit = () => {
+    if (editingSystemCategory && editSystemValue.trim()) {
+      const newLabels = { ...categoryLabels, [editingSystemCategory]: editSystemValue.trim() };
+      setCategoryLabels(newLabels);
+      localStorage.setItem('category_label_overrides', JSON.stringify(newLabels));
+      toast({ title: 'Nombre de categoría actualizado' });
+      setEditingSystemCategory(null);
+      setEditSystemValue('');
+    }
+  };
+
+  const handleResetSystemCategory = (value: string) => {
+    const { [value]: removed, ...rest } = categoryLabels;
+    setCategoryLabels(rest);
+    localStorage.setItem('category_label_overrides', JSON.stringify(rest));
+    toast({ title: 'Nombre restaurado al original' });
+  };
+
+  const handleCancelSystemEdit = () => {
+    setEditingSystemCategory(null);
+    setEditSystemValue('');
+  };
+
+  const handleSystemEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveSystemEdit();
+    } else if (e.key === 'Escape') {
+      handleCancelSystemEdit();
+    }
+  };
+
+  // If showing config view
+  if (showCategoryConfig) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Configuración de Categorías
+            </SheetTitle>
+            <SheetDescription>
+              Personaliza los nombres de las categorías del sistema
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="mt-6 space-y-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowCategoryConfig(false)}
+              className="mb-2"
+            >
+              ← Volver al gestor
+            </Button>
+
+            <div className="space-y-2">
+              {TEAM_CATEGORIES.map((cat) => {
+                const isEditing = editingSystemCategory === cat.value;
+                const customLabel = categoryLabels[cat.value];
+                const Icon = cat.icon || Tag;
+
+                return (
+                  <Card key={cat.value}>
+                    <CardContent className="p-3 flex items-center gap-2">
+                      <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      
+                      {isEditing ? (
+                        <>
+                          <Input
+                            value={editSystemValue}
+                            onChange={(e) => setEditSystemValue(e.target.value)}
+                            onKeyDown={handleSystemEditKeyDown}
+                            className="h-8 flex-1"
+                            autoFocus
+                          />
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={handleSaveSystemEdit}
+                            >
+                              <Check className="h-4 w-4 text-green-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={handleCancelSystemEdit}
+                            >
+                              <X className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium">
+                              {customLabel || cat.label}
+                            </div>
+                            {customLabel && (
+                              <div className="text-xs text-muted-foreground">
+                                Original: {cat.label}
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleStartSystemEdit(cat)}
+                            >
+                              <Pencil className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                            {customLabel && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleResetSystemCategory(cat.value)}
+                                title="Restaurar nombre original"
+                              >
+                                <X className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -351,6 +523,17 @@ export function CategoryManagerSheet({
               <p className="text-xs mt-1">Crea una nueva categoría arriba</p>
             </div>
           )}
+
+          {/* Configuration button */}
+          <Separator />
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => setShowCategoryConfig(true)}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Configuración de categorías
+          </Button>
         </div>
       </SheetContent>
     </Sheet>
