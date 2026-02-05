@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 import { ContactTagsInput } from './ContactTagsInput';
-import { TEAM_CATEGORIES } from '@/lib/teamCategories';
+import { TEAM_CATEGORIES, TeamCategoryOption } from '@/lib/teamCategories';
 import { Check, X, Music, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -58,6 +58,7 @@ interface EditContactDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onContactUpdated: () => void;
+  customCategories?: TeamCategoryOption[];
 }
 
 
@@ -80,7 +81,7 @@ const FIELD_LABELS = {
   notes: 'Notas',
 };
 
-export function EditContactDialog({ contact, open, onOpenChange, onContactUpdated }: EditContactDialogProps) {
+export function EditContactDialog({ contact, open, onOpenChange, onContactUpdated, customCategories = [] }: EditContactDialogProps) {
   const [loading, setLoading] = useState(false);
   const [fieldConfig, setFieldConfig] = useState(contact.field_config);
   const [tags, setTags] = useState<string[]>(contact.tags || []);
@@ -546,9 +547,14 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                           <SelectValue placeholder="Seleccionar categoría..." />
                         </SelectTrigger>
                         <SelectContent className="bg-popover">
-                          {TEAM_CATEGORIES.map(cat => (
+                          {[...TEAM_CATEGORIES, ...customCategories].map(cat => (
                             <SelectItem key={cat.value} value={cat.value}>
-                              {cat.label}
+                              <div className="flex items-center gap-2">
+                                {cat.label}
+                                {cat.isCustom && (
+                                  <span className="text-xs text-muted-foreground">(personalizada)</span>
+                                )}
+                              </div>
                             </SelectItem>
                           ))}
                         </SelectContent>

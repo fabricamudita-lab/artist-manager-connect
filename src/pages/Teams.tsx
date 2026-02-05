@@ -1011,6 +1011,7 @@ export default function Teams() {
           open={!!editingContact}
           onOpenChange={(open) => !open && setEditingContact(null)}
           contact={editingContact}
+          customCategories={customCategories}
           onContactUpdated={() => {
             const contactId = editingContact.id;
             setEditingContact(null);

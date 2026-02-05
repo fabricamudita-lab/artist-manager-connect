@@ -74,6 +74,20 @@ export default function Agenda() {
   const [groups, setGroups] = useState<Array<{ id: string; name: string; color: string }>>([]);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [contactRefreshTrigger, setContactRefreshTrigger] = useState(0);
+  const [customCategories, setCustomCategories] = useState<Array<{ value: string; label: string; icon?: any; isCustom: boolean }>>([]);
+
+  // Load custom categories from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('custom_team_categories');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setCustomCategories(parsed.map((c: any) => ({ ...c, icon: undefined, isCustom: true })));
+      } catch (e) {
+        console.error('Error loading custom categories:', e);
+      }
+    }
+  }, []);
 
   const cities = Array.from(new Set(contacts.map(c => c.city).filter(Boolean))).sort();
   
@@ -477,6 +491,7 @@ export default function Agenda() {
           open={!!editingContact}
           onOpenChange={(open) => !open && setEditingContact(null)}
           onContactUpdated={() => handleContactUpdated(editingContact.id)}
+          customCategories={customCategories}
         />
       )}
 
