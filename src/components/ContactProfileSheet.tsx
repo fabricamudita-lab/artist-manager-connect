@@ -222,9 +222,9 @@ export function ContactProfileSheet({
     const isEmpty = !value || value.trim() === '';
     
     return (
-      <Card className={`${className} ${isEmpty ? 'bg-muted/30 border-dashed' : ''}`}>
+      <Card className={`${className} ${isEmpty ? 'bg-amber-50/50 dark:bg-amber-950/20 border-dashed border-amber-200/50 dark:border-amber-800/30' : ''}`}>
         <CardContent className="py-3 flex items-start gap-3 group">
-          <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${isEmpty ? 'text-muted-foreground/50' : 'text-muted-foreground'}`} />
+          <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${isEmpty ? 'text-amber-500/60' : 'text-muted-foreground'}`} />
           <div className="min-w-0 flex-1">
             <p className="text-xs text-muted-foreground">{label}</p>
             <InlineEdit
