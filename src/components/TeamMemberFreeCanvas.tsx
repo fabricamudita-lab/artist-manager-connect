@@ -1,0 +1,199 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { DraggableMemberCard } from './DraggableMemberCard';
+import { MemberType } from './TeamMemberCard';
+import { Button } from '@/components/ui/button';
+import { RotateCcw } from 'lucide-react';
+
+interface Position {
+  x: number;
+  y: number;
+}
+
+interface Member {
+  id: string;
+  name: string;
+  email?: string;
+  role?: string;
+  avatarUrl?: string;
+  type: MemberType;
+  currentCategory?: string;
+  rawData?: any;
+}
+
+interface TeamMemberFreeCanvasProps {
+  members: Member[];
+  onMemberClick?: (member: Member) => void;
+  onMemberEdit?: (member: Member) => void;
+  onMemberRemove?: (member: Member) => void;
+  onMemberEditRole?: (member: Member) => void;
+  onCategoryChange?: (memberId: string, newCategory: string) => void;
+  categories?: Array<{ value: string; label: string }>;
+  showActions?: boolean;
+}
+
+const STORAGE_KEY = 'team_member_positions';
+const CARD_WIDTH = 120;
+const CARD_HEIGHT = 100;
+const GRID_COLS = 6;
+const GRID_PADDING = 20;
+const GRID_GAP = 16;
+
+// Load positions from localStorage
+const loadPositions = (): Record<string, Position> => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+};
+
+// Save positions to localStorage
+const savePosition = (memberId: string, position: Position) => {
+  const stored = loadPositions();
+  stored[memberId] = position;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+};
+
+// Clear all positions from localStorage
+const clearAllPositions = () => {
+  localStorage.removeItem(STORAGE_KEY);
+};
+
+// Calculate initial grid position for a member without saved position
+const calculateInitialPosition = (index: number): Position => {
+  const col = index % GRID_COLS;
+  const row = Math.floor(index / GRID_COLS);
+  
+  return {
+    x: GRID_PADDING + col * (CARD_WIDTH + GRID_GAP),
+    y: GRID_PADDING + row * (CARD_HEIGHT + GRID_GAP),
+  };
+};
+
+export function TeamMemberFreeCanvas({
+  members,
+  onMemberClick,
+  onMemberEdit,
+  onMemberRemove,
+  onMemberEditRole,
+  onCategoryChange,
+  categories = [],
+  showActions = true,
+}: TeamMemberFreeCanvasProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [positions, setPositions] = useState<Record<string, Position>>({});
+  
+  // Load saved positions on mount and calculate initial positions for new members
+  useEffect(() => {
+    const savedPositions = loadPositions();
+    const newPositions: Record<string, Position> = {};
+    
+    members.forEach((member, index) => {
+      if (savedPositions[member.id]) {
+        newPositions[member.id] = savedPositions[member.id];
+      } else {
+        // Calculate grid position for new members
+        const position = calculateInitialPosition(index);
+        newPositions[member.id] = position;
+        // Save the initial position
+        savePosition(member.id, position);
+      }
+    });
+    
+    setPositions(newPositions);
+  }, [members]);
+
+  // Handle position change from drag
+  const handlePositionChange = (memberId: string, position: Position) => {
+    setPositions(prev => ({
+      ...prev,
+      [memberId]: position,
+    }));
+    savePosition(memberId, position);
+  };
+
+  // Reset all positions to grid
+  const handleResetPositions = () => {
+    clearAllPositions();
+    const newPositions: Record<string, Position> = {};
+    
+    members.forEach((member, index) => {
+      const position = calculateInitialPosition(index);
+      newPositions[member.id] = position;
+      savePosition(member.id, position);
+    });
+    
+    setPositions(newPositions);
+  };
+
+  // Calculate minimum canvas height based on member positions
+  const canvasHeight = useMemo(() => {
+    if (Object.keys(positions).length === 0) {
+      const rows = Math.ceil(members.length / GRID_COLS);
+      return Math.max(400, rows * (CARD_HEIGHT + GRID_GAP) + GRID_PADDING * 2);
+    }
+    
+    const maxY = Math.max(...Object.values(positions).map(p => p.y));
+    return Math.max(400, maxY + CARD_HEIGHT + GRID_PADDING);
+  }, [positions, members.length]);
+
+  if (members.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-2">
+      {/* Toolbar */}
+      <div className="flex justify-end">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleResetPositions}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <RotateCcw className="h-4 w-4 mr-2" />
+          Reorganizar
+        </Button>
+      </div>
+      
+      {/* Canvas */}
+      <div
+        ref={containerRef}
+        className="relative border rounded-lg bg-muted/20 overflow-hidden"
+        style={{ 
+          minHeight: canvasHeight,
+          backgroundImage: 'radial-gradient(circle, hsl(var(--muted-foreground) / 0.1) 1px, transparent 1px)',
+          backgroundSize: '24px 24px',
+        }}
+      >
+        {members.map((member) => {
+          const position = positions[member.id] || { x: 0, y: 0 };
+          
+          return (
+            <DraggableMemberCard
+              key={member.id}
+              id={member.id}
+              name={member.name}
+              email={member.email}
+              role={member.role}
+              avatarUrl={member.avatarUrl}
+              type={member.type}
+              position={position}
+              onPositionChange={(pos) => handlePositionChange(member.id, pos)}
+              onClick={() => onMemberClick?.(member)}
+              onEdit={() => onMemberEdit?.(member)}
+              onRemove={() => onMemberRemove?.(member)}
+              onEditRole={() => onMemberEditRole?.(member)}
+              onCategoryChange={onCategoryChange ? (cat) => onCategoryChange(member.id, cat) : undefined}
+              categories={categories}
+              currentCategory={member.currentCategory}
+              showActions={showActions}
+              containerRef={containerRef}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
