@@ -205,8 +205,7 @@ export function ContactProfileSheet({
   };
 
   const isFieldVisible = (fieldKey: string): boolean => {
-    if (!contact?.field_config) return true;
-    if (contact.field_config[fieldKey] === undefined) return true;
+    if (!contact?.field_config) return false;
     return contact.field_config[fieldKey] === true;
   };
 
