@@ -781,18 +781,64 @@ export default function Teams() {
       });
     });
 
-    // Filter by search query (search in name, stage_name, company from rawData)
+    // Filter by search query (search across all available fields)
     if (debouncedSearch.trim()) {
       const searchLower = debouncedSearch.toLowerCase();
       return members.filter(m => {
+        const raw = m.rawData || {};
+        const fieldConfig = raw.field_config as Record<string, any> | null;
+        
+        // Core fields
         const displayName = m.name?.toLowerCase() || '';
-        const rawName = m.rawData?.name?.toLowerCase() || '';
-        const stageName = m.rawData?.stage_name?.toLowerCase() || '';
-        const company = m.rawData?.company?.toLowerCase() || '';
+        const rawName = raw.name?.toLowerCase() || '';
+        const stageName = raw.stage_name?.toLowerCase() || '';
+        const email = (m.email || raw.email || '')?.toLowerCase();
+        const role = (m.role || raw.role || raw.functional_role || '')?.toLowerCase();
+        
+        // Company and organization
+        const company = raw.company?.toLowerCase() || '';
+        
+        // Contact details
+        const phone = raw.phone?.toLowerCase() || '';
+        const website = raw.website?.toLowerCase() || '';
+        
+        // Address fields
+        const address = raw.address?.toLowerCase() || '';
+        const city = raw.city?.toLowerCase() || '';
+        const country = raw.country?.toLowerCase() || '';
+        const postalCode = raw.postal_code?.toLowerCase() || '';
+        
+        // Financial info
+        const iban = raw.iban?.toLowerCase() || '';
+        const bankName = raw.bank_name?.toLowerCase() || '';
+        
+        // Additional profile info from field_config
+        const fullName = fieldConfig?.full_name?.toLowerCase() || '';
+        const dni = fieldConfig?.dni?.toLowerCase() || '';
+        const socialSecurity = fieldConfig?.social_security?.toLowerCase() || '';
+        const allergies = fieldConfig?.allergies?.toLowerCase() || '';
+        const observations = fieldConfig?.observations?.toLowerCase() || '';
+        
+        // Check all fields
         return displayName.includes(searchLower) || 
                rawName.includes(searchLower) || 
                stageName.includes(searchLower) ||
-               company.includes(searchLower);
+               email.includes(searchLower) ||
+               role.includes(searchLower) ||
+               company.includes(searchLower) ||
+               phone.includes(searchLower) ||
+               website.includes(searchLower) ||
+               address.includes(searchLower) ||
+               city.includes(searchLower) ||
+               country.includes(searchLower) ||
+               postalCode.includes(searchLower) ||
+               iban.includes(searchLower) ||
+               bankName.includes(searchLower) ||
+               fullName.includes(searchLower) ||
+               dni.includes(searchLower) ||
+               socialSecurity.includes(searchLower) ||
+               allergies.includes(searchLower) ||
+               observations.includes(searchLower);
       });
     }
 
@@ -860,7 +906,7 @@ export default function Teams() {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Buscar por nombre..."
+              placeholder="Buscar..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8 w-48 h-9"
