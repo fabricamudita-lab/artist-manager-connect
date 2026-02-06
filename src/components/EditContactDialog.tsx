@@ -345,6 +345,7 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                     id={`config-${field}`}
                     checked={fieldConfig[field as keyof typeof fieldConfig]}
                     onCheckedChange={(checked) => updateFieldConfig(field, checked)}
+                    className="data-[state=checked]:bg-primary"
                   />
                 </div>
               ))}
@@ -359,6 +360,7 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                   id="is-public"
                   checked={formData.is_public}
                   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_public: checked }))}
+                  className="data-[state=checked]:bg-primary"
                 />
               </div>
               
@@ -370,6 +372,7 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                   id="is-team-member"
                   checked={isTeamMember}
                   onCheckedChange={setIsTeamMember}
+                  className="data-[state=checked]:bg-primary"
                 />
               </div>
             </CardContent>
