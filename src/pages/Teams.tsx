@@ -845,7 +845,7 @@ export default function Teams() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className={`p-6 space-y-6 ${viewMode === 'free' ? 'max-w-full' : 'container mx-auto'}`}>
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold">Equipos</h1>
