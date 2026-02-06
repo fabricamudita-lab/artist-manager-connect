@@ -204,6 +204,12 @@ export function ContactProfileSheet({
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
+  const isFieldVisible = (fieldKey: string): boolean => {
+    if (!contact?.field_config) return true;
+    if (contact.field_config[fieldKey] === undefined) return true;
+    return contact.field_config[fieldKey] === true;
+  };
+
   const EditableInfoCard = ({ 
     icon: Icon, 
     label, 
@@ -298,22 +304,26 @@ export function ContactProfileSheet({
                   placeholder="Nombre"
                   className="text-2xl font-semibold"
                 />
-                <InlineEdit
-                  value={contact.stage_name || ''}
-                  onSave={async (newValue) => {
-                    await updateContactField('stage_name', newValue);
-                  }}
-                  placeholder="Nombre artístico"
-                  className="text-muted-foreground"
-                />
-                <InlineEdit
-                  value={contact.role || ''}
-                  onSave={async (newValue) => {
-                    await updateContactField('role', newValue);
-                  }}
-                  placeholder="Rol"
-                  className="text-sm mt-1"
-                />
+                {isFieldVisible('stage_name') && (
+                  <InlineEdit
+                    value={contact.stage_name || ''}
+                    onSave={async (newValue) => {
+                      await updateContactField('stage_name', newValue);
+                    }}
+                    placeholder="Nombre artístico"
+                    className="text-muted-foreground"
+                  />
+                )}
+                {isFieldVisible('role') && (
+                  <InlineEdit
+                    value={contact.role || ''}
+                    onSave={async (newValue) => {
+                      await updateContactField('role', newValue);
+                    }}
+                    placeholder="Rol"
+                    className="text-sm mt-1"
+                  />
+                )}
               </div>
             </div>
 
@@ -405,70 +415,80 @@ export function ContactProfileSheet({
             )}
 
             {/* Información de contacto */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-muted-foreground">Información de contacto</h3>
-              
-              <EditableInfoCard icon={Mail} label="Email" value={contact.email} field="email" />
-              <EditableInfoCard icon={Phone} label="Teléfono" value={contact.phone} field="phone" />
-              <EditableInfoCard icon={Building} label="Empresa" value={contact.company} field="company" />
-              <EditableInfoCard icon={Home} label="Dirección" value={contact.address} field="address" multiline />
-              <EditableInfoCard icon={MapPin} label="Ciudad" value={contact.city} field="city" />
-              <EditableInfoCard icon={Globe} label="País" value={contact.country} field="country" />
-            </div>
+            {(isFieldVisible('email') || isFieldVisible('phone') || isFieldVisible('company') || isFieldVisible('address')) && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Información de contacto</h3>
+                
+                {isFieldVisible('email') && <EditableInfoCard icon={Mail} label="Email" value={contact.email} field="email" />}
+                {isFieldVisible('phone') && <EditableInfoCard icon={Phone} label="Teléfono" value={contact.phone} field="phone" />}
+                {isFieldVisible('company') && <EditableInfoCard icon={Building} label="Empresa" value={contact.company} field="company" />}
+                {isFieldVisible('address') && <EditableInfoCard icon={Home} label="Dirección" value={contact.address} field="address" multiline />}
+                <EditableInfoCard icon={MapPin} label="Ciudad" value={contact.city} field="city" />
+                <EditableInfoCard icon={Globe} label="País" value={contact.country} field="country" />
+              </div>
+            )}
 
             {/* Información personal */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-muted-foreground">Información personal</h3>
-              
-              <EditableInfoCard icon={User} label="Nombre legal" value={contact.legal_name} field="legal_name" />
-              <EditableInfoCard icon={Clock} label="Horario preferido" value={contact.preferred_hours} field="preferred_hours" />
-              
-              {contact.category && (
-                <ReadOnlyInfoCard 
-                  icon={Briefcase} 
-                  label="Categoría" 
-                  value={<Badge variant="outline">{contact.category}</Badge>} 
-                />
-              )}
+            {(isFieldVisible('legal_name') || isFieldVisible('preferred_hours') || contact.category || (contact.tags && contact.tags.length > 0)) && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Información personal</h3>
+                
+                {isFieldVisible('legal_name') && <EditableInfoCard icon={User} label="Nombre legal" value={contact.legal_name} field="legal_name" />}
+                {isFieldVisible('preferred_hours') && <EditableInfoCard icon={Clock} label="Horario preferido" value={contact.preferred_hours} field="preferred_hours" />}
+                
+                {contact.category && (
+                  <ReadOnlyInfoCard 
+                    icon={Briefcase} 
+                    label="Categoría" 
+                    value={<Badge variant="outline">{contact.category}</Badge>} 
+                  />
+                )}
 
-              {contact.tags && contact.tags.length > 0 && (
-                <ReadOnlyInfoCard 
-                  icon={Tag} 
-                  label="Etiquetas" 
-                  value={
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {contact.tags.map((tag, idx) => (
-                        <Badge key={idx} variant="secondary" className="text-xs">{tag}</Badge>
-                      ))}
-                    </div>
-                  } 
-                />
-              )}
-            </div>
+                {contact.tags && contact.tags.length > 0 && (
+                  <ReadOnlyInfoCard 
+                    icon={Tag} 
+                    label="Etiquetas" 
+                    value={
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {contact.tags.map((tag, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-xs">{tag}</Badge>
+                        ))}
+                      </div>
+                    } 
+                  />
+                )}
+              </div>
+            )}
 
             {/* Información adicional */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-muted-foreground">Información adicional</h3>
-              
-              <EditableInfoCard icon={Shirt} label="Talla de ropa" value={contact.clothing_size} field="clothing_size" />
-              <EditableInfoCard icon={Shirt} label="Talla de calzado" value={contact.shoe_size} field="shoe_size" />
-              <EditableInfoCard icon={AlertTriangle} label="Alergias" value={contact.allergies} field="allergies" multiline />
-              <EditableInfoCard icon={AlertTriangle} label="Necesidades especiales" value={contact.special_needs} field="special_needs" multiline />
-            </div>
+            {(isFieldVisible('clothing_size') || isFieldVisible('shoe_size') || isFieldVisible('allergies') || isFieldVisible('special_needs')) && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Información adicional</h3>
+                
+                {isFieldVisible('clothing_size') && <EditableInfoCard icon={Shirt} label="Talla de ropa" value={contact.clothing_size} field="clothing_size" />}
+                {isFieldVisible('shoe_size') && <EditableInfoCard icon={Shirt} label="Talla de calzado" value={contact.shoe_size} field="shoe_size" />}
+                {isFieldVisible('allergies') && <EditableInfoCard icon={AlertTriangle} label="Alergias" value={contact.allergies} field="allergies" multiline />}
+                {isFieldVisible('special_needs') && <EditableInfoCard icon={AlertTriangle} label="Necesidades especiales" value={contact.special_needs} field="special_needs" multiline />}
+              </div>
+            )}
 
             {/* Información bancaria */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-muted-foreground">Información bancaria</h3>
-              
-              <EditableInfoCard icon={CreditCard} label="IBAN" value={contact.iban} field="iban" />
-              <EditableInfoCard icon={CreditCard} label="Banco" value={contact.bank_info} field="bank_info" />
-            </div>
+            {(isFieldVisible('iban') || isFieldVisible('bank_info')) && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Información bancaria</h3>
+                
+                {isFieldVisible('iban') && <EditableInfoCard icon={CreditCard} label="IBAN" value={contact.iban} field="iban" />}
+                {isFieldVisible('bank_info') && <EditableInfoCard icon={CreditCard} label="Banco" value={contact.bank_info} field="bank_info" />}
+              </div>
+            )}
 
             {/* Contrato */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-muted-foreground">Contrato</h3>
-              <EditableInfoCard icon={Link} label="URL del contrato" value={contact.contract_url} field="contract_url" />
-            </div>
+            {isFieldVisible('contract_url') && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Contrato</h3>
+                <EditableInfoCard icon={Link} label="URL del contrato" value={contact.contract_url} field="contract_url" />
+              </div>
+            )}
 
             {/* Visibilidad */}
             {(contact.is_public || contact.public_slug) && (
@@ -494,10 +514,12 @@ export function ContactProfileSheet({
             )}
 
             {/* Notas */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-muted-foreground">Notas</h3>
-              <EditableInfoCard icon={FileText} label="Notas" value={contact.notes} field="notes" multiline />
-            </div>
+            {isFieldVisible('notes') && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Notas</h3>
+                <EditableInfoCard icon={FileText} label="Notas" value={contact.notes} field="notes" multiline />
+              </div>
+            )}
 
             {/* Fechas */}
             {(contact.created_at || contact.updated_at) && (
