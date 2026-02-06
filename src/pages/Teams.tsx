@@ -784,61 +784,48 @@ export default function Teams() {
     // Filter by search query (search across all available fields)
     if (debouncedSearch.trim()) {
       const searchLower = debouncedSearch.toLowerCase();
+      
+      // Helper to safely convert any value to searchable string
+      const toSearchString = (val: unknown): string => {
+        if (val == null) return '';
+        if (typeof val === 'string') return val.toLowerCase();
+        if (Array.isArray(val)) return val.map(v => toSearchString(v)).join(' ');
+        if (typeof val === 'object') return Object.values(val).map(v => toSearchString(v)).join(' ');
+        return String(val).toLowerCase();
+      };
+      
       return members.filter(m => {
         const raw = m.rawData || {};
         const fieldConfig = raw.field_config as Record<string, any> | null;
         
-        // Core fields
-        const displayName = m.name?.toLowerCase() || '';
-        const rawName = raw.name?.toLowerCase() || '';
-        const stageName = raw.stage_name?.toLowerCase() || '';
-        const email = (m.email || raw.email || '')?.toLowerCase();
-        const role = (m.role || raw.role || raw.functional_role || '')?.toLowerCase();
+        // Build a single searchable string from all fields
+        const searchableFields = [
+          m.name,
+          raw.name,
+          raw.stage_name,
+          m.email,
+          raw.email,
+          m.role,
+          raw.role,
+          raw.functional_role,
+          raw.company,
+          raw.phone,
+          raw.website,
+          raw.address,
+          raw.city,
+          raw.country,
+          raw.postal_code,
+          raw.iban,
+          raw.bank_name,
+          fieldConfig?.full_name,
+          fieldConfig?.dni,
+          fieldConfig?.social_security,
+          fieldConfig?.allergies,
+          fieldConfig?.observations,
+        ];
         
-        // Company and organization
-        const company = raw.company?.toLowerCase() || '';
-        
-        // Contact details
-        const phone = raw.phone?.toLowerCase() || '';
-        const website = raw.website?.toLowerCase() || '';
-        
-        // Address fields
-        const address = raw.address?.toLowerCase() || '';
-        const city = raw.city?.toLowerCase() || '';
-        const country = raw.country?.toLowerCase() || '';
-        const postalCode = raw.postal_code?.toLowerCase() || '';
-        
-        // Financial info
-        const iban = raw.iban?.toLowerCase() || '';
-        const bankName = raw.bank_name?.toLowerCase() || '';
-        
-        // Additional profile info from field_config
-        const fullName = fieldConfig?.full_name?.toLowerCase() || '';
-        const dni = fieldConfig?.dni?.toLowerCase() || '';
-        const socialSecurity = fieldConfig?.social_security?.toLowerCase() || '';
-        const allergies = fieldConfig?.allergies?.toLowerCase() || '';
-        const observations = fieldConfig?.observations?.toLowerCase() || '';
-        
-        // Check all fields
-        return displayName.includes(searchLower) || 
-               rawName.includes(searchLower) || 
-               stageName.includes(searchLower) ||
-               email.includes(searchLower) ||
-               role.includes(searchLower) ||
-               company.includes(searchLower) ||
-               phone.includes(searchLower) ||
-               website.includes(searchLower) ||
-               address.includes(searchLower) ||
-               city.includes(searchLower) ||
-               country.includes(searchLower) ||
-               postalCode.includes(searchLower) ||
-               iban.includes(searchLower) ||
-               bankName.includes(searchLower) ||
-               fullName.includes(searchLower) ||
-               dni.includes(searchLower) ||
-               socialSecurity.includes(searchLower) ||
-               allergies.includes(searchLower) ||
-               observations.includes(searchLower);
+        const searchableText = searchableFields.map(toSearchString).join(' ');
+        return searchableText.includes(searchLower);
       });
     }
 
