@@ -23,6 +23,7 @@ interface Member {
 interface TeamMemberFreeCanvasProps {
   members: Member[];
   onMemberClick?: (member: Member) => void;
+  onMemberDoubleClick?: (member: Member) => void;
   onMemberEdit?: (member: Member) => void;
   onMemberRemove?: (member: Member) => void;
   onMemberEditRole?: (member: Member) => void;
@@ -82,6 +83,7 @@ const calculateInitialPosition = (index: number): Position => {
 export function TeamMemberFreeCanvas({
   members,
   onMemberClick,
+  onMemberDoubleClick,
   onMemberEdit,
   onMemberRemove,
   onMemberEditRole,
@@ -213,6 +215,7 @@ export function TeamMemberFreeCanvas({
               position={position}
               onPositionChange={(pos) => handlePositionChange(member.id, pos)}
               onClick={() => onMemberClick?.(member)}
+              onDoubleClick={() => onMemberDoubleClick?.(member)}
               onEdit={() => onMemberEdit?.(member)}
               onRemove={() => onMemberRemove?.(member)}
               onEditRole={() => onMemberEditRole?.(member)}
