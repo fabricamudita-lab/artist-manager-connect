@@ -1048,6 +1048,11 @@ export default function Teams() {
             <TeamMemberFreeCanvas
               members={allMembersFlattened}
               contextKey={selectedArtistId === 'all' ? 'all' : selectedArtistId}
+              onMemberDoubleClick={(member) => {
+                if (member.type === 'profile') {
+                  setSelectedContactId(member.rawData?.id || member.id);
+                }
+              }}
               onMemberEdit={(member) => {
                 if (member.type === 'profile') {
                   setEditingContact(member.rawData);
@@ -1192,6 +1197,11 @@ export default function Teams() {
                   <TeamMemberFreeCanvas
                     members={gridMembers}
                     contextKey={`${selectedArtistId}_${category.value}`}
+                    onMemberDoubleClick={(member) => {
+                      if (member.type === 'profile') {
+                        setSelectedContactId(member.rawData?.id || member.id);
+                      }
+                    }}
                     onMemberEdit={(member) => {
                       if (member.type === 'profile') {
                         setEditingContact(member.rawData);

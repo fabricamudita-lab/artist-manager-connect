@@ -23,6 +23,7 @@ interface DraggableMemberCardProps {
   position: Position;
   onPositionChange: (position: Position) => void;
   onClick?: () => void;
+  onDoubleClick?: () => void;
   onEdit?: () => void;
   onRemove?: () => void;
   onEditRole?: () => void;
@@ -43,6 +44,7 @@ export function DraggableMemberCard({
   position,
   onPositionChange,
   onClick,
+  onDoubleClick,
   onEdit,
   onRemove,
   onEditRole,
@@ -175,6 +177,12 @@ export function DraggableMemberCard({
       }}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        if (!isDragging && onDoubleClick) {
+          onDoubleClick();
+        }
+      }}
     >
       <TeamMemberCard
         id={id}
