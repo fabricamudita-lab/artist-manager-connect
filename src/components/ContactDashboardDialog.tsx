@@ -56,10 +56,10 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
   });
   const navigate = useNavigate();
 
-  const contactIds = profiles.map(p => p.id);
+  const initialContactIds = profiles.map(p => p.id);
 
   useEffect(() => {
-    if (!open || contactIds.length === 0) return;
+    if (!open || profiles.length === 0) return;
     fetchAll();
   }, [open, profiles]);
 
@@ -67,6 +67,22 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
     setLoading(true);
     try {
       const artistIds = getArtistIds(profiles);
+
+      // Resolve contact_ids linked to artist_ids so contact-based queries also work for artists
+      let resolvedContactIds = [...initialContactIds];
+      if (artistIds.length > 0) {
+        const { data: linkedContacts } = await supabase
+          .from('contacts')
+          .select('id')
+          .in('artist_id', artistIds);
+        if (linkedContacts) {
+          const linkedIds = linkedContacts.map(c => c.id);
+          resolvedContactIds = [...new Set([...resolvedContactIds, ...linkedIds])];
+        }
+      }
+
+      // Filter out any non-UUID values (e.g. prefixed IDs that slipped through)
+      const contactIds = resolvedContactIds.filter(id => /^[0-9a-f]{8}-/.test(id));
 
       const [
         budgetItemsRes,
@@ -78,15 +94,29 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
         trackCreditsRes,
         bookingsRes,
       ] = await Promise.all([
-        supabase.from('budget_items').select('*, budgets(name, status)').in('contact_id', contactIds).then(r => r),
-        supabase.from('solicitudes').select('*').or(`contact_id.in.(${contactIds.join(',')}),promotor_contact_id.in.(${contactIds.join(',')})`).then(r => r),
-        supabase.from('sync_offers').select('*').or(`contact_id.in.(${contactIds.join(',')}),requester_contact_id.in.(${contactIds.join(',')})`).then(r => r),
-        supabase.from('project_team').select('*, projects(name, status)').in('contact_id', contactIds).then(r => r),
-        supabase.from('transactions').select('*').in('contact_id', contactIds).then(r => r),
-        supabase.from('song_splits').select('*, songs(title)').in('collaborator_contact_id', contactIds).then(r => r),
-        supabase.from('track_credits').select('*, release_tracks(title)').in('contact_id', contactIds).then(r => r),
+        contactIds.length > 0
+          ? supabase.from('budget_items').select('*, budgets(name, status)').in('contact_id', contactIds)
+          : Promise.resolve({ data: [] }),
+        contactIds.length > 0
+          ? supabase.from('solicitudes').select('*').or(`contact_id.in.(${contactIds.join(',')}),promotor_contact_id.in.(${contactIds.join(',')})`)
+          : Promise.resolve({ data: [] }),
+        contactIds.length > 0
+          ? supabase.from('sync_offers').select('*').or(`contact_id.in.(${contactIds.join(',')}),requester_contact_id.in.(${contactIds.join(',')})`)
+          : Promise.resolve({ data: [] }),
+        contactIds.length > 0
+          ? supabase.from('project_team').select('*, projects(name, status)').in('contact_id', contactIds)
+          : Promise.resolve({ data: [] }),
+        contactIds.length > 0
+          ? supabase.from('transactions').select('*').in('contact_id', contactIds)
+          : Promise.resolve({ data: [] }),
+        contactIds.length > 0
+          ? supabase.from('song_splits').select('*, songs(title)').in('collaborator_contact_id', contactIds)
+          : Promise.resolve({ data: [] }),
+        contactIds.length > 0
+          ? supabase.from('track_credits').select('*, release_tracks(title)').in('contact_id', contactIds)
+          : Promise.resolve({ data: [] }),
         artistIds.length > 0
-          ? supabase.from('booking_offers').select('*, artists(name)').in('artist_id', artistIds).then(r => r)
+          ? supabase.from('booking_offers').select('*, artists(name)').in('artist_id', artistIds)
           : Promise.resolve({ data: [] }),
       ]);
 
@@ -255,7 +285,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
                         {data.budgetItems.map(item => (
                           <ItemCard
                             key={item.id}
-                            title={item.description || 'Partida'}
+                            title={item.name || item.description || 'Partida'}
                             subtitle={item.budgets?.name}
                             status={item.budgets?.status}
                             date={item.created_at}
@@ -355,7 +385,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
               {/* Individual tabs */}
               <TabsContent value="presupuestos" className="space-y-2 m-0">
                 {data.budgetItems.length === 0 ? <EmptyState label="presupuestos" /> : data.budgetItems.map(item => (
-                  <ItemCard key={item.id} title={item.description || 'Partida'} subtitle={item.budgets?.name} status={item.budgets?.status} date={item.created_at} />
+                  <ItemCard key={item.id} title={item.name || item.description || 'Partida'} subtitle={item.budgets?.name} status={item.budgets?.status} date={item.created_at} />
                 ))}
               </TabsContent>
 
