@@ -302,6 +302,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
                             subtitle={item.budgets?.name}
                             status={item.budgets?.status}
                             date={item.created_at}
+                            onClick={() => { onOpenChange(false); navigate(`/budgets`); }}
                           />
                         ))}
                       </Section>
@@ -369,6 +370,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
                             subtitle={item.amount ? `${item.amount} ${item.currency || '€'}` : undefined}
                             status={item.status}
                             date={item.date || item.created_at}
+                            onClick={() => { onOpenChange(false); navigate(`/finanzas`); }}
                           />
                         ))}
                       </Section>
@@ -394,6 +396,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
                             key={`split-${item.id}`}
                             title={item.songs?.title || 'Canción'}
                             subtitle={`Split: ${item.percentage || 0}%`}
+                            onClick={() => { onOpenChange(false); navigate(`/royalties`); }}
                           />
                         ))}
                         {data.trackCredits.map(item => (
@@ -401,6 +404,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
                             key={`credit-${item.id}`}
                             title={item.release_tracks?.title || 'Track'}
                             subtitle={item.credit_role}
+                            onClick={() => { onOpenChange(false); navigate(`/royalties`); }}
                           />
                         ))}
                       </Section>
@@ -412,7 +416,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
               {/* Individual tabs */}
               <TabsContent value="presupuestos" className="space-y-2 m-0">
                 {data.budgetItems.length === 0 ? <EmptyState label="presupuestos" /> : data.budgetItems.map(item => (
-                  <ItemCard key={item.id} title={item.name || item.description || 'Partida'} subtitle={item.budgets?.name} status={item.budgets?.status} date={item.created_at} />
+                  <ItemCard key={item.id} title={item.name || item.description || 'Partida'} subtitle={item.budgets?.name} status={item.budgets?.status} date={item.created_at} onClick={() => { onOpenChange(false); navigate(`/budgets`); }} />
                 ))}
               </TabsContent>
 
@@ -442,7 +446,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
 
               <TabsContent value="transacciones" className="space-y-2 m-0">
                 {data.transactions.length === 0 ? <EmptyState label="transacciones" /> : data.transactions.map(item => (
-                  <ItemCard key={item.id} title={item.description || 'Transacción'} subtitle={item.amount ? `${item.amount} ${item.currency || '€'}` : undefined} status={item.status} date={item.date || item.created_at} />
+                  <ItemCard key={item.id} title={item.description || 'Transacción'} subtitle={item.amount ? `${item.amount} ${item.currency || '€'}` : undefined} status={item.status} date={item.date || item.created_at} onClick={() => { onOpenChange(false); navigate(`/finanzas`); }} />
                 ))}
               </TabsContent>
 
@@ -456,10 +460,10 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
                 {data.songSplits.length === 0 && data.trackCredits.length === 0 ? <EmptyState label="música" /> : (
                   <>
                     {data.songSplits.map(item => (
-                      <ItemCard key={`split-${item.id}`} title={item.songs?.title || 'Canción'} subtitle={`Split: ${item.percentage || 0}%`} />
+                      <ItemCard key={`split-${item.id}`} title={item.songs?.title || 'Canción'} subtitle={`Split: ${item.percentage || 0}%`} onClick={() => { onOpenChange(false); navigate(`/royalties`); }} />
                     ))}
                     {data.trackCredits.map(item => (
-                      <ItemCard key={`credit-${item.id}`} title={item.release_tracks?.title || 'Track'} subtitle={item.credit_role} />
+                      <ItemCard key={`credit-${item.id}`} title={item.release_tracks?.title || 'Track'} subtitle={item.credit_role} onClick={() => { onOpenChange(false); navigate(`/royalties`); }} />
                     ))}
                   </>
                 )}
