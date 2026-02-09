@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { DraggableMemberCard } from './DraggableMemberCard';
 import { MemberType } from './TeamMemberCard';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Save } from 'lucide-react';
+import { RotateCcw, Save, LayoutGrid } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface Position {
@@ -166,6 +166,19 @@ export function TeamMemberFreeCanvas({
     toast({ title: "Guardado", description: "Disposición guardada como predeterminada." });
   };
 
+  // Reset to auto-grid (original layout)
+  const handleResetToGrid = () => {
+    clearAllPositions(contextKey);
+    const newPositions: Record<string, Position> = {};
+    members.forEach((member, index) => {
+      const position = calculateInitialPosition(index);
+      newPositions[member.id] = position;
+      savePosition(contextKey, member.id, position);
+    });
+    setPositions(newPositions);
+    toast({ title: "Reorganizado", description: "Disposición original en cuadrícula." });
+  };
+
   const hasDefaultSaved = loadDefaultPositions(contextKey) !== null;
 
   // Calculate canvas dimensions based on member positions (dynamic expansion)
@@ -204,15 +217,27 @@ export function TeamMemberFreeCanvas({
           <Save className="h-4 w-4 mr-2" />
           Guardar como predeterminado
         </Button>
+        {hasDefaultSaved && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleResetPositions}
+            className="text-muted-foreground hover:text-foreground"
+            title="Restaurar disposición predeterminada"
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Restaurar predeterminado
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"
-          onClick={handleResetPositions}
+          onClick={handleResetToGrid}
           className="text-muted-foreground hover:text-foreground"
-          title={hasDefaultSaved ? "Restaurar disposición predeterminada" : "Reorganizar en cuadrícula"}
+          title="Reorganizar en cuadrícula automática"
         >
-          <RotateCcw className="h-4 w-4 mr-2" />
-          {hasDefaultSaved ? 'Restaurar predeterminado' : 'Reorganizar'}
+          <LayoutGrid className="h-4 w-4 mr-2" />
+          Reorganizar original
         </Button>
       </div>
       
