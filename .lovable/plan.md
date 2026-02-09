@@ -1,86 +1,97 @@
 
 
-# Plan: Foto de perfil para contactos
+# Plan: Dashboard de Perfil(es) en Equipos
 
 ## Resumen
 
-Permitir que cada contacto/miembro de equipo tenga una foto de perfil que se pueda subir directamente desde el panel lateral de perfil. La foto se mostrara en todas las vistas (tarjetas de equipo, grid, vista libre, agenda).
+Crear un boton en la barra de herramientas de Equipos que permita seleccionar uno o varios perfiles y abrir un "Dashboard de Perfil" completo. Este dashboard mostrara toda la actividad vinculada: presupuestos, bookings, solicitudes, sincronizaciones, hojas de ruta, canciones/creditos, proyectos y transacciones.
 
-## Cambios necesarios
+## Cambios en la experiencia de usuario
 
-### 1. Base de datos: nueva columna y bucket de almacenamiento
+1. **Seleccion multiple**: Anadir checkboxes a las tarjetas de miembros (grid/list/free) para seleccionar uno o varios perfiles
+2. **Barra de accion**: Cuando hay perfiles seleccionados, mostrar una barra flotante con el boton "Ver Dashboard" y el conteo de seleccionados
+3. **Dialog Dashboard**: Un dialog a pantalla casi completa con pestanas por tipo de recurso, mostrando datos agregados de todos los perfiles seleccionados
 
-Crear una migracion SQL que:
-- Anada la columna `avatar_url` (text, nullable) a la tabla `contacts`
-- Cree un bucket de almacenamiento publico `contact-avatars` para guardar las fotos
-- Configure politicas RLS para que los usuarios autenticados puedan subir y gestionar sus propias fotos
+## Datos a consultar por contact_id
 
-### 2. Panel lateral de perfil (`ContactProfileSheet.tsx`)
+| Tabla | Relacion | Que muestra |
+|-------|----------|-------------|
+| `budget_items` | `contact_id` | Partidas de presupuesto vinculadas |
+| `booking_offers` | texto `tour_manager`/`contacto` | Conciertos/ofertas |
+| `booking_availability_responses` | `contact_id` | Respuestas de disponibilidad |
+| `solicitudes` | `contact_id`, `promotor_contact_id` | Solicitudes vinculadas |
+| `song_splits` | `collaborator_contact_id` | Splits de canciones |
+| `track_credits` | `contact_id` | Creditos de tracks |
+| `track_master_splits` | `contact_id` | Splits master |
+| `track_publishing_splits` | `contact_id` | Splits editoriales |
+| `sync_offers` | `contact_id`, `requester_contact_id` | Ofertas de sync |
+| `project_team` | `contact_id` | Proyectos asignados |
+| `royalty_splits` | `contact_id` | Splits de royalties |
+| `transactions` | `contact_id` | Transacciones/facturas |
+| `roadmaps` | via booking vinculado | Hojas de ruta |
 
-- Incluir `avatar_url` en la interfaz `ContactData` y en la query de carga
-- Reemplazar el avatar estatico (solo iniciales) por uno clicable que permita subir una foto
-- Al hacer clic en el avatar, abrir un selector de archivos (input file oculto)
-- Al seleccionar imagen: subirla al bucket `contact-avatars`, obtener la URL publica y guardarla en `contacts.avatar_url`
-- Mostrar la foto si existe, o las iniciales como fallback
-- Anadir un icono de camara sobre el avatar para indicar que es editable
+## Archivos a crear/modificar
 
-### 3. Tarjetas de miembros (`TeamMemberCard.tsx`, `TeamMemberGrid.tsx`)
+### 1. Nuevo: `src/components/ContactDashboardDialog.tsx`
 
-- Asegurar que el `avatarUrl` del contacto se pasa correctamente desde `Teams.tsx`
-- Las tarjetas ya aceptan `avatarUrl` y usan `AvatarImage`, por lo que solo hay que alimentar el dato desde la tabla `contacts`
+Dialog principal con:
+- Header mostrando los perfiles seleccionados (nombre, avatar, rol)
+- Pestanas: Todo, Presupuestos, Bookings, Solicitudes, Sincronizaciones, Canciones/Creditos, Proyectos, Transacciones
+- Cada pestana consulta la tabla correspondiente filtrando por los `contact_id` seleccionados
+- Indicadores de pendientes (solicitudes pendientes, presupuestos en borrador, etc.)
+- Links directos a cada recurso para navegar al detalle
 
-### 4. Pagina de Equipos (`Teams.tsx`)
+### 2. Modificar: `src/pages/Teams.tsx`
 
-- Al construir los miembros de tipo `profile` (contactos sin cuenta), leer `avatar_url` del contacto y pasarlo como `avatarUrl` a las tarjetas
-- Actualmente los contactos-perfil no pasan avatar porque la tabla no tenia el campo
+- Anadir estado `selectedMemberIds: Set<string>` para la seleccion multiple
+- Pasar prop `selectable` y `selected` a los componentes de vista (grid/list/free)
+- Mostrar barra flotante cuando hay seleccion activa con boton "Ver Dashboard"
+- Integrar el nuevo `ContactDashboardDialog`
 
-### 5. Agenda (`Agenda.tsx`)
+### 3. Modificar: `src/components/TeamMemberCard.tsx`
 
-- Mostrar la foto en las tarjetas de contactos de la agenda
+- Anadir prop opcional `selectable` y `selected`
+- Mostrar checkbox cuando `selectable=true`
+- Callback `onSelect(id)` al hacer click en checkbox
 
-## Detalles Tecnicos
+### 4. Modificar: `src/components/TeamMemberGrid.tsx`
 
-### Migracion SQL
+- Propagar las props de seleccion a cada tarjeta
+
+### 5. Modificar: `src/components/TeamMemberList.tsx`
+
+- Propagar las props de seleccion a cada fila
+
+### 6. Modificar: `src/components/TeamMemberFreeCanvas.tsx` / `DraggableMemberCard.tsx`
+
+- Propagar las props de seleccion a cada tarjeta draggable
+
+## Detalle tecnico del Dashboard Dialog
 
 ```text
--- Columna
-ALTER TABLE contacts ADD COLUMN IF NOT EXISTS avatar_url text;
-
--- Bucket publico
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('contact-avatars', 'contact-avatars', true)
-ON CONFLICT (id) DO NOTHING;
-
--- Politica: usuarios autenticados pueden subir
-CREATE POLICY "Users can upload contact avatars"
-ON storage.objects FOR INSERT
-TO authenticated
-WITH CHECK (bucket_id = 'contact-avatars');
-
--- Politica: lectura publica
-CREATE POLICY "Contact avatars are publicly readable"
-ON storage.objects FOR SELECT
-TO public
-USING (bucket_id = 'contact-avatars');
-
--- Politica: usuarios pueden actualizar/borrar sus propios archivos
-CREATE POLICY "Users can manage their contact avatars"
-ON storage.objects FOR DELETE
-TO authenticated
-USING (bucket_id = 'contact-avatars');
++--------------------------------------------------+
+| Dashboard de Perfil                         [X]   |
+| [Avatar] Pol Batlle  [Avatar] Maria Lopez         |
+|--------------------------------------------------|
+| Todo | Presupuestos | Bookings | Solicitudes | ...|
+|--------------------------------------------------|
+| [Cards con cada recurso vinculado]                |
+| - Nombre del recurso                              |
+| - Estado (badge)                                  |
+| - Fecha                                           |
+| - Link al detalle                                 |
++--------------------------------------------------+
 ```
 
-### UI del avatar en ContactProfileSheet
+Cada seccion mostrara:
+- Conteo total y desglose por estado
+- Lista de items con acceso directo
+- Indicador visual de items pendientes/urgentes
 
-El avatar tendra un overlay con icono de camara. Al hacer clic se abre un `<input type="file" accept="image/*">` oculto. La imagen se sube a `contact-avatars/{contactId}/{timestamp}.{ext}` y se guarda la URL publica en la columna `avatar_url`.
+## Flujo de seleccion
 
-### Archivos a modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| Nueva migracion SQL | Columna + bucket + politicas |
-| `src/components/ContactProfileSheet.tsx` | Avatar clicable con upload, mostrar foto |
-| `src/pages/Teams.tsx` | Pasar `avatar_url` de contactos a tarjetas |
-| `src/pages/Agenda.tsx` | Mostrar avatar en tarjetas de agenda |
-| `src/components/DraggableMemberCard.tsx` | Asegurar que pasa avatarUrl (ya lo hace via TeamMemberCard) |
+1. El usuario hace click en el checkbox de una o varias tarjetas
+2. Aparece una barra flotante inferior: "3 perfiles seleccionados | [Ver Dashboard] [Limpiar]"
+3. Al pulsar "Ver Dashboard" se abre el dialog con datos agregados
+4. Se puede deseleccionar todo con "Limpiar" o haciendo click en los checkboxes
 
