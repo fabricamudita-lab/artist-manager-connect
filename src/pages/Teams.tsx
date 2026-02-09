@@ -857,12 +857,17 @@ export default function Teams() {
   const selectedProfiles = useMemo(() => {
     return allMembersFlattened
       .filter(m => selectedMemberIds.has(m.id))
-      .map(m => ({
-        id: m.rawData?.id || m.id,
-        name: m.name,
-        avatarUrl: m.avatarUrl,
-        role: m.role,
-      }));
+      .map(m => {
+        const isArtist = m.type === 'artist';
+        const contactArtistId = m.type === 'profile' ? m.rawData?.artist_id : undefined;
+        return {
+          id: m.rawData?.id || m.id,
+          name: m.name,
+          avatarUrl: m.avatarUrl,
+          role: m.role,
+          artistId: isArtist ? (m.rawData?.id || m.id) : contactArtistId,
+        };
+      });
   }, [selectedMemberIds, allMembersFlattened]);
 
   if (loading) {
