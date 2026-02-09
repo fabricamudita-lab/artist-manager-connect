@@ -18,6 +18,8 @@ interface TeamMemberGridProps {
   onMemberRemove?: (member: Member) => void;
   onMemberEditRole?: (member: Member) => void;
   onCategoryChange?: (memberId: string, category: string) => void;
+  onToggleCategory?: (memberId: string, category: string) => void;
+  getMemberCategories?: (member: Member) => string[];
   categories?: Array<{ value: string; label: string }>;
   showActions?: boolean;
   selectable?: boolean;
@@ -32,6 +34,8 @@ export function TeamMemberGrid({
   onMemberRemove,
   onMemberEditRole,
   onCategoryChange,
+  onToggleCategory,
+  getMemberCategories,
   categories = [],
   showActions = true,
   selectable = false,
@@ -58,6 +62,8 @@ export function TeamMemberGrid({
           onRemove={onMemberRemove ? () => onMemberRemove(member) : undefined}
           onEditRole={onMemberEditRole ? () => onMemberEditRole(member) : undefined}
           onCategoryChange={onCategoryChange ? (cat) => onCategoryChange(member.id, cat) : undefined}
+          onToggleCategory={onToggleCategory ? (cat) => onToggleCategory(member.id, cat) : undefined}
+          memberCategories={getMemberCategories ? getMemberCategories(member) : []}
           categories={categories}
           currentCategory={member.currentCategory}
           showActions={showActions}

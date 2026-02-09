@@ -466,6 +466,149 @@ export default function Teams() {
     }
   };
 
+  // Toggle a category for a member (add/remove from multi-category)
+  const toggleMemberCategory = async (memberId: string, category: string) => {
+    // Check if it's a contact
+    const contact = teamContacts.find(c => c.id === memberId);
+    if (contact) {
+      try {
+        const config = (contact.field_config as Record<string, any>) || {};
+        const currentCategories: string[] = config.team_categories || [];
+        const singleCategory = config.team_category || contact.category;
+        
+        // Build full list of current categories
+        const allCurrentCats = new Set(currentCategories);
+        if (singleCategory && !allCurrentCats.has(singleCategory)) {
+          allCurrentCats.add(singleCategory);
+        }
+        
+        // Toggle
+        if (allCurrentCats.has(category)) {
+          if (allCurrentCats.size <= 1) return; // Must keep at least one
+          allCurrentCats.delete(category);
+        } else {
+          allCurrentCats.add(category);
+        }
+        
+        const newCategories = Array.from(allCurrentCats);
+        const { error } = await supabase
+          .from('contacts')
+          .update({
+            field_config: {
+              ...config,
+              team_categories: newCategories,
+              team_category: newCategories[0], // Keep primary in sync
+            }
+          })
+          .eq('id', memberId);
+
+        if (error) throw error;
+
+        // Update local state
+        setTeamContacts(prev => prev.map(c => 
+          c.id === memberId 
+            ? { ...c, field_config: { ...config, team_categories: newCategories, team_category: newCategories[0] } }
+            : c
+        ));
+        toast({ title: 'Categorías actualizadas' });
+      } catch (error) {
+        console.error('Error toggling contact category:', error);
+        toast({ title: 'Error al actualizar', variant: 'destructive' });
+      }
+      return;
+    }
+
+    // Check if it's a workspace member
+    const wsMember = teamMembers.find(m => m.id === memberId);
+    if (wsMember) {
+      // For workspace members, the primary category is team_category
+      // Additional categories are stored in the mirror contact's field_config.team_categories
+      const currentPrimary = wsMember.team_category;
+      
+      // Get mirror contact categories
+      let mirrorCategories: string[] = [];
+      if (wsMember.mirror_contact_id) {
+        const { data: mirrorContact } = await supabase
+          .from('contacts')
+          .select('field_config')
+          .eq('id', wsMember.mirror_contact_id)
+          .single();
+        
+        const mirrorConfig = (mirrorContact?.field_config as Record<string, any>) || {};
+        mirrorCategories = mirrorConfig.team_categories || [];
+      }
+      
+      const allCurrentCats = new Set([currentPrimary, ...mirrorCategories]);
+      
+      // Toggle
+      if (allCurrentCats.has(category)) {
+        if (allCurrentCats.size <= 1) return; // Must keep at least one
+        allCurrentCats.delete(category);
+      } else {
+        allCurrentCats.add(category);
+      }
+      
+      const newCategories = Array.from(allCurrentCats);
+      const newPrimary = newCategories[0];
+      
+      try {
+        // Update primary category
+        if (newPrimary !== currentPrimary) {
+          const { error } = await supabase
+            .from('workspace_memberships')
+            .update({ team_category: newPrimary as any })
+            .eq('id', memberId);
+          if (error) throw error;
+        }
+        
+        // Update mirror contact categories
+        if (wsMember.mirror_contact_id) {
+          const { data: mirrorContact } = await supabase
+            .from('contacts')
+            .select('field_config')
+            .eq('id', wsMember.mirror_contact_id)
+            .single();
+          
+          const mirrorConfig = (mirrorContact?.field_config as Record<string, any>) || {};
+          await supabase
+            .from('contacts')
+            .update({
+              field_config: { ...mirrorConfig, team_categories: newCategories }
+            })
+            .eq('id', wsMember.mirror_contact_id);
+        }
+        
+        // Update local state
+        setTeamMembers(prev => prev.map(m => 
+          m.id === memberId ? { ...m, team_category: newPrimary } : m
+        ));
+        toast({ title: 'Categorías actualizadas' });
+      } catch (error) {
+        console.error('Error toggling ws member category:', error);
+        toast({ title: 'Error al actualizar', variant: 'destructive' });
+      }
+    }
+  };
+
+  // Get all categories for a member (used by the toggle submenu)
+  const getMemberCategories = useCallback((member: { id: string; type: MemberType; rawData?: any; currentCategory?: string }) => {
+    if (member.type === 'profile') {
+      const config = member.rawData?.field_config as Record<string, any> | null;
+      const categories: string[] = config?.team_categories || [];
+      const singleCategory = config?.team_category || member.rawData?.category;
+      const allCats = new Set(categories);
+      if (singleCategory) allCats.add(singleCategory);
+      return Array.from(allCats);
+    }
+    if (member.type === 'user') {
+      const wsMember = teamMembers.find(m => m.id === member.id);
+      if (wsMember) {
+        return [wsMember.team_category];
+      }
+    }
+    return member.currentCategory ? [member.currentCategory] : [];
+  }, [teamMembers]);
+
   const updateFunctionalRole = async () => {
     if (!editingMemberRole || !newFunctionalRole.trim()) return;
 
@@ -1071,12 +1214,8 @@ export default function Teams() {
                   setNewFunctionalRole(member.rawData.functional_role || '');
                 }
               }}
-              onCategoryChange={(memberId, newCategory) => {
-                const member = teamMembers.find(m => m.id === memberId);
-                if (member) {
-                  updateMemberCategory(memberId, newCategory);
-                }
-              }}
+              onToggleCategory={(memberId, category) => toggleMemberCategory(memberId, category)}
+              getMemberCategories={getMemberCategories}
               categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
               showActions
               selectable={selectionMode}
@@ -1148,12 +1287,8 @@ export default function Teams() {
                   setNewFunctionalRole(member.rawData.functional_role || '');
                 }
               }}
-              onCategoryChange={(memberId, newCategory) => {
-                const member = teamMembers.find(m => m.id === memberId);
-                if (member) {
-                  updateMemberCategory(memberId, newCategory);
-                }
-              }}
+              onToggleCategory={(memberId, category) => toggleMemberCategory(memberId, category)}
+              getMemberCategories={getMemberCategories}
               categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
               showActions
               selectable={selectionMode}
@@ -1229,12 +1364,8 @@ export default function Teams() {
                         setNewFunctionalRole(member.rawData.functional_role || '');
                       }
                     }}
-                    onCategoryChange={(memberId, newCategory) => {
-                      const member = teamMembers.find(m => m.id === memberId);
-                      if (member) {
-                        updateMemberCategory(memberId, newCategory);
-                      }
-                    }}
+                    onToggleCategory={(memberId, category) => toggleMemberCategory(memberId, category)}
+                    getMemberCategories={getMemberCategories}
                     categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
                     showActions
                     selectable={selectionMode}
@@ -1306,12 +1437,8 @@ export default function Teams() {
                         setNewFunctionalRole(member.rawData.functional_role || '');
                       }
                     }}
-                    onCategoryChange={(memberId, newCategory) => {
-                      const member = teamMembers.find(m => m.id === memberId);
-                      if (member) {
-                        updateMemberCategory(memberId, newCategory);
-                      }
-                    }}
+                    onToggleCategory={(memberId, category) => toggleMemberCategory(memberId, category)}
+                    getMemberCategories={getMemberCategories}
                     categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
                     showActions
                     selectable={selectionMode}

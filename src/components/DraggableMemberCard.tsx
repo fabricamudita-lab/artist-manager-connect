@@ -28,8 +28,10 @@ interface DraggableMemberCardProps {
   onRemove?: () => void;
   onEditRole?: () => void;
   onCategoryChange?: (category: string) => void;
+  onToggleCategory?: (category: string) => void;
   categories?: Array<{ value: string; label: string }>;
   currentCategory?: string;
+  memberCategories?: string[];
   showActions?: boolean;
   containerRef: React.RefObject<HTMLDivElement>;
   selectable?: boolean;
@@ -52,8 +54,10 @@ export function DraggableMemberCard({
   onRemove,
   onEditRole,
   onCategoryChange,
+  onToggleCategory,
   categories,
   currentCategory,
+  memberCategories,
   showActions,
   containerRef,
   selectable,
@@ -202,8 +206,10 @@ export function DraggableMemberCard({
         onRemove={onRemove}
         onEditRole={onEditRole}
         onCategoryChange={onCategoryChange}
+        onToggleCategory={onToggleCategory}
         categories={categories}
         currentCategory={currentCategory}
+        memberCategories={memberCategories}
         showActions={showActions}
         selectable={selectable}
         selected={selected}

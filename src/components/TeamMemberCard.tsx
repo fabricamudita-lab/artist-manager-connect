@@ -1,8 +1,8 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Star, UserCheck, MoreVertical, Edit2, UserMinus, Settings, Pencil } from 'lucide-react';
+import { Star, UserCheck, MoreVertical, Edit2, UserMinus, Pencil, Tags, Check } from 'lucide-react';
 
 export type MemberType = 'artist' | 'user' | 'profile';
 
@@ -18,8 +18,10 @@ interface TeamMemberCardProps {
   onRemove?: () => void;
   onEditRole?: () => void;
   onCategoryChange?: (category: string) => void;
+  onToggleCategory?: (category: string) => void;
   categories?: Array<{ value: string; label: string }>;
   currentCategory?: string;
+  memberCategories?: string[];
   showActions?: boolean;
   selectable?: boolean;
   selected?: boolean;
@@ -77,8 +79,10 @@ export function TeamMemberCard({
   onRemove,
   onEditRole,
   onCategoryChange,
+  onToggleCategory,
   categories = [],
   currentCategory,
+  memberCategories = [],
   showActions = true,
   selectable = false,
   selected = false,
@@ -86,6 +90,9 @@ export function TeamMemberCard({
 }: TeamMemberCardProps) {
   const styles = getTypeStyles(type);
   const Indicator = styles.indicator;
+
+  // Determine if we use the new toggle system or the old move system
+  const useToggleSystem = !!onToggleCategory;
 
   return (
     <TooltipProvider>
@@ -150,9 +157,8 @@ export function TeamMemberCard({
           </p>
         )}
 
-
         {/* Actions dropdown - visible on hover */}
-        {showActions && (onEdit || onRemove || onEditRole || onCategoryChange) && (
+        {showActions && (onEdit || onRemove || onEditRole || onToggleCategory || onCategoryChange) && (
           <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -173,7 +179,44 @@ export function TeamMemberCard({
                     Editar
                   </DropdownMenuItem>
                 )}
-                {onCategoryChange && categories.length > 0 && (
+                
+                {/* New toggle category submenu */}
+                {useToggleSystem && categories.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger onClick={(e) => e.stopPropagation()}>
+                        <Tags className="h-4 w-4 mr-2" />
+                        Categorías
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="bg-popover border shadow-md z-50">
+                        {categories.map(cat => {
+                          const isActive = memberCategories.includes(cat.value);
+                          const isOnlyCategory = isActive && memberCategories.length <= 1;
+                          return (
+                            <DropdownMenuItem
+                              key={cat.value}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isOnlyCategory) return; // Prevent removing last category
+                                onToggleCategory(cat.value);
+                              }}
+                              className={`flex items-center gap-2 ${isOnlyCategory ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              <div className="w-4 h-4 flex items-center justify-center">
+                                {isActive && <Check className="h-3.5 w-3.5 text-primary" />}
+                              </div>
+                              {cat.label}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  </>
+                )}
+
+                {/* Legacy move category (fallback) */}
+                {!useToggleSystem && onCategoryChange && categories.length > 0 && (
                   <>
                     <DropdownMenuSeparator />
                     {categories.map(cat => (
@@ -187,6 +230,7 @@ export function TeamMemberCard({
                     ))}
                   </>
                 )}
+
                 {onRemove && (
                   <>
                     <DropdownMenuSeparator />
