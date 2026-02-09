@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { DraggableMemberCard } from './DraggableMemberCard';
 import { MemberType } from './TeamMemberCard';
 import { Button } from '@/components/ui/button';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Save } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface Position {
   x: number;
@@ -35,6 +36,7 @@ interface TeamMemberFreeCanvasProps {
 }
 
 const STORAGE_KEY_PREFIX = 'team_member_positions';
+const DEFAULT_KEY_PREFIX = 'team_member_positions_default';
 const CARD_WIDTH = 120;
 const CARD_HEIGHT = 100;
 const GRID_COLS = 6;
@@ -42,12 +44,11 @@ const GRID_PADDING = 20;
 const GRID_GAP = 16;
 const MIN_CANVAS_WIDTH = 1200;
 const MIN_CANVAS_HEIGHT = 600;
-const CANVAS_EXPAND_BUFFER = 200; // Extra space beyond the furthest element
+const CANVAS_EXPAND_BUFFER = 200;
 
-// Get storage key for a specific context
 const getStorageKey = (contextKey: string) => `${STORAGE_KEY_PREFIX}_${contextKey}`;
+const getDefaultKey = (contextKey: string) => `${DEFAULT_KEY_PREFIX}_${contextKey}`;
 
-// Load positions from localStorage for a specific context
 const loadPositions = (contextKey: string): Record<string, Position> => {
   try {
     const stored = localStorage.getItem(getStorageKey(contextKey));
@@ -57,14 +58,21 @@ const loadPositions = (contextKey: string): Record<string, Position> => {
   }
 };
 
-// Save positions to localStorage for a specific context
+const loadDefaultPositions = (contextKey: string): Record<string, Position> | null => {
+  try {
+    const stored = localStorage.getItem(getDefaultKey(contextKey));
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+};
+
 const savePosition = (contextKey: string, memberId: string, position: Position) => {
   const stored = loadPositions(contextKey);
   stored[memberId] = position;
   localStorage.setItem(getStorageKey(contextKey), JSON.stringify(stored));
 };
 
-// Clear all positions from localStorage for a specific context
 const clearAllPositions = (contextKey: string) => {
   localStorage.removeItem(getStorageKey(contextKey));
 };
@@ -124,19 +132,41 @@ export function TeamMemberFreeCanvas({
     savePosition(contextKey, memberId, position);
   };
 
-  // Reset all positions to grid
+  // Reset positions to saved default or grid
   const handleResetPositions = () => {
-    clearAllPositions(contextKey);
-    const newPositions: Record<string, Position> = {};
+    const defaultPositions = loadDefaultPositions(contextKey);
     
-    members.forEach((member, index) => {
-      const position = calculateInitialPosition(index);
-      newPositions[member.id] = position;
-      savePosition(contextKey, member.id, position);
-    });
-    
-    setPositions(newPositions);
+    if (defaultPositions) {
+      // Restore to saved default
+      clearAllPositions(contextKey);
+      const newPositions: Record<string, Position> = {};
+      members.forEach((member, index) => {
+        const pos = defaultPositions[member.id] || calculateInitialPosition(index);
+        newPositions[member.id] = pos;
+        savePosition(contextKey, member.id, pos);
+      });
+      setPositions(newPositions);
+      toast({ title: "Posiciones restauradas", description: "Se restauró la disposición predeterminada." });
+    } else {
+      // No default saved, reset to grid
+      clearAllPositions(contextKey);
+      const newPositions: Record<string, Position> = {};
+      members.forEach((member, index) => {
+        const position = calculateInitialPosition(index);
+        newPositions[member.id] = position;
+        savePosition(contextKey, member.id, position);
+      });
+      setPositions(newPositions);
+    }
   };
+
+  // Save current positions as default
+  const handleSaveAsDefault = () => {
+    localStorage.setItem(getDefaultKey(contextKey), JSON.stringify(positions));
+    toast({ title: "Guardado", description: "Disposición guardada como predeterminada." });
+  };
+
+  const hasDefaultSaved = loadDefaultPositions(contextKey) !== null;
 
   // Calculate canvas dimensions based on member positions (dynamic expansion)
   const canvasDimensions = useMemo(() => {
@@ -164,15 +194,25 @@ export function TeamMemberFreeCanvas({
   return (
     <div className="space-y-2">
       {/* Toolbar */}
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleSaveAsDefault}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <Save className="h-4 w-4 mr-2" />
+          Guardar como predeterminado
+        </Button>
         <Button
           variant="ghost"
           size="sm"
           onClick={handleResetPositions}
           className="text-muted-foreground hover:text-foreground"
+          title={hasDefaultSaved ? "Restaurar disposición predeterminada" : "Reorganizar en cuadrícula"}
         >
           <RotateCcw className="h-4 w-4 mr-2" />
-          Reorganizar
+          {hasDefaultSaved ? 'Restaurar predeterminado' : 'Reorganizar'}
         </Button>
       </div>
       
