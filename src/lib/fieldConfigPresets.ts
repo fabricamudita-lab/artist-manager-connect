@@ -150,3 +150,16 @@ export function detectPreset(current: FieldConfig): string {
   }
   return 'custom';
 }
+
+export function isSystemPreset(key: string): boolean {
+  return key in FIELD_PRESETS;
+}
+
+export function reorderCustomPresets(orderedKeys: string[]) {
+  const custom = getCustomPresets();
+  const reordered: Record<string, FieldPreset> = {};
+  orderedKeys.forEach(key => {
+    if (custom[key]) reordered[key] = custom[key];
+  });
+  localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(reordered));
+}
