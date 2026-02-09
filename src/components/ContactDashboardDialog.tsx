@@ -16,6 +16,7 @@ interface SelectedProfile {
   name: string;
   avatarUrl?: string;
   role?: string;
+  artistId?: string;
 }
 
 interface ContactDashboardDialogProps {
@@ -34,6 +35,9 @@ interface DashboardData {
   songSplits: any[];
   trackCredits: any[];
 }
+
+const getArtistIds = (profiles: SelectedProfile[]): string[] =>
+  profiles.map(p => p.artistId).filter((id): id is string => !!id);
 
 const getInitials = (name: string) =>
   name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -62,6 +66,8 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
   const fetchAll = async () => {
     setLoading(true);
     try {
+      const artistIds = getArtistIds(profiles);
+
       const [
         budgetItemsRes,
         solicitudesRes,
@@ -70,19 +76,23 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
         transactionsRes,
         songSplitsRes,
         trackCreditsRes,
+        bookingsRes,
       ] = await Promise.all([
-        supabase.from('budget_items').select('*, budgets(name, status)').in('contact_id', contactIds),
-        supabase.from('solicitudes').select('*').or(`contact_id.in.(${contactIds.join(',')}),promotor_contact_id.in.(${contactIds.join(',')})`),
-        supabase.from('sync_offers').select('*').or(`contact_id.in.(${contactIds.join(',')}),requester_contact_id.in.(${contactIds.join(',')})`),
-        supabase.from('project_team').select('*, projects(name, status)').in('contact_id', contactIds),
-        supabase.from('transactions').select('*').in('contact_id', contactIds),
-        supabase.from('song_splits').select('*, songs(title)').in('collaborator_contact_id', contactIds),
-        supabase.from('track_credits').select('*, release_tracks(title)').in('contact_id', contactIds),
+        supabase.from('budget_items').select('*, budgets(name, status)').in('contact_id', contactIds).then(r => r),
+        supabase.from('solicitudes').select('*').or(`contact_id.in.(${contactIds.join(',')}),promotor_contact_id.in.(${contactIds.join(',')})`).then(r => r),
+        supabase.from('sync_offers').select('*').or(`contact_id.in.(${contactIds.join(',')}),requester_contact_id.in.(${contactIds.join(',')})`).then(r => r),
+        supabase.from('project_team').select('*, projects(name, status)').in('contact_id', contactIds).then(r => r),
+        supabase.from('transactions').select('*').in('contact_id', contactIds).then(r => r),
+        supabase.from('song_splits').select('*, songs(title)').in('collaborator_contact_id', contactIds).then(r => r),
+        supabase.from('track_credits').select('*, release_tracks(title)').in('contact_id', contactIds).then(r => r),
+        artistIds.length > 0
+          ? supabase.from('booking_offers').select('*, artists(name)').in('artist_id', artistIds).then(r => r)
+          : Promise.resolve({ data: [] }),
       ]);
 
       setData({
         budgetItems: budgetItemsRes.data || [],
-        bookings: [],
+        bookings: bookingsRes.data || [],
         solicitudes: solicitudesRes.data || [],
         syncOffers: syncOffersRes.data || [],
         projects: projectsRes.data || [],
@@ -99,6 +109,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
 
   const totalItems =
     data.budgetItems.length +
+    data.bookings.length +
     data.solicitudes.length +
     data.syncOffers.length +
     data.projects.length +
@@ -108,6 +119,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
 
   const tabCounts = {
     presupuestos: data.budgetItems.length,
+    bookings: data.bookings.length,
     solicitudes: data.solicitudes.length,
     sync: data.syncOffers.length,
     proyectos: data.projects.length,
@@ -205,6 +217,10 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
                 <DollarSign className="h-3.5 w-3.5 mr-1" />
                 Presupuestos ({tabCounts.presupuestos})
               </TabsTrigger>
+              <TabsTrigger value="bookings">
+                <Calendar className="h-3.5 w-3.5 mr-1" />
+                Bookings ({tabCounts.bookings})
+              </TabsTrigger>
               <TabsTrigger value="solicitudes">
                 <FileText className="h-3.5 w-3.5 mr-1" />
                 Solicitudes ({tabCounts.solicitudes})
@@ -243,6 +259,20 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
                             subtitle={item.budgets?.name}
                             status={item.budgets?.status}
                             date={item.created_at}
+                          />
+                        ))}
+                      </Section>
+                    )}
+                    {data.bookings.length > 0 && (
+                      <Section title="Bookings" icon={<Calendar className="h-4 w-4" />} count={data.bookings.length}>
+                        {data.bookings.map(item => (
+                          <ItemCard
+                            key={item.id}
+                            title={item.lugar || item.venue || 'Booking'}
+                            subtitle={item.artists?.name ? `${item.artists.name} · ${item.ciudad || ''}` : item.ciudad}
+                            status={item.estado}
+                            date={item.fecha}
+                            onClick={() => { onOpenChange(false); navigate(`/bookings/${item.id}`); }}
                           />
                         ))}
                       </Section>
@@ -326,6 +356,12 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
               <TabsContent value="presupuestos" className="space-y-2 m-0">
                 {data.budgetItems.length === 0 ? <EmptyState label="presupuestos" /> : data.budgetItems.map(item => (
                   <ItemCard key={item.id} title={item.description || 'Partida'} subtitle={item.budgets?.name} status={item.budgets?.status} date={item.created_at} />
+                ))}
+              </TabsContent>
+
+              <TabsContent value="bookings" className="space-y-2 m-0">
+                {data.bookings.length === 0 ? <EmptyState label="bookings" /> : data.bookings.map(item => (
+                  <ItemCard key={item.id} title={item.lugar || item.venue || 'Booking'} subtitle={item.artists?.name ? `${item.artists.name} · ${item.ciudad || ''}` : item.ciudad} status={item.estado} date={item.fecha} onClick={() => { onOpenChange(false); navigate(`/bookings/${item.id}`); }} />
                 ))}
               </TabsContent>
 
