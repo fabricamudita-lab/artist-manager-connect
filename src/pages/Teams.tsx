@@ -1285,7 +1285,12 @@ export default function Teams() {
 
       <ContactProfileSheet
         open={!!selectedContactId}
-        onOpenChange={(open) => !open && setSelectedContactId(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedContactId(null);
+            fetchTeamContacts();
+          }
+        }}
         contactId={selectedContactId || ''}
         refreshTrigger={contactRefreshTrigger}
         onEdit={(contactId) => {
