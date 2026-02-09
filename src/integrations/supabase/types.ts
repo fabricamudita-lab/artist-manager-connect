@@ -2200,6 +2200,7 @@ export type Database = {
           address: string | null
           allergies: string | null
           artist_id: string | null
+          avatar_url: string | null
           bank_info: string | null
           category: string | null
           city: string | null
@@ -2232,6 +2233,7 @@ export type Database = {
           address?: string | null
           allergies?: string | null
           artist_id?: string | null
+          avatar_url?: string | null
           bank_info?: string | null
           category?: string | null
           city?: string | null
@@ -2264,6 +2266,7 @@ export type Database = {
           address?: string | null
           allergies?: string | null
           artist_id?: string | null
+          avatar_url?: string | null
           bank_info?: string | null
           category?: string | null
           city?: string | null

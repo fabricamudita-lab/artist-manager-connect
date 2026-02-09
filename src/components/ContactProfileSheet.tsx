@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -27,7 +27,8 @@ import {
   Calendar,
   Home,
   Music,
-  Settings
+  Settings,
+  Camera
 } from "lucide-react";
 import { Pencil } from "lucide-react";
 import { getTeamCategoryLabel } from '@/lib/teamCategories';
@@ -66,6 +67,7 @@ interface ContactData {
   special_needs?: string | null;
   preferred_hours?: string | null;
   contract_url?: string | null;
+  avatar_url?: string | null;
   is_public?: boolean | null;
   public_slug?: string | null;
   created_at?: string | null;
@@ -101,6 +103,8 @@ export function ContactProfileSheet({
   const [projectRoles, setProjectRoles] = useState<ProjectRole[]>([]);
   const [assignedArtists, setAssignedArtists] = useState<AssignedArtist[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open && contactId) {
@@ -204,6 +208,48 @@ export function ContactProfileSheet({
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !contact) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "Solo se permiten imágenes", variant: "destructive" });
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const filePath = `${contact.id}/${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('contact-avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('contact-avatars')
+        .getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase
+        .from('contacts')
+        .update({ avatar_url: publicUrl })
+        .eq('id', contact.id);
+
+      if (updateError) throw updateError;
+
+      setContact(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
+      toast({ title: "Foto actualizada" });
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast({ title: "Error al subir la foto", variant: "destructive" });
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const isFieldVisible = (fieldKey: string): boolean => {
     if (!contact?.field_config) return false;
     return contact.field_config[fieldKey] === true;
@@ -289,11 +335,34 @@ export function ContactProfileSheet({
           <div className="space-y-6 pb-6">
             {/* Header */}
             <div className="flex items-center gap-4 pt-2">
-              <Avatar className="h-20 w-20">
-                <AvatarFallback className="text-xl bg-primary/10 text-primary">
-                  {getInitials(contact.name)}
-                </AvatarFallback>
-              </Avatar>
+              <div 
+                className="relative group cursor-pointer" 
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Avatar className="h-20 w-20">
+                  {contact.avatar_url && (
+                    <AvatarImage src={contact.avatar_url} alt={contact.name} />
+                  )}
+                  <AvatarFallback className="text-xl bg-primary/10 text-primary">
+                    {getInitials(contact.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera className="h-5 w-5 text-white" />
+                </div>
+                {uploadingAvatar && (
+                  <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                />
+              </div>
               <div className="flex-1 min-w-0">
                 <InlineEdit
                   value={contact.name}
