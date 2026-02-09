@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Star, UserCheck, MoreVertical, Edit2, UserMinus, Pencil, Tags, Check } from 'lucide-react';
 
 export type MemberType = 'artist' | 'user' | 'profile';
@@ -90,6 +92,7 @@ export function TeamMemberCard({
 }: TeamMemberCardProps) {
   const styles = getTypeStyles(type);
   const Indicator = styles.indicator;
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
 
   // Determine if we use the new toggle system or the old move system
   const useToggleSystem = !!onToggleCategory;
@@ -198,15 +201,15 @@ export function TeamMemberCard({
                               key={cat.value}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (isOnlyCategory) return; // Prevent removing last category
+                                if (isOnlyCategory) return;
                                 onToggleCategory(cat.value);
                               }}
-                              className={`flex items-center gap-2 ${isOnlyCategory ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              className={`flex items-center gap-2 ${isActive ? 'bg-primary/10 font-medium' : ''} ${isOnlyCategory ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                              <div className="w-4 h-4 flex items-center justify-center">
-                                {isActive && <Check className="h-3.5 w-3.5 text-primary" />}
+                              <div className={`w-5 h-5 rounded flex items-center justify-center border ${isActive ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                                {isActive && <Check className="h-3.5 w-3.5 text-primary-foreground" />}
                               </div>
-                              {cat.label}
+                              <span className={isActive ? 'text-primary' : ''}>{cat.label}</span>
                             </DropdownMenuItem>
                           );
                         })}
@@ -236,7 +239,7 @@ export function TeamMemberCard({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
                       className="text-destructive focus:text-destructive"
-                      onClick={(e) => { e.stopPropagation(); onRemove(); }}
+                      onClick={(e) => { e.stopPropagation(); setConfirmRemoveOpen(true); }}
                     >
                       <UserMinus className="h-4 w-4 mr-2" />
                       Quitar del equipo
@@ -247,6 +250,31 @@ export function TeamMemberCard({
             </DropdownMenu>
           </div>
         )}
+
+        {/* Confirm remove dialog */}
+        <AlertDialog open={confirmRemoveOpen} onOpenChange={setConfirmRemoveOpen}>
+          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Quitar del equipo?</AlertDialogTitle>
+              <AlertDialogDescription>
+                ¿Estás seguro de que quieres eliminar a <strong>{name}</strong> del equipo? Esta acción no se puede deshacer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove?.();
+                  setConfirmRemoveOpen(false);
+                }}
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </TooltipProvider>
   );
