@@ -89,7 +89,7 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
     role: '',
     city: '',
     country: '',
-    category: 'general',
+    category: 'otro',
     notes: '',
   });
 
@@ -162,7 +162,7 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
         role: '',
         city: '',
         country: '',
-        category: 'general',
+        category: 'otro',
         notes: '',
       });
       setFieldConfig(DEFAULT_FIELD_CONFIG);
