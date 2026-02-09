@@ -21,6 +21,9 @@ interface TeamMemberCardProps {
   categories?: Array<{ value: string; label: string }>;
   currentCategory?: string;
   showActions?: boolean;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (id: string) => void;
 }
 
 const getTypeStyles = (type: MemberType) => {
@@ -77,6 +80,9 @@ export function TeamMemberCard({
   categories = [],
   currentCategory,
   showActions = true,
+  selectable = false,
+  selected = false,
+  onSelect,
 }: TeamMemberCardProps) {
   const styles = getTypeStyles(type);
   const Indicator = styles.indicator;
@@ -87,9 +93,29 @@ export function TeamMemberCard({
         className="group relative flex flex-col items-center p-3 rounded-xl hover:bg-accent/50 transition-all cursor-pointer"
         onClick={onClick}
       >
+        {/* Selection indicator */}
+        {selectable && (
+          <div 
+            className="absolute top-0 left-0 z-10"
+            onClick={(e) => { e.stopPropagation(); onSelect?.(id); }}
+          >
+            <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+              selected 
+                ? 'bg-primary border-primary' 
+                : 'border-muted-foreground/40 bg-background/80 hover:border-primary/60'
+            }`}>
+              {selected && (
+                <svg className="h-3 w-3 text-primary-foreground" viewBox="0 0 12 12" fill="none">
+                  <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Avatar with type indicator */}
         <div className="relative">
-          <Avatar className={`h-14 w-14 ${styles.ring} ${styles.bg}`}>
+          <Avatar className={`h-14 w-14 ${styles.ring} ${styles.bg} ${selected ? 'ring-primary ring-2 ring-offset-2' : ''}`}>
             {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
             <AvatarFallback className={`text-sm font-semibold ${styles.bg} ${styles.text}`}>
               {getInitials(name)}

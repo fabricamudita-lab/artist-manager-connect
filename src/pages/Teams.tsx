@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Users, Mail, Grid3X3, List, Pencil, Move, Search } from 'lucide-react';
+import { Plus, Users, Mail, Grid3X3, List, Pencil, Move, Search, MousePointerClick, X, LayoutDashboard } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ import { TeamManagerSheet } from '@/components/TeamManagerSheet';
 import { CategoryManagerSheet } from '@/components/CategoryManagerSheet';
 import { TEAM_CATEGORIES } from '@/lib/teamCategories';
 import { MemberType } from '@/components/TeamMemberCard';
+import { ContactDashboardDialog } from '@/components/ContactDashboardDialog';
 
 type TeamCategory = 'banda' | 'artistico' | 'tecnico' | 'management' | 'comunicacion' | 'legal' | 'produccion' | 'otro';
 
@@ -86,6 +87,25 @@ export default function Teams() {
   // Contact quick view state
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [contactRefreshTrigger, setContactRefreshTrigger] = useState(0);
+
+  // Selection mode state
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set());
+  const [dashboardOpen, setDashboardOpen] = useState(false);
+
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedMemberIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedMemberIds(new Set());
+    setSelectionMode(false);
+  }, []);
 
   // Editing functional role state
   const [editingMemberRole, setEditingMemberRole] = useState<{ memberId: string; userId: string; name: string; currentRole?: string; mirrorContactId?: string } | null>(null);
@@ -833,6 +853,18 @@ export default function Teams() {
     return members;
   }, [allTeamByCategory, buildGridMembers, debouncedSearch]);
 
+  // Build selected profiles info for dashboard
+  const selectedProfiles = useMemo(() => {
+    return allMembersFlattened
+      .filter(m => selectedMemberIds.has(m.id))
+      .map(m => ({
+        id: m.rawData?.id || m.id,
+        name: m.name,
+        avatarUrl: m.avatarUrl,
+        role: m.role,
+      }));
+  }, [selectedMemberIds, allMembersFlattened]);
+
   if (loading) {
     return (
       <div className="container mx-auto p-6">
@@ -931,6 +963,20 @@ export default function Teams() {
               <Move className="h-4 w-4" />
             </Button>
           </div>
+
+          {/* Selection mode toggle */}
+          <Button
+            variant={selectionMode ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              if (selectionMode) clearSelection();
+              else setSelectionMode(true);
+            }}
+            title="Seleccionar perfiles"
+          >
+            <MousePointerClick className="w-4 h-4 mr-2" />
+            {selectionMode ? 'Cancelar' : 'Seleccionar'}
+          </Button>
           
           <Button variant="outline" onClick={() => setAddContactDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
@@ -1013,6 +1059,9 @@ export default function Teams() {
               }}
               categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
               showActions
+              selectable={selectionMode}
+              selectedIds={selectedMemberIds}
+              onSelect={handleToggleSelect}
             />
           )}
           {viewMode === 'list' && (
@@ -1043,6 +1092,9 @@ export default function Teams() {
               }}
               categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
               showActions
+              selectable={selectionMode}
+              selectedIds={selectedMemberIds}
+              onSelect={handleToggleSelect}
             />
           )}
           {viewMode === 'free' && (
@@ -1084,6 +1136,9 @@ export default function Teams() {
               }}
               categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
               showActions
+              selectable={selectionMode}
+              selectedIds={selectedMemberIds}
+              onSelect={handleToggleSelect}
             />
           )}
         </div>
@@ -1162,6 +1217,9 @@ export default function Teams() {
                     }}
                     categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
                     showActions
+                    selectable={selectionMode}
+                    selectedIds={selectedMemberIds}
+                    onSelect={handleToggleSelect}
                   />
                 )}
                 {viewMode === 'list' && (
@@ -1192,6 +1250,9 @@ export default function Teams() {
                     }}
                     categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
                     showActions
+                    selectable={selectionMode}
+                    selectedIds={selectedMemberIds}
+                    onSelect={handleToggleSelect}
                   />
                 )}
                 {viewMode === 'free' && (
@@ -1233,6 +1294,9 @@ export default function Teams() {
                     }}
                     categories={allCategoriesForDisplay.map(c => ({ value: c.value, label: c.label }))}
                     showActions
+                    selectable={selectionMode}
+                    selectedIds={selectedMemberIds}
+                    onSelect={handleToggleSelect}
                   />
                 )}
               </div>
@@ -1240,6 +1304,32 @@ export default function Teams() {
           })}
         </div>
       )}
+
+      {/* Floating selection bar */}
+      {selectionMode && selectedMemberIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-background border rounded-xl shadow-xl px-4 py-3 flex items-center gap-4">
+          <span className="text-sm font-medium">
+            {selectedMemberIds.size} perfil{selectedMemberIds.size > 1 ? 'es' : ''} seleccionado{selectedMemberIds.size > 1 ? 's' : ''}
+          </span>
+          <Button
+            size="sm"
+            onClick={() => setDashboardOpen(true)}
+          >
+            <LayoutDashboard className="w-4 h-4 mr-2" />
+            Ver Dashboard
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={clearSelection}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Contact Dashboard Dialog */}
+      <ContactDashboardDialog
+        open={dashboardOpen}
+        onOpenChange={setDashboardOpen}
+        profiles={selectedProfiles}
+      />
 
       {/* Dialogs */}
       {workspaceId && (
