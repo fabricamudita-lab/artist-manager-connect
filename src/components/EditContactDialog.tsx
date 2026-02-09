@@ -16,8 +16,9 @@ import { toast } from '@/hooks/use-toast';
 
 import { ContactTagsInput } from './ContactTagsInput';
 import { TEAM_CATEGORIES, TeamCategoryOption } from '@/lib/teamCategories';
-import { FIELD_PRESETS, detectPreset, getAllPresets, saveCustomPreset } from '@/lib/fieldConfigPresets';
-import { Check, X, Music, Building2, Save } from 'lucide-react';
+import { detectPreset, getAllPresets } from '@/lib/fieldConfigPresets';
+import { ManageFieldPresetsDialog } from './ManageFieldPresetsDialog';
+import { Check, X, Music, Building2, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Artist {
@@ -87,8 +88,7 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
   const [fieldConfig, setFieldConfig] = useState<Record<string, boolean>>(contact.field_config as Record<string, boolean>);
   const [selectedPreset, setSelectedPreset] = useState(() => detectPreset(contact.field_config as Record<string, boolean>));
   const [allPresets, setAllPresets] = useState(() => getAllPresets());
-  const [savingPreset, setSavingPreset] = useState(false);
-  const [newPresetName, setNewPresetName] = useState("");
+  const [managePresetsOpen, setManagePresetsOpen] = useState(false);
   const [tags, setTags] = useState<string[]>(contact.tags || []);
   
   // Team-related state
@@ -310,6 +310,10 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
 
   const applyPreset = (presetKey: string) => {
     if (presetKey === 'custom') return;
+    if (presetKey === '__manage__') {
+      setManagePresetsOpen(true);
+      return;
+    }
     const all = getAllPresets();
     const preset = all[presetKey];
     if (preset) {
@@ -318,14 +322,8 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
     }
   };
 
-  const handleSavePreset = () => {
-    if (!newPresetName.trim()) return;
-    const key = saveCustomPreset(newPresetName.trim(), fieldConfig);
+  const handlePresetsChanged = () => {
     setAllPresets(getAllPresets());
-    setSelectedPreset(key);
-    setSavingPreset(false);
-    setNewPresetName("");
-    toast({ title: "Plantilla guardada", description: `"${newPresetName.trim()}" se ha guardado correctamente.` });
   };
 
   const renderField = (field: keyof typeof formData, type: 'input' | 'textarea' = 'input') => {
@@ -375,33 +373,14 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                       <SelectItem key={key} value={key}>{preset.label}</SelectItem>
                     ))}
                     <SelectItem value="custom">Personalizado</SelectItem>
+                    <SelectItem value="__manage__">
+                      <span className="flex items-center gap-1.5">
+                        <Settings2 className="w-3.5 h-3.5" />
+                        Editar plantillas...
+                      </span>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
-                {savingPreset ? (
-                  <div className="flex gap-1.5 mt-1.5">
-                    <Input
-                      value={newPresetName}
-                      onChange={(e) => setNewPresetName(e.target.value)}
-                      placeholder="Nombre de la plantilla"
-                      className="h-8 text-sm"
-                      autoFocus
-                      onKeyDown={(e) => e.key === 'Enter' && handleSavePreset()}
-                    />
-                    <Button size="sm" variant="ghost" className="h-8 px-2" onClick={handleSavePreset} disabled={!newPresetName.trim()}>
-                      <Save className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="w-full justify-start text-xs text-muted-foreground mt-1"
-                    onClick={() => setSavingPreset(true)}
-                  >
-                    <Save className="w-3 h-3 mr-1" />
-                    Guardar como plantilla
-                  </Button>
-                )}
               </div>
               <Separator className="my-2" />
               {Object.entries(FIELD_LABELS).map(([field, label]) => (
@@ -710,6 +689,13 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
             </form>
           </div>
         </div>
+
+        <ManageFieldPresetsDialog
+          open={managePresetsOpen}
+          onOpenChange={setManagePresetsOpen}
+          currentFieldConfig={fieldConfig}
+          onPresetsChanged={handlePresetsChanged}
+        />
       </DialogContent>
     </Dialog>
   );
