@@ -1,47 +1,26 @@
 
 
-# Rediseñar el dialogo de confirmacion al cambiar plantilla
+# Fix: Boton "Ocultar" no debe ser verde
 
-## Problema actual
+## Problema
 
-Los dos botones de accion ("Aplicar y mantener" y "Aplicar") son verdes, lo que genera confusion sobre cual elegir.
+El boton "Ocultar" aparece en verde porque esta envuelto en `AlertDialogAction`, que aplica los estilos del boton primario (verde). Al usar `asChild`, las clases verdes de `AlertDialogAction` se mezclan con las del `Button variant="outline"`, resultando en un boton que sigue viendose verde.
 
-## Nuevo diseño
+## Solucion
 
-Cambiar el texto y la jerarquia visual de los botones. El dialogo preguntara si el usuario quiere mantener la informacion existente:
+Reemplazar `AlertDialogAction asChild` por un `Button variant="outline"` normal (sin envolver en AlertDialogAction). Esto requiere cerrar el AlertDialog manualmente despues de la accion, lo cual ya se maneja al poner `pendingPreset` a `null`.
 
-```text
-+------------------------------------------+
-| Campos con informacion se ocultaran      |
-|------------------------------------------|
-| Al aplicar esta plantilla se ocultaran   |
-| estos campos que ya contienen            |
-| informacion:                             |
-|                                          |
-|  - Nombre artistico                      |
-|                                          |
-| Los datos no se eliminan, solo dejan de  |
-| ser visibles.                            |
-|                                          |
-| ¿Deseas mantener visibles los campos     |
-| que ya contienen informacion?            |
-|------------------------------------------|
-| [Cancelar]  [Ocultar]  [Mantener] (verde)|
-+------------------------------------------+
-```
+### Resultado visual
 
-### Jerarquia de botones
-
-- **Cancelar**: variant="outline" (como esta ahora)
-- **Ocultar**: variant="secondary" o "outline" - aplica la plantilla tal cual, ocultando los campos con datos
-- **Mantener**: variant="default" (verde, unico boton primario) - aplica la plantilla pero fuerza ON en campos con datos
-
-Solo "Mantener" es verde, dejando claro que es la accion recomendada.
+- **Cancelar**: borde gris (outline) - sin cambios
+- **Ocultar**: borde gris (outline) - sin verde
+- **Mantener**: verde solido (primario) - unico boton destacado
 
 ## Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/CreateContactDialog.tsx` | Cambiar textos y variantes de botones en el AlertDialog |
+| `src/components/CreateContactDialog.tsx` | Reemplazar `AlertDialogAction asChild > Button variant="outline"` por un `Button variant="outline"` directo |
 | `src/components/EditContactDialog.tsx` | Mismo cambio |
 
+Cambio de 3 lineas a 1 linea en cada archivo.
