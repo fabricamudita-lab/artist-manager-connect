@@ -16,6 +16,7 @@ import { toast } from '@/hooks/use-toast';
 
 import { ContactTagsInput } from './ContactTagsInput';
 import { TEAM_CATEGORIES, TeamCategoryOption } from '@/lib/teamCategories';
+import { FIELD_PRESETS, detectPreset } from '@/lib/fieldConfigPresets';
 import { Check, X, Music, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -83,7 +84,8 @@ const FIELD_LABELS = {
 
 export function EditContactDialog({ contact, open, onOpenChange, onContactUpdated, customCategories = [] }: EditContactDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [fieldConfig, setFieldConfig] = useState(contact.field_config);
+  const [fieldConfig, setFieldConfig] = useState<Record<string, boolean>>(contact.field_config as Record<string, boolean>);
+  const [selectedPreset, setSelectedPreset] = useState(() => detectPreset(contact.field_config as Record<string, boolean>));
   const [tags, setTags] = useState<string[]>(contact.tags || []);
   
   // Team-related state
@@ -150,7 +152,8 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
   };
 
   useEffect(() => {
-    setFieldConfig(contact.field_config);
+    setFieldConfig(contact.field_config as Record<string, boolean>);
+    setSelectedPreset(detectPreset(contact.field_config as Record<string, boolean>));
     setTags(contact.tags || []);
     setIsTeamMember(contact.field_config?.is_team_member || false);
     setIsManagementTeam(contact.field_config?.is_management_team || false);
@@ -297,7 +300,18 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
   };
 
   const updateFieldConfig = (field: string, enabled: boolean) => {
-    setFieldConfig(prev => ({ ...prev, [field]: enabled }));
+    const next = { ...fieldConfig, [field]: enabled };
+    setFieldConfig(next);
+    setSelectedPreset(detectPreset(next));
+  };
+
+  const applyPreset = (presetKey: string) => {
+    if (presetKey === 'custom') return;
+    const preset = FIELD_PRESETS[presetKey];
+    if (preset) {
+      setFieldConfig(preset.config);
+      setSelectedPreset(presetKey);
+    }
   };
 
   const renderField = (field: keyof typeof formData, type: 'input' | 'textarea' = 'input') => {
@@ -336,6 +350,21 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
               <CardTitle className="text-lg">Configuración de Campos</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-sm">Plantilla</Label>
+                <Select value={selectedPreset} onValueChange={applyPreset}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(FIELD_PRESETS).map(([key, preset]) => (
+                      <SelectItem key={key} value={key}>{preset.label}</SelectItem>
+                    ))}
+                    <SelectItem value="custom">Personalizado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Separator className="my-2" />
               {Object.entries(FIELD_LABELS).map(([field, label]) => (
                 <div key={field} className="flex items-center justify-between">
                   <Label htmlFor={`config-${field}`} className="text-sm">
