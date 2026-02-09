@@ -1,77 +1,86 @@
 
-# Plan: Corregir logica de visibilidad de campos en ContactProfileSheet
 
-## Problema Identificado
+# Plan: Foto de perfil para contactos
 
-El panel lateral `ContactProfileSheet` muestra todos los campos aunque en "Configuracion de Campos" estan desactivados. Esto ocurre porque:
+## Resumen
 
-1. El `field_config` del contacto solo almacena las claves que se han activado explicitamente
-2. La logica actual trata `undefined` como "visible" cuando deberia tratarlo como "oculto"
+Permitir que cada contacto/miembro de equipo tenga una foto de perfil que se pueda subir directamente desde el panel lateral de perfil. La foto se mostrara en todas las vistas (tarjetas de equipo, grid, vista libre, agenda).
 
-Por ejemplo, el contacto "Horacio Mateo Fumero" tiene este `field_config`:
+## Cambios necesarios
+
+### 1. Base de datos: nueva columna y bucket de almacenamiento
+
+Crear una migracion SQL que:
+- Anada la columna `avatar_url` (text, nullable) a la tabla `contacts`
+- Cree un bucket de almacenamiento publico `contact-avatars` para guardar las fotos
+- Configure politicas RLS para que los usuarios autenticados puedan subir y gestionar sus propias fotos
+
+### 2. Panel lateral de perfil (`ContactProfileSheet.tsx`)
+
+- Incluir `avatar_url` en la interfaz `ContactData` y en la query de carga
+- Reemplazar el avatar estatico (solo iniciales) por uno clicable que permita subir una foto
+- Al hacer clic en el avatar, abrir un selector de archivos (input file oculto)
+- Al seleccionar imagen: subirla al bucket `contact-avatars`, obtener la URL publica y guardarla en `contacts.avatar_url`
+- Mostrar la foto si existe, o las iniciales como fallback
+- Anadir un icono de camara sobre el avatar para indicar que es editable
+
+### 3. Tarjetas de miembros (`TeamMemberCard.tsx`, `TeamMemberGrid.tsx`)
+
+- Asegurar que el `avatarUrl` del contacto se pasa correctamente desde `Teams.tsx`
+- Las tarjetas ya aceptan `avatarUrl` y usan `AvatarImage`, por lo que solo hay que alimentar el dato desde la tabla `contacts`
+
+### 4. Pagina de Equipos (`Teams.tsx`)
+
+- Al construir los miembros de tipo `profile` (contactos sin cuenta), leer `avatar_url` del contacto y pasarlo como `avatarUrl` a las tarjetas
+- Actualmente los contactos-perfil no pasan avatar porque la tabla no tenia el campo
+
+### 5. Agenda (`Agenda.tsx`)
+
+- Mostrar la foto en las tarjetas de contactos de la agenda
+
+## Detalles Tecnicos
+
+### Migracion SQL
+
 ```text
-{
-  is_management_team: false,
-  is_team_member: true,
-  team_categories: ["banda"]
-}
+-- Columna
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS avatar_url text;
+
+-- Bucket publico
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('contact-avatars', 'contact-avatars', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Politica: usuarios autenticados pueden subir
+CREATE POLICY "Users can upload contact avatars"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'contact-avatars');
+
+-- Politica: lectura publica
+CREATE POLICY "Contact avatars are publicly readable"
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'contact-avatars');
+
+-- Politica: usuarios pueden actualizar/borrar sus propios archivos
+CREATE POLICY "Users can manage their contact avatars"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (bucket_id = 'contact-avatars');
 ```
 
-No contiene `email`, `phone`, `stage_name`, etc., por lo que la funcion `isFieldVisible` retorna `true` incorrectamente.
+### UI del avatar en ContactProfileSheet
 
-## Solucion
+El avatar tendra un overlay con icono de camara. Al hacer clic se abre un `<input type="file" accept="image/*">` oculto. La imagen se sube a `contact-avatars/{contactId}/{timestamp}.{ext}` y se guarda la URL publica en la columna `avatar_url`.
 
-Modificar la funcion `isFieldVisible` en `ContactProfileSheet.tsx` para que solo retorne `true` cuando el campo esta **explicitamente activado** (`=== true`):
+### Archivos a modificar
 
-### Codigo Actual (incorrecto)
-```typescript
-const isFieldVisible = (fieldKey: string): boolean => {
-  if (!contact?.field_config) return true;
-  if (contact.field_config[fieldKey] === undefined) return true;
-  return contact.field_config[fieldKey] === true;
-};
-```
+| Archivo | Cambio |
+|---------|--------|
+| Nueva migracion SQL | Columna + bucket + politicas |
+| `src/components/ContactProfileSheet.tsx` | Avatar clicable con upload, mostrar foto |
+| `src/pages/Teams.tsx` | Pasar `avatar_url` de contactos a tarjetas |
+| `src/pages/Agenda.tsx` | Mostrar avatar en tarjetas de agenda |
+| `src/components/DraggableMemberCard.tsx` | Asegurar que pasa avatarUrl (ya lo hace via TeamMemberCard) |
 
-### Codigo Corregido
-```typescript
-const isFieldVisible = (fieldKey: string): boolean => {
-  // Si no hay field_config, no mostrar campos configurables
-  if (!contact?.field_config) return false;
-  // Solo mostrar si esta explicitamente activado
-  return contact.field_config[fieldKey] === true;
-};
-```
-
-## Cambios Tecnicos
-
-### Archivo: `src/components/ContactProfileSheet.tsx`
-
-**Lineas 207-211** - Actualizar la funcion `isFieldVisible`:
-
-```typescript
-const isFieldVisible = (fieldKey: string): boolean => {
-  if (!contact?.field_config) return false;
-  return contact.field_config[fieldKey] === true;
-};
-```
-
-## Comportamiento Esperado
-
-| Valor en field_config | Antes | Despues |
-|----------------------|-------|---------|
-| `true` | Visible | Visible |
-| `false` | Oculto | Oculto |
-| `undefined` (no existe) | Visible | Oculto |
-| `field_config` es `null` | Visible | Oculto |
-
-## Impacto
-
-- Los campos solo apareceran en el panel lateral si el usuario los ha activado explicitamente en "Configuracion de Campos"
-- Esto mantiene coherencia visual entre el estado de los toggles y lo que se muestra
-- Los campos como ciudad y pais (que no estan controlados por `field_config`) seguiran mostrando siempre
-
-## Notas Adicionales
-
-- El campo "nombre" principal siempre se muestra (no usa `isFieldVisible`)
-- Las secciones de equipo, roles en proyectos y registro no se ven afectadas
-- Los campos ciudad/pais no usan `isFieldVisible`, por lo que siempre apareceran
