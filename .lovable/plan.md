@@ -1,81 +1,55 @@
 
 
-# Simplificar categorias: un unico sistema multi-categoria
+# Plantillas predeterminadas para Configuracion de Campos
 
-## Problema actual
+## Resumen
 
-Hay dos sistemas de categorias que hacen lo mismo:
-- **Contacts**: usan `field_config.team_categories` (array, ya soporta multiples)
-- **Workspace members**: usan `workspace_memberships.team_category` (valor unico)
+Anadir un selector de plantillas en la parte superior del panel "Configuracion de Campos" (tanto en `CreateContactDialog` como en `EditContactDialog`). Al seleccionar una plantilla, se activan automaticamente los campos relevantes para ese tipo de miembro. El usuario puede seguir personalizando despues.
 
-En el perfil del contacto se ven las categorias correctamente (Banda, Equipo Artistico, Productor). En el grid de Equipos, el menu dice "Mover a" porque los workspace members solo tienen una categoria.
+## Las 6 plantillas propuestas
 
-## Solucion simplificada
+| Plantilla | Campos activados |
+|-----------|-----------------|
+| **Miembro de banda** | stage_name, legal_name, email, phone, address, bank_info, iban, clothing_size, shoe_size, allergies, preferred_hours |
+| **Equipo tecnico** | legal_name, email, phone, company, role, preferred_hours, special_needs |
+| **Management / Booking** | legal_name, email, phone, company, role, contract_url, notes |
+| **Legal / Editorial** | legal_name, email, phone, company, contract_url, bank_info, iban, notes |
+| **Produccion / Comunicacion** | stage_name, legal_name, email, phone, company, role, notes |
+| **Completo** | Todos los campos activados |
 
-**No crear una columna nueva.** En su lugar, unificar el comportamiento:
+## Interfaz
 
-### Para contacts (ya funciona)
-- `field_config.team_categories` ya es un array - el grid ya agrupa por multiples categorias (linea 675: `categories.includes(cat.value)`)
-- El menu "Mover a" se cambia a "Anadir a" con checkmarks toggle
-
-### Para workspace members
-- En vez de anadir `extra_categories`, reutilizar el **contact mirror** que ya existe (`mirror_contact_id`)
-- Cada workspace member ya puede tener un contact espejo donde se guardan datos extra (rol funcional, etc.)
-- Las categorias adicionales se guardan en el `field_config.team_categories` del contact espejo
-- El filtrado en el grid ya lee `team_categories` de contacts, asi que solo falta vincular
-
-### Cambios concretos
-
-**1. `src/components/TeamMemberCard.tsx`**
-- Reemplazar la lista plana "Mover a [categoria]" por un menu con checkmarks
-- Cada categoria muestra un check si el miembro ya pertenece a ella
-- Click = toggle (anadir o quitar)
-- Props nuevas: `onToggleCategory?: (category: string) => void`, `memberCategories?: string[]`
-
-**2. `src/pages/Teams.tsx`**
-
-Funcion `toggleMemberCategory(memberId, category, memberType)`:
-- **Si es contact**: lee `field_config.team_categories`, anade/quita la categoria del array, actualiza
-- **Si es workspace member**: actualiza `team_category` (la principal) si es la unica, o crea/actualiza el contact mirror con `team_categories` para las adicionales
-
-Modificar `allTeamByCategory`:
-- Para workspace members: ademas de `m.team_category === cat.value`, tambien verificar si su contact mirror tiene `team_categories` que incluya `cat.value`
-
-**3. `src/components/TeamMemberGrid.tsx`, `TeamMemberList.tsx`, `TeamMemberFreeCanvas.tsx`**
-- Pasar las nuevas props `onToggleCategory` y `memberCategories` a cada card
-
-## Flujo del usuario
+Debajo del titulo "Configuracion de Campos" se anade un `Select` (dropdown) con las 6 opciones. Al seleccionar una, se sobreescriben los toggles con la configuracion de la plantilla. Un valor extra "Personalizado" aparece automaticamente si el usuario modifica toggles manualmente despues de aplicar una plantilla.
 
 ```text
-Click en menu (···) de un miembro
-  |
-  v
-+---------------------------+
-| Editar                    |
-|---------------------------|
-| Categorias            >   |
-|   | [✓] Banda             |
-|   | [✓] Equipo Artistico  |
-|   | [ ] Management        |
-|   | [ ] Tecnico           |
-|   | ...                   |
-|---------------------------|
-| Quitar del equipo         |
-+---------------------------+
++----------------------------+
+| Configuracion de Campos    |
+|                            |
+| Plantilla:                 |
+| [ Miembro de banda    v ]  |
+|                            |
+| Nombre artistico    [ON]   |
+| Nombre legal        [ON]   |
+| Email               [ON]   |
+| ...                        |
++----------------------------+
 ```
 
-- Un solo submenu "Categorias" con toggles
-- Sin distincion entre "mover" y "anadir" - simplemente seleccionas donde quieres que aparezca
-- Minimo una categoria debe estar seleccionada
+## Detalles tecnicos
 
-## Archivos a modificar
+### Nuevo archivo: `src/lib/fieldConfigPresets.ts`
+Define las 6 plantillas como un map de nombre a objeto `fieldConfig` (los mismos campos del `FIELD_LABELS`).
+
+### Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/TeamMemberCard.tsx` | Submenu "Categorias" con checkmarks toggle |
-| `src/components/TeamMemberGrid.tsx` | Pasar props `onToggleCategory`, `memberCategories` |
-| `src/components/TeamMemberList.tsx` | Pasar props `onToggleCategory`, `memberCategories` |
-| `src/components/TeamMemberFreeCanvas.tsx` | Pasar props `onToggleCategory`, `memberCategories` |
-| `src/pages/Teams.tsx` | Funcion `toggleMemberCategory`, filtrado multi-cat para ws members |
+| `src/lib/fieldConfigPresets.ts` | Nuevo - definicion de las 6 plantillas |
+| `src/components/CreateContactDialog.tsx` | Anadir `Select` de plantillas antes de los toggles, aplicar preset al cambiar |
+| `src/components/EditContactDialog.tsx` | Mismo cambio que CreateContactDialog |
 
-No se necesita migracion de base de datos - se reutiliza la infraestructura existente de `field_config.team_categories` y contact mirrors.
+### Logica
+- Al seleccionar una plantilla del dropdown, se llama `setFieldConfig(PRESETS[selected])` sobrescribiendo todos los toggles
+- Si el usuario modifica un toggle despues, el dropdown cambia a "Personalizado"
+- La deteccion de "Personalizado" se hace comparando el estado actual con todos los presets
+
