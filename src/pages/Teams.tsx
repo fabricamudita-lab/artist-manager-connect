@@ -93,6 +93,7 @@ export default function Teams() {
   const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set());
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [restoredProfiles, setRestoredProfiles] = useState<any[] | null>(null);
+  const [ownerInfo, setOwnerInfo] = useState<{ name: string; avatarUrl?: string } | null>(null);
 
   // Restore dashboard state when navigating back
   useEffect(() => {
@@ -410,7 +411,15 @@ export default function Teams() {
         };
       });
 
-      setTeamMembers(formattedMembers);
+      // Extract owner and filter from visible members
+      const ownerMember = formattedMembers.find(m => m.role === 'OWNER');
+      if (ownerMember) {
+        setOwnerInfo({ name: ownerMember.full_name, avatarUrl: ownerMember.avatar_url });
+        setTeamMembers(formattedMembers.filter(m => m.role !== 'OWNER'));
+      } else {
+        setOwnerInfo(null);
+        setTeamMembers(formattedMembers);
+      }
     } catch (error) {
       console.error('Error fetching team members:', error);
     } finally {
@@ -1151,6 +1160,13 @@ export default function Teams() {
           </Button>
         </div>
       </div>
+
+      {/* Owner indicator */}
+      {ownerInfo && (
+        <p className="text-xs text-muted-foreground">
+          Gestionado por: <span className="font-medium">{ownerInfo.name}</span>
+        </p>
+      )}
 
       {/* Members Grid/List */}
       {teamMembers.length === 0 && teamContacts.length === 0 ? (
