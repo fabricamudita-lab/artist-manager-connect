@@ -208,7 +208,13 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
   }) => (
     <Card
       className={`hover:bg-muted/50 transition-colors ${onClick ? 'cursor-pointer' : ''}`}
-      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      onMouseUp={(e) => {
+        if (onClick) {
+          e.stopPropagation();
+          onClick();
+        }
+      }}
     >
       <CardContent className="p-3 flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
