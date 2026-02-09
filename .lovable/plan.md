@@ -1,69 +1,22 @@
 
 
-# Gestion de plantillas de campos
+# Eliminar opcion "Personalizado" del selector de plantillas
 
-## Resumen
+## Cambio
 
-Reemplazar el boton inline "Guardar como plantilla" por una opcion "Editar plantillas..." al final del listado del `Select`. Al hacer clic, se abre un Dialog de gestion donde se pueden:
-- Ver todas las plantillas (sistema + custom)
-- Guardar la configuracion actual como nueva plantilla
-- Eliminar plantillas custom (las del sistema aparecen con un candado, no eliminables)
-- Reordenar plantillas custom mediante drag-and-drop (las del sistema quedan fijas arriba)
+Quitar el `SelectItem` con valor `custom` y texto "Personalizado" del dropdown de plantillas en `CreateContactDialog.tsx` y `EditContactDialog.tsx`. Ya no tiene sentido mostrarlo como opcion seleccionable, puesto que el usuario puede crear sus propias plantillas con nombre desde "Editar plantillas...".
 
-## Interfaz del dialog "Editar plantillas"
+## Comportamiento tras el cambio
 
-```text
-+--------------------------------------+
-| Gestionar Plantillas                 |
-|--------------------------------------|
-| [Guardar config actual como nueva]   |
-|   (input nombre + boton guardar)     |
-|--------------------------------------|
-| Plantillas del sistema:              |
-|  🔒 Miembro de banda                 |
-|  🔒 Equipo tecnico                   |
-|  🔒 Management / Booking             |
-|  🔒 Legal / Editorial                |
-|  🔒 Produccion / Comunicacion        |
-|  🔒 Completo                         |
-|                                      |
-| Plantillas personalizadas:           |
-|  ≡ Test                    [🗑]      |
-|  ≡ Mi plantilla            [🗑]      |
-|--------------------------------------|
-|                          [Cerrar]    |
-+--------------------------------------+
-```
+- Si el usuario modifica manualmente los toggles y la configuracion no coincide con ninguna plantilla existente, el `Select` simplemente mostrara el valor vacio (sin texto) o el placeholder por defecto, pero no habra una opcion "Personalizado" en la lista.
+- La funcion `detectPreset` sigue devolviendo `'custom'` internamente cuando no hay coincidencia, pero ese valor ya no aparecera como item seleccionable en el dropdown.
 
-## Cambios en el Select de plantillas
-
-El dropdown actual ya muestra las plantillas. Se anade al final un `SelectItem` especial con valor `__manage__` que dice "Editar plantillas...". Al seleccionarlo, en vez de aplicar un preset, se abre el dialog de gestion.
-
-## Detalles tecnicos
-
-### Nuevo componente: `src/components/ManageFieldPresetsDialog.tsx`
-- Dialog con la lista de presets del sistema (solo lectura, icono candado) y custom (con boton eliminar y handle de drag)
-- Seccion superior con input para guardar la config actual como nueva plantilla
-- Usa `deleteCustomPreset` y `saveCustomPreset` de `fieldConfigPresets.ts`
-- Callback `onPresetsChanged` para refrescar el estado en los dialogs padre
-
-### Nuevo en `src/lib/fieldConfigPresets.ts`
-- `reorderCustomPresets(orderedKeys: string[])`: persiste el nuevo orden en localStorage
-- `isSystemPreset(key: string)`: helper para saber si es del sistema o custom
-
-### Modificar: `src/components/CreateContactDialog.tsx`
-- Quitar el boton inline "Guardar como plantilla" y el estado `savingPreset`/`newPresetName`
-- Anadir opcion "Editar plantillas..." al final del Select con valor `__manage__`
-- Interceptar en `applyPreset`: si value es `__manage__`, abrir el dialog en vez de aplicar
-- Importar y renderizar `ManageFieldPresetsDialog`
-
-### Modificar: `src/components/EditContactDialog.tsx`
-- Mismos cambios que CreateContactDialog
+## Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/ManageFieldPresetsDialog.tsx` | Nuevo - dialog de gestion de plantillas |
-| `src/lib/fieldConfigPresets.ts` | Anadir `reorderCustomPresets`, `isSystemPreset` |
-| `src/components/CreateContactDialog.tsx` | Reemplazar boton inline por opcion "Editar plantillas..." en Select |
-| `src/components/EditContactDialog.tsx` | Mismo cambio |
+| `src/components/CreateContactDialog.tsx` | Eliminar la linea `<SelectItem value="custom">Personalizado</SelectItem>` |
+| `src/components/EditContactDialog.tsx` | Eliminar la misma linea |
+
+Cambio minimo: solo se elimina una linea en cada archivo.
 
