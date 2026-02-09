@@ -420,18 +420,19 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
                     ))}
                   </ul>
                   <p className="text-sm">Los datos no se eliminan, solo dejan de ser visibles.</p>
+                  <p className="text-sm font-medium">¿Deseas mantener visibles los campos que ya contienen información?</p>
                 </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="gap-2">
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction asChild>
-                <Button variant="outline" onClick={() => confirmApplyPreset(true)}>
-                  Aplicar y mantener
+                <Button variant="outline" onClick={() => confirmApplyPreset(false)}>
+                  Ocultar
                 </Button>
               </AlertDialogAction>
-              <AlertDialogAction onClick={() => confirmApplyPreset(false)}>
-                Aplicar
+              <AlertDialogAction onClick={() => confirmApplyPreset(true)}>
+                Mantener
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
