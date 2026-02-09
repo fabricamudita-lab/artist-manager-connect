@@ -92,6 +92,22 @@ export default function Teams() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set());
   const [dashboardOpen, setDashboardOpen] = useState(false);
+  const [restoredProfiles, setRestoredProfiles] = useState<any[] | null>(null);
+
+  // Restore dashboard state when navigating back
+  useEffect(() => {
+    const saved = sessionStorage.getItem('contactDashboardProfiles');
+    if (saved) {
+      sessionStorage.removeItem('contactDashboardProfiles');
+      try {
+        const profiles = JSON.parse(saved);
+        if (Array.isArray(profiles) && profiles.length > 0) {
+          setRestoredProfiles(profiles);
+          setDashboardOpen(true);
+        }
+      } catch {}
+    }
+  }, []);
 
   const handleToggleSelect = useCallback((id: string) => {
     setSelectedMemberIds(prev => {
@@ -1331,8 +1347,11 @@ export default function Teams() {
       {/* Contact Dashboard Dialog */}
       <ContactDashboardDialog
         open={dashboardOpen}
-        onOpenChange={setDashboardOpen}
-        profiles={selectedProfiles}
+        onOpenChange={(open) => {
+          setDashboardOpen(open);
+          if (!open) setRestoredProfiles(null);
+        }}
+        profiles={restoredProfiles || selectedProfiles}
       />
 
       {/* Dialogs */}
