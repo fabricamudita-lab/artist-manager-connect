@@ -878,113 +878,107 @@ export default function Teams() {
   }
 
   return (
-    <div className={`p-6 space-y-6 ${viewMode === 'free' ? 'max-w-full' : 'container mx-auto'}`}>
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Equipos</h1>
-        <p className="text-muted-foreground">
-          Gestiona tu equipo por categorías y artistas
-        </p>
-      </div>
-
-      {/* Team Header with Dropdowns and Actions */}
-      <div className="flex items-center justify-between border-t pt-6">
+    <div className={`p-6 space-y-4 ${viewMode === 'free' ? 'max-w-full' : 'container mx-auto'}`}>
+      {/* Header row: title + actions */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Badge variant="secondary">
-            {allTeamByCategory.reduce((sum, cat) => sum + cat.total, 0)} miembros
+          <h1 className="text-2xl font-bold">Equipos</h1>
+          <Badge variant="secondary" className="text-xs">
+            {allTeamByCategory.reduce((sum, cat) => sum + cat.total, 0)}
           </Badge>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Team Dropdown */}
-          <TeamDropdown
-            teams={artists.map(a => ({
-              id: a.id,
-              name: a.name,
-              stageName: a.stage_name,
-              avatarUrl: a.avatar_url,
-              memberCount: teamMemberCounts.get(a.id) || 0,
-            }))}
-            selectedTeamId={selectedArtistId}
-            onTeamChange={setSelectedArtistId}
-            managementMemberCount={teamMembers.length}
-            onManageTeams={() => setTeamManagerOpen(true)}
-          />
-          
-          {/* Category Dropdown */}
-          {categoryPillsData.length > 0 && (
-            <CategoryDropdown
-              categories={categoryPillsData}
-              selectedCategory={selectedCategoryFilter}
-              onCategoryChange={setSelectedCategoryFilter}
-              allCount={allTeamByCategory.reduce((sum, cat) => sum + cat.total, 0)}
-              onManageCategories={() => setCategoryManagerOpen(true)}
-            />
-          )}
-          
-          {/* Search Input */}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Buscar..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 w-48 h-9"
-            />
-          </div>
-          
-          {/* View Toggle */}
-          <div className="flex gap-1 border rounded-md p-1">
-            <Button
-              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-              size="icon"
-              onClick={() => setViewMode('grid')}
-              className="h-8 w-8"
-              title="Cuadrícula"
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-              size="icon"
-              onClick={() => setViewMode('list')}
-              className="h-8 w-8"
-              title="Lista"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'free' ? 'secondary' : 'ghost'}
-              size="icon"
-              onClick={() => setViewMode('free')}
-              className="h-8 w-8"
-              title="Vista libre"
-            >
-              <Move className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Selection mode toggle */}
+        <div className="flex items-center gap-2">
           <Button
-            variant={selectionMode ? 'default' : 'outline'}
+            variant={selectionMode ? 'default' : 'ghost'}
             size="sm"
             onClick={() => {
               if (selectionMode) clearSelection();
               else setSelectionMode(true);
             }}
-            title="Seleccionar perfiles"
+            className="h-8"
           >
-            <MousePointerClick className="w-4 h-4 mr-2" />
+            <MousePointerClick className="w-3.5 h-3.5 mr-1.5" />
             {selectionMode ? 'Cancelar' : 'Seleccionar'}
           </Button>
-          
-          <Button variant="outline" onClick={() => setAddContactDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Añadir Perfil
+          <Button variant="outline" size="sm" className="h-8" onClick={() => setAddContactDialogOpen(true)}>
+            <Plus className="w-3.5 h-3.5 mr-1.5" />
+            Perfil
           </Button>
-          <Button onClick={() => setInviteDialogOpen(true)} disabled={!workspaceId}>
-            <Mail className="w-4 h-4 mr-2" />
-            Invitar Usuario
+          <Button size="sm" className="h-8" onClick={() => setInviteDialogOpen(true)} disabled={!workspaceId}>
+            <Mail className="w-3.5 h-3.5 mr-1.5" />
+            Invitar
+          </Button>
+        </div>
+      </div>
+
+      {/* Filters row: dropdowns + search + view toggle */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Team Dropdown */}
+        <TeamDropdown
+          teams={artists.map(a => ({
+            id: a.id,
+            name: a.name,
+            stageName: a.stage_name,
+            avatarUrl: a.avatar_url,
+            memberCount: teamMemberCounts.get(a.id) || 0,
+          }))}
+          selectedTeamId={selectedArtistId}
+          onTeamChange={setSelectedArtistId}
+          managementMemberCount={teamMembers.length}
+          onManageTeams={() => setTeamManagerOpen(true)}
+        />
+        
+        {/* Category Dropdown */}
+        {categoryPillsData.length > 0 && (
+          <CategoryDropdown
+            categories={categoryPillsData}
+            selectedCategory={selectedCategoryFilter}
+            onCategoryChange={setSelectedCategoryFilter}
+            allCount={allTeamByCategory.reduce((sum, cat) => sum + cat.total, 0)}
+            onManageCategories={() => setCategoryManagerOpen(true)}
+          />
+        )}
+
+        {/* Search */}
+        <div className="relative ml-auto">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Buscar..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8 w-40 h-8 text-sm"
+          />
+        </div>
+        
+        {/* View Toggle */}
+        <div className="flex gap-0.5 border rounded-lg p-0.5">
+          <Button
+            variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+            size="icon"
+            onClick={() => setViewMode('grid')}
+            className="h-7 w-7"
+            title="Cuadrícula"
+          >
+            <Grid3X3 className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+            size="icon"
+            onClick={() => setViewMode('list')}
+            className="h-7 w-7"
+            title="Lista"
+          >
+            <List className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant={viewMode === 'free' ? 'secondary' : 'ghost'}
+            size="icon"
+            onClick={() => setViewMode('free')}
+            className="h-7 w-7"
+            title="Vista libre"
+          >
+            <Move className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
