@@ -753,11 +753,9 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
             </AlertDialogHeader>
             <AlertDialogFooter className="gap-2">
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction asChild>
-                <Button variant="outline" onClick={() => confirmApplyPreset(false)}>
-                  Ocultar
-                </Button>
-              </AlertDialogAction>
+              <Button variant="outline" onClick={() => confirmApplyPreset(false)}>
+                Ocultar
+              </Button>
               <AlertDialogAction onClick={() => confirmApplyPreset(true)}>
                 Mantener
               </AlertDialogAction>
