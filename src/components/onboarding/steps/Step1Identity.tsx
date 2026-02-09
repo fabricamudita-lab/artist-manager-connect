@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ImageCropperDialog } from '@/components/ui/image-cropper-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -24,6 +25,8 @@ export function Step1Identity({ formData, updateFormData, onValidationChange }: 
   const headerInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isUploadingHeader, setIsUploadingHeader] = useState(false);
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [cropType, setCropType] = useState<'avatar' | 'header'>('avatar');
 
   // Validate step
   useEffect(() => {
@@ -32,20 +35,19 @@ export function Step1Identity({ formData, updateFormData, onValidationChange }: 
   }, [formData.name, onValidationChange]);
 
   const handleImageUpload = async (
-    file: File,
+    blob: Blob,
     type: 'avatar' | 'header'
   ) => {
     const setLoading = type === 'avatar' ? setIsUploadingAvatar : setIsUploadingHeader;
     setLoading(true);
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${type}-${Date.now()}.${fileExt}`;
+      const fileName = `${type}-${Date.now()}.jpg`;
       const filePath = `temp/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('artist-assets')
-        .upload(filePath, file);
+        .upload(filePath, blob, { contentType: 'image/jpeg' });
 
       if (uploadError) throw uploadError;
 
@@ -107,7 +109,10 @@ export function Step1Identity({ formData, updateFormData, onValidationChange }: 
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) handleImageUpload(file, 'avatar');
+              if (file) {
+                setCropType('avatar');
+                setCropFile(file);
+              }
             }}
           />
         </div>
@@ -145,11 +150,28 @@ export function Step1Identity({ formData, updateFormData, onValidationChange }: 
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) handleImageUpload(file, 'header');
+              if (file) {
+                setCropType('header');
+                setCropFile(file);
+              }
             }}
           />
         </div>
       </div>
+
+      <ImageCropperDialog
+        file={cropFile}
+        open={!!cropFile}
+        onCancel={() => setCropFile(null)}
+        onConfirm={(blob) => {
+          const type = cropType;
+          setCropFile(null);
+          handleImageUpload(blob, type);
+        }}
+        aspectRatio={cropType === 'avatar' ? 1 : 16 / 9}
+        circular={cropType === 'avatar'}
+        title={cropType === 'avatar' ? 'Ajustar avatar' : 'Ajustar cabecera'}
+      />
 
       {/* Name Fields */}
       <div className="grid md:grid-cols-2 gap-4">

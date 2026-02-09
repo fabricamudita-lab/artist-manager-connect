@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { ImageCropperDialog } from "@/components/ui/image-cropper-dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -104,6 +105,7 @@ export function ContactProfileSheet({
   const [assignedArtists, setAssignedArtists] = useState<AssignedArtist[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -208,23 +210,26 @@ export function ContactProfileSheet({
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !contact) return;
-
     if (!file.type.startsWith('image/')) {
       toast({ title: "Solo se permiten imágenes", variant: "destructive" });
       return;
     }
+    setCropFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
+  const handleAvatarUpload = async (blob: Blob) => {
+    if (!contact) return;
     setUploadingAvatar(true);
     try {
-      const ext = file.name.split('.').pop();
-      const filePath = `${contact.id}/${Date.now()}.${ext}`;
+      const filePath = `${contact.id}/${Date.now()}.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from('contact-avatars')
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, blob, { upsert: true, contentType: 'image/jpeg' });
 
       if (uploadError) throw uploadError;
 
@@ -246,7 +251,6 @@ export function ContactProfileSheet({
       toast({ title: "Error al subir la foto", variant: "destructive" });
     } finally {
       setUploadingAvatar(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -360,9 +364,22 @@ export function ContactProfileSheet({
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={handleAvatarUpload}
+                  onChange={handleFileSelect}
                 />
               </div>
+
+              <ImageCropperDialog
+                file={cropFile}
+                open={!!cropFile}
+                onCancel={() => setCropFile(null)}
+                onConfirm={(blob) => {
+                  setCropFile(null);
+                  handleAvatarUpload(blob);
+                }}
+                aspectRatio={1}
+                circular
+                title="Ajustar foto de perfil"
+              />
               <div className="flex-1 min-w-0">
                 <InlineEdit
                   value={contact.name}

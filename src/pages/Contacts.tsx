@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { ImageCropperDialog } from '@/components/ui/image-cropper-dialog';
 import { User, Shield, Mail, Phone, MapPin, Building, Edit2, Upload, X, FileImage, Eye, Download, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,6 +98,8 @@ function ProfileTab() {
   const [saving, setSaving] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [docCropFile, setDocCropFile] = useState<File | null>(null);
+  const [docCropType, setDocCropType] = useState<'dni' | 'passport' | 'drivers_license'>('dni');
   const dniInputRef = useRef<HTMLInputElement>(null);
   const passportInputRef = useRef<HTMLInputElement>(null);
   const licenseInputRef = useRef<HTMLInputElement>(null);
@@ -354,7 +357,11 @@ function ProfileTab() {
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) handleDocumentUpload(file, docType);
+            if (file) {
+              setDocCropType(docType);
+              setDocCropFile(file);
+            }
+            if (inputRef.current) inputRef.current.value = '';
           }}
         />
         {filePath ? (
@@ -639,6 +646,20 @@ function ProfileTab() {
               <DocumentUploadCard label="Pasaporte" docType="passport" filePath={profile?.passport_photo_url} inputRef={passportInputRef} />
               <DocumentUploadCard label="Carné de Conducir" docType="drivers_license" filePath={profile?.drivers_license_photo_url} inputRef={licenseInputRef} />
             </div>
+
+            <ImageCropperDialog
+              file={docCropFile}
+              open={!!docCropFile}
+              onCancel={() => setDocCropFile(null)}
+              onConfirm={(blob) => {
+                const type = docCropType;
+                setDocCropFile(null);
+                const blobFile = new File([blob], `${type}.jpg`, { type: 'image/jpeg' });
+                handleDocumentUpload(blobFile, type);
+              }}
+              aspectRatio={3 / 2}
+              title="Ajustar documento"
+            />
 
             {/* Observaciones */}
             <div className="md:col-span-2 mt-4">
