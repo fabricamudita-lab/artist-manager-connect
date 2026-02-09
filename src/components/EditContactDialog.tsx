@@ -350,7 +350,7 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
         if (hasData) adjusted[field] = true;
       });
       setFieldConfig(adjusted);
-      setSelectedPreset(detectPreset(adjusted));
+      setSelectedPreset(pendingPreset);
     } else {
       setFieldConfig(preset.config);
       setSelectedPreset(pendingPreset);
