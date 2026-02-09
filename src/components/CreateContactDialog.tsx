@@ -11,7 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ContactTagsInput } from './ContactTagsInput';
-import { FIELD_PRESETS, detectPreset } from '@/lib/fieldConfigPresets';
+import { FIELD_PRESETS, detectPreset, getAllPresets, saveCustomPreset } from '@/lib/fieldConfigPresets';
+import { Save } from 'lucide-react';
 
 interface CreateContactDialogProps {
   open: boolean;
@@ -62,6 +63,9 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
   const [loading, setLoading] = useState(false);
   const [fieldConfig, setFieldConfig] = useState<Record<string, boolean>>(DEFAULT_FIELD_CONFIG);
   const [selectedPreset, setSelectedPreset] = useState(() => detectPreset(DEFAULT_FIELD_CONFIG));
+  const [allPresets, setAllPresets] = useState(() => getAllPresets());
+  const [savingPreset, setSavingPreset] = useState(false);
+  const [newPresetName, setNewPresetName] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: '',
@@ -179,11 +183,22 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
 
   const applyPreset = (presetKey: string) => {
     if (presetKey === 'custom') return;
-    const preset = FIELD_PRESETS[presetKey];
+    const all = getAllPresets();
+    const preset = all[presetKey];
     if (preset) {
       setFieldConfig(preset.config);
       setSelectedPreset(presetKey);
     }
+  };
+
+  const handleSavePreset = () => {
+    if (!newPresetName.trim()) return;
+    const key = saveCustomPreset(newPresetName.trim(), fieldConfig);
+    setAllPresets(getAllPresets());
+    setSelectedPreset(key);
+    setSavingPreset(false);
+    setNewPresetName("");
+    toast({ title: "Plantilla guardada", description: `"${newPresetName.trim()}" se ha guardado correctamente.` });
   };
 
   const renderField = (field: keyof typeof formData, type: 'input' | 'textarea' = 'input') => {
@@ -228,12 +243,37 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(FIELD_PRESETS).map(([key, preset]) => (
+                    {Object.entries(allPresets).map(([key, preset]) => (
                       <SelectItem key={key} value={key}>{preset.label}</SelectItem>
                     ))}
                     <SelectItem value="custom">Personalizado</SelectItem>
                   </SelectContent>
                 </Select>
+                {savingPreset ? (
+                  <div className="flex gap-1.5 mt-1.5">
+                    <Input
+                      value={newPresetName}
+                      onChange={(e) => setNewPresetName(e.target.value)}
+                      placeholder="Nombre de la plantilla"
+                      className="h-8 text-sm"
+                      autoFocus
+                      onKeyDown={(e) => e.key === 'Enter' && handleSavePreset()}
+                    />
+                    <Button size="sm" variant="ghost" className="h-8 px-2" onClick={handleSavePreset} disabled={!newPresetName.trim()}>
+                      <Save className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-full justify-start text-xs text-muted-foreground mt-1"
+                    onClick={() => setSavingPreset(true)}
+                  >
+                    <Save className="w-3 h-3 mr-1" />
+                    Guardar como plantilla
+                  </Button>
+                )}
               </div>
               <Separator className="my-2" />
               {Object.entries(FIELD_LABELS).map(([field, label]) => (

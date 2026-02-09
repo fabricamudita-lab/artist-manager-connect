@@ -108,8 +108,41 @@ export const FIELD_PRESETS: Record<string, FieldPreset> = {
 /**
  * Returns the preset key matching the current field config, or 'custom' if none match.
  */
+const CUSTOM_PRESETS_KEY = 'cityzen_custom_field_presets';
+
+export function getCustomPresets(): Record<string, FieldPreset> {
+  try {
+    const stored = localStorage.getItem(CUSTOM_PRESETS_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveCustomPreset(name: string, config: FieldConfig): string {
+  const custom = getCustomPresets();
+  const key = `custom_${Date.now()}`;
+  custom[key] = { label: name, config: { ...config } };
+  localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(custom));
+  return key;
+}
+
+export function deleteCustomPreset(key: string) {
+  const custom = getCustomPresets();
+  delete custom[key];
+  localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(custom));
+}
+
+export function getAllPresets(): Record<string, FieldPreset> {
+  return { ...FIELD_PRESETS, ...getCustomPresets() };
+}
+
+/**
+ * Returns the preset key matching the current field config, or 'custom' if none match.
+ */
 export function detectPreset(current: FieldConfig): string {
-  for (const [key, preset] of Object.entries(FIELD_PRESETS)) {
+  const all = getAllPresets();
+  for (const [key, preset] of Object.entries(all)) {
     const match = Object.keys(preset.config).every(
       field => !!current[field] === !!preset.config[field]
     );
