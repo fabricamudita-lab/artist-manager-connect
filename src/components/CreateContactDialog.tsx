@@ -224,7 +224,7 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
         if (hasData) adjusted[field] = true;
       });
       setFieldConfig(adjusted);
-      setSelectedPreset(detectPreset(adjusted));
+      setSelectedPreset(pendingPreset);
     } else {
       setFieldConfig(preset.config);
       setSelectedPreset(pendingPreset);
