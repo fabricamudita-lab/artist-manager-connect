@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, DollarSign, Calendar, FileText, Music, FolderOpen, ArrowRight, Receipt } from 'lucide-react';
+import { Loader2, DollarSign, Calendar, FileText, Music, FolderOpen, ArrowRight, Receipt, Disc3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -34,6 +34,7 @@ interface DashboardData {
   transactions: any[];
   songSplits: any[];
   trackCredits: any[];
+  releases: any[];
 }
 
 const getArtistIds = (profiles: SelectedProfile[]): string[] =>
@@ -53,6 +54,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
     transactions: [],
     songSplits: [],
     trackCredits: [],
+    releases: [],
   });
   const navigate = useNavigate();
 
@@ -93,6 +95,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
         songSplitsRes,
         trackCreditsRes,
         bookingsRes,
+        releasesRes,
       ] = await Promise.all([
         contactIds.length > 0
           ? supabase.from('budget_items').select('*, budgets(name, status)').in('contact_id', contactIds)
@@ -118,6 +121,9 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
         artistIds.length > 0
           ? supabase.from('booking_offers').select('*, artists(name)').in('artist_id', artistIds)
           : Promise.resolve({ data: [] }),
+        artistIds.length > 0
+          ? supabase.from('releases').select('*').in('artist_id', artistIds)
+          : Promise.resolve({ data: [] }),
       ]);
 
       setData({
@@ -129,6 +135,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
         transactions: transactionsRes.data || [],
         songSplits: songSplitsRes.data || [],
         trackCredits: trackCreditsRes.data || [],
+        releases: releasesRes.data || [],
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -145,7 +152,8 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
     data.projects.length +
     data.transactions.length +
     data.songSplits.length +
-    data.trackCredits.length;
+    data.trackCredits.length +
+    data.releases.length;
 
   const tabCounts = {
     presupuestos: data.budgetItems.length,
@@ -154,6 +162,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
     sync: data.syncOffers.length,
     proyectos: data.projects.length,
     transacciones: data.transactions.length,
+    discografia: data.releases.length,
     musica: data.songSplits.length + data.trackCredits.length,
   };
 
@@ -267,6 +276,10 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
                 <Receipt className="h-3.5 w-3.5 mr-1" />
                 Transacciones ({tabCounts.transacciones})
               </TabsTrigger>
+              <TabsTrigger value="discografia">
+                <Disc3 className="h-3.5 w-3.5 mr-1" />
+                Discografía ({tabCounts.discografia})
+              </TabsTrigger>
               <TabsTrigger value="musica">
                 <Music className="h-3.5 w-3.5 mr-1" />
                 Música ({tabCounts.musica})
@@ -360,6 +373,20 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
                         ))}
                       </Section>
                     )}
+                    {data.releases.length > 0 && (
+                      <Section title="Discografía" icon={<Disc3 className="h-4 w-4" />} count={data.releases.length}>
+                        {data.releases.map(item => (
+                          <ItemCard
+                            key={`release-${item.id}`}
+                            title={item.title || 'Release'}
+                            subtitle={item.release_type}
+                            status={item.status}
+                            date={item.release_date || item.created_at}
+                            onClick={() => { onOpenChange(false); navigate(`/releases/${item.id}`); }}
+                          />
+                        ))}
+                      </Section>
+                    )}
                     {(data.songSplits.length > 0 || data.trackCredits.length > 0) && (
                       <Section title="Música" icon={<Music className="h-4 w-4" />} count={data.songSplits.length + data.trackCredits.length}>
                         {data.songSplits.map(item => (
@@ -416,6 +443,12 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
               <TabsContent value="transacciones" className="space-y-2 m-0">
                 {data.transactions.length === 0 ? <EmptyState label="transacciones" /> : data.transactions.map(item => (
                   <ItemCard key={item.id} title={item.description || 'Transacción'} subtitle={item.amount ? `${item.amount} ${item.currency || '€'}` : undefined} status={item.status} date={item.date || item.created_at} />
+                ))}
+              </TabsContent>
+
+              <TabsContent value="discografia" className="space-y-2 m-0">
+                {data.releases.length === 0 ? <EmptyState label="discografía" /> : data.releases.map(item => (
+                  <ItemCard key={`release-${item.id}`} title={item.title || 'Release'} subtitle={item.release_type} status={item.status} date={item.release_date || item.created_at} onClick={() => { onOpenChange(false); navigate(`/releases/${item.id}`); }} />
                 ))}
               </TabsContent>
 
