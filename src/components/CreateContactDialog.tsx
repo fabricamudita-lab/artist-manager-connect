@@ -6,10 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ContactTagsInput } from './ContactTagsInput';
+import { FIELD_PRESETS, detectPreset } from '@/lib/fieldConfigPresets';
 
 interface CreateContactDialogProps {
   open: boolean;
@@ -58,7 +60,8 @@ const FIELD_LABELS = {
 
 export function CreateContactDialog({ open, onOpenChange, onContactCreated }: CreateContactDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [fieldConfig, setFieldConfig] = useState(DEFAULT_FIELD_CONFIG);
+  const [fieldConfig, setFieldConfig] = useState<Record<string, boolean>>(DEFAULT_FIELD_CONFIG);
+  const [selectedPreset, setSelectedPreset] = useState(() => detectPreset(DEFAULT_FIELD_CONFIG));
   const [tags, setTags] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: '',
@@ -169,7 +172,18 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
   };
 
   const updateFieldConfig = (field: string, enabled: boolean) => {
-    setFieldConfig(prev => ({ ...prev, [field]: enabled }));
+    const next = { ...fieldConfig, [field]: enabled };
+    setFieldConfig(next);
+    setSelectedPreset(detectPreset(next));
+  };
+
+  const applyPreset = (presetKey: string) => {
+    if (presetKey === 'custom') return;
+    const preset = FIELD_PRESETS[presetKey];
+    if (preset) {
+      setFieldConfig(preset.config);
+      setSelectedPreset(presetKey);
+    }
   };
 
   const renderField = (field: keyof typeof formData, type: 'input' | 'textarea' = 'input') => {
@@ -207,6 +221,21 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
               <CardTitle className="text-lg">Configuración de Campos</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-sm">Plantilla</Label>
+                <Select value={selectedPreset} onValueChange={applyPreset}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(FIELD_PRESETS).map(([key, preset]) => (
+                      <SelectItem key={key} value={key}>{preset.label}</SelectItem>
+                    ))}
+                    <SelectItem value="custom">Personalizado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Separator className="my-2" />
               {Object.entries(FIELD_LABELS).map(([field, label]) => (
                 <div key={field} className="flex items-center justify-between">
                   <Label htmlFor={`config-${field}`} className="text-sm">
