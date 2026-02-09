@@ -20,6 +20,9 @@ interface TeamMemberGridProps {
   onCategoryChange?: (memberId: string, category: string) => void;
   categories?: Array<{ value: string; label: string }>;
   showActions?: boolean;
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onSelect?: (id: string) => void;
 }
 
 export function TeamMemberGrid({
@@ -31,6 +34,9 @@ export function TeamMemberGrid({
   onCategoryChange,
   categories = [],
   showActions = true,
+  selectable = false,
+  selectedIds = new Set(),
+  onSelect,
 }: TeamMemberGridProps) {
   if (members.length === 0) {
     return null;
@@ -55,6 +61,9 @@ export function TeamMemberGrid({
           categories={categories}
           currentCategory={member.currentCategory}
           showActions={showActions}
+          selectable={selectable}
+          selected={selectedIds.has(member.id)}
+          onSelect={onSelect}
         />
       ))}
     </div>

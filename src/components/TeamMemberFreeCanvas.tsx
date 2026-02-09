@@ -33,6 +33,9 @@ interface TeamMemberFreeCanvasProps {
   showActions?: boolean;
   /** Context key to separate position storage (e.g., artistId or 'all') */
   contextKey?: string;
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onSelect?: (id: string) => void;
 }
 
 const STORAGE_KEY_PREFIX = 'team_member_positions';
@@ -99,6 +102,9 @@ export function TeamMemberFreeCanvas({
   categories = [],
   showActions = true,
   contextKey = 'default',
+  selectable = false,
+  selectedIds = new Set(),
+  onSelect,
 }: TeamMemberFreeCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [positions, setPositions] = useState<Record<string, Position>>({});
@@ -289,6 +295,9 @@ export function TeamMemberFreeCanvas({
               currentCategory={member.currentCategory}
               showActions={showActions}
               containerRef={containerRef}
+              selectable={selectable}
+              selected={selectedIds.has(member.id)}
+              onSelect={onSelect}
             />
           );
         })}

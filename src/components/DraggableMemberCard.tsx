@@ -32,6 +32,9 @@ interface DraggableMemberCardProps {
   currentCategory?: string;
   showActions?: boolean;
   containerRef: React.RefObject<HTMLDivElement>;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (id: string) => void;
 }
 
 export function DraggableMemberCard({
@@ -53,6 +56,9 @@ export function DraggableMemberCard({
   currentCategory,
   showActions,
   containerRef,
+  selectable,
+  selected,
+  onSelect,
 }: DraggableMemberCardProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<Position>({ x: 0, y: 0 });
@@ -199,6 +205,9 @@ export function DraggableMemberCard({
         categories={categories}
         currentCategory={currentCategory}
         showActions={showActions}
+        selectable={selectable}
+        selected={selected}
+        onSelect={onSelect}
       />
     </div>
   );

@@ -25,6 +25,9 @@ interface TeamMemberListProps {
   onMemberEditRole?: (member: Member) => void;
   categories?: Array<{ value: string; label: string }>;
   showActions?: boolean;
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onSelect?: (id: string) => void;
 }
 
 export function TeamMemberList({
@@ -33,6 +36,9 @@ export function TeamMemberList({
   onMemberEdit,
   onMemberRemove,
   showActions = true,
+  selectable = false,
+  selectedIds = new Set(),
+  onSelect,
 }: TeamMemberListProps) {
   if (members.length === 0) {
     return null;
@@ -61,10 +67,28 @@ export function TeamMemberList({
         return (
           <Card 
             key={member.id} 
-            className="hover:bg-muted/50 transition-colors cursor-pointer"
+            className={`hover:bg-muted/50 transition-colors cursor-pointer ${selectedIds.has(member.id) ? 'ring-2 ring-primary' : ''}`}
             onClick={() => onMemberClick?.(member)}
           >
             <CardContent className="p-3 flex items-center gap-3">
+              {selectable && (
+                <div
+                  className="shrink-0"
+                  onClick={(e) => { e.stopPropagation(); onSelect?.(member.id); }}
+                >
+                  <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer ${
+                    selectedIds.has(member.id) 
+                      ? 'bg-primary border-primary' 
+                      : 'border-muted-foreground/40 hover:border-primary/60'
+                  }`}>
+                    {selectedIds.has(member.id) && (
+                      <svg className="h-3 w-3 text-primary-foreground" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="relative">
                 <Avatar className={`h-10 w-10 ${typeStyles.ring}`}>
                   {member.avatarUrl && <AvatarImage src={member.avatarUrl} alt={member.name} />}
