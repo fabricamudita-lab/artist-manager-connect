@@ -1,55 +1,69 @@
 
 
-# Plantillas predeterminadas para Configuracion de Campos
+# Gestion de plantillas de campos
 
 ## Resumen
 
-Anadir un selector de plantillas en la parte superior del panel "Configuracion de Campos" (tanto en `CreateContactDialog` como en `EditContactDialog`). Al seleccionar una plantilla, se activan automaticamente los campos relevantes para ese tipo de miembro. El usuario puede seguir personalizando despues.
+Reemplazar el boton inline "Guardar como plantilla" por una opcion "Editar plantillas..." al final del listado del `Select`. Al hacer clic, se abre un Dialog de gestion donde se pueden:
+- Ver todas las plantillas (sistema + custom)
+- Guardar la configuracion actual como nueva plantilla
+- Eliminar plantillas custom (las del sistema aparecen con un candado, no eliminables)
+- Reordenar plantillas custom mediante drag-and-drop (las del sistema quedan fijas arriba)
 
-## Las 6 plantillas propuestas
-
-| Plantilla | Campos activados |
-|-----------|-----------------|
-| **Miembro de banda** | stage_name, legal_name, email, phone, address, bank_info, iban, clothing_size, shoe_size, allergies, preferred_hours |
-| **Equipo tecnico** | legal_name, email, phone, company, role, preferred_hours, special_needs |
-| **Management / Booking** | legal_name, email, phone, company, role, contract_url, notes |
-| **Legal / Editorial** | legal_name, email, phone, company, contract_url, bank_info, iban, notes |
-| **Produccion / Comunicacion** | stage_name, legal_name, email, phone, company, role, notes |
-| **Completo** | Todos los campos activados |
-
-## Interfaz
-
-Debajo del titulo "Configuracion de Campos" se anade un `Select` (dropdown) con las 6 opciones. Al seleccionar una, se sobreescriben los toggles con la configuracion de la plantilla. Un valor extra "Personalizado" aparece automaticamente si el usuario modifica toggles manualmente despues de aplicar una plantilla.
+## Interfaz del dialog "Editar plantillas"
 
 ```text
-+----------------------------+
-| Configuracion de Campos    |
-|                            |
-| Plantilla:                 |
-| [ Miembro de banda    v ]  |
-|                            |
-| Nombre artistico    [ON]   |
-| Nombre legal        [ON]   |
-| Email               [ON]   |
-| ...                        |
-+----------------------------+
++--------------------------------------+
+| Gestionar Plantillas                 |
+|--------------------------------------|
+| [Guardar config actual como nueva]   |
+|   (input nombre + boton guardar)     |
+|--------------------------------------|
+| Plantillas del sistema:              |
+|  🔒 Miembro de banda                 |
+|  🔒 Equipo tecnico                   |
+|  🔒 Management / Booking             |
+|  🔒 Legal / Editorial                |
+|  🔒 Produccion / Comunicacion        |
+|  🔒 Completo                         |
+|                                      |
+| Plantillas personalizadas:           |
+|  ≡ Test                    [🗑]      |
+|  ≡ Mi plantilla            [🗑]      |
+|--------------------------------------|
+|                          [Cerrar]    |
++--------------------------------------+
 ```
+
+## Cambios en el Select de plantillas
+
+El dropdown actual ya muestra las plantillas. Se anade al final un `SelectItem` especial con valor `__manage__` que dice "Editar plantillas...". Al seleccionarlo, en vez de aplicar un preset, se abre el dialog de gestion.
 
 ## Detalles tecnicos
 
-### Nuevo archivo: `src/lib/fieldConfigPresets.ts`
-Define las 6 plantillas como un map de nombre a objeto `fieldConfig` (los mismos campos del `FIELD_LABELS`).
+### Nuevo componente: `src/components/ManageFieldPresetsDialog.tsx`
+- Dialog con la lista de presets del sistema (solo lectura, icono candado) y custom (con boton eliminar y handle de drag)
+- Seccion superior con input para guardar la config actual como nueva plantilla
+- Usa `deleteCustomPreset` y `saveCustomPreset` de `fieldConfigPresets.ts`
+- Callback `onPresetsChanged` para refrescar el estado en los dialogs padre
 
-### Archivos a modificar
+### Nuevo en `src/lib/fieldConfigPresets.ts`
+- `reorderCustomPresets(orderedKeys: string[])`: persiste el nuevo orden en localStorage
+- `isSystemPreset(key: string)`: helper para saber si es del sistema o custom
+
+### Modificar: `src/components/CreateContactDialog.tsx`
+- Quitar el boton inline "Guardar como plantilla" y el estado `savingPreset`/`newPresetName`
+- Anadir opcion "Editar plantillas..." al final del Select con valor `__manage__`
+- Interceptar en `applyPreset`: si value es `__manage__`, abrir el dialog en vez de aplicar
+- Importar y renderizar `ManageFieldPresetsDialog`
+
+### Modificar: `src/components/EditContactDialog.tsx`
+- Mismos cambios que CreateContactDialog
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/lib/fieldConfigPresets.ts` | Nuevo - definicion de las 6 plantillas |
-| `src/components/CreateContactDialog.tsx` | Anadir `Select` de plantillas antes de los toggles, aplicar preset al cambiar |
-| `src/components/EditContactDialog.tsx` | Mismo cambio que CreateContactDialog |
-
-### Logica
-- Al seleccionar una plantilla del dropdown, se llama `setFieldConfig(PRESETS[selected])` sobrescribiendo todos los toggles
-- Si el usuario modifica un toggle despues, el dropdown cambia a "Personalizado"
-- La deteccion de "Personalizado" se hace comparando el estado actual con todos los presets
+| `src/components/ManageFieldPresetsDialog.tsx` | Nuevo - dialog de gestion de plantillas |
+| `src/lib/fieldConfigPresets.ts` | Anadir `reorderCustomPresets`, `isSystemPreset` |
+| `src/components/CreateContactDialog.tsx` | Reemplazar boton inline por opcion "Editar plantillas..." en Select |
+| `src/components/EditContactDialog.tsx` | Mismo cambio |
 
