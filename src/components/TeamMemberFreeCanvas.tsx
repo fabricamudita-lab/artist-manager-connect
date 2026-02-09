@@ -29,6 +29,8 @@ interface TeamMemberFreeCanvasProps {
   onMemberRemove?: (member: Member) => void;
   onMemberEditRole?: (member: Member) => void;
   onCategoryChange?: (memberId: string, newCategory: string) => void;
+  onToggleCategory?: (memberId: string, category: string) => void;
+  getMemberCategories?: (member: Member) => string[];
   categories?: Array<{ value: string; label: string }>;
   showActions?: boolean;
   /** Context key to separate position storage (e.g., artistId or 'all') */
@@ -99,6 +101,8 @@ export function TeamMemberFreeCanvas({
   onMemberRemove,
   onMemberEditRole,
   onCategoryChange,
+  onToggleCategory,
+  getMemberCategories,
   categories = [],
   showActions = true,
   contextKey = 'default',
@@ -291,6 +295,8 @@ export function TeamMemberFreeCanvas({
               onRemove={() => onMemberRemove?.(member)}
               onEditRole={() => onMemberEditRole?.(member)}
               onCategoryChange={onCategoryChange ? (cat) => onCategoryChange(member.id, cat) : undefined}
+              onToggleCategory={onToggleCategory ? (cat) => onToggleCategory(member.id, cat) : undefined}
+              memberCategories={getMemberCategories ? getMemberCategories(member) : []}
               categories={categories}
               currentCategory={member.currentCategory}
               showActions={showActions}
