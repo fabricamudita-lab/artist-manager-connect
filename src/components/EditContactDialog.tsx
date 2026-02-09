@@ -372,7 +372,7 @@ export function EditContactDialog({ contact, open, onOpenChange, onContactUpdate
                     {Object.entries(allPresets).map(([key, preset]) => (
                       <SelectItem key={key} value={key}>{preset.label}</SelectItem>
                     ))}
-                    <SelectItem value="custom">Personalizado</SelectItem>
+                    
                     <SelectItem value="__manage__">
                       <span className="flex items-center gap-1.5">
                         <Settings2 className="w-3.5 h-3.5" />
