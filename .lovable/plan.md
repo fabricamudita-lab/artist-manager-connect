@@ -1,97 +1,51 @@
 
 
-# Plan: Dashboard de Perfil(es) en Equipos
+# Fix: Dashboard de Perfiles vacio para artistas
 
-## Resumen
+## Problema encontrado
 
-Crear un boton en la barra de herramientas de Equipos que permita seleccionar uno o varios perfiles y abrir un "Dashboard de Perfil" completo. Este dashboard mostrara toda la actividad vinculada: presupuestos, bookings, solicitudes, sincronizaciones, hojas de ruta, canciones/creditos, proyectos y transacciones.
+Hay dos bugs que causan que el dashboard aparezca vacio:
 
-## Cambios en la experiencia de usuario
+1. **ID con prefijo "artist-"**: Cuando un miembro aparece como artista (no como contacto), su `id` interno es `"artist-bf35084f..."` en vez del UUID limpio. Este ID se pasa tanto como `id` (para queries por contact_id) como `artistId` (para queries de bookings), haciendo que todas las consultas fallen porque no coincide con ningun registro en la base de datos.
 
-1. **Seleccion multiple**: Anadir checkboxes a las tarjetas de miembros (grid/list/free) para seleccionar uno o varios perfiles
-2. **Barra de accion**: Cuando hay perfiles seleccionados, mostrar una barra flotante con el boton "Ver Dashboard" y el conteo de seleccionados
-3. **Dialog Dashboard**: Un dialog a pantalla casi completa con pestanas por tipo de recurso, mostrando datos agregados de todos los perfiles seleccionados
+2. **Campo incorrecto en la UI**: El dialog usa `item.description` para budget_items pero la columna real es `name`.
 
-## Datos a consultar por contact_id
+## Solucion
 
-| Tabla | Relacion | Que muestra |
-|-------|----------|-------------|
-| `budget_items` | `contact_id` | Partidas de presupuesto vinculadas |
-| `booking_offers` | texto `tour_manager`/`contacto` | Conciertos/ofertas |
-| `booking_availability_responses` | `contact_id` | Respuestas de disponibilidad |
-| `solicitudes` | `contact_id`, `promotor_contact_id` | Solicitudes vinculadas |
-| `song_splits` | `collaborator_contact_id` | Splits de canciones |
-| `track_credits` | `contact_id` | Creditos de tracks |
-| `track_master_splits` | `contact_id` | Splits master |
-| `track_publishing_splits` | `contact_id` | Splits editoriales |
-| `sync_offers` | `contact_id`, `requester_contact_id` | Ofertas de sync |
-| `project_team` | `contact_id` | Proyectos asignados |
-| `royalty_splits` | `contact_id` | Splits de royalties |
-| `transactions` | `contact_id` | Transacciones/facturas |
-| `roadmaps` | via booking vinculado | Hojas de ruta |
+### 1. Corregir `src/pages/Teams.tsx` - Resolucion de artistId
 
-## Archivos a crear/modificar
+En el `useMemo` de `selectedProfiles` (linea ~857):
+- Para miembros tipo `artist`: usar `m.rawData?.artistId` (que contiene el UUID limpio del artista) en vez de `m.rawData?.id`
+- Tambien buscar en la tabla `artists` si existe un contacto con el mismo nombre para obtener su contact_id real
+- Limpiar el prefijo `artist-` del `id` para que sea un UUID valido
 
-### 1. Nuevo: `src/components/ContactDashboardDialog.tsx`
+```typescript
+// Antes (buggy):
+artistId: isArtist ? (m.rawData?.id || m.id) : contactArtistId,
 
-Dialog principal con:
-- Header mostrando los perfiles seleccionados (nombre, avatar, rol)
-- Pestanas: Todo, Presupuestos, Bookings, Solicitudes, Sincronizaciones, Canciones/Creditos, Proyectos, Transacciones
-- Cada pestana consulta la tabla correspondiente filtrando por los `contact_id` seleccionados
-- Indicadores de pendientes (solicitudes pendientes, presupuestos en borrador, etc.)
-- Links directos a cada recurso para navegar al detalle
-
-### 2. Modificar: `src/pages/Teams.tsx`
-
-- Anadir estado `selectedMemberIds: Set<string>` para la seleccion multiple
-- Pasar prop `selectable` y `selected` a los componentes de vista (grid/list/free)
-- Mostrar barra flotante cuando hay seleccion activa con boton "Ver Dashboard"
-- Integrar el nuevo `ContactDashboardDialog`
-
-### 3. Modificar: `src/components/TeamMemberCard.tsx`
-
-- Anadir prop opcional `selectable` y `selected`
-- Mostrar checkbox cuando `selectable=true`
-- Callback `onSelect(id)` al hacer click en checkbox
-
-### 4. Modificar: `src/components/TeamMemberGrid.tsx`
-
-- Propagar las props de seleccion a cada tarjeta
-
-### 5. Modificar: `src/components/TeamMemberList.tsx`
-
-- Propagar las props de seleccion a cada fila
-
-### 6. Modificar: `src/components/TeamMemberFreeCanvas.tsx` / `DraggableMemberCard.tsx`
-
-- Propagar las props de seleccion a cada tarjeta draggable
-
-## Detalle tecnico del Dashboard Dialog
-
-```text
-+--------------------------------------------------+
-| Dashboard de Perfil                         [X]   |
-| [Avatar] Pol Batlle  [Avatar] Maria Lopez         |
-|--------------------------------------------------|
-| Todo | Presupuestos | Bookings | Solicitudes | ...|
-|--------------------------------------------------|
-| [Cards con cada recurso vinculado]                |
-| - Nombre del recurso                              |
-| - Estado (badge)                                  |
-| - Fecha                                           |
-| - Link al detalle                                 |
-+--------------------------------------------------+
+// Despues (fix):
+artistId: isArtist ? m.rawData?.artistId : contactArtistId,
 ```
 
-Cada seccion mostrara:
-- Conteo total y desglose por estado
-- Lista de items con acceso directo
-- Indicador visual de items pendientes/urgentes
+Y para el `id` del perfil, cuando es un artista debemos usar el artistId directamente o buscar el contact_id correspondiente.
 
-## Flujo de seleccion
+### 2. Corregir `src/components/ContactDashboardDialog.tsx`
 
-1. El usuario hace click en el checkbox de una o varias tarjetas
-2. Aparece una barra flotante inferior: "3 perfiles seleccionados | [Ver Dashboard] [Limpiar]"
-3. Al pulsar "Ver Dashboard" se abre el dialog con datos agregados
-4. Se puede deseleccionar todo con "Limpiar" o haciendo click en los checkboxes
+- Cuando el perfil es un artista sin contact_id asociado, buscar el contacto correspondiente en la tabla `contacts` por `artist_id` para poder hacer queries por `contact_id`
+- Corregir `item.description` a `item.name` para budget_items
+- Anadir busqueda de contacto vinculado al artista para que las queries por `contact_id` tambien funcionen
+
+### Detalle tecnico
+
+En `ContactDashboardDialog.tsx`, antes de ejecutar las queries, el componente debera:
+
+1. Recoger todos los `artistId` de los perfiles seleccionados
+2. Si hay artistIds, buscar contactos en la tabla `contacts` donde `artist_id` coincida, y anadir esos contact_ids a la lista
+3. Tambien buscar contactos por nombre si no hay `artist_id` directo (fallback)
+4. Ejecutar todas las queries con la lista completa de contact_ids + artist_ids
+
+### Archivos a modificar
+
+- **`src/pages/Teams.tsx`**: Corregir la logica de `selectedProfiles` para pasar el `artistId` correcto (sin prefijo `artist-`)
+- **`src/components/ContactDashboardDialog.tsx`**: Resolver contact_ids desde artist_ids antes de hacer queries, y corregir el campo `description` a `name` en budget_items
 
