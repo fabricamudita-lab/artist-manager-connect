@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CreateContactDialog } from '@/components/CreateContactDialog';
 import { EditContactDialog } from '@/components/EditContactDialog';
 import { ContactShareDialog } from '@/components/ContactShareDialog';
@@ -42,6 +42,7 @@ interface Contact {
   tags?: string[];
   field_config: any;
   is_public: boolean;
+  avatar_url?: string;
   public_slug?: string;
   created_at: string;
   updated_at: string;
@@ -371,6 +372,9 @@ export default function Agenda() {
                 <CardContent className="p-4">
                   <div className="flex items-start gap-4">
                     <Avatar className="h-12 w-12">
+                      {contact.avatar_url && (
+                        <AvatarImage src={contact.avatar_url} alt={displayName} />
+                      )}
                       <AvatarFallback className="bg-primary/10 text-primary">
                         {displayName.slice(0, 2).toUpperCase()}
                       </AvatarFallback>

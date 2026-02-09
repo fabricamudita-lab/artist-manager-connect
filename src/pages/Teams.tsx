@@ -722,6 +722,7 @@ export default function Teams() {
         name: contact.stage_name || contact.name,
         email: contact.email,
         role: formattedRole,
+        avatarUrl: contact.avatar_url,
         type: 'profile' as MemberType,
         currentCategory: categoryValue,
         rawData: contact,
