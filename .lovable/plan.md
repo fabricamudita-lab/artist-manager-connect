@@ -1,100 +1,81 @@
 
-# Visualizador de ajuste de imagen universal
 
-## Resumen
+# Simplificar categorias: un unico sistema multi-categoria
 
-Crear un componente reutilizable `ImageCropperDialog` que se muestre automaticamente cada vez que el usuario selecciona una imagen (avatar, portada, cabecera, etc.) antes de subirla. Permite hacer zoom y mover la imagen para encuadrarla correctamente.
+## Problema actual
 
-## Componente nuevo: `ImageCropperDialog`
+Hay dos sistemas de categorias que hacen lo mismo:
+- **Contacts**: usan `field_config.team_categories` (array, ya soporta multiples)
+- **Workspace members**: usan `workspace_memberships.team_category` (valor unico)
 
-Se creara `src/components/ui/image-cropper-dialog.tsx` con las siguientes caracteristicas:
+En el perfil del contacto se ven las categorias correctamente (Banda, Equipo Artistico, Productor). En el grid de Equipos, el menu dice "Mover a" porque los workspace members solo tienen una categoria.
 
-- **Dialog modal** que muestra la imagen seleccionada
-- **Zoom automatico inicial** (1.2x) para que la imagen no quede exactamente al borde
-- **Slider de zoom** (1x a 3x) para ampliar o reducir
-- **Arrastrar para mover** (drag to pan) la imagen dentro del area visible
-- **Area de recorte visible** con bordes redondeados opcionales (circular para avatares, rectangular para portadas)
-- **Botones "Cancelar" y "Confirmar"** - al confirmar, genera un Blob recortado via canvas
-- Props: `file`, `open`, `onConfirm(croppedBlob: Blob)`, `onCancel`, `aspectRatio` (1 para avatares, 16/9 para cabeceras, etc.), `circular` (boolean)
+## Solucion simplificada
 
-La implementacion usara un `<canvas>` oculto para renderizar el recorte final. No se necesitan dependencias externas - se usara CSS transform para zoom/pan y Canvas API para el crop.
+**No crear una columna nueva.** En su lugar, unificar el comportamiento:
 
-## Integraciones (archivos a modificar)
+### Para contacts (ya funciona)
+- `field_config.team_categories` ya es un array - el grid ya agrupa por multiples categorias (linea 675: `categories.includes(cat.value)`)
+- El menu "Mover a" se cambia a "Anadir a" con checkmarks toggle
 
-Se interceptara el flujo de seleccion de archivo en cada punto de upload de imagenes:
+### Para workspace members
+- En vez de anadir `extra_categories`, reutilizar el **contact mirror** que ya existe (`mirror_contact_id`)
+- Cada workspace member ya puede tener un contact espejo donde se guardan datos extra (rol funcional, etc.)
+- Las categorias adicionales se guardan en el `field_config.team_categories` del contact espejo
+- El filtrado en el grid ya lee `team_categories` de contacts, asi que solo falta vincular
 
-1. **`src/components/ContactProfileSheet.tsx`** - `handleAvatarUpload`: abrir cropper antes de subir (circular, 1:1)
-2. **`src/components/onboarding/steps/Step1Identity.tsx`** - `handleImageUpload`: abrir cropper para avatar (circular 1:1) y header (16:9)
-3. **`src/pages/Contacts.tsx`** - `handleDocumentUpload`: abrir cropper para fotos de DNI/pasaporte (rectangular, libre)
-4. **`src/components/ArtistFormatsDialog.tsx`** - rider uploads (rectangular)
-5. **`src/components/onboarding/steps/Step5BookingFormats.tsx`** - rider uploads (rectangular)
+### Cambios concretos
 
-En cada caso, el patron sera:
-- El `onChange` del input ya no llama directamente al upload
-- En su lugar, guarda el archivo en estado y abre el `ImageCropperDialog`
-- Al confirmar el crop, se ejecuta la funcion de upload existente con el blob recortado
+**1. `src/components/TeamMemberCard.tsx`**
+- Reemplazar la lista plana "Mover a [categoria]" por un menu con checkmarks
+- Cada categoria muestra un check si el miembro ya pertenece a ella
+- Click = toggle (anadir o quitar)
+- Props nuevas: `onToggleCategory?: (category: string) => void`, `memberCategories?: string[]`
 
-## Detalles tecnicos
+**2. `src/pages/Teams.tsx`**
 
-### ImageCropperDialog - Funcionamiento interno
+Funcion `toggleMemberCategory(memberId, category, memberType)`:
+- **Si es contact**: lee `field_config.team_categories`, anade/quita la categoria del array, actualiza
+- **Si es workspace member**: actualiza `team_category` (la principal) si es la unica, o crea/actualiza el contact mirror con `team_categories` para las adicionales
+
+Modificar `allTeamByCategory`:
+- Para workspace members: ademas de `m.team_category === cat.value`, tambien verificar si su contact mirror tiene `team_categories` que incluya `cat.value`
+
+**3. `src/components/TeamMemberGrid.tsx`, `TeamMemberList.tsx`, `TeamMemberFreeCanvas.tsx`**
+- Pasar las nuevas props `onToggleCategory` y `memberCategories` a cada card
+
+## Flujo del usuario
 
 ```text
-+----------------------------------+
-|  Dialog                          |
-|  +----------------------------+  |
-|  |   Area de visualizacion    |  |
-|  |   (overflow: hidden)       |  |
-|  |                            |  |
-|  |   [imagen con transform]   |  |
-|  |   scale + translate        |  |
-|  |                            |  |
-|  +----------------------------+  |
-|                                  |
-|  [--- Slider de Zoom ---]        |
-|                                  |
-|  [Cancelar]        [Confirmar]   |
-+----------------------------------+
+Click en menu (···) de un miembro
+  |
+  v
++---------------------------+
+| Editar                    |
+|---------------------------|
+| Categorias            >   |
+|   | [✓] Banda             |
+|   | [✓] Equipo Artistico  |
+|   | [ ] Management        |
+|   | [ ] Tecnico           |
+|   | ...                   |
+|---------------------------|
+| Quitar del equipo         |
++---------------------------+
 ```
 
-- **Zoom**: CSS `transform: scale(zoom)` controlado por Slider (Radix)
-- **Pan**: `onPointerDown/Move/Up` para arrastrar, guardando `translateX/Y`
-- **Crop final**: Dibujar la porcion visible en un `<canvas>` y exportar como Blob (`canvas.toBlob`)
-- **Zoom inicial**: 1.2x automatico
-- **Aspect ratio**: Configurable, el area de visualizacion se adapta
+- Un solo submenu "Categorias" con toggles
+- Sin distincion entre "mover" y "anadir" - simplemente seleccionas donde quieres que aparezca
+- Minimo una categoria debe estar seleccionada
 
-### Patron de integracion (ejemplo ContactProfileSheet)
+## Archivos a modificar
 
-```typescript
-// Estado nuevo
-const [cropFile, setCropFile] = useState<File | null>(null);
-
-// onChange del input: abre cropper en vez de subir
-onChange={(e) => {
-  const file = e.target.files?.[0];
-  if (file) setCropFile(file);
-}}
-
-// Cropper dialog
-<ImageCropperDialog
-  file={cropFile}
-  open={!!cropFile}
-  onCancel={() => setCropFile(null)}
-  onConfirm={(blob) => {
-    setCropFile(null);
-    uploadAvatar(blob); // reutiliza logica existente
-  }}
-  aspectRatio={1}
-  circular
-/>
-```
-
-## Archivos
-
-| Archivo | Accion |
+| Archivo | Cambio |
 |---------|--------|
-| `src/components/ui/image-cropper-dialog.tsx` | Crear (nuevo componente) |
-| `src/components/ContactProfileSheet.tsx` | Modificar - integrar cropper en avatar upload |
-| `src/components/onboarding/steps/Step1Identity.tsx` | Modificar - integrar cropper en avatar y header |
-| `src/pages/Contacts.tsx` | Modificar - integrar cropper en fotos de documentos |
-| `src/components/ArtistFormatsDialog.tsx` | Modificar - integrar cropper en rider upload |
-| `src/components/onboarding/steps/Step5BookingFormats.tsx` | Modificar - integrar cropper en rider upload |
+| `src/components/TeamMemberCard.tsx` | Submenu "Categorias" con checkmarks toggle |
+| `src/components/TeamMemberGrid.tsx` | Pasar props `onToggleCategory`, `memberCategories` |
+| `src/components/TeamMemberList.tsx` | Pasar props `onToggleCategory`, `memberCategories` |
+| `src/components/TeamMemberFreeCanvas.tsx` | Pasar props `onToggleCategory`, `memberCategories` |
+| `src/pages/Teams.tsx` | Funcion `toggleMemberCategory`, filtrado multi-cat para ws members |
+
+No se necesita migracion de base de datos - se reutiliza la infraestructura existente de `field_config.team_categories` y contact mirrors.
