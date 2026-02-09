@@ -199,8 +199,8 @@ export function TeamMemberCard({
                           return (
                             <DropdownMenuItem
                               key={cat.value}
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              onSelect={(e) => {
+                                e.preventDefault();
                                 if (isOnlyCategory) return;
                                 onToggleCategory(cat.value);
                               }}
@@ -209,7 +209,7 @@ export function TeamMemberCard({
                               <div className={`w-5 h-5 rounded flex items-center justify-center border ${isActive ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
                                 {isActive && <Check className="h-3.5 w-3.5 text-primary-foreground" />}
                               </div>
-                              <span className={isActive ? 'text-primary' : ''}>{cat.label}</span>
+                              {cat.label}
                             </DropdownMenuItem>
                           );
                         })}
