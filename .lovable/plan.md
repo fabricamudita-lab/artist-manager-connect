@@ -1,55 +1,100 @@
 
-# Fix: Hacer clic en las tarjetas del Dashboard de Perfiles
+# Visualizador de ajuste de imagen universal
 
-## Problema
+## Resumen
 
-Las tarjetas (ItemCard) ya tienen un handler `onClick` en el componente `Card`, pero el `DialogContent` de Radix UI intercepta los eventos de clic internamente (para manejar el cierre del dialog al hacer clic fuera), lo que impide que el `onClick` de las tarjetas funcione correctamente.
+Crear un componente reutilizable `ImageCropperDialog` que se muestre automaticamente cada vez que el usuario selecciona una imagen (avatar, portada, cabecera, etc.) antes de subirla. Permite hacer zoom y mover la imagen para encuadrarla correctamente.
 
-## Solucion
+## Componente nuevo: `ImageCropperDialog`
 
-Cambiar la estrategia de interaccion en el componente `ItemCard`: usar `onPointerDown` con deteccion de movimiento en lugar de `onClick`, o simplemente envolver la logica con `onMouseDown` + `onMouseUp` para evitar la interferencia del Dialog.
+Se creara `src/components/ui/image-cropper-dialog.tsx` con las siguientes caracteristicas:
 
-La solucion mas simple y robusta: usar `role="button"` y `onMouseUp` en vez de `onClick`, ya que Radix intercepta `onPointerDownOutside` pero no `onMouseUp`.
+- **Dialog modal** que muestra la imagen seleccionada
+- **Zoom automatico inicial** (1.2x) para que la imagen no quede exactamente al borde
+- **Slider de zoom** (1x a 3x) para ampliar o reducir
+- **Arrastrar para mover** (drag to pan) la imagen dentro del area visible
+- **Area de recorte visible** con bordes redondeados opcionales (circular para avatares, rectangular para portadas)
+- **Botones "Cancelar" y "Confirmar"** - al confirmar, genera un Blob recortado via canvas
+- Props: `file`, `open`, `onConfirm(croppedBlob: Blob)`, `onCancel`, `aspectRatio` (1 para avatares, 16/9 para cabeceras, etc.), `circular` (boolean)
 
-### Cambios en `src/components/ContactDashboardDialog.tsx`
+La implementacion usara un `<canvas>` oculto para renderizar el recorte final. No se necesitan dependencias externas - se usara CSS transform para zoom/pan y Canvas API para el crop.
 
-**ItemCard** (lineas 202-224): Reemplazar `onClick` por `onMouseUp` en el `Card`:
+## Integraciones (archivos a modificar)
 
-```typescript
-const ItemCard = ({ title, subtitle, status, date, onClick }: {
-  title: string;
-  subtitle?: string;
-  status?: string | null;
-  date?: string | null;
-  onClick?: () => void;
-}) => (
-  <Card
-    className={`hover:bg-muted/50 transition-colors ${onClick ? 'cursor-pointer' : ''}`}
-    role={onClick ? 'button' : undefined}
-    onMouseUp={(e) => {
-      if (onClick) {
-        e.stopPropagation();
-        onClick();
-      }
-    }}
-  >
-    <CardContent className="p-3 flex items-center justify-between gap-3">
-      <div className="min-w-0 flex-1">
-        <div className="font-medium text-sm truncate">{title}</div>
-        {subtitle && <div className="text-xs text-muted-foreground truncate">{subtitle}</div>}
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {date && <span className="text-xs text-muted-foreground">{formatDate(date)}</span>}
-        <StatusBadge status={status} />
-        {onClick && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />}
-      </div>
-    </CardContent>
-  </Card>
-);
+Se interceptara el flujo de seleccion de archivo en cada punto de upload de imagenes:
+
+1. **`src/components/ContactProfileSheet.tsx`** - `handleAvatarUpload`: abrir cropper antes de subir (circular, 1:1)
+2. **`src/components/onboarding/steps/Step1Identity.tsx`** - `handleImageUpload`: abrir cropper para avatar (circular 1:1) y header (16:9)
+3. **`src/pages/Contacts.tsx`** - `handleDocumentUpload`: abrir cropper para fotos de DNI/pasaporte (rectangular, libre)
+4. **`src/components/ArtistFormatsDialog.tsx`** - rider uploads (rectangular)
+5. **`src/components/onboarding/steps/Step5BookingFormats.tsx`** - rider uploads (rectangular)
+
+En cada caso, el patron sera:
+- El `onChange` del input ya no llama directamente al upload
+- En su lugar, guarda el archivo en estado y abre el `ImageCropperDialog`
+- Al confirmar el crop, se ejecuta la funcion de upload existente con el blob recortado
+
+## Detalles tecnicos
+
+### ImageCropperDialog - Funcionamiento interno
+
+```text
++----------------------------------+
+|  Dialog                          |
+|  +----------------------------+  |
+|  |   Area de visualizacion    |  |
+|  |   (overflow: hidden)       |  |
+|  |                            |  |
+|  |   [imagen con transform]   |  |
+|  |   scale + translate        |  |
+|  |                            |  |
+|  +----------------------------+  |
+|                                  |
+|  [--- Slider de Zoom ---]        |
+|                                  |
+|  [Cancelar]        [Confirmar]   |
++----------------------------------+
 ```
 
-Esto evita la interferencia del Dialog manteniendo la misma experiencia visual para el usuario.
+- **Zoom**: CSS `transform: scale(zoom)` controlado por Slider (Radix)
+- **Pan**: `onPointerDown/Move/Up` para arrastrar, guardando `translateX/Y`
+- **Crop final**: Dibujar la porcion visible en un `<canvas>` y exportar como Blob (`canvas.toBlob`)
+- **Zoom inicial**: 1.2x automatico
+- **Aspect ratio**: Configurable, el area de visualizacion se adapta
 
-## Archivo a modificar
+### Patron de integracion (ejemplo ContactProfileSheet)
 
-- `src/components/ContactDashboardDialog.tsx` (solo el componente ItemCard, lineas 202-224)
+```typescript
+// Estado nuevo
+const [cropFile, setCropFile] = useState<File | null>(null);
+
+// onChange del input: abre cropper en vez de subir
+onChange={(e) => {
+  const file = e.target.files?.[0];
+  if (file) setCropFile(file);
+}}
+
+// Cropper dialog
+<ImageCropperDialog
+  file={cropFile}
+  open={!!cropFile}
+  onCancel={() => setCropFile(null)}
+  onConfirm={(blob) => {
+    setCropFile(null);
+    uploadAvatar(blob); // reutiliza logica existente
+  }}
+  aspectRatio={1}
+  circular
+/>
+```
+
+## Archivos
+
+| Archivo | Accion |
+|---------|--------|
+| `src/components/ui/image-cropper-dialog.tsx` | Crear (nuevo componente) |
+| `src/components/ContactProfileSheet.tsx` | Modificar - integrar cropper en avatar upload |
+| `src/components/onboarding/steps/Step1Identity.tsx` | Modificar - integrar cropper en avatar y header |
+| `src/pages/Contacts.tsx` | Modificar - integrar cropper en fotos de documentos |
+| `src/components/ArtistFormatsDialog.tsx` | Modificar - integrar cropper en rider upload |
+| `src/components/onboarding/steps/Step5BookingFormats.tsx` | Modificar - integrar cropper en rider upload |
