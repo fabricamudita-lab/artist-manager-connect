@@ -316,7 +316,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
                             subtitle={item.artists?.name ? `${item.artists.name} · ${item.ciudad || ''}` : item.ciudad}
                             status={item.estado}
                             date={item.fecha}
-                            onClick={() => { onOpenChange(false); navigate(`/bookings/${item.id}`); }}
+onClick={() => { onOpenChange(false); navigate(`/booking/${item.id}`); }}
                           />
                         ))}
                       </Section>
@@ -422,7 +422,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
 
               <TabsContent value="bookings" className="space-y-2 m-0">
                 {data.bookings.length === 0 ? <EmptyState label="bookings" /> : data.bookings.map(item => (
-                  <ItemCard key={item.id} title={item.lugar || item.venue || 'Booking'} subtitle={item.artists?.name ? `${item.artists.name} · ${item.ciudad || ''}` : item.ciudad} status={item.estado} date={item.fecha} onClick={() => { onOpenChange(false); navigate(`/bookings/${item.id}`); }} />
+                  <ItemCard key={item.id} title={item.lugar || item.venue || 'Booking'} subtitle={item.artists?.name ? `${item.artists.name} · ${item.ciudad || ''}` : item.ciudad} status={item.estado} date={item.fecha} onClick={() => { onOpenChange(false); navigate(`/booking/${item.id}`); }} />
                 ))}
               </TabsContent>
 
