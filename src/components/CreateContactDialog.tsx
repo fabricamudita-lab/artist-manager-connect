@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -67,6 +68,8 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
   const [allPresets, setAllPresets] = useState(() => getAllPresets());
   const [managePresetsOpen, setManagePresetsOpen] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
+  const [pendingPreset, setPendingPreset] = useState<string | null>(null);
+  const [fieldsAtRisk, setFieldsAtRisk] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     stage_name: '',
@@ -189,10 +192,45 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
     }
     const all = getAllPresets();
     const preset = all[presetKey];
-    if (preset) {
+    if (!preset) return;
+
+    // Detect fields that would be hidden but have data
+    const atRisk = Object.keys(FIELD_LABELS).filter(field => {
+      const wasOn = fieldConfig[field as keyof typeof fieldConfig];
+      const willBeOn = preset.config[field as keyof typeof preset.config];
+      const hasData = formData[field as keyof typeof formData]?.toString().trim();
+      return wasOn && !willBeOn && hasData;
+    });
+
+    if (atRisk.length > 0) {
+      setPendingPreset(presetKey);
+      setFieldsAtRisk(atRisk.map(f => FIELD_LABELS[f as keyof typeof FIELD_LABELS]));
+    } else {
       setFieldConfig(preset.config);
       setSelectedPreset(presetKey);
     }
+  };
+
+  const confirmApplyPreset = (keepFieldsWithData: boolean) => {
+    if (!pendingPreset) return;
+    const all = getAllPresets();
+    const preset = all[pendingPreset];
+    if (!preset) return;
+
+    if (keepFieldsWithData) {
+      const adjusted = { ...preset.config };
+      Object.keys(FIELD_LABELS).forEach(field => {
+        const hasData = formData[field as keyof typeof formData]?.toString().trim();
+        if (hasData) adjusted[field] = true;
+      });
+      setFieldConfig(adjusted);
+      setSelectedPreset(detectPreset(adjusted));
+    } else {
+      setFieldConfig(preset.config);
+      setSelectedPreset(pendingPreset);
+    }
+    setPendingPreset(null);
+    setFieldsAtRisk([]);
   };
 
   const handlePresetsChanged = () => {
@@ -368,6 +406,36 @@ export function CreateContactDialog({ open, onOpenChange, onContactCreated }: Cr
           currentFieldConfig={fieldConfig}
           onPresetsChanged={handlePresetsChanged}
         />
+
+        <AlertDialog open={pendingPreset !== null} onOpenChange={(open) => { if (!open) { setPendingPreset(null); setFieldsAtRisk([]); } }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Campos con información se ocultarán</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3">
+                  <p>Al aplicar esta plantilla se ocultarán estos campos que ya contienen información:</p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {fieldsAtRisk.map(label => (
+                      <li key={label} className="font-medium text-foreground">{label}</li>
+                    ))}
+                  </ul>
+                  <p className="text-sm">Los datos no se eliminan, solo dejan de ser visibles.</p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2">
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction asChild>
+                <Button variant="outline" onClick={() => confirmApplyPreset(true)}>
+                  Aplicar y mantener
+                </Button>
+              </AlertDialogAction>
+              <AlertDialogAction onClick={() => confirmApplyPreset(false)}>
+                Aplicar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
