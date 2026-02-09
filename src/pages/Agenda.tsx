@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Users, UserCheck, FileUser, Camera, LayoutGrid, CreditCard, FolderOpen, Mail, Phone, MapPin, Building, Edit2, MoreVertical } from 'lucide-react';
+import { Plus, Search, Users, LayoutGrid, CreditCard, FolderOpen, Mail, Phone, MapPin, Building, Edit2, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,6 +16,7 @@ import { toast } from '@/hooks/use-toast';
 import { RolodexView } from '@/components/RolodexView';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ManageContactGroupsDialog } from '@/components/ManageContactGroupsDialog';
+import { TEAM_CATEGORIES, getTeamCategoryLabel, getTeamCategoryIcon } from '@/lib/teamCategories';
 
 interface Contact {
   id: string;
@@ -48,15 +49,7 @@ interface Contact {
   updated_at: string;
 }
 
-const CATEGORIES = [
-  { value: 'artistas', label: 'Artistas', icon: Users },
-  { value: 'tecnicos', label: 'Técnicos', icon: UserCheck },
-  { value: 'contables', label: 'Contables', icon: FileUser },
-  { value: 'prensa', label: 'Prensa', icon: Camera },
-  { value: 'produccion', label: 'Producción', icon: Users },
-  { value: 'disenadores', label: 'Diseñadores', icon: Camera },
-  { value: 'general', label: 'General', icon: Users },
-];
+// Categories unified with Teams via TEAM_CATEGORIES
 
 export default function Agenda() {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -209,7 +202,11 @@ export default function Agenda() {
   };
 
   const getCategoryInfo = (category: string) => {
-    return CATEGORIES.find(cat => cat.value === category) || CATEGORIES[6];
+    return {
+      value: category,
+      label: getTeamCategoryLabel(category, customCategories),
+      icon: getTeamCategoryIcon(category, customCategories),
+    };
   };
 
   const getContactDisplayName = (contact: Contact) => {
@@ -283,11 +280,17 @@ export default function Agenda() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas</SelectItem>
-            {CATEGORIES.map((category) => (
-              <SelectItem key={category.value} value={category.value}>
-                {category.label}
-              </SelectItem>
-            ))}
+            {[...TEAM_CATEGORIES, ...customCategories].map((category) => {
+              const Icon = category.icon;
+              return (
+                <SelectItem key={category.value} value={category.value}>
+                  <div className="flex items-center gap-2">
+                    {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
+                    {category.label}
+                  </div>
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
 
