@@ -58,6 +58,13 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
   });
   const navigate = useNavigate();
 
+  const navigateFromDashboard = (path: string) => {
+    // Save dashboard state so browser back restores it
+    sessionStorage.setItem('contactDashboardProfiles', JSON.stringify(profiles));
+    onOpenChange(false);
+    navigate(path);
+  };
+
   const initialContactIds = profiles.map(p => p.id);
 
   useEffect(() => {
@@ -308,7 +315,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
                             subtitle={item.budgets?.name}
                             status={item.budgets?.status}
                             date={item.created_at}
-                            onClick={() => { onOpenChange(false); navigate(`/budgets`); }}
+                            onClick={() => navigateFromDashboard('/budgets')}
                           />
                         ))}
                       </Section>
@@ -322,7 +329,7 @@ export function ContactDashboardDialog({ open, onOpenChange, profiles }: Contact
                             subtitle={item.artists?.name ? `${item.artists.name} · ${item.ciudad || ''}` : item.ciudad}
                             status={item.estado}
                             date={item.fecha}
-onClick={() => { onOpenChange(false); navigate(`/booking/${item.id}`); }}
+onClick={() => navigateFromDashboard(`/booking/${item.id}`)}
                           />
                         ))}
                       </Section>
@@ -336,7 +343,7 @@ onClick={() => { onOpenChange(false); navigate(`/booking/${item.id}`); }}
                             subtitle={item.requester_name}
                             status={item.status}
                             date={item.created_at}
-                            onClick={() => { onOpenChange(false); navigate(`/solicitudes`); }}
+                            onClick={() => navigateFromDashboard('/solicitudes')}
                           />
                         ))}
                       </Section>
@@ -349,7 +356,7 @@ onClick={() => { onOpenChange(false); navigate(`/booking/${item.id}`); }}
                             title={item.title || item.brand || 'Oferta Sync'}
                             status={item.status}
                             date={item.created_at}
-                            onClick={() => { onOpenChange(false); navigate(`/sincronizaciones`); }}
+                            onClick={() => navigateFromDashboard('/sincronizaciones')}
                           />
                         ))}
                       </Section>
@@ -362,7 +369,7 @@ onClick={() => { onOpenChange(false); navigate(`/booking/${item.id}`); }}
                             title={item.projects?.name || 'Proyecto'}
                             subtitle={item.role_label}
                             status={item.projects?.status}
-                            onClick={() => { onOpenChange(false); navigate(`/projects/${item.project_id}`); }}
+                            onClick={() => navigateFromDashboard(`/projects/${item.project_id}`)}
                           />
                         ))}
                       </Section>
@@ -376,7 +383,7 @@ onClick={() => { onOpenChange(false); navigate(`/booking/${item.id}`); }}
                             subtitle={item.amount ? `${item.amount} ${item.currency || '€'}` : undefined}
                             status={item.status}
                             date={item.date || item.created_at}
-                            onClick={() => { onOpenChange(false); navigate(`/finanzas`); }}
+                            onClick={() => navigateFromDashboard('/finanzas')}
                           />
                         ))}
                       </Section>
@@ -390,7 +397,7 @@ onClick={() => { onOpenChange(false); navigate(`/booking/${item.id}`); }}
                             subtitle={item.release_type}
                             status={item.status}
                             date={item.release_date || item.created_at}
-                            onClick={() => { onOpenChange(false); navigate(`/releases/${item.id}`); }}
+                            onClick={() => navigateFromDashboard(`/releases/${item.id}`)}
                           />
                         ))}
                       </Section>
@@ -402,7 +409,7 @@ onClick={() => { onOpenChange(false); navigate(`/booking/${item.id}`); }}
                             key={`split-${item.id}`}
                             title={item.songs?.title || 'Canción'}
                             subtitle={`Split: ${item.percentage || 0}%`}
-                            onClick={() => { onOpenChange(false); navigate(`/royalties`); }}
+                            onClick={() => navigateFromDashboard('/royalties')}
                           />
                         ))}
                         {data.trackCredits.map(item => (
@@ -410,7 +417,7 @@ onClick={() => { onOpenChange(false); navigate(`/booking/${item.id}`); }}
                             key={`credit-${item.id}`}
                             title={item.release_tracks?.title || 'Track'}
                             subtitle={item.credit_role}
-                            onClick={() => { onOpenChange(false); navigate(`/royalties`); }}
+                            onClick={() => navigateFromDashboard('/royalties')}
                           />
                         ))}
                       </Section>
@@ -422,43 +429,43 @@ onClick={() => { onOpenChange(false); navigate(`/booking/${item.id}`); }}
               {/* Individual tabs */}
               <TabsContent value="presupuestos" className="space-y-2 m-0">
                 {data.budgetItems.length === 0 ? <EmptyState label="presupuestos" /> : data.budgetItems.map(item => (
-                  <ItemCard key={item.id} title={item.name || item.description || 'Partida'} subtitle={item.budgets?.name} status={item.budgets?.status} date={item.created_at} onClick={() => { onOpenChange(false); navigate(`/budgets`); }} />
+                  <ItemCard key={item.id} title={item.name || item.description || 'Partida'} subtitle={item.budgets?.name} status={item.budgets?.status} date={item.created_at} onClick={() => navigateFromDashboard('/budgets')} />
                 ))}
               </TabsContent>
 
               <TabsContent value="bookings" className="space-y-2 m-0">
                 {data.bookings.length === 0 ? <EmptyState label="bookings" /> : data.bookings.map(item => (
-                  <ItemCard key={item.id} title={item.lugar || item.venue || 'Booking'} subtitle={item.artists?.name ? `${item.artists.name} · ${item.ciudad || ''}` : item.ciudad} status={item.estado} date={item.fecha} onClick={() => { onOpenChange(false); navigate(`/booking/${item.id}`); }} />
+                  <ItemCard key={item.id} title={item.lugar || item.venue || 'Booking'} subtitle={item.artists?.name ? `${item.artists.name} · ${item.ciudad || ''}` : item.ciudad} status={item.estado} date={item.fecha} onClick={() => navigateFromDashboard(`/booking/${item.id}`)} />
                 ))}
               </TabsContent>
 
               <TabsContent value="solicitudes" className="space-y-2 m-0">
                 {data.solicitudes.length === 0 ? <EmptyState label="solicitudes" /> : data.solicitudes.map(item => (
-                  <ItemCard key={item.id} title={item.title || item.subject || 'Solicitud'} subtitle={item.requester_name} status={item.status} date={item.created_at} onClick={() => { onOpenChange(false); navigate(`/solicitudes`); }} />
+                  <ItemCard key={item.id} title={item.title || item.subject || 'Solicitud'} subtitle={item.requester_name} status={item.status} date={item.created_at} onClick={() => navigateFromDashboard('/solicitudes')} />
                 ))}
               </TabsContent>
 
               <TabsContent value="sync" className="space-y-2 m-0">
                 {data.syncOffers.length === 0 ? <EmptyState label="sincronizaciones" /> : data.syncOffers.map(item => (
-                  <ItemCard key={item.id} title={item.title || item.brand || 'Oferta Sync'} status={item.status} date={item.created_at} onClick={() => { onOpenChange(false); navigate(`/sincronizaciones`); }} />
+                  <ItemCard key={item.id} title={item.title || item.brand || 'Oferta Sync'} status={item.status} date={item.created_at} onClick={() => navigateFromDashboard('/sincronizaciones')} />
                 ))}
               </TabsContent>
 
               <TabsContent value="proyectos" className="space-y-2 m-0">
                 {data.projects.length === 0 ? <EmptyState label="proyectos" /> : data.projects.map(item => (
-                  <ItemCard key={item.id} title={item.projects?.name || 'Proyecto'} subtitle={item.role_label} status={item.projects?.status} onClick={() => { onOpenChange(false); navigate(`/projects/${item.project_id}`); }} />
+                  <ItemCard key={item.id} title={item.projects?.name || 'Proyecto'} subtitle={item.role_label} status={item.projects?.status} onClick={() => navigateFromDashboard(`/projects/${item.project_id}`)} />
                 ))}
               </TabsContent>
 
               <TabsContent value="transacciones" className="space-y-2 m-0">
                 {data.transactions.length === 0 ? <EmptyState label="transacciones" /> : data.transactions.map(item => (
-                  <ItemCard key={item.id} title={item.description || 'Transacción'} subtitle={item.amount ? `${item.amount} ${item.currency || '€'}` : undefined} status={item.status} date={item.date || item.created_at} onClick={() => { onOpenChange(false); navigate(`/finanzas`); }} />
+                  <ItemCard key={item.id} title={item.description || 'Transacción'} subtitle={item.amount ? `${item.amount} ${item.currency || '€'}` : undefined} status={item.status} date={item.date || item.created_at} onClick={() => navigateFromDashboard('/finanzas')} />
                 ))}
               </TabsContent>
 
               <TabsContent value="discografia" className="space-y-2 m-0">
                 {data.releases.length === 0 ? <EmptyState label="discografía" /> : data.releases.map(item => (
-                  <ItemCard key={`release-${item.id}`} title={item.title || 'Release'} subtitle={item.release_type} status={item.status} date={item.release_date || item.created_at} onClick={() => { onOpenChange(false); navigate(`/releases/${item.id}`); }} />
+                  <ItemCard key={`release-${item.id}`} title={item.title || 'Release'} subtitle={item.release_type} status={item.status} date={item.release_date || item.created_at} onClick={() => navigateFromDashboard(`/releases/${item.id}`)} />
                 ))}
               </TabsContent>
 
@@ -466,10 +473,10 @@ onClick={() => { onOpenChange(false); navigate(`/booking/${item.id}`); }}
                 {data.songSplits.length === 0 && data.trackCredits.length === 0 ? <EmptyState label="música" /> : (
                   <>
                     {data.songSplits.map(item => (
-                      <ItemCard key={`split-${item.id}`} title={item.songs?.title || 'Canción'} subtitle={`Split: ${item.percentage || 0}%`} onClick={() => { onOpenChange(false); navigate(`/royalties`); }} />
+                      <ItemCard key={`split-${item.id}`} title={item.songs?.title || 'Canción'} subtitle={`Split: ${item.percentage || 0}%`} onClick={() => navigateFromDashboard('/royalties')} />
                     ))}
                     {data.trackCredits.map(item => (
-                      <ItemCard key={`credit-${item.id}`} title={item.release_tracks?.title || 'Track'} subtitle={item.credit_role} onClick={() => { onOpenChange(false); navigate(`/royalties`); }} />
+                      <ItemCard key={`credit-${item.id}`} title={item.release_tracks?.title || 'Track'} subtitle={item.credit_role} onClick={() => navigateFromDashboard('/royalties')} />
                     ))}
                   </>
                 )}
