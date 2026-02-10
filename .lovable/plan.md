@@ -1,20 +1,18 @@
 
-
-# Boton "Equipos" en Contactos: navegar a la pagina de Equipos
+# Agregar selector de Artista al dialogo "Nuevo Lanzamiento"
 
 ## Problema
 
-El boton "Equipos" en la pagina de Contactos abre un dialogo de gestion de grupos de contactos. El usuario espera que lo lleve directamente a la pagina de Equipos (`/teams`).
+El dialogo de creacion de lanzamiento no incluye un campo para vincular el release a un artista. El campo `artist_id` ya existe en el modelo y en la logica de creacion, pero no se expone en la interfaz.
 
 ## Solucion
 
-Cambiar el `onClick` del boton "Equipos" para que navegue a `/teams` usando `useNavigate` de React Router, en lugar de abrir el dialogo de grupos.
+Agregar un selector de artista (usando el componente `SingleArtistSelector` que ya existe) al formulario de creacion de lanzamiento.
 
 ## Cambio
 
 | Archivo | Detalle |
 |---|---|
-| `src/pages/Agenda.tsx` | Cambiar `onClick={() => setIsManageGroupsOpen(true)}` por `onClick={() => navigate('/teams')}` en el boton "Equipos" (~linea 377). Asegurar que `useNavigate` este importado y disponible. |
+| `src/components/releases/CreateReleaseDialog.tsx` | 1. Importar `SingleArtistSelector`. 2. Agregar estado `selectedArtistId` inicializado con el prop `artistId`. 3. Insertar el selector entre el campo "Tipo" y "Fecha de Lanzamiento" con label "Artista". 4. Usar `selectedArtistId` en lugar de `artistId` al enviar el formulario. |
 
-No se elimina el dialogo de grupos por si se usa en otro lugar, solo se desconecta del boton.
-
+El componente `SingleArtistSelector` ya maneja la carga de artistas, busqueda y la opcion "Ningun artista", por lo que no se necesita logica adicional.
