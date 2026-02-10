@@ -30,6 +30,7 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useCreateRelease } from '@/hooks/useReleases';
+import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 
 interface CreateReleaseDialogProps {
   open: boolean;
@@ -49,6 +50,7 @@ export default function CreateReleaseDialog({
   const [type, setType] = useState<'album' | 'ep' | 'single'>('single');
   const [releaseDate, setReleaseDate] = useState<Date | undefined>();
   const [description, setDescription] = useState('');
+  const [selectedArtistId, setSelectedArtistId] = useState<string | null>(artistId || null);
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
@@ -58,7 +60,7 @@ export default function CreateReleaseDialog({
       type,
       release_date: releaseDate ? format(releaseDate, 'yyyy-MM-dd') : null,
       description: description.trim() || null,
-      artist_id: artistId || null,
+      artist_id: selectedArtistId || null,
     });
 
     if (result) {
@@ -104,6 +106,15 @@ export default function CreateReleaseDialog({
                 <SelectItem value="album">Álbum</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Artista</Label>
+            <SingleArtistSelector
+              value={selectedArtistId}
+              onValueChange={setSelectedArtistId}
+              placeholder="Seleccionar artista..."
+            />
           </div>
 
           <div className="space-y-2">
