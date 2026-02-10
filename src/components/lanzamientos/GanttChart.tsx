@@ -632,6 +632,12 @@ function GanttBarRow({
               e.stopPropagation();
               onTaskSelect?.(task.id);
             }}
+            onDoubleClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setOpenPopover(popoverId);
+              setEditingDateType('start');
+            }}
           >
             {/* Resize handles */}
             <div className="absolute left-0 top-0 w-1.5 h-full cursor-ew-resize rounded-l opacity-0 group-hover:opacity-100 bg-foreground/20" />
