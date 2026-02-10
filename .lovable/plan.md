@@ -1,23 +1,22 @@
 
-# Mejorar textos descriptivos en los filtros de Contactos
 
-## Problema
+# Renombrar "Grupos" a "Equipos" en Contactos
 
-Los tres selectores de filtro muestran "Todas", "Todas" y "Todos" cuando no hay filtro activo, sin indicar a que corresponde cada uno. El usuario no puede distinguirlos a simple vista.
+## Cambios
 
-## Solucion
+Renombrar todas las referencias de "Grupos" a "Equipos" en la interfaz de Contactos (Agenda). Es un cambio puramente visual/de texto, la logica y datos subyacentes no cambian.
 
-Cambiar el texto de la opcion "all" (valor por defecto) en cada selector para que incluya una pista contextual:
+| Ubicacion en Agenda.tsx | Texto actual | Texto nuevo |
+|---|---|---|
+| Boton de gestion (~linea 334) | "Grupos" | "Equipos" |
+| Placeholder del filtro (~linea 394) | "Grupo" | "Equipo" |
+| Opcion por defecto del filtro (~linea 397) | "Todos los grupos" | "Todos los equipos" |
 
-| Selector | Texto actual | Texto nuevo |
-|----------|-------------|-------------|
-| Categoria | Todas | Todas las categorias |
-| Ciudad | Todas | Todas las ciudades |
-| Grupo | Todos | Todos los grupos |
-| Etiqueta | Todas | Todas las etiquetas |
+## Detalle tecnico
 
-## Cambio
+| Archivo | Cambio |
+|---|---|
+| `src/pages/Agenda.tsx` | Cambiar los 3 textos indicados arriba. Opcionalmente cambiar el icono `FolderOpen` por `Users` para mayor coherencia con el concepto de "Equipos". |
 
-| Archivo | Detalle |
-|---------|---------|
-| `src/pages/Agenda.tsx` | Cambiar el texto de los 4 `SelectItem value="all"` en las lineas 363, 383, 397 y 418 |
+No se modifica la tabla `contact_groups` ni la logica de filtrado. Solo se actualizan los textos visibles al usuario.
+
