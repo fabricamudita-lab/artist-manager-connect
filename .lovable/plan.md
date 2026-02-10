@@ -1,48 +1,57 @@
 
 
-# Confirmacion al soltar una barra arrastrada en el Gantt
+# Rastro visual ("ghost") de la posicion original al arrastrar barras del Gantt
 
 ## Resumen
 
-Al terminar de arrastrar una barra del Gantt (mouseup), en lugar de aplicar el cambio directamente, mostrar un pequeno dialogo de confirmacion preguntando si se desean guardar las nuevas fechas o cancelar el cambio.
+Cuando el usuario arrastra una barra del Gantt, dejar visible un "fantasma" semitransparente (25% de opacidad) en la posicion original de la barra, mientras la barra real se mueve con el cursor. Esto permite al usuario comparar visualmente la posicion anterior con la nueva propuesta.
 
 ## Comportamiento
 
-1. El usuario arrastra una barra (mover o resize) -- funciona igual que ahora, con preview en tiempo real.
-2. Al soltar el raton, si hubo movimiento real (drag activado), NO se aplica el cambio inmediatamente.
-3. En su lugar, se muestra un dialogo compacto con:
-   - Texto: "Nuevo rango: 14 dic - 20 dic. Guardar cambios?"
-   - Boton "Sobreescribir" (aplica el cambio)
-   - Boton "Cancelar" (descarta y vuelve a la posicion original)
-4. La barra permanece en su posicion de preview hasta que el usuario confirme o cancele.
+1. El usuario empieza a arrastrar una barra.
+2. En la posicion original aparece un rectangulo gris con opacidad 0.25 (el "ghost").
+3. La barra real se renderiza en la posicion del drag preview (como ya funciona).
+4. Al soltar, el ghost permanece visible mientras el dialogo de confirmacion esta abierto.
+5. Si el usuario confirma ("Sobreescribir"), el ghost desaparece y la barra queda en la nueva posicion.
+6. Si el usuario cancela, el ghost desaparece y la barra vuelve a su posicion original.
 
-## Cambios tecnicos
+## Cambio tecnico
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/lanzamientos/GanttChart.tsx` | 1. Nuevo estado `pendingDrag` que almacena `{ workflowId, taskId, startDate, days, isSubtask }` cuando el drag termina. 2. En `handleMouseUp`: en vez de llamar `onUpdateTaskDate` directamente, guardar los datos en `pendingDrag` y mantener `dragPreview` visible (la barra queda en su nueva posicion). 3. Renderizar un `AlertDialog` (o dialogo inline) cuando `pendingDrag` es truthy, mostrando el nuevo rango y los botones "Sobreescribir" y "Cancelar". 4. "Sobreescribir" llama a `onUpdateTaskDate` con los valores de `pendingDrag` y limpia ambos estados. 5. "Cancelar" simplemente limpia `pendingDrag` y `dragPreview` (la barra vuelve a su posicion original). |
+| `src/components/lanzamientos/GanttChart.tsx` | En el renderizado de cada barra, cuando `dragPreview` esta activo y coincide con el `taskId` actual: 1. Renderizar **dos** barras en lugar de una. 2. La primera barra (ghost) se posiciona con las coordenadas **originales** de la tarea, con `opacity: 0.25` y sin interactividad (`pointer-events: none`). 3. La segunda barra se posiciona con las coordenadas del `dragPreview` (comportamiento actual). Esto solo requiere un bloque condicional extra dentro del JSX de la barra, sin cambios de estado ni logica adicional. |
 
-## Flujo visual
+## Detalle visual
 
 ```text
-[Arrastrar barra]
-       |
-       v
-  [Soltar raton]
-       |
-       v
-  Dialogo:
-  "Nuevo rango: 14 dic – 20 dic"
-  [ Cancelar ]  [ Sobreescribir ]
-       |              |
-       v              v
-  (vuelve a         (aplica
-   original)        cambio)
+Antes de arrastrar:
+  [=========]
+
+Durante arrastre:
+  [=========]          [=========]  14 dic – 20 dic
+   ^-- ghost 25%        ^-- barra real (posicion nueva)
+
+Dialogo abierto:
+  [=========]          [=========]  14 dic – 20 dic
+   ^-- ghost sigue      ^-- preview se mantiene
+       visible
+
+Tras confirmar o cancelar:
+  [=========]   (solo la barra final, ghost desaparece)
 ```
 
-## Detalles de implementacion
+## Implementacion
 
-- Se usara `AlertDialog` de Radix ya existente en el proyecto para la confirmacion.
-- El `dragPreview` se mantiene activo mientras el dialogo esta abierto, para que la barra siga mostrando la posicion propuesta.
-- El dialogo mostrara las fechas formateadas con `format(date, 'dd MMM', { locale: es })`.
+Dentro del map de barras, la condicion sera aproximadamente:
+
+```text
+if (isDraggingThisTask) {
+  // 1. Render ghost bar at ORIGINAL position (opacity 0.25, pointer-events none)
+  // 2. Render real bar at PREVIEW position (existing logic)
+} else {
+  // Render bar normally
+}
+```
+
+No se necesitan estados nuevos: la posicion original ya se conoce por los datos de la tarea, y la posicion del preview esta en `dragPreview`.
 
