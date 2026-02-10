@@ -207,6 +207,10 @@ export default function ReleaseCronograma() {
   );
   const [showWizard, setShowWizard] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Regenerate confirmation state
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+  const [regenerateMode, setRegenerateMode] = useState<'keep' | 'overwrite' | null>(null);
 
   // Selection & hiding state
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
@@ -372,24 +376,60 @@ export default function ReleaseCronograma() {
     const generatedTasks = generateTimelineFromConfig(config);
     const groupedTasks = groupTasksByWorkflow(generatedTasks);
 
-    const newWorkflows = EMPTY_WORKFLOWS.map(workflow => {
-      const newTasks = groupedTasks[workflow.id] || [];
-      return {
-        ...workflow,
-        tasks: newTasks.map(t => ({
-          ...t,
-          responsible_ref: null,
-        })) as ReleaseTask[],
-      };
-    });
+    let finalWorkflows: WorkflowSection[];
 
-    setWorkflows(newWorkflows);
+    if (regenerateMode === 'keep') {
+      // Merge mode: keep existing data, only update dates
+      finalWorkflows = workflows.map(workflow => {
+        const newTasks = groupedTasks[workflow.id] || [];
+        const existingTasks = workflow.tasks;
+
+        // For each generated task, try to find an existing match by name
+        const mergedTasks: ReleaseTask[] = newTasks.map(genTask => {
+          const existing = existingTasks.find(et => et.name === genTask.name);
+          if (existing) {
+            // Keep all existing data, only update dates
+            return {
+              ...existing,
+              startDate: genTask.startDate,
+              estimatedDays: genTask.estimatedDays,
+            };
+          }
+          // New task from wizard
+          return { ...genTask, responsible_ref: null } as ReleaseTask;
+        });
+
+        // Append existing tasks that weren't in the generated set
+        const mergedNames = new Set(newTasks.map(t => t.name));
+        const orphanTasks = existingTasks.filter(et => !mergedNames.has(et.name));
+
+        return {
+          ...workflow,
+          tasks: [...mergedTasks, ...orphanTasks],
+        };
+      });
+    } else {
+      // Overwrite mode: current behavior
+      finalWorkflows = EMPTY_WORKFLOWS.map(workflow => {
+        const newTasks = groupedTasks[workflow.id] || [];
+        return {
+          ...workflow,
+          tasks: newTasks.map(t => ({
+            ...t,
+            responsible_ref: null,
+          })) as ReleaseTask[],
+        };
+      });
+    }
+
+    setWorkflows(finalWorkflows);
+    setRegenerateMode(null);
 
     // Save to database
     await saveMilestonesToDB(
-      newWorkflows.map(w => ({ workflowId: w.id, tasks: w.tasks }))
+      finalWorkflows.map(w => ({ workflowId: w.id, tasks: w.tasks }))
     );
-  }, [saveMilestonesToDB]);
+  }, [saveMilestonesToDB, regenerateMode, workflows]);
 
   // Get all tasks that are anchored to a given task
   const getDependentTasks = useCallback((sourceTaskId: string) => {
@@ -841,7 +881,16 @@ export default function ReleaseCronograma() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowWizard(true)}>
+          <Button variant="outline" size="sm" onClick={() => {
+            // If there are existing tasks, show confirmation first
+            const hasTasks = workflows.some(w => w.tasks.length > 0);
+            if (hasTasks) {
+              setShowRegenerateConfirm(true);
+            } else {
+              setRegenerateMode('overwrite');
+              setShowWizard(true);
+            }
+          }}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Regenerar fechas
           </Button>
@@ -1570,6 +1619,54 @@ export default function ReleaseCronograma() {
         })}
         </div>
       )}
+
+      {/* Regenerate Confirmation Dialog */}
+      <AlertDialog open={showRegenerateConfirm} onOpenChange={setShowRegenerateConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <RefreshCw className="w-5 h-5 text-primary" />
+              Ya tienes tareas configuradas
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4 pt-2">
+                <p>¿Qué deseas hacer al regenerar el cronograma?</p>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => {
+                      setRegenerateMode('keep');
+                      setShowRegenerateConfirm(false);
+                      setShowWizard(true);
+                    }}
+                    className="w-full text-left p-3 rounded-lg border hover:border-primary hover:bg-primary/5 transition-colors"
+                  >
+                    <p className="font-medium text-foreground">Mantener datos existentes</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Solo actualiza las fechas según la nueva configuración. Tus subtareas, notas y responsables se conservan.
+                    </p>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRegenerateMode('overwrite');
+                      setShowRegenerateConfirm(false);
+                      setShowWizard(true);
+                    }}
+                    className="w-full text-left p-3 rounded-lg border hover:border-destructive hover:bg-destructive/5 transition-colors"
+                  >
+                    <p className="font-medium text-foreground">Sobreescribir todo</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Genera un cronograma nuevo desde cero. Se eliminarán todos los cambios anteriores.
+                    </p>
+                  </button>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Wizard Dialog */}
       <CronogramaSetupWizard
