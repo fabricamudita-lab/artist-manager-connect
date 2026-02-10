@@ -1,67 +1,74 @@
 
-# Reproductor de audio con visualizacion de onda
+# Fix subida de archivos grandes + reproductor de audio
 
-## Resumen
+## Problema
 
-Reemplazar el elemento `<audio>` oculto por un reproductor visual con forma de onda (waveform) usando la **Web Audio API** y un `<canvas>`. El usuario podra:
+El bucket `audio-tracks` tiene el limite correcto de 250 MB, pero Supabase impone un limite global de ~50 MB para uploads estandar (`supabase.storage.upload()`). Tu WAV de 125 MB siempre sera rechazado con este metodo.
 
-- Reproducir/pausar cada version de audio
-- Ver la onda completa del archivo
-- Hacer clic en cualquier punto de la onda para saltar a esa posicion
-- Ver el tiempo actual y la duracion total
+## Solucion
 
-## Diseno visual
+Cambiar el metodo de subida a **uploads resumables** usando la libreria `tus-js-client`, que implementa el protocolo TUS. Esto sube el archivo en chunks de 6 MB, evitando el limite global.
+
+## Cambios
+
+### 1. Instalar dependencia
+
+- `tus-js-client` — libreria oficial para uploads resumables
+
+### 2. `src/pages/release-sections/ReleaseAudio.tsx`
+
+Reemplazar la llamada `supabase.storage.from('audio-tracks').upload(fileName, file)` por un upload TUS:
 
 ```text
-+------------------------------------------+
-| [Pause]  Chromatism MIX3                 |
-|  ████▓▓▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  |
-|  0:03                              3:05  |
-+------------------------------------------+
+import * as tus from 'tus-js-client';
+
+// En el mutationFn:
+const projectId = 'hptjzbaiclmgbvxlmllo';
+const session = await supabase.auth.getSession();
+const accessToken = session.data.session?.access_token;
+
+await new Promise((resolve, reject) => {
+  const upload = new tus.Upload(file, {
+    endpoint: `https://${projectId}.supabase.co/storage/v1/upload/resumable`,
+    retryDelays: [0, 3000, 5000, 10000, 20000],
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'x-upsert': 'false',
+    },
+    uploadDataDuringCreation: true,
+    removeFingerprintOnSuccess: true,
+    metadata: {
+      bucketName: 'audio-tracks',
+      objectName: fileName,
+      contentType: file.type,
+      cacheControl: '3600',
+    },
+    chunkSize: 6 * 1024 * 1024, // 6 MB
+    onError: (error) => reject(error),
+    onSuccess: () => resolve(undefined),
+  });
+  upload.start();
+});
 ```
 
-- La parte reproducida se muestra en color `primary`
-- La parte restante en `muted-foreground` con opacidad
-- Al hacer clic en la onda, el audio salta a esa posicion
+El resto del flujo (getPublicUrl, insertar en track_versions) se mantiene igual.
 
-## Implementacion tecnica
+### 3. Barra de progreso (bonus)
 
-### 1. Nuevo componente `AudioWaveformPlayer`
+Aprovechar el callback `onProgress` de TUS para mostrar una barra de progreso durante la subida, util para archivos de 100+ MB que pueden tardar.
 
-Crear un componente en `src/components/releases/AudioWaveformPlayer.tsx`:
+```text
+onProgress: (bytesUploaded, bytesTotal) => {
+  const pct = Math.round((bytesUploaded / bytesTotal) * 100);
+  setUploadProgress(pct);
+}
+```
 
-- Recibe `src` (URL del audio), `isPlaying`, `onTogglePlay`
-- Usa `AudioContext.decodeAudioData()` para obtener el buffer de audio y extraer los peaks (muestras promediadas)
-- Dibuja la onda en un `<canvas>` usando barras verticales
-- Un `requestAnimationFrame` loop actualiza la posicion de reproduccion
-- Al hacer clic en el canvas, calcula la posicion relativa y hace `audioElement.currentTime = ...`
-- Muestra tiempo actual y duracion en formato `m:ss`
+Mostrar un componente `<Progress value={uploadProgress} />` en el dialogo de subida en vez del simple "Subiendo...".
 
-Flujo:
-1. Al montar o cambiar `src`, fetch del audio como `ArrayBuffer`
-2. Decodificar con `AudioContext.decodeAudioData()`
-3. Extraer ~200 barras de peaks del canal izquierdo
-4. Dibujar en canvas: barras en color primary hasta la posicion actual, barras en gris para el resto
-5. En cada frame, redibujar la posicion del cursor
-
-### 2. Modificar `TrackAudioCard` en `ReleaseAudio.tsx`
-
-- Cuando hay una version reproduciendose, mostrar el `AudioWaveformPlayer` debajo de la version activa
-- Pasar el `audioRef` al componente para controlar la reproduccion
-- El boton play/pause existente seguira funcionando, pero ademas el waveform player tendra su propio boton integrado
-
-### 3. Detalles del canvas
-
-- Barras con esquinas redondeadas, separacion de 2px
-- Color reproducido: `hsl(var(--primary))`
-- Color restante: `hsl(var(--muted-foreground))` con opacidad 0.3
-- Reflejo inferior (mirror) con opacidad reducida, similar a la imagen de referencia
-- Responsive: el canvas se adapta al ancho del contenedor
-- Clic para seek: `(clickX / canvasWidth) * duration`
-
-### Archivos
+## Archivos
 
 | Archivo | Accion |
 |---|---|
-| `src/components/releases/AudioWaveformPlayer.tsx` | Crear - componente canvas con waveform |
-| `src/pages/release-sections/ReleaseAudio.tsx` | Modificar - integrar waveform en cada version que se reproduce |
+| `package.json` | Anadir `tus-js-client` |
+| `src/pages/release-sections/ReleaseAudio.tsx` | Reemplazar upload estandar por TUS resumable + barra de progreso |
