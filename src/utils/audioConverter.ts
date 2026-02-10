@@ -1,4 +1,4 @@
-import lamejs from 'lamejs';
+import { Mp3Encoder } from '@breezystack/lamejs';
 
 const MAX_DIRECT_SIZE = 50 * 1024 * 1024; // 50 MB
 
@@ -41,8 +41,8 @@ export async function compressAudioToMp3(
   const rightChannel = channels > 1 ? floatToInt16(audioBuffer.getChannelData(1)) : undefined;
 
   // Encode to MP3 at 320kbps
-  const encoder = new lamejs.Mp3Encoder(channels, sampleRate, 320);
-  const mp3Chunks: Int8Array[] = [];
+  const encoder = new Mp3Encoder(channels, sampleRate, 320);
+  const mp3Chunks: Uint8Array[] = [];
   const blockSize = 1152;
 
   for (let i = 0; i < totalSamples; i += blockSize) {
