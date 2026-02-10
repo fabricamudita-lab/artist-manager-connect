@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import * as tus from 'tus-js-client';
-import { ArrowLeft, Music, Play, Pause, Upload, Trash2, ChevronDown, FileAudio, FileText, Copy, Check, User } from 'lucide-react';
+import { ArrowLeft, Music, Play, Pause, Upload, Trash2, ChevronDown, FileAudio, FileText, Copy, Check, User, AlertTriangle } from 'lucide-react';
+import { compressAudioToMp3, needsConversion, formatFileSize } from '@/utils/audioConverter';
 import { AudioWaveformPlayer } from '@/components/releases/AudioWaveformPlayer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -94,6 +95,9 @@ function TrackAudioCard({ track }: { track: Track }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [progressLabel, setProgressLabel] = useState('');
+  const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'uploading'>('idle');
+  const [compressedSize, setCompressedSize] = useState<number | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [versionName, setVersionName] = useState('');
   const [manuallyEditedName, setManuallyEditedName] = useState(false);
@@ -103,7 +107,25 @@ function TrackAudioCard({ track }: { track: Track }) {
 
   const uploadVersion = useMutation({
     mutationFn: async ({ file, name }: { file: File; name: string }) => {
-      const fileExt = file.name.split('.').pop();
+      let fileToUpload = file;
+
+      // Auto-convert large files to MP3
+      if (needsConversion(file)) {
+        setConversionStatus('converting');
+        setProgressLabel('Convirtiendo a MP3 (320kbps)...');
+        setUploadProgress(0);
+        fileToUpload = await compressAudioToMp3(file, (pct) => {
+          setUploadProgress(pct);
+          setProgressLabel(`Convirtiendo a MP3... ${pct}%`);
+        });
+        setCompressedSize(fileToUpload.size);
+      }
+
+      setConversionStatus('uploading');
+      setProgressLabel('Subiendo...');
+      setUploadProgress(0);
+
+      const fileExt = fileToUpload.name.split('.').pop();
       const fileName = `${track.id}/${Date.now()}.${fileExt}`;
 
       const session = await supabase.auth.getSession();
@@ -111,10 +133,9 @@ function TrackAudioCard({ track }: { track: Track }) {
       if (!accessToken) throw new Error('No autenticado');
 
       const supabaseUrl = (supabase as any).supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
-      const projectRef = new URL(supabaseUrl).hostname.split('.')[0];
 
       await new Promise<void>((resolve, reject) => {
-        const upload = new tus.Upload(file, {
+        const upload = new tus.Upload(fileToUpload, {
           endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
           retryDelays: [0, 3000, 5000, 10000, 20000],
           headers: {
@@ -126,13 +147,15 @@ function TrackAudioCard({ track }: { track: Track }) {
           metadata: {
             bucketName: 'audio-tracks',
             objectName: fileName,
-            contentType: file.type || 'audio/mpeg',
+            contentType: fileToUpload.type || 'audio/mpeg',
             cacheControl: '3600',
           },
           chunkSize: 6 * 1024 * 1024,
           onError: (error) => reject(error),
           onProgress: (bytesUploaded, bytesTotal) => {
-            setUploadProgress(Math.round((bytesUploaded / bytesTotal) * 100));
+            const pct = Math.round((bytesUploaded / bytesTotal) * 100);
+            setUploadProgress(pct);
+            setProgressLabel(`Subiendo... ${pct}%`);
           },
           onSuccess: () => resolve(),
         });
@@ -167,6 +190,9 @@ function TrackAudioCard({ track }: { track: Track }) {
       setManuallyEditedName(false);
       setSelectedFile(null);
       setUploadProgress(0);
+      setConversionStatus('idle');
+      setProgressLabel('');
+      setCompressedSize(null);
     },
     onError: (error: any) => {
       console.error('Upload error:', error);
@@ -332,14 +358,27 @@ function TrackAudioCard({ track }: { track: Track }) {
                       />
                       {selectedFile && (
                         <p className="text-xs text-muted-foreground">
-                          {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                          {selectedFile.name} ({formatFileSize(selectedFile.size)})
                         </p>
+                      )}
+                      {selectedFile && needsConversion(selectedFile) && conversionStatus === 'idle' && (
+                        <div className="flex items-start gap-2 p-2 rounded-md bg-destructive/10 border border-destructive/20">
+                          <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                          <p className="text-xs text-destructive">
+                            El archivo supera 50 MB. Se convertirá automáticamente a MP3 (320kbps) antes de subir.
+                          </p>
+                        </div>
                       )}
                     </div>
                     {isUploading && (
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         <Progress value={uploadProgress} className="h-2" />
-                        <p className="text-xs text-muted-foreground text-center">{uploadProgress}%</p>
+                        <p className="text-xs text-muted-foreground text-center">{progressLabel || `${uploadProgress}%`}</p>
+                        {compressedSize && selectedFile && (
+                          <p className="text-xs text-muted-foreground text-center">
+                            {formatFileSize(selectedFile.size)} → {formatFileSize(compressedSize)}
+                          </p>
+                        )}
                       </div>
                     )}
                     <Button
@@ -347,7 +386,9 @@ function TrackAudioCard({ track }: { track: Track }) {
                       disabled={isUploading || !selectedFile || !versionName.trim()}
                       className="w-full"
                     >
-                      {isUploading ? 'Subiendo...' : 'Subir'}
+                      {isUploading 
+                        ? (conversionStatus === 'converting' ? 'Convirtiendo...' : 'Subiendo...') 
+                        : 'Subir'}
                     </Button>
                   </div>
                 </DialogContent>
