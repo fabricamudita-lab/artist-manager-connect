@@ -1,60 +1,54 @@
 
-# Dialogo de confirmacion al regenerar fechas
 
-## Contexto
+# Drag para mover barras del Gantt con tooltip de fecha
 
-Actualmente, al pulsar "Regenerar fechas" se abre directamente el wizard y al confirmar se sobreescriben todas las tareas del cronograma, perdiendo cualquier cambio manual (subtareas, notas, comentarios, responsables asignados, anclajes, etc.).
+## Resumen
 
-## Solucion
+Permitir arrastrar las barras del Gantt horizontalmente para cambiar las fechas de las tareas. Durante el arrastre, se mostrara un tooltip flotante con la fecha correspondiente a la posicion actual del cursor.
 
-Interceptar el clic en "Regenerar fechas" con un dialogo de confirmacion que ofrezca dos opciones antes de abrir el wizard:
+## Comportamiento
 
-1. **Mantener datos existentes**: Solo recalcula las fechas de inicio/fin de las tareas existentes segun la nueva configuracion del wizard, pero conserva subtareas, notas, comentarios, responsables y estados.
-2. **Sobreescribir todo**: Comportamiento actual -- genera un cronograma limpio desde cero, eliminando todos los cambios anteriores.
-
-### Flujo del usuario
-
-```text
-[Clic "Regenerar fechas"]
-        |
-        v
-  Dialogo de confirmacion
-  "Ya tienes tareas configuradas. Que deseas hacer?"
-  ┌─────────────────────────────────┐
-  │  Opcion A: Mantener datos       │
-  │  "Solo actualiza las fechas     │
-  │   segun la nueva configuracion. │
-  │   Tus subtareas, notas y        │
-  │   responsables se conservan."   │
-  ├─────────────────────────────────┤
-  │  Opcion B: Sobreescribir todo   │
-  │  "Genera un cronograma nuevo    │
-  │   desde cero. Se eliminaran     │
-  │   todos los cambios anteriores."│
-  └─────────────────────────────────┘
-        |
-        v
-  [Se abre el wizard normalmente]
-        |
-        v
-  [Genera segun la opcion elegida]
-```
+- **Arrastre completo (mover)**: Arrastrar la barra desde el centro la desplaza entera, cambiando la fecha de inicio pero manteniendo la duracion.
+- **Arrastre borde derecho (resize)**: Arrastrar desde el extremo derecho de la barra cambia la fecha de fin (duracion).
+- **Arrastre borde izquierdo (resize)**: Arrastrar desde el extremo izquierdo cambia la fecha de inicio, ajustando la duracion.
+- **Tooltip durante arrastre**: Un pequeno chip flotante junto al cursor muestra la fecha (ej. "14 feb") actualizada en tiempo real mientras se arrastra.
+- Al soltar, se llama a `onUpdateTaskDate` con los valores finales.
+- Los clics simples (seleccion) y doble clics (popover) siguen funcionando igual -- el drag solo se activa si el mouse se mueve mas de 3px.
 
 ## Cambios tecnicos
 
 | Archivo | Cambio |
 |---|---|
-| `src/pages/release-sections/ReleaseCronograma.tsx` | 1. Nuevo estado `regenerateMode: 'keep' | 'overwrite' | null`. 2. Nuevo estado `showRegenerateConfirm: boolean`. 3. El boton "Regenerar fechas" ahora abre el dialogo de confirmacion (no el wizard directamente). 4. Al elegir opcion, se guarda el modo y se abre el wizard. 5. En `handleGenerateFromWizard`, si el modo es `'keep'`, se hace un merge: para cada tarea generada, si existe una tarea con el mismo nombre en el mismo workflow, se conservan sus subtareas, notas, responsable, estado y anclajes, actualizando solo `startDate` y `estimatedDays`. Si el modo es `'overwrite'`, comportamiento actual sin cambios. |
+| `src/components/lanzamientos/GanttChart.tsx` | 1. Nuevo estado de drag: `dragging` con `{ taskId, workflowId, mode: 'move' | 'resize-left' | 'resize-right', startX, origStartDate, origDays }`. 2. En la barra: `onMouseDown` detecta si el clic esta en los 6px del borde izquierdo, 6px del borde derecho, o centro para determinar `mode`. 3. Listeners `mousemove`/`mouseup` a nivel `document` (similar a `useDraggable.ts`): convierte deltaX en dias usando el ancho del contenedor y `totalDays`, calcula nueva fecha y dias, y actualiza un estado temporal `dragPreview` para renderizar la barra en su nueva posicion. 4. Un div tooltip absoluto (posicionado junto al cursor) muestra `format(previewDate, 'dd MMM', { locale: es })` durante el arrastre. 5. Al soltar: llama `onUpdateTaskDate` con los valores finales y limpia el estado de drag. 6. Cursor CSS: `cursor-ew-resize` en los bordes, `cursor-grab` / `cursor-grabbing` en el centro. 7. Umbral de 3px antes de iniciar el drag para no interferir con clics. |
 
-### Logica de merge (modo "mantener")
+## Detalle de la interaccion
 
-Para cada workflow:
-- Se generan las tareas nuevas desde el wizard.
-- Para cada tarea generada, se busca una tarea existente con el mismo `name` en el mismo workflow.
-- Si se encuentra coincidencia: se toma la tarea existente y solo se actualizan `startDate` y `estimatedDays` con los valores generados. Se conservan `subtasks`, `status`, `responsible`, `responsible_ref`, `anchoredTo`, `customStartDate`.
-- Si no hay coincidencia (tarea nueva): se agrega tal cual desde la generacion.
-- Tareas existentes sin coincidencia en la generacion: se mantienen al final del workflow (no se eliminan).
+```text
+Barra de tarea:
+  [|||=================|||]
+   ^                    ^
+   resize-left         resize-right
+         (centro = move)
 
-### Dialogo
+Durante el arrastre:
+  [=================]  "14 feb"  <-- tooltip flotante
+                        ^
+                   junto al cursor
+```
 
-Se usara el componente `AlertDialog` existente (similar al patron de `ConfirmationDialog`) con dos botones principales y un boton cancelar. No se necesita un componente nuevo, se puede hacer inline en ReleaseCronograma.
+## Calculo de dias desde pixeles
+
+Se usa `containerRef` (referencia al div flex-1 del row) para obtener el ancho total en pixeles. La conversion es:
+
+```text
+deltaDays = Math.round((deltaX / containerWidth) * totalDays)
+newStartDate = addDays(origStartDate, deltaDays)
+```
+
+Para resize-right: `newDays = Math.max(1, origDays + deltaDays)`
+Para resize-left: `newStartDate = addDays(origStart, deltaDays)`, `newDays = Math.max(1, origDays - deltaDays)`
+
+## Tooltip
+
+Un `div` con `position: fixed`, `pointer-events: none`, posicionado en `(clientX + 12, clientY - 24)`. Estilo: fondo oscuro, texto blanco, rounded, texto xs. Solo visible cuando `dragging` esta activo.
+
