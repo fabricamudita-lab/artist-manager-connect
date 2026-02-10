@@ -1,44 +1,60 @@
 
+# Dialogo de confirmacion al regenerar fechas
 
-# Seleccion y ocultacion de tareas en el Cronograma
+## Contexto
 
-## Resumen
+Actualmente, al pulsar "Regenerar fechas" se abre directamente el wizard y al confirmar se sobreescriben todas las tareas del cronograma, perdiendo cualquier cambio manual (subtareas, notas, comentarios, responsables asignados, anclajes, etc.).
 
-Implementar un sistema donde el usuario pueda seleccionar tareas (barras grises) con un clic, seleccionar varias a la vez, y luego ocultarlas. Las tareas ocultas desaparecen tanto de la vista Gantt como de la vista Lista. Un boton "Ver ocultos" permite revisar y restaurar tareas ocultas.
+## Solucion
 
-## Comportamiento
+Interceptar el clic en "Regenerar fechas" con un dialogo de confirmacion que ofrezca dos opciones antes de abrir el wizard:
 
-- **Clic simple** en una barra del Gantt: selecciona/deselecciona la tarea (borde resaltado). Se pueden seleccionar varias.
-- **Doble clic** en una barra del Gantt: abre el popover de edicion de fechas (comportamiento actual).
-- Cuando hay tareas seleccionadas, aparece una **barra de acciones** con boton "Ocultar seleccionadas".
-- Las tareas ocultas desaparecen de ambas vistas (lista y Gantt).
-- Boton **"Ver ocultos"** en la toolbar principal que abre un panel/dialogo con las tareas ocultas y un boton para restaurarlas.
+1. **Mantener datos existentes**: Solo recalcula las fechas de inicio/fin de las tareas existentes segun la nueva configuracion del wizard, pero conserva subtareas, notas, comentarios, responsables y estados.
+2. **Sobreescribir todo**: Comportamiento actual -- genera un cronograma limpio desde cero, eliminando todos los cambios anteriores.
 
-## Persistencia
+### Flujo del usuario
 
-Las tareas ocultas se guardan en `localStorage` con clave `hidden_tasks_{releaseId}` (array de IDs de tarea). No requiere cambios en la base de datos.
+```text
+[Clic "Regenerar fechas"]
+        |
+        v
+  Dialogo de confirmacion
+  "Ya tienes tareas configuradas. Que deseas hacer?"
+  ┌─────────────────────────────────┐
+  │  Opcion A: Mantener datos       │
+  │  "Solo actualiza las fechas     │
+  │   segun la nueva configuracion. │
+  │   Tus subtareas, notas y        │
+  │   responsables se conservan."   │
+  ├─────────────────────────────────┤
+  │  Opcion B: Sobreescribir todo   │
+  │  "Genera un cronograma nuevo    │
+  │   desde cero. Se eliminaran     │
+  │   todos los cambios anteriores."│
+  └─────────────────────────────────┘
+        |
+        v
+  [Se abre el wizard normalmente]
+        |
+        v
+  [Genera segun la opcion elegida]
+```
 
 ## Cambios tecnicos
 
 | Archivo | Cambio |
 |---|---|
-| `src/pages/release-sections/ReleaseCronograma.tsx` | 1. Estado `hiddenTaskIds` (Set) cargado desde localStorage. 2. Estado `selectedTaskIds` (Set) para multi-seleccion. 3. Filtrar `workflows` para excluir tareas ocultas antes de pasarlos a la vista Lista y al GanttChart. 4. Barra de acciones flotante cuando hay seleccion activa ("Ocultar N tareas"). 5. Boton "Ver ocultos" en la toolbar (junto a "Regenerar fechas") que abre un dialogo con lista de tareas ocultas y boton "Hacer visible". 6. Funcion `toggleHidden` y `restoreTask` que actualizan estado y localStorage. |
-| `src/components/lanzamientos/GanttChart.tsx` | 1. Nuevas props: `selectedTaskIds`, `onTaskSelect`, `onTaskDoubleClick`. 2. Clic simple en barra llama `onTaskSelect(taskId)`. 3. Doble clic en barra abre el popover (mover logica actual de clic a doble clic). 4. Estilo visual para tareas seleccionadas (borde/ring azul). |
+| `src/pages/release-sections/ReleaseCronograma.tsx` | 1. Nuevo estado `regenerateMode: 'keep' | 'overwrite' | null`. 2. Nuevo estado `showRegenerateConfirm: boolean`. 3. El boton "Regenerar fechas" ahora abre el dialogo de confirmacion (no el wizard directamente). 4. Al elegir opcion, se guarda el modo y se abre el wizard. 5. En `handleGenerateFromWizard`, si el modo es `'keep'`, se hace un merge: para cada tarea generada, si existe una tarea con el mismo nombre en el mismo workflow, se conservan sus subtareas, notas, responsable, estado y anclajes, actualizando solo `startDate` y `estimatedDays`. Si el modo es `'overwrite'`, comportamiento actual sin cambios. |
 
-## Flujo visual
+### Logica de merge (modo "mantener")
 
-```text
-Toolbar:  [Regenerar fechas]  [Ver ocultos (3)]  [Lista | Cronograma]
+Para cada workflow:
+- Se generan las tareas nuevas desde el wizard.
+- Para cada tarea generada, se busca una tarea existente con el mismo `name` en el mismo workflow.
+- Si se encuentra coincidencia: se toma la tarea existente y solo se actualizan `startDate` y `estimatedDays` con los valores generados. Se conservan `subtasks`, `status`, `responsible`, `responsible_ref`, `anchoredTo`, `customStartDate`.
+- Si no hay coincidencia (tarea nueva): se agrega tal cual desde la generacion.
+- Tareas existentes sin coincidencia en la generacion: se mantienen al final del workflow (no se eliminan).
 
-Gantt:
-  Tarea A  [===seleccionada===]   <-- borde azul
-  Tarea B  [=======]
-  Tarea C  [===seleccionada===]   <-- borde azul
+### Dialogo
 
-Barra flotante (aparece con seleccion):
-  "2 tareas seleccionadas"  [Ocultar]  [Cancelar]
-```
-
-## Dialogo "Ver ocultos"
-
-Lista simple con nombre de tarea, flujo al que pertenece, y boton "Hacer visible" por cada una. Tambien un boton "Restaurar todas".
+Se usara el componente `AlertDialog` existente (similar al patron de `ConfirmationDialog`) con dos botones principales y un boton cancelar. No se necesita un componente nuevo, se puede hacer inline en ReleaseCronograma.
