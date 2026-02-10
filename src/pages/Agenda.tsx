@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Users, LayoutGrid, CreditCard, FolderOpen, Mail, Phone, MapPin, Building, Edit2, MoreVertical } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Search, Users, LayoutGrid, CreditCard, FolderOpen, Mail, Phone, MapPin, Building, Edit2, MoreVertical, Settings, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,7 +16,8 @@ import { toast } from '@/hooks/use-toast';
 import { RolodexView } from '@/components/RolodexView';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ManageContactGroupsDialog } from '@/components/ManageContactGroupsDialog';
-import { TEAM_CATEGORIES, getTeamCategoryLabel, getTeamCategoryIcon } from '@/lib/teamCategories';
+import { CategoryManagerSheet } from '@/components/CategoryManagerSheet';
+import { TEAM_CATEGORIES, TeamCategoryOption, getTeamCategoryLabel, getTeamCategoryIcon } from '@/lib/teamCategories';
 
 interface Contact {
   id: string;
@@ -69,6 +70,8 @@ export default function Agenda() {
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [contactRefreshTrigger, setContactRefreshTrigger] = useState(0);
   const [customCategories, setCustomCategories] = useState<Array<{ value: string; label: string; icon?: any; isCustom: boolean }>>([]);
+  const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
+  const [categoryOrderVersion, setCategoryOrderVersion] = useState(0);
 
   // Load custom categories from localStorage
   useEffect(() => {
@@ -81,7 +84,81 @@ export default function Agenda() {
         console.error('Error loading custom categories:', e);
       }
     }
-  }, []);
+  }, [categoryOrderVersion]);
+
+  // Categories ordered for display
+  const allCategoriesForDisplay = useMemo(() => {
+    const labelOverrides = (() => {
+      try {
+        const stored = localStorage.getItem('category_label_overrides');
+        return stored ? JSON.parse(stored) : {};
+      } catch { return {}; }
+    })();
+    const systemWithLabels = TEAM_CATEGORIES.map(cat => ({
+      ...cat,
+      label: labelOverrides[cat.value] || cat.label,
+    }));
+    const all: TeamCategoryOption[] = [...systemWithLabels, ...customCategories];
+    const savedOrder = localStorage.getItem('category_order');
+    if (savedOrder) {
+      try {
+        const orderIds: string[] = JSON.parse(savedOrder);
+        const ordered = orderIds
+          .map(id => all.find(c => c.value === id))
+          .filter(Boolean) as TeamCategoryOption[];
+        const newCats = all.filter(c => !orderIds.includes(c.value));
+        return [...ordered, ...newCats];
+      } catch { return all; }
+    }
+    return all;
+  }, [customCategories, categoryOrderVersion]);
+
+  // Category management handlers
+  const handleAddCustomCategory = (name: string) => {
+    const value = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    const exists = [...TEAM_CATEGORIES, ...customCategories].some(c => c.value === value);
+    if (exists) {
+      toast({ title: 'La categoría ya existe', variant: 'destructive' });
+      return;
+    }
+    const newCat = { value, label: name, isCustom: true as const };
+    const updated = [...customCategories, newCat];
+    localStorage.setItem('custom_team_categories', JSON.stringify(updated));
+    setCustomCategories(updated.map(c => ({ ...c, icon: undefined, isCustom: true })));
+    setCategoryOrderVersion(v => v + 1);
+    toast({ title: `Categoría "${name}" creada` });
+  };
+
+  const handleRenameCategory = (categoryValue: string, newLabel: string) => {
+    const updated = customCategories.map(c =>
+      c.value === categoryValue ? { ...c, label: newLabel } : c
+    );
+    localStorage.setItem('custom_team_categories', JSON.stringify(updated));
+    setCustomCategories(updated.map(c => ({ ...c, icon: undefined, isCustom: true })));
+    setCategoryOrderVersion(v => v + 1);
+    toast({ title: `Categoría renombrada a "${newLabel}"` });
+  };
+
+  const handleDeleteCategory = (categoryValue: string) => {
+    const updated = customCategories.filter(c => c.value !== categoryValue);
+    localStorage.setItem('custom_team_categories', JSON.stringify(updated));
+    setCustomCategories(updated.map(c => ({ ...c, icon: undefined, isCustom: true })));
+    setCategoryOrderVersion(v => v + 1);
+    toast({ title: 'Categoría eliminada' });
+  };
+
+  const handleCategoryReorder = (orderedValues: string[]) => {
+    localStorage.setItem('category_order', JSON.stringify(orderedValues));
+    setCategoryOrderVersion(v => v + 1);
+  };
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    contacts.forEach(c => {
+      counts.set(c.category, (counts.get(c.category) || 0) + 1);
+    });
+    return counts;
+  }, [contacts]);
 
   const cities = Array.from(new Set(contacts.map(c => c.city).filter(Boolean))).sort();
   
@@ -256,6 +333,10 @@ export default function Agenda() {
             <FolderOpen className="w-4 h-4 mr-2" />
             Grupos
           </Button>
+          <Button variant="outline" onClick={() => setCategoryManagerOpen(true)}>
+            <Settings className="w-4 h-4 mr-2" />
+            Editar Categorías
+          </Button>
           <Button onClick={() => setIsCreateDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Nuevo Contacto
@@ -280,7 +361,7 @@ export default function Agenda() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas</SelectItem>
-            {[...TEAM_CATEGORIES, ...customCategories].map((category) => {
+            {allCategoriesForDisplay.map((category) => {
               const Icon = category.icon;
               return (
                 <SelectItem key={category.value} value={category.value}>
@@ -533,6 +614,18 @@ export default function Agenda() {
             setEditingContact(contact);
           }
         }}
+      />
+
+      <CategoryManagerSheet
+        open={categoryManagerOpen}
+        onOpenChange={setCategoryManagerOpen}
+        systemCategories={TEAM_CATEGORIES}
+        customCategories={customCategories}
+        categoryCounts={categoryCounts}
+        onCreateNew={handleAddCustomCategory}
+        onRename={handleRenameCategory}
+        onDelete={handleDeleteCategory}
+        onReorder={handleCategoryReorder}
       />
     </div>
   );
