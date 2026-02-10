@@ -280,7 +280,9 @@ export default function Agenda() {
 
     if (selectedGroup && selectedGroup !== 'all') {
       try {
-        if (selectedGroup.startsWith('artist-')) {
+        if (selectedGroup === 'management') {
+          filtered = filtered.filter(contact => contact.category === 'management');
+        } else if (selectedGroup.startsWith('artist-')) {
           const artistId = selectedGroup.replace('artist-', '');
           const { data } = await supabase
             .from('contact_artist_assignments')
@@ -438,6 +440,17 @@ export default function Agenda() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los equipos</SelectItem>
+            <SelectItem value="management">
+              <div className="flex items-center gap-2">
+                <Avatar className="h-5 w-5">
+                  <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                    <Building className="h-3 w-3" />
+                  </AvatarFallback>
+                </Avatar>
+                <span>00 Management</span>
+                <span className="text-muted-foreground">({contacts.filter(c => c.category === 'management').length})</span>
+              </div>
+            </SelectItem>
             {artists.length > 0 && artists.map((artist) => (
               <SelectItem key={`artist-${artist.id}`} value={`artist-${artist.id}`}>
                 <div className="flex items-center gap-2">
