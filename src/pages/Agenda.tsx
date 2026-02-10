@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Search, Users, LayoutGrid, CreditCard, FolderOpen, Mail, Phone, MapPin, Building, Edit2, MoreVertical, Settings, Tag } from 'lucide-react';
+import { Plus, Search, Users, LayoutGrid, CreditCard, Mail, Phone, MapPin, Building, Edit2, MoreVertical, Settings, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -330,8 +330,8 @@ export default function Agenda() {
         </p>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsManageGroupsOpen(true)}>
-            <FolderOpen className="w-4 h-4 mr-2" />
-            Grupos
+            <Users className="w-4 h-4 mr-2" />
+            Equipos
           </Button>
           <Button variant="outline" onClick={() => setCategoryManagerOpen(true)}>
             <Settings className="w-4 h-4 mr-2" />
@@ -391,10 +391,10 @@ export default function Agenda() {
 
         <Select value={selectedGroup} onValueChange={setSelectedGroup}>
           <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Grupo" />
+            <SelectValue placeholder="Equipo" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos los grupos</SelectItem>
+            <SelectItem value="all">Todos los equipos</SelectItem>
             {groups.map((group) => (
               <SelectItem key={group.id} value={group.id}>
                 <div className="flex items-center gap-2">
