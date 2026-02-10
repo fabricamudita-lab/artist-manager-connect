@@ -401,12 +401,15 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
               </h3>
               <div className="space-y-2">
                 {workflowTasks.map(task => {
-                  const isDragging = dragState?.activated && dragPreview?.taskId === task.id;
-                  const displayStart = isDragging ? dragPreview!.startDate : task.startDate;
-                  const displayDays = isDragging ? dragPreview!.days : task.estimatedDays;
+                  const isPendingThis = pendingDrag?.taskId === task.id;
+                  const isDragging = (dragState?.activated && dragPreview?.taskId === task.id) || isPendingThis;
+                  const activePreview = isPendingThis ? pendingDrag : dragPreview;
+                  const displayStart = isDragging ? activePreview!.startDate : task.startDate;
+                  const displayDays = isDragging ? activePreview!.days : task.estimatedDays;
                   const displayEnd = addDays(displayStart, displayDays);
                   const { left, width } = getBarPosition(displayStart, displayDays);
                   const dueDate = addDays(task.startDate, task.estimatedDays);
+                  const origBarPos = isDragging ? getBarPosition(task.startDate, task.estimatedDays) : null;
                   const popoverId = `${workflow.id}-${task.id}`;
                   const isSelected = selectedTaskIds?.has(task.id) ?? false;
 
@@ -444,6 +447,8 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                         popoverId={popoverId}
                         isSelected={isSelected}
                         isDragging={!!isDragging}
+                        ghostLeft={origBarPos?.left}
+                        ghostWidth={origBarPos?.width}
                         openPopover={openPopover}
                         setOpenPopover={setOpenPopover}
                         editingDateType={editingDateType}
@@ -532,6 +537,8 @@ interface GanttBarRowProps {
   popoverId: string;
   isSelected: boolean;
   isDragging: boolean;
+  ghostLeft?: string;
+  ghostWidth?: string;
   openPopover: string | null;
   setOpenPopover: (id: string | null) => void;
   editingDateType: 'start' | 'end';
@@ -555,6 +562,7 @@ interface GanttBarRowProps {
 
 function GanttBarRow({
   task, left, width, dueDate, displayStart, displayEnd, popoverId, isSelected, isDragging,
+  ghostLeft, ghostWidth,
   openPopover, setOpenPopover, editingDateType, setEditingDateType,
   todayPosition, onTaskSelect, onBarMouseDown, workflowId,
   handleStartDateSelect, handleEndDateSelect, onHideTask,
@@ -575,6 +583,18 @@ function GanttBarRow({
         <div 
           className="absolute top-0 h-full w-0.5 bg-red-500/50 z-10 pointer-events-none"
           style={{ left: `${todayPosition}%` }}
+        />
+      )}
+
+      {/* Ghost bar at original position during drag */}
+      {isDragging && ghostLeft && ghostWidth && (
+        <div
+          className={cn(
+            'absolute rounded pointer-events-none',
+            'bg-muted-foreground/40',
+            task.isSubtask ? 'top-0.5 h-5' : 'top-1 h-6',
+          )}
+          style={{ left: ghostLeft, width: ghostWidth, minWidth: '16px', opacity: 0.25 }}
         />
       )}
 
