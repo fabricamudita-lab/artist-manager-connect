@@ -72,6 +72,18 @@ export default function ReleaseAudio() {
   );
 }
 
+function formatVersionName(fileName: string): string {
+  const nameWithoutExt = fileName.replace(/\.[^.]+$/, '');
+  const spaced = nameWithoutExt.replace(/[_-]/g, ' ');
+  return spaced.split(' ')
+    .filter(Boolean)
+    .map(word => {
+      if (/^[A-Z0-9]+$/.test(word) && word.length <= 5) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+
 function TrackAudioCard({ track }: { track: Track }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -80,6 +92,7 @@ function TrackAudioCard({ track }: { track: Track }) {
   const [isUploading, setIsUploading] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [versionName, setVersionName] = useState('');
+  const [manuallyEditedName, setManuallyEditedName] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [playingVersionId, setPlayingVersionId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -122,11 +135,15 @@ function TrackAudioCard({ track }: { track: Track }) {
       toast.success('Versión subida correctamente');
       setIsUploadDialogOpen(false);
       setVersionName('');
+      setManuallyEditedName(false);
       setSelectedFile(null);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Upload error:', error);
-      toast.error('Error al subir el archivo');
+      const msg = error?.statusCode === 413 || error?.message?.includes('Payload too large')
+        ? 'El archivo excede el tamaño máximo permitido (250 MB)'
+        : 'Error al subir el archivo';
+      toast.error(msg);
     },
   });
 
@@ -274,7 +291,10 @@ function TrackAudioCard({ track }: { track: Track }) {
                       <Input
                         placeholder="ej: Master Final, Mix v2, Demo..."
                         value={versionName}
-                        onChange={(e) => setVersionName(e.target.value)}
+                        onChange={(e) => {
+                          setVersionName(e.target.value);
+                          setManuallyEditedName(true);
+                        }}
                       />
                     </div>
                     <div className="space-y-2">
@@ -282,7 +302,13 @@ function TrackAudioCard({ track }: { track: Track }) {
                       <Input
                         type="file"
                         accept="audio/*"
-                        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          setSelectedFile(file);
+                          if (file && !manuallyEditedName) {
+                            setVersionName(formatVersionName(file.name));
+                          }
+                        }}
                       />
                       {selectedFile && (
                         <p className="text-xs text-muted-foreground">
