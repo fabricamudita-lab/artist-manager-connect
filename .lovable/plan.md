@@ -1,39 +1,28 @@
 
-# Unificar categorias entre Equipos y Contactos
+# Agregar "Editar Categorias" en Contactos
 
-## Problema actual
+## Problema
 
-La pagina de Contactos (Agenda.tsx) tiene su propia lista de categorias hardcoded completamente diferente a la de Equipos:
-
-| Contactos (actual) | Equipos (actual) |
-|---|---|
-| Artistas | Management |
-| Tecnicos | Legal |
-| Contables | Equipo Artistico |
-| Prensa | Banda |
-| Produccion | Equipo Tecnico |
-| Disenadores | Comunicacion |
-| General | Produccion, Tour Manager, Booking... |
-
-Son dos sistemas independientes. Las categorias personalizadas se comparten via localStorage (`custom_team_categories`), pero las de sistema son distintas.
+En la pagina de Contactos (Agenda) no existe la opcion de gestionar categorias, mientras que en Equipos si existe via el `CategoryManagerSheet`. Como ambos modulos comparten el mismo sistema de categorias (localStorage), deberia ser posible editarlas desde cualquiera de los dos.
 
 ## Solucion
 
-Reemplazar la lista `CATEGORIES` local de Agenda.tsx por `TEAM_CATEGORIES` de `teamCategories.ts`, que es la fuente unica de verdad. Los contactos existentes con categorias antiguas (artistas, tecnicos, contables, prensa, disenadores, general) se seguiran mostrando correctamente porque el filtro usa el valor almacenado en la base de datos.
+Agregar el boton "Editar Categorias" y el componente `CategoryManagerSheet` en Agenda.tsx, reutilizando la misma logica de handlers que ya existe en Teams.tsx.
 
 ## Cambios
 
 | Archivo | Cambio |
 |---|---|
-| `src/pages/Agenda.tsx` | Eliminar la constante `CATEGORIES` local. Importar `TEAM_CATEGORIES` desde `teamCategories.ts`. Usar `TEAM_CATEGORIES` + `customCategories` en el selector de filtro de categorias y en `getCategoryInfo`. |
-| `src/components/CreateContactDialog.tsx` | Importar `TEAM_CATEGORIES` y usarlas como opciones del selector de categoria (si no lo hace ya). Cambiar el default de `'general'` a `'otro'` para alinearse con el sistema unificado. |
+| `src/pages/Agenda.tsx` | 1. Importar `CategoryManagerSheet`, `Settings` icon, y `Users` icon. 2. Agregar estado `categoryManagerOpen`. 3. Copiar los handlers de gestion de categorias (`handleAddCustomCategory`, `handleRenameCategory`, `handleDeleteCategory`, `handleCategoryReorder`) adaptados al contexto de Agenda. 4. Agregar boton "Editar Categorias" junto al boton "Grupos". 5. Renderizar `CategoryManagerSheet` al final del JSX. |
 
-## Detalle tecnico
+## Detalle
 
-1. En Agenda.tsx, el `Select` de categoria (linea 280-292) actualmente itera sobre `CATEGORIES`. Se cambiara a iterar sobre `[...TEAM_CATEGORIES, ...customCategories]` usando tambien el icono de cada categoria.
+El boton se colocara en la barra de acciones, junto a "Grupos" y "Nuevo Contacto":
 
-2. La funcion `getCategoryInfo` (linea 211) se reemplazara por las funciones ya existentes `getTeamCategoryLabel` y `getTeamCategoryIcon` de `teamCategories.ts`.
+```text
+[Grupos] [Editar Categorias] [+ Nuevo Contacto]
+```
 
-3. El valor default `'general'` en CreateContactDialog se cambiara a `'otro'` para coincidir con la ultima categoria del sistema unificado.
+Los handlers escriben en las mismas claves de localStorage (`custom_team_categories`, `category_order`, `category_label_overrides`) que usa Teams, por lo que los cambios se reflejaran en ambos modulos.
 
-4. Los contactos existentes con categorias antiguas (artistas, contables, etc.) no se perderan - simplemente apareceran con su valor literal si no coinciden con ninguna categoria del sistema. Opcionalmente se puede agregar una nota al usuario sobre migrar datos existentes.
+Se necesitara tambien un `categoryOrderVersion` state y el `allCategoriesForDisplay` memo para que el selector de filtro respete el orden personalizado, igual que en Teams.
