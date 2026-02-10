@@ -54,6 +54,8 @@ interface GanttChartProps {
   onUpdateTaskDate?: (workflowId: string, taskId: string, newStartDate: Date, newEstimatedDays: number, subtaskId?: string) => void;
   onSetAnchor?: (workflowId: string, taskId: string, anchoredTo: string[] | undefined) => void;
   getTaskName?: (taskId: string) => string;
+  selectedTaskIds?: Set<string>;
+  onTaskSelect?: (taskId: string) => void;
 }
 
 const STATUS_BAR_COLORS: Record<TaskStatus, string> = {
@@ -72,7 +74,7 @@ const WORKFLOW_COLORS: Record<string, string> = {
   directo: 'border-l-green-500',
 };
 
-export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, getTaskName }: GanttChartProps) {
+export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, getTaskName, selectedTaskIds, onTaskSelect }: GanttChartProps) {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
   const [editingDateType, setEditingDateType] = useState<'start' | 'end'>('start');
 
@@ -259,6 +261,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                     const { left, width } = getBarPosition(task.startDate, task.estimatedDays);
                     const dueDate = addDays(task.startDate, task.estimatedDays);
                     const popoverId = `${workflow.id}-${task.id}`;
+                    const isSelected = selectedTaskIds?.has(task.id) ?? false;
 
                     return (
                       <div key={task.id} className={cn(
@@ -305,12 +308,26 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                             <PopoverTrigger asChild>
                               <div
                                 className={cn(
-                                  'absolute rounded cursor-pointer transition-all hover:opacity-80 hover:ring-2 hover:ring-primary/50',
+                                  'absolute rounded cursor-pointer transition-all hover:opacity-80',
                                   STATUS_BAR_COLORS[task.status],
                                   task.isSubtask ? 'top-0.5 h-5' : 'top-1 h-6',
-                                  task.isSubtask && 'opacity-70'
+                                  task.isSubtask && 'opacity-70',
+                                  isSelected
+                                    ? 'ring-2 ring-primary ring-offset-1'
+                                    : 'hover:ring-2 hover:ring-primary/50'
                                 )}
                                 style={{ left, width, minWidth: '16px' }}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  onTaskSelect?.(task.id);
+                                }}
+                                onDoubleClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setOpenPopover(popoverId);
+                                  setEditingDateType('start');
+                                }}
                               />
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start" side="top">

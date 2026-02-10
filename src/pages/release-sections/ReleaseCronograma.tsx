@@ -27,7 +27,10 @@ import {
   MessageCircle,
   CheckCheck,
   Send,
-  AtSign
+  AtSign,
+  EyeOff,
+  Eye,
+  X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -86,6 +89,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import GanttChart from '@/components/lanzamientos/GanttChart';
 import { useRelease, useTracks, useReleaseMilestones, type ReleaseMilestone } from '@/hooks/useReleases';
 import { supabase } from '@/integrations/supabase/client';
@@ -197,6 +207,48 @@ export default function ReleaseCronograma() {
   );
   const [showWizard, setShowWizard] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Selection & hiding state
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [hiddenTaskIds, setHiddenTaskIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(`hidden_tasks_${id}`);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+  const [showHiddenDialog, setShowHiddenDialog] = useState(false);
+
+  // Persist hidden tasks
+  const updateHiddenTasks = useCallback((newSet: Set<string>) => {
+    setHiddenTaskIds(newSet);
+    localStorage.setItem(`hidden_tasks_${id}`, JSON.stringify([...newSet]));
+  }, [id]);
+
+  const hideSelectedTasks = useCallback(() => {
+    const newHidden = new Set(hiddenTaskIds);
+    selectedTaskIds.forEach(id => newHidden.add(id));
+    updateHiddenTasks(newHidden);
+    setSelectedTaskIds(new Set());
+  }, [hiddenTaskIds, selectedTaskIds, updateHiddenTasks]);
+
+  const restoreTask = useCallback((taskId: string) => {
+    const newHidden = new Set(hiddenTaskIds);
+    newHidden.delete(taskId);
+    updateHiddenTasks(newHidden);
+  }, [hiddenTaskIds, updateHiddenTasks]);
+
+  const restoreAllTasks = useCallback(() => {
+    updateHiddenTasks(new Set());
+  }, [updateHiddenTasks]);
+
+  const toggleTaskSelect = useCallback((taskId: string) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  }, []);
   
   // Delete task confirmation dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -702,11 +754,29 @@ export default function ReleaseCronograma() {
     return addDays(startDate, days);
   };
 
-  // Filter workflows that have tasks
+  // Filter workflows that have tasks, excluding hidden tasks
   const workflowsWithTasks = useMemo(() => 
-    workflows.filter(w => w.tasks.length > 0),
-    [workflows]
+    workflows
+      .map(w => ({
+        ...w,
+        tasks: w.tasks.filter(t => !hiddenTaskIds.has(t.id)),
+      }))
+      .filter(w => w.tasks.length > 0),
+    [workflows, hiddenTaskIds]
   );
+
+  // Get info about hidden tasks for the dialog
+  const hiddenTasksInfo = useMemo(() => {
+    const info: { id: string; name: string; workflowName: string }[] = [];
+    workflows.forEach(w => {
+      w.tasks.forEach(t => {
+        if (hiddenTaskIds.has(t.id)) {
+          info.push({ id: t.id, name: t.name, workflowName: w.name });
+        }
+      });
+    });
+    return info;
+  }, [workflows, hiddenTaskIds]);
 
   if (isLoading || loadingMilestones) {
     return <Skeleton className="h-64 w-full" />;
@@ -775,6 +845,12 @@ export default function ReleaseCronograma() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Regenerar fechas
           </Button>
+          {hiddenTasksInfo.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => setShowHiddenDialog(true)}>
+              <EyeOff className="w-4 h-4 mr-2" />
+              Ver ocultos ({hiddenTasksInfo.length})
+            </Button>
+          )}
           <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
             <TabsList>
               <TabsTrigger value="list" className="gap-2">
@@ -819,6 +895,8 @@ export default function ReleaseCronograma() {
                 updateTask(workflowId, taskId, { anchoredTo });
               }}
               getTaskName={getTaskName}
+              selectedTaskIds={selectedTaskIds}
+              onTaskSelect={toggleTaskSelect}
             />
           </CardContent>
         </Card>
@@ -1548,6 +1626,58 @@ export default function ReleaseCronograma() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Floating selection action bar */}
+      {selectedTaskIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-popover border rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
+          <span className="text-sm font-medium">
+            {selectedTaskIds.size} {selectedTaskIds.size === 1 ? 'tarea seleccionada' : 'tareas seleccionadas'}
+          </span>
+          <Button size="sm" variant="default" onClick={hideSelectedTasks}>
+            <EyeOff className="w-4 h-4 mr-1" />
+            Ocultar
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelectedTaskIds(new Set())}>
+            <X className="w-4 h-4 mr-1" />
+            Cancelar
+          </Button>
+        </div>
+      )}
+
+      {/* Hidden tasks dialog */}
+      <Dialog open={showHiddenDialog} onOpenChange={setShowHiddenDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tareas ocultas</DialogTitle>
+            <DialogDescription>
+              Estas tareas están ocultas en las vistas de lista y cronograma.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {hiddenTasksInfo.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No hay tareas ocultas</p>
+            ) : (
+              hiddenTasksInfo.map(task => (
+                <div key={task.id} className="flex items-center justify-between gap-2 p-2 rounded-md border">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{task.name}</p>
+                    <p className="text-xs text-muted-foreground">{task.workflowName}</p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => restoreTask(task.id)}>
+                    <Eye className="w-3 h-3 mr-1" />
+                    Mostrar
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+          {hiddenTasksInfo.length > 1 && (
+            <Button variant="outline" className="w-full" onClick={restoreAllTasks}>
+              Restaurar todas
+            </Button>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
