@@ -946,6 +946,11 @@ export default function ReleaseCronograma() {
               getTaskName={getTaskName}
               selectedTaskIds={selectedTaskIds}
               onTaskSelect={toggleTaskSelect}
+              onHideTask={(taskId) => {
+                const newHidden = new Set(hiddenTaskIds);
+                newHidden.add(taskId);
+                updateHiddenTasks(newHidden);
+              }}
             />
           </CardContent>
         </Card>

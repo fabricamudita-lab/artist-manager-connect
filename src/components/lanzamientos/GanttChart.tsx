@@ -1,12 +1,18 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { format, addDays, differenceInDays, startOfDay, min, max, eachDayOfInterval, isAfter, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, EyeOff } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -50,6 +56,7 @@ interface GanttChartProps {
   getTaskName?: (taskId: string) => string;
   selectedTaskIds?: Set<string>;
   onTaskSelect?: (taskId: string) => void;
+  onHideTask?: (taskId: string) => void;
 }
 
 const STATUS_BAR_COLORS: Record<TaskStatus, string> = {
@@ -76,7 +83,7 @@ interface DragState {
   origStartDate: Date;
   origDays: number;
   containerWidth: number;
-  activated: boolean; // becomes true after 3px threshold
+  activated: boolean;
   isSubtask: boolean;
 }
 
@@ -86,13 +93,12 @@ interface DragPreview {
   days: number;
 }
 
-export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, getTaskName, selectedTaskIds, onTaskSelect }: GanttChartProps) {
+export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, getTaskName, selectedTaskIds, onTaskSelect, onHideTask }: GanttChartProps) {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
   const [editingDateType, setEditingDateType] = useState<'start' | 'end'>('start');
 
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const dragRef = useRef<DragState | null>(null);
 
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -224,7 +230,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
     isSubtask: boolean,
     containerEl: HTMLElement | null,
   ) => {
-    if (e.button !== 0 || !containerEl) return; // left click only
+    if (e.button !== 0 || !containerEl) return;
     e.preventDefault();
 
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -259,7 +265,6 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
 
       const deltaX = e.clientX - ds.startX;
 
-      // 3px threshold
       if (!ds.activated) {
         if (Math.abs(deltaX) < 3) return;
         ds.activated = true;
@@ -282,7 +287,6 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
       }
 
       setDragPreview({ taskId: ds.taskId, startDate: newStart, days: newDays });
-      setTooltipPos({ x: e.clientX + 12, y: e.clientY - 28 });
     };
 
     const handleMouseUp = () => {
@@ -293,7 +297,6 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
       dragRef.current = null;
       setDragState(null);
       setDragPreview(null);
-      setTooltipPos(null);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -318,15 +321,6 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
     }
   };
 
-  // Get the tooltip date label
-  const tooltipLabel = useMemo(() => {
-    if (!dragPreview || !dragState?.activated) return '';
-    if (dragState.mode === 'resize-right') {
-      return format(addDays(dragPreview.startDate, dragPreview.days), 'dd MMM', { locale: es });
-    }
-    return format(dragPreview.startDate, 'dd MMM', { locale: es });
-  }, [dragPreview, dragState]);
-
   if (tasksWithDates.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
@@ -336,141 +330,133 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
   }
 
   return (
-    <>
-      <div className="space-y-4">
-        {/* Timeline Header */}
-        <div className="relative h-10 bg-muted/30 rounded-lg overflow-hidden">
-          {months.map((month, idx) => (
-            <div
-              key={idx}
-              className="absolute top-0 h-full flex items-center justify-center border-r border-border/50 text-xs font-medium text-muted-foreground capitalize"
-              style={{ left: `${month.startPercent}%`, width: `${month.widthPercent}%` }}
-            >
-              {month.widthPercent > 8 && month.label}
-            </div>
-          ))}
-          {todayPosition !== null && (
-            <div 
-              className="absolute top-0 h-full w-0.5 bg-red-500 z-10"
-              style={{ left: `${todayPosition}%` }}
-            />
-          )}
-        </div>
-
-        {/* Workflows */}
-        <div className="space-y-6">
-          {workflows.map(workflow => {
-            const workflowTasks = tasksWithDates.filter(t => t.workflowId === workflow.id);
-            if (workflowTasks.length === 0) return null;
-
-            return (
-              <div key={workflow.id} className={cn('border-l-4 pl-4', WORKFLOW_COLORS[workflow.id])}>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <workflow.icon className="w-4 h-4" />
-                  {workflow.name}
-                </h3>
-                <div className="space-y-2">
-                  {workflowTasks.map(task => {
-                    const isDragging = dragState?.activated && dragPreview?.taskId === task.id;
-                    const displayStart = isDragging ? dragPreview!.startDate : task.startDate;
-                    const displayDays = isDragging ? dragPreview!.days : task.estimatedDays;
-                    const { left, width } = getBarPosition(displayStart, displayDays);
-                    const dueDate = addDays(task.startDate, task.estimatedDays);
-                    const popoverId = `${workflow.id}-${task.id}`;
-                    const isSelected = selectedTaskIds?.has(task.id) ?? false;
-
-                    return (
-                      <div key={task.id} className={cn(
-                        "flex items-center gap-3",
-                        task.isSubtask && "ml-4"
-                      )}>
-                        <div className={cn(
-                          "text-sm truncate text-muted-foreground flex items-center gap-1",
-                          task.isSubtask ? "w-28" : "w-32"
-                        )}>
-                          {task.isSubtask && (
-                            <span className="text-muted-foreground/50 mr-0.5">↳</span>
-                          )}
-                          {task.anchoredTo && task.anchoredTo.length > 0 && (
-                            <span 
-                              className="text-primary" 
-                              title={`Anclada a: ${task.anchoredTo.map(id => getTaskName?.(id) || id).join(', ')}`}
-                            >
-                              🔗{task.anchoredTo.length > 1 && <sup className="text-[10px]">{task.anchoredTo.length}</sup>}
-                            </span>
-                          )}
-                          <span className={cn(task.isSubtask && "text-xs")} title={task.isSubtask ? `Subtarea de: ${task.parentTaskName}` : undefined}>
-                            {task.name}
-                          </span>
-                        </div>
-                        <GanttBarRow
-                          task={task}
-                          left={left}
-                          width={width}
-                          dueDate={dueDate}
-                          popoverId={popoverId}
-                          isSelected={isSelected}
-                          isDragging={!!isDragging}
-                          openPopover={openPopover}
-                          setOpenPopover={setOpenPopover}
-                          editingDateType={editingDateType}
-                          setEditingDateType={setEditingDateType}
-                          todayPosition={todayPosition}
-                          onTaskSelect={onTaskSelect}
-                          onBarMouseDown={handleBarMouseDown}
-                          workflowId={workflow.id}
-                          handleStartDateSelect={handleStartDateSelect}
-                          handleEndDateSelect={handleEndDateSelect}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Legend */}
-        <div className="flex items-center gap-6 pt-4 border-t">
-          <span className="text-sm text-muted-foreground">Estado:</span>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-muted-foreground/50" />
-            <span className="text-sm">Pendiente</span>
+    <div className="space-y-4">
+      {/* Timeline Header */}
+      <div className="relative h-10 bg-muted/30 rounded-lg overflow-hidden">
+        {months.map((month, idx) => (
+          <div
+            key={idx}
+            className="absolute top-0 h-full flex items-center justify-center border-r border-border/50 text-xs font-medium text-muted-foreground capitalize"
+            style={{ left: `${month.startPercent}%`, width: `${month.widthPercent}%` }}
+          >
+            {month.widthPercent > 8 && month.label}
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-blue-500" />
-            <span className="text-sm">En Proceso</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-green-500" />
-            <span className="text-sm">Completado</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-red-500" />
-            <span className="text-sm">Retrasado</span>
-          </div>
-        </div>
-
-        <p className="text-xs text-muted-foreground">
-          💡 Arrastra las barras para mover fechas · Doble clic para editar con calendario
-        </p>
+        ))}
+        {todayPosition !== null && (
+          <div 
+            className="absolute top-0 h-full w-0.5 bg-red-500 z-10"
+            style={{ left: `${todayPosition}%` }}
+          />
+        )}
       </div>
 
-      {/* Drag tooltip */}
-      {dragState?.activated && tooltipPos && (
-        <div
-          className="fixed z-50 pointer-events-none bg-foreground text-background px-2 py-1 rounded text-xs font-medium shadow-lg"
-          style={{ left: tooltipPos.x, top: tooltipPos.y }}
-        >
-          {tooltipLabel}
+      {/* Workflows */}
+      <div className="space-y-6">
+        {workflows.map(workflow => {
+          const workflowTasks = tasksWithDates.filter(t => t.workflowId === workflow.id);
+          if (workflowTasks.length === 0) return null;
+
+          return (
+            <div key={workflow.id} className={cn('border-l-4 pl-4', WORKFLOW_COLORS[workflow.id])}>
+              <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <workflow.icon className="w-4 h-4" />
+                {workflow.name}
+              </h3>
+              <div className="space-y-2">
+                {workflowTasks.map(task => {
+                  const isDragging = dragState?.activated && dragPreview?.taskId === task.id;
+                  const displayStart = isDragging ? dragPreview!.startDate : task.startDate;
+                  const displayDays = isDragging ? dragPreview!.days : task.estimatedDays;
+                  const displayEnd = addDays(displayStart, displayDays);
+                  const { left, width } = getBarPosition(displayStart, displayDays);
+                  const dueDate = addDays(task.startDate, task.estimatedDays);
+                  const popoverId = `${workflow.id}-${task.id}`;
+                  const isSelected = selectedTaskIds?.has(task.id) ?? false;
+
+                  return (
+                    <div key={task.id} className={cn(
+                      "flex items-center gap-3",
+                      task.isSubtask && "ml-4"
+                    )}>
+                      <div className={cn(
+                        "text-sm truncate text-muted-foreground flex items-center gap-1",
+                        task.isSubtask ? "w-28" : "w-32"
+                      )}>
+                        {task.isSubtask && (
+                          <span className="text-muted-foreground/50 mr-0.5">↳</span>
+                        )}
+                        {task.anchoredTo && task.anchoredTo.length > 0 && (
+                          <span 
+                            className="text-primary" 
+                            title={`Anclada a: ${task.anchoredTo.map(id => getTaskName?.(id) || id).join(', ')}`}
+                          >
+                            🔗{task.anchoredTo.length > 1 && <sup className="text-[10px]">{task.anchoredTo.length}</sup>}
+                          </span>
+                        )}
+                        <span className={cn(task.isSubtask && "text-xs")} title={task.isSubtask ? `Subtarea de: ${task.parentTaskName}` : undefined}>
+                          {task.name}
+                        </span>
+                      </div>
+                      <GanttBarRow
+                        task={task}
+                        left={left}
+                        width={width}
+                        dueDate={dueDate}
+                        displayStart={displayStart}
+                        displayEnd={displayEnd}
+                        popoverId={popoverId}
+                        isSelected={isSelected}
+                        isDragging={!!isDragging}
+                        openPopover={openPopover}
+                        setOpenPopover={setOpenPopover}
+                        editingDateType={editingDateType}
+                        setEditingDateType={setEditingDateType}
+                        todayPosition={todayPosition}
+                        onTaskSelect={onTaskSelect}
+                        onBarMouseDown={handleBarMouseDown}
+                        workflowId={workflow.id}
+                        handleStartDateSelect={handleStartDateSelect}
+                        handleEndDateSelect={handleEndDateSelect}
+                        onHideTask={onHideTask}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-6 pt-4 border-t">
+        <span className="text-sm text-muted-foreground">Estado:</span>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-muted-foreground/50" />
+          <span className="text-sm">Pendiente</span>
         </div>
-      )}
-    </>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-blue-500" />
+          <span className="text-sm">En Proceso</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-green-500" />
+          <span className="text-sm">Completado</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-red-500" />
+          <span className="text-sm">Retrasado</span>
+        </div>
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        💡 Arrastra las barras para mover fechas · Clic derecho para más opciones
+      </p>
+    </div>
   );
 }
 
-// --- Extracted bar row to keep the main component cleaner ---
+// --- Extracted bar row ---
 
 interface GanttBarRowProps {
   task: {
@@ -484,6 +470,8 @@ interface GanttBarRowProps {
   left: string;
   width: string;
   dueDate: Date;
+  displayStart: Date;
+  displayEnd: Date;
   popoverId: string;
   isSelected: boolean;
   isDragging: boolean;
@@ -505,15 +493,18 @@ interface GanttBarRowProps {
   workflowId: string;
   handleStartDateSelect: (wId: string, tId: string, endDate: Date, newStart: Date | undefined) => void;
   handleEndDateSelect: (wId: string, tId: string, startDate: Date, newEnd: Date | undefined) => void;
+  onHideTask?: (taskId: string) => void;
 }
 
 function GanttBarRow({
-  task, left, width, dueDate, popoverId, isSelected, isDragging,
+  task, left, width, dueDate, displayStart, displayEnd, popoverId, isSelected, isDragging,
   openPopover, setOpenPopover, editingDateType, setEditingDateType,
   todayPosition, onTaskSelect, onBarMouseDown, workflowId,
-  handleStartDateSelect, handleEndDateSelect,
+  handleStartDateSelect, handleEndDateSelect, onHideTask,
 }: GanttBarRowProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const dateLabel = `${format(displayStart, 'dd MMM', { locale: es })} – ${format(displayEnd, 'dd MMM', { locale: es })}`;
 
   return (
     <div
@@ -529,14 +520,10 @@ function GanttBarRow({
           style={{ left: `${todayPosition}%` }}
         />
       )}
-      <Popover 
-        open={openPopover === popoverId} 
-        onOpenChange={(open) => {
-          setOpenPopover(open ? popoverId : null);
-          if (open) setEditingDateType('start');
-        }}
-      >
-        <PopoverTrigger asChild>
+
+      {/* Context menu wraps the bar */}
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
           <div
             className={cn(
               'absolute rounded transition-all group',
@@ -559,17 +546,54 @@ function GanttBarRow({
               e.stopPropagation();
               onTaskSelect?.(task.id);
             }}
-            onDoubleClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
+          >
+            {/* Resize handles */}
+            <div className="absolute left-0 top-0 w-1.5 h-full cursor-ew-resize rounded-l opacity-0 group-hover:opacity-100 bg-foreground/20" />
+            <div className="absolute right-0 top-0 w-1.5 h-full cursor-ew-resize rounded-r opacity-0 group-hover:opacity-100 bg-foreground/20" />
+
+            {/* Inline date label - appears on hover or during drag */}
+            <span
+              className={cn(
+                "absolute top-1/2 -translate-y-1/2 whitespace-nowrap text-[10px] text-muted-foreground pointer-events-none transition-opacity pl-2",
+                isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              )}
+              style={{ left: '100%' }}
+            >
+              {dateLabel}
+            </span>
+          </div>
+        </ContextMenuTrigger>
+
+        <ContextMenuContent className="bg-popover border border-border shadow-md z-50">
+          {onHideTask && (
+            <ContextMenuItem onClick={() => onHideTask(task.id)} className="gap-2 text-sm">
+              <EyeOff className="w-3.5 h-3.5" />
+              Ocultar tarea
+            </ContextMenuItem>
+          )}
+          <ContextMenuItem
+            onClick={() => {
               setOpenPopover(popoverId);
               setEditingDateType('start');
             }}
+            className="gap-2 text-sm"
           >
-            {/* Resize handles - visual indicators */}
-            <div className="absolute left-0 top-0 w-1.5 h-full cursor-ew-resize rounded-l opacity-0 group-hover:opacity-100 bg-foreground/20" />
-            <div className="absolute right-0 top-0 w-1.5 h-full cursor-ew-resize rounded-r opacity-0 group-hover:opacity-100 bg-foreground/20" />
-          </div>
+            <CalendarIcon className="w-3.5 h-3.5" />
+            Abrir calendario
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      {/* Calendar popover (opened from context menu) */}
+      <Popover 
+        open={openPopover === popoverId} 
+        onOpenChange={(open) => {
+          setOpenPopover(open ? popoverId : null);
+          if (open) setEditingDateType('start');
+        }}
+      >
+        <PopoverTrigger asChild>
+          <span className="sr-only">calendar trigger</span>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start" side="top">
           <div className="p-3 border-b">
