@@ -114,6 +114,8 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
     taskId: string;
     startDate: Date;
     days: number;
+    origStartDate: Date;
+    origDays: number;
   } | null>(null);
   const dragRef = useRef<DragState | null>(null);
 
@@ -314,6 +316,8 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
           taskId: ds.taskId,
           startDate: dragPreview.startDate,
           days: dragPreview.days,
+          origStartDate: ds.origStartDate,
+          origDays: ds.origDays,
         });
         // Keep dragPreview visible (don't clear it)
       } else {
@@ -500,12 +504,17 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
         <AlertDialogContent className="max-w-sm">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-base">¿Guardar cambios?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingDrag && (
-                <>
-                  Nuevo rango: <strong>{format(pendingDrag.startDate, 'dd MMM', { locale: es })}</strong> – <strong>{format(addDays(pendingDrag.startDate, pendingDrag.days), 'dd MMM', { locale: es })}</strong>
-                </>
-              )}
+            <AlertDialogDescription asChild>
+              {pendingDrag ? (
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <div className="line-through opacity-60">
+                    Anterior: {format(pendingDrag.origStartDate, 'dd MMM', { locale: es })} – {format(addDays(pendingDrag.origStartDate, pendingDrag.origDays), 'dd MMM', { locale: es })}
+                  </div>
+                  <div>
+                    Nuevo: <strong>{format(pendingDrag.startDate, 'dd MMM', { locale: es })}</strong> – <strong>{format(addDays(pendingDrag.startDate, pendingDrag.days), 'dd MMM', { locale: es })}</strong>
+                  </div>
+                </div>
+              ) : <span />}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
