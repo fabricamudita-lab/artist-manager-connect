@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Music, Play, Pause, Upload, Trash2, ChevronDown, FileAudio, FileText, Copy, Check, User, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Music, Play, Pause, Upload, Trash2, ChevronDown, FileAudio, FileText, Copy, Check, User } from 'lucide-react';
+import { AudioWaveformPlayer } from '@/components/releases/AudioWaveformPlayer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -95,8 +96,6 @@ function TrackAudioCard({ track }: { track: Track }) {
   const [manuallyEditedName, setManuallyEditedName] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [playingVersionId, setPlayingVersionId] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
   const currentVersion = versions.find((v) => v.is_current_version) || versions[0];
 
   const uploadVersion = useMutation({
@@ -202,16 +201,11 @@ function TrackAudioCard({ track }: { track: Track }) {
     );
   };
 
-  const togglePlay = (version: TrackVersion) => {
-    if (playingVersionId === version.id) {
-      audioRef.current?.pause();
+  const togglePlay = (versionId: string) => {
+    if (playingVersionId === versionId) {
       setPlayingVersionId(null);
     } else {
-      if (audioRef.current) {
-        audioRef.current.src = version.file_url;
-        audioRef.current.play();
-      }
-      setPlayingVersionId(version.id);
+      setPlayingVersionId(versionId);
     }
   };
 
@@ -224,11 +218,6 @@ function TrackAudioCard({ track }: { track: Track }) {
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <audio
-        ref={audioRef}
-        onEnded={() => setPlayingVersionId(null)}
-        className="hidden"
-      />
       <div className="border rounded-lg">
         <CollapsibleTrigger asChild>
           <div className="flex items-center gap-4 p-3 cursor-pointer hover:bg-muted/50 transition-colors">
@@ -242,7 +231,7 @@ function TrackAudioCard({ track }: { track: Track }) {
               onClick={(e) => {
                 e.stopPropagation();
                 if (currentVersion) {
-                  togglePlay(currentVersion);
+                  togglePlay(currentVersion.id);
                 }
               }}
               disabled={!currentVersion}
@@ -338,49 +327,62 @@ function TrackAudioCard({ track }: { track: Track }) {
             ) : (
               <div className="space-y-2">
                 {versions.map((version) => (
-                  <div
-                    key={version.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg border ${
-                      version.is_current_version ? 'bg-primary/5 border-primary/30' : 'bg-muted/30'
-                    }`}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => togglePlay(version)}
+                  <div key={version.id} className="space-y-0">
+                    <div
+                      className={`flex items-center gap-3 p-3 rounded-lg border ${
+                        version.is_current_version ? 'bg-primary/5 border-primary/30' : 'bg-muted/30'
+                      } ${playingVersionId === version.id ? 'rounded-b-none border-b-0' : ''}`}
                     >
-                      {playingVersionId === version.id ? (
-                        <Pause className="h-4 w-4" />
-                      ) : (
-                        <Play className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{version.version_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(version.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    {version.is_current_version ? (
-                      <Badge className="bg-primary">Actual</Badge>
-                    ) : (
                       <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentVersion.mutate(version.id)}
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => togglePlay(version.id)}
                       >
-                        Usar como actual
+                        {playingVersionId === version.id ? (
+                          <Pause className="h-4 w-4" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
                       </Button>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{version.version_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(version.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      {version.is_current_version ? (
+                        <Badge className="bg-primary">Actual</Badge>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentVersion.mutate(version.id)}
+                        >
+                          Usar como actual
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => deleteVersion.mutate(version)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {playingVersionId === version.id && (
+                      <div className={`border border-t-0 rounded-b-lg overflow-hidden ${
+                        version.is_current_version ? 'border-primary/30' : ''
+                      }`}>
+                        <AudioWaveformPlayer
+                          src={version.file_url}
+                          isPlaying={true}
+                          onTogglePlay={() => togglePlay(version.id)}
+                          versionName={version.version_name}
+                        />
+                      </div>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => deleteVersion.mutate(version)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
                 ))}
               </div>
