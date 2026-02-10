@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Search, Users, LayoutGrid, CreditCard, Mail, Phone, MapPin, Building, Edit2, MoreVertical, Settings, Tag } from 'lucide-react';
+import { Plus, Search, Users, LayoutGrid, CreditCard, Mail, Phone, MapPin, Building, Edit2, MoreVertical, Settings, Tag, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -67,6 +67,7 @@ export default function Agenda() {
   const [viewMode, setViewMode] = useState<'grid' | 'rolodex'>('grid');
   const [isManageGroupsOpen, setIsManageGroupsOpen] = useState(false);
   const [groups, setGroups] = useState<Array<{ id: string; name: string; color: string }>>([]);
+  const [artists, setArtists] = useState<Array<{ id: string; name: string; stage_name: string | null; avatar_url: string | null; contact_count: number }>>([]);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [contactRefreshTrigger, setContactRefreshTrigger] = useState(0);
   const [customCategories, setCustomCategories] = useState<Array<{ value: string; label: string; icon?: any; isCustom: boolean }>>([]);
@@ -169,6 +170,7 @@ export default function Agenda() {
   useEffect(() => {
     fetchContacts();
     fetchGroups();
+    fetchArtists();
   }, []);
 
   useEffect(() => {
@@ -210,6 +212,36 @@ export default function Agenda() {
     }
   };
 
+  const fetchArtists = async () => {
+    try {
+      const { data: artistsData, error: artistsError } = await supabase
+        .from('artists')
+        .select('id, name, stage_name, avatar_url')
+        .order('name');
+
+      if (artistsError) throw artistsError;
+
+      // Get contact counts per artist
+      const { data: assignments, error: assignError } = await supabase
+        .from('contact_artist_assignments')
+        .select('artist_id, contact_id');
+
+      if (assignError) throw assignError;
+
+      const countMap = new Map<string, number>();
+      assignments?.forEach(a => {
+        countMap.set(a.artist_id, (countMap.get(a.artist_id) || 0) + 1);
+      });
+
+      setArtists((artistsData || []).map(a => ({
+        ...a,
+        contact_count: countMap.get(a.id) || 0,
+      })));
+    } catch (error) {
+      console.error('Error fetching artists:', error);
+    }
+  };
+
   const filterContacts = async () => {
     let filtered = contacts;
 
@@ -248,13 +280,24 @@ export default function Agenda() {
 
     if (selectedGroup && selectedGroup !== 'all') {
       try {
-        const { data } = await supabase
-          .from('contact_group_members')
-          .select('contact_id')
-          .eq('group_id', selectedGroup);
+        if (selectedGroup.startsWith('artist-')) {
+          const artistId = selectedGroup.replace('artist-', '');
+          const { data } = await supabase
+            .from('contact_artist_assignments')
+            .select('contact_id')
+            .eq('artist_id', artistId);
 
-        const contactIdsInGroup = new Set(data?.map(m => m.contact_id) || []);
-        filtered = filtered.filter(contact => contactIdsInGroup.has(contact.id));
+          const contactIdsInArtist = new Set(data?.map(m => m.contact_id) || []);
+          filtered = filtered.filter(contact => contactIdsInArtist.has(contact.id));
+        } else {
+          const { data } = await supabase
+            .from('contact_group_members')
+            .select('contact_id')
+            .eq('group_id', selectedGroup);
+
+          const contactIdsInGroup = new Set(data?.map(m => m.contact_id) || []);
+          filtered = filtered.filter(contact => contactIdsInGroup.has(contact.id));
+        }
       } catch (error) {
         console.error('Error filtering by group:', error);
       }
@@ -390,12 +433,26 @@ export default function Agenda() {
         </Select>
 
         <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-          <SelectTrigger className="w-full sm:w-40">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="Equipo" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los equipos</SelectItem>
-            {groups.map((group) => (
+            {artists.length > 0 && artists.map((artist) => (
+              <SelectItem key={`artist-${artist.id}`} value={`artist-${artist.id}`}>
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-5 w-5">
+                    {artist.avatar_url && <AvatarImage src={artist.avatar_url} alt={artist.stage_name || artist.name} />}
+                    <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                      {(artist.stage_name || artist.name).slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span>{artist.stage_name || artist.name}</span>
+                  <span className="text-muted-foreground">({artist.contact_count})</span>
+                </div>
+              </SelectItem>
+            ))}
+            {groups.length > 0 && groups.map((group) => (
               <SelectItem key={group.id} value={group.id}>
                 <div className="flex items-center gap-2">
                   <div
