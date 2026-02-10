@@ -360,7 +360,7 @@ export default function Agenda() {
             <SelectValue placeholder="Categoría" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
+            <SelectItem value="all">Todas las categorías</SelectItem>
             {allCategoriesForDisplay.map((category) => {
               const Icon = category.icon;
               return (
@@ -380,7 +380,7 @@ export default function Agenda() {
             <SelectValue placeholder="Ciudad" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
+            <SelectItem value="all">Todas las ciudades</SelectItem>
             {cities.map((city) => (
               <SelectItem key={`city-${city}`} value={city as string}>
                 {city}
@@ -394,7 +394,7 @@ export default function Agenda() {
             <SelectValue placeholder="Grupo" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="all">Todos los grupos</SelectItem>
             {groups.map((group) => (
               <SelectItem key={group.id} value={group.id}>
                 <div className="flex items-center gap-2">
@@ -415,7 +415,7 @@ export default function Agenda() {
               <SelectValue placeholder="Etiqueta" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="all">Todas las etiquetas</SelectItem>
               {allTags.map((tag) => (
                 <SelectItem key={`tag-${tag}`} value={tag}>
                   <span className="flex items-center gap-1">
