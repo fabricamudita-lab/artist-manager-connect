@@ -1,13 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { format, addDays, differenceInDays, startOfDay, min, max, eachDayOfInterval, isAfter, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import {
   Popover,
   PopoverContent,
@@ -74,9 +68,32 @@ const WORKFLOW_COLORS: Record<string, string> = {
   directo: 'border-l-green-500',
 };
 
+interface DragState {
+  taskId: string;
+  workflowId: string;
+  mode: 'move' | 'resize-left' | 'resize-right';
+  startX: number;
+  origStartDate: Date;
+  origDays: number;
+  containerWidth: number;
+  activated: boolean; // becomes true after 3px threshold
+  isSubtask: boolean;
+}
+
+interface DragPreview {
+  taskId: string;
+  startDate: Date;
+  days: number;
+}
+
 export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, getTaskName, selectedTaskIds, onTaskSelect }: GanttChartProps) {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
   const [editingDateType, setEditingDateType] = useState<'start' | 'end'>('start');
+
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<DragState | null>(null);
 
   const today = useMemo(() => startOfDay(new Date()), []);
 
@@ -100,7 +117,6 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
     
     workflows.forEach(w => {
       w.tasks.forEach(t => {
-        // Add main task if it has a date
         if (t.startDate) {
           allTasks.push({
             id: t.id,
@@ -116,7 +132,6 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
           });
         }
         
-        // Add subtasks with dates (only 'full' type with startDate)
         (t.subtasks || []).forEach(st => {
           if (st.type === 'full' && st.startDate && st.estimatedDays) {
             allTasks.push({
@@ -199,6 +214,96 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
     return result;
   }, [timelineStart, timelineEnd, totalDays]);
 
+  // --- Drag logic ---
+  const handleBarMouseDown = useCallback((
+    e: React.MouseEvent<HTMLDivElement>,
+    taskId: string,
+    workflowId: string,
+    startDate: Date,
+    estimatedDays: number,
+    isSubtask: boolean,
+    containerEl: HTMLElement | null,
+  ) => {
+    if (e.button !== 0 || !containerEl) return; // left click only
+    e.preventDefault();
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const barWidth = rect.width;
+
+    let mode: DragState['mode'] = 'move';
+    if (offsetX <= 6) mode = 'resize-left';
+    else if (barWidth - offsetX <= 6) mode = 'resize-right';
+
+    const state: DragState = {
+      taskId,
+      workflowId,
+      mode,
+      startX: e.clientX,
+      origStartDate: startDate,
+      origDays: estimatedDays,
+      containerWidth: containerEl.getBoundingClientRect().width,
+      activated: false,
+      isSubtask,
+    };
+    dragRef.current = state;
+    setDragState(state);
+  }, []);
+
+  useEffect(() => {
+    if (!dragState) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const ds = dragRef.current;
+      if (!ds) return;
+
+      const deltaX = e.clientX - ds.startX;
+
+      // 3px threshold
+      if (!ds.activated) {
+        if (Math.abs(deltaX) < 3) return;
+        ds.activated = true;
+        dragRef.current = { ...ds, activated: true };
+        setDragState(prev => prev ? { ...prev, activated: true } : null);
+      }
+
+      const deltaDays = Math.round((deltaX / ds.containerWidth) * totalDays);
+
+      let newStart = ds.origStartDate;
+      let newDays = ds.origDays;
+
+      if (ds.mode === 'move') {
+        newStart = addDays(ds.origStartDate, deltaDays);
+      } else if (ds.mode === 'resize-right') {
+        newDays = Math.max(1, ds.origDays + deltaDays);
+      } else if (ds.mode === 'resize-left') {
+        newStart = addDays(ds.origStartDate, deltaDays);
+        newDays = Math.max(1, ds.origDays - deltaDays);
+      }
+
+      setDragPreview({ taskId: ds.taskId, startDate: newStart, days: newDays });
+      setTooltipPos({ x: e.clientX + 12, y: e.clientY - 28 });
+    };
+
+    const handleMouseUp = () => {
+      const ds = dragRef.current;
+      if (ds?.activated && dragPreview && onUpdateTaskDate) {
+        onUpdateTaskDate(ds.workflowId, ds.taskId, dragPreview.startDate, dragPreview.days);
+      }
+      dragRef.current = null;
+      setDragState(null);
+      setDragPreview(null);
+      setTooltipPos(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragState, totalDays, onUpdateTaskDate, dragPreview]);
+
   const handleStartDateSelect = (workflowId: string, taskId: string, currentEndDate: Date, newStartDate: Date | undefined) => {
     if (newStartDate && onUpdateTaskDate) {
       const newDays = Math.max(1, differenceInDays(currentEndDate, newStartDate));
@@ -213,6 +318,15 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
     }
   };
 
+  // Get the tooltip date label
+  const tooltipLabel = useMemo(() => {
+    if (!dragPreview || !dragState?.activated) return '';
+    if (dragState.mode === 'resize-right') {
+      return format(addDays(dragPreview.startDate, dragPreview.days), 'dd MMM', { locale: es });
+    }
+    return format(dragPreview.startDate, 'dd MMM', { locale: es });
+  }, [dragPreview, dragState]);
+
   if (tasksWithDates.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
@@ -222,7 +336,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
   }
 
   return (
-    <TooltipProvider delayDuration={0}>
+    <>
       <div className="space-y-4">
         {/* Timeline Header */}
         <div className="relative h-10 bg-muted/30 rounded-lg overflow-hidden">
@@ -235,7 +349,6 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
               {month.widthPercent > 8 && month.label}
             </div>
           ))}
-          {/* Today line in header */}
           {todayPosition !== null && (
             <div 
               className="absolute top-0 h-full w-0.5 bg-red-500 z-10"
@@ -258,7 +371,10 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                 </h3>
                 <div className="space-y-2">
                   {workflowTasks.map(task => {
-                    const { left, width } = getBarPosition(task.startDate, task.estimatedDays);
+                    const isDragging = dragState?.activated && dragPreview?.taskId === task.id;
+                    const displayStart = isDragging ? dragPreview!.startDate : task.startDate;
+                    const displayDays = isDragging ? dragPreview!.days : task.estimatedDays;
+                    const { left, width } = getBarPosition(displayStart, displayDays);
                     const dueDate = addDays(task.startDate, task.estimatedDays);
                     const popoverId = `${workflow.id}-${task.id}`;
                     const isSelected = selectedTaskIds?.has(task.id) ?? false;
@@ -287,133 +403,25 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                             {task.name}
                           </span>
                         </div>
-                        <div className={cn(
-                          "flex-1 relative rounded",
-                          task.isSubtask ? "h-6 bg-muted/10" : "h-8 bg-muted/20"
-                        )}>
-                          {/* Today line in task row */}
-                          {todayPosition !== null && (
-                            <div 
-                              className="absolute top-0 h-full w-0.5 bg-red-500/50 z-10 pointer-events-none"
-                              style={{ left: `${todayPosition}%` }}
-                            />
-                          )}
-                          <Popover 
-                            open={openPopover === popoverId} 
-                            onOpenChange={(open) => {
-                              setOpenPopover(open ? popoverId : null);
-                              if (open) setEditingDateType('start');
-                            }}
-                          >
-                            <PopoverTrigger asChild>
-                              <div
-                                className={cn(
-                                  'absolute rounded cursor-pointer transition-all hover:opacity-80',
-                                  STATUS_BAR_COLORS[task.status],
-                                  task.isSubtask ? 'top-0.5 h-5' : 'top-1 h-6',
-                                  task.isSubtask && 'opacity-70',
-                                  isSelected
-                                    ? 'ring-2 ring-primary ring-offset-1'
-                                    : 'hover:ring-2 hover:ring-primary/50'
-                                )}
-                                style={{ left, width, minWidth: '16px' }}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  onTaskSelect?.(task.id);
-                                }}
-                                onDoubleClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setOpenPopover(popoverId);
-                                  setEditingDateType('start');
-                                }}
-                              />
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start" side="top">
-                              <div className="p-3 border-b">
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => setEditingDateType('start')}
-                                    className={cn(
-                                      'flex-1 px-3 py-1.5 text-sm rounded-md transition-colors',
-                                      editingDateType === 'start' 
-                                        ? 'bg-primary text-primary-foreground' 
-                                        : 'bg-muted hover:bg-muted/80'
-                                    )}
-                                  >
-                                    <CalendarIcon className="w-3 h-3 inline mr-1" />
-                                    Inicio
-                                  </button>
-                                  <button
-                                    onClick={() => setEditingDateType('end')}
-                                    className={cn(
-                                      'flex-1 px-3 py-1.5 text-sm rounded-md transition-colors',
-                                      editingDateType === 'end' 
-                                        ? 'bg-primary text-primary-foreground' 
-                                        : 'bg-muted hover:bg-muted/80'
-                                    )}
-                                  >
-                                    <CalendarIcon className="w-3 h-3 inline mr-1" />
-                                    Fin
-                                  </button>
-                                </div>
-                              </div>
-                              <div className="p-3">
-                                <div className="flex gap-4 mb-2 text-xs text-muted-foreground">
-                                  <span>Inicio: {format(task.startDate!, 'dd MMM', { locale: es })}</span>
-                                  <span>Fin: {format(dueDate, 'dd MMM', { locale: es })}</span>
-                                </div>
-                                <Label className="text-xs text-muted-foreground mb-2 block">
-                                  {editingDateType === 'start' ? 'Seleccionar fecha de inicio' : 'Seleccionar fecha de fin'}
-                                </Label>
-                                <Calendar
-                                  key={editingDateType}
-                                  mode="single"
-                                  defaultMonth={editingDateType === 'start' ? task.startDate! : dueDate}
-                                  selected={editingDateType === 'start' ? task.startDate! : dueDate}
-                                  onSelect={(date) => {
-                                    if (editingDateType === 'start') {
-                                      handleStartDateSelect(workflow.id, task.id, dueDate, date);
-                                    } else {
-                                      handleEndDateSelect(workflow.id, task.id, task.startDate!, date);
-                                    }
-                                    setOpenPopover(null);
-                                  }}
-                                  disabled={(date) => {
-                                    if (editingDateType === 'end') {
-                                      return date <= task.startDate!;
-                                    }
-                                    if (editingDateType === 'start') {
-                                      return date >= dueDate;
-                                    }
-                                    return false;
-                                  }}
-                                  modifiers={{
-                                    otherDate: editingDateType === 'start' 
-                                      ? [dueDate] 
-                                      : [task.startDate!],
-                                    inRange: isAfter(dueDate, task.startDate!)
-                                      ? eachDayOfInterval({ start: task.startDate!, end: dueDate }).filter(
-                                          d => !isSameDay(d, task.startDate!) && !isSameDay(d, dueDate)
-                                        )
-                                      : [],
-                                    rangeStart: [task.startDate!],
-                                    rangeEnd: [dueDate],
-                                  }}
-                                  modifiersClassNames={{
-                                    otherDate: "bg-primary/30 text-primary/70 rounded-md",
-                                    inRange: "bg-accent/40 rounded-none",
-                                    rangeStart: "bg-primary/20 rounded-l-md rounded-r-none",
-                                    rangeEnd: "bg-primary/20 rounded-r-md rounded-l-none",
-                                  }}
-                                  initialFocus
-                                  className="p-0 pointer-events-auto"
-                                />
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                        </div>
+                        <GanttBarRow
+                          task={task}
+                          left={left}
+                          width={width}
+                          dueDate={dueDate}
+                          popoverId={popoverId}
+                          isSelected={isSelected}
+                          isDragging={!!isDragging}
+                          openPopover={openPopover}
+                          setOpenPopover={setOpenPopover}
+                          editingDateType={editingDateType}
+                          setEditingDateType={setEditingDateType}
+                          todayPosition={todayPosition}
+                          onTaskSelect={onTaskSelect}
+                          onBarMouseDown={handleBarMouseDown}
+                          workflowId={workflow.id}
+                          handleStartDateSelect={handleStartDateSelect}
+                          handleEndDateSelect={handleEndDateSelect}
+                        />
                       </div>
                     );
                   })}
@@ -445,9 +453,201 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
         </div>
 
         <p className="text-xs text-muted-foreground">
-          💡 Haz clic en una barra para modificar la fecha de inicio o fin
+          💡 Arrastra las barras para mover fechas · Doble clic para editar con calendario
         </p>
       </div>
-    </TooltipProvider>
+
+      {/* Drag tooltip */}
+      {dragState?.activated && tooltipPos && (
+        <div
+          className="fixed z-50 pointer-events-none bg-foreground text-background px-2 py-1 rounded text-xs font-medium shadow-lg"
+          style={{ left: tooltipPos.x, top: tooltipPos.y }}
+        >
+          {tooltipLabel}
+        </div>
+      )}
+    </>
+  );
+}
+
+// --- Extracted bar row to keep the main component cleaner ---
+
+interface GanttBarRowProps {
+  task: {
+    id: string;
+    startDate: Date;
+    estimatedDays: number;
+    status: TaskStatus;
+    isSubtask: boolean;
+    workflowId: string;
+  };
+  left: string;
+  width: string;
+  dueDate: Date;
+  popoverId: string;
+  isSelected: boolean;
+  isDragging: boolean;
+  openPopover: string | null;
+  setOpenPopover: (id: string | null) => void;
+  editingDateType: 'start' | 'end';
+  setEditingDateType: (t: 'start' | 'end') => void;
+  todayPosition: number | null;
+  onTaskSelect?: (id: string) => void;
+  onBarMouseDown: (
+    e: React.MouseEvent<HTMLDivElement>,
+    taskId: string,
+    workflowId: string,
+    startDate: Date,
+    estimatedDays: number,
+    isSubtask: boolean,
+    containerEl: HTMLElement | null,
+  ) => void;
+  workflowId: string;
+  handleStartDateSelect: (wId: string, tId: string, endDate: Date, newStart: Date | undefined) => void;
+  handleEndDateSelect: (wId: string, tId: string, startDate: Date, newEnd: Date | undefined) => void;
+}
+
+function GanttBarRow({
+  task, left, width, dueDate, popoverId, isSelected, isDragging,
+  openPopover, setOpenPopover, editingDateType, setEditingDateType,
+  todayPosition, onTaskSelect, onBarMouseDown, workflowId,
+  handleStartDateSelect, handleEndDateSelect,
+}: GanttBarRowProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <div
+      ref={containerRef}
+      className={cn(
+        "flex-1 relative rounded",
+        task.isSubtask ? "h-6 bg-muted/10" : "h-8 bg-muted/20"
+      )}
+    >
+      {todayPosition !== null && (
+        <div 
+          className="absolute top-0 h-full w-0.5 bg-red-500/50 z-10 pointer-events-none"
+          style={{ left: `${todayPosition}%` }}
+        />
+      )}
+      <Popover 
+        open={openPopover === popoverId} 
+        onOpenChange={(open) => {
+          setOpenPopover(open ? popoverId : null);
+          if (open) setEditingDateType('start');
+        }}
+      >
+        <PopoverTrigger asChild>
+          <div
+            className={cn(
+              'absolute rounded transition-all group',
+              STATUS_BAR_COLORS[task.status],
+              task.isSubtask ? 'top-0.5 h-5' : 'top-1 h-6',
+              task.isSubtask && 'opacity-70',
+              isDragging
+                ? 'opacity-90 ring-2 ring-primary shadow-lg'
+                : isSelected
+                  ? 'ring-2 ring-primary ring-offset-1'
+                  : 'hover:ring-2 hover:ring-primary/50',
+              isDragging ? 'cursor-grabbing' : 'cursor-grab',
+            )}
+            style={{ left, width, minWidth: '16px' }}
+            onMouseDown={(e) => {
+              onBarMouseDown(e, task.id, workflowId, task.startDate, task.estimatedDays, task.isSubtask, containerRef.current);
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onTaskSelect?.(task.id);
+            }}
+            onDoubleClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setOpenPopover(popoverId);
+              setEditingDateType('start');
+            }}
+          >
+            {/* Resize handles - visual indicators */}
+            <div className="absolute left-0 top-0 w-1.5 h-full cursor-ew-resize rounded-l opacity-0 group-hover:opacity-100 bg-foreground/20" />
+            <div className="absolute right-0 top-0 w-1.5 h-full cursor-ew-resize rounded-r opacity-0 group-hover:opacity-100 bg-foreground/20" />
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start" side="top">
+          <div className="p-3 border-b">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEditingDateType('start')}
+                className={cn(
+                  'flex-1 px-3 py-1.5 text-sm rounded-md transition-colors',
+                  editingDateType === 'start' 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-muted hover:bg-muted/80'
+                )}
+              >
+                <CalendarIcon className="w-3 h-3 inline mr-1" />
+                Inicio
+              </button>
+              <button
+                onClick={() => setEditingDateType('end')}
+                className={cn(
+                  'flex-1 px-3 py-1.5 text-sm rounded-md transition-colors',
+                  editingDateType === 'end' 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-muted hover:bg-muted/80'
+                )}
+              >
+                <CalendarIcon className="w-3 h-3 inline mr-1" />
+                Fin
+              </button>
+            </div>
+          </div>
+          <div className="p-3">
+            <div className="flex gap-4 mb-2 text-xs text-muted-foreground">
+              <span>Inicio: {format(task.startDate!, 'dd MMM', { locale: es })}</span>
+              <span>Fin: {format(dueDate, 'dd MMM', { locale: es })}</span>
+            </div>
+            <Label className="text-xs text-muted-foreground mb-2 block">
+              {editingDateType === 'start' ? 'Seleccionar fecha de inicio' : 'Seleccionar fecha de fin'}
+            </Label>
+            <Calendar
+              key={editingDateType}
+              mode="single"
+              defaultMonth={editingDateType === 'start' ? task.startDate! : dueDate}
+              selected={editingDateType === 'start' ? task.startDate! : dueDate}
+              onSelect={(date) => {
+                if (editingDateType === 'start') {
+                  handleStartDateSelect(workflowId, task.id, dueDate, date);
+                } else {
+                  handleEndDateSelect(workflowId, task.id, task.startDate!, date);
+                }
+                setOpenPopover(null);
+              }}
+              disabled={(date) => {
+                if (editingDateType === 'end') return date <= task.startDate!;
+                if (editingDateType === 'start') return date >= dueDate;
+                return false;
+              }}
+              modifiers={{
+                otherDate: editingDateType === 'start' ? [dueDate] : [task.startDate!],
+                inRange: isAfter(dueDate, task.startDate!)
+                  ? eachDayOfInterval({ start: task.startDate!, end: dueDate }).filter(
+                      d => !isSameDay(d, task.startDate!) && !isSameDay(d, dueDate)
+                    )
+                  : [],
+                rangeStart: [task.startDate!],
+                rangeEnd: [dueDate],
+              }}
+              modifiersClassNames={{
+                otherDate: "bg-primary/30 text-primary/70 rounded-md",
+                inRange: "bg-accent/40 rounded-none",
+                rangeStart: "bg-primary/20 rounded-l-md rounded-r-none",
+                rangeEnd: "bg-primary/20 rounded-r-md rounded-l-none",
+              }}
+              initialFocus
+              className="p-0 pointer-events-auto"
+            />
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }
