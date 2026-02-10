@@ -3,6 +3,16 @@ import { format, addDays, differenceInDays, startOfDay, min, max, eachDayOfInter
 import { es } from 'date-fns/locale';
 import { CalendarIcon, EyeOff } from 'lucide-react';
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -99,6 +109,12 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
 
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
+  const [pendingDrag, setPendingDrag] = useState<{
+    workflowId: string;
+    taskId: string;
+    startDate: Date;
+    days: number;
+  } | null>(null);
   const dragRef = useRef<DragState | null>(null);
 
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -292,11 +308,19 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
     const handleMouseUp = () => {
       const ds = dragRef.current;
       if (ds?.activated && dragPreview && onUpdateTaskDate) {
-        onUpdateTaskDate(ds.workflowId, ds.taskId, dragPreview.startDate, dragPreview.days);
+        // Store pending drag instead of applying immediately
+        setPendingDrag({
+          workflowId: ds.workflowId,
+          taskId: ds.taskId,
+          startDate: dragPreview.startDate,
+          days: dragPreview.days,
+        });
+        // Keep dragPreview visible (don't clear it)
+      } else {
+        setDragPreview(null);
       }
       dragRef.current = null;
       setDragState(null);
-      setDragPreview(null);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -319,6 +343,19 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
       const newDays = Math.max(1, differenceInDays(newEndDate, currentStartDate));
       onUpdateTaskDate(workflowId, taskId, currentStartDate, newDays);
     }
+  };
+
+  const handleConfirmDrag = () => {
+    if (pendingDrag && onUpdateTaskDate) {
+      onUpdateTaskDate(pendingDrag.workflowId, pendingDrag.taskId, pendingDrag.startDate, pendingDrag.days);
+    }
+    setPendingDrag(null);
+    setDragPreview(null);
+  };
+
+  const handleCancelDrag = () => {
+    setPendingDrag(null);
+    setDragPreview(null);
   };
 
   if (tasksWithDates.length === 0) {
@@ -452,6 +489,26 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
       <p className="text-xs text-muted-foreground">
         💡 Arrastra las barras para mover fechas · Clic derecho para más opciones
       </p>
+
+      {/* Drag confirmation dialog */}
+      <AlertDialog open={!!pendingDrag} onOpenChange={(open) => { if (!open) handleCancelDrag(); }}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base">¿Guardar cambios?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDrag && (
+                <>
+                  Nuevo rango: <strong>{format(pendingDrag.startDate, 'dd MMM', { locale: es })}</strong> – <strong>{format(addDays(pendingDrag.startDate, pendingDrag.days), 'dd MMM', { locale: es })}</strong>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDrag}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDrag}>Sobreescribir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
