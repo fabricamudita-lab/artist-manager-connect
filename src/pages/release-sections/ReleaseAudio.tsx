@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import * as tus from 'tus-js-client';
 import { ArrowLeft, Music, Play, Pause, Upload, Trash2, ChevronDown, FileAudio, FileText, Copy, Check, User } from 'lucide-react';
 import { AudioWaveformPlayer } from '@/components/releases/AudioWaveformPlayer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
 import { useRelease, useTracks, useTrackVersions, useTrackCredits, TrackVersion, Track } from '@/hooks/useReleases';
 import { usePublishingSplits, useMasterSplits, useTrackRightsStats, PUBLISHING_ROLES, MASTER_ROLES } from '@/hooks/useTrackRightsSplits';
 import { TrackRightsSplitsManager } from '@/components/releases/TrackRightsSplitsManager';
@@ -91,6 +93,7 @@ function TrackAudioCard({ track }: { track: Track }) {
   const { data: versions = [], isLoading } = useTrackVersions(track.id);
   const [isOpen, setIsOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [versionName, setVersionName] = useState('');
   const [manuallyEditedName, setManuallyEditedName] = useState(false);
@@ -103,11 +106,38 @@ function TrackAudioCard({ track }: { track: Track }) {
       const fileExt = file.name.split('.').pop();
       const fileName = `${track.id}/${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('audio-tracks')
-        .upload(fileName, file);
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      if (!accessToken) throw new Error('No autenticado');
 
-      if (uploadError) throw uploadError;
+      const supabaseUrl = (supabase as any).supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
+      const projectRef = new URL(supabaseUrl).hostname.split('.')[0];
+
+      await new Promise<void>((resolve, reject) => {
+        const upload = new tus.Upload(file, {
+          endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
+          retryDelays: [0, 3000, 5000, 10000, 20000],
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            'x-upsert': 'false',
+          },
+          uploadDataDuringCreation: true,
+          removeFingerprintOnSuccess: true,
+          metadata: {
+            bucketName: 'audio-tracks',
+            objectName: fileName,
+            contentType: file.type || 'audio/mpeg',
+            cacheControl: '3600',
+          },
+          chunkSize: 6 * 1024 * 1024,
+          onError: (error) => reject(error),
+          onProgress: (bytesUploaded, bytesTotal) => {
+            setUploadProgress(Math.round((bytesUploaded / bytesTotal) * 100));
+          },
+          onSuccess: () => resolve(),
+        });
+        upload.start();
+      });
 
       const { data: { publicUrl } } = supabase.storage
         .from('audio-tracks')
@@ -136,6 +166,7 @@ function TrackAudioCard({ track }: { track: Track }) {
       setVersionName('');
       setManuallyEditedName(false);
       setSelectedFile(null);
+      setUploadProgress(0);
     },
     onError: (error: any) => {
       console.error('Upload error:', error);
@@ -305,6 +336,12 @@ function TrackAudioCard({ track }: { track: Track }) {
                         </p>
                       )}
                     </div>
+                    {isUploading && (
+                      <div className="space-y-1">
+                        <Progress value={uploadProgress} className="h-2" />
+                        <p className="text-xs text-muted-foreground text-center">{uploadProgress}%</p>
+                      </div>
+                    )}
                     <Button
                       onClick={handleUpload}
                       disabled={isUploading || !selectedFile || !versionName.trim()}
