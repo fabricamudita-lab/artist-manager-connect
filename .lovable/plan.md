@@ -1,56 +1,67 @@
 
+# Reproductor de audio con visualizacion de onda
 
-# Auto-nombre de version + Fix error de subida de audio
+## Resumen
 
-## Problema 1: Error al subir
-El archivo WAV pesa 124.94 MB pero el bucket `audio-tracks` tiene el limite por defecto de 50 MB. Hay que aumentar el limite a 250 MB para soportar archivos WAV grandes.
+Reemplazar el elemento `<audio>` oculto por un reproductor visual con forma de onda (waveform) usando la **Web Audio API** y un `<canvas>`. El usuario podra:
 
-## Problema 2: Nombre de version automatico
-Cuando el usuario selecciona un archivo, el campo "Nombre de la version" deberia rellenarse automaticamente a partir del nombre del archivo. Por ejemplo: `CHROMATISM_MIX3.wav` genera `Chromatism MIX3`.
+- Reproducir/pausar cada version de audio
+- Ver la onda completa del archivo
+- Hacer clic en cualquier punto de la onda para saltar a esa posicion
+- Ver el tiempo actual y la duracion total
 
----
-
-## Cambios
-
-### 1. Migracion SQL — Aumentar limite del bucket
-
-```sql
-UPDATE storage.buckets
-SET file_size_limit = 262144000  -- 250 MB
-WHERE id = 'audio-tracks';
-```
-
-### 2. `src/pages/release-sections/ReleaseAudio.tsx` — Auto-nombre
-
-En el handler `onChange` del input de archivo, cuando se selecciona un fichero:
-
-1. Extraer el nombre sin extension: `CHROMATISM_MIX3.wav` -> `CHROMATISM_MIX3`
-2. Reemplazar guiones bajos y guiones por espacios: `CHROMATISM MIX3`
-3. Convertir a Title Case: `Chromatism Mix3` (manteniendo numeros y mayusculas en abreviaturas comunes como "MIX")
-4. Asignar al estado `versionName` solo si esta vacio o si el usuario no lo ha editado manualmente.
-
-Logica de formateo:
+## Diseno visual
 
 ```text
-function formatVersionName(fileName: string): string {
-  // Quitar extension
-  const nameWithoutExt = fileName.replace(/\.[^.]+$/, '');
-  // Reemplazar _ y - por espacios
-  const spaced = nameWithoutExt.replace(/[_-]/g, ' ');
-  // Title case simple: primera letra de cada palabra en mayuscula, resto en minuscula
-  // Excepcion: palabras que son todo mayusculas y tienen numeros (MIX3) se mantienen
-  return spaced.split(' ')
-    .map(word => {
-      if (/^[A-Z0-9]+$/.test(word) && word.length <= 5) return word;
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-    })
-    .join(' ');
-}
++------------------------------------------+
+| [Pause]  Chromatism MIX3                 |
+|  ████▓▓▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  |
+|  0:03                              3:05  |
++------------------------------------------+
 ```
 
-Resultado esperado: `CHROMATISM_MIX3.wav` -> `CHROMATISM MIX3` (ambas palabras son cortas y todo mayusculas, se mantienen).
+- La parte reproducida se muestra en color `primary`
+- La parte restante en `muted-foreground` con opacidad
+- Al hacer clic en la onda, el audio salta a esa posicion
 
-### 3. Mejor mensaje de error
+## Implementacion tecnica
 
-Detectar el error 413 y mostrar un toast mas descriptivo: "El archivo excede el tamano maximo permitido (250 MB)".
+### 1. Nuevo componente `AudioWaveformPlayer`
 
+Crear un componente en `src/components/releases/AudioWaveformPlayer.tsx`:
+
+- Recibe `src` (URL del audio), `isPlaying`, `onTogglePlay`
+- Usa `AudioContext.decodeAudioData()` para obtener el buffer de audio y extraer los peaks (muestras promediadas)
+- Dibuja la onda en un `<canvas>` usando barras verticales
+- Un `requestAnimationFrame` loop actualiza la posicion de reproduccion
+- Al hacer clic en el canvas, calcula la posicion relativa y hace `audioElement.currentTime = ...`
+- Muestra tiempo actual y duracion en formato `m:ss`
+
+Flujo:
+1. Al montar o cambiar `src`, fetch del audio como `ArrayBuffer`
+2. Decodificar con `AudioContext.decodeAudioData()`
+3. Extraer ~200 barras de peaks del canal izquierdo
+4. Dibujar en canvas: barras en color primary hasta la posicion actual, barras en gris para el resto
+5. En cada frame, redibujar la posicion del cursor
+
+### 2. Modificar `TrackAudioCard` en `ReleaseAudio.tsx`
+
+- Cuando hay una version reproduciendose, mostrar el `AudioWaveformPlayer` debajo de la version activa
+- Pasar el `audioRef` al componente para controlar la reproduccion
+- El boton play/pause existente seguira funcionando, pero ademas el waveform player tendra su propio boton integrado
+
+### 3. Detalles del canvas
+
+- Barras con esquinas redondeadas, separacion de 2px
+- Color reproducido: `hsl(var(--primary))`
+- Color restante: `hsl(var(--muted-foreground))` con opacidad 0.3
+- Reflejo inferior (mirror) con opacidad reducida, similar a la imagen de referencia
+- Responsive: el canvas se adapta al ancho del contenedor
+- Clic para seek: `(clickX / canvasWidth) * duration`
+
+### Archivos
+
+| Archivo | Accion |
+|---|---|
+| `src/components/releases/AudioWaveformPlayer.tsx` | Crear - componente canvas con waveform |
+| `src/pages/release-sections/ReleaseAudio.tsx` | Modificar - integrar waveform en cada version que se reproduce |
