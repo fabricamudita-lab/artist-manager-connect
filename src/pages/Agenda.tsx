@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Users, LayoutGrid, CreditCard, Mail, Phone, MapPin, Building, Edit2, MoreVertical, Settings, Tag, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,7 @@ interface Contact {
 // Categories unified with Teams via TEAM_CATEGORIES
 
 export default function Agenda() {
+  const navigate = useNavigate();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -374,7 +376,7 @@ export default function Agenda() {
           {filteredContacts.length} contactos
         </p>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsManageGroupsOpen(true)}>
+          <Button variant="outline" onClick={() => navigate('/teams')}>
             <Users className="w-4 h-4 mr-2" />
             Equipos
           </Button>
