@@ -1,27 +1,24 @@
 
 
-# Mostrar rango anterior y nuevo en el dialogo de confirmacion
+# Doble clic en barra del Gantt para abrir calendario
 
-## Cambio
+## Resumen
 
-Modificar el dialogo de confirmacion del drag para que muestre ambos rangos: el anterior (original) y el nuevo (propuesto).
+Dos cambios solicitados:
 
-## Detalle visual
+1. **Doble clic en barra del Gantt abre el calendario** — Actualmente el calendario solo se abre desde el menu contextual (clic derecho). Se anadira un handler `onDoubleClick` en la barra para abrir directamente el popover del calendario.
 
-```text
-  Guardar cambios?
-  Anterior: 13 dic – 20 dic
-  Nuevo:    20 dic – 27 dic
-  [ Cancelar ]  [ Sobreescribir ]
-```
+2. **Boton de ocultar tareas** — Esta funcionalidad ya existe en el cronograma: al hacer clic en las barras se seleccionan, aparece una barra flotante en la parte inferior con el boton "Ocultar" y "Cancelar", y hay un boton "Ver ocultos" para restaurarlas. No se requieren cambios.
 
-## Implementacion
+## Cambio tecnico
 
-**Archivo:** `src/components/lanzamientos/GanttChart.tsx`
+| Archivo | Cambio |
+|---|---|
+| `src/components/lanzamientos/GanttChart.tsx` | En el `div` de la barra (linea ~614), anadir `onDoubleClick` que llame a `setOpenPopover(popoverId)` y `setEditingDateType('start')` para abrir el calendario directamente. Se evitara conflicto con el `onClick` de seleccion existente. |
 
-1. Ampliar el tipo de `pendingDrag` para incluir `origStartDate: Date` y `origDays: number` (las fechas originales de la tarea antes del drag).
-2. En `handleMouseUp`, al crear `pendingDrag`, guardar tambien `ds.origStart` y `ds.origDays` (ya almacenados en el `dragRef`).
-3. En el `AlertDialogDescription`, mostrar dos lineas:
-   - `Anterior: **13 dic** - **20 dic**` (tachado o con color muted)
-   - `Nuevo: **20 dic** - **27 dic**`
+## Detalle
+
+- El `onDoubleClick` abrira el popover del calendario en modo "Inicio" por defecto.
+- El `onClick` simple seguira funcionando para seleccionar/deseleccionar la tarea (para el flujo de ocultar).
+- El clic derecho (context menu) seguira disponible como opcion alternativa.
 
