@@ -1,36 +1,43 @@
 
 
-# Agregar barras resumen de flujo al Gantt individual
+# Mover barra resumen al lado del titulo y corregir alineacion
 
-## Que se hara
+## Cambios
 
-En el cronograma individual de cada lanzamiento (componente `GanttChart`), se agregara una barra resumen por cada flujo de trabajo (Audio, Visual, Marketing, etc.) que abarque desde la primera hasta la ultima tarea del flujo, igual que en la vista global de cronogramas (`AllCronogramasView`).
+### 1. Barra resumen en la misma linea que el titulo del flujo
+
+Actualmente la barra resumen ocupa una fila separada debajo del titulo. Se movera para que aparezca en la misma fila, al lado derecho del titulo (como en la vista global "Cronogramas" de Discografia).
+
+La estructura pasara de:
+
+```text
+[Icono] Flujo de Audio              0/4
+[=========barra resumen=========]
+  Grabacion   [==]
+  Mezcla         [==]
+```
+
+A:
+
+```text
+[Icono] Flujo de Audio  0/4  [=========barra resumen=========]
+  Grabacion   [==]
+  Mezcla         [==]
+```
+
+El titulo quedara en un lado fijo (como el panel izquierdo de la vista global) y la barra resumen se posicionara en el area del timeline a su derecha.
+
+### 2. Corregir calculo de fechas de la barra resumen
+
+El calculo actual toma `t.startDate.getTime()` para el inicio y `addDays(t.startDate, t.estimatedDays).getTime()` para el final. Se normalizara con `startOfDay()` para que coincida exactamente con el calculo de `getBarPosition`, que internamente usa `startOfDay(startDate)`. Esto eliminara el desfase visual entre la barra resumen y la primera tarea.
 
 ## Detalle tecnico
 
 ### Archivo: `src/components/lanzamientos/GanttChart.tsx`
 
-En la seccion de cada workflow (lineas 397-475), justo despues del titulo del flujo (linea 406) y antes de las tareas individuales, se insertara una barra resumen horizontal:
-
-1. Calcular el rango total del workflow (fecha minima y maxima de sus tareas)
-2. Calcular el progreso (tareas completadas / total)
-3. Renderizar una barra con fondo suave del color del workflow y una barra interior que represente el progreso
-4. La barra tendra el mismo estilo que las barras de la vista global: `rounded-full`, color con opacidad, y un contador "X/Y" al lado del nombre
-
-La estructura para cada workflow quedara:
-
-```
-[Icono] Nombre del Flujo   X/Y
-[==========barra resumen==========]  <- nueva
-  Tarea 1  [===]
-  Tarea 2      [====]
-  Tarea 3           [==]
-```
-
-### Cambios especificos
-
-- Junto al nombre del workflow, agregar un badge con "completadas/total" (como en la vista global)
-- Debajo del titulo, antes de las barras de tarea, insertar una fila con la barra resumen usando `getBarPosition(minDate, diffDays)` y el color del workflow con opacidad
-- La barra interior mostrara el progreso de completado
-- Se reutiliza la misma logica de colores que ya existe en `WORKFLOW_COLORS` para mantener coherencia
+1. Reestructurar cada seccion de workflow para usar un layout similar al de `AllCronogramasView`: una fila con el titulo a la izquierda y la barra resumen posicionada en el area del timeline a la derecha
+2. El titulo + contador se queda en un contenedor de ancho fijo a la izquierda
+3. La barra resumen se renderiza en un contenedor `flex-1 relative` a la derecha, usando `getBarPosition()` para posicionarse
+4. Normalizar las fechas con `startOfDay()` en el calculo del rango del workflow para alinear con `getBarPosition`
+5. Las filas de tareas individuales mantienen su estructura actual debajo
 
