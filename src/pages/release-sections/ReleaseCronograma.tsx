@@ -1675,23 +1675,30 @@ export default function ReleaseCronograma() {
         </div>
       </div>
 
-      {/* Progress Card */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center justify-between">
-            <span>Progreso General</span>
-            <Badge variant="outline" className="text-lg px-3 py-1">
-              {progressPercent}%
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Progress value={progressPercent} className="h-3" />
-          <p className="text-sm text-muted-foreground mt-2">
-            {completedTasks} de {totalTasks} tareas completadas
-          </p>
-        </CardContent>
-      </Card>
+      {/* Compact Progress Bar */}
+      <div className="flex items-center gap-3 px-1">
+        <span className="text-sm font-medium whitespace-nowrap">Progreso General</span>
+        <Progress value={progressPercent} className="h-2 flex-1 max-w-xs" />
+        <span className="text-xs text-muted-foreground whitespace-nowrap">{completedTasks} de {totalTasks} completadas</span>
+        <Badge variant="outline" className="text-[11px] px-1.5 py-0">{progressPercent}%</Badge>
+      </div>
+
+      {/* Selection action bar (inline) */}
+      {selectedTaskIds.size > 0 && (
+        <div className="flex items-center gap-3 bg-muted/50 border rounded-lg px-4 py-2">
+          <span className="text-sm font-medium">
+            {selectedTaskIds.size} {selectedTaskIds.size === 1 ? 'tarea seleccionada' : 'tareas seleccionadas'}
+          </span>
+          <Button size="sm" variant="default" onClick={hideSelectedTasks}>
+            <EyeOff className="w-4 h-4 mr-1" />
+            Ocultar
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelectedTaskIds(new Set())}>
+            <X className="w-4 h-4 mr-1" />
+            Cancelar
+          </Button>
+        </div>
+      )}
 
       {/* View Content */}
       {viewMode === 'gantt' ? (
@@ -1854,22 +1861,6 @@ export default function ReleaseCronograma() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Floating selection action bar */}
-      {selectedTaskIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-popover border rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
-          <span className="text-sm font-medium">
-            {selectedTaskIds.size} {selectedTaskIds.size === 1 ? 'tarea seleccionada' : 'tareas seleccionadas'}
-          </span>
-          <Button size="sm" variant="default" onClick={hideSelectedTasks}>
-            <EyeOff className="w-4 h-4 mr-1" />
-            Ocultar
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setSelectedTaskIds(new Set())}>
-            <X className="w-4 h-4 mr-1" />
-            Cancelar
-          </Button>
-        </div>
-      )}
 
       {/* Hidden tasks dialog */}
       <Dialog open={showHiddenDialog} onOpenChange={setShowHiddenDialog}>
