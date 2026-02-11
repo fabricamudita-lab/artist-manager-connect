@@ -229,7 +229,7 @@ export default function AllCronogramasView({ releases }: AllCronogramasViewProps
                       )}
                       <span
                         className="font-semibold text-sm truncate hover:text-primary cursor-pointer"
-                        onClick={(e) => { e.stopPropagation(); navigate(`/releases/${release.id}/cronograma`); }}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/releases/${release.id}/cronograma?mode=list&collapsed=all`); }}
                       >
                         {release.title}
                       </span>
@@ -285,7 +285,7 @@ export default function AllCronogramasView({ releases }: AllCronogramasViewProps
                           <div
                             className={`absolute top-1.5 h-5 rounded-full ${statusColor} opacity-80 hover:opacity-100 transition-opacity cursor-pointer`}
                             style={barStyle}
-                            onClick={() => navigate(`/releases/${release.id}/cronograma`)}
+                            onClick={() => navigate(`/releases/${release.id}/cronograma?focus=${wf.id}`)}
                           >
                             <div
                               className="h-full rounded-full bg-foreground/10"

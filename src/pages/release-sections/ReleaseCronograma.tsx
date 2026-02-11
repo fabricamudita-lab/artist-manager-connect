@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef, Fragment } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { format, addDays, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -977,10 +977,41 @@ export default function ReleaseCronograma() {
     });
   }, []);
 
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialMode = searchParams.get('mode') === 'list' ? 'list' : (searchParams.get('focus') ? 'gantt' : 'list');
+  const initialCollapsed = searchParams.get('collapsed') === 'all';
+  const [viewMode, setViewMode] = useState<ViewMode>(initialMode as ViewMode);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(
-    Object.fromEntries(Object.keys(WORKFLOW_METADATA).map(id => [id, true]))
+    initialCollapsed
+      ? Object.fromEntries(Object.keys(WORKFLOW_METADATA).map(id => [id, false]))
+      : Object.fromEntries(Object.keys(WORKFLOW_METADATA).map(id => [id, true]))
   );
+
+  // Focus scroll effect from query params
+  useEffect(() => {
+    const focusId = searchParams.get('focus');
+    const mode = searchParams.get('mode');
+    if (!focusId && !mode) return;
+
+    // Clean params after reading
+    setSearchParams({}, { replace: true });
+
+    if (focusId) {
+      // Wait for Gantt to render, then scroll to the workflow
+      const timer = setTimeout(() => {
+        const el = document.querySelector(`[data-workflow-id="${focusId}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Flash highlight
+          el.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'rounded-lg', 'transition-all');
+          setTimeout(() => {
+            el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'rounded-lg', 'transition-all');
+          }, 2000);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, []); // Only run on mount
 
   // DnD sensors
   const sensors = useSensors(

@@ -416,7 +416,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
           const isCollapsed = collapsedWorkflows.has(workflow.id);
 
           return (
-            <div key={workflow.id} className={cn('border-l-4 pl-4', WORKFLOW_COLORS[workflow.id])}>
+            <div key={workflow.id} data-workflow-id={workflow.id} className={cn('border-l-4 pl-4', WORKFLOW_COLORS[workflow.id])}>
               {/* Workflow header with inline summary bar */}
               {(() => {
                 const dates = workflowTasks.map(t => startOfDay(t.startDate).getTime());
