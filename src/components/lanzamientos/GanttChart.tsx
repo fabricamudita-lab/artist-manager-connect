@@ -409,17 +409,10 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
 
           return (
             <div key={workflow.id} className={cn('border-l-4 pl-4', WORKFLOW_COLORS[workflow.id])}>
-              <h3 className="font-semibold mb-2 flex items-center gap-2">
-                <workflow.icon className="w-4 h-4" />
-                {workflow.name}
-                <span className="text-[10px] font-normal text-muted-foreground ml-auto">
-                  {workflowTasks.filter(t => t.status === 'completado').length}/{workflowTasks.length}
-                </span>
-              </h3>
-              {/* Workflow summary bar */}
+              {/* Workflow header with inline summary bar */}
               {(() => {
-                const dates = workflowTasks.map(t => t.startDate.getTime());
-                const endDates = workflowTasks.map(t => addDays(t.startDate, t.estimatedDays).getTime());
+                const dates = workflowTasks.map(t => startOfDay(t.startDate).getTime());
+                const endDates = workflowTasks.map(t => startOfDay(addDays(t.startDate, t.estimatedDays)).getTime());
                 const wfStart = new Date(Math.min(...dates));
                 const wfDays = Math.max(1, differenceInDays(new Date(Math.max(...endDates)), wfStart));
                 const { left, width } = getBarPosition(wfStart, wfDays);
@@ -427,15 +420,24 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                 const progress = workflowTasks.length > 0 ? (completed / workflowTasks.length) * 100 : 0;
                 const colors = WORKFLOW_BAR_COLORS[workflow.id] || { bg: 'bg-primary/20', fill: 'bg-primary/60' };
                 return (
-                  <div className="relative h-5 mb-2">
-                    <div
-                      className={cn('absolute top-0 h-full rounded-full', colors.bg)}
-                      style={{ left, width }}
-                    >
+                  <div className="flex items-center mb-2">
+                    <div className="w-32 shrink-0 flex items-center gap-2">
+                      <workflow.icon className="w-4 h-4 shrink-0" />
+                      <span className="font-semibold text-sm truncate">{workflow.name}</span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">
+                        {completed}/{workflowTasks.length}
+                      </span>
+                    </div>
+                    <div className="flex-1 relative h-6">
                       <div
-                        className={cn('h-full rounded-full', colors.fill)}
-                        style={{ width: `${progress}%` }}
-                      />
+                        className={cn('absolute top-0.5 h-5 rounded-full', colors.bg)}
+                        style={{ left, width }}
+                      >
+                        <div
+                          className={cn('h-full rounded-full', colors.fill)}
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
                 );
