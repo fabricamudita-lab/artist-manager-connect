@@ -86,6 +86,15 @@ const WORKFLOW_COLORS: Record<string, string> = {
   directo: 'border-l-green-500',
 };
 
+const WORKFLOW_BAR_COLORS: Record<string, { bg: string; fill: string }> = {
+  audio: { bg: 'bg-blue-500/20', fill: 'bg-blue-500/60' },
+  visual: { bg: 'bg-pink-500/20', fill: 'bg-pink-500/60' },
+  fabricacion: { bg: 'bg-yellow-500/20', fill: 'bg-yellow-500/60' },
+  contenido: { bg: 'bg-purple-500/20', fill: 'bg-purple-500/60' },
+  marketing: { bg: 'bg-orange-500/20', fill: 'bg-orange-500/60' },
+  directo: { bg: 'bg-green-500/20', fill: 'bg-green-500/60' },
+};
+
 interface DragState {
   taskId: string;
   workflowId: string;
@@ -400,10 +409,37 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
 
           return (
             <div key={workflow.id} className={cn('border-l-4 pl-4', WORKFLOW_COLORS[workflow.id])}>
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
+              <h3 className="font-semibold mb-2 flex items-center gap-2">
                 <workflow.icon className="w-4 h-4" />
                 {workflow.name}
+                <span className="text-[10px] font-normal text-muted-foreground ml-auto">
+                  {workflowTasks.filter(t => t.status === 'completado').length}/{workflowTasks.length}
+                </span>
               </h3>
+              {/* Workflow summary bar */}
+              {(() => {
+                const dates = workflowTasks.map(t => t.startDate.getTime());
+                const endDates = workflowTasks.map(t => addDays(t.startDate, t.estimatedDays).getTime());
+                const wfStart = new Date(Math.min(...dates));
+                const wfDays = Math.max(1, differenceInDays(new Date(Math.max(...endDates)), wfStart));
+                const { left, width } = getBarPosition(wfStart, wfDays);
+                const completed = workflowTasks.filter(t => t.status === 'completado').length;
+                const progress = workflowTasks.length > 0 ? (completed / workflowTasks.length) * 100 : 0;
+                const colors = WORKFLOW_BAR_COLORS[workflow.id] || { bg: 'bg-primary/20', fill: 'bg-primary/60' };
+                return (
+                  <div className="relative h-5 mb-2">
+                    <div
+                      className={cn('absolute top-0 h-full rounded-full', colors.bg)}
+                      style={{ left, width }}
+                    >
+                      <div
+                        className={cn('h-full rounded-full', colors.fill)}
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="space-y-2">
                 {workflowTasks.map(task => {
                   const isPendingThis = pendingDrag?.taskId === task.id;
