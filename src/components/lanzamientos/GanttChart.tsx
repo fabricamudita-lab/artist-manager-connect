@@ -421,7 +421,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                 const colors = WORKFLOW_BAR_COLORS[workflow.id] || { bg: 'bg-primary/20', fill: 'bg-primary/60' };
                 return (
                   <div className="flex items-center mb-2">
-                    <div className="w-32 shrink-0 flex items-center gap-2">
+                    <div className="w-48 shrink-0 flex items-center gap-2">
                       <workflow.icon className="w-4 h-4 shrink-0" />
                       <span className="font-semibold text-sm truncate">{workflow.name}</span>
                       <span className="text-[10px] text-muted-foreground shrink-0">
@@ -463,7 +463,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                     )}>
                       <div className={cn(
                         "text-sm truncate text-muted-foreground flex items-center gap-1",
-                        task.isSubtask ? "w-28" : "w-32"
+                        task.isSubtask ? "w-44" : "w-48"
                       )}>
                         {task.isSubtask && (
                           <span className="text-muted-foreground/50 mr-0.5">↳</span>
