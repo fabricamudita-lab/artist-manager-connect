@@ -116,6 +116,7 @@ interface DragPreview {
 export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, getTaskName, selectedTaskIds, onTaskSelect, onHideTask, onClearSelection }: GanttChartProps) {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
   const [editingDateType, setEditingDateType] = useState<'start' | 'end'>('start');
+  const [collapsedWorkflows, setCollapsedWorkflows] = useState<Set<string>>(new Set());
 
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
@@ -406,6 +407,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
         {workflows.map(workflow => {
           const workflowTasks = tasksWithDates.filter(t => t.workflowId === workflow.id);
           if (workflowTasks.length === 0) return null;
+          const isCollapsed = collapsedWorkflows.has(workflow.id);
 
           return (
             <div key={workflow.id} className={cn('border-l-4 pl-4', WORKFLOW_COLORS[workflow.id])}>
@@ -414,14 +416,25 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                 const dates = workflowTasks.map(t => startOfDay(t.startDate).getTime());
                 const endDates = workflowTasks.map(t => startOfDay(addDays(t.startDate, t.estimatedDays)).getTime());
                 const wfStart = new Date(Math.min(...dates));
-                const wfDays = Math.max(1, differenceInDays(new Date(Math.max(...endDates)), wfStart));
+                const wfEnd = new Date(Math.max(...endDates));
+                const wfDays = Math.max(1, differenceInDays(wfEnd, wfStart));
                 const { left, width } = getBarPosition(wfStart, wfDays);
                 const completed = workflowTasks.filter(t => t.status === 'completado').length;
                 const progress = workflowTasks.length > 0 ? (completed / workflowTasks.length) * 100 : 0;
                 const colors = WORKFLOW_BAR_COLORS[workflow.id] || { bg: 'bg-primary/20', fill: 'bg-primary/60' };
+                const tooltipText = `${format(wfStart, 'dd MMM yyyy', { locale: es })} – ${format(wfEnd, 'dd MMM yyyy', { locale: es })}`;
                 return (
-                  <div className="flex items-center mb-2">
+                  <div
+                    className="flex items-center mb-2 cursor-pointer select-none"
+                    onClick={() => setCollapsedWorkflows(prev => {
+                      const next = new Set(prev);
+                      if (next.has(workflow.id)) next.delete(workflow.id);
+                      else next.add(workflow.id);
+                      return next;
+                    })}
+                  >
                     <div className="w-48 shrink-0 flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground shrink-0">{isCollapsed ? '▶' : '▼'}</span>
                       <workflow.icon className="w-4 h-4 shrink-0" />
                       <span className="font-semibold text-sm truncate">{workflow.name}</span>
                       <span className="text-[10px] text-muted-foreground shrink-0">
@@ -432,6 +445,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                       <div
                         className={cn('absolute top-0.5 h-5 rounded-full', colors.bg)}
                         style={{ left, width }}
+                        title={tooltipText}
                       >
                         <div
                           className={cn('h-full rounded-full', colors.fill)}
@@ -442,7 +456,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                   </div>
                 );
               })()}
-              <div className="space-y-2">
+              {!isCollapsed && <div className="space-y-2">
                 {workflowTasks.map(task => {
                   const isPendingThis = pendingDrag?.taskId === task.id;
                   const isDragging = (dragState?.activated && dragPreview?.taskId === task.id) || isPendingThis;
@@ -507,7 +521,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                     </div>
                   );
                 })}
-              </div>
+              </div>}
             </div>
           );
         })}
