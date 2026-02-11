@@ -1,84 +1,85 @@
 
-# Auto-guardado del Cronograma
+
+# Sistema robusto de cascada de anclas
 
 ## Problema actual
 
-Los cambios realizados en el cronograma (estado, responsable, fechas, anclas, agregar/eliminar tareas) solo se guardan en memoria. Al recargar la pagina, se pierden todos los cambios excepto los generados por el wizard. Ademas, campos importantes como `estimatedDays`, `anchoredTo`, `customStartDate` y `subtasks` no se guardan en la base de datos.
+Cuando mueves una tarea (ej. Grabacion), el sistema solo detecta las tareas **directamente** ancladas a ella (ej. Mezcla). Pero no detecta que Mastering depende de Mezcla, ni que Label Copy depende de Mastering. Resultado: solo se mueve un nivel, rompiendo la cadena.
 
-## Solucion
+Ademas, no hay logica para distinguir entre mover hacia adelante (posponer, potencialmente problematico) y mover hacia atras (adelantar, generalmente seguro).
 
-Implementar auto-guardado con debounce: cada vez que cambie el estado `workflows`, se guardan automaticamente los cambios en la base de datos tras 1.5 segundos de inactividad.
+## Solucion propuesta
 
-## Pasos
+### 1. Cascada recursiva completa
 
-### 1. Migracion de base de datos
-
-Agregar una columna `metadata` de tipo JSONB a la tabla `release_milestones` para almacenar los campos que no tienen columna propia:
-
-- `estimatedDays` (numero de dias estimados)
-- `anchoredTo` (array de IDs de tareas padre)
-- `customStartDate` (si la fecha fue asignada manualmente)
-- `subtasks` (array de subtareas con su tipo y datos)
-- `sort_order` (orden dentro del workflow)
-
-### 2. Mejorar la funcion de guardado (`saveMilestonesToDB`)
-
-Actualmente hace DELETE + INSERT, lo que pierde los IDs originales y rompe las referencias de anclas. La nueva logica:
-
-- Usar upsert en lugar de delete + insert para preservar IDs
-- Incluir el campo `metadata` con los datos adicionales serializados
-- Incluir `sort_order` para preservar el orden de las tareas
-- No mostrar toast de "Cronograma guardado" en cada auto-guardado (solo mostrar un indicador sutil)
-
-### 3. Auto-guardado con debounce
-
-Agregar un `useEffect` que observe cambios en `workflows` y dispare el guardado tras 1.5 segundos sin cambios nuevos:
+Reemplazar `getDependentTasks` por una funcion `getFullDependencyChain` que recorra recursivamente todo el arbol de dependencias:
 
 ```text
-workflows cambia -> timer 1.5s -> saveMilestonesToDB()
-                 -> nuevo cambio -> reinicia timer
+Grabacion
+  └─ Mezcla
+      └─ Mastering
+          └─ Label Copy
 ```
 
-Un indicador visual sutil mostrara el estado: "Guardando..." / "Guardado".
+Al mover Grabacion, el dialogo mostrara las 3 tareas dependientes en forma de arbol jerarquico.
 
-### 4. Mejorar la carga de datos (useEffect de milestones)
+### 2. Logica inteligente segun direccion
 
-Actualizar la logica que convierte milestones de BD a `ReleaseTask` para leer los campos del `metadata` JSONB:
+**Mover hacia adelante (posponer):**
+- Mostrar dialogo de confirmacion con advertencia visual (icono amarillo/rojo)
+- Indicar claramente "Esto pospondra X tareas"
+- Las tareas con fecha limite proxima se marcan con un indicador de riesgo
+- Por defecto, todas seleccionadas pero con advertencia
 
-- Recuperar `estimatedDays`, `anchoredTo`, `customStartDate`, `subtasks`
-- Respetar el `sort_order` guardado
+**Mover hacia atras (adelantar):**
+- Solo propagar si la nueva fecha de la tarea padre queda **despues** del inicio de la tarea hija (es decir, si hay conflicto de solapamiento)
+- Si la tarea padre se adelanta pero sigue terminando antes del inicio de la hija, no se necesita mover la hija (no hay conflicto)
+- Si hay conflicto, mostrar dialogo indicando cuales tareas necesitan ajustarse
 
-### 5. Indicador visual
+### 3. Dialogo mejorado con contexto visual
 
-Agregar junto al boton de Deshacer un pequeno texto/icono que indique el estado del guardado:
-- Icono de nube con check cuando esta guardado
-- Texto "Guardando..." durante el guardado
-- Sin toast repetitivos
+El dialogo `AnchorDependencyDialog` se enriquece con:
+- Estructura de arbol indentada para ver la jerarquia
+- Fechas actuales y nuevas fechas propuestas para cada tarea
+- Indicador de riesgo (icono de alerta) en tareas que quedarian muy cerca de la fecha de lanzamiento
+- Diferenciacion visual entre "posponer" (amarillo/rojo) y "adelantar" (verde/neutro)
+
+### 4. Propagacion proporcional
+
+Las tareas en cascada se mueven por el mismo delta de dias que la tarea origen, preservando los gaps relativos entre ellas.
 
 ## Detalle tecnico
 
-### Archivo: Migracion SQL
-
-```sql
-ALTER TABLE release_milestones
-ADD COLUMN IF NOT EXISTS metadata jsonb DEFAULT '{}',
-ADD COLUMN IF NOT EXISTS sort_order integer DEFAULT 0;
-```
-
 ### Archivo: `src/pages/release-sections/ReleaseCronograma.tsx`
 
-1. Modificar `saveMilestonesToDB`:
-   - Usar DELETE + INSERT conservando IDs originales de las tareas (pasar `task.id` como `id` del milestone)
-   - Serializar `estimatedDays`, `anchoredTo`, `customStartDate`, `subtasks` en `metadata`
-   - Agregar `sort_order` basado en el indice de la tarea
+**a) Nueva funcion `getFullDependencyChain`:**
+- Recorre recursivamente `workflows` buscando tareas cuyo `anchoredTo` incluya el ID actual
+- Excluye tareas con `customStartDate` (fecha manual, no se propaga)
+- Devuelve un arbol plano con nivel de profundidad para la UI
+- Proteccion contra ciclos con un Set de IDs visitados
 
-2. Agregar auto-save con `useEffect` + `useRef` para timer:
-   - Observar `workflows` con un ref para evitar el guardado en la carga inicial
-   - Debounce de 1.5 segundos
-   - Variable `hasInitializedRef` para no guardar al cargar por primera vez
+**b) Nueva logica en `handleTaskDateUpdate`:**
+- Calcular `daysDelta`
+- Obtener cadena completa con `getFullDependencyChain`
+- Si `daysDelta > 0` (posponer): mostrar dialogo con todas las dependencias en cascada
+- Si `daysDelta < 0` (adelantar): filtrar solo las tareas donde haya conflicto real (la nueva fecha fin del padre > inicio de la hija) y mostrar dialogo solo si hay conflictos
+- Si no hay dependientes afectados: aplicar directamente sin dialogo
 
-3. Actualizar el `useEffect` de carga de milestones:
-   - Leer `metadata` para restaurar `estimatedDays`, `anchoredTo`, `customStartDate`, `subtasks`
-   - Ordenar tareas por `sort_order`
+**c) Actualizar `handleAnchorConfirm`:**
+- Aplicar el delta a todas las tareas seleccionadas de la cadena completa, no solo las directas
 
-4. Agregar indicador visual de estado de guardado (icono Cloud/CloudOff junto a Deshacer)
+**d) Mejorar `AnchorDependencyDialog`:**
+- Agregar prop `direction` ('adelante' | 'atras')
+- Agregar prop `depth` a cada tarea dependiente para mostrar indentacion
+- Agregar prop `newDate` calculada para cada tarea
+- Mostrar badge de riesgo si la nueva fecha queda a menos de 7 dias del lanzamiento
+- Mostrar las fechas: fecha actual (tachada) y nueva fecha propuesta
+
+### Archivo: `src/components/lanzamientos/AnchorDependencyDialog.tsx`
+
+Actualizar la interfaz y el renderizado:
+- `DependentTask` ahora incluye `depth`, `currentDate`, `newDate`
+- Renderizar con indentacion visual por nivel (`ml-{depth * 4}`)
+- Mostrar fechas comparativas (antes/despues)
+- Icono de advertencia para tareas que se posponen cerca del release
+
