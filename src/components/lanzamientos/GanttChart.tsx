@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { format, addDays, differenceInDays, startOfDay, min, max, eachDayOfInterval, isAfter, isSameDay } from 'date-fns';
+import { format, addDays, differenceInDays, startOfDay, startOfMonth, subMonths, min, max, eachDayOfInterval, isAfter, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon, EyeOff } from 'lucide-react';
 import {
@@ -200,7 +200,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
     const startDates = allTasks.map(t => t.startDate);
     const endDates = allTasks.map(t => t.endDate);
     
-    const earliest = startOfDay(min(startDates));
+    const earliest = startOfMonth(subMonths(startOfDay(min(startDates)), 1));
     const latest = startOfDay(max(endDates));
     const days = Math.max(differenceInDays(latest, earliest) + 7, 30);
 
