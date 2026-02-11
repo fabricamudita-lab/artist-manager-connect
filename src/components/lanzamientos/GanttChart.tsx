@@ -67,6 +67,7 @@ interface GanttChartProps {
   selectedTaskIds?: Set<string>;
   onTaskSelect?: (taskId: string) => void;
   onHideTask?: (taskId: string) => void;
+  onClearSelection?: () => void;
 }
 
 const STATUS_BAR_COLORS: Record<TaskStatus, string> = {
@@ -103,7 +104,7 @@ interface DragPreview {
   days: number;
 }
 
-export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, getTaskName, selectedTaskIds, onTaskSelect, onHideTask }: GanttChartProps) {
+export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, getTaskName, selectedTaskIds, onTaskSelect, onHideTask, onClearSelection }: GanttChartProps) {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
   const [editingDateType, setEditingDateType] = useState<'start' | 'end'>('start');
 
@@ -371,7 +372,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" onClick={() => onClearSelection?.()}>
       {/* Timeline Header */}
       <div className="relative h-10 bg-muted/30 rounded-lg overflow-hidden">
         {months.map((month, idx) => (
