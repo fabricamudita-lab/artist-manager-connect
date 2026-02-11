@@ -1,19 +1,46 @@
 
-# Mostrar fechas en la barra resumen del flujo (como en las tareas)
+# Boton Deshacer (Undo) en el Cronograma
 
-## Cambio
+## Resumen
 
-Agregar una etiqueta de fecha ("05 dic - 12 dic") que aparece al pasar el raton sobre la barra resumen del flujo, con el mismo estilo que las tareas individuales: texto pequeno a la derecha de la barra, visible solo en hover.
+Agregar un boton con icono de flecha hacia atras en la barra superior del cronograma que permita revertir el ultimo cambio realizado sobre las tareas (cambio de estado, fecha, responsable, ancla, etc.).
+
+## Comportamiento
+
+- Se mantiene un historial de estados previos del array `workflows` (stack de undo)
+- Cada vez que se llama a `updateTask`, `addTask`, `deleteTask` o `handleTaskDateUpdate`, se guarda una copia del estado anterior en el stack
+- Al hacer clic en el boton de deshacer, se restaura el ultimo estado guardado
+- El boton aparece deshabilitado cuando no hay cambios que revertir
+- Limite razonable del historial: ultimos 20 cambios
+
+## Ubicacion visual
+
+El boton se colocara en la barra de acciones superior, junto a "Regenerar fechas", con un icono `Undo2` de lucide-react y un tooltip "Deshacer".
 
 ## Detalle tecnico
 
-### Archivo: `src/components/lanzamientos/GanttChart.tsx`
+### Archivo: `src/pages/release-sections/ReleaseCronograma.tsx`
 
-En la barra resumen del workflow (lineas 444-454), se haran estos cambios:
+1. **Nuevo estado**: Agregar `const [undoStack, setUndoStack] = useState<WorkflowWithTasks[][]>([])` para almacenar los estados anteriores
 
-1. Reemplazar el atributo `title` (tooltip nativo del navegador) por una etiqueta inline identica a la de las tareas
-2. Agregar la clase `group` al contenedor de la barra para activar hover
-3. Insertar un `span` con las fechas formateadas como `dd MMM` (sin ano, igual que las tareas) que aparece al hacer hover, posicionado a la derecha de la barra con `left: 100%`
-4. El formato sera: `format(wfStart, 'dd MMM', { locale: es }) – format(wfEnd, 'dd MMM', { locale: es })`
+2. **Funcion helper `pushUndo`**: Antes de cada mutacion del estado `workflows`, guardar una copia profunda del estado actual en el stack (limitado a 20 entradas)
 
-El resultado visual sera identico al de las tareas: al pasar el raton por la barra del flujo, aparece "05 dic – 12 dic" a su derecha.
+3. **Modificar `updateTask`**: Llamar a `pushUndo()` antes de `setWorkflows(...)`
+
+4. **Modificar `addTask`**: Llamar a `pushUndo()` antes de `setWorkflows(...)`
+
+5. **Modificar logica de eliminacion**: Llamar a `pushUndo()` antes de eliminar
+
+6. **Modificar `handleTaskDateUpdate`**: Llamar a `pushUndo()` antes del cambio
+
+7. **Funcion `undo`**: Hacer pop del ultimo estado del stack y aplicarlo con `setWorkflows(lastState)`
+
+8. **Boton en la UI**: Junto al boton "Regenerar fechas", agregar:
+   ```
+   <Button variant="outline" size="sm" disabled={undoStack.length === 0} onClick={undo}>
+     <Undo2 className="w-4 h-4 mr-2" />
+     Deshacer
+   </Button>
+   ```
+
+9. **Atajo de teclado** (opcional): Ctrl+Z / Cmd+Z para deshacer
