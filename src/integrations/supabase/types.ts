@@ -4337,9 +4337,11 @@ export type Database = {
           due_date: string | null
           id: string
           is_anchor: boolean | null
+          metadata: Json | null
           notes: string | null
           release_id: string
           responsible: string | null
+          sort_order: number | null
           status: string
           title: string
           updated_at: string
@@ -4351,9 +4353,11 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_anchor?: boolean | null
+          metadata?: Json | null
           notes?: string | null
           release_id: string
           responsible?: string | null
+          sort_order?: number | null
           status?: string
           title: string
           updated_at?: string
@@ -4365,9 +4369,11 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_anchor?: boolean | null
+          metadata?: Json | null
           notes?: string | null
           release_id?: string
           responsible?: string | null
+          sort_order?: number | null
           status?: string
           title?: string
           updated_at?: string

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, Fragment } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, Fragment } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format, addDays, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -49,6 +49,8 @@ import {
   Eye,
   X,
   GripVertical,
+  Cloud,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -1095,31 +1097,45 @@ export default function ReleaseCronograma() {
   // Number of songs - use tracks count or default to 1
   const numSongs = useMemo(() => Math.max(tracks.length, 1), [tracks]);
 
+  // Track whether initial load has completed (to avoid auto-saving on mount)
+  const hasInitializedRef = useRef(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
   // Load saved milestones into workflows on mount
   useEffect(() => {
     if (savedMilestones.length > 0) {
-      // Convert milestones to workflow tasks
       const tasksByCategory: Record<string, ReleaseTask[]> = {};
       
-      savedMilestones.forEach(m => {
+      savedMilestones.forEach((m: any) => {
         const category = m.category || 'marketing';
         if (!tasksByCategory[category]) {
           tasksByCategory[category] = [];
         }
+
+        const meta = (m.metadata && typeof m.metadata === 'object') ? m.metadata : {};
         
         tasksByCategory[category].push({
           id: m.id,
           name: m.title,
           responsible: m.responsible || '',
-          responsible_ref: null,
+          responsible_ref: meta.responsible_ref || null,
           startDate: m.due_date ? new Date(m.due_date) : null,
-          estimatedDays: 7, // Default, could be stored in notes or metadata
+          estimatedDays: meta.estimatedDays ?? 7,
           status: (m.status === 'pending' ? 'pendiente' : 
                    m.status === 'in_progress' ? 'en_proceso' :
                    m.status === 'completed' ? 'completado' : 
                    m.status === 'delayed' ? 'retrasado' : 'pendiente') as TaskStatus,
-          anchoredTo: m.is_anchor ? undefined : undefined, // Could store anchor info
-        });
+          anchoredTo: meta.anchoredTo || undefined,
+          customStartDate: meta.customStartDate || undefined,
+          subtasks: meta.subtasks || undefined,
+          _sortOrder: m.sort_order ?? 0,
+        } as ReleaseTask & { _sortOrder: number });
+      });
+
+      // Sort tasks by sort_order within each category
+      Object.keys(tasksByCategory).forEach(cat => {
+        tasksByCategory[cat].sort((a: any, b: any) => (a._sortOrder ?? 0) - (b._sortOrder ?? 0));
+        tasksByCategory[cat].forEach((t: any) => delete t._sortOrder);
       });
 
       setWorkflows(prev => 
@@ -1128,6 +1144,11 @@ export default function ReleaseCronograma() {
           tasks: tasksByCategory[workflow.id] || [],
         }))
       );
+
+      // Mark as initialized after a tick to avoid triggering auto-save
+      setTimeout(() => { hasInitializedRef.current = true; }, 100);
+    } else {
+      hasInitializedRef.current = true;
     }
   }, [savedMilestones]);
 
@@ -1140,11 +1161,12 @@ export default function ReleaseCronograma() {
   // Has milestones in DB
   const hasSavedMilestones = savedMilestones.length > 0;
 
-  // Save milestones to database
-  const saveMilestonesToDB = useCallback(async (tasksToSave: { workflowId: string; tasks: ReleaseTask[] }[]) => {
+  // Save milestones to database (preserving task IDs and metadata)
+  const saveMilestonesToDB = useCallback(async (workflowsToSave: WorkflowSection[], showToast = false) => {
     if (!id) return;
     
     setIsSaving(true);
+    setSaveStatus('saving');
     try {
       // Delete existing milestones for this release
       await supabase
@@ -1152,41 +1174,68 @@ export default function ReleaseCronograma() {
         .delete()
         .eq('release_id', id);
 
-      // Prepare new milestones
-      const milestones = tasksToSave.flatMap(({ workflowId, tasks }) =>
-        tasks.map(task => ({
+      // Prepare milestones with metadata and sort_order, preserving task IDs
+      const milestones = workflowsToSave.flatMap(workflow =>
+        workflow.tasks.map((task, index) => ({
+          id: task.id,
           release_id: id,
           title: task.name,
           due_date: task.startDate ? format(task.startDate, 'yyyy-MM-dd') : null,
-          days_offset: null, // Could calculate from release date
+          days_offset: null,
           is_anchor: !!task.anchoredTo,
           status: task.status === 'pendiente' ? 'pending' :
                   task.status === 'en_proceso' ? 'in_progress' :
                   task.status === 'completado' ? 'completed' :
                   task.status === 'retrasado' ? 'delayed' : 'pending',
-          category: workflowId,
+          category: workflow.id,
           responsible: task.responsible || null,
           notes: null,
+          sort_order: index,
+          metadata: {
+            estimatedDays: task.estimatedDays,
+            anchoredTo: task.anchoredTo || null,
+            customStartDate: task.customStartDate || null,
+            subtasks: task.subtasks || null,
+            responsible_ref: task.responsible_ref || null,
+          },
         }))
       );
 
       if (milestones.length > 0) {
         const { error } = await supabase
           .from('release_milestones')
-          .insert(milestones);
+          .insert(milestones as any);
 
         if (error) throw error;
       }
 
-      queryClient.invalidateQueries({ queryKey: ['release-milestones', id] });
-      toast.success('Cronograma guardado');
+      // Don't invalidate queries to avoid re-triggering load
+      if (showToast) {
+        toast.success('Cronograma guardado');
+      }
+      setSaveStatus('saved');
+      // Reset to idle after 2 seconds
+      setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
       console.error('Error saving milestones:', error);
       toast.error('Error al guardar el cronograma');
+      setSaveStatus('idle');
     } finally {
       setIsSaving(false);
     }
-  }, [id, queryClient]);
+  }, [id]);
+
+  // Auto-save with debounce (1.5s after last change)
+  useEffect(() => {
+    if (!hasInitializedRef.current) return;
+    if (!id) return;
+
+    const timer = setTimeout(() => {
+      saveMilestonesToDB(workflows);
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [workflows, saveMilestonesToDB, id]);
 
   // Handle wizard generation and save to DB
   const handleGenerateFromWizard = useCallback(async (config: ReleaseConfig) => {
@@ -1242,10 +1291,8 @@ export default function ReleaseCronograma() {
     setWorkflows(finalWorkflows);
     setRegenerateMode(null);
 
-    // Save to database
-    await saveMilestonesToDB(
-      finalWorkflows.map(w => ({ workflowId: w.id, tasks: w.tasks }))
-    );
+    // Save to database (explicit save from wizard)
+    await saveMilestonesToDB(finalWorkflows, true);
   }, [saveMilestonesToDB, regenerateMode, workflows]);
 
   // Get all tasks that are anchored to a given task
@@ -1703,6 +1750,19 @@ export default function ReleaseCronograma() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Save status indicator */}
+          {saveStatus === 'saving' && (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Guardando...
+            </span>
+          )}
+          {saveStatus === 'saved' && (
+            <span className="flex items-center gap-1 text-xs text-green-600">
+              <Cloud className="w-3 h-3" />
+              Guardado
+            </span>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="outline" size="sm" disabled={undoStack.length === 0} onClick={undo}>
