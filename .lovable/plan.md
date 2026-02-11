@@ -1,24 +1,24 @@
 
 
-# Linea roja vertical de "Hoy" en la vista de Cronogramas
+# Barra consolidada por lanzamiento en la fila de cabecera
 
 ## Cambio
 
-Anadir una linea vertical roja que indica el dia actual en el Gantt unificado. La linea atraviesa toda la altura del componente (cabecera de meses + todas las filas de releases/workflows), permitiendo ver de un vistazo que tareas ya deberian estar completadas y cuales estan por venir.
+Actualmente la fila de cabecera de cada release solo muestra el nombre y el badge de progreso. Se anadira una barra consolidada que abarca desde la primera tarea hasta la ultima de todos los flujos combinados, visible directamente en la fila del release (cuando esta colapsado o expandido). Asi de un vistazo se ve el rango temporal completo de cada lanzamiento.
+
+## Como se vera
+
+- La fila de cabecera del release pasa a tener dos zonas: la columna izquierda (nombre, icono, badge) y la columna derecha (timeline) con la barra consolidada
+- La barra consolidada usa un color neutro/primario y muestra el progreso (completadas/total) como relleno interno
+- Al expandir, debajo aparecen las filas individuales por workflow como hasta ahora
 
 ## Detalle tecnico
 
 ### Archivo: `src/components/releases/AllCronogramasView.tsx`
 
-1. Calcular la posicion horizontal de "hoy" usando la misma funcion `getBarStyle` / logica de `differenceInDays(now, globalStart) / totalDays * 100`
-2. Solo mostrar la linea si la fecha actual cae dentro del rango visible (`globalStart` <= hoy <= `globalEnd`)
-3. Anadir un `div` absoluto con:
-   - `position: absolute`, `top: 0`, `bottom: 0`
-   - `left` calculado como porcentaje
-   - `width: 2px`, `background: red` (o `bg-red-500`)
-   - `z-index` alto para que quede por encima de las barras
-   - Un pequeno indicador circular o etiqueta "Hoy" en la parte superior
-4. Este div se coloca dentro de un wrapper `relative` que envuelve la zona del timeline (la parte derecha, excluyendo la columna de nombres)
-
-La linea se renderiza una sola vez como overlay absoluto sobre toda la columna derecha del Gantt, no se repite por fila.
+1. **Calcular rango global del release**: a partir de los `summaries`, obtener `releaseStart = min(wf.startDate)` y `releaseEnd = max(wf.endDate)` 
+2. **Cambiar layout del header**: convertir la fila de cabecera de un simple `flex items-center` a un layout de dos columnas igual que las filas de workflow (columna izquierda de 256px + columna derecha flex-1 con timeline)
+3. **Renderizar barra consolidada** en la columna derecha del header usando `getBarStyle(releaseStart, releaseEnd)`, con color basado en el estado dominante global y una barra de progreso interna
+4. **Mover el badge** a la columna izquierda (ya esta ahi, solo ajustar que quede bien con el nuevo layout)
+5. **Anadir tooltip** a la barra consolidada mostrando rango de fechas y progreso total
 
