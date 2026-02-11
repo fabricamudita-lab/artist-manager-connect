@@ -1022,6 +1022,19 @@ export default function ReleaseCronograma() {
     taskName: string;
     isCompleted: boolean;
   } | null>(null);
+
+  // Gantt context menu dialog state (responsible / anchor)
+  const [ganttContextDialog, setGanttContextDialog] = useState<{
+    type: 'responsible' | 'anchor';
+    workflowId: string;
+    taskId: string;
+  } | null>(null);
+
+  const ganttContextTask = useMemo(() => {
+    if (!ganttContextDialog) return null;
+    const wf = workflows.find(w => w.id === ganttContextDialog.workflowId);
+    return wf?.tasks.find(t => t.id === ganttContextDialog.taskId) ?? null;
+  }, [ganttContextDialog, workflows]);
   
   // Anchor dependency dialog state
   const [anchorDialogOpen, setAnchorDialogOpen] = useState(false);
@@ -1708,6 +1721,15 @@ export default function ReleaseCronograma() {
               onSetAnchor={(workflowId, taskId, anchoredTo) => {
                 updateTask(workflowId, taskId, { anchoredTo });
               }}
+              onUpdateTaskStatus={(workflowId, taskId, status) => {
+                updateTask(workflowId, taskId, { status });
+              }}
+              onOpenResponsible={(workflowId, taskId) => {
+                setGanttContextDialog({ type: 'responsible', workflowId, taskId });
+              }}
+              onOpenAnchor={(workflowId, taskId) => {
+                setGanttContextDialog({ type: 'anchor', workflowId, taskId });
+              }}
               getTaskName={getTaskName}
               selectedTaskIds={selectedTaskIds}
               onTaskSelect={toggleTaskSelect}
@@ -1892,6 +1914,45 @@ export default function ReleaseCronograma() {
             <Button variant="outline" className="w-full" onClick={restoreAllTasks}>
               Restaurar todas
             </Button>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Gantt context menu dialog: Responsible / Anchor */}
+      <Dialog open={!!ganttContextDialog} onOpenChange={(open) => { if (!open) setGanttContextDialog(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{ganttContextDialog?.type === 'responsible' ? 'Asignar responsable' : 'Anclar tarea'}</DialogTitle>
+            <DialogDescription>
+              {ganttContextTask?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {ganttContextDialog?.type === 'responsible' && ganttContextTask && (
+            <ResponsibleSelector
+              value={ganttContextTask.responsible_ref ?? null}
+              onChange={(ref) => {
+                updateTask(ganttContextDialog.workflowId, ganttContextDialog.taskId, {
+                  responsible_ref: ref,
+                  responsible: ref?.name || '',
+                });
+                setGanttContextDialog(null);
+              }}
+              artistId={release?.artist_id}
+              placeholder="Seleccionar responsable"
+            />
+          )}
+          {ganttContextDialog?.type === 'anchor' && ganttContextTask && (
+            <MultiAnchorSelector
+              value={ganttContextTask.anchoredTo || []}
+              onChange={(anchors) => {
+                updateTask(ganttContextDialog.workflowId, ganttContextDialog.taskId, {
+                  anchoredTo: anchors.length > 0 ? anchors : undefined,
+                });
+              }}
+              availableTasks={availableTasksForAnchor.filter(t => t.id !== ganttContextDialog.taskId)}
+              currentTaskId={ganttContextDialog.taskId}
+              getTaskName={getTaskName}
+            />
           )}
         </DialogContent>
       </Dialog>

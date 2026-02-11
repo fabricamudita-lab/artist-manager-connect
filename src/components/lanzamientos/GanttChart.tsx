@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { format, addDays, differenceInDays, startOfDay, startOfMonth, subMonths, min, max, eachDayOfInterval, isAfter, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, EyeOff } from 'lucide-react';
+import { CalendarIcon, EyeOff, CircleDot, User, Link2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -22,6 +22,9 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
 } from '@/components/ui/context-menu';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
@@ -63,6 +66,9 @@ interface GanttChartProps {
   workflows: WorkflowSection[];
   onUpdateTaskDate?: (workflowId: string, taskId: string, newStartDate: Date, newEstimatedDays: number, subtaskId?: string) => void;
   onSetAnchor?: (workflowId: string, taskId: string, anchoredTo: string[] | undefined) => void;
+  onUpdateTaskStatus?: (workflowId: string, taskId: string, status: TaskStatus) => void;
+  onOpenResponsible?: (workflowId: string, taskId: string) => void;
+  onOpenAnchor?: (workflowId: string, taskId: string) => void;
   getTaskName?: (taskId: string) => string;
   selectedTaskIds?: Set<string>;
   onTaskSelect?: (taskId: string) => void;
@@ -113,7 +119,7 @@ interface DragPreview {
   days: number;
 }
 
-export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, getTaskName, selectedTaskIds, onTaskSelect, onHideTask, onClearSelection }: GanttChartProps) {
+export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, onUpdateTaskStatus, onOpenResponsible, onOpenAnchor, getTaskName, selectedTaskIds, onTaskSelect, onHideTask, onClearSelection }: GanttChartProps) {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
   const [editingDateType, setEditingDateType] = useState<'start' | 'end'>('start');
   const [collapsedWorkflows, setCollapsedWorkflows] = useState<Set<string>>(new Set());
@@ -519,6 +525,9 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                         handleStartDateSelect={handleStartDateSelect}
                         handleEndDateSelect={handleEndDateSelect}
                         onHideTask={onHideTask}
+                        onUpdateTaskStatus={onUpdateTaskStatus}
+                        onOpenResponsible={onOpenResponsible}
+                        onOpenAnchor={onOpenAnchor}
                       />
                     </div>
                   );
@@ -622,6 +631,9 @@ interface GanttBarRowProps {
   handleStartDateSelect: (wId: string, tId: string, endDate: Date, newStart: Date | undefined) => void;
   handleEndDateSelect: (wId: string, tId: string, startDate: Date, newEnd: Date | undefined) => void;
   onHideTask?: (taskId: string) => void;
+  onUpdateTaskStatus?: (workflowId: string, taskId: string, status: TaskStatus) => void;
+  onOpenResponsible?: (workflowId: string, taskId: string) => void;
+  onOpenAnchor?: (workflowId: string, taskId: string) => void;
 }
 
 function GanttBarRow({
@@ -630,6 +642,7 @@ function GanttBarRow({
   openPopover, setOpenPopover, editingDateType, setEditingDateType,
   todayPosition, onTaskSelect, onBarMouseDown, workflowId,
   handleStartDateSelect, handleEndDateSelect, onHideTask,
+  onUpdateTaskStatus, onOpenResponsible, onOpenAnchor,
 }: GanttBarRowProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -712,10 +725,42 @@ function GanttBarRow({
         </ContextMenuTrigger>
 
         <ContextMenuContent className="bg-popover border border-border shadow-md z-50">
-          {onHideTask && (
-            <ContextMenuItem onClick={() => onHideTask(task.id)} className="gap-2 text-sm">
-              <EyeOff className="w-3.5 h-3.5" />
-              Ocultar tarea
+          {onUpdateTaskStatus && (
+            <ContextMenuSub>
+              <ContextMenuSubTrigger className="gap-2 text-sm">
+                <CircleDot className="w-3.5 h-3.5" />
+                Estado
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent>
+                {([
+                  { value: 'pendiente' as TaskStatus, label: 'Pendiente', dot: 'bg-muted-foreground/50' },
+                  { value: 'en_proceso' as TaskStatus, label: 'En Proceso', dot: 'bg-blue-500' },
+                  { value: 'completado' as TaskStatus, label: 'Completado', dot: 'bg-green-500' },
+                  { value: 'retrasado' as TaskStatus, label: 'Retrasado', dot: 'bg-red-500' },
+                ]).map(opt => (
+                  <ContextMenuItem
+                    key={opt.value}
+                    onClick={() => onUpdateTaskStatus(workflowId, task.id, opt.value)}
+                    className="gap-2 text-sm"
+                  >
+                    <div className={cn('w-2.5 h-2.5 rounded-full', opt.dot)} />
+                    {opt.label}
+                    {task.status === opt.value && <span className="ml-auto text-xs">✓</span>}
+                  </ContextMenuItem>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          )}
+          {onOpenResponsible && (
+            <ContextMenuItem onClick={() => onOpenResponsible(workflowId, task.id)} className="gap-2 text-sm">
+              <User className="w-3.5 h-3.5" />
+              Responsable
+            </ContextMenuItem>
+          )}
+          {onOpenAnchor && (
+            <ContextMenuItem onClick={() => onOpenAnchor(workflowId, task.id)} className="gap-2 text-sm">
+              <Link2 className="w-3.5 h-3.5" />
+              Anclar
             </ContextMenuItem>
           )}
           <ContextMenuItem
@@ -728,6 +773,12 @@ function GanttBarRow({
             <CalendarIcon className="w-3.5 h-3.5" />
             Abrir calendario
           </ContextMenuItem>
+          {onHideTask && (
+            <ContextMenuItem onClick={() => onHideTask(task.id)} className="gap-2 text-sm">
+              <EyeOff className="w-3.5 h-3.5" />
+              Ocultar tarea
+            </ContextMenuItem>
+          )}
         </ContextMenuContent>
       </ContextMenu>
 
