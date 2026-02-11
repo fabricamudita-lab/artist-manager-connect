@@ -1,46 +1,36 @@
 
+# Zoom out / Vista completa del Cronograma
 
-# Navegacion interactiva desde la vista panoramica de Cronogramas
+## Objetivo
 
-## Resumen
+Agregar un boton de "vista completa" (icono de ventana/maximize) en la barra de herramientas del cronograma que permita alternar entre la vista normal (con scroll horizontal para timelines largos) y una vista comprimida que muestre todo el cronograma de un vistazo.
 
-Hacer que los clics en la vista panoramica ("Cronogramas" en Discografia) naveguen de forma inteligente segun donde se haga clic:
+## Como funciona
 
-1. **Clic en la barra del lanzamiento (franja consolidada)**: Abre el cronograma del lanzamiento en modo Gantt
-2. **Clic en la barra de un flujo (ej. "Contenido" de HOBBA)**: Abre el cronograma en modo Gantt y hace scroll automatico al flujo correspondiente, centrandolo visualmente
-3. **Clic en el nombre del lanzamiento**: Abre el cronograma en modo lista con todos los flujos cerrados/colapsados
+El Gantt actualmente usa posicionamiento por porcentajes, asi que siempre se ajusta al ancho del contenedor. El problema es que cuando hay muchos meses, las barras quedan muy pequenas y dificiles de leer.
+
+La solucion es introducir un sistema de zoom con dos niveles:
+
+- **Vista normal**: El Gantt tiene un `minWidth` calculado segun el numero de dias del timeline (ej. ~25px por dia), lo que genera scroll horizontal cuando el timeline es largo. Esto da barras legibles.
+- **Vista completa (zoom out)**: Se elimina el `minWidth` y el Gantt ocupa el 100% del ancho visible, comprimiendo todo para dar una vision panoramica.
 
 ## Cambios tecnicos
 
-### 1. AllCronogramasView.tsx - Parametrizar la navegacion
+### 1. GanttChart.tsx - Agregar prop `fitToView`
 
-**Barra del lanzamiento (ya funciona correctamente):** Mantener la navegacion actual a `/releases/{id}/cronograma`
+- Agregar prop `fitToView?: boolean` a `GanttChartProps`
+- Cuando `fitToView` es `false` (defecto), envolver el contenido en un div con `minWidth` dinamico basado en `totalDays` (ej. `totalDays * 25` pixels) y el contenedor padre con `overflow-x: auto`
+- Cuando `fitToView` es `true`, no aplicar `minWidth` (el Gantt se comprime al 100% del ancho)
 
-**Barra del flujo:** Cambiar el onClick para navegar con query param de flujo:
-```
-/releases/{id}/cronograma?focus={workflowId}
-```
+### 2. ReleaseCronograma.tsx - Estado y boton
 
-**Nombre del lanzamiento:** Cambiar el onClick para navegar con query param de modo lista colapsado:
-```
-/releases/{id}/cronograma?mode=list&collapsed=all
-```
+- Agregar estado `const [fitToView, setFitToView] = useState(false)`
+- Agregar un boton con icono `Maximize2` / `Minimize2` (de lucide-react) junto al selector de vista Lista/Cronograma
+- El boton solo se muestra cuando `viewMode === 'gantt'`
+- Tooltip: "Vista completa" / "Vista detallada"
+- Pasar `fitToView` como prop al `GanttChart`
 
-### 2. ReleaseCronograma.tsx - Leer los query params y reaccionar
+### Archivos afectados
 
-**a) Leer `useSearchParams`:**
-- Si `mode=list` y `collapsed=all`: establecer `viewMode` a `'list'` y `openSections` con todos los valores en `false`
-- Si `focus={workflowId}`: establecer `viewMode` a `'gantt'` y despues del render, hacer scroll al workflow indicado
-
-**b) Scroll al flujo:**
-- Asignar `data-workflow-id={workflow.id}` a cada fila/seccion del Gantt
-- Usar un `useEffect` que, cuando haya un param `focus`, busque el elemento con `querySelector('[data-workflow-id="..."]')` y llame a `scrollIntoView({ behavior: 'smooth', block: 'center' })`
-- Agregar un resaltado temporal (flash de color) al flujo enfocado para que el usuario lo localice visualmente
-
-**c) Limpiar params despues de aplicar:** Llamar a `setSearchParams({})` (o `navigate` sin params) tras aplicar la logica para que no se re-ejecute en futuros re-renders
-
-### 3. Archivos afectados
-
-- `src/components/releases/AllCronogramasView.tsx` - Modificar 3 handlers de onClick
-- `src/pages/release-sections/ReleaseCronograma.tsx` - Agregar lectura de searchParams + logica de scroll/focus + data attributes
-
+- `src/components/lanzamientos/GanttChart.tsx` - Nueva prop + wrapper con scroll/minWidth
+- `src/pages/release-sections/ReleaseCronograma.tsx` - Estado + boton en toolbar
