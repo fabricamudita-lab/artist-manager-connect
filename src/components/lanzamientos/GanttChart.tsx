@@ -391,11 +391,11 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
   const ganttMinWidth = fitToView ? undefined : Math.max(totalDays * 6, 800);
 
   return (
-    <div className="space-y-4" onClick={() => onClearSelection?.()}>
+    <div className={cn(fitToView ? "space-y-1" : "space-y-4")} onClick={() => onClearSelection?.()}>
       <div className={cn(!fitToView && 'overflow-x-auto')}>
       <div style={{ minWidth: ganttMinWidth ? `${ganttMinWidth}px` : undefined }}>
       {/* Timeline Header */}
-      <div className="relative h-10 bg-muted/30 rounded-lg overflow-hidden">
+      <div className={cn("relative bg-muted/30 rounded-lg overflow-hidden", fitToView ? "h-7" : "h-10")}>
         {months.map((month, idx) => (
           <div
             key={idx}
@@ -436,7 +436,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                 const tooltipText = `${format(wfStart, 'dd MMM yyyy', { locale: es })} – ${format(wfEnd, 'dd MMM yyyy', { locale: es })}`;
                 return (
                   <div
-                    className="flex items-center mb-2 cursor-pointer select-none"
+                    className={cn("flex items-center cursor-pointer select-none", fitToView ? "mb-0.5" : "mb-2")}
                     onClick={() => setCollapsedWorkflows(prev => {
                       const next = new Set(prev);
                       if (next.has(workflow.id)) next.delete(workflow.id);
@@ -452,9 +452,9 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                         {completed}/{workflowTasks.length}
                       </span>
                     </div>
-                    <div className="flex-1 relative h-6">
+                    <div className={cn("flex-1 relative", fitToView ? "h-4" : "h-6")}>
                       <div
-                        className={cn('absolute top-0.5 h-5 rounded-full group/wf', colors.bg)}
+                        className={cn('absolute rounded-full group/wf', colors.bg, fitToView ? 'top-0 h-4' : 'top-0.5 h-5')}
                         style={{ left, width }}
                       >
                         <div
@@ -469,7 +469,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                   </div>
                 );
               })()}
-              {!isCollapsed && <div className="space-y-2">
+              {!isCollapsed && <div className={fitToView ? "space-y-0.5" : "space-y-2"}>
                 {workflowTasks.map(task => {
                   const isPendingThis = pendingDrag?.taskId === task.id;
                   const isDragging = (dragState?.activated && dragPreview?.taskId === task.id) || isPendingThis;
@@ -533,6 +533,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                         onUpdateTaskStatus={onUpdateTaskStatus}
                         onOpenResponsible={onOpenResponsible}
                         onOpenAnchor={onOpenAnchor}
+                        compact={fitToView}
                       />
                     </div>
                   );
@@ -543,6 +544,8 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
         })}
       </div>
 
+      {!fitToView && (
+      <>
       {/* Legend */}
       <div className="flex items-center gap-6 pt-4 border-t">
         <span className="text-sm text-muted-foreground">Estado:</span>
@@ -567,6 +570,8 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
       <p className="text-xs text-muted-foreground">
         💡 Arrastra las barras para mover fechas · Clic derecho para más opciones
       </p>
+      </>
+      )}
 
       {/* Drag confirmation dialog */}
       <AlertDialog open={!!pendingDrag} onOpenChange={(open) => { if (!open) handleCancelDrag(); }}>
@@ -641,6 +646,7 @@ interface GanttBarRowProps {
   onUpdateTaskStatus?: (workflowId: string, taskId: string, status: TaskStatus) => void;
   onOpenResponsible?: (workflowId: string, taskId: string) => void;
   onOpenAnchor?: (workflowId: string, taskId: string) => void;
+  compact?: boolean;
 }
 
 function GanttBarRow({
@@ -649,7 +655,7 @@ function GanttBarRow({
   openPopover, setOpenPopover, editingDateType, setEditingDateType,
   todayPosition, onTaskSelect, onBarMouseDown, workflowId,
   handleStartDateSelect, handleEndDateSelect, onHideTask,
-  onUpdateTaskStatus, onOpenResponsible, onOpenAnchor,
+  onUpdateTaskStatus, onOpenResponsible, onOpenAnchor, compact,
 }: GanttBarRowProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -660,7 +666,9 @@ function GanttBarRow({
       ref={containerRef}
       className={cn(
         "flex-1 relative rounded",
-        task.isSubtask ? "h-6 bg-muted/10" : "h-8 bg-muted/20"
+        compact
+          ? (task.isSubtask ? "h-4 bg-muted/10" : "h-5 bg-muted/20")
+          : (task.isSubtask ? "h-6 bg-muted/10" : "h-8 bg-muted/20")
       )}
     >
       {todayPosition !== null && (
@@ -676,7 +684,9 @@ function GanttBarRow({
           className={cn(
             'absolute rounded pointer-events-none',
             'bg-muted-foreground/40',
-            task.isSubtask ? 'top-0.5 h-5' : 'top-1 h-6',
+            compact
+              ? (task.isSubtask ? 'top-0 h-4' : 'top-0 h-5')
+              : (task.isSubtask ? 'top-0.5 h-5' : 'top-1 h-6'),
           )}
           style={{ left: ghostLeft, width: ghostWidth, minWidth: '16px', opacity: 0.25 }}
         />
@@ -689,7 +699,9 @@ function GanttBarRow({
             className={cn(
               'absolute rounded transition-all group',
               STATUS_BAR_COLORS[task.status],
-              task.isSubtask ? 'top-0.5 h-5' : 'top-1 h-6',
+              compact
+                ? (task.isSubtask ? 'top-0 h-4' : 'top-0 h-5')
+                : (task.isSubtask ? 'top-0.5 h-5' : 'top-1 h-6'),
               task.isSubtask && 'opacity-70',
               isDragging
                 ? 'opacity-90 ring-2 ring-primary shadow-lg'
