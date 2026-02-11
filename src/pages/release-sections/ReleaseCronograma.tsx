@@ -1716,6 +1716,7 @@ export default function ReleaseCronograma() {
                 newHidden.add(taskId);
                 updateHiddenTasks(newHidden);
               }}
+              onClearSelection={() => setSelectedTaskIds(new Set())}
             />
           </CardContent>
         </Card>
@@ -1723,7 +1724,7 @@ export default function ReleaseCronograma() {
         /* Workflow Sections - List View */
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={workflowsWithTasks.map(w => w.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-4">
+            <div className="space-y-4" onClick={() => setSelectedTaskIds(new Set())}>
             {workflowsWithTasks.map(workflow => (
               <SortableWorkflowCard
                 key={workflow.id}
