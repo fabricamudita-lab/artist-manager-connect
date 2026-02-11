@@ -1,18 +1,19 @@
 
-
-# Unificar barra de seleccion con la linea de Progreso General
+# Deseleccionar tareas al hacer clic en el fondo del Gantt
 
 ## Cambio
 
-En lugar de que la barra de seleccion ("X tareas seleccionadas / Ocultar / Cancelar") aparezca como un bloque separado debajo de "Progreso General", se integrara en la misma linea, al lado derecho. Asi al seleccionar tareas no se desplaza el contenido.
+Al hacer clic en el area vacia (fondo) del diagrama de Gantt, se deseleccionaran todas las tareas seleccionadas. Esto aplica tanto al contenedor principal del Gantt como al area de la lista.
 
 ## Detalle tecnico
 
+### Archivo: `src/components/lanzamientos/GanttChart.tsx`
+
+1. Agregar una nueva prop `onClearSelection` al interface `GanttChartProps`
+2. En el contenedor principal del Gantt (`div className="space-y-4"`, linea 374), agregar un `onClick` que llame a `onClearSelection()` 
+3. En los handlers de clic de las barras de tarea (linea 631), asegurarse de que ya tienen `e.stopPropagation()` (ya lo tienen) para que el clic en una barra no dispare la deseleccion
+
 ### Archivo: `src/pages/release-sections/ReleaseCronograma.tsx`
 
-1. Fusionar los dos bloques (progreso + seleccion) en un unico `div flex items-center gap-3`
-2. El lado izquierdo mantiene: "Progreso General" + barra + "X de Y completadas" + badge %
-3. Al lado derecho (con `ml-auto`), cuando `selectedTaskIds.size > 0`, aparecen los controles de seleccion: texto "X tareas seleccionadas", boton Ocultar, boton Cancelar
-4. Eliminar el bloque separado de seleccion que se anadio en el cambio anterior
-5. Todo queda en una sola fila horizontal sin alterar la estructura de la pagina
-
+1. Pasar la nueva prop `onClearSelection={() => setSelectedTaskIds(new Set())}` al componente `GanttChart` (alrededor de la linea 1700)
+2. Para la vista de lista, agregar un `onClick` en el contenedor de la lista que tambien limpie la seleccion, con `stopPropagation` en las filas de tarea para evitar deseleccion al hacer clic en una tarea
