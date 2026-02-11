@@ -443,14 +443,16 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, g
                     </div>
                     <div className="flex-1 relative h-6">
                       <div
-                        className={cn('absolute top-0.5 h-5 rounded-full', colors.bg)}
+                        className={cn('absolute top-0.5 h-5 rounded-full group/wf', colors.bg)}
                         style={{ left, width }}
-                        title={tooltipText}
                       >
                         <div
                           className={cn('h-full rounded-full', colors.fill)}
                           style={{ width: `${progress}%` }}
                         />
+                        <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground whitespace-nowrap opacity-0 group-hover/wf:opacity-100 transition-opacity pointer-events-none">
+                          {format(wfStart, 'dd MMM', { locale: es })} – {format(wfEnd, 'dd MMM', { locale: es })}
+                        </span>
                       </div>
                     </div>
                   </div>
