@@ -1819,6 +1819,7 @@ export default function ReleaseCronograma() {
   return (
     <div className="space-y-6">
       {/* Header */}
+      {!fitToView && (
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(`/releases/${id}`)}>
@@ -1899,8 +1900,27 @@ export default function ReleaseCronograma() {
           )}
         </div>
       </div>
+      )}
+      {fitToView && (
+        <div className="flex items-center justify-end">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9"
+                onClick={() => setFitToView(false)}
+              >
+                <Minimize2 className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Vista detallada</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
 
       {/* Compact Progress Bar + Selection controls */}
+      {!fitToView && (
       <div className="flex items-center gap-3 px-1">
         <span className="text-sm font-medium whitespace-nowrap">Progreso General</span>
         <Progress value={progressPercent} className="h-2 flex-1 max-w-xs" />
@@ -1922,6 +1942,7 @@ export default function ReleaseCronograma() {
           </div>
         )}
       </div>
+      )}
 
       {/* View Content */}
       {viewMode === 'gantt' ? (
