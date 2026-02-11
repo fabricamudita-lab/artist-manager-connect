@@ -55,6 +55,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -1941,19 +1949,82 @@ export default function ReleaseCronograma() {
               placeholder="Seleccionar responsable"
             />
           )}
-          {ganttContextDialog?.type === 'anchor' && ganttContextTask && (
-            <MultiAnchorSelector
-              value={ganttContextTask.anchoredTo || []}
-              onChange={(anchors) => {
-                updateTask(ganttContextDialog.workflowId, ganttContextDialog.taskId, {
-                  anchoredTo: anchors.length > 0 ? anchors : undefined,
-                });
-              }}
-              availableTasks={availableTasksForAnchor.filter(t => t.id !== ganttContextDialog.taskId)}
-              currentTaskId={ganttContextDialog.taskId}
-              getTaskName={getTaskName}
-            />
-          )}
+          {ganttContextDialog?.type === 'anchor' && ganttContextTask && (() => {
+            const currentAnchors = ganttContextTask.anchoredTo || [];
+            const selectableTasks = availableTasksForAnchor.filter(
+              t => t.id !== ganttContextDialog.taskId && !currentAnchors.includes(t.id)
+            );
+            const grouped = selectableTasks.reduce<Record<string, typeof selectableTasks>>((acc, task) => {
+              if (!acc[task.workflowName]) acc[task.workflowName] = [];
+              acc[task.workflowName].push(task);
+              return acc;
+            }, {});
+
+            return (
+              <div className="space-y-3">
+                {/* Current anchors */}
+                {currentAnchors.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {currentAnchors.map(anchorId => (
+                      <Badge
+                        key={anchorId}
+                        variant="secondary"
+                        className="pl-2 pr-1 py-1 gap-1 text-xs"
+                      >
+                        <span className="truncate max-w-[140px]">{getTaskName(anchorId) || anchorId}</span>
+                        <button
+                          onClick={() => updateTask(ganttContextDialog.workflowId, ganttContextDialog.taskId, {
+                            anchoredTo: currentAnchors.filter(id => id !== anchorId).length > 0
+                              ? currentAnchors.filter(id => id !== anchorId)
+                              : undefined,
+                          })}
+                          className="ml-0.5 rounded-full p-0.5 hover:bg-muted"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Sin dependencias. La fecha se establecerá manualmente.
+                  </p>
+                )}
+
+                {/* Add anchor selector */}
+                {selectableTasks.length > 0 && (
+                  <div className="border-t pt-3">
+                    <p className="text-xs text-muted-foreground mb-2">Añadir dependencia:</p>
+                    <Command className="border rounded-lg">
+                      <CommandInput placeholder="Buscar tarea..." className="h-8" />
+                      <CommandList className="max-h-[200px]">
+                        <CommandEmpty>No hay tareas disponibles</CommandEmpty>
+                        {Object.entries(grouped).map(([workflowName, tasks]) => (
+                          <CommandGroup key={workflowName} heading={workflowName}>
+                            {tasks.map(task => (
+                              <CommandItem
+                                key={task.id}
+                                value={`${task.name} ${workflowName}`}
+                                onSelect={() => {
+                                  updateTask(ganttContextDialog.workflowId, ganttContextDialog.taskId, {
+                                    anchoredTo: [...currentAnchors, task.id],
+                                  });
+                                }}
+                                className="text-xs cursor-pointer"
+                              >
+                                <Plus className="w-3 h-3 mr-2" />
+                                {task.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        ))}
+                      </CommandList>
+                    </Command>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
