@@ -33,6 +33,7 @@ import {
   GanttChart as GanttIcon,
   ArrowLeft,
   RefreshCw,
+  Undo2,
   Sparkles,
   CheckCircle2,
   Circle,
@@ -92,6 +93,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import AnchorDependencyDialog from '@/components/lanzamientos/AnchorDependencyDialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import MultiAnchorSelector from '@/components/lanzamientos/MultiAnchorSelector';
 import TaskDatePopover from '@/components/lanzamientos/TaskDatePopover';
 import { ResponsibleSelector, type ResponsibleRef } from '@/components/releases/ResponsibleSelector';
@@ -951,6 +953,28 @@ export default function ReleaseCronograma() {
     } catch { /* ignore */ }
     return EMPTY_WORKFLOWS;
   });
+  // Undo stack
+  const [undoStack, setUndoStack] = useState<WorkflowSection[][]>([]);
+
+  const pushUndo = useCallback(() => {
+    setUndoStack(prev => [JSON.parse(JSON.stringify(workflows)), ...prev].slice(0, 20));
+  }, [workflows]);
+
+  const undo = useCallback(() => {
+    setUndoStack(prev => {
+      const [lastState, ...rest] = prev;
+      if (lastState) {
+        // Restore icons from metadata since they can't be serialized
+        const restored = lastState.map(w => {
+          const meta = WORKFLOW_METADATA[w.id];
+          return meta ? { ...w, icon: meta.icon } : w;
+        });
+        setWorkflows(restored);
+      }
+      return rest;
+    });
+  }, []);
+
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(
     Object.fromEntries(Object.keys(WORKFLOW_METADATA).map(id => [id, true]))
@@ -995,6 +1019,18 @@ export default function ReleaseCronograma() {
     setHiddenTaskIds(newSet);
     localStorage.setItem(`hidden_tasks_${id}`, JSON.stringify([...newSet]));
   }, [id]);
+
+  // Ctrl+Z / Cmd+Z keyboard shortcut for undo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [undo]);
 
   const hideSelectedTasks = useCallback(() => {
     const newHidden = new Set(hiddenTaskIds);
@@ -1262,6 +1298,7 @@ export default function ReleaseCronograma() {
     const task = workflow?.tasks.find(t => t.id === taskId);
     
     if (!task || !task.startDate) {
+      pushUndo();
       setWorkflows(prev => prev.map(w => 
         w.id === workflowId 
           ? { ...w, tasks: w.tasks.map(t => 
@@ -1287,6 +1324,7 @@ export default function ReleaseCronograma() {
       });
       setAnchorDialogOpen(true);
     } else {
+      pushUndo();
       setWorkflows(prev => prev.map(w => 
         w.id === workflowId 
           ? { ...w, tasks: w.tasks.map(t => 
@@ -1303,6 +1341,7 @@ export default function ReleaseCronograma() {
 
     const { workflowId, taskId, newStartDate, newEstimatedDays, daysDelta, dependentTasks } = pendingDateChange;
 
+    pushUndo();
     setWorkflows(prev => prev.map(w => {
       const updatedTasks = w.tasks.map(t => {
         if (t.id === taskId && w.id === workflowId) {
@@ -1328,6 +1367,7 @@ export default function ReleaseCronograma() {
   };
 
   const updateTask = (workflowId: string, taskId: string, updates: Partial<ReleaseTask>) => {
+    pushUndo();
     setWorkflows(prev =>
       prev.map(workflow =>
         workflow.id === workflowId
@@ -1352,6 +1392,7 @@ export default function ReleaseCronograma() {
       estimatedDays: 7,
       status: 'pendiente',
     };
+    pushUndo();
     setWorkflows(prev =>
       prev.map(workflow =>
         workflow.id === workflowId
@@ -1378,7 +1419,7 @@ export default function ReleaseCronograma() {
 
   // Actually delete the task
   const confirmDeleteTask = () => {
-    if (!taskToDelete) return;
+    pushUndo();
     setWorkflows(prev =>
       prev.map(workflow =>
         workflow.id === taskToDelete.workflowId
@@ -1662,6 +1703,14 @@ export default function ReleaseCronograma() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" disabled={undoStack.length === 0} onClick={undo}>
+                <Undo2 className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Deshacer (Ctrl+Z)</TooltipContent>
+          </Tooltip>
           <Button variant="outline" size="sm" onClick={() => {
             // If there are existing tasks, show confirmation first
             const hasTasks = workflows.some(w => w.tasks.length > 0);
