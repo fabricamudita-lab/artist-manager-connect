@@ -181,26 +181,48 @@ export default function Lanzamientos() {
     newEstimatedDays: number;
     oldStartDate: Date;
     daysDelta: number;
-    dependentTasks: { id: string; name: string; workflowId: string; workflowName: string }[];
+    dependentTasks: import('@/components/lanzamientos/AnchorDependencyDialog').DependentTask[];
   } | null>(null);
 
-  // Get all tasks that are anchored to a given task
-  const getDependentTasks = useCallback((sourceTaskId: string) => {
-    const dependents: { id: string; name: string; workflowId: string; workflowName: string }[] = [];
+  // Helper: find a task across all workflows
+  const findTask = useCallback((taskId: string) => {
+    for (const w of workflows) {
+      const t = w.tasks.find(t => t.id === taskId);
+      if (t) return { task: t, workflowId: w.id, workflowName: w.name };
+    }
+    return null;
+  }, [workflows]);
+
+  // Recursive: get the full dependency chain
+  const getFullDependencyChain = useCallback((
+    sourceTaskId: string,
+    daysDelta: number,
+    depth = 1,
+    visited = new Set<string>()
+  ): import('@/components/lanzamientos/AnchorDependencyDialog').DependentTask[] => {
+    if (visited.has(sourceTaskId)) return [];
+    visited.add(sourceTaskId);
+    const result: import('@/components/lanzamientos/AnchorDependencyDialog').DependentTask[] = [];
     workflows.forEach(workflow => {
       workflow.tasks.forEach(task => {
-        if (task.anchoredTo?.includes(sourceTaskId)) {
-          dependents.push({
-            id: task.id,
-            name: task.name,
-            workflowId: workflow.id,
-            workflowName: workflow.name,
-          });
+        if (task.anchoredTo?.includes(sourceTaskId) && !visited.has(task.id)) {
+          const currentStart = task.startDate;
+          const currentEnd = currentStart ? addDays(currentStart, task.estimatedDays) : null;
+          const newStart = currentStart ? addDays(currentStart, daysDelta) : null;
+          const newEnd = newStart ? addDays(newStart, task.estimatedDays) : null;
+          const sourceInfo = findTask(sourceTaskId);
+          let isConflict = true;
+          if (daysDelta < 0 && currentStart && sourceInfo?.task.startDate) {
+            const sourceNewEnd = addDays(addDays(sourceInfo.task.startDate, daysDelta), sourceInfo.task.estimatedDays);
+            isConflict = sourceNewEnd > currentStart;
+          }
+          result.push({ id: task.id, name: task.name, workflowId: workflow.id, workflowName: workflow.name, depth, currentStartDate: currentStart, currentEndDate: currentEnd, newStartDate: newStart, newEndDate: newEnd, isConflict });
+          result.push(...getFullDependencyChain(task.id, daysDelta, depth + 1, visited));
         }
       });
     });
-    return dependents;
-  }, [workflows]);
+    return result;
+  }, [workflows, findTask]);
 
   // Get task name by ID
   const getTaskName = useCallback((taskId: string) => {
@@ -211,19 +233,16 @@ export default function Lanzamientos() {
     return '';
   }, [workflows]);
 
-  // Handle date update with anchor check
+  // Handle date update with anchor check (recursive cascade)
   const handleTaskDateUpdate = useCallback((
     workflowId: string,
     taskId: string,
     newStartDate: Date,
     newEstimatedDays: number
   ) => {
-    // Find the current task
     const workflow = workflows.find(w => w.id === workflowId);
     const task = workflow?.tasks.find(t => t.id === taskId);
-    
     if (!task || !task.startDate) {
-      // No previous date, just update
       setWorkflows(prev => prev.map(w => 
         w.id === workflowId 
           ? { ...w, tasks: w.tasks.map(t => 
@@ -233,24 +252,13 @@ export default function Lanzamientos() {
       ));
       return;
     }
-
     const daysDelta = differenceInDays(newStartDate, task.startDate);
-    const dependentTasks = getDependentTasks(taskId);
-
-    if (dependentTasks.length > 0 && daysDelta !== 0) {
-      // Show confirmation dialog
-      setPendingDateChange({
-        workflowId,
-        taskId,
-        newStartDate,
-        newEstimatedDays,
-        oldStartDate: task.startDate,
-        daysDelta,
-        dependentTasks,
-      });
+    const fullChain = getFullDependencyChain(taskId, daysDelta);
+    const conflictTasks = fullChain.filter(t => t.isConflict);
+    if (conflictTasks.length > 0 && daysDelta !== 0) {
+      setPendingDateChange({ workflowId, taskId, newStartDate, newEstimatedDays, oldStartDate: task.startDate, daysDelta, dependentTasks: fullChain });
       setAnchorDialogOpen(true);
     } else {
-      // No dependents or no date change, just update
       setWorkflows(prev => prev.map(w => 
         w.id === workflowId 
           ? { ...w, tasks: w.tasks.map(t => 
@@ -259,32 +267,21 @@ export default function Lanzamientos() {
           : w
       ));
     }
-  }, [workflows, getDependentTasks]);
+  }, [workflows, getFullDependencyChain]);
 
   // Handle anchor dialog confirmation
   const handleAnchorConfirm = useCallback((selectedTaskIds: string[]) => {
     if (!pendingDateChange) return;
-
-    const { workflowId, taskId, newStartDate, newEstimatedDays, daysDelta, dependentTasks } = pendingDateChange;
-
+    const { workflowId, taskId, newStartDate, newEstimatedDays, daysDelta } = pendingDateChange;
+    const selectedSet = new Set(selectedTaskIds);
     setWorkflows(prev => prev.map(w => {
       const updatedTasks = w.tasks.map(t => {
-        // Update the main task
-        if (t.id === taskId && w.id === workflowId) {
-          return { ...t, startDate: newStartDate, estimatedDays: newEstimatedDays };
-        }
-        // Update only selected dependent tasks
-        if (selectedTaskIds.includes(t.id) && t.startDate) {
-          const isDependent = dependentTasks.some(dt => dt.id === t.id && dt.workflowId === w.id);
-          if (isDependent) {
-            return { ...t, startDate: addDays(t.startDate, daysDelta) };
-          }
-        }
+        if (t.id === taskId && w.id === workflowId) return { ...t, startDate: newStartDate, estimatedDays: newEstimatedDays };
+        if (selectedSet.has(t.id) && t.startDate) return { ...t, startDate: addDays(t.startDate, daysDelta) };
         return t;
       });
       return { ...w, tasks: updatedTasks };
     }));
-
     setAnchorDialogOpen(false);
     setPendingDateChange(null);
   }, [pendingDateChange]);

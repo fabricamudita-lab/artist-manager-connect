@@ -1091,7 +1091,7 @@ export default function ReleaseCronograma() {
     newEstimatedDays: number;
     oldStartDate: Date;
     daysDelta: number;
-    dependentTasks: { id: string; name: string; workflowId: string; workflowName: string }[];
+    dependentTasks: import('@/components/lanzamientos/AnchorDependencyDialog').DependentTask[];
   } | null>(null);
 
   // Number of songs - use tracks count or default to 1
@@ -1295,23 +1295,66 @@ export default function ReleaseCronograma() {
     await saveMilestonesToDB(finalWorkflows, true);
   }, [saveMilestonesToDB, regenerateMode, workflows]);
 
-  // Get all tasks that are anchored to a given task
-  const getDependentTasks = useCallback((sourceTaskId: string) => {
-    const dependents: { id: string; name: string; workflowId: string; workflowName: string }[] = [];
+  // Helper: find a task across all workflows
+  const findTask = useCallback((taskId: string): { task: ReleaseTask; workflowId: string; workflowName: string } | null => {
+    for (const w of workflows) {
+      const t = w.tasks.find(t => t.id === taskId);
+      if (t) return { task: t, workflowId: w.id, workflowName: w.name };
+    }
+    return null;
+  }, [workflows]);
+
+  // Recursive: get the full dependency chain for a task
+  const getFullDependencyChain = useCallback((
+    sourceTaskId: string,
+    daysDelta: number,
+    depth = 1,
+    visited = new Set<string>()
+  ): import('@/components/lanzamientos/AnchorDependencyDialog').DependentTask[] => {
+    if (visited.has(sourceTaskId)) return []; // cycle protection
+    visited.add(sourceTaskId);
+
+    const result: import('@/components/lanzamientos/AnchorDependencyDialog').DependentTask[] = [];
+
     workflows.forEach(workflow => {
       workflow.tasks.forEach(task => {
-        if (task.anchoredTo?.includes(sourceTaskId) && !task.customStartDate) {
-          dependents.push({
+        if (task.anchoredTo?.includes(sourceTaskId) && !task.customStartDate && !visited.has(task.id)) {
+          const currentStart = task.startDate;
+          const currentEnd = currentStart ? addDays(currentStart, task.estimatedDays) : null;
+          const newStart = currentStart ? addDays(currentStart, daysDelta) : null;
+          const newEnd = newStart ? addDays(newStart, task.estimatedDays) : null;
+
+          // For postpone (delta > 0): always a conflict
+          // For advance (delta < 0): conflict only if the source's new end overlaps with this task's start
+          const sourceInfo = findTask(sourceTaskId);
+          let isConflict = true;
+          if (daysDelta < 0 && currentStart && sourceInfo?.task.startDate) {
+            const sourceNewEnd = addDays(addDays(sourceInfo.task.startDate, daysDelta), sourceInfo.task.estimatedDays);
+            isConflict = sourceNewEnd > currentStart;
+          }
+
+          result.push({
             id: task.id,
             name: task.name,
             workflowId: workflow.id,
             workflowName: workflow.name,
+            depth,
+            currentStartDate: currentStart,
+            currentEndDate: currentEnd,
+            newStartDate: newStart,
+            newEndDate: newEnd,
+            isConflict,
           });
+
+          // Recurse into this task's dependents
+          const childDeps = getFullDependencyChain(task.id, daysDelta, depth + 1, visited);
+          result.push(...childDeps);
         }
       });
     });
-    return dependents;
-  }, [workflows]);
+
+    return result;
+  }, [workflows, findTask]);
 
   // Get task name by ID
   const getTaskName = useCallback((taskId: string) => {
@@ -1334,7 +1377,7 @@ export default function ReleaseCronograma() {
     );
   }, [workflows]);
 
-  // Handle date update with anchor check
+  // Handle date update with anchor check (recursive cascade)
   const handleTaskDateUpdate = useCallback((
     workflowId: string,
     taskId: string,
@@ -1357,9 +1400,14 @@ export default function ReleaseCronograma() {
     }
 
     const daysDelta = differenceInDays(newStartDate, task.startDate);
-    const dependentTasks = getDependentTasks(taskId);
+    if (daysDelta === 0 && newEstimatedDays === task.estimatedDays) {
+      return; // no change
+    }
 
-    if (dependentTasks.length > 0 && daysDelta !== 0) {
+    const fullChain = getFullDependencyChain(taskId, daysDelta);
+    const conflictTasks = fullChain.filter(t => t.isConflict);
+
+    if (conflictTasks.length > 0 && daysDelta !== 0) {
       setPendingDateChange({
         workflowId,
         taskId,
@@ -1367,7 +1415,7 @@ export default function ReleaseCronograma() {
         newEstimatedDays,
         oldStartDate: task.startDate,
         daysDelta,
-        dependentTasks,
+        dependentTasks: fullChain,
       });
       setAnchorDialogOpen(true);
     } else {
@@ -1380,13 +1428,14 @@ export default function ReleaseCronograma() {
           : w
       ));
     }
-  }, [workflows, getDependentTasks]);
+  }, [workflows, getFullDependencyChain]);
 
-  // Handle anchor dialog confirmation
+  // Handle anchor dialog confirmation (apply to full chain)
   const handleAnchorConfirm = useCallback((selectedTaskIds: string[]) => {
     if (!pendingDateChange) return;
 
-    const { workflowId, taskId, newStartDate, newEstimatedDays, daysDelta, dependentTasks } = pendingDateChange;
+    const { workflowId, taskId, newStartDate, newEstimatedDays, daysDelta } = pendingDateChange;
+    const selectedSet = new Set(selectedTaskIds);
 
     pushUndo();
     setWorkflows(prev => prev.map(w => {
@@ -1394,11 +1443,8 @@ export default function ReleaseCronograma() {
         if (t.id === taskId && w.id === workflowId) {
           return { ...t, startDate: newStartDate, estimatedDays: newEstimatedDays };
         }
-        if (selectedTaskIds.includes(t.id) && t.startDate) {
-          const isDependent = dependentTasks.some(dt => dt.id === t.id && dt.workflowId === w.id);
-          if (isDependent) {
-            return { ...t, startDate: addDays(t.startDate, daysDelta) };
-          }
+        if (selectedSet.has(t.id) && t.startDate) {
+          return { ...t, startDate: addDays(t.startDate, daysDelta) };
         }
         return t;
       });
@@ -1960,6 +2006,7 @@ export default function ReleaseCronograma() {
         daysDelta={pendingDateChange?.daysDelta || 0}
         dependentTasks={pendingDateChange?.dependentTasks || []}
         onConfirm={handleAnchorConfirm}
+        releaseDate={release?.release_date ? new Date(release.release_date) : null}
       />
 
       {/* Delete Task Confirmation Dialog */}
