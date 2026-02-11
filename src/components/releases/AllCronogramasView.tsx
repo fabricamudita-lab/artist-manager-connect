@@ -205,30 +205,64 @@ export default function AllCronogramasView({ releases }: AllCronogramasViewProps
           return (
             <div key={release.id} className="border-b last:border-b-0">
               {/* Release header */}
-              <div
-                className="flex items-center gap-2 px-4 py-2.5 bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors"
-                onClick={() => toggleCollapse(release.id)}
-              >
-                <button className="text-muted-foreground shrink-0">
-                  {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-                {release.cover_image_url ? (
-                  <img src={release.cover_image_url} alt="" className="w-7 h-7 rounded object-cover shrink-0" />
-                ) : (
-                  <div className="w-7 h-7 rounded bg-muted flex items-center justify-center shrink-0">
-                    <Disc3 className="w-3.5 h-3.5 text-muted-foreground" />
+              {(() => {
+                const releaseStart = summaries.length ? new Date(Math.min(...summaries.map(w => w.startDate.getTime()))) : new Date();
+                const releaseEnd = summaries.length ? new Date(Math.max(...summaries.map(w => w.endDate.getTime()))) : new Date();
+                const releaseBarStyle = getBarStyle(releaseStart, releaseEnd);
+                const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+                return (
+                  <div
+                    className="flex items-center bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors"
+                    onClick={() => toggleCollapse(release.id)}
+                  >
+                    <div className="w-64 min-w-[256px] shrink-0 px-4 py-2.5 flex items-center gap-2 border-r">
+                      <button className="text-muted-foreground shrink-0">
+                        {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                      {release.cover_image_url ? (
+                        <img src={release.cover_image_url} alt="" className="w-7 h-7 rounded object-cover shrink-0" />
+                      ) : (
+                        <div className="w-7 h-7 rounded bg-muted flex items-center justify-center shrink-0">
+                          <Disc3 className="w-3.5 h-3.5 text-muted-foreground" />
+                        </div>
+                      )}
+                      <span
+                        className="font-semibold text-sm truncate hover:text-primary cursor-pointer"
+                        onClick={(e) => { e.stopPropagation(); navigate(`/releases/${release.id}/cronograma`); }}
+                      >
+                        {release.title}
+                      </span>
+                      <Badge variant="secondary" className="text-[10px] ml-auto shrink-0">
+                        {completedTasks}/{totalTasks}
+                      </Badge>
+                    </div>
+                    <div className="flex-1 relative h-10 px-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div
+                            className="absolute top-2 h-6 rounded-full bg-primary/20 hover:bg-primary/30 transition-colors cursor-pointer"
+                            style={releaseBarStyle}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/releases/${release.id}/cronograma`); }}
+                          >
+                            <div
+                              className="h-full rounded-full bg-primary/60"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                          <p className="font-medium">{release.title}</p>
+                          <p>{completedTasks}/{totalTasks} completadas ({Math.round(progress)}%)</p>
+                          <p className="text-muted-foreground">
+                            {format(releaseStart, 'dd MMM', { locale: es })} → {format(releaseEnd, 'dd MMM yyyy', { locale: es })}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                   </div>
-                )}
-                <span
-                  className="font-semibold text-sm truncate hover:text-primary cursor-pointer"
-                  onClick={(e) => { e.stopPropagation(); navigate(`/releases/${release.id}/cronograma`); }}
-                >
-                  {release.title}
-                </span>
-                <Badge variant="secondary" className="text-[10px] ml-auto shrink-0">
-                  {completedTasks}/{totalTasks}
-                </Badge>
-              </div>
+                );
+              })()}
 
               {/* Workflow rows */}
               {!isCollapsed && summaries.map((wf) => {
