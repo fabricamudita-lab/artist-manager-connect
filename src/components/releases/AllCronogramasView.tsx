@@ -83,6 +83,8 @@ export default function AllCronogramasView({ releases }: AllCronogramasViewProps
   const { data: milestonesByRelease, isLoading } = useAllReleaseMilestones(releaseIds);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
+  const today = useMemo(() => new Date(), []);
+
   // Calculate global time range
   const { globalStart, globalEnd, months, totalDays } = useMemo(() => {
     if (!milestonesByRelease) return { globalStart: new Date(), globalEnd: new Date(), months: [], totalDays: 1 };
@@ -109,6 +111,11 @@ export default function AllCronogramasView({ releases }: AllCronogramasViewProps
     const months = eachMonthOfInterval({ start, end });
     return { globalStart: start, globalEnd: end, months, totalDays: Math.max(differenceInDays(end, start), 1) };
   }, [milestonesByRelease]);
+
+  const todayLeft = useMemo(() => {
+    if (today < globalStart || today > globalEnd) return null;
+    return (differenceInDays(today, globalStart) / totalDays) * 100;
+  }, [today, globalStart, globalEnd, totalDays]);
 
   const toggleCollapse = (id: string) => {
     setCollapsed(prev => ({ ...prev, [id]: !prev[id] }));
@@ -144,7 +151,22 @@ export default function AllCronogramasView({ releases }: AllCronogramasViewProps
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="rounded-lg border bg-card overflow-hidden">
+      <div className="rounded-lg border bg-card overflow-hidden relative">
+        {/* Today line overlay – spans full height */}
+        {todayLeft !== null && (
+          <div
+            className="absolute pointer-events-none z-20"
+            style={{ left: `calc(256px + (100% - 256px) * ${todayLeft / 100})`, top: 0, bottom: 0, width: 0 }}
+          >
+            <div className="relative h-full">
+              <div className="absolute left-[-1px] top-0 bottom-0 w-[2px] bg-red-500" />
+              <div className="absolute left-[-10px] top-0 bg-red-500 text-white text-[9px] font-bold px-1 rounded-b leading-tight">
+                Hoy
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Month header */}
         <div className="flex border-b bg-muted/30">
           <div className="w-64 min-w-[256px] shrink-0 px-4 py-2 text-xs font-medium text-muted-foreground border-r">
