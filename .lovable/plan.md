@@ -1,85 +1,46 @@
 
 
-# Sistema robusto de cascada de anclas
+# Navegacion interactiva desde la vista panoramica de Cronogramas
 
-## Problema actual
+## Resumen
 
-Cuando mueves una tarea (ej. Grabacion), el sistema solo detecta las tareas **directamente** ancladas a ella (ej. Mezcla). Pero no detecta que Mastering depende de Mezcla, ni que Label Copy depende de Mastering. Resultado: solo se mueve un nivel, rompiendo la cadena.
+Hacer que los clics en la vista panoramica ("Cronogramas" en Discografia) naveguen de forma inteligente segun donde se haga clic:
 
-Ademas, no hay logica para distinguir entre mover hacia adelante (posponer, potencialmente problematico) y mover hacia atras (adelantar, generalmente seguro).
+1. **Clic en la barra del lanzamiento (franja consolidada)**: Abre el cronograma del lanzamiento en modo Gantt
+2. **Clic en la barra de un flujo (ej. "Contenido" de HOBBA)**: Abre el cronograma en modo Gantt y hace scroll automatico al flujo correspondiente, centrandolo visualmente
+3. **Clic en el nombre del lanzamiento**: Abre el cronograma en modo lista con todos los flujos cerrados/colapsados
 
-## Solucion propuesta
+## Cambios tecnicos
 
-### 1. Cascada recursiva completa
+### 1. AllCronogramasView.tsx - Parametrizar la navegacion
 
-Reemplazar `getDependentTasks` por una funcion `getFullDependencyChain` que recorra recursivamente todo el arbol de dependencias:
+**Barra del lanzamiento (ya funciona correctamente):** Mantener la navegacion actual a `/releases/{id}/cronograma`
 
-```text
-Grabacion
-  └─ Mezcla
-      └─ Mastering
-          └─ Label Copy
+**Barra del flujo:** Cambiar el onClick para navegar con query param de flujo:
+```
+/releases/{id}/cronograma?focus={workflowId}
 ```
 
-Al mover Grabacion, el dialogo mostrara las 3 tareas dependientes en forma de arbol jerarquico.
+**Nombre del lanzamiento:** Cambiar el onClick para navegar con query param de modo lista colapsado:
+```
+/releases/{id}/cronograma?mode=list&collapsed=all
+```
 
-### 2. Logica inteligente segun direccion
+### 2. ReleaseCronograma.tsx - Leer los query params y reaccionar
 
-**Mover hacia adelante (posponer):**
-- Mostrar dialogo de confirmacion con advertencia visual (icono amarillo/rojo)
-- Indicar claramente "Esto pospondra X tareas"
-- Las tareas con fecha limite proxima se marcan con un indicador de riesgo
-- Por defecto, todas seleccionadas pero con advertencia
+**a) Leer `useSearchParams`:**
+- Si `mode=list` y `collapsed=all`: establecer `viewMode` a `'list'` y `openSections` con todos los valores en `false`
+- Si `focus={workflowId}`: establecer `viewMode` a `'gantt'` y despues del render, hacer scroll al workflow indicado
 
-**Mover hacia atras (adelantar):**
-- Solo propagar si la nueva fecha de la tarea padre queda **despues** del inicio de la tarea hija (es decir, si hay conflicto de solapamiento)
-- Si la tarea padre se adelanta pero sigue terminando antes del inicio de la hija, no se necesita mover la hija (no hay conflicto)
-- Si hay conflicto, mostrar dialogo indicando cuales tareas necesitan ajustarse
+**b) Scroll al flujo:**
+- Asignar `data-workflow-id={workflow.id}` a cada fila/seccion del Gantt
+- Usar un `useEffect` que, cuando haya un param `focus`, busque el elemento con `querySelector('[data-workflow-id="..."]')` y llame a `scrollIntoView({ behavior: 'smooth', block: 'center' })`
+- Agregar un resaltado temporal (flash de color) al flujo enfocado para que el usuario lo localice visualmente
 
-### 3. Dialogo mejorado con contexto visual
+**c) Limpiar params despues de aplicar:** Llamar a `setSearchParams({})` (o `navigate` sin params) tras aplicar la logica para que no se re-ejecute en futuros re-renders
 
-El dialogo `AnchorDependencyDialog` se enriquece con:
-- Estructura de arbol indentada para ver la jerarquia
-- Fechas actuales y nuevas fechas propuestas para cada tarea
-- Indicador de riesgo (icono de alerta) en tareas que quedarian muy cerca de la fecha de lanzamiento
-- Diferenciacion visual entre "posponer" (amarillo/rojo) y "adelantar" (verde/neutro)
+### 3. Archivos afectados
 
-### 4. Propagacion proporcional
-
-Las tareas en cascada se mueven por el mismo delta de dias que la tarea origen, preservando los gaps relativos entre ellas.
-
-## Detalle tecnico
-
-### Archivo: `src/pages/release-sections/ReleaseCronograma.tsx`
-
-**a) Nueva funcion `getFullDependencyChain`:**
-- Recorre recursivamente `workflows` buscando tareas cuyo `anchoredTo` incluya el ID actual
-- Excluye tareas con `customStartDate` (fecha manual, no se propaga)
-- Devuelve un arbol plano con nivel de profundidad para la UI
-- Proteccion contra ciclos con un Set de IDs visitados
-
-**b) Nueva logica en `handleTaskDateUpdate`:**
-- Calcular `daysDelta`
-- Obtener cadena completa con `getFullDependencyChain`
-- Si `daysDelta > 0` (posponer): mostrar dialogo con todas las dependencias en cascada
-- Si `daysDelta < 0` (adelantar): filtrar solo las tareas donde haya conflicto real (la nueva fecha fin del padre > inicio de la hija) y mostrar dialogo solo si hay conflictos
-- Si no hay dependientes afectados: aplicar directamente sin dialogo
-
-**c) Actualizar `handleAnchorConfirm`:**
-- Aplicar el delta a todas las tareas seleccionadas de la cadena completa, no solo las directas
-
-**d) Mejorar `AnchorDependencyDialog`:**
-- Agregar prop `direction` ('adelante' | 'atras')
-- Agregar prop `depth` a cada tarea dependiente para mostrar indentacion
-- Agregar prop `newDate` calculada para cada tarea
-- Mostrar badge de riesgo si la nueva fecha queda a menos de 7 dias del lanzamiento
-- Mostrar las fechas: fecha actual (tachada) y nueva fecha propuesta
-
-### Archivo: `src/components/lanzamientos/AnchorDependencyDialog.tsx`
-
-Actualizar la interfaz y el renderizado:
-- `DependentTask` ahora incluye `depth`, `currentDate`, `newDate`
-- Renderizar con indentacion visual por nivel (`ml-{depth * 4}`)
-- Mostrar fechas comparativas (antes/despues)
-- Icono de advertencia para tareas que se posponen cerca del release
+- `src/components/releases/AllCronogramasView.tsx` - Modificar 3 handlers de onClick
+- `src/pages/release-sections/ReleaseCronograma.tsx` - Agregar lectura de searchParams + logica de scroll/focus + data attributes
 
