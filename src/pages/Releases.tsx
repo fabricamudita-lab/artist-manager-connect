@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Plus, Disc3, Music, Album } from 'lucide-react';
+import { Plus, Disc3, Music, Album, LayoutGrid, GanttChart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CreateReleaseDialog from '@/components/releases/CreateReleaseDialog';
+import AllCronogramasView from '@/components/releases/AllCronogramasView';
 import { ReleasesFiltersToolbar, ReleasesFiltersState } from '@/components/releases/ReleasesFiltersToolbar';
 import { useReleasesWithSearch } from '@/hooks/useReleasesSearch';
 
@@ -36,7 +38,7 @@ export default function Releases() {
   const [searchParams] = useSearchParams();
   const artistIdFromUrl = searchParams.get('artistId');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  
+  const [viewMode, setViewMode] = useState<'cards' | 'cronogramas'>('cards');
   const [filters, setFilters] = useState<ReleasesFiltersState>({
     search: '',
     status: 'all',
@@ -62,15 +64,31 @@ export default function Releases() {
           <h1 className="text-3xl font-bold">Discografía</h1>
           <p className="text-muted-foreground">Gestiona tus lanzamientos</p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Lanzamiento
-        </Button>
+        <div className="flex items-center gap-3">
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'cards' | 'cronogramas')}>
+            <TabsList className="h-9">
+              <TabsTrigger value="cards" className="gap-1.5 text-xs px-3">
+                <LayoutGrid className="w-3.5 h-3.5" />
+                Cards
+              </TabsTrigger>
+              <TabsTrigger value="cronogramas" className="gap-1.5 text-xs px-3">
+                <GanttChart className="w-3.5 h-3.5" />
+                Cronogramas
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Button onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Lanzamiento
+          </Button>
+        </div>
       </div>
 
       <ReleasesFiltersToolbar filters={filters} onFiltersChange={setFilters} />
 
-      {isLoading ? (
+      {viewMode === 'cronogramas' && releases ? (
+        <AllCronogramasView releases={releases} />
+      ) : isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="aspect-square rounded-lg" />
