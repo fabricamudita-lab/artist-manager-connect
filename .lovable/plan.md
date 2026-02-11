@@ -1,19 +1,36 @@
 
-# Deseleccionar tareas al hacer clic en el fondo del Gantt
 
-## Cambio
+# Agregar barras resumen de flujo al Gantt individual
 
-Al hacer clic en el area vacia (fondo) del diagrama de Gantt, se deseleccionaran todas las tareas seleccionadas. Esto aplica tanto al contenedor principal del Gantt como al area de la lista.
+## Que se hara
+
+En el cronograma individual de cada lanzamiento (componente `GanttChart`), se agregara una barra resumen por cada flujo de trabajo (Audio, Visual, Marketing, etc.) que abarque desde la primera hasta la ultima tarea del flujo, igual que en la vista global de cronogramas (`AllCronogramasView`).
 
 ## Detalle tecnico
 
 ### Archivo: `src/components/lanzamientos/GanttChart.tsx`
 
-1. Agregar una nueva prop `onClearSelection` al interface `GanttChartProps`
-2. En el contenedor principal del Gantt (`div className="space-y-4"`, linea 374), agregar un `onClick` que llame a `onClearSelection()` 
-3. En los handlers de clic de las barras de tarea (linea 631), asegurarse de que ya tienen `e.stopPropagation()` (ya lo tienen) para que el clic en una barra no dispare la deseleccion
+En la seccion de cada workflow (lineas 397-475), justo despues del titulo del flujo (linea 406) y antes de las tareas individuales, se insertara una barra resumen horizontal:
 
-### Archivo: `src/pages/release-sections/ReleaseCronograma.tsx`
+1. Calcular el rango total del workflow (fecha minima y maxima de sus tareas)
+2. Calcular el progreso (tareas completadas / total)
+3. Renderizar una barra con fondo suave del color del workflow y una barra interior que represente el progreso
+4. La barra tendra el mismo estilo que las barras de la vista global: `rounded-full`, color con opacidad, y un contador "X/Y" al lado del nombre
 
-1. Pasar la nueva prop `onClearSelection={() => setSelectedTaskIds(new Set())}` al componente `GanttChart` (alrededor de la linea 1700)
-2. Para la vista de lista, agregar un `onClick` en el contenedor de la lista que tambien limpie la seleccion, con `stopPropagation` en las filas de tarea para evitar deseleccion al hacer clic en una tarea
+La estructura para cada workflow quedara:
+
+```
+[Icono] Nombre del Flujo   X/Y
+[==========barra resumen==========]  <- nueva
+  Tarea 1  [===]
+  Tarea 2      [====]
+  Tarea 3           [==]
+```
+
+### Cambios especificos
+
+- Junto al nombre del workflow, agregar un badge con "completadas/total" (como en la vista global)
+- Debajo del titulo, antes de las barras de tarea, insertar una fila con la barra resumen usando `getBarPosition(minDate, diffDays)` y el color del workflow con opacidad
+- La barra interior mostrara el progreso de completado
+- Se reutiliza la misma logica de colores que ya existe en `WORKFLOW_COLORS` para mantener coherencia
+
