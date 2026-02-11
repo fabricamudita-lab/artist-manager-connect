@@ -388,7 +388,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
     );
   }
 
-  const ganttMinWidth = fitToView ? undefined : Math.max(totalDays * 25, 800);
+  const ganttMinWidth = fitToView ? undefined : Math.max(totalDays * 6, 800);
 
   return (
     <div className="space-y-4" onClick={() => onClearSelection?.()}>
@@ -444,7 +444,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                       return next;
                     })}
                   >
-                    <div className="w-48 shrink-0 flex items-center gap-2">
+                    <div className="w-48 shrink-0 flex items-center gap-2 sticky left-0 z-10 bg-background">
                       <span className="text-xs text-muted-foreground shrink-0">{isCollapsed ? '▶' : '▼'}</span>
                       <workflow.icon className="w-4 h-4 shrink-0" />
                       <span className="font-semibold text-sm truncate">{workflow.name}</span>
@@ -489,7 +489,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                       task.isSubtask && "ml-4"
                     )}>
                       <div className={cn(
-                        "text-sm truncate text-muted-foreground flex items-center gap-1",
+                        "text-sm truncate text-muted-foreground flex items-center gap-1 sticky left-0 z-10 bg-background",
                         task.isSubtask ? "w-44" : "w-48"
                       )}>
                         {task.isSubtask && (
