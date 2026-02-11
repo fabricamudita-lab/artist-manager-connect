@@ -51,6 +51,8 @@ import {
   GripVertical,
   Cloud,
   Loader2,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -986,6 +988,7 @@ export default function ReleaseCronograma() {
       ? Object.fromEntries(Object.keys(WORKFLOW_METADATA).map(id => [id, false]))
       : Object.fromEntries(Object.keys(WORKFLOW_METADATA).map(id => [id, true]))
   );
+  const [fitToView, setFitToView] = useState(false);
 
   // Focus scroll effect from query params
   useEffect(() => {
@@ -1873,12 +1876,27 @@ export default function ReleaseCronograma() {
                 <List className="w-4 h-4" />
                 Lista
               </TabsTrigger>
-              <TabsTrigger value="gantt" className="gap-2">
+             <TabsTrigger value="gantt" className="gap-2">
                 <GanttIcon className="w-4 h-4" />
                 Cronograma
               </TabsTrigger>
             </TabsList>
           </Tabs>
+          {viewMode === 'gantt' && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={() => setFitToView(prev => !prev)}
+                >
+                  {fitToView ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{fitToView ? 'Vista detallada' : 'Vista completa'}</TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </div>
 
@@ -1933,6 +1951,7 @@ export default function ReleaseCronograma() {
                 updateHiddenTasks(newHidden);
               }}
               onClearSelection={() => setSelectedTaskIds(new Set())}
+              fitToView={fitToView}
             />
           </CardContent>
         </Card>

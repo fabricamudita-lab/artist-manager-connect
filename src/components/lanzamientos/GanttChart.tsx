@@ -74,6 +74,7 @@ interface GanttChartProps {
   onTaskSelect?: (taskId: string) => void;
   onHideTask?: (taskId: string) => void;
   onClearSelection?: () => void;
+  fitToView?: boolean;
 }
 
 const STATUS_BAR_COLORS: Record<TaskStatus, string> = {
@@ -119,7 +120,7 @@ interface DragPreview {
   days: number;
 }
 
-export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, onUpdateTaskStatus, onOpenResponsible, onOpenAnchor, getTaskName, selectedTaskIds, onTaskSelect, onHideTask, onClearSelection }: GanttChartProps) {
+export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, onUpdateTaskStatus, onOpenResponsible, onOpenAnchor, getTaskName, selectedTaskIds, onTaskSelect, onHideTask, onClearSelection, fitToView = false }: GanttChartProps) {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
   const [editingDateType, setEditingDateType] = useState<'start' | 'end'>('start');
   const [collapsedWorkflows, setCollapsedWorkflows] = useState<Set<string>>(new Set());
@@ -387,8 +388,12 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
     );
   }
 
+  const ganttMinWidth = fitToView ? undefined : Math.max(totalDays * 25, 800);
+
   return (
     <div className="space-y-4" onClick={() => onClearSelection?.()}>
+      <div className={cn(!fitToView && 'overflow-x-auto')}>
+      <div style={{ minWidth: ganttMinWidth ? `${ganttMinWidth}px` : undefined }}>
       {/* Timeline Header */}
       <div className="relative h-10 bg-muted/30 rounded-lg overflow-hidden">
         {months.map((month, idx) => (
@@ -587,6 +592,8 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </div>
+      </div>
     </div>
   );
 }
