@@ -1,91 +1,47 @@
 
+# Mostrar actividad vinculada en el perfil de contacto (Equipos)
 
-# Mejora sustancial del sistema de Creditos y Autoria
+## Problema
 
-## Contexto
+Cuando haces clic en un miembro de tipo contacto en Equipos, se abre el `ContactProfileSheet` que solo muestra datos personales (nombre, email, telefono, etc.) y configuracion de equipo. No muestra la actividad vinculada: presupuestos, bookings, canciones, proyectos, etc.
 
-Actualmente el sistema tiene solo 2 categorias (Publishing/Master) con ~14 roles basicos. Las distribuidoras como Ditto exigen creditos organizados en 5 categorias principales con roles especificos dentro de cada una. El usuario quiere alinear el sistema con el estandar de la industria sin eliminar nada existente.
+Mientras tanto, el componente `TeamMemberActivityDialog` ya tiene toda la logica para buscar esa actividad (song splits, track credits, budget items, bookings, proyectos), pero solo se usa para miembros de tipo "user" (workspace members).
 
-## Las 5 categorias principales (estandar distribuidoras)
+## Solucion
 
-Siguiendo el formato de Ditto traducido al espanol:
+Integrar la seccion de actividad vinculada directamente dentro del `ContactProfileSheet`, reutilizando la misma logica de consultas que ya existe en `TeamMemberActivityDialog`.
 
-1. **Compositor** - Quien compuso la musica
-2. **Autoria** (Songwriter) - Roles de escritura: Autor, Letrista, Arreglista, Director de Orquesta, Libretista
-3. **Produccion / Ingenieria** - Productor, Productor Asistente, Ingeniero de Mezcla, Ingeniero de Masterizacion, Director Musical, Ingeniero de Sonido
-4. **Interprete** (Performer) - Todos los instrumentos y voces (~80 opciones)
-5. **Contribuidor** - Roles adicionales (Remixer, DJ, otros)
+## Cambios
 
-## Cambios tecnicos
+### 1. `src/components/ContactProfileSheet.tsx`
 
-### 1. Ampliar `src/lib/creditRoles.ts`
+Agregar una nueva seccion "Actividad vinculada" al final del sheet que muestre:
+- Canciones / Splits (song_splits + track_credits donde contact_id = contactId)
+- Presupuestos (budget_items donde contact_id = contactId)
+- Bookings (booking_offers donde el nombre del contacto aparece en tour_manager o contacto)
+- Proyectos (ya se cargan via project_team, pero mostrar con mas detalle)
+- Solicitudes (solicitudes donde contact_id o promotor_contact_id = contactId)
 
-- Cambiar la interfaz `CreditRole` para soportar 5 categorias en vez de 2:
-  ```
-  category: 'compositor' | 'autoria' | 'produccion' | 'interprete' | 'contribuidor'
-  ```
-- Agregar "Autor" como nuevo rol en autoria (distinto de Compositor)
-- Agregar todos los roles de produccion que faltan: Productor Asistente, Ingeniero de Mezcla, Ingeniero de Masterizacion, Director Musical, Ingeniero de Sonido
-- Agregar la lista completa de instrumentos y voces como roles de interprete (~80 entradas): Guitarra Acustica, Saxo Alto, Coros, Banjo, Bajo, Bateria, Violonchelo, Clarinete, Congas, DJ, Flauta, Guitarra, Teclados, Voz Principal, Coros de Armonia, Piano, Percusion, Trompeta, Violin, Viola, etc.
-- Agregar categoria Contribuidor con roles como Remixer
-- Mantener todos los roles existentes mapeados a las nuevas categorias
-- Agregar constante `CREDIT_CATEGORIES` con metadata de cada categoria (nombre, color, icono)
-- Actualizar `ROLE_ORDER` con los nuevos roles
-- Mantener compatibilidad: las funciones `isPublishingRole()` y `isMasterRole()` seguiran funcionando mapeando las categorias antiguas a las nuevas (compositor + autoria = publishing, produccion + interprete + contribuidor = master)
+La logica sera similar a `TeamMemberActivityDialog.fetchAllActivity()` pero integrada como una seccion del sheet con tarjetas compactas y conteos por tipo, usando un tab system ligero o secciones colapsables.
 
-### 2. Actualizar selector de roles en `AddCreditWithProfileForm.tsx`
+### 2. Datos a cargar
 
-- Cambiar el selector plano de roles por un selector agrupado por las 5 categorias
-- Usar `SelectGroup` + `SelectLabel` de Radix para mostrar los roles organizados:
-  ```
-  -- Compositor --
-  Compositor
-  -- Autoria --
-  Autor
-  Letrista
-  Arreglista
-  ...
-  -- Produccion / Ingenieria --
-  Productor
-  Ingeniero de Mezcla
-  ...
-  -- Interprete --
-  Voz Principal
-  Guitarra
-  Piano
-  ...
-  -- Contribuidor --
-  Remixer
-  DJ
-  ...
-  ```
+Se agregaran las siguientes queries al efecto de carga del sheet:
+- `song_splits` filtrado por `collaborator_contact_id`
+- `track_credits` filtrado por `contact_id`
+- `budget_items` filtrado por `contact_id`
+- `booking_offers` filtrado por nombre (ilike)
+- `solicitudes` filtrado por `contact_id` o `promotor_contact_id`
 
-### 3. Actualizar selector de roles en `TrackRightsSplitsManager.tsx`
+### 3. UI
 
-- Aplicar el mismo patron de selector agrupado en los formularios de AddSplitForm y SplitRow (edicion)
-- Mantener el filtrado por tipo (publishing solo muestra compositor+autoria, master muestra produccion+interprete+contribuidor)
+Cada seccion mostrara:
+- Icono + titulo + conteo
+- Lista de tarjetas compactas con nombre, tipo/estado, fecha
+- Links navegables a la pagina correspondiente
 
-### 4. Actualizar `ReleaseCreditos.tsx`
-
-- En el selector de rol en edicion inline (SortableCreditRow), usar el mismo selector agrupado
-- Actualizar los badges de categoria para soportar las 5 categorias con colores diferenciados:
-  - Compositor: ambar (existente)
-  - Autoria: ambar (existente, mismo que publishing)
-  - Produccion: azul (existente, mismo que master)
-  - Interprete: violeta (nuevo)
-  - Contribuidor: gris (nuevo)
-
-### 5. Compatibilidad con datos existentes
-
-- No se elimina ningun rol existente
-- Los valores en DB (`compositor`, `letrista`, `productor`, etc.) se mantienen identicos
-- Se agregan nuevos valores para los roles nuevos (`autor`, `productor_asistente`, `ingeniero_mezcla`, `guitarra_acustica`, `piano`, `voz_principal`, etc.)
-- Las funciones de porcentaje siguen funcionando igual: compositor+autoria alimentan `publishing_percentage`, produccion+interprete+contribuidor alimentan `master_percentage`
+No se modificara ninguna otra funcionalidad existente del sheet.
 
 ### Archivos afectados
 
-- `src/lib/creditRoles.ts` - Expansion masiva de roles y categorias
-- `src/components/credits/AddCreditWithProfileForm.tsx` - Selector agrupado
-- `src/components/releases/TrackRightsSplitsManager.tsx` - Selector agrupado en formularios de splits
-- `src/pages/release-sections/ReleaseCreditos.tsx` - Selector agrupado en edicion inline + badges de 5 categorias
-
+- `src/components/ContactProfileSheet.tsx` - Agregar seccion de actividad con queries y UI
