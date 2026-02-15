@@ -1,47 +1,24 @@
 
-# Mostrar actividad vinculada en el perfil de contacto (Equipos)
+# Hacer scrollable toda la pagina de presupuestos
 
 ## Problema
 
-Cuando haces clic en un miembro de tipo contacto en Equipos, se abre el `ContactProfileSheet` que solo muestra datos personales (nombre, email, telefono, etc.) y configuracion de equipo. No muestra la actividad vinculada: presupuestos, bookings, canciones, proyectos, etc.
-
-Mientras tanto, el componente `TeamMemberActivityDialog` ya tiene toda la logica para buscar esa actividad (song splits, track credits, budget items, bookings, proyectos), pero solo se usa para miembros de tipo "user" (workspace members).
+El dialogo de detalle de presupuesto tiene una estructura de layout fijo: el header (titulo, tarjetas financieras, badges de ubicacion, recordatorio) esta anclado arriba con `flex-shrink-0`, y solo el contenido de abajo (tabs) tiene scroll. Esto consume mucho espacio vertical y no permite ver toda la informacion de forma fluida.
 
 ## Solucion
 
-Integrar la seccion de actividad vinculada directamente dentro del `ContactProfileSheet`, reutilizando la misma logica de consultas que ya existe en `TeamMemberActivityDialog`.
+Cambiar el layout para que todo el contenido sea scrollable como una sola pagina, eliminando la separacion entre header fijo y contenido con scroll independiente.
 
-## Cambios
+## Cambios tecnicos en `src/components/BudgetDetailsDialog.tsx`
 
-### 1. `src/components/ContactProfileSheet.tsx`
+1. **Linea 2401**: Cambiar el contenedor principal de `overflow-hidden` a `overflow-y-auto` para que todo el div sea scrollable
+2. **Linea 2403**: Quitar `flex-shrink-0` del header para que fluya naturalmente con el scroll
+3. **Linea 2764**: Cambiar `<div className="flex-1 overflow-hidden">` a `<div className="flex-1 min-h-0">` para que el contenido de tabs siga funcionando correctamente dentro del scroll general
+4. **Linea 2766**: En el div del border-b de tabs, quitar `flex-shrink-0` o mantenerlo segun sea necesario
+5. Ajustar el TabsContent de items (linea 2779-2780) para que no use `overflow-hidden` ni `h-full` rigido, sino que se expanda naturalmente
 
-Agregar una nueva seccion "Actividad vinculada" al final del sheet que muestre:
-- Canciones / Splits (song_splits + track_credits donde contact_id = contactId)
-- Presupuestos (budget_items donde contact_id = contactId)
-- Bookings (booking_offers donde el nombre del contacto aparece en tour_manager o contacto)
-- Proyectos (ya se cargan via project_team, pero mostrar con mas detalle)
-- Solicitudes (solicitudes donde contact_id o promotor_contact_id = contactId)
+El resultado: al hacer scroll en el dialogo, primero se desplaza el header con las tarjetas financieras y luego se ve el contenido de las tabs. Las tabs seguiran funcionando normalmente pero sin la restriccion de espacio fijo.
 
-La logica sera similar a `TeamMemberActivityDialog.fetchAllActivity()` pero integrada como una seccion del sheet con tarjetas compactas y conteos por tipo, usando un tab system ligero o secciones colapsables.
+### Archivo afectado
 
-### 2. Datos a cargar
-
-Se agregaran las siguientes queries al efecto de carga del sheet:
-- `song_splits` filtrado por `collaborator_contact_id`
-- `track_credits` filtrado por `contact_id`
-- `budget_items` filtrado por `contact_id`
-- `booking_offers` filtrado por nombre (ilike)
-- `solicitudes` filtrado por `contact_id` o `promotor_contact_id`
-
-### 3. UI
-
-Cada seccion mostrara:
-- Icono + titulo + conteo
-- Lista de tarjetas compactas con nombre, tipo/estado, fecha
-- Links navegables a la pagina correspondiente
-
-No se modificara ninguna otra funcionalidad existente del sheet.
-
-### Archivos afectados
-
-- `src/components/ContactProfileSheet.tsx` - Agregar seccion de actividad con queries y UI
+- `src/components/BudgetDetailsDialog.tsx` - Cambios de layout CSS (5-6 clases)
