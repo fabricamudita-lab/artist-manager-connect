@@ -538,6 +538,8 @@ export default function BookingDetail() {
                   artistId={booking.artist_id}
                   eventName={booking.festival_ciclo || booking.venue}
                   eventDate={booking.fecha}
+                  eventVenue={booking.lugar || booking.venue}
+                  eventCity={booking.ciudad}
                 />
               </TabsContent>
 
