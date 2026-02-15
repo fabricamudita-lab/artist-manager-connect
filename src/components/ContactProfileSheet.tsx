@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { Pencil } from "lucide-react";
 import { getTeamCategoryLabel } from '@/lib/teamCategories';
+import { ContactLinkedActivity } from '@/components/ContactLinkedActivity';
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -605,6 +606,14 @@ export function ContactProfileSheet({
                 <EditableInfoCard icon={FileText} label="Notas" value={contact.notes} field="notes" multiline />
               </div>
             )}
+
+            {/* Actividad vinculada */}
+            <Separator />
+            <ContactLinkedActivity
+              contactId={contactId}
+              contactName={contact.name}
+              open={open}
+            />
 
             {/* Fechas */}
             {(contact.created_at || contact.updated_at) && (
