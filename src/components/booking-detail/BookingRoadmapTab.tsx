@@ -32,6 +32,8 @@ interface BookingRoadmapTabProps {
   artistId?: string | null;
   eventName?: string;
   eventDate?: string | null;
+  eventVenue?: string | null;
+  eventCity?: string | null;
 }
 
 interface LinkedRoadmap {
@@ -48,12 +50,27 @@ interface LinkedRoadmap {
   }[];
 }
 
-export function BookingRoadmapTab({ bookingId, artistId, eventName, eventDate }: BookingRoadmapTabProps) {
+export function BookingRoadmapTab({ bookingId, artistId, eventName, eventDate, eventVenue, eventCity }: BookingRoadmapTabProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newRoadmapName, setNewRoadmapName] = useState('');
+
+  // Build suggested roadmap name: "19.02.2026 PLAYGRXVND (La Nau, Barcelona)"
+  const buildSuggestedName = () => {
+    const parts: string[] = [];
+    if (eventDate) {
+      const d = new Date(eventDate);
+      parts.push(format(d, 'dd.MM.yyyy'));
+    }
+    if (eventName) parts.push(eventName);
+    const locationParts = [eventVenue, eventCity].filter(Boolean);
+    if (locationParts.length > 0) {
+      parts.push(`(${locationParts.join(', ')})`);
+    }
+    return parts.join(' ') || 'Nueva Hoja de Ruta';
+  };
 
   // Fetch roadmaps linked to this booking
   const { data: linkedRoadmaps, isLoading } = useQuery({
@@ -258,7 +275,7 @@ export function BookingRoadmapTab({ bookingId, artistId, eventName, eventDate }:
             description="Este evento aún no tiene una hoja de ruta vinculada. Crea una para gestionar viajes, hospedaje y horarios."
             action={{
               label: "Crear Hoja de Ruta",
-              onClick: () => setShowCreateDialog(true),
+              onClick: () => { setNewRoadmapName(buildSuggestedName()); setShowCreateDialog(true); },
             }}
           />
           
@@ -306,7 +323,7 @@ export function BookingRoadmapTab({ bookingId, artistId, eventName, eventDate }:
         <Button 
           variant="outline" 
           size="sm" 
-          onClick={() => setShowCreateDialog(true)}
+          onClick={() => { setNewRoadmapName(buildSuggestedName()); setShowCreateDialog(true); }}
         >
           <Plus className="h-4 w-4 mr-1" />
           Nueva
