@@ -15,9 +15,14 @@ export default function Correo() {
   const [emails, setEmails] = useState<MockEmailMessage[]>(mockEmails);
   const [searchQuery, setSearchQuery] = useState('');
   const [composerState, setComposerState] = useState<null | 'new' | { mode: 'reply' | 'forward'; email: MockEmailMessage }>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
 
   const filteredEmails = useMemo(() => {
     let result = emails.filter(e => e.folder === activeFolder);
+    if (activeAccountId) {
+      result = result.filter(e => e.account_id === activeAccountId);
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(e =>
@@ -27,7 +32,7 @@ export default function Correo() {
       );
     }
     return result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [emails, activeFolder, searchQuery]);
+  }, [emails, activeFolder, searchQuery, activeAccountId]);
 
   const selectedEmail = selectedId ? emails.find(e => e.id === selectedId) : null;
 
@@ -54,6 +59,10 @@ export default function Correo() {
         accounts={mockAccounts}
         emails={emails}
         onCompose={() => setComposerState('new')}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(c => !c)}
+        activeAccountId={activeAccountId}
+        onAccountChange={setActiveAccountId}
       />
 
       {/* Main content */}
