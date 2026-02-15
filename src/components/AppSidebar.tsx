@@ -62,6 +62,7 @@ const getNavigationItems = (isManagement: boolean) => {
 
   // Common secondary items
   const secondaryItems = [
+    { title: "Correo", url: "/correo", icon: Inbox },
     { title: "Chat", url: "/chat", icon: MessageCircle },
     { title: "Documentos", url: "/documents", icon: FileText },
     { title: "EPKs", url: "/epks", icon: FileImage },

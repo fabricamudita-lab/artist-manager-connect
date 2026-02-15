@@ -59,6 +59,7 @@ import RoadmapDetail from "./pages/RoadmapDetail";
 // Management pages
 import MyManagement from "./pages/MyManagement";
 import ArtistProfile from "./pages/ArtistProfile";
+import Correo from "./pages/Correo";
 
 const queryClient = new QueryClient();
 
@@ -171,6 +172,13 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Documents />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/correo" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Correo />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
