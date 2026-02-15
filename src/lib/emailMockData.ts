@@ -1,5 +1,6 @@
 export interface MockEmailMessage {
   id: string;
+  account_id: string;
   subject: string;
   from_address: string;
   from_name: string;
@@ -47,6 +48,7 @@ export const mockAccounts: MockEmailAccount[] = [
 export const mockEmails: MockEmailMessage[] = [
   {
     id: '1',
+    account_id: '1',
     subject: 'Confirmación de fecha - Festival Sónar 2026',
     from_address: 'carlos@sonar.es',
     from_name: 'Carlos Durán',
@@ -71,6 +73,7 @@ export const mockEmails: MockEmailMessage[] = [
   },
   {
     id: '2',
+    account_id: '1',
     subject: 'Re: Rider técnico actualizado',
     from_address: 'laura@soundcheck.com',
     from_name: 'Laura Martínez',
@@ -91,6 +94,7 @@ export const mockEmails: MockEmailMessage[] = [
   },
   {
     id: '3',
+    account_id: '1',
     subject: 'Propuesta gira Latinoamérica - Septiembre 2026',
     from_address: 'ricardo@latamtouring.com',
     from_name: 'Ricardo Fernández',
@@ -116,6 +120,7 @@ export const mockEmails: MockEmailMessage[] = [
   },
   {
     id: '4',
+    account_id: '2',
     subject: 'Factura #2026-042 - Concierto Wizink Center',
     from_address: 'admin@wizinkcenter.es',
     from_name: 'Administración Wizink',
@@ -139,6 +144,7 @@ export const mockEmails: MockEmailMessage[] = [
   },
   {
     id: '5',
+    account_id: '2',
     subject: 'Disponibilidad para sesión de fotos - Nuevo álbum',
     from_address: 'ana@fotostudio.com',
     from_name: 'Ana Belén Torres',
@@ -159,6 +165,7 @@ export const mockEmails: MockEmailMessage[] = [
   },
   {
     id: '6',
+    account_id: '1',
     subject: 'Borrador: Propuesta de colaboración',
     from_address: 'booking@moodita.es',
     from_name: 'Booking Moodita',
@@ -176,6 +183,7 @@ export const mockEmails: MockEmailMessage[] = [
   },
   {
     id: '7',
+    account_id: '1',
     subject: 'Re: Confirmación hotel Barcelona',
     from_address: 'booking@moodita.es',
     from_name: 'Booking Moodita',
