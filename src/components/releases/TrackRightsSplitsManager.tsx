@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -241,18 +242,7 @@ function SplitRow({
             onChange={(e) => setEditName(e.target.value)}
             placeholder="Nombre"
           />
-          <Select value={editRole} onValueChange={setEditRole}>
-            <SelectTrigger>
-              <SelectValue placeholder="Rol" />
-            </SelectTrigger>
-            <SelectContent>
-              {roles.map((r) => (
-                <SelectItem key={r.value} value={r.value}>
-                  {r.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <GroupedRoleSelect value={editRole} onValueChange={setEditRole} filterType={type} />
         </div>
         <div className="flex items-center gap-4">
           <Slider
@@ -514,18 +504,7 @@ function AddSplitForm({
         {/* Role and percentage */}
         {selectedContactId && (
           <>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger>
-                <SelectValue placeholder="Rol" />
-              </SelectTrigger>
-              <SelectContent>
-                {roles.map((r) => (
-                  <SelectItem key={r.value} value={r.value}>
-                    {r.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <GroupedRoleSelect value={role} onValueChange={setRole} filterType={type} />
             <div className="flex items-center gap-4">
               <Label className="shrink-0">Porcentaje:</Label>
               <Slider
@@ -583,18 +562,7 @@ function AddSplitForm({
         placeholder="Teléfono (opcional)"
         type="tel"
       />
-      <Select value={role} onValueChange={setRole}>
-        <SelectTrigger>
-          <SelectValue placeholder="Rol *" />
-        </SelectTrigger>
-        <SelectContent>
-          {roles.map((r) => (
-            <SelectItem key={r.value} value={r.value}>
-              {r.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <GroupedRoleSelect value={role} onValueChange={setRole} filterType={type} placeholder="Rol *" />
       <div className="flex items-center gap-4">
         <Label className="shrink-0">Porcentaje:</Label>
         <Slider

@@ -41,11 +41,14 @@ import { toast } from 'sonner';
 import { 
   ALL_CREDIT_ROLES, 
   getRoleLabel, 
-  getRoleCategory, 
+  getRoleCategory,
+  getRoleCategory5,
+  getCategoryMeta,
   sortByRoleOrder,
   isPublishingRole,
   isMasterRole 
 } from '@/lib/creditRoles';
+import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
 import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -635,16 +638,7 @@ function SortableCreditRow({
         {hasContact && (
           <span className="font-medium text-sm flex-1">{credit.name}</span>
         )}
-        <Select value={editRole} onValueChange={setEditRole}>
-          <SelectTrigger className="w-[140px] h-8">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {ALL_CREDIT_ROLES.map((role) => (
-              <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <GroupedRoleSelect value={editRole} onValueChange={setEditRole} triggerClassName="w-[140px] h-8" />
         <div className="flex items-center gap-1">
           <Input
             type="number"
@@ -683,7 +677,8 @@ function SortableCreditRow({
     );
   }
 
-  const category = getRoleCategory(credit.role);
+  const cat5 = getRoleCategory5(credit.role);
+  const catMeta = cat5 ? getCategoryMeta(cat5) : null;
 
   return (
     <div
@@ -709,14 +704,9 @@ function SortableCreditRow({
           </div>
           <div className="flex items-center gap-1.5">
             <p className="text-xs text-muted-foreground">{getRoleLabel(credit.role)}</p>
-            {category === 'publishing' && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-600 border-amber-500/20">
-                Autoría
-              </Badge>
-            )}
-            {category === 'master' && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-blue-500/10 text-blue-600 border-blue-500/20">
-                Master
+            {catMeta && (
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 ${catMeta.bgClass} ${catMeta.textClass} ${catMeta.borderClass}`}>
+                {catMeta.label}
               </Badge>
             )}
           </div>
