@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { User, Globe, Building2, CheckCircle2, X, Loader2, Save, Music } from 'lucide-react';
-import cityzenLogo from '@/assets/cityzen-logo.png';
+import mooditaLogo from '@/assets/moodita-logo.png';
 
 interface ArtistFormData {
   name: string;
@@ -224,7 +224,7 @@ export default function PublicArtistForm() {
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <img src={cityzenLogo} alt="Logo" className="h-10 mx-auto mb-4" />
+          <img src={mooditaLogo} alt="MOODITA" className="h-10 mx-auto mb-4" />
           <div className="inline-flex items-center gap-2 p-3 bg-primary/10 rounded-xl mb-4">
             <Music className="h-6 w-6 text-primary" />
           </div>
@@ -406,7 +406,7 @@ export default function PublicArtistForm() {
         </form>
 
         <p className="text-center text-xs text-muted-foreground pb-8">
-          Powered by CityZen Management
+          Powered by MOODITA
         </p>
       </div>
     </div>
