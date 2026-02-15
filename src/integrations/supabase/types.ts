@@ -1060,6 +1060,7 @@ export type Database = {
           info_comentarios: string | null
           inicio_venta: string | null
           invitaciones: number | null
+          is_sold_out: boolean | null
           link_venta: string | null
           logistica: string | null
           lugar: string | null
@@ -1072,6 +1073,7 @@ export type Database = {
           publico: string | null
           pvp: number | null
           sort_order: number | null
+          tickets_sold: number | null
           tour_manager: string | null
           tour_manager_new: string | null
           updated_at: string
@@ -1118,6 +1120,7 @@ export type Database = {
           info_comentarios?: string | null
           inicio_venta?: string | null
           invitaciones?: number | null
+          is_sold_out?: boolean | null
           link_venta?: string | null
           logistica?: string | null
           lugar?: string | null
@@ -1130,6 +1133,7 @@ export type Database = {
           publico?: string | null
           pvp?: number | null
           sort_order?: number | null
+          tickets_sold?: number | null
           tour_manager?: string | null
           tour_manager_new?: string | null
           updated_at?: string
@@ -1176,6 +1180,7 @@ export type Database = {
           info_comentarios?: string | null
           inicio_venta?: string | null
           invitaciones?: number | null
+          is_sold_out?: boolean | null
           link_venta?: string | null
           logistica?: string | null
           lugar?: string | null
@@ -1188,6 +1193,7 @@ export type Database = {
           publico?: string | null
           pvp?: number | null
           sort_order?: number | null
+          tickets_sold?: number | null
           tour_manager?: string | null
           tour_manager_new?: string | null
           updated_at?: string

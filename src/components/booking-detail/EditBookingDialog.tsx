@@ -26,7 +26,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, Save, Plus, X, CalendarIcon, Clock } from 'lucide-react';
+import { Loader2, Save, Plus, X, CalendarIcon, Clock, Ticket } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -74,6 +76,8 @@ interface BookingOffer {
   es_privado?: boolean | null;
   artist_id?: string | null;
   adjuntos?: any;
+  is_sold_out?: boolean | null;
+  tickets_sold?: number | null;
 }
 
 interface EditBookingDialogProps {
@@ -217,6 +221,8 @@ export function EditBookingDialog({
         es_privado: formData.es_privado,
         artist_id: formData.artist_id,
         adjuntos: adjuntos,
+        is_sold_out: formData.is_sold_out,
+        tickets_sold: formData.tickets_sold,
       };
 
       const { data, error } = await supabase
@@ -697,6 +703,45 @@ export function EditBookingDialog({
                   onChange={(e) => updateField('invitaciones', parseInt(e.target.value) || null)}
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Entradas vendidas</Label>
+                <Input
+                  type="number"
+                  value={formData.tickets_sold ?? ''}
+                  onChange={(e) => updateField('tickets_sold', parseInt(e.target.value) || null)}
+                  placeholder="ej: 120"
+                />
+                {formData.tickets_sold != null && formData.capacidad != null && formData.capacidad > 0 && (
+                  <div className="space-y-1">
+                    <Progress value={(formData.tickets_sold / formData.capacidad) * 100} className="h-2" />
+                    <p className="text-xs text-muted-foreground">
+                      {formData.tickets_sold} / {formData.capacidad} ({Math.round((formData.tickets_sold / formData.capacidad) * 100)}%)
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="is_sold_out"
+                  checked={formData.is_sold_out || false}
+                  onCheckedChange={(c) => {
+                    updateField('is_sold_out', !!c);
+                    if (c && formData.capacidad && !formData.tickets_sold) {
+                      updateField('tickets_sold', formData.capacidad);
+                    }
+                  }}
+                />
+                <Label htmlFor="is_sold_out" className="text-sm cursor-pointer">Sold Out</Label>
+              </div>
+              {formData.is_sold_out && (
+                <Badge variant="success">
+                  <Ticket className="h-3 w-3 mr-1" />
+                  SOLD OUT
+                </Badge>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
