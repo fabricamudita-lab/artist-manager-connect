@@ -515,7 +515,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
       const originalOffer = offers.find(o => o.id === offerId);
       if (!originalOffer) return;
 
-      const { id, created_at, updated_at, ...offerData } = originalOffer;
+      const { id, created_at, updated_at, artist, ...offerData } = originalOffer as any;
       const duplicatedOffer = {
         ...offerData,
         phase: 'interes',
