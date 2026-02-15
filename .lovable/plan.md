@@ -1,35 +1,48 @@
 
-# Mostrar los formatos del artista en el editor de booking
+# Sold Out y Progreso de Ventas en Bookings
 
-## Problema
+## Resumen
 
-El editor de eventos de booking (`EditBookingDialog`) usa una lista estatica de formatos (Solista, Duo, Trio, etc.) en lugar de mostrar los formatos configurados para el artista seleccionado (como "PLAYGRXVND" que has configurado para Klaus Stroink).
+Agregar dos campos nuevos a la tabla `booking_offers`:
+- **is_sold_out** (boolean): checkbox para marcar el evento como Sold Out
+- **tickets_sold** (integer): numero de entradas vendidas
 
-## Solucion
+Con la capacidad ya existente (`capacidad`), se mostrara automaticamente el progreso de venta en formato "12/450" y porcentaje.
 
-Modificar el selector de "Formato" en `EditBookingDialog` para que:
+## Cambios necesarios
 
-1. Cuando hay un artista seleccionado (`artist_id`), cargue sus `booking_products` desde la base de datos
-2. Muestre esos formatos del artista como opciones prioritarias
-3. Mantenga los formatos genericos como opciones adicionales por si no hay formatos del artista o se quiere usar uno generico
+### 1. Migracion SQL
 
-## Cambios tecnicos
+Agregar dos columnas a `booking_offers`:
 
-### Archivo: `src/components/booking-detail/EditBookingDialog.tsx`
+```sql
+ALTER TABLE booking_offers ADD COLUMN is_sold_out boolean DEFAULT false;
+ALTER TABLE booking_offers ADD COLUMN tickets_sold integer;
+```
 
-1. Agregar un `useEffect` que, cuando cambia `formData.artist_id`, consulte `booking_products` del artista:
-   ```sql
-   SELECT name FROM booking_products WHERE artist_id = ? AND is_active = true
-   ```
+### 2. Modificar `src/components/booking-detail/EditBookingDialog.tsx`
 
-2. Guardar los formatos del artista en un estado local (`artistFormats`)
+En la pestana "Detalles", junto al campo "Invitaciones", agregar:
 
-3. Modificar el `Select` de formato para mostrar dos grupos:
-   - **Formatos del artista** (si existen): los nombres de sus `booking_products`
-   - **Formatos generales**: la lista estatica actual como fallback
+- **Checkbox "Sold Out"**: marca el evento como agotado. Al activarlo, se autocompleta `tickets_sold` con el valor de `capacidad` si esta disponible.
+- **Campo "Entradas vendidas"**: input numerico para poner cuantas se han vendido (ej: 120).
+- **Indicador visual**: si hay `capacidad` y `tickets_sold`, muestra una barra de progreso con el texto "120/350 (34%)" debajo del campo. Si es Sold Out, muestra un badge verde "SOLD OUT".
 
-4. Si el artista tiene formatos configurados, se mostraran primero con una etiqueta de grupo para distinguirlos
+Agregar `is_sold_out` y `tickets_sold` a la interfaz `BookingOffer` y al `handleSave`.
 
-### Resultado esperado
+### 3. Interfaz en la pestana "Detalles"
 
-Al editar un booking de PLAYGRXVND/Klaus Stroink, el dropdown de formato mostrara "PLAYGRXVND" (y cualquier otro formato configurado) ademas de los formatos generales.
+Despues de "Invitaciones":
+
+```
+[x] Sold Out                    Entradas vendidas: [120]
+                                120 / 350 (34%) [====------]
+```
+
+- Si `is_sold_out` esta marcado, se muestra un badge "SOLD OUT" destacado
+- Si hay `capacidad`, se calcula el porcentaje automaticamente
+- La barra de progreso usa el componente `Progress` existente
+
+### Archivos modificados
+- Migracion SQL (nueva)
+- `src/components/booking-detail/EditBookingDialog.tsx` - Agregar campos sold out y tickets vendidos
