@@ -1,49 +1,21 @@
 
-# Sidebar colapsable + Selector de cuentas de correo
+# Fix: Boton Editar en Perfil de Artista
 
-## Cambios
+## Problema
 
-### 1. Sidebar colapsable (abrir/cerrar)
+El `ArtistInfoDialog` busca en la tabla `profiles` usando el ID del artista (tabla `artists`), pero estos son IDs diferentes. El artista tiene su propio ID en la tabla `artists`, no en `profiles`. Por eso la consulta falla y muestra "No se pudo cargar la informacion del artista."
 
-Agregar un boton de toggle en la parte superior del sidebar que permite colapsar la barra lateral a un ancho minimo (solo iconos, ~48px) o expandirla completamente (w-56). El estado se controla desde `Correo.tsx` y se pasa como prop al sidebar.
+## Solucion
 
-- **Estado colapsado**: Solo se ven los iconos de carpetas, el boton de redactar se convierte en un boton con solo el icono "+", y las cuentas se ocultan.
-- **Estado expandido**: Se ve todo como ahora (iconos + texto + badges + cuentas).
-- Transicion animada con `transition-all duration-200`.
-- Boton de toggle con icono `PanelLeftClose` / `PanelLeftOpen` en la esquina superior.
+Cambiar el `ArtistInfoDialog` para que consulte la tabla `artists` en lugar de `profiles`, ya que el ID que recibe es de un artista, no de un perfil de usuario.
 
-### 2. Selector de cuenta activa
+### Cambios en `src/components/ArtistInfoDialog.tsx`:
 
-Agregar la capacidad de filtrar los correos por cuenta seleccionada:
+1. Cambiar la interfaz `Profile` por una interfaz `ArtistData` que refleje los campos de la tabla `artists` (id, name, bio, genre, image_url, etc.)
+2. Modificar `fetchArtistProfile` para consultar `from('artists')` en lugar de `from('profiles')`
+3. Adaptar el formulario de edicion para los campos disponibles en la tabla `artists` (nombre, bio, genero, imagen, etc.)
+4. Actualizar la vista para mostrar informacion relevante del artista en lugar de campos de perfil de usuario (phone, emergency_contact, etc. que no existen en la tabla artists)
 
-- En la seccion "Cuentas" del sidebar, cada cuenta sera un boton clicable. La cuenta activa tendra un estilo destacado (borde o fondo).
-- Agregar opcion "Todas las cuentas" como primera opcion.
-- Al seleccionar una cuenta, los correos se filtran por el campo `to_addresses` (en inbox) o `from_address` (en sent).
-- Agregar campo `account_id` a `MockEmailMessage` para asociar cada correo a una cuenta especifica.
+### Detalle tecnico
 
-### Archivos a modificar
-
-**`src/lib/emailMockData.ts`**:
-- Agregar campo `account_id` a `MockEmailMessage`
-- Asignar `account_id` a cada email mock (ej: correos a booking@moodita.es -> account "1", correos a management@moodita.es -> account "2")
-
-**`src/components/email/EmailSidebar.tsx`**:
-- Recibir props `collapsed` (boolean) y `onToggleCollapse` (callback)
-- Recibir props `activeAccountId` (string | null) y `onAccountChange` (callback)
-- Renderizar version compacta (solo iconos) cuando `collapsed=true`
-- Hacer las cuentas clicables con estilo activo
-- Agregar boton de toggle collapse con icono PanelLeftClose/PanelLeftOpen
-
-**`src/pages/Correo.tsx`**:
-- Agregar estado `sidebarCollapsed` (boolean, default false)
-- Agregar estado `activeAccountId` (string | null, default null = todas)
-- Filtrar `filteredEmails` tambien por `account_id` cuando hay cuenta seleccionada
-- Pasar nuevas props al EmailSidebar
-
-### Detalles tecnicos
-
-- El sidebar usara `w-56` expandido y `w-12` colapsado, con `transition-all duration-200` para la animacion
-- En modo colapsado, el boton "Redactar" sera un icono circular con "+" centrado
-- Los badges de unread siguen visibles en modo colapsado como un punto pequeno sobre el icono
-- Se usa `overflow-hidden` y `whitespace-nowrap` para que el texto no se desborde durante la transicion
-- Tooltip en los iconos cuando esta colapsado para mantener accesibilidad
+La tabla `artists` contiene campos como: `id`, `name`, `bio`, `genre`, `image_url`, `created_by`, `created_at`. El dialogo se adaptara para editar estos campos. Los campos de contacto personal (telefono, direccion, contacto de emergencia) se eliminaran de este dialogo ya que pertenecen a la ficha del contacto/perfil, no al artista como entidad.
