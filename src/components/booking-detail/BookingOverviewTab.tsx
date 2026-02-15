@@ -83,13 +83,23 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
 
       // Fetch Contacto
       if (booking.contacto) {
-        const { data } = await supabase
-          .from('contacts')
-          .select('id, name, stage_name')
-          .or(`name.ilike.%${booking.contacto}%,stage_name.ilike.%${booking.contacto}%`)
-          .limit(1)
-          .single();
-        if (data) setContactoContact(data);
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(booking.contacto);
+        if (isUUID) {
+          const { data } = await supabase
+            .from('contacts')
+            .select('id, name, stage_name')
+            .eq('id', booking.contacto)
+            .maybeSingle();
+          if (data) setContactoContact(data);
+        } else {
+          const { data } = await supabase
+            .from('contacts')
+            .select('id, name, stage_name')
+            .or(`name.ilike.%${booking.contacto}%,stage_name.ilike.%${booking.contacto}%`)
+            .limit(1)
+            .maybeSingle();
+          if (data) setContactoContact(data);
+        }
       }
 
       // Fetch Promotor
