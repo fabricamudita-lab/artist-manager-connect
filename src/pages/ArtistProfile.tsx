@@ -19,6 +19,7 @@ import { AddTeamContactDialog } from '@/components/AddTeamContactDialog';
 import { ContactProfileSheet } from '@/components/ContactProfileSheet';
 import { ArtistFormatsDialog } from '@/components/ArtistFormatsDialog';
 import CreateReleaseDialog from '@/components/releases/CreateReleaseDialog';
+import { ArtistInfoDialog } from '@/components/ArtistInfoDialog';
 
 interface Artist {
   id: string;
@@ -90,6 +91,7 @@ export default function ArtistProfile() {
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [showFormatsDialog, setShowFormatsDialog] = useState(false);
   const [showCreateReleaseDialog, setShowCreateReleaseDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   // Fetch artist
   const { data: artist, isLoading: loadingArtist } = useQuery({
@@ -293,7 +295,7 @@ export default function ArtistProfile() {
             <p className="text-muted-foreground">{artist.name}</p>
           )}
         </div>
-        <Button variant="outline">
+        <Button variant="outline" onClick={() => setShowEditDialog(true)}>
           <Edit className="h-4 w-4 mr-2" />
           Editar
         </Button>
@@ -753,6 +755,18 @@ export default function ArtistProfile() {
         onOpenChange={setShowCreateReleaseDialog}
         artistId={id}
       />
+
+      {id && (
+        <ArtistInfoDialog
+          artistId={id}
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+          onChatOpen={() => {
+            setShowEditDialog(false);
+            navigate(`/chat?artist=${id}`);
+          }}
+        />
+      )}
     </div>
   );
 }
