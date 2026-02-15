@@ -415,10 +415,6 @@ export default function ManagementDashboard() {
         artistId={artistInfoDialog.artistId}
         open={artistInfoDialog.open}
         onOpenChange={(open) => setArtistInfoDialog({ open, artistId: null })}
-        onChatOpen={(artistId) => {
-          setArtistInfoDialog({ open: false, artistId: null });
-          navigate(`/chat?artist=${artistId}`);
-        }}
       />
 
       <ArtistProfileDialog
