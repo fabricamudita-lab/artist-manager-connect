@@ -1,48 +1,46 @@
 
-# Sold Out y Progreso de Ventas en Bookings
+# Fix: Mostrar nombre del contacto en la vista general del booking
 
-## Resumen
+## Problema
 
-Agregar dos campos nuevos a la tabla `booking_offers`:
-- **is_sold_out** (boolean): checkbox para marcar el evento como Sold Out
-- **tickets_sold** (integer): numero de entradas vendidas
+El campo `contacto` ahora guarda un UUID (porque lo cambiamos al `ContactSelector`), pero `BookingOverviewTab.tsx` sigue buscando el contacto haciendo un `ilike` por nombre/stage_name con ese UUID -- por eso no encuentra nada y muestra el UUID directamente.
 
-Con la capacidad ya existente (`capacidad`), se mostrara automaticamente el progreso de venta en formato "12/450" y porcentaje.
+## Solucion
 
-## Cambios necesarios
+Modificar la logica de busqueda en `BookingOverviewTab.tsx` (linea ~85-92):
 
-### 1. Migracion SQL
+- Detectar si el valor de `booking.contacto` es un UUID (formato estandar)
+- Si es UUID: buscar por `.eq('id', booking.contacto)` 
+- Si no es UUID (datos antiguos): mantener la busqueda por nombre como fallback
 
-Agregar dos columnas a `booking_offers`:
+## Cambio tecnico
 
-```sql
-ALTER TABLE booking_offers ADD COLUMN is_sold_out boolean DEFAULT false;
-ALTER TABLE booking_offers ADD COLUMN tickets_sold integer;
+### Archivo: `src/components/booking-detail/BookingOverviewTab.tsx`
+
+Reemplazar el bloque de fetch del contacto (lineas 85-92):
+
+```typescript
+// Antes:
+.or(`name.ilike.%${booking.contacto}%,stage_name.ilike.%${booking.contacto}%`)
+
+// Despues:
+const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(booking.contacto);
+if (isUUID) {
+  const { data } = await supabase
+    .from('contacts')
+    .select('id, name, stage_name')
+    .eq('id', booking.contacto)
+    .maybeSingle();
+  if (data) setContactoContact(data);
+} else {
+  const { data } = await supabase
+    .from('contacts')
+    .select('id, name, stage_name')
+    .or(`name.ilike.%${booking.contacto}%,stage_name.ilike.%${booking.contacto}%`)
+    .limit(1)
+    .maybeSingle();
+  if (data) setContactoContact(data);
+}
 ```
 
-### 2. Modificar `src/components/booking-detail/EditBookingDialog.tsx`
-
-En la pestana "Detalles", junto al campo "Invitaciones", agregar:
-
-- **Checkbox "Sold Out"**: marca el evento como agotado. Al activarlo, se autocompleta `tickets_sold` con el valor de `capacidad` si esta disponible.
-- **Campo "Entradas vendidas"**: input numerico para poner cuantas se han vendido (ej: 120).
-- **Indicador visual**: si hay `capacidad` y `tickets_sold`, muestra una barra de progreso con el texto "120/350 (34%)" debajo del campo. Si es Sold Out, muestra un badge verde "SOLD OUT".
-
-Agregar `is_sold_out` y `tickets_sold` a la interfaz `BookingOffer` y al `handleSave`.
-
-### 3. Interfaz en la pestana "Detalles"
-
-Despues de "Invitaciones":
-
-```
-[x] Sold Out                    Entradas vendidas: [120]
-                                120 / 350 (34%) [====------]
-```
-
-- Si `is_sold_out` esta marcado, se muestra un badge "SOLD OUT" destacado
-- Si hay `capacidad`, se calcula el porcentaje automaticamente
-- La barra de progreso usa el componente `Progress` existente
-
-### Archivos modificados
-- Migracion SQL (nueva)
-- `src/components/booking-detail/EditBookingDialog.tsx` - Agregar campos sold out y tickets vendidos
+Tambien se cambia `.single()` a `.maybeSingle()` para evitar errores 406 cuando no hay resultados.
