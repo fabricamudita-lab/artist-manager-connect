@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +45,7 @@ export function ContactLinkedActivity({ contactId, contactName, open }: ContactL
         // Song splits
         supabase
           .from('song_splits')
-          .select('id, role, percentage, created_at, songs(title)')
+          .select('id, song_id, role, percentage, created_at, songs(title)')
           .eq('collaborator_contact_id', contactId)
           .then(({ data }) => {
             const items: ActivityItem[] = (data || []).map((s: any) => ({
@@ -52,6 +53,7 @@ export function ContactLinkedActivity({ contactId, contactName, open }: ContactL
               title: s.songs?.title || 'Canción sin título',
               subtitle: `${s.role}${s.percentage ? ` · ${s.percentage}%` : ''}`,
               date: s.created_at,
+              link: '/royalties',
             }));
             // Also fetch track_credits
             return supabase
@@ -64,6 +66,7 @@ export function ContactLinkedActivity({ contactId, contactName, open }: ContactL
                   title: t.tracks?.title || 'Track sin título',
                   subtitle: `${t.role}${t.percentage ? ` · ${t.percentage}%` : ''}`,
                   date: t.created_at,
+                  link: '/releases',
                 }));
                 setSongCredits([...items, ...tcItems]);
               });
@@ -80,6 +83,7 @@ export function ContactLinkedActivity({ contactId, contactName, open }: ContactL
               title: b.name,
               subtitle: b.budgets?.name ? `en ${b.budgets.name}` : b.category,
               date: b.created_at,
+              link: b.budget_id ? `/budgets?budgetId=${b.budget_id}` : undefined,
             })));
           }),
 
@@ -109,7 +113,7 @@ export function ContactLinkedActivity({ contactId, contactName, open }: ContactL
               title: s.nombre_solicitante || 'Solicitud',
               subtitle: s.estado,
               date: s.created_at,
-              link: `/solicitudes`,
+              link: `/solicitudes?id=${s.id}`,
             })));
           }),
       ]);
@@ -189,6 +193,7 @@ function ActivitySection({
   color: string;
 }) {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   if (items.length === 0) return null;
 
@@ -201,26 +206,31 @@ function ActivitySection({
         <Badge variant="secondary" className="text-xs">{items.length}</Badge>
       </CollapsibleTrigger>
       <CollapsibleContent className="space-y-1.5 pl-4 pt-1">
-        {items.map(item => (
-          <Card key={item.id} className="hover:shadow-sm transition-shadow">
-            <CardContent className="py-2 px-3 flex items-center gap-2">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{item.title}</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {item.subtitle && <span>{item.subtitle}</span>}
-                  {item.date && (
-                    <span>{format(new Date(item.date), 'dd MMM yyyy', { locale: es })}</span>
-                  )}
+        {items.map(item => {
+          const Wrapper = item.link ? 'a' : 'div';
+          return (
+            <Card 
+              key={item.id} 
+              className={`hover:shadow-sm transition-shadow ${item.link ? 'cursor-pointer hover:bg-muted/30' : ''}`}
+              onClick={() => item.link && navigate(item.link)}
+            >
+              <CardContent className="py-2 px-3 flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{item.title}</p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {item.subtitle && <span>{item.subtitle}</span>}
+                    {item.date && (
+                      <span>{format(new Date(item.date), 'dd MMM yyyy', { locale: es })}</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-              {item.link && (
-                <a href={item.link} className="text-muted-foreground hover:text-foreground">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+                {item.link && (
+                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </CollapsibleContent>
     </Collapsible>
   );
