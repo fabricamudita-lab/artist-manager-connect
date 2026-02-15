@@ -6,24 +6,26 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
-import { User, Phone, Mail, MapPin, Users, FileText, MessageCircle, Edit, Save, X } from 'lucide-react';
+import { User, Music, Globe, Edit, Save, X, MessageCircle, Instagram } from 'lucide-react';
 
-interface Profile {
+interface ArtistData {
   id: string;
-  full_name: string;
-  email: string;
-  phone: string | null;
-  address: string | null;
-  emergency_contact: string | null;
-  team_contacts: string | null;
-  internal_notes: string | null;
+  name: string;
+  stage_name: string | null;
+  description: string | null;
+  genre: string | null;
   avatar_url: string | null;
-  roles: ('artist' | 'management')[];
-  active_role: 'artist' | 'management';
+  instagram_url: string | null;
+  spotify_url: string | null;
+  tiktok_url: string | null;
+  company_name: string | null;
+  legal_name: string | null;
+  tax_id: string | null;
+  brand_color: string | null;
   created_at: string;
 }
 
@@ -36,51 +38,60 @@ interface ArtistInfoDialogProps {
 
 export function ArtistInfoDialog({ artistId, open, onOpenChange, onChatOpen }: ArtistInfoDialogProps) {
   const { profile: currentProfile } = useAuth();
-  const [artistProfile, setArtistProfile] = useState<Profile | null>(null);
+  const [artistData, setArtistData] = useState<ArtistData | null>(null);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
-    phone: '',
-    address: '',
-    emergency_contact: '',
-    team_contacts: '',
-    internal_notes: '',
+    name: '',
+    stage_name: '',
+    description: '',
+    genre: '',
+    instagram_url: '',
+    spotify_url: '',
+    tiktok_url: '',
+    company_name: '',
+    legal_name: '',
+    tax_id: '',
   });
 
   useEffect(() => {
     if (open && artistId) {
-      fetchArtistProfile();
+      fetchArtist();
     }
   }, [open, artistId]);
 
-  const fetchArtistProfile = async () => {
+  const fetchArtist = async () => {
     if (!artistId) return;
-    
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('artists')
         .select('*')
         .eq('id', artistId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        setArtistData(null);
+        return;
+      }
 
-      setArtistProfile(data);
+      setArtistData(data);
       setFormData({
-        phone: data.phone || '',
-        address: data.address || '',
-        emergency_contact: data.emergency_contact || '',
-        team_contacts: data.team_contacts || '',
-        internal_notes: data.internal_notes || '',
+        name: data.name || '',
+        stage_name: data.stage_name || '',
+        description: data.description || '',
+        genre: data.genre || '',
+        instagram_url: data.instagram_url || '',
+        spotify_url: data.spotify_url || '',
+        tiktok_url: data.tiktok_url || '',
+        company_name: data.company_name || '',
+        legal_name: data.legal_name || '',
+        tax_id: data.tax_id || '',
       });
     } catch (error) {
-      console.error('Error fetching artist profile:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo cargar la información del artista.",
-        variant: "destructive",
-      });
+      console.error('Error fetching artist:', error);
+      toast({ title: "Error", description: "No se pudo cargar la información del artista.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -88,34 +99,29 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange, onChatOpen }: A
 
   const handleSave = async () => {
     if (!artistId) return;
-
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('artists')
         .update({
-          phone: formData.phone || null,
-          address: formData.address || null,
-          emergency_contact: formData.emergency_contact || null,
-          team_contacts: formData.team_contacts || null,
-          internal_notes: formData.internal_notes || null,
+          name: formData.name,
+          stage_name: formData.stage_name || null,
+          description: formData.description || null,
+          genre: formData.genre || null,
+          instagram_url: formData.instagram_url || null,
+          spotify_url: formData.spotify_url || null,
+          tiktok_url: formData.tiktok_url || null,
+          company_name: formData.company_name || null,
+          legal_name: formData.legal_name || null,
+          tax_id: formData.tax_id || null,
         })
         .eq('id', artistId);
 
       if (error) throw error;
-
-      toast({
-        title: "Éxito",
-        description: "Información del artista actualizada correctamente.",
-      });
-
+      toast({ title: "Éxito", description: "Información del artista actualizada." });
       setEditing(false);
-      fetchArtistProfile();
+      fetchArtist();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar la información del artista.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "No se pudo actualizar la información.", variant: "destructive" });
     }
   };
 
@@ -124,19 +130,15 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange, onChatOpen }: A
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
-          <div className="text-center py-8">Cargando información del artista...</div>
-        </DialogContent>
+        <DialogContent><div className="text-center py-8">Cargando información del artista...</div></DialogContent>
       </Dialog>
     );
   }
 
-  if (!artistProfile) {
+  if (!artistData) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
-          <div className="text-center py-8">No se pudo cargar la información del artista.</div>
-        </DialogContent>
+        <DialogContent><div className="text-center py-8">No se encontró información del artista.</div></DialogContent>
       </Dialog>
     );
   }
@@ -149,52 +151,35 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange, onChatOpen }: A
             <User className="h-5 w-5" />
             Ficha del Artista
           </DialogTitle>
-          <DialogDescription>
-            Información detallada para la gestión de giras
-          </DialogDescription>
+          <DialogDescription>Información detallada del artista</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Basic Info */}
+          {/* Header */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16">
-                    <AvatarImage src={artistProfile.avatar_url || ''} />
-                    <AvatarFallback>
-                      <User className="h-8 w-8" />
-                    </AvatarFallback>
+                    <AvatarImage src={artistData.avatar_url || ''} />
+                    <AvatarFallback><User className="h-8 w-8" /></AvatarFallback>
                   </Avatar>
                   <div>
-                    <CardTitle>{artistProfile.full_name}</CardTitle>
-                    <CardDescription>{artistProfile.email}</CardDescription>
-                    <div className="flex gap-2 mt-2">
-                      {artistProfile.roles.map((role) => (
-                        <Badge key={role} variant={role === artistProfile.active_role ? 'default' : 'secondary'}>
-                          {role}
-                        </Badge>
-                      ))}
-                    </div>
+                    <CardTitle>{artistData.name}</CardTitle>
+                    {artistData.stage_name && (
+                      <p className="text-sm text-muted-foreground">{artistData.stage_name}</p>
+                    )}
+                    {artistData.genre && <Badge variant="secondary">{artistData.genre}</Badge>}
                   </div>
                 </div>
                 <div className="flex gap-2">
                   {onChatOpen && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onChatOpen(artistProfile.id)}
-                    >
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      Chatear
+                    <Button variant="outline" size="sm" onClick={() => onChatOpen(artistData.id)}>
+                      <MessageCircle className="h-4 w-4 mr-2" />Chatear
                     </Button>
                   )}
                   {canEdit && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => editing ? setEditing(false) : setEditing(true)}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setEditing(!editing)}>
                       {editing ? <X className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
                     </Button>
                   )}
@@ -203,144 +188,124 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange, onChatOpen }: A
             </CardHeader>
           </Card>
 
-          {/* Contact Information */}
+          {/* Info general */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Phone className="h-5 w-5" />
-                Información de Contacto
-              </CardTitle>
+              <CardTitle className="flex items-center gap-2"><Music className="h-5 w-5" />Información General</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    Email
-                  </Label>
-                  <Input value={artistProfile.email} disabled />
+                  <Label>Nombre</Label>
+                  {editing ? (
+                    <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+                  ) : (
+                    <Input value={artistData.name} disabled />
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Phone className="h-4 w-4" />
-                    Teléfono
-                  </Label>
+                  <Label>Nombre artístico</Label>
                   {editing ? (
-                    <Input
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="Número de teléfono"
-                    />
+                    <Input value={formData.stage_name} onChange={(e) => setFormData({ ...formData, stage_name: e.target.value })} placeholder="Nombre artístico" />
                   ) : (
-                    <Input value={artistProfile.phone || 'No especificado'} disabled />
+                    <Input value={artistData.stage_name || 'No especificado'} disabled />
                   )}
                 </div>
               </div>
-              
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  Dirección
-                </Label>
+                <Label>Género musical</Label>
                 {editing ? (
-                  <Input
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="Dirección completa"
-                  />
+                  <Input value={formData.genre} onChange={(e) => setFormData({ ...formData, genre: e.target.value })} placeholder="Género musical" />
                 ) : (
-                  <Input value={artistProfile.address || 'No especificada'} disabled />
+                  <Input value={artistData.genre || 'No especificado'} disabled />
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Descripción / Bio</Label>
+                {editing ? (
+                  <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Biografía del artista" rows={3} />
+                ) : (
+                  <Textarea value={artistData.description || 'Sin descripción'} disabled rows={3} />
                 )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Emergency Contacts */}
+          {/* Redes sociales */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Contactos de Emergencia y Equipo
-              </CardTitle>
+              <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" />Redes Sociales</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Contacto de Emergencia</Label>
+                <Label className="flex items-center gap-2"><Instagram className="h-4 w-4" />Instagram</Label>
                 {editing ? (
-                  <Input
-                    value={formData.emergency_contact}
-                    onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })}
-                    placeholder="Nombre y teléfono de contacto de emergencia"
-                  />
+                  <Input value={formData.instagram_url} onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })} placeholder="https://instagram.com/..." />
                 ) : (
-                  <Input value={artistProfile.emergency_contact || 'No especificado'} disabled />
+                  <Input value={artistData.instagram_url || 'No especificado'} disabled />
                 )}
               </div>
-              
               <div className="space-y-2">
-                <Label>Contactos del Equipo</Label>
+                <Label>Spotify</Label>
                 {editing ? (
-                  <Textarea
-                    value={formData.team_contacts}
-                    onChange={(e) => setFormData({ ...formData, team_contacts: e.target.value })}
-                    placeholder="Manager, agente, técnico, etc. (separar con líneas)"
-                    rows={3}
-                  />
+                  <Input value={formData.spotify_url} onChange={(e) => setFormData({ ...formData, spotify_url: e.target.value })} placeholder="https://open.spotify.com/..." />
                 ) : (
-                  <Textarea 
-                    value={artistProfile.team_contacts || 'No especificados'} 
-                    disabled 
-                    rows={3}
-                  />
+                  <Input value={artistData.spotify_url || 'No especificado'} disabled />
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>TikTok</Label>
+                {editing ? (
+                  <Input value={formData.tiktok_url} onChange={(e) => setFormData({ ...formData, tiktok_url: e.target.value })} placeholder="https://tiktok.com/..." />
+                ) : (
+                  <Input value={artistData.tiktok_url || 'No especificado'} disabled />
                 )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Internal Notes */}
+          {/* Datos fiscales (solo management) */}
           {canEdit && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Notas Internas
-                </CardTitle>
-                <CardDescription>
-                  Información confidencial para uso interno del equipo de management
-                </CardDescription>
+                <CardTitle className="flex items-center gap-2">Datos Fiscales</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Empresa</Label>
+                    {editing ? (
+                      <Input value={formData.company_name} onChange={(e) => setFormData({ ...formData, company_name: e.target.value })} placeholder="Nombre de empresa" />
+                    ) : (
+                      <Input value={artistData.company_name || 'No especificado'} disabled />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Nombre legal</Label>
+                    {editing ? (
+                      <Input value={formData.legal_name} onChange={(e) => setFormData({ ...formData, legal_name: e.target.value })} placeholder="Nombre legal" />
+                    ) : (
+                      <Input value={artistData.legal_name || 'No especificado'} disabled />
+                    )}
+                  </div>
+                </div>
                 <div className="space-y-2">
-                  <Label>Notas</Label>
+                  <Label>CIF / NIF</Label>
                   {editing ? (
-                    <Textarea
-                      value={formData.internal_notes}
-                      onChange={(e) => setFormData({ ...formData, internal_notes: e.target.value })}
-                      placeholder="Preferencias, requisitos especiales, historial, etc."
-                      rows={4}
-                    />
+                    <Input value={formData.tax_id} onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })} placeholder="CIF o NIF" />
                   ) : (
-                    <Textarea 
-                      value={artistProfile.internal_notes || 'Sin notas'} 
-                      disabled 
-                      rows={4}
-                    />
+                    <Input value={artistData.tax_id || 'No especificado'} disabled />
                   )}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Action Buttons */}
+          {/* Botones */}
           {editing && (
             <div className="flex gap-2 justify-end">
-              <Button onClick={handleSave}>
-                <Save className="h-4 w-4 mr-2" />
-                Guardar Cambios
-              </Button>
-              <Button variant="outline" onClick={() => setEditing(false)}>
-                Cancelar
-              </Button>
+              <Button onClick={handleSave}><Save className="h-4 w-4 mr-2" />Guardar Cambios</Button>
+              <Button variant="outline" onClick={() => setEditing(false)}>Cancelar</Button>
             </div>
           )}
         </div>
