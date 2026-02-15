@@ -16,14 +16,7 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/components/ui/command';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { ALL_CREDIT_ROLES } from '@/lib/creditRoles';
+import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface AddCreditWithProfileFormProps {
@@ -320,18 +313,7 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId 
 
       <div>
         <Label htmlFor="credit_role">Rol *</Label>
-        <Select value={role} onValueChange={setRole}>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecciona un rol" />
-          </SelectTrigger>
-          <SelectContent>
-            {ALL_CREDIT_ROLES.map((r) => (
-              <SelectItem key={r.value} value={r.value}>
-                {r.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <GroupedRoleSelect value={role} onValueChange={setRole} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
