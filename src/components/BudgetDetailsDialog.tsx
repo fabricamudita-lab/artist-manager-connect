@@ -2398,9 +2398,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={`${isFullscreen ? 'max-w-screen w-screen max-h-screen h-screen' : 'max-w-[95vw] w-full max-h-[95vh] h-full'} p-0 bg-black text-white border-gray-800`}>
-        <div className="flex flex-col h-full overflow-hidden bg-black">
+        <div className="flex flex-col h-full overflow-y-auto bg-black">
           {/* Compact Header */}
-          <div className="bg-black text-white p-4 flex-shrink-0 border-b border-gray-800">
+          <div className="bg-black text-white p-4 border-b border-gray-800">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
@@ -2761,9 +2761,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-hidden">
-            <Tabs defaultValue="items" className="h-full flex flex-col">
-              <div className="border-b bg-background px-4 py-2 flex-shrink-0">
+          <div className="flex-1">
+            <Tabs defaultValue="items" className="flex flex-col">
+              <div className="border-b bg-background px-4 py-2">
                 <TabsList className="grid w-full max-w-md grid-cols-2">
                   <TabsTrigger value="items" className="flex items-center gap-2 text-sm">
                     <Calculator className="w-4 h-4" />
@@ -2776,8 +2776,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 </TabsList>
               </div>
 
-              <TabsContent value="items" className="flex-1 overflow-hidden p-0 m-0">
-                <div className="h-full flex flex-col bg-gradient-to-b from-black to-gray-900">
+              <TabsContent value="items" className="flex-1 p-0 m-0">
+                <div className="flex flex-col bg-gradient-to-b from-black to-gray-900">
                   {/* Auto-link suggestions banner */}
                   {autoLinkSuggestions.size > 0 && (
                     <div className="bg-amber-500/20 border-b border-amber-500/30 p-3">
