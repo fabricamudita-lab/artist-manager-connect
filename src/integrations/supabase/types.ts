@@ -2585,6 +2585,231 @@ export type Database = {
           },
         ]
       }
+      email_accounts: {
+        Row: {
+          access_token: string | null
+          created_at: string
+          display_name: string | null
+          email_address: string
+          id: string
+          last_sync_at: string | null
+          provider: Database["public"]["Enums"]["email_provider"]
+          refresh_token: string | null
+          sync_cursor: string | null
+          sync_enabled: boolean
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          created_at?: string
+          display_name?: string | null
+          email_address: string
+          id?: string
+          last_sync_at?: string | null
+          provider: Database["public"]["Enums"]["email_provider"]
+          refresh_token?: string | null
+          sync_cursor?: string | null
+          sync_enabled?: boolean
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          created_at?: string
+          display_name?: string | null
+          email_address?: string
+          id?: string
+          last_sync_at?: string | null
+          provider?: Database["public"]["Enums"]["email_provider"]
+          refresh_token?: string | null
+          sync_cursor?: string | null
+          sync_enabled?: boolean
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      email_attachments: {
+        Row: {
+          email_message_id: string
+          filename: string
+          id: string
+          mime_type: string | null
+          provider_attachment_id: string | null
+          size_bytes: number | null
+        }
+        Insert: {
+          email_message_id: string
+          filename: string
+          id?: string
+          mime_type?: string | null
+          provider_attachment_id?: string | null
+          size_bytes?: number | null
+        }
+        Update: {
+          email_message_id?: string
+          filename?: string
+          id?: string
+          mime_type?: string | null
+          provider_attachment_id?: string | null
+          size_bytes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_attachments_email_message_id_fkey"
+            columns: ["email_message_id"]
+            isOneToOne: false
+            referencedRelation: "email_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_links: {
+        Row: {
+          created_at: string
+          email_message_id: string
+          id: string
+          link_type: Database["public"]["Enums"]["email_link_type"]
+          linked_automatically: boolean
+          linked_by: string | null
+          linked_entity_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_message_id: string
+          id?: string
+          link_type: Database["public"]["Enums"]["email_link_type"]
+          linked_automatically?: boolean
+          linked_by?: string | null
+          linked_entity_id: string
+        }
+        Update: {
+          created_at?: string
+          email_message_id?: string
+          id?: string
+          link_type?: Database["public"]["Enums"]["email_link_type"]
+          linked_automatically?: boolean
+          linked_by?: string | null
+          linked_entity_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_links_email_message_id_fkey"
+            columns: ["email_message_id"]
+            isOneToOne: false
+            referencedRelation: "email_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_messages: {
+        Row: {
+          body_html: string | null
+          body_text: string | null
+          cc_addresses: Json | null
+          created_at: string
+          date: string | null
+          email_account_id: string
+          folder: string
+          from_address: string | null
+          from_name: string | null
+          has_attachments: boolean
+          id: string
+          is_draft: boolean
+          is_read: boolean
+          is_starred: boolean
+          labels: Json | null
+          provider_message_id: string
+          snippet: string | null
+          subject: string | null
+          thread_id: string | null
+          to_addresses: Json | null
+        }
+        Insert: {
+          body_html?: string | null
+          body_text?: string | null
+          cc_addresses?: Json | null
+          created_at?: string
+          date?: string | null
+          email_account_id: string
+          folder?: string
+          from_address?: string | null
+          from_name?: string | null
+          has_attachments?: boolean
+          id?: string
+          is_draft?: boolean
+          is_read?: boolean
+          is_starred?: boolean
+          labels?: Json | null
+          provider_message_id: string
+          snippet?: string | null
+          subject?: string | null
+          thread_id?: string | null
+          to_addresses?: Json | null
+        }
+        Update: {
+          body_html?: string | null
+          body_text?: string | null
+          cc_addresses?: Json | null
+          created_at?: string
+          date?: string | null
+          email_account_id?: string
+          folder?: string
+          from_address?: string | null
+          from_name?: string | null
+          has_attachments?: boolean
+          id?: string
+          is_draft?: boolean
+          is_read?: boolean
+          is_starred?: boolean
+          labels?: Json | null
+          provider_message_id?: string
+          snippet?: string | null
+          subject?: string | null
+          thread_id?: string | null
+          to_addresses?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_messages_email_account_id_fkey"
+            columns: ["email_account_id"]
+            isOneToOne: false
+            referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_signatures: {
+        Row: {
+          created_at: string
+          html_content: string
+          id: string
+          is_default: boolean
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          html_content?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          html_content?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       epk_analytics: {
         Row: {
           accion: string | null
@@ -6238,6 +6463,13 @@ export type Database = {
         | "RELEASE_DAY"
         | "MEETING_DAY"
         | "PAYRUN_DAY"
+      email_link_type:
+        | "contact"
+        | "booking"
+        | "project"
+        | "solicitud"
+        | "budget"
+      email_provider: "gmail" | "outlook"
       epk_theme: "auto" | "claro" | "oscuro"
       epk_video_type: "youtube" | "vimeo" | "archivo"
       epk_visibility: "publico" | "privado" | "protegido_password"
@@ -6473,6 +6705,8 @@ export const Constants = {
         "MEETING_DAY",
         "PAYRUN_DAY",
       ],
+      email_link_type: ["contact", "booking", "project", "solicitud", "budget"],
+      email_provider: ["gmail", "outlook"],
       epk_theme: ["auto", "claro", "oscuro"],
       epk_video_type: ["youtube", "vimeo", "archivo"],
       epk_visibility: ["publico", "privado", "protegido_password"],
