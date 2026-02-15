@@ -15,7 +15,9 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -133,6 +135,7 @@ export function EditBookingDialog({
   const [formData, setFormData] = useState<Partial<BookingOffer>>({});
   const [fechasOpcionales, setFechasOpcionales] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [artistFormats, setArtistFormats] = useState<string[]>([]);
   const { syncBookingFolder } = useBookingFolderAutomation();
 
   useEffect(() => {
@@ -143,6 +146,24 @@ export function EditBookingDialog({
       setFechasOpcionales(adjuntos?.fechas_opcionales || []);
     }
   }, [open, booking]);
+
+  // Fetch artist booking products when artist_id changes
+  useEffect(() => {
+    const fetchArtistFormats = async () => {
+      if (!formData.artist_id) {
+        setArtistFormats([]);
+        return;
+      }
+      const { data } = await supabase
+        .from('booking_products')
+        .select('name')
+        .eq('artist_id', formData.artist_id)
+        .eq('is_active', true)
+        .order('sort_order');
+      setArtistFormats(data?.map(p => p.name) || []);
+    };
+    fetchArtistFormats();
+  }, [formData.artist_id]);
 
   const updateField = (field: keyof BookingOffer, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -446,11 +467,24 @@ export function EditBookingDialog({
                     <SelectValue placeholder="Seleccionar formato" />
                   </SelectTrigger>
                   <SelectContent>
-                    {FORMAT_OPTIONS.map((format) => (
-                      <SelectItem key={format} value={format}>
-                        {format}
-                      </SelectItem>
-                    ))}
+                    {artistFormats.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel>Formatos del artista</SelectLabel>
+                        {artistFormats.map((fmt) => (
+                          <SelectItem key={`artist-${fmt}`} value={fmt}>
+                            {fmt}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                    <SelectGroup>
+                      <SelectLabel>Formatos generales</SelectLabel>
+                      {FORMAT_OPTIONS.map((fmt) => (
+                        <SelectItem key={fmt} value={fmt}>
+                          {fmt}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>
