@@ -432,7 +432,10 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                 const { left, width } = getBarPosition(wfStart, wfDays);
                 const completed = workflowTasks.filter(t => t.status === 'completado').length;
                 const progress = workflowTasks.length > 0 ? (completed / workflowTasks.length) * 100 : 0;
-                const colors = WORKFLOW_BAR_COLORS[workflow.id] || { bg: 'bg-primary/20', fill: 'bg-primary/60' };
+                const isWorkflowComplete = completed === workflowTasks.length && workflowTasks.length > 0;
+                const colors = isWorkflowComplete
+                  ? { bg: 'bg-green-500/20', fill: 'bg-green-500/60' }
+                  : (WORKFLOW_BAR_COLORS[workflow.id] || { bg: 'bg-primary/20', fill: 'bg-primary/60' });
                 const tooltipText = `${format(wfStart, 'dd MMM yyyy', { locale: es })} – ${format(wfEnd, 'dd MMM yyyy', { locale: es })}`;
                 return (
                   <div
