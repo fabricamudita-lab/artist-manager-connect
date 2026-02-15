@@ -680,9 +680,10 @@ export function EditBookingDialog({
               </div>
               <div className="space-y-2">
                 <Label>Contacto</Label>
-                <Input
-                  value={formData.contacto || ''}
-                  onChange={(e) => updateField('contacto', e.target.value)}
+                <ContactSelector
+                  value={formData.contacto || null}
+                  onValueChange={(contactId) => updateField('contacto', contactId)}
+                  compact
                 />
               </div>
               <div className="space-y-2">
