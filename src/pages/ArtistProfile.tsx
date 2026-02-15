@@ -761,10 +761,6 @@ export default function ArtistProfile() {
           artistId={id}
           open={showEditDialog}
           onOpenChange={setShowEditDialog}
-          onChatOpen={() => {
-            setShowEditDialog(false);
-            navigate(`/chat?artist=${id}`);
-          }}
         />
       )}
     </div>

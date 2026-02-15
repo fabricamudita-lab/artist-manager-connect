@@ -42,6 +42,7 @@ import SharedProject from "./pages/SharedProject";
 import SignContractMulti from "./pages/SignContractMulti";
 import SharedFile from "./pages/SharedFile";
 import PublicSyncRequestForm from "./pages/PublicSyncRequestForm";
+import PublicArtistForm from "./pages/PublicArtistForm";
 
 import Releases from "./pages/Releases";
 import ReleaseDetail from "./pages/ReleaseDetail";
@@ -387,6 +388,8 @@ const App = () => (
               <Route path="/sign/:token" element={<SignContractMulti />} />
               {/* Public Sync Request Form */}
               <Route path="/sync-request/:token" element={<PublicSyncRequestForm />} />
+              {/* Public Artist Form */}
+              <Route path="/artist-form/:token" element={<PublicArtistForm />} />
               {/* Google Calendar OAuth Callback */}
               <Route path="/calendar/callback" element={<GoogleCalendarCallback />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

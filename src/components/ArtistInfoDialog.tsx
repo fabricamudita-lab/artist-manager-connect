@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
-import { User, Music, Globe, Edit, Save, X, MessageCircle, Instagram } from 'lucide-react';
+import { User, Music, Globe, Edit, Save, X, Share2, Instagram, Loader2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface ArtistData {
   id: string;
@@ -33,10 +34,9 @@ interface ArtistInfoDialogProps {
   artistId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onChatOpen?: (artistId: string) => void;
 }
 
-export function ArtistInfoDialog({ artistId, open, onOpenChange, onChatOpen }: ArtistInfoDialogProps) {
+export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDialogProps) {
   const { profile: currentProfile } = useAuth();
   const [artistData, setArtistData] = useState<ArtistData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -126,6 +126,45 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange, onChatOpen }: A
   };
 
   const canEdit = currentProfile?.active_role === 'management';
+  const [generatingLink, setGeneratingLink] = useState(false);
+
+  const handleGenerateFormLink = async () => {
+    if (!artistId) return;
+    setGeneratingLink(true);
+    try {
+      // Check if active token exists
+      const { data: existing } = await supabase
+        .from('artist_form_tokens' as any)
+        .select('token')
+        .eq('artist_id', artistId)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      let tokenValue: string;
+
+      if (existing && (existing as any).token) {
+        tokenValue = (existing as any).token;
+      } else {
+        const { data: newToken, error } = await supabase
+          .from('artist_form_tokens' as any)
+          .insert({ artist_id: artistId, created_by: currentProfile?.user_id } as any)
+          .select('token')
+          .single();
+
+        if (error) throw error;
+        tokenValue = (newToken as any).token;
+      }
+
+      const url = `${window.location.origin}/artist-form/${tokenValue}`;
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Enlace copiado", description: "El enlace del formulario se ha copiado al portapapeles." });
+    } catch (err) {
+      console.error('Error generating form link:', err);
+      toast({ title: "Error", description: "No se pudo generar el enlace.", variant: "destructive" });
+    } finally {
+      setGeneratingLink(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -173,9 +212,10 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange, onChatOpen }: A
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  {onChatOpen && (
-                    <Button variant="outline" size="sm" onClick={() => onChatOpen(artistData.id)}>
-                      <MessageCircle className="h-4 w-4 mr-2" />Chatear
+                  {canEdit && (
+                    <Button variant="outline" size="sm" onClick={handleGenerateFormLink} disabled={generatingLink}>
+                      {generatingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4 mr-2" />}
+                      {!generatingLink && 'Formulario'}
                     </Button>
                   )}
                   {canEdit && (
