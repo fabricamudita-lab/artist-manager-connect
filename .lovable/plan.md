@@ -1,16 +1,29 @@
 
+# Auto-poblar venues en Produccion Tecnica desde bookings vinculados
 
-# Añadir opcion "Añadir todos" al menu de bloques
+## Problema
 
-## Cambio
+El bloque de Produccion Tecnica muestra "No hay venues configurados" aunque la hoja de ruta tiene eventos vinculados con informacion de lugar y ciudad.
 
-En el dropdown "Añadir Bloque" de `src/pages/RoadmapDetail.tsx`, agregar una opcion al inicio del menu que diga **"Añadir todos"** separada del resto por un divisor. Al hacer clic, se añaden todos los bloques faltantes de una vez.
+## Solucion
 
-## Detalle tecnico
+Cuando el bloque de produccion se renderiza con `venues: []` (vacio) y hay bookings vinculados, auto-crear un venue por cada booking vinculado usando su `lugar` y `ciudad`.
 
-En `src/pages/RoadmapDetail.tsx`, dentro del `DropdownMenuContent` del menu "Añadir Bloque" (aprox. linea 290-300):
+## Cambios tecnicos
 
-- Agregar un `DropdownMenuItem` con texto "Añadir todos" que recorra `availableBlockTypes` y llame a `addBlock.mutate(type)` para cada uno
-- Agregar un `DropdownMenuSeparator` debajo para separarlo visualmente de las opciones individuales
-- Solo se mostrara cuando haya mas de 1 bloque disponible (si solo queda uno, no tiene sentido "añadir todos")
+### 1. `src/pages/RoadmapDetail.tsx` (linea 317-318)
 
+Pasar `linkedBookings` como prop al `ProductionBlock`:
+
+```tsx
+case 'production':
+  return <ProductionBlock {...props} linkedBookings={allLinkedBookings} />;
+```
+
+Donde `allLinkedBookings` combina los bookings del junction table con el legacy booking.
+
+### 2. `src/components/roadmap-blocks/ProductionBlock.tsx`
+
+- Agregar prop `linkedBookings?: Array<{ id: string; lugar: string | null; ciudad: string | null }>`.
+- En un `useEffect`, si `localVenues` esta vacio y hay `linkedBookings`, generar automaticamente un venue por cada booking con `venueName` = `lugar + " - " + ciudad` (o solo el que tenga valor).
+- Esto solo ocurre una vez (cuando venues esta vacio). Despues el usuario puede editarlos libremente.
