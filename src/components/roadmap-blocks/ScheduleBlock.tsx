@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2, Pencil, Music, Utensils, Hotel, Plane, Users, Clock, X } from 'lucide-react';
+import { Plus, Trash2, Pencil, Music, Utensils, Hotel, Plane, Users, Clock, GripVertical, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,9 @@ import { TeamMemberSelector } from './TeamMemberSelector';
 import { InlineEditCell, InlineSelectCell } from '@/components/ui/inline-edit';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface ScheduleItem {
   id: string;
@@ -66,6 +69,98 @@ const activityTypes = [
 const getActivityConfig = (type: string) => {
   return activityTypes.find(a => a.value === type) || activityTypes[activityTypes.length - 1];
 };
+
+interface SortableScheduleRowProps {
+  item: ScheduleItem;
+  dayId: string;
+  updateItem: (dayId: string, itemId: string, field: keyof ScheduleItem, value: unknown) => void;
+  removeItem: (dayId: string, itemId: string) => void;
+  openAssignmentEditor: (dayId: string, itemId: string, currentIds: string[]) => void;
+}
+
+function SortableScheduleRow({ item, dayId, updateItem, removeItem, openAssignmentEditor }: SortableScheduleRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  const config = getActivityConfig(item.activityType);
+  const assignedCount = item.assignedMemberIds?.length || 0;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="grid grid-cols-[24px_80px_120px_1fr_1fr_1fr_120px_auto] gap-2 p-2 items-center hover:bg-muted/30 group"
+    >
+      <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none">
+        <GripVertical className="w-4 h-4" />
+      </button>
+      <InlineEditCell
+        value={item.startTime}
+        onChange={(v) => updateItem(dayId, item.id, 'startTime', v)}
+        placeholder="00:00"
+        type="time"
+        className="font-mono text-lg"
+      />
+      <InlineSelectCell
+        value={item.activityType}
+        onChange={(v) => {
+          const newConfig = getActivityConfig(v);
+          updateItem(dayId, item.id, 'activityType', v);
+          if (!item.title) updateItem(dayId, item.id, 'title', newConfig.label);
+        }}
+        options={activityTypes}
+        renderValue={(opt) => (
+          <Badge variant="outline" className={`${opt ? getActivityConfig(opt.value).color : ''} gap-1`}>
+            {opt?.icon && <opt.icon className="w-3 h-3" />}
+            {opt?.label || 'Tipo'}
+          </Badge>
+        )}
+      />
+      <InlineEditCell
+        value={item.title}
+        onChange={(v) => updateItem(dayId, item.id, 'title', v)}
+        placeholder="Título"
+        className="font-medium"
+      />
+      <div className="flex items-center gap-1 text-muted-foreground">
+        <span className="text-xs">⊙</span>
+        <InlineEditCell
+          value={item.location}
+          onChange={(v) => updateItem(dayId, item.id, 'location', v)}
+          placeholder="Ubicación"
+        />
+      </div>
+      <InlineEditCell
+        value={item.notes}
+        onChange={(v) => updateItem(dayId, item.id, 'notes', v)}
+        placeholder="Notas"
+        className="text-muted-foreground"
+      />
+      <Button
+        variant="ghost"
+        size="sm"
+        className="justify-start h-8 px-2 text-muted-foreground hover:text-foreground"
+        onClick={() => openAssignmentEditor(dayId, item.id, item.assignedMemberIds || [])}
+      >
+        <Users className="w-3 h-3 mr-1" />
+        {assignedCount > 0 ? (
+          <span className="text-xs">{assignedCount} asignado{assignedCount > 1 ? 's' : ''}</span>
+        ) : (
+          <span className="text-xs">Asignar</span>
+        )}
+      </Button>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-destructive hover:text-destructive"
+          onClick={() => removeItem(dayId, item.id)}
+        >
+          <Trash2 className="w-3 h-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId, bookingId }: ScheduleBlockProps) {
   const blockData = data as ScheduleBlockData;
@@ -228,15 +323,7 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
 
   const currentDay = localDays.find((d) => d.id === activeDay);
 
-  const sortedItems = useMemo(() => {
-    if (!currentDay) return [];
-    return [...currentDay.items].sort((a, b) => {
-      if (!a.startTime && !b.startTime) return 0;
-      if (!a.startTime) return 1;
-      if (!b.startTime) return -1;
-      return a.startTime.localeCompare(b.startTime);
-    });
-  }, [currentDay]);
+  const displayItems = currentDay?.items || [];
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
@@ -245,6 +332,21 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
     } catch {
       return dateStr;
     }
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !currentDay) return;
+    const oldIndex = currentDay.items.findIndex(i => i.id === active.id);
+    const newIndex = currentDay.items.findIndex(i => i.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newItems = arrayMove(currentDay.items, oldIndex, newIndex);
+    updateDay(currentDay.id, { items: newItems });
   };
 
   return (
@@ -324,7 +426,8 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
 
               {/* Schedule table - inline editable */}
               <div className="border rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[80px_120px_1fr_1fr_1fr_120px_auto] gap-2 p-3 bg-muted/50 font-medium text-sm">
+                <div className="grid grid-cols-[24px_80px_120px_1fr_1fr_1fr_120px_auto] gap-2 p-3 bg-muted/50 font-medium text-sm">
+                  <div></div>
                   <div>HORA</div>
                   <div>ACTIVIDAD</div>
                   <div>TÍTULO</div>
@@ -334,88 +437,23 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
                   <div></div>
                 </div>
                 
-                {sortedItems.length > 0 ? (
-                  <div className="divide-y">
-                    {sortedItems.map((item) => {
-                      const config = getActivityConfig(item.activityType);
-                      const assignedCount = item.assignedMemberIds?.length || 0;
-                      
-                      return (
-                        <div
-                          key={item.id}
-                          className="grid grid-cols-[80px_120px_1fr_1fr_1fr_120px_auto] gap-2 p-2 items-center hover:bg-muted/30 group"
-                        >
-                          <InlineEditCell
-                            value={item.startTime}
-                            onChange={(v) => updateItem(currentDay.id, item.id, 'startTime', v)}
-                            placeholder="00:00"
-                            type="time"
-                            className="font-mono text-lg"
+                {displayItems.length > 0 ? (
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={displayItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                      <div className="divide-y">
+                        {displayItems.map((item) => (
+                          <SortableScheduleRow
+                            key={item.id}
+                            item={item}
+                            dayId={currentDay.id}
+                            updateItem={updateItem}
+                            removeItem={removeItem}
+                            openAssignmentEditor={openAssignmentEditor}
                           />
-                          <InlineSelectCell
-                            value={item.activityType}
-                            onChange={(v) => {
-                              const newConfig = getActivityConfig(v);
-                              updateItem(currentDay.id, item.id, 'activityType', v);
-                              if (!item.title) {
-                                updateItem(currentDay.id, item.id, 'title', newConfig.label);
-                              }
-                            }}
-                            options={activityTypes}
-                            renderValue={(opt) => (
-                              <Badge variant="outline" className={`${opt ? getActivityConfig(opt.value).color : ''} gap-1`}>
-                                {opt?.icon && <opt.icon className="w-3 h-3" />}
-                                {opt?.label || 'Tipo'}
-                              </Badge>
-                            )}
-                          />
-                          <InlineEditCell
-                            value={item.title}
-                            onChange={(v) => updateItem(currentDay.id, item.id, 'title', v)}
-                            placeholder="Título"
-                            className="font-medium"
-                          />
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <span className="text-xs">⊙</span>
-                            <InlineEditCell
-                              value={item.location}
-                              onChange={(v) => updateItem(currentDay.id, item.id, 'location', v)}
-                              placeholder="Ubicación"
-                            />
-                          </div>
-                          <InlineEditCell
-                            value={item.notes}
-                            onChange={(v) => updateItem(currentDay.id, item.id, 'notes', v)}
-                            placeholder="Notas"
-                            className="text-muted-foreground"
-                          />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="justify-start h-8 px-2 text-muted-foreground hover:text-foreground"
-                            onClick={() => openAssignmentEditor(currentDay.id, item.id, item.assignedMemberIds || [])}
-                          >
-                            <Users className="w-3 h-3 mr-1" />
-                            {assignedCount > 0 ? (
-                              <span className="text-xs">{assignedCount} asignado{assignedCount > 1 ? 's' : ''}</span>
-                            ) : (
-                              <span className="text-xs">Asignar</span>
-                            )}
-                          </Button>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => removeItem(currentDay.id, item.id)}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
                 ) : (
                   <div className="p-8 text-center text-muted-foreground">
                     No hay actividades para este día
