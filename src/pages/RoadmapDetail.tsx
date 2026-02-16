@@ -34,6 +34,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -103,6 +113,7 @@ export default function RoadmapDetail() {
   const [tempName, setTempName] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [showBookingSelector, setShowBookingSelector] = useState(false);
+  const [unlinkingBookingId, setUnlinkingBookingId] = useState<string | null>(null);
 
   // Fetch artist name for preview
   const { data: artist } = useQuery({
@@ -186,7 +197,14 @@ export default function RoadmapDetail() {
   };
 
   const handleUnlinkBooking = (linkId: string) => {
-    removeBookingLink.mutate(linkId);
+    setUnlinkingBookingId(linkId);
+  };
+
+  const confirmUnlink = () => {
+    if (unlinkingBookingId) {
+      removeBookingLink.mutate(unlinkingBookingId);
+      setUnlinkingBookingId(null);
+    }
   };
 
   const getPromoterName = (booking: LinkedBookingWithLinkId): string => {
@@ -593,6 +611,22 @@ export default function RoadmapDetail() {
         artistId={roadmap.artist_id}
         onSelect={handleBookingSelect}
       />
+
+      {/* Unlink Confirmation Dialog */}
+      <AlertDialog open={!!unlinkingBookingId} onOpenChange={(open) => !open && setUnlinkingBookingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Desvincular evento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              El evento dejará de estar vinculado a esta hoja de ruta. La información de los bloques (horarios, viajes, hospitalidad, etc.) no se perderá.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmUnlink}>Desvincular</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
