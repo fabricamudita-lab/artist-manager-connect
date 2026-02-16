@@ -1,46 +1,22 @@
 
-# Fix: Mostrar nombre del contacto en la vista general del booking
+# Dialogo de confirmacion al crear booking "Confirmado"
 
-## Problema
+## Resumen
 
-El campo `contacto` ahora guarda un UUID (porque lo cambiamos al `ContactSelector`), pero `BookingOverviewTab.tsx` sigue buscando el contacto haciendo un `ilike` por nombre/stage_name con ese UUID -- por eso no encuentra nada y muestra el UUID directamente.
+Cuando el usuario selecciona el estado "Confirmado" al crear un nuevo booking y pulsa "Crear Booking", se mostrara un dialogo intermedio preguntando si prefiere:
 
-## Solucion
+1. **Consultar disponibilidad y viabilidad primero** (opcion recomendada/resaltada) - Crea el booking en fase `interes` con estado `pendiente` para pasar por el flujo normal de verificacion
+2. **Confirmar directamente** - Crea el booking directamente como `confirmado`
 
-Modificar la logica de busqueda en `BookingOverviewTab.tsx` (linea ~85-92):
+## Cambios tecnicos
 
-- Detectar si el valor de `booking.contacto` es un UUID (formato estandar)
-- Si es UUID: buscar por `.eq('id', booking.contacto)` 
-- Si no es UUID (datos antiguos): mantener la busqueda por nombre como fallback
+### Archivo: `src/components/CreateBookingDialog.tsx`
 
-## Cambio tecnico
-
-### Archivo: `src/components/booking-detail/BookingOverviewTab.tsx`
-
-Reemplazar el bloque de fetch del contacto (lineas 85-92):
-
-```typescript
-// Antes:
-.or(`name.ilike.%${booking.contacto}%,stage_name.ilike.%${booking.contacto}%`)
-
-// Despues:
-const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(booking.contacto);
-if (isUUID) {
-  const { data } = await supabase
-    .from('contacts')
-    .select('id, name, stage_name')
-    .eq('id', booking.contacto)
-    .maybeSingle();
-  if (data) setContactoContact(data);
-} else {
-  const { data } = await supabase
-    .from('contacts')
-    .select('id, name, stage_name')
-    .or(`name.ilike.%${booking.contacto}%,stage_name.ilike.%${booking.contacto}%`)
-    .limit(1)
-    .maybeSingle();
-  if (data) setContactoContact(data);
-}
-```
-
-Tambien se cambia `.single()` a `.maybeSingle()` para evitar errores 406 cuando no hay resultados.
+- Agregar un estado `showConfirmDialog` (boolean) para controlar la visibilidad del dialogo intermedio
+- Modificar `handleSubmit`: si `formData.estado === 'confirmado'`, en lugar de crear directamente, mostrar el dialogo de confirmacion
+- Agregar funcion `handleCreateWithAvailability`: crea el booking con estado `pendiente` y phase `interes` para que el usuario pueda usar el flujo de disponibilidad/viabilidad desde el detalle
+- Agregar funcion `handleCreateConfirmed`: crea el booking directamente como `confirmado` (comportamiento actual)
+- Usar un `AlertDialog` con dos botones:
+  - **"Consultar disponibilidad y viabilidad"** (boton primario, resaltado) - llama a `handleCreateWithAvailability`
+  - **"Confirmar directamente"** (boton outline/secundario) - llama a `handleCreateConfirmed`
+- El dialogo incluira un icono informativo y un texto explicando que es recomendable verificar la disponibilidad de todas las partes antes de confirmar
