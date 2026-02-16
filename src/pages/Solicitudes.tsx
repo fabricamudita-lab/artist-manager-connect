@@ -35,7 +35,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 
 interface Solicitud {
   id: string;
-  tipo: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro';
+  tipo: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro';
   nombre_solicitante: string;
   email?: string;
   telefono?: string;
@@ -86,13 +86,17 @@ interface Solicitud {
   decision_has_new_comment?: boolean;
 }
 
-const typeConfig = {
+const typeConfig: Record<string, { label: string; icon: string; color: string }> = {
   entrevista: { label: 'Entrevista', icon: '🎙️', color: 'bg-green-500' },
   booking: { label: 'Booking', icon: '🎤', color: 'bg-blue-500' },
   consulta: { label: 'Consulta', icon: '💬', color: 'bg-purple-500' },
   informacion: { label: 'Información', icon: 'ℹ️', color: 'bg-orange-500' },
+  licencia: { label: 'Licencia', icon: '📜', color: 'bg-teal-500' },
   otro: { label: 'Otro', icon: '📄', color: 'bg-gray-500' },
 };
+
+const defaultTypeConfig = { label: 'Otro', icon: '📄', color: 'bg-gray-500' };
+const getTypeConfig = (tipo: string) => typeConfig[tipo] || defaultTypeConfig;
 
 const statusConfig = {
   pendiente: { label: 'Pendiente', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: Clock },
@@ -392,6 +396,10 @@ export default function Solicitudes() {
         } else {
           name = 'Solicitud';
         }
+        break;
+
+      case 'licencia':
+        name = 'Licencia';
         break;
 
       default:
@@ -929,7 +937,7 @@ const confirmStatusChange = async (comment: string) => {
   };
 
   const renderSolicitudCard = (solicitud: Solicitud) => {
-    const typeInfo = typeConfig[solicitud.tipo];
+    const typeInfo = getTypeConfig(solicitud.tipo);
     const statusInfo = statusConfig[solicitud.estado];
     const StatusIcon = statusInfo.icon;
 
@@ -1460,7 +1468,7 @@ const confirmStatusChange = async (comment: string) => {
           ) : (
             <div className="bg-card border rounded-lg overflow-hidden">
           {filteredSolicitudes.map((solicitud, index) => {
-            const typeInfo = typeConfig[solicitud.tipo];
+            const typeInfo = getTypeConfig(solicitud.tipo);
             const statusInfo = statusConfig[solicitud.estado];
             const StatusIcon = statusInfo.icon;
             
