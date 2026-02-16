@@ -13,6 +13,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -417,79 +418,63 @@ export default function RoadmapDetail() {
           ) : (
             <div className="space-y-4">
               {linkedBookings.map((booking: LinkedBookingWithLinkId) => (
-                <div key={booking.linkId} className="border rounded-lg p-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="gap-1">
-                      {booking.festival_ciclo || booking.lugar || 'Evento'}
-                      {booking.fecha && (
-                        <span className="text-muted-foreground ml-1">
-                          · {format(new Date(booking.fecha), 'd MMM yyyy', { locale: es })}
-                        </span>
-                      )}
-                    </Badge>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => handleUnlinkBooking(booking.linkId)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      Desvincular
-                    </Button>
+                <Collapsible key={booking.linkId}>
+                  <div className="border rounded-lg">
+                    <CollapsibleTrigger asChild>
+                      <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center gap-2">
+                          <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                          <Badge variant="outline" className="gap-1">
+                            {booking.festival_ciclo || booking.lugar || 'Evento'}
+                            {booking.fecha && (
+                              <span className="text-muted-foreground ml-1">
+                                · {format(new Date(booking.fecha), 'd MMM yyyy', { locale: es })}
+                              </span>
+                            )}
+                          </Badge>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={(e) => { e.stopPropagation(); handleUnlinkBooking(booking.linkId); }}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          Desvincular
+                        </Button>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="px-4 pb-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                          <Label>Artista</Label>
+                          {linkedBookings.indexOf(booking) === 0 ? (
+                            <SingleArtistSelector
+                              value={roadmap.artist_id}
+                              onValueChange={(value) => updateRoadmap.mutate({ artist_id: value })}
+                            />
+                          ) : (
+                            <Input value={booking.artist?.name || ''} readOnly className="bg-muted" />
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Promotor</Label>
+                          <Input value={getPromoterName(booking)} readOnly className="bg-muted" />
+                          <p className="text-xs text-muted-foreground">Promotor del evento vinculado</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Fecha del Evento</Label>
+                          <Input type="date" value={booking.fecha || ''} readOnly className="bg-muted" />
+                          <p className="text-xs text-muted-foreground">Fecha del evento vinculado</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Hora Concierto</Label>
+                          <Input type="time" value={booking.hora?.substring(0, 5) || ''} readOnly className="bg-muted" />
+                          <p className="text-xs text-muted-foreground">Hora del evento vinculado</p>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label>Artista</Label>
-                      {linkedBookings.indexOf(booking) === 0 ? (
-                        <SingleArtistSelector
-                          value={roadmap.artist_id}
-                          onValueChange={(value) => updateRoadmap.mutate({ artist_id: value })}
-                        />
-                      ) : (
-                        <Input
-                          value={booking.artist?.name || ''}
-                          readOnly
-                          className="bg-muted"
-                        />
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Promotor</Label>
-                      <Input
-                        value={getPromoterName(booking)}
-                        readOnly
-                        className="bg-muted"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Promotor del evento vinculado
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Fecha del Evento</Label>
-                      <Input
-                        type="date"
-                        value={booking.fecha || ''}
-                        readOnly
-                        className="bg-muted"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Fecha del evento vinculado
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Hora Concierto</Label>
-                      <Input
-                        type="time"
-                        value={booking.hora?.substring(0, 5) || ''}
-                        readOnly
-                        className="bg-muted"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Hora del evento vinculado
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                </Collapsible>
               ))}
             </div>
           )}
