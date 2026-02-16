@@ -556,8 +556,8 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
       </Dialog>
 
       {/* Sync Show Time Confirmation Dialog */}
-      <Dialog open={!!pendingSyncTime} onOpenChange={(open) => !open && setPendingSyncTime(null)}>
-        <DialogContent>
+      <Dialog open={!!pendingSyncTime} onOpenChange={() => {}}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()} className="[&>button:last-child]:hidden">
           <DialogHeader>
             <DialogTitle>Sincronizar hora del evento</DialogTitle>
           </DialogHeader>
