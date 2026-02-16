@@ -25,6 +25,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -503,6 +504,14 @@ export default function RoadmapDetail() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
+                  {availableBlockTypes.length > 1 && (
+                    <>
+                      <DropdownMenuItem onClick={() => availableBlockTypes.forEach(type => addBlock.mutate(type))}>
+                        Añadir todos
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   {availableBlockTypes.map((type) => (
                     <DropdownMenuItem key={type} onClick={() => addBlock.mutate(type)}>
                       {blockTypeLabels[type]}
