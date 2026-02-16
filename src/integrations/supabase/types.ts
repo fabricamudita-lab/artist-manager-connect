@@ -4770,6 +4770,41 @@ export type Database = {
           },
         ]
       }
+      roadmap_locations: {
+        Row: {
+          artist_id: string
+          category: string | null
+          city: string | null
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          artist_id: string
+          category?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          artist_id?: string
+          category?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadmap_locations_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       royalty_earnings: {
         Row: {
           amount: number

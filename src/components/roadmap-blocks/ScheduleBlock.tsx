@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Trash2, Pencil, Music, Utensils, Hotel, Plane, Users, Clock, GripVertical, X } from 'lucide-react';
+import { LocationAutocomplete } from './LocationAutocomplete';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -77,9 +78,11 @@ interface SortableScheduleRowProps {
   updateItem: (dayId: string, itemId: string, field: keyof ScheduleItem, value: unknown) => void;
   removeItem: (dayId: string, itemId: string) => void;
   openAssignmentEditor: (dayId: string, itemId: string, currentIds: string[]) => void;
+  bookingInfo?: BookingInfo;
+  artistId?: string | null;
 }
 
-function SortableScheduleRow({ item, dayId, updateItem, removeItem, openAssignmentEditor }: SortableScheduleRowProps) {
+function SortableScheduleRow({ item, dayId, updateItem, removeItem, openAssignmentEditor, bookingInfo, artistId }: SortableScheduleRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   const config = getActivityConfig(item.activityType);
@@ -107,6 +110,10 @@ function SortableScheduleRow({ item, dayId, updateItem, removeItem, openAssignme
           const newConfig = getActivityConfig(v);
           updateItem(dayId, item.id, 'activityType', v);
           if (!item.title) updateItem(dayId, item.id, 'title', newConfig.label);
+          // Auto-fill location for show/soundcheck
+          if ((v === 'show' || v === 'soundcheck') && !item.location && bookingInfo?.venue) {
+            updateItem(dayId, item.id, 'location', bookingInfo.venue);
+          }
         }}
         options={activityTypes}
         renderValue={(opt) => (
@@ -122,14 +129,12 @@ function SortableScheduleRow({ item, dayId, updateItem, removeItem, openAssignme
         placeholder="Título"
         className="font-medium"
       />
-      <div className="flex items-center gap-1 text-muted-foreground">
-        <span className="text-xs">⊙</span>
-        <InlineEditCell
-          value={item.location}
-          onChange={(v) => updateItem(dayId, item.id, 'location', v)}
-          placeholder="Ubicación"
-        />
-      </div>
+      <LocationAutocomplete
+        artistId={artistId}
+        value={item.location}
+        onChange={(v) => updateItem(dayId, item.id, 'location', v)}
+        placeholder="Ubicación"
+      />
       <InlineEditCell
         value={item.notes}
         onChange={(v) => updateItem(dayId, item.id, 'notes', v)}
@@ -460,6 +465,8 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
                             updateItem={updateItem}
                             removeItem={removeItem}
                             openAssignmentEditor={openAssignmentEditor}
+                            bookingInfo={bookingInfo}
+                            artistId={artistId}
                           />
                         ))}
                       </div>
