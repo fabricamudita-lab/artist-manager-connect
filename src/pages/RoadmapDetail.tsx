@@ -39,8 +39,9 @@ import { Badge } from '@/components/ui/badge';
 import { useRoadmap, RoadmapBlock, LinkedBooking } from '@/hooks/useRoadmaps';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 import { BookingSelectorDialog, BookingForSelector } from '@/components/BookingSelectorDialog';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 import { HeaderBlock } from '@/components/roadmap-blocks/HeaderBlock';
 import { ScheduleBlock } from '@/components/roadmap-blocks/ScheduleBlock';
@@ -83,6 +84,7 @@ interface LinkedBookingWithLinkId extends LinkedBooking {
 export default function RoadmapDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { 
     roadmap, 
     blocks, 
@@ -275,6 +277,20 @@ export default function RoadmapDetail() {
     formato: firstBooking.formato || undefined,
   } : undefined;
 
+  const handleShowTimeChange = async (newTime: string) => {
+    if (!firstBooking?.id) return;
+    const { error } = await supabase
+      .from('booking_offers')
+      .update({ hora: newTime + ':00' })
+      .eq('id', firstBooking.id);
+    if (error) {
+      toast.error('Error al actualizar la hora del evento');
+    } else {
+      toast.success('Hora del evento actualizada');
+      queryClient.invalidateQueries({ queryKey: ['roadmap', id] });
+    }
+  };
+
   const renderBlock = (block: RoadmapBlock) => {
     const props = {
       data: block.data as Record<string, unknown>,
@@ -292,7 +308,7 @@ export default function RoadmapDetail() {
           />
         );
       case 'schedule':
-        return <ScheduleBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} artistId={roadmap.artist_id} bookingId={firstBooking?.id} />;
+        return <ScheduleBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} artistId={roadmap.artist_id} bookingId={firstBooking?.id} onShowTimeChange={handleShowTimeChange} />;
       case 'travel':
         return <TravelBlock {...props} tourDates={getScheduleTourDates()} bookingInfo={bookingInfo} artistId={roadmap.artist_id} bookingId={firstBooking?.id} />;
       case 'hospitality':
