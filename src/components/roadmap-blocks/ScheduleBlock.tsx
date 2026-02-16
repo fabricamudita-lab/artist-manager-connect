@@ -48,6 +48,7 @@ export interface ScheduleBlockProps {
   bookingInfo?: BookingInfo;
   artistId?: string | null;
   bookingId?: string | null;
+  onShowTimeChange?: (newTime: string) => void;
 }
 
 interface ScheduleBlockData {
@@ -162,7 +163,7 @@ function SortableScheduleRow({ item, dayId, updateItem, removeItem, openAssignme
   );
 }
 
-export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId, bookingId }: ScheduleBlockProps) {
+export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId, bookingId, onShowTimeChange }: ScheduleBlockProps) {
   const blockData = data as ScheduleBlockData;
   const incomingDays = useMemo(() => blockData.days || [], [blockData.days]);
 
@@ -173,6 +174,7 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
   const [newDayDate, setNewDayDate] = useState('');
   const [editingAssignments, setEditingAssignments] = useState<{ dayId: string; itemId: string } | null>(null);
   const [tempAssignedIds, setTempAssignedIds] = useState<string[]>([]);
+  const [pendingSyncTime, setPendingSyncTime] = useState<string | null>(null);
 
   const lastSyncedRef = useRef<string>(JSON.stringify(incomingDays));
   const debouncedDays = useDebounce(localDays, 500);
@@ -290,6 +292,15 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
   };
 
   const updateItem = (dayId: string, itemId: string, field: keyof ScheduleItem, value: unknown) => {
+    // Detect show time change to offer sync
+    if (field === 'startTime' && onShowTimeChange) {
+      const day = localDays.find(d => d.id === dayId);
+      const item = day?.items.find(i => i.id === itemId);
+      if (item?.activityType === 'show' && typeof value === 'string' && value !== item.startTime) {
+        setPendingSyncTime(value);
+      }
+    }
+
     setLocalDays((prev) =>
       prev.map((d) => {
         if (d.id !== dayId) return d;
@@ -533,6 +544,31 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingAssignments(null)}>Cancelar</Button>
             <Button onClick={saveAssignments}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sync Show Time Confirmation Dialog */}
+      <Dialog open={!!pendingSyncTime} onOpenChange={(open) => !open && setPendingSyncTime(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sincronizar hora del evento</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-4">
+            Has cambiado la hora del show a <span className="font-semibold text-foreground">{pendingSyncTime}</span>. ¿Quieres actualizar también la hora del evento vinculado?
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingSyncTime(null)}>
+              No, solo en la hoja de ruta
+            </Button>
+            <Button onClick={() => {
+              if (pendingSyncTime && onShowTimeChange) {
+                onShowTimeChange(pendingSyncTime);
+              }
+              setPendingSyncTime(null);
+            }}>
+              Sí, actualizar evento
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
