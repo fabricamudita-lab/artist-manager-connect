@@ -1,19 +1,23 @@
 
+# Confirmar antes de desvincular evento
 
-# Forzar clic en el dialogo de sincronizacion de hora
+## Contexto
 
-## Problema
+Actualmente, al pulsar "Desvincular" en un evento vinculado a una hoja de ruta, se ejecuta la accion inmediatamente sin pedir confirmacion. Los bloques (schedule, travel, hospitality, etc.) no se ven afectados porque su informacion esta almacenada en `tour_roadmap_blocks`, independientemente de los eventos vinculados.
 
-El dialogo "Sincronizar hora del evento" se puede cerrar pulsando Enter, lo que puede llevar a una accion no deseada. El usuario quiere que sea obligatorio hacer clic en uno de los dos botones.
+## Cambio
 
-## Solucion
+En `src/pages/RoadmapDetail.tsx`:
 
-En `src/components/roadmap-blocks/ScheduleBlock.tsx` (lineas 559-581):
+1. Agregar un estado `unlinkingBookingId` para controlar que evento se quiere desvincular.
+2. El boton "Desvincular" ya no ejecuta `removeBookingLink` directamente, sino que abre un dialogo de confirmacion guardando el `linkId`.
+3. Agregar un `AlertDialog` con:
+   - Titulo: "Desvincular evento?"
+   - Descripcion: "El evento dejara de estar vinculado a esta hoja de ruta. La informacion de los bloques (horarios, viajes, hospitality, etc.) no se perdera."
+   - Boton cancelar y boton confirmar "Desvincular".
+4. Al confirmar, se ejecuta `removeBookingLink.mutate(unlinkingBookingId)`.
 
-1. Agregar `onInteractOutside={(e) => e.preventDefault()}` al `DialogContent` para evitar que se cierre al hacer clic fuera.
-2. Agregar `onEscapeKeyDown={(e) => e.preventDefault()}` para evitar que se cierre con Escape.
-3. Ocultar el boton X de cierre con la clase CSS `[&>button:last-child]:hidden` en el `DialogContent`.
-4. Cambiar `onOpenChange` para que no permita cerrar el dialogo externamente: `onOpenChange={() => {}}` (solo se cierra via los botones).
+## Detalle tecnico
 
-Esto obliga al usuario a elegir explicitamente una de las dos opciones.
-
+- Se reutiliza el patron de `AlertDialog` ya presente en el proyecto (mismo patron que `LinkedResourcesSection.tsx`).
+- Solo se modifica `src/pages/RoadmapDetail.tsx`.
