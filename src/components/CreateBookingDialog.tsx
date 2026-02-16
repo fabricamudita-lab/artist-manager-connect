@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { useBookingCalendarSync } from '@/hooks/useBookingCalendarSync';
 import { useBookingFolders } from '@/hooks/useBookingFolders';
-import { Calendar, MapPin, Users, DollarSign, FileText, Ticket, Clock } from 'lucide-react';
+import { Calendar, MapPin, Users, DollarSign, FileText, Ticket, Clock, ShieldCheck } from 'lucide-react';
 
 interface CreateBookingDialogProps {
   open: boolean;
@@ -41,6 +42,7 @@ export function CreateBookingDialog({
   const { createEventFolder } = useBookingFolders();
   
   const [loading, setLoading] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [formData, setFormData] = useState({
     // Datos del Evento
     festival_ciclo: '',
@@ -79,10 +81,18 @@ export function CreateBookingDialog({
       return;
     }
 
+    if (formData.estado === 'confirmado') {
+      setShowConfirmDialog(true);
+      return;
+    }
+
+    await createBooking(formData.estado);
+  };
+
+  const createBooking = async (estado: string) => {
     setLoading(true);
     
     try {
-      // Map estado to phase for Kanban compatibility
       const estadoToPhase: Record<string, string> = {
         'pendiente': 'interes',
         'confirmado': 'confirmado',
@@ -98,8 +108,8 @@ export function CreateBookingDialog({
         capacidad: formData.capacidad ? parseInt(formData.capacidad) : null,
         duracion: formData.duracion,
         fee: formData.fee ? parseFloat(formData.fee) : null,
-        estado: formData.estado,
-        phase: estadoToPhase[formData.estado] || 'interes',
+        estado: estado,
+        phase: estadoToPhase[estado] || 'interes',
         formato: formData.formato,
         pvp: formData.pvp ? parseFloat(formData.pvp) : null,
         contacto: formData.contacto,
@@ -121,19 +131,19 @@ export function CreateBookingDialog({
 
       if (error) throw error;
 
-      // Sync with calendar if confirmed
       if (data && data.estado === 'confirmado' && profile?.user_id) {
         await syncBookingWithCalendar(null, data, profile.user_id);
       }
 
-      // Create event folder
       if (data) {
         await createEventFolder(data);
       }
 
       toast({
         title: "Booking creado",
-        description: "El evento se ha creado correctamente.",
+        description: estado === 'confirmado' 
+          ? "El evento se ha creado como confirmado."
+          : "El evento se ha creado. Puedes consultar disponibilidad y viabilidad desde el detalle.",
       });
 
       onBookingCreated();
@@ -176,6 +186,7 @@ export function CreateBookingDialog({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -441,5 +452,46 @@ export function CreateBookingDialog({
         </form>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            ¿Confirmar directamente?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-left space-y-2">
+            <p>
+              Recomendamos consultar la disponibilidad de todas las partes y verificar la viabilidad antes de confirmar un evento.
+            </p>
+            <p className="text-muted-foreground text-xs">
+              Esto crea el booking como pendiente para que puedas gestionar la disponibilidad y los checks de viabilidad desde el detalle.
+            </p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowConfirmDialog(false);
+              createBooking('confirmado');
+            }}
+            disabled={loading}
+          >
+            Confirmar directamente
+          </Button>
+          <Button
+            onClick={() => {
+              setShowConfirmDialog(false);
+              createBooking('pendiente');
+            }}
+            disabled={loading}
+          >
+            Consultar disponibilidad y viabilidad
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
