@@ -8,6 +8,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,7 +34,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, Save, Plus, X, CalendarIcon, Clock, Ticket } from 'lucide-react';
+import { Loader2, Save, Plus, X, CalendarIcon, Clock, Ticket, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
@@ -140,6 +148,7 @@ export function EditBookingDialog({
   const [fechasOpcionales, setFechasOpcionales] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [artistFormats, setArtistFormats] = useState<string[]>([]);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const { syncBookingFolder } = useBookingFolderAutomation();
 
   useEffect(() => {
@@ -174,6 +183,16 @@ export function EditBookingDialog({
   };
 
   const handleSave = async () => {
+    // If phase changed to confirmado and it wasn't already confirmado, show confirmation dialog
+    const phaseChangedToConfirmado = formData.phase === 'confirmado' && booking.phase !== 'confirmado';
+    if (phaseChangedToConfirmado) {
+      setShowConfirmDialog(true);
+      return;
+    }
+    await saveBooking(formData.phase);
+  };
+
+  const saveBooking = async (overridePhase?: string | null) => {
     setLoading(true);
     try {
       // Build adjuntos with fechas opcionales
@@ -193,7 +212,7 @@ export function EditBookingDialog({
         venue: formData.venue,
         capacidad: formData.capacidad,
         estado: formData.estado,
-        phase: formData.phase,
+        phase: overridePhase ?? formData.phase,
         promotor: formData.promotor,
         fee: formData.fee,
         pvp: formData.pvp,
@@ -251,6 +270,7 @@ export function EditBookingDialog({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -860,5 +880,47 @@ export function EditBookingDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            ¿Confirmar directamente?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-left space-y-2">
+            <p>
+              Recomendamos consultar la disponibilidad de todas las partes y verificar la viabilidad antes de confirmar un evento.
+            </p>
+            <p className="text-muted-foreground text-xs">
+              Esto guarda el booking sin cambiar a confirmado, para que puedas gestionar la disponibilidad y los checks de viabilidad desde el detalle.
+            </p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowConfirmDialog(false);
+              saveBooking('confirmado');
+            }}
+            disabled={loading}
+          >
+            Confirmar directamente
+          </Button>
+          <Button
+            onClick={() => {
+              setShowConfirmDialog(false);
+              // Keep current phase, don't change to confirmado
+              saveBooking(booking.phase);
+            }}
+            disabled={loading}
+          >
+            Consultar disponibilidad y viabilidad
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

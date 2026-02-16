@@ -3,9 +3,10 @@ import { useSearchParams } from 'react-router-dom';
 import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, closestCorners } from '@dnd-kit/core';
 import { SortableContext, arrayMove } from '@dnd-kit/sortable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { CompactBookingCard } from './CompactBookingCard';
@@ -109,6 +110,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectionMode, setSelectionMode] = useState(false);
+  const [pendingConfirmOffer, setPendingConfirmOffer] = useState<string | null>(null);
   
   const [filters, setFilters] = useState<BookingFiltersState>({
     searchTerm: '',
@@ -361,6 +363,11 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
     // Check if dropping in a different phase
     const newPhase = over.id as string;
     if (PHASES.some(phase => phase.id === newPhase)) {
+      // Intercept drag to confirmado - show confirmation dialog
+      if (newPhase === 'confirmado' && activeOffer.phase !== 'confirmado') {
+        setPendingConfirmOffer(activeOffer.id);
+        return;
+      }
       await updateOfferPhase(activeOffer.id, newPhase);
     } else {
       // Reordering within the same phase
@@ -863,6 +870,48 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
         onRefresh={fetchOffers}
         phases={PHASES}
       />
+      <AlertDialog open={!!pendingConfirmOffer} onOpenChange={(open) => !open && setPendingConfirmOffer(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              ¿Confirmar directamente?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-left space-y-2">
+              <p>
+                Recomendamos consultar la disponibilidad de todas las partes y verificar la viabilidad antes de confirmar un evento.
+              </p>
+              <p className="text-muted-foreground text-xs">
+                La opción recomendada mantiene el booking en su fase actual para que puedas gestionar disponibilidad y viabilidad desde el detalle.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (pendingConfirmOffer) {
+                  updateOfferPhase(pendingConfirmOffer, 'confirmado');
+                }
+                setPendingConfirmOffer(null);
+              }}
+            >
+              Confirmar directamente
+            </Button>
+            <Button
+              onClick={() => {
+                setPendingConfirmOffer(null);
+                toast({
+                  title: "Acción cancelada",
+                  description: "Puedes consultar disponibilidad y viabilidad desde el detalle del booking.",
+                });
+              }}
+            >
+              Consultar disponibilidad y viabilidad
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
