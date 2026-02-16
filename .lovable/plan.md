@@ -1,57 +1,19 @@
 
 
-# Auto-sugerir ubicacion y base de datos de ubicaciones
+# Forzar clic en el dialogo de sincronizacion de hora
 
-## Parte 1: Auto-rellenar ubicacion en Soundcheck y Show
+## Problema
 
-Cuando el usuario selecciona el tipo de actividad "Soundcheck" o "Show", el campo ubicacion se rellena automaticamente con el `lugar` del booking vinculado (ej: "La Nau"). El usuario puede editarlo despues si lo desea.
+El dialogo "Sincronizar hora del evento" se puede cerrar pulsando Enter, lo que puede llevar a una accion no deseada. El usuario quiere que sea obligatorio hacer clic en uno de los dos botones.
 
-### Cambio en `ScheduleBlock.tsx`
+## Solucion
 
-En el `InlineSelectCell` del `SortableScheduleRow`, cuando cambia `activityType` a `show` o `soundcheck`, si la ubicacion esta vacia, se rellena con `bookingInfo.venue`.
+En `src/components/roadmap-blocks/ScheduleBlock.tsx` (lineas 559-581):
 
-- Pasar `bookingInfo` como prop a `SortableScheduleRow`
-- En el `onChange` del `InlineSelectCell` (donde ya se auto-rellena el titulo), agregar logica para auto-rellenar `location` con `bookingInfo.venue` si esta vacio y el tipo es `show` o `soundcheck`
+1. Agregar `onInteractOutside={(e) => e.preventDefault()}` al `DialogContent` para evitar que se cierre al hacer clic fuera.
+2. Agregar `onEscapeKeyDown={(e) => e.preventDefault()}` para evitar que se cierre con Escape.
+3. Ocultar el boton X de cierre con la clase CSS `[&>button:last-child]:hidden` en el `DialogContent`.
+4. Cambiar `onOpenChange` para que no permita cerrar el dialogo externamente: `onOpenChange={() => {}}` (solo se cierra via los botones).
 
-## Parte 2: Tabla de ubicaciones para autocompletado
-
-Crear una tabla `roadmap_locations` en Supabase que almacene ubicaciones usadas previamente, asociadas a un artista. Cuando el usuario escribe en el campo de ubicacion, se sugieren coincidencias.
-
-### Esquema de la tabla
-
-```text
-roadmap_locations
-- id: uuid (PK)
-- artist_id: uuid (FK -> artist_profiles)
-- name: text (nombre del lugar, ej: "La Nau", "Hotel Arts")
-- category: text (opcional: venue, hotel, restaurant, airport, other)
-- city: text (opcional)
-- created_at: timestamptz
-```
-
-Con RLS habilitado y politica basada en el usuario autenticado.
-
-### Cambio en el campo de ubicacion
-
-Reemplazar el `InlineEditCell` de ubicacion por un componente con autocompletado:
-
-- Al escribir 2+ caracteres, consultar `roadmap_locations` filtrado por `artist_id` y `name ilike '%texto%'`
-- Mostrar sugerencias en un dropdown debajo del input
-- Al seleccionar una sugerencia, rellenar el campo
-- Al escribir un valor nuevo y salir del campo, guardar automaticamente la nueva ubicacion en `roadmap_locations`
-
-### Nuevo componente `LocationAutocomplete`
-
-Componente dentro de `src/components/roadmap-blocks/` que:
-- Recibe `artistId`, `value`, `onChange`
-- Usa `useQuery` para buscar ubicaciones con debounce
-- Muestra un Popover con las sugerencias
-- Inserta nuevas ubicaciones automaticamente al confirmar un valor que no existe
-
-### Archivos a modificar/crear
-
-1. **Nueva migracion SQL** - Crear tabla `roadmap_locations` con RLS
-2. **Nuevo componente** `src/components/roadmap-blocks/LocationAutocomplete.tsx`
-3. **`src/components/roadmap-blocks/ScheduleBlock.tsx`** - Pasar `bookingInfo` a `SortableScheduleRow`, auto-rellenar ubicacion en soundcheck/show, reemplazar `InlineEditCell` de ubicacion por `LocationAutocomplete`
-4. **Actualizar tipos Supabase** si es necesario tras la migracion
+Esto obliga al usuario a elegir explicitamente una de las dos opciones.
 
