@@ -28,6 +28,7 @@ interface ProductionBlockData {
 interface ProductionBlockProps {
   data: Record<string, unknown>;
   onChange: (data: Record<string, unknown>) => void;
+  linkedBookings?: Array<{ id: string; lugar: string | null; ciudad: string | null }>;
 }
 
 const categories = [
@@ -40,11 +41,12 @@ const categories = [
 
 const getCategoryConfig = (cat: string) => categories.find(c => c.value === cat) || categories[categories.length - 1];
 
-export function ProductionBlock({ data, onChange }: ProductionBlockProps) {
+export function ProductionBlock({ data, onChange, linkedBookings }: ProductionBlockProps) {
   const blockData = data as ProductionBlockData;
   const incomingVenues = blockData.venues || [];
 
   const [localVenues, setLocalVenues] = useState<VenueBackline[]>(incomingVenues);
+  const autoPopulatedRef = useRef(false);
   
   const lastSyncedRef = useRef<string>(JSON.stringify(incomingVenues));
   const debouncedVenues = useDebounce(localVenues, 500);
@@ -56,6 +58,26 @@ export function ProductionBlock({ data, onChange }: ProductionBlockProps) {
       setLocalVenues(incomingVenues);
     }
   }, [incomingVenues]);
+
+  // Auto-populate venues from linked bookings when empty
+  useEffect(() => {
+    if (autoPopulatedRef.current) return;
+    if (incomingVenues.length > 0 || localVenues.length > 0) return;
+    if (!linkedBookings || linkedBookings.length === 0) return;
+
+    autoPopulatedRef.current = true;
+    const generated: VenueBackline[] = linkedBookings
+      .filter(b => b.lugar || b.ciudad)
+      .map(b => ({
+        id: crypto.randomUUID(),
+        venueName: [b.lugar, b.ciudad].filter(Boolean).join(' - '),
+        items: [],
+      }));
+
+    if (generated.length > 0) {
+      setLocalVenues(generated);
+    }
+  }, [linkedBookings, incomingVenues, localVenues.length]);
 
   useEffect(() => {
     const next = JSON.stringify(debouncedVenues);
