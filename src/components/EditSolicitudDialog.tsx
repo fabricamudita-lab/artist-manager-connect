@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 
 interface Solicitud {
   id: string;
-  tipo: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro';
+  tipo: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro';
   nombre_solicitante: string;
   email?: string;
   telefono?: string;
@@ -71,7 +71,7 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
   const { fireCelebration } = useConfetti();
   const [artistFormats, setArtistFormats] = useState<{ id: string; name: string }[]>([]);
   const [formData, setFormData] = useState({
-    tipo: '' as 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro',
+    tipo: '' as 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro',
     nombre_solicitante: '',
     email: '',
     telefono: '',

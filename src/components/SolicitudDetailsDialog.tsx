@@ -45,7 +45,7 @@ import { ArtistProfileSelector } from '@/components/ArtistProfileSelector';
 
 interface SolicitudDetails {
   id: string;
-  tipo: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro';
+  tipo: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro';
   nombre_solicitante: string;
   email?: string;
   telefono?: string;

@@ -13,7 +13,7 @@ import { useConfetti } from '@/hooks/useConfetti';
 
 interface Solicitud {
   id: string;
-  tipo: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro';
+  tipo: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro';
   nombre_solicitante: string;
   email?: string;
   telefono?: string;
@@ -51,13 +51,17 @@ const COLUMNS = [
   { id: 'denegada', label: 'Denegadas', color: 'bg-destructive/20 border-destructive/30', icon: XCircle, iconColor: 'text-destructive' },
 ];
 
-const typeConfig = {
+const typeConfig: Record<string, { label: string; icon: typeof Mic; color: string }> = {
   entrevista: { label: 'Entrevista', icon: Mic, color: 'bg-green-500' },
   booking: { label: 'Booking', icon: Music, color: 'bg-blue-500' },
   consulta: { label: 'Consulta', icon: HelpCircle, color: 'bg-purple-500' },
   informacion: { label: 'Información', icon: Info, color: 'bg-orange-500' },
+  licencia: { label: 'Licencia', icon: FileText, color: 'bg-teal-500' },
   otro: { label: 'Otro', icon: FileText, color: 'bg-muted-foreground' },
 };
+
+const defaultTypeConfig = { label: 'Otro', icon: FileText, color: 'bg-muted-foreground' };
+const getTypeConfig = (tipo: string) => typeConfig[tipo] || defaultTypeConfig;
 
 interface SolicitudCardProps {
   solicitud: Solicitud;
@@ -79,7 +83,7 @@ function SolicitudCard({ solicitud, onOpenDetails }: SolicitudCardProps) {
     transition,
   };
 
-  const typeInfo = typeConfig[solicitud.tipo];
+  const typeInfo = getTypeConfig(solicitud.tipo);
   const TypeIcon = typeInfo.icon;
 
   const getDaysToDeadline = (dateStr?: string | null) => {
@@ -345,15 +349,15 @@ export function SolicitudesKanban({ solicitudes, onRefresh, onOpenDetails, onSta
         {draggedItem && (
           <div className="bg-card border rounded-xl p-3 shadow-large opacity-90 rotate-3">
             <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-lg ${typeConfig[draggedItem.tipo].color} flex items-center justify-center`}>
+              <div className={`w-8 h-8 rounded-lg ${getTypeConfig(draggedItem.tipo).color} flex items-center justify-center`}>
                 {(() => {
-                  const Icon = typeConfig[draggedItem.tipo].icon;
+                  const Icon = getTypeConfig(draggedItem.tipo).icon;
                   return <Icon className="w-4 h-4 text-white" />;
                 })()}
               </div>
               <div>
                 <h4 className="font-medium text-sm">{draggedItem.nombre_solicitante}</h4>
-                <p className="text-xs text-muted-foreground">{typeConfig[draggedItem.tipo].label}</p>
+                <p className="text-xs text-muted-foreground">{getTypeConfig(draggedItem.tipo).label}</p>
               </div>
             </div>
           </div>

@@ -14,7 +14,7 @@ import {
 
 interface Solicitud {
   id: string;
-  tipo: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'otro';
+  tipo: 'entrevista' | 'booking' | 'consulta' | 'informacion' | 'licencia' | 'otro';
   nombre_solicitante: string;
   estado: 'pendiente' | 'aprobada' | 'denegada';
   archived?: boolean;
@@ -28,15 +28,16 @@ interface SolicitudesStatsProps {
   solicitudes: Solicitud[];
 }
 
-const typeConfig = {
+const typeConfig: Record<string, { label: string; icon: typeof Mic; color: string }> = {
   entrevista: { label: 'Entrevista', icon: Mic, color: '#22c55e' },
   booking: { label: 'Booking', icon: Music, color: '#3b82f6' },
   consulta: { label: 'Consulta', icon: HelpCircle, color: '#a855f7' },
   informacion: { label: 'Información', icon: Info, color: '#f97316' },
+  licencia: { label: 'Licencia', icon: FileText, color: '#14b8a6' },
   otro: { label: 'Otro', icon: FileText, color: '#6b7280' },
 };
 
-const COLORS = ['#22c55e', '#3b82f6', '#a855f7', '#f97316', '#6b7280'];
+const COLORS = ['#22c55e', '#3b82f6', '#a855f7', '#f97316', '#14b8a6', '#6b7280'];
 
 export function SolicitudesStats({ solicitudes }: SolicitudesStatsProps) {
   const stats = useMemo(() => {
