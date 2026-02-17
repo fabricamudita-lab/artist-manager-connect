@@ -34,8 +34,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, Save, Plus, X, CalendarIcon, Clock, Ticket, ShieldCheck } from 'lucide-react';
+import { Loader2, Save, Plus, X, CalendarIcon, Clock, Ticket, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -344,6 +345,14 @@ export function EditBookingDialog({
                     />
                   </PopoverContent>
                 </Popover>
+                {formData.fecha && new Date(formData.fecha + 'T00:00:00') < new Date(new Date().toDateString()) && (
+                  <Alert variant="destructive" className="mt-2 py-2 px-3 border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400 [&>svg]:text-amber-600">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      La fecha seleccionada es anterior a hoy. El booking se guardará como evento pasado.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Hora</Label>
