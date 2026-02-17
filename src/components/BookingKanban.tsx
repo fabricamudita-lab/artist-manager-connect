@@ -519,27 +519,20 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
 
   const duplicateOffer = async (offerId: string) => {
     try {
-      const originalOffer = offers.find(o => o.id === offerId);
-      if (!originalOffer) return;
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user?.id) throw new Error('No autenticado');
 
-      const { id, created_at, updated_at, artist, availability_status, ...offerData } = originalOffer as any;
-      const duplicatedOffer = {
-        ...offerData,
-        phase: 'interes',
-        sort_order: offers.length,
-        created_by: offerData.created_by || 'unknown'
-      };
-
-      const { error } = await supabase
-        .from('booking_offers')
-        .insert([duplicatedOffer]);
+      const { data, error } = await supabase.rpc('duplicate_booking_deep', {
+        p_booking_id: offerId,
+        p_user_id: userData.user.id,
+      });
 
       if (error) throw error;
 
       fetchOffers();
       toast({
         title: "Oferta duplicada",
-        description: "La oferta se ha duplicado correctamente.",
+        description: "Se duplicó la oferta con presupuesto, hoja de ruta, documentos, gastos e itinerario.",
       });
     } catch (error) {
       console.error('Error duplicating offer:', error);

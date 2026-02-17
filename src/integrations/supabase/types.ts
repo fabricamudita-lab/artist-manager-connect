@@ -6417,6 +6417,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      duplicate_booking_deep: {
+        Args: { p_booking_id: string; p_user_id: string }
+        Returns: string
+      }
       generate_contact_slug: { Args: never; Returns: string }
       generate_epk_slug: { Args: { artista_proyecto: string }; Returns: string }
       generate_project_share_token: { Args: never; Returns: string }

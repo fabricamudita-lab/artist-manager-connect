@@ -166,33 +166,25 @@ export function BulkActionsBar({ selectedIds, offerMetaById, onClear, onRefresh,
   const handleBulkDuplicate = async () => {
     setIsProcessing(true);
     try {
-      // Fetch the selected offers
-      const { data: offers, error: fetchError } = await supabase
-        .from('booking_offers')
-        .select('*')
-        .in('id', selectedIds);
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user?.id) throw new Error('No autenticado');
 
-      if (fetchError) throw fetchError;
-
-      // Create duplicates
-      const duplicates = offers?.map(offer => {
-        const { id, created_at, updated_at, ...rest } = offer;
-        return {
-          ...rest,
-          phase: 'interes',
-          created_by: rest.created_by || 'unknown'
-        };
-      }) || [];
-
-      const { error: insertError } = await supabase
-        .from('booking_offers')
-        .insert(duplicates);
-
-      if (insertError) throw insertError;
+      let successCount = 0;
+      for (const bookingId of selectedIds) {
+        const { error } = await supabase.rpc('duplicate_booking_deep', {
+          p_booking_id: bookingId,
+          p_user_id: userData.user.id,
+        });
+        if (error) {
+          console.error(`Error duplicating ${bookingId}:`, error);
+        } else {
+          successCount++;
+        }
+      }
 
       toast({
         title: "Ofertas duplicadas",
-        description: `${selectedIds.length} ofertas duplicadas correctamente.`,
+        description: `${successCount} de ${selectedIds.length} ofertas duplicadas con todos sus datos.`,
       });
       onClear();
       onRefresh();
