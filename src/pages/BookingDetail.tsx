@@ -5,7 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, FileText, Plane, Receipt, Edit, ExternalLink, Copy, Share2, Copy as Duplicate, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, FileText, Plane, Receipt, Edit, ExternalLink, Copy, Share2, Copy as Duplicate, FolderOpen, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/useCommon';
@@ -293,6 +294,37 @@ export default function BookingDetail() {
                   ))}
                 </div>
               )}
+
+              {/* Alertas de incongruencia */}
+              {(() => {
+                const isPastDate = booking.fecha && new Date(booking.fecha + 'T23:59:59') < new Date();
+                const earlyPhases = ['interes', 'interés', 'oferta', 'negociacion', 'negociación'];
+                const isEarlyPhase = earlyPhases.includes(booking.phase?.toLowerCase() || '');
+                const viabilityCount = [booking.viability_manager_approved, booking.viability_tour_manager_approved, booking.viability_production_approved].filter(Boolean).length;
+                const isConfirmado = booking.phase?.toLowerCase() === 'confirmado';
+                const missingViability = isConfirmado && viabilityCount < 3;
+
+                return (
+                  <>
+                    {isPastDate && isEarlyPhase && (
+                      <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200">
+                        <AlertTriangle className="h-4 w-4 !text-amber-600" />
+                        <AlertDescription>
+                          Este evento ya pasó ({format(new Date(booking.fecha!), "d MMM yyyy", { locale: es })}). Debería estar en fase Confirmado o Facturado.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {missingViability && (
+                      <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200">
+                        <AlertTriangle className="h-4 w-4 !text-amber-600" />
+                        <AlertDescription>
+                          Este evento está confirmado pero faltan aprobaciones de viabilidad ({viabilityCount}/3).
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
 
