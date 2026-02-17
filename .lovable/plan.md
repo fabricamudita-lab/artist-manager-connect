@@ -1,33 +1,28 @@
 
-# Alertas de incongruencia en BookingDetail
+# Fix: Duplicar desde menu contextual no funciona
 
-## Contexto
+## Problema
 
-En la vista de detalle de un booking, si hay inconsistencias entre la fase/estado y la fecha o las aprobaciones, el usuario no recibe ninguna indicacion visual. Ejemplos:
-- Un booking en "Negociacion" cuya fecha ya paso hace semanas deberia estar facturado o al menos confirmado.
-- Un booking "Confirmado" que no tiene la disponibilidad o viabilidad completada.
+Al duplicar una oferta desde el menu contextual del Kanban, el error es:
 
-## Cambio
+```
+Could not find the 'availability_status' column of 'booking_offers' in the schema cache
+```
 
-En `src/pages/BookingDetail.tsx`, justo debajo de los badges de fase/artista (linea ~267, tras el cierre del div de badges), agregar un bloque de alertas condicionales:
+El campo `availability_status` se agrega en el cliente (no existe en la base de datos). Al hacer spread del objeto para duplicarlo, ese campo se incluye en el INSERT y Supabase lo rechaza.
 
-### Alerta 1: Fase atrasada respecto a la fecha
-- **Condicion**: La fecha del booking es anterior a hoy Y la fase es `interes`, `oferta` o `negociacion` (fases que no deberian tener eventos pasados).
-- **Mensaje**: Icono AlertTriangle + "Este evento ya paso (fecha). Deberia estar en fase Confirmado o Facturado."
-- **Estilo**: Banner amber/warning con borde, debajo del header.
+La barra inferior (BulkActionsBar) funciona porque hace un `select('*')` fresco desde la base de datos, que solo trae columnas reales.
 
-### Alerta 2: Confirmado sin viabilidad completa
-- **Condicion**: La fase es `confirmado` Y alguna de las 3 aprobaciones de viabilidad es `false`.
-- **Mensaje**: Icono AlertTriangle + "Este evento esta confirmado pero faltan aprobaciones de viabilidad (X/3)."
-- **Estilo**: Banner amber/warning.
+## Solucion
 
-### Alerta 3: Confirmado sin disponibilidad (opcional, si el dato esta disponible)
-- Se evalua si se puede detectar disponibilidad pendiente desde los datos ya cargados.
+En `src/components/BookingKanban.tsx`, en la funcion `duplicateOffer` (linea ~525), agregar `availability_status` a la lista de campos que se excluyen antes de insertar:
 
-## Detalle tecnico
+```ts
+// Antes (falla):
+const { id, created_at, updated_at, artist, ...offerData } = originalOffer as any;
 
-- Solo se modifica `src/pages/BookingDetail.tsx`.
-- Se importa `AlertTriangle` (ya importado) y `Alert`/`AlertDescription` de `@/components/ui/alert`.
-- Las alertas se renderizan como `Alert` con `variant="destructive"` y estilos amber, dentro del bloque del header despues de las fechas opcionales.
-- Logica de fecha pasada: `booking.fecha && new Date(booking.fecha + 'T23:59:59') < new Date()` y `['interes','oferta','negociacion'].includes(booking.phase)`.
-- Logica de viabilidad incompleta: `booking.phase === 'confirmado' && !(booking.viability_manager_approved && booking.viability_tour_manager_approved && booking.viability_production_approved)`.
+// Despues (corregido):
+const { id, created_at, updated_at, artist, availability_status, ...offerData } = originalOffer as any;
+```
+
+Es un cambio de una sola linea.
