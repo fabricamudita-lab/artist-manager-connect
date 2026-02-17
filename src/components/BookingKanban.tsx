@@ -68,6 +68,16 @@ export interface BookingOffer {
   };
   // Availability status for pending action indicator
   availability_status?: 'all_available' | 'has_conflicts' | 'pending' | null;
+  // Viability approvals
+  viability_manager_approved?: boolean | null;
+  viability_tour_manager_approved?: boolean | null;
+  viability_production_approved?: boolean | null;
+}
+
+function needsConfirmGuard(offer: BookingOffer): boolean {
+  return !(offer.viability_manager_approved &&
+           offer.viability_tour_manager_approved &&
+           offer.viability_production_approved);
 }
 
 // Main pipeline phases - displayed prominently
@@ -364,7 +374,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
     const newPhase = over.id as string;
     if (PHASES.some(phase => phase.id === newPhase)) {
       // Intercept drag to confirmado - show confirmation dialog
-      if (newPhase === 'confirmado' && activeOffer.phase !== 'confirmado') {
+      if (newPhase === 'confirmado' && activeOffer.phase !== 'confirmado' && needsConfirmGuard(activeOffer)) {
         setPendingConfirmOffer(activeOffer.id);
         return;
       }
@@ -384,9 +394,15 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
 
   const updateOfferPhase = async (offerId: string, newPhase: string) => {
     try {
+      const updateData: Record<string, any> = { phase: newPhase };
+      if (newPhase === 'confirmado') {
+        updateData.viability_manager_approved = true;
+        updateData.viability_tour_manager_approved = true;
+        updateData.viability_production_approved = true;
+      }
       const { error } = await supabase
         .from('booking_offers')
-        .update({ phase: newPhase })
+        .update(updateData)
         .eq('id', offerId);
 
       if (error) throw error;
@@ -769,7 +785,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
                         onDuplicate={duplicateOffer}
                         onDelete={deleteOffer}
                         onChangePhase={(id, newPhase) => {
-                          if (newPhase === 'confirmado' && offer.phase !== 'confirmado') {
+                          if (newPhase === 'confirmado' && offer.phase !== 'confirmado' && needsConfirmGuard(offer)) {
                             setPendingConfirmOffer(id);
                           } else {
                             updateOfferPhase(id, newPhase);
@@ -828,7 +844,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
                               onDuplicate={duplicateOffer}
                               onDelete={deleteOffer}
                               onChangePhase={(id, newPhase) => {
-                                if (newPhase === 'confirmado' && offer.phase !== 'confirmado') {
+                                if (newPhase === 'confirmado' && offer.phase !== 'confirmado' && needsConfirmGuard(offer)) {
                                   setPendingConfirmOffer(id);
                                 } else {
                                   updateOfferPhase(id, newPhase);
