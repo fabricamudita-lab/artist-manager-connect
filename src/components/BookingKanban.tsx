@@ -775,6 +775,13 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
                         offer={offer}
                         onDuplicate={duplicateOffer}
                         onDelete={deleteOffer}
+                        onChangePhase={(id, newPhase) => {
+                          if (newPhase === 'confirmado' && offer.phase !== 'confirmado') {
+                            setPendingConfirmOffer(id);
+                          } else {
+                            updateOfferPhase(id, newPhase);
+                          }
+                        }}
                         isDragging={draggedItem === offer.id}
                         selectionMode={selectionMode}
                         isSelected={selectedIds.includes(offer.id)}
@@ -827,6 +834,13 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
                               offer={offer}
                               onDuplicate={duplicateOffer}
                               onDelete={deleteOffer}
+                              onChangePhase={(id, newPhase) => {
+                                if (newPhase === 'confirmado' && offer.phase !== 'confirmado') {
+                                  setPendingConfirmOffer(id);
+                                } else {
+                                  updateOfferPhase(id, newPhase);
+                                }
+                              }}
                               isDragging={draggedItem === offer.id}
                               selectionMode={selectionMode}
                               isSelected={selectedIds.includes(offer.id)}
