@@ -680,7 +680,7 @@ export function EditBookingDialog({
               <div className="space-y-2">
                 <Label>Estado Facturación</Label>
                 <Select
-                  value={formData.estado_facturacion || ''}
+                  value={formData.estado_facturacion || 'pendiente'}
                   onValueChange={(v) => updateField('estado_facturacion', v)}
                 >
                   <SelectTrigger>
