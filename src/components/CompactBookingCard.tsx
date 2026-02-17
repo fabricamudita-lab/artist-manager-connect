@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger, ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent, ContextMenuSeparator } from '@/components/ui/context-menu';
 import { MoreHorizontal, Copy, Download, GripVertical, FileText, AlertTriangle, ArrowRight, CheckCircle2, AlertCircle, Trash2, MoveRight } from 'lucide-react';
 import { BookingOffer } from './BookingKanban';
@@ -161,6 +161,26 @@ export function CompactBookingCard({
                             <FileText className="h-3 w-3 mr-2" />
                             Ver detalles
                           </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger onClick={e => e.stopPropagation()}>
+                              <MoveRight className="h-3 w-3 mr-2" />
+                              Mover a...
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent className="w-44">
+                              {ALL_PHASES.filter(p => p.id !== offer.phase).map(phase => (
+                                <DropdownMenuItem
+                                  key={phase.id}
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    onChangePhase?.(offer.id, phase.id);
+                                  }}
+                                >
+                                  {phase.label}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={e => {
                             e.stopPropagation();
