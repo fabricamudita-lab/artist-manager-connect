@@ -36,7 +36,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Loader2, Save, Plus, X, CalendarIcon, Clock, Ticket, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -150,6 +150,7 @@ export function EditBookingDialog({
   const [loading, setLoading] = useState(false);
   const [artistFormats, setArtistFormats] = useState<string[]>([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showPastDateWarning, setShowPastDateWarning] = useState(false);
   const { syncBookingFolder } = useBookingFolderAutomation();
 
   useEffect(() => {
@@ -184,7 +185,25 @@ export function EditBookingDialog({
   };
 
   const handleSave = async () => {
+    // Check if date changed to a past date
+    const isPastDate = formData.fecha && new Date(formData.fecha + 'T00:00:00') < new Date(new Date().toDateString());
+    const dateChanged = formData.fecha !== booking.fecha;
+    if (isPastDate && dateChanged) {
+      setShowPastDateWarning(true);
+      return;
+    }
+
     // If phase changed to confirmado and it wasn't already confirmado, show confirmation dialog
+    const phaseChangedToConfirmado = formData.phase === 'confirmado' && booking.phase !== 'confirmado';
+    if (phaseChangedToConfirmado) {
+      setShowConfirmDialog(true);
+      return;
+    }
+    await saveBooking(formData.phase);
+  };
+
+  const proceedAfterPastDateWarning = async () => {
+    setShowPastDateWarning(false);
     const phaseChangedToConfirmado = formData.phase === 'confirmado' && booking.phase !== 'confirmado';
     if (phaseChangedToConfirmado) {
       setShowConfirmDialog(true);
@@ -345,14 +364,6 @@ export function EditBookingDialog({
                     />
                   </PopoverContent>
                 </Popover>
-                {formData.fecha && new Date(formData.fecha + 'T00:00:00') < new Date(new Date().toDateString()) && (
-                  <Alert variant="destructive" className="mt-2 py-2 px-3 border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400 [&>svg]:text-amber-600">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription className="text-xs">
-                      La fecha seleccionada es anterior a hoy. El booking se guardará como evento pasado.
-                    </AlertDescription>
-                  </Alert>
-                )}
               </div>
               <div className="space-y-2">
                 <Label>Hora</Label>
@@ -890,6 +901,28 @@ export function EditBookingDialog({
       </DialogContent>
     </Dialog>
 
+    <AlertDialog open={showPastDateWarning} onOpenChange={setShowPastDateWarning}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            Fecha anterior a hoy
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-left">
+            La fecha seleccionada ({formData.fecha}) es anterior a la fecha actual. El booking se guardará como evento pasado. ¿Deseas continuar?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => setShowPastDateWarning(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={proceedAfterPastDateWarning} disabled={loading}>
+            Aceptar y guardar
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
     <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -920,7 +953,6 @@ export function EditBookingDialog({
           <Button
             onClick={() => {
               setShowConfirmDialog(false);
-              // Keep current phase, don't change to confirmado
               saveBooking(booking.phase);
             }}
             disabled={loading}
