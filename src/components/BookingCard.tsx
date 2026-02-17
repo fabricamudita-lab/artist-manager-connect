@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Calendar, MapPin, Euro, Users, FileText, MoreHorizontal, Copy, Download, GripVertical } from 'lucide-react';
+import { Calendar, MapPin, Euro, Users, FileText, MoreHorizontal, Copy, Download, GripVertical, AlertTriangle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { BookingOffer } from './BookingKanban';
@@ -248,6 +249,24 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
               <div className="bg-blue-50 rounded p-2">
                 <p className="text-xs text-blue-800 line-clamp-2">
                   {offer.notas}
+                </p>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
+        {/* Inconsistency warning */}
+        {(() => {
+          const earlyPhases = ['interes', 'interés', 'oferta', 'negociacion', 'negociación'];
+          const isPast = offer.fecha && new Date(offer.fecha + 'T23:59:59') < new Date();
+          const isEarly = earlyPhases.includes(offer.phase?.toLowerCase() || '');
+          if (isPast && isEarly) {
+            return (
+              <div className="bg-amber-50 border border-amber-200 rounded p-2 flex items-center gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
+                <p className="text-xs text-amber-800">
+                  Evento pasado — debería estar en Confirmado o Facturado
                 </p>
               </div>
             );

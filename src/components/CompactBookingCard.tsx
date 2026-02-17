@@ -66,6 +66,12 @@ export function CompactBookingCard({
 
   const hasWarning = offer.es_internacional && offer.comision_porcentaje && offer.comision_porcentaje > 10;
   const hasConflicts = offer.availability_status === 'has_conflicts';
+  
+  // Inconsistency warnings
+  const earlyPhases = ['interes', 'interés', 'oferta', 'negociacion', 'negociación'];
+  const isPastDate = offer.fecha && new Date(offer.fecha + 'T23:59:59') < new Date();
+  const isEarlyPhase = earlyPhases.includes(offer.phase?.toLowerCase() || '');
+  const hasInconsistency = isPastDate && isEarlyPhase;
   const canAdvanceToNegociacion = (offer.phase === 'interes' || offer.phase === 'oferta') && offer.availability_status === 'all_available';
 
   const handleCardClick = (e: React.MouseEvent) => {
@@ -212,6 +218,16 @@ export function CompactBookingCard({
                   </Badge>
                 )}
                 {hasWarning && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+                {hasInconsistency && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs text-xs">
+                      Este evento ya pasó. Debería estar en fase Confirmado o Facturado.
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
             </CardContent>
           </Card>
