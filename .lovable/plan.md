@@ -1,48 +1,92 @@
 
-# Vincular presupuestos completos a lanzamientos (releases)
+# Nuevo formulario de presupuesto para lanzamientos (releases)
 
-## Que se hara
+## Resumen
 
-Conectar el sistema completo de presupuestos (`budgets` + `budget_items`) con los lanzamientos, permitiendo crear y gestionar presupuestos desde la seccion de Presupuestos de un release. Esto reemplaza la vista actual de partidas simples (`release_budgets`) con el sistema completo que ya se usa en los eventos de booking.
+Crear un nuevo componente `CreateReleaseBudgetDialog` exclusivo para la seccion de presupuestos de un release. Este formulario reemplaza al `CreateBudgetDialog` generico (orientado a conciertos) y contiene campos especificos para produccion musical, junto con "palancas" (toggles/variables) que generan automaticamente las partidas (budget_items) organizadas en las 11 categorias del mapa completo.
 
-## Cambios en base de datos
+## Que vera el usuario
 
-1. **Agregar columna `release_id` a la tabla `budgets`**: referencia opcional a `releases(id)` con `ON DELETE SET NULL`, para vincular un presupuesto al disco.
+### Paso 1: Cabecera (metadata)
+Campos pre-rellenados desde el release:
+- Artista (readonly, heredado del release)
+- Titulo del release (readonly)
+- Tipo (Single / EP / Album / Deluxe / Re-edicion)
+- Version (Clean / Explicit / Instrumental / Radio / Remixes)
+- Territorio objetivo (ES / Global / foco paises)
+- Sello y Distribucion (heredados del release si existen)
+- Estado (Idea / Produccion / Mezcla / Master / Entregado / Programado / Publicado)
+- Prioridad (Alta / Media / Baja)
+- Owner interno
+- Notas internas
 
-## Cambios en el frontend
+### Paso 2: Fechas
+- Release digital (principal)
+- Release fisico (opcional)
+- Singles previos (multi-fecha)
+- Deadlines auto-calculados: entrega masters, arte, pitch DSP, anuncio, pre-save (offsets desde fecha principal)
 
-### 1. Actualizar `ReleasePresupuestos.tsx` (tab "Costes de Produccion")
+### Paso 3: Variables que disparan presupuesto
+Toggles y campos numericos que determinan que partidas se generan:
+- N tracks (auto del release)
+- Productor/es (toggle + input)
+- Incluye mezcla? / Mezcla externa?
+- Master (estereo / vinilo / atmos / TBD)
+- N videoclips, N capsulas RRSS
+- Shooting?, Vestuario?, Making of?, Edicion capsulas?
+- Stage / residencia tecnica? + N dias
+- PR nacional? + proveedor + coste
+- PR internacional? + proveedor + coste
+- Gestion RRSS? + coste
+- Transporte / dietas / hospedaje?
+- Contingencia % (slider 5-15%)
 
-- Reemplazar la logica actual que usa `release_budgets` por una nueva que consulte `budgets` filtrando por `release_id`.
-- Mostrar una lista/tabla de presupuestos vinculados al release, cada uno con su nombre y totales.
-- Boton "Nuevo Presupuesto" que abre `CreateBudgetDialog` preconfigurado con:
-  - `type = 'produccion_musical'`
-  - `release_id` ya asignado
-  - `artist_id` heredado del release
-  - Categorias por defecto para disco (produccion, mezcla, mastering, grabacion, musicos, arte, video, marketing, distribucion, legal)
-- Al hacer clic en un presupuesto existente, abrir `BudgetDetailsDialog` con todo el sistema de partidas (budget_items), versiones, etc.
-- Mantener las cards de resumen (Estimado, Real, Diferencia) sumando los totales de todos los budgets vinculados.
-- Las tabs de "Derechos de Autor" y "Royalties Master" se mantienen sin cambios.
+### Al crear: generacion automatica de partidas
+Se crean `budget_categories` y `budget_items` segun las 11 categorias del mapa:
+1. Grabacion (produccion, ingenieria, musicos, alquiler estudio, mezcla, master...)
+2. Produccion (project management, making-of, capsulas, imprevistos)
+3. Diseno (direccion arte, diseno grafico, shooting, videoclips, capsulas RRSS, vestuario)
+4. Stage (tour mgmt, tecnica sonido, luces, escenografia, alquiler espacio, dietas)
+5. Transporte (combustible, alquiler vehiculo, transporte publico)
+6. Dietas (comidas, cenas, extras)
+7. Hospedaje (alojamiento, habitaciones extra)
+8. PR & Marketing (fotos, PR nacional/intl, RRSS, ads, playlisting, radio, influencers, EPK, evento)
+9. Distribucion & Admin (distribucion, content ID, registros, legal, contabilidad)
+10. Fabricacion & logistica (vinilo/CD, pruebas, packaging, envios, fulfillment)
+11. Contingencia (reserva/margen)
 
-### 2. Actualizar `CreateBudgetDialog.tsx`
+Cada budget_item se crea con: nombre, importe 0 por defecto (o el coste indicado), IVA %, IRPF %, proveedor vacio, notas, estado "Pendiente".
 
-- Aceptar nuevo prop opcional `releaseId?: string`.
-- Cuando se proporciona `releaseId`, guardar el valor en la columna `release_id` del nuevo presupuesto.
-- Opcionalmente saltar el paso de seleccion de tipo (preseleccionar `produccion_musical`).
+Solo se generan las categorias/subcategorias correspondientes a las variables activadas (toggles en "si").
 
-### 3. Actualizar `BudgetDetailsDialog.tsx`
+## Detalle tecnico
 
-- Sin cambios funcionales; solo asegurar que funcione correctamente cuando se abre desde el contexto de un release.
+### Archivos nuevos
+- `src/components/releases/CreateReleaseBudgetDialog.tsx` - Nuevo dialogo con formulario multi-paso (cabecera + fechas + variables + confirmacion)
 
-## Seccion tecnica
+### Archivos modificados
+- `src/pages/release-sections/ReleasePresupuestos.tsx` - Reemplazar `CreateBudgetDialog` por `CreateReleaseBudgetDialog`
+- `src/components/BudgetDetailsDialog.tsx` - Agregar constante `RELEASE_DEFAULT_CATEGORIES` con las 11 categorias del mapa, y logica `ensureReleaseCategories` para cuando `budget.type === 'produccion_musical'`
+
+### No se necesitan cambios en base de datos
+La tabla `budgets` ya tiene `release_id`, `type` (produccion_musical), y `budget_items` + `budget_categories` soportan cualquier estructura de categorias/subcategorias. Se usara el campo `internal_notes` del budget para guardar la metadata extendida (version, territorio, prioridad, etc.) como JSON si es necesario, o bien se almacenara en un campo JSONB nuevo.
+
+### Migracion SQL (opcional pero recomendada)
+Agregar una columna `metadata` de tipo JSONB a `budgets` para almacenar la configuracion especifica del release (version, territorio, prioridad, deadlines, variables activadas) sin alterar la estructura existente.
 
 ```text
--- Migracion SQL
-ALTER TABLE budgets ADD COLUMN release_id uuid REFERENCES releases(id) ON DELETE SET NULL;
-CREATE INDEX idx_budgets_release_id ON budgets(release_id);
+ALTER TABLE budgets ADD COLUMN IF NOT EXISTS metadata jsonb DEFAULT '{}'::jsonb;
 ```
 
-- Hook nuevo o query inline en `ReleasePresupuestos.tsx`:
-  `supabase.from('budgets').select('*').eq('release_id', releaseId)`
-- Las partidas de la tabla `release_budgets` existente seguiran funcionando de forma paralela (no se elimina nada).
-- El `CreateBudgetDialog` recibira `releaseId` y lo incluira en el INSERT.
+### Logica de generacion de partidas
+Al hacer submit, el dialogo:
+1. Crea el budget con `type = 'produccion_musical'`, `release_id`, `artist_id`, y `metadata` con toda la config
+2. Crea las `budget_categories` necesarias segun las variables activadas
+3. Crea los `budget_items` vinculados a cada categoria, con importes por defecto (0 o los indicados por el usuario)
+4. El usuario luego puede editar todo desde `BudgetDetailsDialog` (que ya existe y funciona)
+
+### Flujo de datos
+- El numero de tracks se lee automaticamente del release (query a `release_tracks`)
+- El artista se hereda del release
+- Las fechas del cronograma se leen de `release_milestones` si existen
+- Los campos de proveedor y coste de PR se almacenan como observaciones en el budget_item correspondiente
