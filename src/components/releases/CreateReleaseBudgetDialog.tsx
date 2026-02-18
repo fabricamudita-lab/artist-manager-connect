@@ -25,9 +25,9 @@ import { cn } from '@/lib/utils';
 import {
   CalendarIcon, ChevronLeft, ChevronRight, Loader2, Plus, X, Check,
   Disc3, Music, Camera, Megaphone, Truck, UtensilsCrossed, BedDouble,
-  Clapperboard, Package, ShieldAlert, Settings, Globe
+  Clapperboard, Package, ShieldAlert, Settings, Globe, GitMerge, Calculator, Blend
 } from 'lucide-react';
-import type { Release } from '@/hooks/useReleases';
+import type { Release, ReleaseMilestone } from '@/hooks/useReleases';
 
 // ─── TERRITORY OPTIONS ────────────────────────────────────────────
 const TERRITORY_GROUPS = [
@@ -186,13 +186,69 @@ export default function CreateReleaseBudgetDialog({
   const [singleDates, setSingleDates] = useState<Date[]>([]);
   const [autoDeadlines, setAutoDeadlines] = useState(true);
 
-  // Auto-calculated deadlines (offsets from release date)
+  // ─── Cronograma integration ─────────────────────────────────────
+  const [existingMilestones, setExistingMilestones] = useState<ReleaseMilestone[]>([]);
+  const [deadlineStrategy, setDeadlineStrategy] = useState<'cronograma' | 'autocalcular' | 'mezclar'>('autocalcular');
+  const hasCronograma = existingMilestones.length > 0;
+
+  // Extended deadline offsets aligned with cronograma tasks
+  const EXTENDED_DEADLINE_OFFSETS: { key: string; name: string; days: number; milestoneTitle: string }[] = [
+    { key: 'grabacion', name: 'Grabación', days: 70, milestoneTitle: 'Grabación' },
+    { key: 'mezcla', name: 'Mezcla', days: 55, milestoneTitle: 'Mezcla' },
+    { key: 'masters', name: 'Masters', days: 45, milestoneTitle: 'Mastering' },
+    { key: 'arte', name: 'Arte', days: 42, milestoneTitle: 'Artwork Final' },
+    { key: 'entregaDSP', name: 'Entrega DSP', days: 42, milestoneTitle: 'Entrega a Distribuidora' },
+    { key: 'preSave', name: 'Pre Save', days: 28, milestoneTitle: 'Pre-save Activo' },
+    { key: 'anuncio', name: 'Anuncio', days: 14, milestoneTitle: 'Focus Track / Anuncios' },
+    { key: 'salida', name: 'Salida Digital', days: 0, milestoneTitle: 'Salida Digital' },
+  ];
+
+  // Compute resolved deadlines based on strategy
+  const getResolvedDeadlines = () => {
+    if (!releaseDate) return [];
+    return EXTENDED_DEADLINE_OFFSETS.map(offset => {
+      const calculatedDate = subDays(releaseDate, offset.days);
+      const milestone = existingMilestones.find(m => m.title === offset.milestoneTitle);
+      const cronogramaDate = milestone?.due_date ? new Date(milestone.due_date) : null;
+
+      let finalDate: Date;
+      let source: 'cronograma' | 'calculado';
+
+      switch (deadlineStrategy) {
+        case 'cronograma':
+          finalDate = cronogramaDate || calculatedDate;
+          source = cronogramaDate ? 'cronograma' : 'calculado';
+          break;
+        case 'mezclar':
+          finalDate = cronogramaDate || calculatedDate;
+          source = cronogramaDate ? 'cronograma' : 'calculado';
+          break;
+        case 'autocalcular':
+        default:
+          finalDate = calculatedDate;
+          source = 'calculado';
+          break;
+      }
+
+      return {
+        key: offset.key,
+        name: offset.name,
+        calculatedDate,
+        cronogramaDate,
+        finalDate,
+        source,
+        milestoneStatus: milestone?.status || null,
+      };
+    });
+  };
+
+  // Legacy simple offsets (kept for backward compat in metadata)
   const deadlineOffsets = {
-    masters: 30,
-    arte: 45,
+    masters: 45,
+    arte: 42,
     pitchDSP: 28,
     anuncio: 14,
-    preSave: 14,
+    preSave: 28,
   };
 
   // ─── Variables (toggles) ─────────────────────────────────────────
@@ -223,7 +279,7 @@ export default function CreateReleaseBudgetDialog({
   const [fisico, setFisico] = useState(false);
   const [contingencia, setContingencia] = useState([10]);
 
-  // Reset on open
+  // Reset on open + fetch milestones
   useEffect(() => {
     if (open && release) {
       setBudgetName(`Presupuesto - ${release.title}`);
@@ -233,6 +289,19 @@ export default function CreateReleaseBudgetDialog({
       setReleaseDate(release.release_date ? new Date(release.release_date) : undefined);
       setStep('metadata');
       setServices([]);
+
+      // Fetch existing milestones for this release
+      supabase
+        .from('release_milestones')
+        .select('*')
+        .eq('release_id', release.id)
+        .order('due_date', { ascending: true, nullsFirst: true })
+        .then(({ data }) => {
+          const milestones = (data || []) as ReleaseMilestone[];
+          setExistingMilestones(milestones);
+          setDeadlineStrategy(milestones.length > 0 ? 'cronograma' : 'autocalcular');
+          setAutoDeadlines(milestones.length === 0);
+        });
     }
   }, [open, release, trackCount]);
 
@@ -265,6 +334,7 @@ export default function CreateReleaseBudgetDialog({
     setLoading(true);
 
     try {
+      const resolvedDeadlines = getResolvedDeadlines();
       const metadata = {
         release_type: releaseType,
         version,
@@ -278,6 +348,12 @@ export default function CreateReleaseBudgetDialog({
         release_date_physical: physicalDate?.toISOString() || null,
         single_dates: singleDates.map(d => d.toISOString()),
         auto_deadlines: autoDeadlines,
+        deadline_strategy: hasCronograma ? deadlineStrategy : 'autocalcular',
+        deadlines: resolvedDeadlines.map(d => ({
+          name: d.name,
+          date: d.finalDate.toISOString(),
+          source: d.source,
+        })),
         variables: {
           n_tracks: nTracks,
           producers,
@@ -780,21 +856,90 @@ export default function CreateReleaseBudgetDialog({
 
               <Separator />
 
-              {/* Auto deadlines */}
-              <ToggleRow label="Auto-calcular deadlines desde fecha principal" checked={autoDeadlines} onChange={setAutoDeadlines} />
-
-              {releaseDate && autoDeadlines && (
-                <Card className="bg-muted/30">
-                  <CardContent className="p-3 space-y-1.5">
-                    <p className="text-xs font-medium text-muted-foreground">Deadlines calculados:</p>
-                    {Object.entries(deadlineOffsets).map(([key, days]) => (
-                      <div key={key} className="flex justify-between text-xs">
-                        <span className="text-muted-foreground capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
-                        <span>{format(subDays(releaseDate, days), "dd MMM yyyy", { locale: es })}</span>
-                      </div>
+              {/* Deadline strategy - depends on whether cronograma exists */}
+              {hasCronograma ? (
+                <div className="space-y-3">
+                  <Label className="text-xs font-medium">Estrategia de deadlines</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Este lanzamiento tiene un cronograma con {existingMilestones.length} hitos. ¿Cómo quieres calcular los deadlines del presupuesto?
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { value: 'cronograma' as const, label: 'Usar cronograma', desc: 'Fechas reales del cronograma', icon: GitMerge },
+                      { value: 'autocalcular' as const, label: 'Recalcular', desc: 'Offsets desde fecha de lanzamiento', icon: Calculator },
+                      { value: 'mezclar' as const, label: 'Mezclar', desc: 'Cronograma + auto-relleno', icon: Blend },
+                    ]).map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setDeadlineStrategy(opt.value)}
+                        className={cn(
+                          "flex flex-col items-center gap-1 p-3 rounded-lg border text-center transition-colors",
+                          deadlineStrategy === opt.value
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border hover:border-primary/50"
+                        )}
+                      >
+                        <opt.icon className="h-4 w-4" />
+                        <span className="text-xs font-medium">{opt.label}</span>
+                        <span className="text-[10px] text-muted-foreground leading-tight">{opt.desc}</span>
+                      </button>
                     ))}
-                  </CardContent>
-                </Card>
+                  </div>
+
+                  {/* Comparative deadline table */}
+                  {releaseDate && (
+                    <Card className="bg-muted/30">
+                      <CardContent className="p-3 space-y-2">
+                        <div className="grid grid-cols-4 gap-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wide pb-1 border-b border-border">
+                          <span>Hito</span>
+                          <span>Cronograma</span>
+                          <span>Calculado</span>
+                          <span>Seleccionado</span>
+                        </div>
+                        {getResolvedDeadlines().map(d => (
+                          <div key={d.key} className="grid grid-cols-4 gap-1 text-xs items-center">
+                            <span className="font-medium truncate">{d.name}</span>
+                            <span className={cn("text-muted-foreground", !d.cronogramaDate && "italic text-muted-foreground/50")}>
+                              {d.cronogramaDate ? format(d.cronogramaDate, "dd MMM", { locale: es }) : '—'}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {format(d.calculatedDate, "dd MMM", { locale: es })}
+                            </span>
+                            <span className={cn(
+                              "font-medium",
+                              d.source === 'cronograma' ? "text-primary" : "text-foreground"
+                            )}>
+                              {format(d.finalDate, "dd MMM", { locale: es })}
+                              {d.source === 'cronograma' && (
+                                <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0 h-3.5">real</Badge>
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {/* No cronograma - simple toggle */}
+                  <ToggleRow label="Auto-calcular deadlines desde fecha principal" checked={autoDeadlines} onChange={setAutoDeadlines} />
+
+                  {releaseDate && autoDeadlines && (
+                    <Card className="bg-muted/30">
+                      <CardContent className="p-3 space-y-1.5">
+                        <p className="text-xs font-medium text-muted-foreground">Deadlines calculados:</p>
+                        {EXTENDED_DEADLINE_OFFSETS.map(offset => (
+                          <div key={offset.key} className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">{offset.name}</span>
+                            <span>{format(subDays(releaseDate, offset.days), "dd MMM yyyy", { locale: es })}</span>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
               )}
             </div>
           )}
