@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, DollarSign, FileText, Music, Eye, Trash2, Receipt } from 'lucide-react';
+import { ArrowLeft, Plus, DollarSign, Eye, Trash2, Receipt, FileText, Music, AlertTriangle, CalendarIcon, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useRelease, useTracks } from '@/hooks/useReleases';
+import { useRelease, useTracks, useReleaseMilestones } from '@/hooks/useReleases';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { TrackRightsSplitsManager } from '@/components/releases/TrackRightsSplitsManager';
 import CreateReleaseBudgetDialog from '@/components/releases/CreateReleaseBudgetDialog';
 import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
@@ -23,6 +24,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { format, subDays, differenceInDays, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface LinkedBudget {
   id: string;
@@ -30,6 +33,23 @@ interface LinkedBudget {
   fee?: number;
   budget_status?: string;
   created_at: string;
+  metadata?: Record<string, any> | null;
+}
+
+// Deadline offsets from release date (must match CreateReleaseBudgetDialog)
+const DEADLINE_OFFSETS: Record<string, { label: string; days: number }> = {
+  masters: { label: 'Entrega de Masters', days: 30 },
+  arte: { label: 'Entrega de Arte', days: 45 },
+  pitchDSP: { label: 'Pitch DSP', days: 28 },
+  anuncio: { label: 'Anuncio', days: 14 },
+  preSave: { label: 'Pre-save / Pre-order', days: 14 },
+};
+
+interface InconsistencyWarning {
+  type: 'date_mismatch' | 'track_count' | 'release_date_changed';
+  message: string;
+  detail: string;
+  budgetId?: string;
 }
 
 export default function ReleasePresupuestos() {
@@ -37,6 +57,7 @@ export default function ReleasePresupuestos() {
   const navigate = useNavigate();
   const { data: release, isLoading: loadingRelease } = useRelease(id);
   const { data: tracks, isLoading: loadingTracks } = useTracks(id);
+  const { data: milestones } = useReleaseMilestones(id);
 
   const [linkedBudgets, setLinkedBudgets] = useState<LinkedBudget[]>([]);
   const [loadingBudgets, setLoadingBudgets] = useState(true);
@@ -54,7 +75,7 @@ export default function ReleasePresupuestos() {
     try {
       const { data, error } = await (supabase
         .from('budgets')
-        .select('id, name, fee, budget_status, created_at') as any)
+        .select('id, name, fee, budget_status, created_at, metadata') as any)
         .eq('release_id', id)
         .order('created_at', { ascending: false });
 
@@ -66,7 +87,7 @@ export default function ReleasePresupuestos() {
         const { data: items, error: itemsError } = await supabase
           .from('budget_items')
           .select('budget_id, quantity, unit_price')
-          .in('budget_id', data.map(b => b.id));
+          .in('budget_id', data.map((b: any) => b.id));
 
         if (!itemsError && items) {
           const totals: Record<string, { estimated: number; actual: number }> = {};
@@ -103,6 +124,73 @@ export default function ReleasePresupuestos() {
     }
   };
 
+  // ─── Inconsistency warnings ──────────────────────────────────────
+  const warnings = useMemo<InconsistencyWarning[]>(() => {
+    if (!release || !linkedBudgets.length) return [];
+    const w: InconsistencyWarning[] = [];
+
+    const currentTrackCount = tracks?.length || 0;
+    const currentReleaseDate = release.release_date ? new Date(release.release_date) : null;
+
+    for (const budget of linkedBudgets) {
+      const meta = budget.metadata as Record<string, any> | null;
+      if (!meta?.variables) continue;
+
+      // 1. Track count mismatch
+      const budgetTrackCount = meta.variables?.n_tracks;
+      if (budgetTrackCount && currentTrackCount > 0 && budgetTrackCount !== currentTrackCount) {
+        w.push({
+          type: 'track_count',
+          message: `Nº tracks desactualizado en "${budget.name}"`,
+          detail: `El presupuesto se creó con ${budgetTrackCount} track${budgetTrackCount !== 1 ? 's' : ''}, pero el release tiene actualmente ${currentTrackCount}.`,
+          budgetId: budget.id,
+        });
+      }
+
+      // 2. Release date changed
+      const budgetReleaseDate = meta.release_date_digital ? new Date(meta.release_date_digital) : null;
+      if (budgetReleaseDate && currentReleaseDate) {
+        const daysDiff = Math.abs(differenceInDays(currentReleaseDate, budgetReleaseDate));
+        if (daysDiff > 0) {
+          w.push({
+            type: 'release_date_changed',
+            message: `Fecha de lanzamiento modificada`,
+            detail: `El presupuesto "${budget.name}" usa ${format(budgetReleaseDate, "dd MMM yyyy", { locale: es })} pero la fecha actual del release es ${format(currentReleaseDate, "dd MMM yyyy", { locale: es })} (${daysDiff} días de diferencia). Los deadlines auto-calculados pueden estar desactualizados.`,
+            budgetId: budget.id,
+          });
+        }
+      }
+    }
+
+    // 3. Milestone vs deadline mismatches
+    if (milestones && milestones.length > 0 && currentReleaseDate) {
+      const milestoneMap = new Map<string, Date>();
+      for (const m of milestones) {
+        if (m.due_date) {
+          milestoneMap.set(m.title.toLowerCase(), new Date(m.due_date));
+        }
+      }
+
+      for (const [key, offset] of Object.entries(DEADLINE_OFFSETS)) {
+        const expectedDate = subDays(currentReleaseDate, offset.days);
+        // Find matching milestone
+        const milestoneDate = milestoneMap.get(offset.label.toLowerCase());
+        if (milestoneDate) {
+          const daysDiff = Math.abs(differenceInDays(milestoneDate, expectedDate));
+          if (daysDiff > 2) { // Allow 2 days tolerance
+            w.push({
+              type: 'date_mismatch',
+              message: `Cronograma: "${offset.label}" desalineado`,
+              detail: `El hito del cronograma indica ${format(milestoneDate, "dd MMM yyyy", { locale: es })} pero según la fecha de lanzamiento debería ser ${format(expectedDate, "dd MMM yyyy", { locale: es })} (${daysDiff} días de diferencia).`,
+            });
+          }
+        }
+      }
+    }
+
+    return w;
+  }, [release, linkedBudgets, tracks, milestones]);
+
   const totalEstimated = Object.values(budgetTotals).reduce((sum, t) => sum + t.estimated, 0);
   const totalActual = linkedBudgets.reduce((sum, b) => sum + (b.fee || 0), 0);
 
@@ -121,6 +209,70 @@ export default function ReleasePresupuestos() {
           <h1 className="text-2xl font-bold">Presupuestos</h1>
         </div>
       </div>
+
+      {/* ─── Inconsistency Warnings ────────────────────────────────── */}
+      {warnings.length > 0 && (
+        <div className="space-y-2">
+          {warnings.map((w, i) => (
+            <Alert key={i} variant="destructive" className="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400 [&>svg]:text-amber-500">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle className="text-sm font-semibold">{w.message}</AlertTitle>
+              <AlertDescription className="text-xs">
+                {w.detail}
+                {w.type === 'date_mismatch' && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 ml-2 text-xs text-amber-600 dark:text-amber-400"
+                    onClick={() => navigate(`/releases/${id}/cronograma`)}
+                  >
+                    <Link2 className="h-3 w-3 mr-1" />
+                    Ir al Cronograma
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          ))}
+        </div>
+      )}
+
+      {/* ─── Cronograma summary (deadlines) ──────────────────────── */}
+      {release?.release_date && (
+        <Card className="bg-muted/30 border-dashed">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+              Deadlines del Cronograma
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {Object.entries(DEADLINE_OFFSETS).map(([key, offset]) => {
+                const expectedDate = subDays(new Date(release.release_date!), offset.days);
+                const milestone = milestones?.find(m => m.title.toLowerCase() === offset.label.toLowerCase());
+                const milestoneDate = milestone?.due_date ? new Date(milestone.due_date) : null;
+                const hasMismatch = milestoneDate && Math.abs(differenceInDays(milestoneDate, expectedDate)) > 2;
+
+                return (
+                  <div key={key} className="text-center">
+                    <p className="text-xs text-muted-foreground mb-1">{offset.label}</p>
+                    <p className={`text-xs font-medium ${hasMismatch ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+                      {milestoneDate
+                        ? format(milestoneDate, "dd MMM", { locale: es })
+                        : format(expectedDate, "dd MMM", { locale: es })}
+                    </p>
+                    {milestone && (
+                      <Badge variant="outline" className="text-[10px] mt-1 h-4">
+                        {milestone.status === 'completed' ? '✓' : milestone.status === 'delayed' ? '⚠' : '○'}
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="costes" className="space-y-4">
         <TabsList className="flex-wrap h-auto gap-1">
@@ -191,52 +343,60 @@ export default function ReleasePresupuestos() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {linkedBudgets.map((budget) => (
-                      <TableRow
-                        key={budget.id}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => {
-                          setSelectedBudget(budget);
-                          setShowDetailsDialog(true);
-                        }}
-                      >
-                        <TableCell className="font-medium">{budget.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {budget.budget_status || 'borrador'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          €{(budgetTotals[budget.id]?.estimated || 0).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {budget.fee ? `€${budget.fee.toLocaleString()}` : '-'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => {
-                                setSelectedBudget(budget);
-                                setShowDetailsDialog(true);
-                              }}
-                            >
-                              <Eye className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive"
-                              onClick={() => setDeleteBudgetId(budget.id)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {linkedBudgets.map((budget) => {
+                      const hasWarning = warnings.some(w => w.budgetId === budget.id);
+                      return (
+                        <TableRow
+                          key={budget.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => {
+                            setSelectedBudget(budget);
+                            setShowDetailsDialog(true);
+                          }}
+                        >
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {hasWarning && <AlertTriangle className="h-3.5 w-3.5 text-amber-500 animate-pulse" />}
+                              {budget.name}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {budget.budget_status || 'borrador'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            €{(budgetTotals[budget.id]?.estimated || 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {budget.fee ? `€${budget.fee.toLocaleString()}` : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  setSelectedBudget(budget);
+                                  setShowDetailsDialog(true);
+                                }}
+                              >
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive"
+                                onClick={() => setDeleteBudgetId(budget.id)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               ) : (
