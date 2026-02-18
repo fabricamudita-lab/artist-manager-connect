@@ -1,17 +1,65 @@
 
-## Problema
+# Mejoras a Sello, Distribucion y Owner interno
 
-El formulario del dialogo no hace scroll porque el `ScrollArea` no tiene una altura fija o limitada. Aunque el `DialogContent` tiene `max-h-[90vh]` y `flex flex-col`, el componente `ScrollArea` personalizado envuelve todo en un `div` extra que rompe el layout flex, impidiendo que `flex-1` funcione correctamente.
+## Problema actual
+
+Los tres campos (Sello, Distribucion, Owner interno) usan el mismo `BudgetContactSelector` generico que muestra todos los contactos y artistas del roster. Esto no tiene sentido porque:
+
+1. **Sello**: Deberia mostrar por defecto el sello vinculado al artista del release. No deberia mostrar artistas del roster como opciones de sello. Si no existe, debe permitir crear uno nuevo con la categoria "sello".
+2. **Distribucion**: Mismo concepto. Normalmente el sello ya se encarga.
+3. **Owner interno**: Solo deberia mostrar los contactos asignados al artista que tengan la categoria "management" o rol de owner.
 
 ## Solucion
 
-Modificar la clase del `ScrollArea` en `CreateReleaseBudgetDialog.tsx` para darle una altura maxima explicita y asegurar que el contenido sea scrollable. Se cambiara de `flex-1` a `min-h-0 flex-1 overflow-hidden` y se asegurara que el contenido interno tenga padding inferior suficiente.
+En lugar de usar `BudgetContactSelector` (que es generico), se creara un selector especializado inline dentro de `CreateReleaseBudgetDialog.tsx` que filtre contactos segun el contexto.
 
-## Cambio tecnico
+### Cambios en `CreateReleaseBudgetDialog.tsx`
 
-En `src/components/releases/CreateReleaseBudgetDialog.tsx`:
+**1. Cargar datos del artista al abrir el dialogo:**
+- Consultar `contact_artist_assignments` para obtener los contactos vinculados al artista del release.
+- Filtrar por `category = 'sello'` para pre-seleccionar el sello por defecto.
+- Filtrar por `category = 'management'` para las opciones de Owner interno.
 
-- Linea 509: Agregar `overflow-hidden` al `DialogContent` para que el flex container no crezca mas alla del viewport
-- Linea 535: Cambiar la clase del `ScrollArea` de `flex-1 -mx-6 px-6` a `flex-1 min-h-0 -mx-6 px-6` para que el contenedor flex pueda contraerse y activar el scroll
+**2. Campo Sello:**
+- Al abrir, si el artista tiene un contacto con `category = 'sello'` asignado, pre-seleccionarlo automaticamente.
+- Mostrar un selector (Popover + Command) con:
+  - Los contactos del artista que sean de categoria "sello" primero.
+  - Todos los contactos de la agenda con categoria "sello".
+  - Opcion "Crear nuevo sello..." que crea un contacto con `category: 'sello'`, `role: 'Sello'` y lo vincula al artista via `contact_artist_assignments`.
+- No mostrar artistas del roster.
 
-Alternativa mas robusta: reemplazar `ScrollArea` por un `div` con `overflow-y-auto` y clases flex apropiadas, ya que el componente `ScrollArea` personalizado agrega un wrapper `div` que interfiere con el flex layout.
+**3. Campo Distribucion:**
+- Mismo patron que Sello pero filtrando por contactos con `category` o `role` que contenga "distribucion".
+- Opcion de crear nuevo contacto con `category: 'distribucion'`, `role: 'Distribución'`.
+
+**4. Campo Owner interno:**
+- Solo mostrar contactos vinculados al artista (via `contact_artist_assignments`) que tengan `category = 'management'`.
+- No permitir crear nuevos, solo seleccionar de los existentes.
+
+### Detalle tecnico
+
+Se eliminaran las 3 instancias de `BudgetContactSelector` y se reemplazaran por selectores custom con la logica descrita.
+
+Nuevos estados:
+```text
+// Datos cargados al abrir
+artistContacts: Contact[]  // contactos asignados al artista
+allLabelContacts: Contact[]  // todos los contactos con category 'sello'
+allDistributionContacts: Contact[]  // todos con category 'distribucion'
+```
+
+Nuevo fetch en el `useEffect` de apertura:
+```text
+1. Query contact_artist_assignments WHERE artist_id = release.artist_id
+2. JOIN contacts para obtener nombre, category, role
+3. Query contacts WHERE category IN ('sello', 'distribucion') para opciones globales
+4. Pre-seleccionar sello si hay uno asignado al artista
+```
+
+Cada selector sera un Popover + Command con:
+- Seccion "Vinculados al artista" (contactos asignados)
+- Seccion "Otros" (contactos globales de esa categoria)
+- Opcion "Crear nuevo..." (solo para Sello y Distribucion)
+- Input para nombre al crear nuevo
+
+No se modifica la base de datos. Todo usa tablas existentes (`contacts`, `contact_artist_assignments`).
