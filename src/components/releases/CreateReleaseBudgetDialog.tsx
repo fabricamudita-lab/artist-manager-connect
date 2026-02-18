@@ -15,16 +15,62 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { BudgetContactSelector } from '@/components/BudgetContactSelector';
 import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import {
-  CalendarIcon, ChevronLeft, ChevronRight, Loader2, Plus, X,
+  CalendarIcon, ChevronLeft, ChevronRight, Loader2, Plus, X, Check,
   Disc3, Music, Camera, Megaphone, Truck, UtensilsCrossed, BedDouble,
-  Clapperboard, Package, ShieldAlert, Settings
+  Clapperboard, Package, ShieldAlert, Settings, Globe
 } from 'lucide-react';
 import type { Release } from '@/hooks/useReleases';
+
+// ─── TERRITORY OPTIONS ────────────────────────────────────────────
+const TERRITORY_GROUPS = [
+  { label: 'Global', options: [{ value: 'GLOBAL', label: 'Global (todos los territorios)' }] },
+  { label: 'Europa', options: [
+    { value: 'ES', label: 'España' }, { value: 'FR', label: 'Francia' }, { value: 'DE', label: 'Alemania' },
+    { value: 'IT', label: 'Italia' }, { value: 'GB', label: 'Reino Unido' }, { value: 'PT', label: 'Portugal' },
+    { value: 'NL', label: 'Países Bajos' }, { value: 'BE', label: 'Bélgica' }, { value: 'SE', label: 'Suecia' },
+    { value: 'NO', label: 'Noruega' }, { value: 'CH', label: 'Suiza' }, { value: 'AT', label: 'Austria' },
+    { value: 'PL', label: 'Polonia' }, { value: 'IE', label: 'Irlanda' }, { value: 'DK', label: 'Dinamarca' },
+    { value: 'FI', label: 'Finlandia' }, { value: 'GR', label: 'Grecia' }, { value: 'CZ', label: 'Rep. Checa' },
+    { value: 'RO', label: 'Rumanía' }, { value: 'HU', label: 'Hungría' },
+  ]},
+  { label: 'Latinoamérica', options: [
+    { value: 'MX', label: 'México' }, { value: 'AR', label: 'Argentina' }, { value: 'CO', label: 'Colombia' },
+    { value: 'CL', label: 'Chile' }, { value: 'PE', label: 'Perú' }, { value: 'EC', label: 'Ecuador' },
+    { value: 'UY', label: 'Uruguay' }, { value: 'BR', label: 'Brasil' }, { value: 'VE', label: 'Venezuela' },
+    { value: 'CR', label: 'Costa Rica' }, { value: 'PA', label: 'Panamá' }, { value: 'DO', label: 'Rep. Dominicana' },
+    { value: 'GT', label: 'Guatemala' }, { value: 'PY', label: 'Paraguay' }, { value: 'BO', label: 'Bolivia' },
+  ]},
+  { label: 'Norteamérica', options: [
+    { value: 'US', label: 'Estados Unidos' }, { value: 'CA', label: 'Canadá' },
+  ]},
+  { label: 'Asia-Pacífico', options: [
+    { value: 'JP', label: 'Japón' }, { value: 'KR', label: 'Corea del Sur' }, { value: 'AU', label: 'Australia' },
+    { value: 'NZ', label: 'Nueva Zelanda' }, { value: 'IN', label: 'India' }, { value: 'CN', label: 'China' },
+    { value: 'PH', label: 'Filipinas' }, { value: 'TH', label: 'Tailandia' },
+  ]},
+  { label: 'África y Oriente Medio', options: [
+    { value: 'MA', label: 'Marruecos' }, { value: 'ZA', label: 'Sudáfrica' }, { value: 'AE', label: 'EAU' },
+    { value: 'EG', label: 'Egipto' }, { value: 'NG', label: 'Nigeria' }, { value: 'IL', label: 'Israel' },
+    { value: 'SA', label: 'Arabia Saudí' }, { value: 'TR', label: 'Turquía' },
+  ]},
+];
+
+const ALL_TERRITORIES = TERRITORY_GROUPS.flatMap(g => g.options);
+
+// ─── SERVICE OPTIONS ──────────────────────────────────────────────
+const SERVICE_OPTIONS = [
+  'Grabación', 'Mezcla', 'Mastering', 'Videoclip', 'Shooting', 'PR Nacional',
+  'PR Internacional', 'RRSS / Contenidos', 'Diseño gráfico', 'Distribución',
+  'Fabricación física', 'Stage / Residencia', 'Evento de lanzamiento',
+];
 
 interface CreateReleaseBudgetDialogProps {
   open: boolean;
@@ -124,12 +170,12 @@ export default function CreateReleaseBudgetDialog({
   const [budgetName, setBudgetName] = useState('');
   const [releaseType, setReleaseType] = useState<string>(release?.type || 'single');
   const [version, setVersion] = useState('clean');
-  const [territory, setTerritory] = useState('ES');
-  const [label, setLabel] = useState(release?.label || '');
-  const [distribution, setDistribution] = useState('');
+  const [territories, setTerritories] = useState<string[]>(['ES']);
+  const [labelContactId, setLabelContactId] = useState<string | undefined>(undefined);
+  const [distributionContactId, setDistributionContactId] = useState<string | undefined>(undefined);
   const [estado, setEstado] = useState('produccion');
-  const [priority, setPriority] = useState('media');
-  const [ownerInterno, setOwnerInterno] = useState('');
+  const [services, setServices] = useState<string[]>([]);
+  const [ownerContactId, setOwnerContactId] = useState<string | undefined>(undefined);
   const [notasInternas, setNotasInternas] = useState('');
 
   // ─── Dates ───────────────────────────────────────────────────────
@@ -182,10 +228,11 @@ export default function CreateReleaseBudgetDialog({
     if (open && release) {
       setBudgetName(`Presupuesto - ${release.title}`);
       setReleaseType(release.type || 'single');
-      setLabel(release.label || '');
+      setLabelContactId(undefined);
       setNTracks(trackCount || 1);
       setReleaseDate(release.release_date ? new Date(release.release_date) : undefined);
       setStep('metadata');
+      setServices([]);
     }
   }, [open, release, trackCount]);
 
@@ -221,11 +268,12 @@ export default function CreateReleaseBudgetDialog({
       const metadata = {
         release_type: releaseType,
         version,
-        territory,
-        distribution,
+        territories,
+        label_contact_id: labelContactId || null,
+        distribution_contact_id: distributionContactId || null,
+        owner_contact_id: ownerContactId || null,
         estado,
-        priority,
-        owner_interno: ownerInterno,
+        services,
         release_date_digital: releaseDate?.toISOString() || null,
         release_date_physical: physicalDate?.toISOString() || null,
         single_dates: singleDates.map(d => d.toISOString()),
@@ -533,19 +581,68 @@ export default function CreateReleaseBudgetDialog({
                 </div>
               </div>
 
+              {/* Territorio multi-select */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Territorio objetivo</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal h-auto min-h-9 text-sm py-1.5">
+                      <Globe className="mr-2 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                      {territories.length === 0 ? (
+                        <span className="text-muted-foreground">Seleccionar territorios...</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {territories.map(t => {
+                            const opt = ALL_TERRITORIES.find(o => o.value === t);
+                            return (
+                              <Badge key={t} variant="secondary" className="text-xs px-1.5 py-0 h-5 gap-0.5">
+                                {opt?.label || t}
+                                <X className="h-2.5 w-2.5 cursor-pointer" onClick={(e) => {
+                                  e.stopPropagation();
+                                  setTerritories(prev => prev.filter(v => v !== t));
+                                }} />
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar país..." />
+                      <CommandList className="max-h-[250px]">
+                        <CommandEmpty>No encontrado</CommandEmpty>
+                        {TERRITORY_GROUPS.map(group => (
+                          <CommandGroup key={group.label} heading={group.label}>
+                            {group.options.map(opt => (
+                              <CommandItem
+                                key={opt.value}
+                                value={opt.label}
+                                onSelect={() => {
+                                  setTerritories(prev =>
+                                    prev.includes(opt.value)
+                                      ? prev.filter(v => v !== opt.value)
+                                      : [...prev, opt.value]
+                                  );
+                                }}
+                              >
+                                <Checkbox
+                                  checked={territories.includes(opt.value)}
+                                  className="mr-2 h-3.5 w-3.5"
+                                />
+                                <span className="text-sm">{opt.label}</span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        ))}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Territorio objetivo</Label>
-                  <Select value={territory} onValueChange={setTerritory}>
-                    <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ES">España</SelectItem>
-                      <SelectItem value="LATAM">Latinoamérica</SelectItem>
-                      <SelectItem value="EU">Europa</SelectItem>
-                      <SelectItem value="GLOBAL">Global</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Estado</Label>
                   <Select value={estado} onValueChange={setEstado}>
@@ -563,33 +660,84 @@ export default function CreateReleaseBudgetDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Sello</Label>
-                  <Input value={label} onChange={e => setLabel(e.target.value)} placeholder="Nombre del sello" className="h-9 text-sm" />
+                  <BudgetContactSelector
+                    value={labelContactId}
+                    onValueChange={(v) => setLabelContactId(v || undefined)}
+                    compact
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Distribución</Label>
-                  <Input value={distribution} onChange={e => setDistribution(e.target.value)} placeholder="Distribuidor" className="h-9 text-sm" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Prioridad</Label>
-                  <Select value={priority} onValueChange={setPriority}>
-                    <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="alta">Alta</SelectItem>
-                      <SelectItem value="media">Media</SelectItem>
-                      <SelectItem value="baja">Baja</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <BudgetContactSelector
+                    value={distributionContactId}
+                    onValueChange={(v) => setDistributionContactId(v || undefined)}
+                    compact
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Owner interno</Label>
-                  <Input value={ownerInterno} onChange={e => setOwnerInterno(e.target.value)} placeholder="Responsable" className="h-9 text-sm" />
+                  <BudgetContactSelector
+                    value={ownerContactId}
+                    onValueChange={(v) => setOwnerContactId(v || undefined)}
+                    compact
+                  />
                 </div>
+              </div>
+
+              {/* Servicios multi-select */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Servicios contratados</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal h-auto min-h-9 text-sm py-1.5">
+                      {services.length === 0 ? (
+                        <span className="text-muted-foreground">Seleccionar servicios...</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {services.map(s => (
+                            <Badge key={s} variant="secondary" className="text-xs px-1.5 py-0 h-5 gap-0.5">
+                              {s}
+                              <X className="h-2.5 w-2.5 cursor-pointer" onClick={(e) => {
+                                e.stopPropagation();
+                                setServices(prev => prev.filter(v => v !== s));
+                              }} />
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[280px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar servicio..." />
+                      <CommandList className="max-h-[250px]">
+                        <CommandEmpty>No encontrado</CommandEmpty>
+                        <CommandGroup>
+                          {SERVICE_OPTIONS.map(svc => (
+                            <CommandItem
+                              key={svc}
+                              value={svc}
+                              onSelect={() => {
+                                setServices(prev =>
+                                  prev.includes(svc) ? prev.filter(v => v !== svc) : [...prev, svc]
+                                );
+                              }}
+                            >
+                              <Checkbox
+                                checked={services.includes(svc)}
+                                className="mr-2 h-3.5 w-3.5"
+                              />
+                              <span className="text-sm">{svc}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-1.5">
