@@ -17,7 +17,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { BudgetContactSelector } from '@/components/BudgetContactSelector';
+import { ReleaseBudgetContactField } from '@/components/releases/ReleaseBudgetContactField';
 import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -663,26 +663,29 @@ export default function CreateReleaseBudgetDialog({
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Sello</Label>
-                  <BudgetContactSelector
+                  <ReleaseBudgetContactField
+                    type="sello"
+                    artistId={release?.artist_id || null}
                     value={labelContactId}
-                    onValueChange={(v) => setLabelContactId(v || undefined)}
-                    compact
+                    onValueChange={setLabelContactId}
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Distribución</Label>
-                  <BudgetContactSelector
+                  <ReleaseBudgetContactField
+                    type="distribucion"
+                    artistId={release?.artist_id || null}
                     value={distributionContactId}
-                    onValueChange={(v) => setDistributionContactId(v || undefined)}
-                    compact
+                    onValueChange={setDistributionContactId}
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Owner interno</Label>
-                  <BudgetContactSelector
+                  <ReleaseBudgetContactField
+                    type="owner"
+                    artistId={release?.artist_id || null}
                     value={ownerContactId}
-                    onValueChange={(v) => setOwnerContactId(v || undefined)}
-                    compact
+                    onValueChange={setOwnerContactId}
                   />
                 </div>
               </div>
