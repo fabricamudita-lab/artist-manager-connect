@@ -1,92 +1,87 @@
 
-# Nuevo formulario de presupuesto para lanzamientos (releases)
+# Mejoras al formulario de presupuesto de lanzamiento
 
-## Resumen
+## Problema detectado
 
-Crear un nuevo componente `CreateReleaseBudgetDialog` exclusivo para la seccion de presupuestos de un release. Este formulario reemplaza al `CreateBudgetDialog` generico (orientado a conciertos) y contiene campos especificos para produccion musical, junto con "palancas" (toggles/variables) que generan automaticamente las partidas (budget_items) organizadas en las 11 categorias del mapa completo.
+1. **Territorio objetivo**: Solo muestra 4 opciones regionales (Espana, Latinoamerica, Europa, Global). Deberia ser un selector multi-seleccion con todos los paises y regiones relevantes del mercado musical.
 
-## Que vera el usuario
+2. **Sello, Distribucion y Owner interno**: Son inputs de texto libre. Deberian vincularse a perfiles/contactos existentes usando el patron `BudgetContactSelector` (buscar o crear), etiquetando automaticamente los nuevos contactos como "sello", "distribucion" u "owner".
 
-### Paso 1: Cabecera (metadata)
-Campos pre-rellenados desde el release:
-- Artista (readonly, heredado del release)
-- Titulo del release (readonly)
-- Tipo (Single / EP / Album / Deluxe / Re-edicion)
-- Version (Clean / Explicit / Instrumental / Radio / Remixes)
-- Territorio objetivo (ES / Global / foco paises)
-- Sello y Distribucion (heredados del release si existen)
-- Estado (Idea / Produccion / Mezcla / Master / Entregado / Programado / Publicado)
-- Prioridad (Alta / Media / Baja)
-- Owner interno
-- Notas internas
+3. **Prioridad**: No tiene sentido como Alta/Media/Baja. Se reemplaza por un selector multi-seleccion de **Servicios contratados** que clasifique que servicios incluye este presupuesto (ej: Grabacion, Mezcla, Master, Videoclip, PR, RRSS, etc.).
 
-### Paso 2: Fechas
-- Release digital (principal)
-- Release fisico (opcional)
-- Singles previos (multi-fecha)
-- Deadlines auto-calculados: entrega masters, arte, pitch DSP, anuncio, pre-save (offsets desde fecha principal)
+## Cambios en `CreateReleaseBudgetDialog.tsx`
 
-### Paso 3: Variables que disparan presupuesto
-Toggles y campos numericos que determinan que partidas se generan:
-- N tracks (auto del release)
-- Productor/es (toggle + input)
-- Incluye mezcla? / Mezcla externa?
-- Master (estereo / vinilo / atmos / TBD)
-- N videoclips, N capsulas RRSS
-- Shooting?, Vestuario?, Making of?, Edicion capsulas?
-- Stage / residencia tecnica? + N dias
-- PR nacional? + proveedor + coste
-- PR internacional? + proveedor + coste
-- Gestion RRSS? + coste
-- Transporte / dietas / hospedaje?
-- Contingencia % (slider 5-15%)
+### A) Territorio objetivo -> Multi-select de paises/regiones
 
-### Al crear: generacion automatica de partidas
-Se crean `budget_categories` y `budget_items` segun las 11 categorias del mapa:
-1. Grabacion (produccion, ingenieria, musicos, alquiler estudio, mezcla, master...)
-2. Produccion (project management, making-of, capsulas, imprevistos)
-3. Diseno (direccion arte, diseno grafico, shooting, videoclips, capsulas RRSS, vestuario)
-4. Stage (tour mgmt, tecnica sonido, luces, escenografia, alquiler espacio, dietas)
-5. Transporte (combustible, alquiler vehiculo, transporte publico)
-6. Dietas (comidas, cenas, extras)
-7. Hospedaje (alojamiento, habitaciones extra)
-8. PR & Marketing (fotos, PR nacional/intl, RRSS, ads, playlisting, radio, influencers, EPK, evento)
-9. Distribucion & Admin (distribucion, content ID, registros, legal, contabilidad)
-10. Fabricacion & logistica (vinilo/CD, pruebas, packaging, envios, fulfillment)
-11. Contingencia (reserva/margen)
+- Reemplazar el `Select` simple por un selector multi-seleccion (checkboxes dentro de un Popover/Command).
+- Opciones organizadas por region:
+  - **Global**
+  - **Europa**: Espana, Francia, Alemania, Italia, Reino Unido, Portugal, Paises Bajos, Belgica, Suecia, Noruega, Suiza, Austria, Polonia, etc.
+  - **Latinoamerica**: Mexico, Argentina, Colombia, Chile, Peru, Ecuador, Uruguay, Brasil, etc.
+  - **Norteamerica**: Estados Unidos, Canada
+  - **Asia-Pacifico**: Japon, Corea del Sur, Australia, etc.
+  - **Africa y Oriente Medio**: Marruecos, Sudafrica, EAU, etc.
+- Estado: cambia de `territory: string` a `territories: string[]`
+- Se muestra como badges/pills con los paises seleccionados
 
-Cada budget_item se crea con: nombre, importe 0 por defecto (o el coste indicado), IVA %, IRPF %, proveedor vacio, notas, estado "Pendiente".
+### B) Sello, Distribucion, Owner interno -> `BudgetContactSelector`
 
-Solo se generan las categorias/subcategorias correspondientes a las variables activadas (toggles en "si").
+- **Sello**: Reemplazar `Input` por `BudgetContactSelector` con `compact={true}`. Al crear un contacto nuevo, se etiqueta automaticamente con `category: 'sello'` y `role: 'Sello'`.
+- **Distribucion**: Igual, con `category: 'distribucion'` y `role: 'Distribucion'`.
+- **Owner interno**: Igual, con `role: 'Owner'`.
+- Se almacena el `contact_id` (UUID) en el metadata en lugar de texto libre.
+- Estado: `label` y `distribution` y `ownerInterno` pasan de `string` a `string` (contact_id UUID).
+
+### C) Prioridad -> Servicios (multi-select)
+
+- Eliminar el campo "Prioridad" (Alta/Media/Baja).
+- Reemplazarlo por **"Servicios"**: un selector multi-seleccion con opciones como:
+  - Grabacion
+  - Mezcla
+  - Mastering
+  - Videoclip
+  - Shooting
+  - PR Nacional
+  - PR Internacional
+  - RRSS / Contenidos
+  - Diseno grafico
+  - Distribucion
+  - Fabricacion fisica
+  - Stage / Residencia
+  - Evento de lanzamiento
+- Se almacena como `services: string[]` en el metadata.
+- Se muestran como badges debajo del selector.
 
 ## Detalle tecnico
 
-### Archivos nuevos
-- `src/components/releases/CreateReleaseBudgetDialog.tsx` - Nuevo dialogo con formulario multi-paso (cabecera + fechas + variables + confirmacion)
+### Archivo modificado: `src/components/releases/CreateReleaseBudgetDialog.tsx`
 
-### Archivos modificados
-- `src/pages/release-sections/ReleasePresupuestos.tsx` - Reemplazar `CreateBudgetDialog` por `CreateReleaseBudgetDialog`
-- `src/components/BudgetDetailsDialog.tsx` - Agregar constante `RELEASE_DEFAULT_CATEGORIES` con las 11 categorias del mapa, y logica `ensureReleaseCategories` para cuando `budget.type === 'produccion_musical'`
-
-### No se necesitan cambios en base de datos
-La tabla `budgets` ya tiene `release_id`, `type` (produccion_musical), y `budget_items` + `budget_categories` soportan cualquier estructura de categorias/subcategorias. Se usara el campo `internal_notes` del budget para guardar la metadata extendida (version, territorio, prioridad, etc.) como JSON si es necesario, o bien se almacenara en un campo JSONB nuevo.
-
-### Migracion SQL (opcional pero recomendada)
-Agregar una columna `metadata` de tipo JSONB a `budgets` para almacenar la configuracion especifica del release (version, territorio, prioridad, deadlines, variables activadas) sin alterar la estructura existente.
-
+Cambios de estado:
 ```text
-ALTER TABLE budgets ADD COLUMN IF NOT EXISTS metadata jsonb DEFAULT '{}'::jsonb;
+// Antes
+territory: string ('ES')
+label: string
+distribution: string
+ownerInterno: string
+priority: string ('media')
+
+// Despues
+territories: string[] (['ES'])
+labelContactId: string (UUID)
+distributionContactId: string (UUID)
+ownerContactId: string (UUID)
+services: string[] ([])
 ```
 
-### Logica de generacion de partidas
-Al hacer submit, el dialogo:
-1. Crea el budget con `type = 'produccion_musical'`, `release_id`, `artist_id`, y `metadata` con toda la config
-2. Crea las `budget_categories` necesarias segun las variables activadas
-3. Crea los `budget_items` vinculados a cada categoria, con importes por defecto (0 o los indicados por el usuario)
-4. El usuario luego puede editar todo desde `BudgetDetailsDialog` (que ya existe y funciona)
+Cambios en la UI (seccion metadata, lineas ~536-593):
+- Territorio: reemplazar Select por Popover con Command + checkboxes agrupados por region
+- Sello/Distribucion/Owner: reemplazar Input por 3 instancias de `BudgetContactSelector compact`
+- Prioridad: eliminar y reemplazar por multi-select de servicios
 
-### Flujo de datos
-- El numero de tracks se lee automaticamente del release (query a `release_tracks`)
-- El artista se hereda del release
-- Las fechas del cronograma se leen de `release_milestones` si existen
-- Los campos de proveedor y coste de PR se almacenan como observaciones en el budget_item correspondiente
+Cambios en el metadata guardado (lineas ~221-250):
+- `territory` -> `territories`
+- `label_contact_id`, `distribution_contact_id`, `owner_contact_id` (UUIDs)
+- `priority` eliminado, `services` anadido
+
+### Sin cambios en base de datos
+Todo se almacena en la columna `metadata` (JSONB) que ya existe.
