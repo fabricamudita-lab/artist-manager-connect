@@ -506,7 +506,7 @@ export default function CreateReleaseBudgetDialog({
   // ─── RENDER ──────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Disc3 className="h-5 w-5 text-primary" />
@@ -532,7 +532,7 @@ export default function CreateReleaseBudgetDialog({
           </div>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 -mx-6 px-6">
+        <div className="flex-1 min-h-0 overflow-y-auto -mx-6 px-6">
           {/* ═══ STEP 1: METADATA ═══ */}
           {step === 'metadata' && (
             <div className="space-y-4 pb-4">
@@ -924,7 +924,7 @@ export default function CreateReleaseBudgetDialog({
               </Card>
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between pt-3 border-t">
