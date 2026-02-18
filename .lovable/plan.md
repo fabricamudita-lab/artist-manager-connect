@@ -1,26 +1,31 @@
 
-# Fix: Error al duplicar oferta — valor invalido para budget_status
+# Fix: "Confirmar directamente" falla porque no establece las aprobaciones de viabilidad
 
 ## Problema
 
-La funcion `duplicate_booking_deep` inserta `'borrador'` como valor de `budget_status` al duplicar presupuestos, pero el enum `budget_status` solo tiene dos valores validos: `nacional` e `internacional`. Esto causa el error `22P02: invalid input value for enum budget_status: "borrador"`.
+Al hacer clic en "Confirmar directamente" en el dialogo de edicion, se envia `phase: "confirmado"` pero las tres aprobaciones de viabilidad (`viability_manager_approved`, `viability_tour_manager_approved`, `viability_production_approved`) siguen en `false`. El trigger de base de datos rechaza la transicion con el error "No se puede confirmar: Falta aprobacion del Manager".
 
 ## Solucion
 
-Crear una nueva migracion SQL que actualice la funcion `duplicate_booking_deep`. En la seccion 2 (Duplicate budgets), cambiar la linea que hardcodea `'borrador'` por copiar el valor original del presupuesto fuente.
+Modificar la funcion `saveBooking` en `EditBookingDialog.tsx` para que, cuando el `overridePhase` sea `'confirmado'`, incluya automaticamente las tres aprobaciones de viabilidad como `true` en el objeto de actualizacion (junto con el usuario actual y timestamp).
 
 ## Detalle tecnico
 
-En la seccion de INSERT INTO budgets dentro de la funcion, cambiar:
+En `src/components/booking-detail/EditBookingDialog.tsx`, dentro de `saveBooking`, despues de construir `updateData` y antes de hacer el `.update()`:
 
 ```text
--- Actual (incorrecto):
-p_user_id, 'borrador', country,
-
--- Corregido:
-p_user_id, budget_status, country,
+// Si estamos confirmando directamente, establecer las aprobaciones
+if (overridePhase === 'confirmado') {
+  updateData.viability_manager_approved = true;
+  updateData.viability_manager_by = user.id;
+  updateData.viability_manager_at = new Date().toISOString();
+  updateData.viability_tour_manager_approved = true;
+  updateData.viability_tour_manager_by = user.id;
+  updateData.viability_tour_manager_at = new Date().toISOString();
+  updateData.viability_production_approved = true;
+  updateData.viability_production_by = user.id;
+  updateData.viability_production_at = new Date().toISOString();
+}
 ```
 
-Esto copia el `budget_status` original del presupuesto fuente en lugar de forzar un valor que no existe en el enum.
-
-Requiere una nueva migracion SQL con `CREATE OR REPLACE FUNCTION`.
+Tambien hay que asegurarse de que el `user` (del hook `useAuth`) esta disponible en el componente. Si no lo esta, se usara el `created_by` del booking o se obtendra del contexto de autenticacion.
