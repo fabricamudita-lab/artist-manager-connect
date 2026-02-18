@@ -1761,6 +1761,7 @@ export type Database = {
           oferta: string | null
           parent_folder_id: string | null
           project_id: string | null
+          release_id: string | null
           settlement_status: string | null
           show_status: Database["public"]["Enums"]["show_status"] | null
           status_negociacion: string | null
@@ -1795,6 +1796,7 @@ export type Database = {
           oferta?: string | null
           parent_folder_id?: string | null
           project_id?: string | null
+          release_id?: string | null
           settlement_status?: string | null
           show_status?: Database["public"]["Enums"]["show_status"] | null
           status_negociacion?: string | null
@@ -1829,6 +1831,7 @@ export type Database = {
           oferta?: string | null
           parent_folder_id?: string | null
           project_id?: string | null
+          release_id?: string | null
           settlement_status?: string | null
           show_status?: Database["public"]["Enums"]["show_status"] | null
           status_negociacion?: string | null
@@ -1864,6 +1867,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
             referencedColumns: ["id"]
           },
           {

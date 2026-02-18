@@ -25,6 +25,9 @@ interface CreateBudgetDialogProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   projectId?: string;
+  releaseId?: string;
+  defaultType?: string;
+  defaultArtistId?: string;
 }
 
 interface BookingProduct {
@@ -43,10 +46,10 @@ const budgetTypes = [
   { value: 'otros', label: 'Otros', icon: Package },
 ];
 
-export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, projectId }: CreateBudgetDialogProps) {
+export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, projectId, releaseId, defaultType, defaultArtistId }: CreateBudgetDialogProps) {
   const { profile } = useAuth();
-  const [step, setStep] = useState(1);
-  const [selectedType, setSelectedType] = useState('');
+  const [step, setStep] = useState(defaultType ? 2 : 1);
+  const [selectedType, setSelectedType] = useState(defaultType || '');
   const [formData, setFormData] = useState({
     name: '',
     city: '',
@@ -55,7 +58,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
     budget_status: 'nacional' as 'nacional' | 'internacional',
     show_status: 'pendiente' as 'confirmado' | 'pendiente' | 'cancelado',
     internal_notes: '',
-    artist_id: '',
+    artist_id: defaultArtistId || '',
     parent_folder_id: '',
     event_date: undefined as Date | undefined,
     event_time: '',
@@ -343,9 +346,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
 
     setLoading(true);
     try {
-      const { data: newBudget, error } = await supabase
-        .from('budgets')
-        .insert({
+      const insertData: any = {
           type: selectedType as 'concierto' | 'produccion_musical' | 'campana_promocional' | 'videoclip' | 'otros',
           name: formData.name,
           city: formData.city,
@@ -361,6 +362,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
           fee: formData.fee,
           created_by: profile?.user_id,
           project_id: projectId || null,
+          release_id: releaseId || null,
           // Campos específicos para conciertos
           ...(selectedType === 'concierto' && {
             festival_ciclo: formData.festival_ciclo || null,
@@ -371,7 +373,11 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
             condiciones: formData.condiciones || null,
             invitaciones: formData.invitaciones ? parseInt(formData.invitaciones) : null,
           })
-        })
+      };
+
+      const { data: newBudget, error } = await supabase
+        .from('budgets')
+        .insert(insertData)
         .select()
         .single();
 
@@ -390,8 +396,8 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
       });
 
       // Reset form
-      setStep(1);
-      setSelectedType('');
+      setStep(defaultType ? 2 : 1);
+      setSelectedType(defaultType || '');
       setFieldErrors({});
       setArtistFormats([]);
       setFormData({
@@ -402,7 +408,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
         budget_status: 'nacional',
         show_status: 'pendiente',
         internal_notes: '',
-        artist_id: '',
+        artist_id: defaultArtistId || '',
         parent_folder_id: '',
         event_date: undefined,
         event_time: '',
@@ -432,8 +438,8 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
   };
 
   const handleClose = () => {
-    setStep(1);
-    setSelectedType('');
+    setStep(defaultType ? 2 : 1);
+    setSelectedType(defaultType || '');
     setFieldErrors({});
     setArtistFormats([]);
     setFormData({
@@ -444,7 +450,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
       budget_status: 'nacional',
       show_status: 'pendiente',
       internal_notes: '',
-      artist_id: '',
+      artist_id: defaultArtistId || '',
       parent_folder_id: '',
       event_date: undefined,
       event_time: '',
