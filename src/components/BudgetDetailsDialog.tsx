@@ -210,6 +210,21 @@ const CONCERT_DEFAULT_CATEGORIES = [
   { name: 'Management', icon_name: 'DollarSign', sort_order: 98 },
 ];
 
+// Default categories for release/music production budgets
+const RELEASE_DEFAULT_CATEGORIES = [
+  { name: 'Grabación', icon_name: 'Music', sort_order: 0 },
+  { name: 'Producción', icon_name: 'Settings', sort_order: 1 },
+  { name: 'Diseño (universo visual)', icon_name: 'Camera', sort_order: 2 },
+  { name: 'Stage (residencia técnica)', icon_name: 'Clapperboard', sort_order: 3 },
+  { name: 'Transporte', icon_name: 'Car', sort_order: 4 },
+  { name: 'Dietas', icon_name: 'Utensils', sort_order: 5 },
+  { name: 'Hospedaje', icon_name: 'Bed', sort_order: 6 },
+  { name: 'PR & Marketing', icon_name: 'Megaphone', sort_order: 7 },
+  { name: 'Distribución & Admin', icon_name: 'FileText', sort_order: 8 },
+  { name: 'Fabricación & logística', icon_name: 'Package', sort_order: 9 },
+  { name: 'Contingencia', icon_name: 'ShieldAlert', sort_order: 10 },
+];
+
 // Helper functions for billing status mapping
 const mapDbToFrontend = (dbStatus: string): 'pendiente' | 'factura_solicitada' | 'factura_recibida' | 'pagada' | 'cancelado' => {
   switch (dbStatus) {
