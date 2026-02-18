@@ -608,7 +608,7 @@ export default function CreateReleaseBudgetDialog({
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[300px] p-0" align="start">
+                  <PopoverContent className="w-[300px] p-0 z-[200] bg-popover" align="start" side="bottom" sideOffset={4}>
                     <Command>
                       <CommandInput placeholder="Buscar país..." />
                       <CommandList className="max-h-[250px]">
@@ -710,7 +710,7 @@ export default function CreateReleaseBudgetDialog({
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[280px] p-0" align="start">
+                  <PopoverContent className="w-[280px] p-0 z-[200] bg-popover" align="start" side="bottom" sideOffset={4}>
                     <Command>
                       <CommandInput placeholder="Buscar servicio..." />
                       <CommandList className="max-h-[250px]">
