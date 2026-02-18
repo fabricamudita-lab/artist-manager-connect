@@ -1757,6 +1757,7 @@ export type Database = {
           id: string
           internal_notes: string | null
           invitaciones: number | null
+          metadata: Json | null
           name: string
           oferta: string | null
           parent_folder_id: string | null
@@ -1792,6 +1793,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           invitaciones?: number | null
+          metadata?: Json | null
           name: string
           oferta?: string | null
           parent_folder_id?: string | null
@@ -1827,6 +1829,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           invitaciones?: number | null
+          metadata?: Json | null
           name?: string
           oferta?: string | null
           parent_folder_id?: string | null

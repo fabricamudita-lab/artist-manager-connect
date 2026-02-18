@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrackRightsSplitsManager } from '@/components/releases/TrackRightsSplitsManager';
-import CreateBudgetDialog from '@/components/CreateBudgetDialog';
+import CreateReleaseBudgetDialog from '@/components/releases/CreateReleaseBudgetDialog';
 import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
 import {
   AlertDialog,
@@ -261,8 +261,8 @@ export default function ReleasePresupuestos() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-500/10 rounded-lg">
-                  <FileText className="h-5 w-5 text-amber-600" />
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <FileText className="h-5 w-5 text-primary" />
                 </div>
                 <div>
                   <CardTitle>Derechos de Autor (Publishing)</CardTitle>
@@ -303,8 +303,8 @@ export default function ReleasePresupuestos() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500/10 rounded-lg">
-                  <Music className="h-5 w-5 text-blue-600" />
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Music className="h-5 w-5 text-primary" />
                 </div>
                 <div>
                   <CardTitle>Royalties Master (Fonograma)</CardTitle>
@@ -342,13 +342,12 @@ export default function ReleasePresupuestos() {
       </Tabs>
 
       {/* Create Budget Dialog */}
-      <CreateBudgetDialog
+      <CreateReleaseBudgetDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         onSuccess={fetchLinkedBudgets}
-        releaseId={id}
-        defaultType="produccion_musical"
-        defaultArtistId={release?.artist_id || undefined}
+        release={release || null}
+        trackCount={tracks?.length || 0}
       />
 
       {/* Budget Details Dialog */}
