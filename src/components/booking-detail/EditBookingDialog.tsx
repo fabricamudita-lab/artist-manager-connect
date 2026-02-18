@@ -41,6 +41,7 @@ import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 import { useBookingFolderAutomation } from '@/hooks/useBookingFolderAutomation';
 import { SingleArtistSelector } from '@/components/SingleArtistSelector';
 import { ContactSelector } from '@/components/ContactSelector';
@@ -145,6 +146,7 @@ export function EditBookingDialog({
   booking,
   onSuccess,
 }: EditBookingDialogProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState<Partial<BookingOffer>>({});
   const [fechasOpcionales, setFechasOpcionales] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -263,6 +265,21 @@ export function EditBookingDialog({
         is_sold_out: formData.is_sold_out,
         tickets_sold: formData.tickets_sold,
       };
+
+      // Si estamos confirmando directamente, establecer las aprobaciones de viabilidad
+      if (overridePhase === 'confirmado') {
+        const now = new Date().toISOString();
+        const userId = user?.id || '';
+        (updateData as any).viability_manager_approved = true;
+        (updateData as any).viability_manager_by = userId;
+        (updateData as any).viability_manager_at = now;
+        (updateData as any).viability_tour_manager_approved = true;
+        (updateData as any).viability_tour_manager_by = userId;
+        (updateData as any).viability_tour_manager_at = now;
+        (updateData as any).viability_production_approved = true;
+        (updateData as any).viability_production_by = userId;
+        (updateData as any).viability_production_at = now;
+      }
 
       const { data, error } = await supabase
         .from('booking_offers')
