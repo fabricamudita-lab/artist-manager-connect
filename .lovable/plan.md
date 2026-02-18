@@ -1,65 +1,74 @@
 
-# Mejoras a Sello, Distribucion y Owner interno
+# Integrar deadlines del presupuesto con el cronograma existente
 
-## Problema actual
+## Contexto
 
-Los tres campos (Sello, Distribucion, Owner interno) usan el mismo `BudgetContactSelector` generico que muestra todos los contactos y artistas del roster. Esto no tiene sentido porque:
+Actualmente, el formulario de presupuesto (`CreateReleaseBudgetDialog`) tiene un toggle "Auto-calcular deadlines desde fecha principal" que calcula 5 deadlines fijos (Masters, Arte, Pitch DSP, Anuncio, Pre Save) usando offsets simples. Estos deadlines son solo informativos y se guardan en el metadata del presupuesto, sin relacion con los milestones reales del cronograma (`release_milestones`).
 
-1. **Sello**: Deberia mostrar por defecto el sello vinculado al artista del release. No deberia mostrar artistas del roster como opciones de sello. Si no existe, debe permitir crear uno nuevo con la categoria "sello".
-2. **Distribucion**: Mismo concepto. Normalmente el sello ya se encarga.
-3. **Owner interno**: Solo deberia mostrar los contactos asignados al artista que tengan la categoria "management" o rol de owner.
+El problema es que si ya existe un cronograma con fechas reales (posiblemente ajustadas manualmente), el presupuesto ignora esa informacion y muestra deadlines genericos que pueden contradecir lo real.
 
 ## Solucion
 
-En lugar de usar `BudgetContactSelector` (que es generico), se creara un selector especializado inline dentro de `CreateReleaseBudgetDialog.tsx` que filtre contactos segun el contexto.
+Al abrir el paso "Fechas" del wizard de presupuesto:
 
-### Cambios en `CreateReleaseBudgetDialog.tsx`
+1. **Consultar milestones existentes** de `release_milestones` para ese `release_id`
+2. **Si existen milestones**, mostrar una seccion comparativa con tres opciones:
+   - **Usar fechas del cronograma**: toma las fechas reales del cronograma existente como referencia para el presupuesto
+   - **Recalcular desde fecha de lanzamiento**: ignora el cronograma y calcula deadlines genericos (comportamiento actual)
+   - **Mezclar**: usa las fechas del cronograma donde haya coincidencia, y rellena con auto-calculo donde no haya
+3. **Si no existen milestones**, mantener el comportamiento actual (toggle auto-calcular)
 
-**1. Cargar datos del artista al abrir el dialogo:**
-- Consultar `contact_artist_assignments` para obtener los contactos vinculados al artista del release.
-- Filtrar por `category = 'sello'` para pre-seleccionar el sello por defecto.
-- Filtrar por `category = 'management'` para las opciones de Owner interno.
+Ademas, los deadlines mostrados se ampliaran para cubrir las mismas categorias que el cronograma (audio, visual, contenido, marketing, fabricacion) en vez de solo 5 offsets fijos.
 
-**2. Campo Sello:**
-- Al abrir, si el artista tiene un contacto con `category = 'sello'` asignado, pre-seleccionarlo automaticamente.
-- Mostrar un selector (Popover + Command) con:
-  - Los contactos del artista que sean de categoria "sello" primero.
-  - Todos los contactos de la agenda con categoria "sello".
-  - Opcion "Crear nuevo sello..." que crea un contacto con `category: 'sello'`, `role: 'Sello'` y lo vincula al artista via `contact_artist_assignments`.
-- No mostrar artistas del roster.
+## Cambios tecnicos
 
-**3. Campo Distribucion:**
-- Mismo patron que Sello pero filtrando por contactos con `category` o `role` que contenga "distribucion".
-- Opcion de crear nuevo contacto con `category: 'distribucion'`, `role: 'Distribución'`.
+### Archivo: `src/components/releases/CreateReleaseBudgetDialog.tsx`
 
-**4. Campo Owner interno:**
-- Solo mostrar contactos vinculados al artista (via `contact_artist_assignments`) que tengan `category = 'management'`.
-- No permitir crear nuevos, solo seleccionar de los existentes.
+**1. Nuevo fetch de milestones al abrir:**
+- Cuando el dialog se abre con un `release`, hacer query a `release_milestones` filtrado por `release_id`
+- Almacenar en estado `existingMilestones: ReleaseMilestone[]`
+- Determinar `hasCronograma: boolean` basado en si hay milestones
 
-### Detalle tecnico
+**2. Nuevo estado para la estrategia de deadlines:**
+```
+deadlineStrategy: 'cronograma' | 'autocalcular' | 'mezclar'
+```
+- Default: `'cronograma'` si hay milestones, `'autocalcular'` si no hay
 
-Se eliminaran las 3 instancias de `BudgetContactSelector` y se reemplazaran por selectores custom con la logica descrita.
+**3. Nueva UI en el paso "Fechas":**
+- Si `hasCronograma = true`:
+  - Mostrar 3 botones/cards de seleccion de estrategia (como el dialog de regenerar del cronograma)
+  - Mostrar tabla comparativa con columnas: Hito | Fecha cronograma | Fecha calculada | Fecha seleccionada
+  - Los mapeos entre milestones y deadlines se hacen por nombre/categoria (ej: milestone "Mastering" en categoria "audio" = deadline "Masters")
+- Si `hasCronograma = false`:
+  - Mantener el toggle actual de auto-calcular
 
-Nuevos estados:
+**4. Calculo de deadlines mejorado:**
+- Ampliar `deadlineOffsets` para cubrir mas hitos (alineados con las tareas del cronograma):
+  - Grabacion (-70d), Mezcla (-55d), Mastering (-45d), Artwork (-42d), Entrega Distribuidora (-42d), Pre-save (-28d), Pitch DSP (-28d), Anuncio (-14d), Salida Digital (0d)
+- Cuando la estrategia es "cronograma", usar `due_date` de los milestones existentes
+- Cuando es "mezclar", priorizar milestone existente y rellenar huecos con calculo
+
+**5. Datos guardados en metadata:**
+- Agregar `deadline_strategy: string` al metadata
+- Agregar `deadlines: { name, date, source: 'cronograma' | 'calculado' }[]` con la lista completa de deadlines y su origen
+
+### Mapeo milestones <-> deadlines
+
+La correspondencia se hace por `title` del milestone (que coincide con los nombres de `releaseTimelineTemplates`):
+
 ```text
-// Datos cargados al abrir
-artistContacts: Contact[]  // contactos asignados al artista
-allLabelContacts: Contact[]  // todos los contactos con category 'sello'
-allDistributionContacts: Contact[]  // todos con category 'distribucion'
+Milestone title        -> Deadline name
+"Mastering"            -> Masters
+"Artwork Final"        -> Arte
+"Entrega a Distribuidora" -> Entrega DSP
+"Pre-save Activo"      -> Pre Save
+"Focus Track / Anuncios" -> Anuncio
+"Salida Digital"       -> Salida
+"Grabación"            -> Grabacion
+"Mezcla"               -> Mezcla
 ```
 
-Nuevo fetch en el `useEffect` de apertura:
-```text
-1. Query contact_artist_assignments WHERE artist_id = release.artist_id
-2. JOIN contacts para obtener nombre, category, role
-3. Query contacts WHERE category IN ('sello', 'distribucion') para opciones globales
-4. Pre-seleccionar sello si hay uno asignado al artista
-```
+### Sin cambios en base de datos
 
-Cada selector sera un Popover + Command con:
-- Seccion "Vinculados al artista" (contactos asignados)
-- Seccion "Otros" (contactos globales de esa categoria)
-- Opcion "Crear nuevo..." (solo para Sello y Distribucion)
-- Input para nombre al crear nuevo
-
-No se modifica la base de datos. Todo usa tablas existentes (`contacts`, `contact_artist_assignments`).
+Todo se lee de `release_milestones` (ya existe) y se guarda en `metadata` JSONB del presupuesto.
