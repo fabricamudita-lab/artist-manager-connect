@@ -1,39 +1,46 @@
 
-# Mejorar etiquetas del segundo toggle
+# Fijar ancho del texto para estabilizar posición del switch
 
-## Situación actual
+## Problema
 
-El segundo toggle (cuando el elemento existe) siempre muestra el mismo texto: **"Lo ejecutamos"**, sin importar si está activado o desactivado.
+El contenedor del segundo toggle (`ToggleRow`) crece y encoge según el texto que muestre:
+- "Producción propia" → más ancho → switch desplazado a la izquierda
+- "Derivado" → más estrecho → switch desplazado a la derecha
 
-El usuario quiere:
-- **OFF** → mostrar **"Derivado"** (el servicio existe pero lo coordina un tercero, no lo ejecutamos nosotros)
-- **ON** → mostrar algo más profesional que "Lo ejecutamos", como **"Producción propia"** o **"Gestionado internamente"**
+Esto hace que el switch "salte" de posición al cambiar de estado.
 
-## Propuesta de etiquetas
+## Causa técnica
 
-| Estado | Texto actual | Texto propuesto |
-|---|---|---|
-| OFF | "Lo ejecutamos" | "Derivado" |
-| ON | "Lo ejecutamos" | "Producción propia" |
-
-La palabra **"Derivado"** transmite que el servicio existe pero viene de fuera (externa/coordinada). **"Producción propia"** es un término estándar en la industria que significa que el equipo lo ejecuta directamente.
-
-## Cambio técnico
-
-Solo hay que modificar el `ToggleRow` helper en `CreateReleaseBudgetDialog.tsx`, concretamente el `<span>` que muestra el texto del segundo toggle:
+En `CreateReleaseBudgetDialog.tsx` (~línea 670), el `<span>` del texto no tiene un ancho fijo:
 
 ```tsx
-// Antes:
-<span className={cn("text-xs font-medium whitespace-nowrap", contracted ? "text-primary" : "text-muted-foreground")}>
-  Lo ejecutamos
-</span>
-
-// Después:
-<span className={cn("text-xs font-medium whitespace-nowrap", contracted ? "text-primary" : "text-muted-foreground")}>
+<span className={cn(
+  "text-xs font-medium whitespace-nowrap",
+  contracted ? "text-primary" : "text-muted-foreground"
+)}>
   {contracted ? "Producción propia" : "Derivado"}
 </span>
 ```
 
+Al cambiar el texto, el ancho del `<span>` y del contenedor padre cambia, lo que desplaza el switch.
+
+## Solución
+
+Fijar un ancho mínimo en el `<span>` equivalente al texto más largo ("Producción propia"). Con Tailwind, se puede usar `inline-block` + `w-[110px]` (o `min-w-[110px]`) para reservar siempre ese espacio:
+
+```tsx
+<span className={cn(
+  "text-xs font-medium whitespace-nowrap inline-block w-[110px]",
+  contracted ? "text-primary" : "text-muted-foreground"
+)}>
+  {contracted ? "Producción propia" : "Derivado"}
+</span>
+```
+
+De esta manera el switch siempre está exactamente en la misma posición horizontal, porque el bloque de texto siempre ocupa el mismo ancho.
+
 ## Archivo a modificar
 
-Solo **`src/components/releases/CreateReleaseBudgetDialog.tsx`**, línea ~674 dentro del `ToggleRow` helper. Cambio de una sola línea.
+Solo **`src/components/releases/CreateReleaseBudgetDialog.tsx`**, línea 670-675 — añadir `inline-block w-[110px]` al `className` del `<span>`.
+
+Cambio mínimo, una sola línea.
