@@ -548,7 +548,98 @@ export default function CreateReleaseBudgetDialog({
         if (itemsError) throw itemsError;
       }
 
-      toast.success('Presupuesto de lanzamiento creado con todas las partidas');
+      // ─── 3. Sync Tracks ──────────────────────────────────────────
+      let tracksAdded = 0;
+      let tracksWarning = false;
+      if (nTracks > 0) {
+        // Fetch current tracks for this release
+        const { data: existingTracks } = await supabase
+          .from('tracks')
+          .select('id, track_number')
+          .eq('release_id', release.id)
+          .order('track_number');
+
+        const currentCount = existingTracks?.length || 0;
+
+        if (nTracks > currentCount) {
+          // Insert missing tracks
+          const tracksToInsert = [];
+          for (let tn = currentCount + 1; tn <= nTracks; tn++) {
+            tracksToInsert.push({
+              release_id: release.id,
+              title: `Canción ${tn}`,
+              track_number: tn,
+            });
+          }
+          const { error: tracksError } = await supabase.from('tracks').insert(tracksToInsert);
+          if (!tracksError) {
+            tracksAdded = tracksToInsert.length;
+          }
+        } else if (nTracks < currentCount) {
+          tracksWarning = true;
+        }
+      }
+
+      // ─── 4. Sync Milestones ──────────────────────────────────────
+      let milestonesCreated = 0;
+      let milestonesUpdated = 0;
+      const milestoneConflicts: string[] = [];
+
+      const effectiveStrategy = hasCronograma ? deadlineStrategy : 'autocalcular';
+      // Only sync if we are NOT using the existing cronograma as-is
+      if (effectiveStrategy !== 'cronograma') {
+        const resolvedForMilestones = getResolvedDeadlines();
+        const existingMap = new Map<string, { id: string; due_date: string }>();
+        for (const m of existingMilestones) {
+          existingMap.set(m.title.toLowerCase(), { id: m.id, due_date: m.due_date || '' });
+        }
+
+        for (let idx = 0; idx < resolvedForMilestones.length; idx++) {
+          const d = resolvedForMilestones[idx];
+          const dateStr = format(d.finalDate, 'yyyy-MM-dd');
+          const existing = existingMap.get(d.name.toLowerCase());
+
+          if (!existing) {
+            // Insert new milestone
+            await supabase.from('release_milestones').insert({
+              release_id: release.id,
+              title: d.name,
+              due_date: dateStr,
+              status: 'pending',
+              category: 'marketing',
+              sort_order: idx,
+            } as any);
+            milestonesCreated++;
+          } else {
+            // Check if dates differ
+            const existingDateStr = existing.due_date.substring(0, 10);
+            if (existingDateStr !== dateStr) {
+              // Conflict: date differs — update but record conflict
+              await supabase
+                .from('release_milestones')
+                .update({ due_date: dateStr } as any)
+                .eq('id', existing.id);
+              milestonesUpdated++;
+              milestoneConflicts.push(`"${d.name}": ${existingDateStr} → ${dateStr}`);
+            }
+          }
+        }
+      }
+
+      // ─── 5. Summary toast ────────────────────────────────────────
+      const summaryLines: string[] = [];
+      summaryLines.push(`✓ Presupuesto creado con ${activeKeys.length} categorías`);
+      if (milestonesCreated > 0) summaryLines.push(`✓ ${milestonesCreated} hito${milestonesCreated !== 1 ? 's' : ''} del cronograma creado${milestonesCreated !== 1 ? 's' : ''}`);
+      if (milestonesUpdated > 0) summaryLines.push(`✓ ${milestonesUpdated} hito${milestonesUpdated !== 1 ? 's' : ''} del cronograma actualizados`);
+      if (tracksAdded > 0) summaryLines.push(`✓ ${tracksAdded} canción${tracksAdded !== 1 ? 'es' : ''} añadida${tracksAdded !== 1 ? 's' : ''} en Créditos & Audio`);
+      if (tracksWarning) summaryLines.push(`⚠ El release tiene más tracks reales que los indicados en el presupuesto`);
+      if (milestoneConflicts.length > 0) summaryLines.push(`⚠ Fechas actualizadas por conflicto: ${milestoneConflicts.join(', ')}`);
+
+      toast.success(summaryLines[0], {
+        description: summaryLines.slice(1).join('\n') || undefined,
+        duration: summaryLines.length > 1 ? 6000 : 3000,
+      });
+
       onSuccess();
       onOpenChange(false);
     } catch (error) {
