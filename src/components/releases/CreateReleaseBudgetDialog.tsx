@@ -18,6 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { ReleaseBudgetContactField } from '@/components/releases/ReleaseBudgetContactField';
+import { ProducerSelector, type ProducerRef } from '@/components/releases/ProducerSelector';
 import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -267,7 +268,7 @@ export default function CreateReleaseBudgetDialog({
 
   // ─── Variables (toggles) ─────────────────────────────────────────
   const [nTracks, setNTracks] = useState(trackCount || 1);
-  const [producers, setProducers] = useState('');
+  const [producers, setProducers] = useState<ProducerRef[]>([]);
   const [includesMix, setIncludesMix] = useState(true);
   const [externalMix, setExternalMix] = useState(false);
   const [masterTypes, setMasterTypes] = useState<string[]>(['estereo']);
@@ -551,7 +552,10 @@ export default function CreateReleaseBudgetDialog({
       const labels = masterTypes.map(v => MASTER_TYPE_OPTIONS.find(o => o.value === v)?.label || v);
       return labels.length ? `Tipos: ${labels.join(', ')}` : '';
     }
-    if (itemName.includes('Producción (productor')) return producers ? `Productor/es: ${producers}` : '';
+    if (itemName.includes('Producción (productor')) {
+      if (!producers.length) return '';
+      return `Productor/es: ${producers.map(p => p.name).join(' & ')}`;
+    }
     return '';
   };
 
@@ -977,9 +981,13 @@ export default function CreateReleaseBudgetDialog({
                     <Label className="text-xs">Nº tracks</Label>
                     <Input type="number" min={1} value={nTracks} onChange={e => setNTracks(parseInt(e.target.value) || 1)} className="h-9 text-sm" />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 col-span-2">
                     <Label className="text-xs">Productor/es</Label>
-                    <Input value={producers} onChange={e => setProducers(e.target.value)} placeholder="Nombre(s)" className="h-9 text-sm" />
+                    <ProducerSelector
+                      value={producers}
+                      onChange={setProducers}
+                      artistId={release?.artist_id}
+                    />
                   </div>
                 </div>
                 <ToggleRow label="¿El productor incluye mezcla?" checked={includesMix} onChange={setIncludesMix} />
