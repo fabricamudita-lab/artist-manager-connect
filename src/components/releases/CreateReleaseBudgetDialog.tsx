@@ -184,7 +184,7 @@ export default function CreateReleaseBudgetDialog({
   // ─── Metadata ────────────────────────────────────────────────────
   const [budgetName, setBudgetName] = useState('');
   const [releaseType, setReleaseType] = useState<string>(release?.type || 'single');
-  const [version, setVersion] = useState('clean');
+  const [version, setVersion] = useState('original');
   const [territories, setTerritories] = useState<string[]>(['ES']);
   const [labelContactId, setLabelContactId] = useState<string | undefined>(undefined);
   const [distributionContactId, setDistributionContactId] = useState<string | undefined>(undefined);
@@ -748,11 +748,18 @@ export default function CreateReleaseBudgetDialog({
                   <Select value={version} onValueChange={setVersion}>
                     <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="clean">Clean</SelectItem>
+                      <SelectItem value="original">Original</SelectItem>
                       <SelectItem value="explicit">Explicit</SelectItem>
+                      <SelectItem value="clean">Clean (Radio Edit)</SelectItem>
                       <SelectItem value="instrumental">Instrumental</SelectItem>
-                      <SelectItem value="radio">Radio</SelectItem>
-                      <SelectItem value="remixes">Remixes</SelectItem>
+                      <SelectItem value="acustica">Acústica</SelectItem>
+                      <SelectItem value="live">Live / En directo</SelectItem>
+                      <SelectItem value="remix">Remix oficial</SelectItem>
+                      <SelectItem value="extended">Extended Mix (DJ Edit)</SelectItem>
+                      <SelectItem value="deluxe">Deluxe / Edición especial</SelectItem>
+                      <SelectItem value="remaster">Remasterizado</SelectItem>
+                      <SelectItem value="ep">EP</SelectItem>
+                      <SelectItem value="otro">Otro</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
