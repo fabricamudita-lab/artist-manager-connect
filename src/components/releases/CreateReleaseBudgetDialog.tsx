@@ -22,13 +22,15 @@ import { useTracks } from '@/hooks/useReleases';
 import { ReleaseBudgetContactField } from '@/components/releases/ReleaseBudgetContactField';
 import { ProducerSelector, SingleProducerSelector, type ProducerRef } from '@/components/releases/ProducerSelector';
 import { toast } from 'sonner';
-import { format, subDays } from 'date-fns';
+import { format, subDays, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   CalendarIcon, ChevronLeft, ChevronRight, Loader2, Plus, X, Check,
   Disc3, Music, Camera, Megaphone, Truck, UtensilsCrossed, BedDouble,
-  Clapperboard, Package, ShieldAlert, Settings, Globe, GitMerge, Calculator, Blend, RotateCcw
+  Clapperboard, Package, ShieldAlert, Settings, Globe, GitMerge, Calculator, Blend, RotateCcw,
+  CalendarCheck
 } from 'lucide-react';
 import type { Release, ReleaseMilestone } from '@/hooks/useReleases';
 
@@ -1149,64 +1151,83 @@ export default function CreateReleaseBudgetDialog({
               {/* Deadline strategy - depends on whether cronograma exists */}
               {hasCronograma ? (
                 <div className="space-y-3">
-                  <Label className="text-xs font-medium">Estrategia de deadlines</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Este lanzamiento tiene un cronograma con {existingMilestones.length} hitos. ¿Cómo quieres calcular los deadlines del presupuesto?
-                  </p>
+                  <div>
+                    <Label className="text-xs font-medium">¿Cómo calcular las fechas clave?</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Tu cronograma tiene {existingMilestones.length} hitos definidos.
+                    </p>
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
                     {([
-                      { value: 'cronograma' as const, label: 'Usar cronograma', desc: 'Fechas reales del cronograma', icon: GitMerge },
-                      { value: 'autocalcular' as const, label: 'Recalcular', desc: 'Offsets desde fecha de lanzamiento', icon: Calculator },
-                      { value: 'mezclar' as const, label: 'Mezclar', desc: 'Cronograma + auto-relleno', icon: Blend },
+                      { value: 'cronograma' as const, label: 'Usar el plan', desc: 'Respeta las fechas que ya tienes', icon: CalendarCheck },
+                      { value: 'autocalcular' as const, label: 'Calcular desde cero', desc: 'Parte de la fecha de salida', icon: Calculator },
+                      { value: 'mezclar' as const, label: 'Completar vacíos', desc: 'Plan donde existe, cálculo el resto', icon: Blend },
                     ]).map(opt => (
                       <button
                         key={opt.value}
                         type="button"
                         onClick={() => setDeadlineStrategy(opt.value)}
                         className={cn(
-                          "flex flex-col items-center gap-1 p-3 rounded-lg border text-center transition-colors",
+                          "flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors",
                           deadlineStrategy === opt.value
-                            ? "border-primary bg-primary/10 text-primary"
+                            ? "border-primary bg-primary/10"
                             : "border-border hover:border-primary/50"
                         )}
                       >
-                        <opt.icon className="h-4 w-4" />
-                        <span className="text-xs font-medium">{opt.label}</span>
+                        <opt.icon className={cn("h-4 w-4", deadlineStrategy === opt.value ? "text-primary" : "text-muted-foreground")} />
+                        <span className="text-xs font-semibold text-foreground">{opt.label}</span>
                         <span className="text-[10px] text-muted-foreground leading-tight">{opt.desc}</span>
                       </button>
                     ))}
                   </div>
 
-                  {/* Comparative deadline table */}
+                  {/* New clean deadline list */}
                   {releaseDate && (
                     <Card className="bg-muted/30">
-                      <CardContent className="p-3 space-y-2">
-                        <div className="grid grid-cols-4 gap-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wide pb-1 border-b border-border">
-                          <span>Hito</span>
-                          <span>Cronograma</span>
-                          <span>Calculado</span>
-                          <span>Seleccionado</span>
-                        </div>
-                        {getResolvedDeadlines().map(d => (
-                          <div key={d.key} className="grid grid-cols-4 gap-1 text-xs items-center">
-                            <span className="font-medium truncate">{d.name}</span>
-                            <span className={cn("text-muted-foreground", !d.cronogramaDate && "italic text-muted-foreground/50")}>
-                              {d.cronogramaDate ? format(d.cronogramaDate, "dd MMM", { locale: es }) : '—'}
-                            </span>
-                            <span className="text-muted-foreground">
-                              {format(d.calculatedDate, "dd MMM", { locale: es })}
-                            </span>
-                            <span className={cn(
-                              "font-medium",
-                              d.source === 'cronograma' ? "text-primary" : "text-foreground"
-                            )}>
-                              {format(d.finalDate, "dd MMM", { locale: es })}
-                              {d.source === 'cronograma' && (
-                                <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0 h-3.5">real</Badge>
-                              )}
-                            </span>
-                          </div>
-                        ))}
+                      <CardContent className="p-3 divide-y divide-border/50">
+                        {getResolvedDeadlines().map(d => {
+                          const hasDiff = d.cronogramaDate &&
+                            Math.abs(differenceInDays(d.cronogramaDate, d.calculatedDate)) > 3;
+                          const isFromPlan = d.source === 'cronograma';
+                          const isAdjusted = isFromPlan && hasDiff;
+
+                          const pillLabel = isAdjusted ? 'ajustado' : isFromPlan ? 'del plan' : 'auto';
+                          const pillClass = isAdjusted
+                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20'
+                            : isFromPlan
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
+                            : 'bg-muted text-muted-foreground border-border';
+
+                          const showPill = isFromPlan || !d.cronogramaDate;
+
+                          return (
+                            <div key={d.key} className="flex items-center py-2 gap-2 first:pt-0 last:pb-0">
+                              <span className="text-sm text-foreground flex-1 min-w-0 truncate">{d.name}</span>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-sm font-semibold tabular-nums text-foreground">
+                                  {format(d.finalDate, "d MMM", { locale: es })}
+                                </span>
+                                {showPill && (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Badge className={cn("text-[10px] px-1.5 py-0 h-4 cursor-default border font-normal", pillClass)}>
+                                          {pillLabel}
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      {hasDiff && d.cronogramaDate && (
+                                        <TooltipContent side="left" className="text-xs space-y-0.5">
+                                          <p>📅 Tu plan: {format(d.cronogramaDate, "d MMM", { locale: es })}</p>
+                                          <p>🔢 Cálculo auto: {format(d.calculatedDate, "d MMM", { locale: es })}</p>
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </CardContent>
                     </Card>
                   )}
@@ -1214,16 +1235,22 @@ export default function CreateReleaseBudgetDialog({
               ) : (
                 <>
                   {/* No cronograma - simple toggle */}
-                  <ToggleRow label="Auto-calcular deadlines desde fecha principal" checked={autoDeadlines} onChange={setAutoDeadlines} />
+                  <ToggleRow label="Calcular fechas clave automáticamente" checked={autoDeadlines} onChange={setAutoDeadlines} />
 
                   {releaseDate && autoDeadlines && (
                     <Card className="bg-muted/30">
-                      <CardContent className="p-3 space-y-1.5">
-                        <p className="text-xs font-medium text-muted-foreground">Deadlines calculados:</p>
+                      <CardContent className="p-3 divide-y divide-border/50">
                         {EXTENDED_DEADLINE_OFFSETS.map(offset => (
-                          <div key={offset.key} className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">{offset.name}</span>
-                            <span>{format(subDays(releaseDate, offset.days), "dd MMM yyyy", { locale: es })}</span>
+                          <div key={offset.key} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 gap-2">
+                            <span className="text-sm text-foreground flex-1 truncate">{offset.name}</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-sm font-semibold tabular-nums text-foreground">
+                                {format(subDays(releaseDate, offset.days), "d MMM", { locale: es })}
+                              </span>
+                              <Badge className="text-[10px] px-1.5 py-0 h-4 border font-normal bg-muted text-muted-foreground border-border">
+                                auto
+                              </Badge>
+                            </div>
                           </div>
                         ))}
                       </CardContent>
