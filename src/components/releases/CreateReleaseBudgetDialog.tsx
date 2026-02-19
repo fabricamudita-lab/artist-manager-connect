@@ -1217,6 +1217,13 @@ export default function CreateReleaseBudgetDialog({
                 <ToggleRow label="¿Transporte?" checked={transporte} onChange={setTransporte} contracted={transporteCont} onContractedChange={setTransporteCont} />
                 <ToggleRow label="¿Dietas?" checked={dietas} onChange={setDietas} contracted={dietasCont} onContractedChange={setDietasCont} />
                 <ToggleRow label="¿Hospedaje?" checked={hospedaje} onChange={setHospedaje} contracted={hospedajeCont} onContractedChange={setHospedajeCont} />
+              </div>
+
+              <Separator />
+
+              {/* Fabricación física */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Fabricación física</h4>
                 <ToggleRow label="¿Fabricación física (vinilo/CD)?" checked={fisico} onChange={setFisico} contracted={fisicoCont} onContractedChange={setFisicoCont} />
               </div>
 
