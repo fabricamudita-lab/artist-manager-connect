@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { Check, ChevronsUpDown, Plus, User, Loader2 } from 'lucide-react';
+import { Check, ChevronsUpDown, Plus, User, Users, Loader2 } from 'lucide-react';
 
 interface ContactOption {
   id: string;
@@ -14,6 +14,8 @@ interface ContactOption {
   category?: string | null;
   role?: string | null;
   isLinked: boolean; // linked to the artist
+  source?: 'interno' | 'externo'; // only for owner type
+  avatarUrl?: string | null;
 }
 
 type FieldType = 'sello' | 'distribucion' | 'owner';
@@ -80,7 +82,88 @@ export function ReleaseBudgetContactField({
     if (!artistId) return;
     setLoading(true);
     try {
-      // 1. Get contacts linked to this artist
+      if (type === 'owner') {
+        // --- OWNER: two sources ---
+
+        // Source 1: Internal profiles with management role
+        const [
+          { data: mgmtProfiles },
+          { data: roleBindings },
+        ] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('user_id, full_name, avatar_url, roles')
+            .contains('roles', ['management']),
+          supabase
+            .from('artist_role_bindings')
+            .select('user_id, role')
+            .eq('artist_id', artistId)
+            .in('role', ['ARTIST_MANAGER']),
+        ]);
+
+        const internalMap = new Map<string, ContactOption>();
+
+        for (const p of mgmtProfiles || []) {
+          if (!internalMap.has(p.user_id)) {
+            internalMap.set(p.user_id, {
+              id: p.user_id,
+              name: p.full_name || p.user_id,
+              isLinked: false,
+              source: 'interno',
+              avatarUrl: p.avatar_url,
+            });
+          }
+        }
+        for (const rb of roleBindings || []) {
+          if (!internalMap.has(rb.user_id)) {
+            // fetch profile name if not already in map
+            const { data: prof } = await supabase
+              .from('profiles')
+              .select('user_id, full_name, avatar_url')
+              .eq('user_id', rb.user_id)
+              .maybeSingle();
+            internalMap.set(rb.user_id, {
+              id: rb.user_id,
+              name: prof?.full_name || rb.user_id,
+              isLinked: true,
+              source: 'interno',
+              avatarUrl: prof?.avatar_url,
+            });
+          } else {
+            // mark as linked (artist-specific binding)
+            const existing = internalMap.get(rb.user_id)!;
+            internalMap.set(rb.user_id, { ...existing, isLinked: true });
+          }
+        }
+
+        // Source 2: External contacts with category=management linked to artist
+        const { data: assignments } = await supabase
+          .from('contact_artist_assignments')
+          .select('contact_id')
+          .eq('artist_id', artistId);
+
+        const linkedIds = new Set((assignments || []).map(a => a.contact_id));
+
+        const { data: externalContacts } = await supabase
+          .from('contacts')
+          .select('id, name, category, role')
+          .in('category', ['management'])
+          .order('name');
+
+        const externalOptions: ContactOption[] = (externalContacts || []).map(c => ({
+          id: c.id,
+          name: c.name,
+          category: c.category,
+          role: c.role,
+          isLinked: linkedIds.has(c.id),
+          source: 'externo' as const,
+        }));
+
+        setOptions([...Array.from(internalMap.values()), ...externalOptions]);
+        return;
+      }
+
+      // --- SELLO / DISTRIBUCION: original logic ---
       const { data: assignments } = await supabase
         .from('contact_artist_assignments')
         .select('contact_id')
@@ -88,7 +171,6 @@ export function ReleaseBudgetContactField({
 
       const linkedIds = new Set((assignments || []).map(a => a.contact_id));
 
-      // 2. Get all contacts that match the category/role filter OR are linked
       const { data: contacts } = await supabase
         .from('contacts')
         .select('id, name, category, role')
@@ -106,18 +188,10 @@ export function ReleaseBudgetContactField({
           (c.role || '').toLowerCase().includes(r.toLowerCase())
         );
 
-        if (type === 'owner') {
-          // Owner: only linked contacts with management category
-          if (isLinked && (matchesCategory || matchesRole)) {
-            if (!seen.has(c.id)) { seen.add(c.id); filtered.push({ ...c, isLinked }); }
-          }
-        } else {
-          // Sello/Distribucion: show linked first, then matching global contacts
-          if (isLinked && (matchesCategory || matchesRole)) {
-            if (!seen.has(c.id)) { seen.add(c.id); filtered.push({ ...c, isLinked: true }); }
-          } else if (matchesCategory || matchesRole) {
-            if (!seen.has(c.id)) { seen.add(c.id); filtered.push({ ...c, isLinked: false }); }
-          }
+        if (isLinked && (matchesCategory || matchesRole)) {
+          if (!seen.has(c.id)) { seen.add(c.id); filtered.push({ ...c, isLinked: true }); }
+        } else if (matchesCategory || matchesRole) {
+          if (!seen.has(c.id)) { seen.add(c.id); filtered.push({ ...c, isLinked: false }); }
         }
       }
 
@@ -183,8 +257,6 @@ export function ReleaseBudgetContactField({
     }
   };
 
-  const linked = options.filter(o => o.isLinked);
-  const others = options.filter(o => !o.isLinked);
 
   return (
     <Popover open={open} onOpenChange={setOpen} modal={false}>
@@ -233,35 +305,87 @@ export function ReleaseBudgetContactField({
               </CommandItem>
             </CommandGroup>
 
-            {linked.length > 0 && (
-              <CommandGroup heading="Vinculados al artista">
-                {linked.map(o => (
-                  <CommandItem
-                    key={o.id}
-                    value={o.name}
-                    onSelect={() => { onValueChange(o.id); setOpen(false); }}
-                  >
-                    <Check className={cn("mr-2 h-3.5 w-3.5", value === o.id ? "opacity-100" : "opacity-0")} />
-                    <span className="text-sm">{o.name}</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
+          {/* Owner: internal team section */}
+            {type === 'owner' && (() => {
+              const internals = options.filter(o => o.source === 'interno');
+              const externals = options.filter(o => o.source === 'externo');
+              return (
+                <>
+                  {internals.length > 0 && (
+                    <CommandGroup heading="Equipo de management">
+                      {internals.map(o => (
+                        <CommandItem
+                          key={o.id}
+                          value={o.name}
+                          onSelect={() => { onValueChange(o.id); setOpen(false); }}
+                        >
+                          <Check className={cn("mr-2 h-3.5 w-3.5", value === o.id ? "opacity-100" : "opacity-0")} />
+                          <Users className="mr-1.5 h-3 w-3 text-primary flex-shrink-0" />
+                          <span className="text-sm">{o.name}</span>
+                          <span className="ml-auto text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">interno</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                  {externals.length > 0 && (
+                    <CommandGroup heading="Contactos externos">
+                      {externals.map(o => (
+                        <CommandItem
+                          key={o.id}
+                          value={o.name}
+                          onSelect={() => { onValueChange(o.id); setOpen(false); }}
+                        >
+                          <Check className={cn("mr-2 h-3.5 w-3.5", value === o.id ? "opacity-100" : "opacity-0")} />
+                          <User className="mr-1.5 h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <span className="text-sm">{o.name}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                  {internals.length === 0 && externals.length === 0 && !loading && (
+                    <CommandEmpty>No se encontraron opciones</CommandEmpty>
+                  )}
+                </>
+              );
+            })()}
 
-            {others.length > 0 && (
-              <CommandGroup heading="Otros contactos">
-                {others.map(o => (
-                  <CommandItem
-                    key={o.id}
-                    value={o.name}
-                    onSelect={() => { onValueChange(o.id); setOpen(false); }}
-                  >
-                    <Check className={cn("mr-2 h-3.5 w-3.5", value === o.id ? "opacity-100" : "opacity-0")} />
-                    <span className="text-sm">{o.name}</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
+            {/* Sello / Distribucion: linked + others */}
+            {type !== 'owner' && (() => {
+              const linked = options.filter(o => o.isLinked);
+              const others = options.filter(o => !o.isLinked);
+              return (
+                <>
+                  {linked.length > 0 && (
+                    <CommandGroup heading="Vinculados al artista">
+                      {linked.map(o => (
+                        <CommandItem
+                          key={o.id}
+                          value={o.name}
+                          onSelect={() => { onValueChange(o.id); setOpen(false); }}
+                        >
+                          <Check className={cn("mr-2 h-3.5 w-3.5", value === o.id ? "opacity-100" : "opacity-0")} />
+                          <span className="text-sm">{o.name}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                  {others.length > 0 && (
+                    <CommandGroup heading="Otros contactos">
+                      {others.map(o => (
+                        <CommandItem
+                          key={o.id}
+                          value={o.name}
+                          onSelect={() => { onValueChange(o.id); setOpen(false); }}
+                        >
+                          <Check className={cn("mr-2 h-3.5 w-3.5", value === o.id ? "opacity-100" : "opacity-0")} />
+                          <span className="text-sm">{o.name}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                </>
+              );
+            })()}
           </CommandList>
 
           {/* Create new */}
