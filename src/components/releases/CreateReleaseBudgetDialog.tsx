@@ -671,7 +671,7 @@ export default function CreateReleaseBudgetDialog({
               "text-xs font-medium whitespace-nowrap",
               contracted ? "text-primary" : "text-muted-foreground"
             )}>
-              Lo ejecutamos
+              {contracted ? "Producción propia" : "Derivado"}
             </span>
           </div>
         )}
