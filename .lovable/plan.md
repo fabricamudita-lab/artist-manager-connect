@@ -1,85 +1,131 @@
 
-# Fix: Deduplicar warnings del mismo tipo en múltiples presupuestos
+# Fix: El presupuesto debe generar el cronograma completo automáticamente
 
-## Causa raíz
+## ¿Qué está pasando?
 
-El código genera correctamente **un warning por presupuesto** con key único (`track_count-{budgetId}`). El problema es que hay **3 presupuestos vinculados** con el mismo nombre "Presupuesto - La Flor de Déu" y todos tienen `n_tracks = 1`, mientras el release tiene 2 tracks.
+Cuando creas un presupuesto, el sistema intenta crear hitos en el cronograma — pero hay dos problemas:
 
-Resultado: 3 warnings con mensajes idénticos, con keys distintos → se muestran los 3.
+**Problema 1 — Estructura incompleta:** El presupuesto crea sólo 8 "fechas clave" (Grabación, Mezcla, Masters...) pero todos con `category: 'marketing'`. El cronograma organiza las tareas por flujos (`audio`, `visual`, `contenido`, `fabricacion`, `marketing`) y necesita el campo `metadata.estimatedDays` para mostrarlas correctamente. Sin esa estructura, el cronograma no reconoce los datos y muestra la pantalla vacía.
 
-## Solución: Agrupar warnings del mismo tipo y título
+**Problema 2 — Aprovechamiento nulo de la info del presupuesto:** El presupuesto ya sabe cuántas canciones hay, si hay videoclip, si hay fabricación física, si hay singles... exactamente la misma información que pide el wizard del cronograma. Pero esa información nunca se usa para generar el cronograma completo.
 
-En lugar de mostrar un card por cada presupuesto afectado, **agrupar los warnings por tipo y mensaje**, y mostrar uno solo que afecta a N presupuestos a la vez.
+## La solución: Al guardar el presupuesto, generar el cronograma completo
 
-### Lógica de agrupación
+Usar la misma función `generateTimelineFromConfig()` que ya existe (la usa el wizard del cronograma) para generar automáticamente el cronograma completo cuando se crea el presupuesto. Los datos del presupuesto mapean directamente a los parámetros del config:
 
-Tras generar el array `w` en el `useMemo`, añadir un paso de agrupación:
+```
+releaseDate       ← el campo "Fecha de lanzamiento digital" del presupuesto
+hasVideo          ← si el presupuesto incluye videoclip (nVideoclips > 0)
+hasPhysical       ← si el presupuesto incluye fabricación física (fisico === true)
+numSongs          ← el campo nTracks del presupuesto
+numSingles        ← el número de singles definidos en el presupuesto
+physicalDate      ← el campo "Fecha de venta física" del presupuesto
+```
+
+### Comportamiento
+
+Si el cronograma ya existe (tiene milestones): **no tocar nada** — respetar el trabajo existente del usuario.
+
+Si el cronograma está vacío: **generarlo completo** — todas las tareas organizadas por flujo, con fechas calculadas a partir de la fecha de lanzamiento, usando la misma lógica del wizard.
+
+### Nuevo mensaje de éxito
+
+Cuando el presupuesto se crea y genera el cronograma automáticamente:
+> ✓ Presupuesto creado con 5 categorías
+> ✓ Cronograma generado automáticamente (18 tareas en 4 flujos)
+> ✓ 2 canciones añadidas en Créditos & Audio
+
+## Cambios técnicos
+
+### `src/components/releases/CreateReleaseBudgetDialog.tsx`
+
+**1. Importar la función de generación de timeline** (ya existe):
+```ts
+import { generateTimelineFromConfig, groupTasksByWorkflow, type ReleaseConfig } from '@/lib/releaseTimelineTemplates';
+```
+
+**2. Reemplazar la sección "4. Sync Milestones" (~líneas 602-646):**
+
+Lógica actual (solo crea 8 milestones simples con `category: 'marketing'`):
+```ts
+// efectua 'autocalcular' pero con estructura incompleta
+await supabase.from('release_milestones').insert({ title, due_date, category: 'marketing' })
+```
+
+Nueva lógica:
 
 ```ts
-// Agrupar warnings del mismo tipo + mismo título en uno solo
-const grouped = new Map<string, InconsistencyWarning & { budgetIds?: string[] }>();
+// ─── 4. Sync Milestones / Generate Cronograma ─────────────────
+let milestonesCreated = 0;
 
-for (const warning of w) {
-  const groupKey = `${warning.type}::${warning.title}`;
-  if (grouped.has(groupKey)) {
-    const existing = grouped.get(groupKey)!;
-    // Añadir el budgetId al grupo
-    existing.budgetIds = [...(existing.budgetIds || [existing.budgetId].filter(Boolean)), warning.budgetId].filter(Boolean) as string[];
-  } else {
-    grouped.set(groupKey, { ...warning, budgetIds: warning.budgetId ? [warning.budgetId] : [] });
+// Check if cronograma already has data
+const { data: existingMilestones } = await supabase
+  .from('release_milestones')
+  .select('id')
+  .eq('release_id', release.id)
+  .limit(1);
+
+const cronogramaYaExiste = (existingMilestones?.length || 0) > 0;
+
+if (!cronogramaYaExiste && releaseDate) {
+  // Build ReleaseConfig from budget data
+  const config: ReleaseConfig = {
+    releaseDate,
+    physicalDate: physicalDate || null,
+    numSongs: nTracks || 1,
+    numSingles: singles.length,
+    hasVideo: nVideoclips > 0,
+    hasPhysical: fisico === true,
+  };
+
+  // Generate full timeline using the same function as the wizard
+  const generatedTasks = generateTimelineFromConfig(config);
+  const groupedTasks = groupTasksByWorkflow(generatedTasks);
+
+  // Build milestones in the same format that ReleaseCronograma.tsx expects
+  const milestonesToInsert = generatedTasks.map((task, index) => ({
+    release_id: release.id,
+    title: task.name,
+    due_date: format(task.startDate, 'yyyy-MM-dd'),
+    status: 'pending',
+    category: task.workflowId,          // ← 'audio', 'visual', 'marketing', etc.
+    sort_order: index,
+    metadata: {
+      estimatedDays: task.estimatedDays,  // ← Needed by ReleaseCronograma
+      anchoredTo: task.anchoredTo || null,
+      customStartDate: null,
+      subtasks: null,
+      responsible_ref: null,
+    },
+  }));
+
+  if (milestonesToInsert.length > 0) {
+    const { error } = await supabase
+      .from('release_milestones')
+      .insert(milestonesToInsert as any);
+    if (!error) milestonesCreated = milestonesToInsert.length;
   }
 }
-
-return [...grouped.values()];
 ```
 
-### Cambios en la interfaz `InconsistencyWarning`
-
-Añadir `budgetIds?: string[]` (plural) junto al `budgetId?: string` existente.
-
-### Actualizar la descripción del warning agrupado
-
-Cuando hay múltiples presupuestos afectados, el `detail` se actualiza para reflejarlo:
-
+**3. Actualizar el mensaje de éxito** para reflejar la generación del cronograma:
 ```ts
-// Si hay más de un presupuesto con el mismo problema:
-// ANTES: '"Presupuesto - La Flor de Déu" · Actualiza el número...'
-// DESPUÉS: '3 presupuestos afectados · Actualiza el número...'
+if (milestonesCreated > 0)
+  summaryLines.push(`✓ Cronograma generado automáticamente (${milestonesCreated} tareas)`);
 ```
 
-### Actualizar el botón "Actualizar presupuesto"
+### `src/components/releases/CronogramaSetupWizard.tsx`
 
-La acción `onResolveTrackCount` pasa a aceptar un array de IDs:
+Sin cambios — el wizard sigue funcionando igual para cuando el usuario quiere regenerar el cronograma manualmente.
 
-```ts
-// Resolver todos los presupuestos afectados de una sola vez
-const resolveTrackCount = async (budgetIds: string[]) => {
-  for (const budgetId of budgetIds) {
-    // mismo código actual pero en loop
-  }
-  toast.success(`${budgetIds.length} presupuesto(s) actualizados`);
-  fetchLinkedBudgets();
-};
-```
+### `src/pages/release-sections/ReleaseCronograma.tsx`
 
-### Actualizar la key del panel
+Sin cambios — ya sabe leer milestones con `category` = workflow ID y `metadata.estimatedDays`. Al recargar la página después de crear el presupuesto, verá los milestones y mostrará el cronograma completo.
 
-La key del warning agrupado se convierte en la del primero del grupo (para que el dismiss funcione), pero al ignorar se añaden al `dismissedKeys` todas las keys del grupo.
+## Resumen de archivos a modificar
 
-## Cambios en `InconsistencyPanel`
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/releases/CreateReleaseBudgetDialog.tsx` | Reemplazar la sección "Sync Milestones" (~líneas 602-646) con la generación completa del cronograma usando `generateTimelineFromConfig` |
 
-El componente recibe `warnings` con la nueva propiedad `budgetIds`. Cuando `budgetIds.length > 1`:
-- El botón "Actualizar presupuesto" pasa el array completo a `onResolveTrackCount`
-- El texto del detalle dice "3 presupuestos afectados" en lugar del nombre
-
-## Archivos a modificar
-
-Solo **`src/pages/release-sections/ReleasePresupuestos.tsx`**:
-
-1. Añadir `budgetIds?: string[]` a la interfaz `InconsistencyWarning`
-2. Al final del `useMemo` de `warnings`: añadir paso de agrupación por `type + title`
-3. Actualizar `resolveTrackCount` para aceptar `budgetIds: string[]` en lugar de `budgetId: string`
-4. Actualizar `InconsistencyPanelProps` y la lógica del componente para pasar `budgetIds` a la acción
-5. Al hacer dismiss de un warning agrupado, descartar todas las keys del grupo
-
-Sin cambios en base de datos ni nuevos archivos.
+Sin cambios en base de datos, sin nuevos archivos, sin cambios en el cronograma.
