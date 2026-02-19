@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 import {
   CalendarIcon, ChevronLeft, ChevronRight, Loader2, Plus, X, Check,
   Disc3, Music, Camera, Megaphone, Truck, UtensilsCrossed, BedDouble,
-  Clapperboard, Package, ShieldAlert, Settings, Globe, GitMerge, Calculator, Blend
+  Clapperboard, Package, ShieldAlert, Settings, Globe, GitMerge, Calculator, Blend, RotateCcw
 } from 'lucide-react';
 import type { Release, ReleaseMilestone } from '@/hooks/useReleases';
 
@@ -275,6 +275,7 @@ export default function CreateReleaseBudgetDialog({
   const [masterTypes, setMasterTypes] = useState<string[]>(['estereo']);
   const [nVideoclips, setNVideoclips] = useState(0);
   const [nCapsulasRRSS, setNCapsulasRRSS] = useState(0);
+  const [capsulasManuales, setCapsulasManuales] = useState(false);
   const [shooting, setShooting] = useState(false);
   const [shootingContratado, setShootingContratado] = useState(false);
   const [vestuario, setVestuario] = useState(false);
@@ -333,6 +334,13 @@ export default function CreateReleaseBudgetDialog({
         });
     }
   }, [open, release, trackCount]);
+
+  // ─── Auto-calc cápsulas RRSS = videoclips × 3 ───────────────────
+  useEffect(() => {
+    if (!capsulasManuales) {
+      setNCapsulasRRSS(nVideoclips * 3);
+    }
+  }, [nVideoclips, capsulasManuales]);
 
   // ─── Determine which categories are active ───────────────────────
   const getActiveCategories = (): string[] => {
@@ -1128,8 +1136,26 @@ export default function CreateReleaseBudgetDialog({
                     <Input type="number" min={0} value={nVideoclips} onChange={e => setNVideoclips(parseInt(e.target.value) || 0)} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Nº cápsulas RRSS</Label>
-                    <Input type="number" min={0} value={nCapsulasRRSS} onChange={e => setNCapsulasRRSS(parseInt(e.target.value) || 0)} className="h-9 text-sm" />
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs">Nº cápsulas RRSS</Label>
+                      {capsulasManuales && nCapsulasRRSS !== nVideoclips * 3 && (
+                        <button
+                          type="button"
+                          onClick={() => { setCapsulasManuales(false); setNCapsulasRRSS(nVideoclips * 3); }}
+                          title="Restaurar valor automático (videoclips × 3)"
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={nCapsulasRRSS}
+                      onChange={e => { setCapsulasManuales(true); setNCapsulasRRSS(parseInt(e.target.value) || 0); }}
+                      className="h-9 text-sm"
+                    />
                   </div>
                 </div>
                 <ToggleRow label="¿Shooting?" checked={shooting} onChange={setShooting} contracted={shootingContratado} onContractedChange={setShootingContratado} />
