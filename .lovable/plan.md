@@ -1,84 +1,85 @@
 
-# Lógica condicional en toggles de Mezcla
+# Auto-calcular Nº cápsulas RRSS como videoclips × 3
 
 ## Situación actual
 
-En el paso "Variables" hay dos toggles seguidos:
-
-```
-¿El productor incluye mezcla?  [ON]
-¿Mezcla externa?               [OFF]
-```
-
-Y encima, el campo **Productor/es** siempre visible.
-
-Hay dos problemas de UX:
-
-1. Si `includesMix = true` (el productor incluye mezcla), mostrar "¿Mezcla externa?" no tiene lógica — son mutuamente excluyentes.
-2. Si `externalMix = true` (la mezcla la hace alguien externo), debería aparecer un selector para vincular al **técnico de mezcla externo** — ese es el perfil que falta. El campo "Productor/es" sigue siendo válido (el productor sigue existiendo), pero necesita un campo extra para el responsable de la mezcla.
-
-## Cambios a implementar
-
-### 1. Ocultar "¿Mezcla externa?" cuando `includesMix = true`
-
-Si el productor incluye la mezcla, no puede ser externa al mismo tiempo. Se añade una condición:
+En `CreateReleaseBudgetDialog.tsx`, líneas 276–277:
 
 ```tsx
-<ToggleRow label="¿El productor incluye mezcla?" checked={includesMix} onChange={(v) => { setIncludesMix(v); if (v) setExternalMix(false); }} />
-{!includesMix && (
-  <ToggleRow label="¿Mezcla externa?" checked={externalMix} onChange={setExternalMix} />
+const [nVideoclips, setNVideoclips] = useState(0);
+const [nCapsulasRRSS, setNCapsulasRRSS] = useState(0);
+```
+
+Ambos campos son completamente independientes. El usuario tiene que rellenar las cápsulas manualmente.
+
+## Solución
+
+### 1. Flag `capsulasManuales`
+
+Añadir un estado booleano que indique si el usuario ha tocado el campo de cápsulas manualmente:
+
+```tsx
+const [capsulasManuales, setCapsulasManuales] = useState(false);
+```
+
+### 2. `useEffect` de sincronización
+
+Cuando `nVideoclips` cambia y el usuario **no** ha sobreescrito las cápsulas, actualizar automáticamente:
+
+```tsx
+useEffect(() => {
+  if (!capsulasManuales) {
+    setNCapsulasRRSS(nVideoclips * 3);
+  }
+}, [nVideoclips, capsulasManuales]);
+```
+
+### 3. Handler manual para el campo de cápsulas
+
+Cuando el usuario escribe en el input de cápsulas, activar el flag manual:
+
+```tsx
+onChange={e => {
+  setCapsulasManuales(true);
+  setNCapsulasRRSS(parseInt(e.target.value) || 0);
+}}
+```
+
+### 4. Botón de reset (opcional pero recomendado)
+
+Un pequeño icono ↺ junto al input de cápsulas que al pulsarlo vuelve al valor automático (`nVideoclips × 3`) y limpia el flag manual. Solo aparece cuando `capsulasManuales = true` y el valor actual difiere del automático:
+
+```tsx
+{capsulasManuales && nCapsulasRRSS !== nVideoclips * 3 && (
+  <button
+    onClick={() => { setCapsulasManuales(false); setNCapsulasRRSS(nVideoclips * 3); }}
+    title="Restaurar valor automático"
+  >
+    <RotateCcw className="h-3 w-3" />
+  </button>
 )}
 ```
 
-### 2. Mostrar selector de técnico de mezcla solo cuando `externalMix = true`
+### 5. Reset al abrir el diálogo
 
-Cuando hay mezcla externa, aparece un `SingleProducerSelector` para seleccionar el técnico/estudio responsable:
-
-```tsx
-{externalMix && (
-  <div className="space-y-1.5 pl-4 border-l-2 border-border ml-2">
-    <Label className="text-xs">Técnico de mezcla externo</Label>
-    <SingleProducerSelector
-      value={externalMixEngineer}
-      onChange={setExternalMixEngineer}
-      artistId={release?.artist_id}
-      placeholder="Seleccionar técnico..."
-    />
-  </div>
-)}
-```
-
-### 3. Nuevo estado `externalMixEngineer`
-
-Añadir estado:
-```tsx
-const [externalMixEngineer, setExternalMixEngineer] = useState<ProducerRef | null>(null);
-```
-
-Y incluirlo en el `metadata` al guardar, junto al resto de proveedores.
-
-### 4. Reset al desactivar
-
-Cuando `externalMix` se desactiva, limpiar `externalMixEngineer`:
-```tsx
-onChange={(v) => { setExternalMix(v); if (!v) setExternalMixEngineer(null); }}
-```
+Al resetear el formulario (cuando el diálogo se cierra/abre), también resetear `capsulasManuales` a `false`.
 
 ## Archivos a modificar
 
 Solo **`src/components/releases/CreateReleaseBudgetDialog.tsx`**:
 
-- Línea ~175: añadir `const [externalMixEngineer, setExternalMixEngineer] = useState<ProducerRef | null>(null);`
-- Línea ~1009: modificar `ToggleRow` de `includesMix` para limpiar `externalMix` al activar
-- Línea ~1010: envolver `ToggleRow` de `externalMix` en `{!includesMix && (...)}` con reset de `externalMixEngineer`
-- Línea ~1011: añadir bloque condicional `{externalMix && ...}` con `SingleProducerSelector`
-- En la función de generación de metadata: incluir `externalMixEngineer`
+- Añadir `const [capsulasManuales, setCapsulasManuales] = useState(false);` junto a los demás estados (~línea 277)
+- Añadir `useEffect` de sincronización (~línea 340, antes de los `useMemo`)
+- Modificar el `onChange` del input `nCapsulasRRSS` para activar el flag (~línea 1132)
+- Añadir botón reset ↺ dentro del `<div>` del campo cápsulas
+- Incluir `setCapsulasManuales(false)` en la función de reset del formulario
 
-## Flujo resultante
+## Comportamiento resultante
 
-```
-¿El productor incluye mezcla? [ON]  → oculta "¿Mezcla externa?"
-¿El productor incluye mezcla? [OFF] → muestra "¿Mezcla externa?"
-  ¿Mezcla externa? [ON]             → muestra selector "Técnico de mezcla externo"
-  ¿Mezcla externa? [OFF]            → sin selector adicional
-```
+| Acción del usuario | Resultado |
+|---|---|
+| Cambia videoclips a 4 | Cápsulas se actualiza automáticamente a 12 |
+| Cambia videoclips a 0 | Cápsulas = 0 automáticamente |
+| Escribe 10 en cápsulas manualmente | Cápsulas queda en 10, deja de seguir a videoclips |
+| Pulsa ↺ | Cápsulas vuelve a videoclips × 3 |
+| Cambia videoclips tras edición manual | Cápsulas NO cambia (respeta la edición manual) |
