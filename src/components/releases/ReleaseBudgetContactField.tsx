@@ -187,7 +187,7 @@ export function ReleaseBudgetContactField({
   const others = options.filter(o => !o.isLinked);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -208,10 +208,12 @@ export function ReleaseBudgetContactField({
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-[250px] p-0 z-[200] bg-popover border border-border shadow-md"
+        className="w-[250px] p-0 z-[300] bg-popover border border-border shadow-lg pointer-events-auto"
         align="start"
         side="bottom"
         sideOffset={4}
+        avoidCollisions={false}
+        style={{ pointerEvents: 'auto' }}
       >
         <Command>
           <CommandInput placeholder="Buscar..." />

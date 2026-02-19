@@ -552,15 +552,20 @@ export default function CreateReleaseBudgetDialog({
   const DatePicker = ({ value, onChange, label: dateLabel }: { value?: Date; onChange: (d?: Date) => void; label: string }) => (
     <div className="space-y-1.5">
       <Label className="text-xs">{dateLabel}</Label>
-      <Popover>
+      <Popover modal={false}>
         <PopoverTrigger asChild>
           <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-9 text-sm", !value && "text-muted-foreground")}>
             <CalendarIcon className="mr-2 h-3.5 w-3.5" />
             {value ? format(value, "dd MMM yyyy", { locale: es }) : "Seleccionar"}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar mode="single" selected={value} onSelect={onChange} initialFocus className="p-3 pointer-events-auto" />
+        <PopoverContent
+          className="w-auto p-0 z-[300] bg-popover border border-border shadow-lg pointer-events-auto"
+          align="start"
+          avoidCollisions={false}
+          style={{ pointerEvents: 'auto' }}
+        >
+          <Calendar mode="single" selected={value} onSelect={onChange} initialFocus className="p-3" />
         </PopoverContent>
       </Popover>
     </div>
@@ -582,7 +587,7 @@ export default function CreateReleaseBudgetDialog({
   // ─── RENDER ──────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Disc3 className="h-5 w-5 text-primary" />
@@ -660,7 +665,7 @@ export default function CreateReleaseBudgetDialog({
               {/* Territorio multi-select */}
               <div className="space-y-1.5">
                 <Label className="text-xs">Territorio objetivo</Label>
-                <Popover>
+                <Popover modal={false}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start text-left font-normal h-auto min-h-9 text-sm py-1.5">
                       <Globe className="mr-2 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
@@ -684,7 +689,7 @@ export default function CreateReleaseBudgetDialog({
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[300px] p-0 z-[200] bg-popover" align="start" side="bottom" sideOffset={4}>
+                  <PopoverContent className="w-[300px] p-0 z-[300] bg-popover border border-border shadow-lg pointer-events-auto" align="start" side="bottom" sideOffset={4} avoidCollisions={false} style={{ pointerEvents: 'auto' }}>
                     <Command>
                       <CommandInput placeholder="Buscar país..." />
                       <CommandList className="max-h-[250px]">
@@ -769,7 +774,7 @@ export default function CreateReleaseBudgetDialog({
               {/* Servicios multi-select */}
               <div className="space-y-1.5">
                 <Label className="text-xs">Servicios contratados</Label>
-                <Popover>
+                <Popover modal={false}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start text-left font-normal h-auto min-h-9 text-sm py-1.5">
                       {services.length === 0 ? (
@@ -789,7 +794,7 @@ export default function CreateReleaseBudgetDialog({
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[280px] p-0 z-[200] bg-popover" align="start" side="bottom" sideOffset={4}>
+                  <PopoverContent className="w-[280px] p-0 z-[300] bg-popover border border-border shadow-lg pointer-events-auto" align="start" side="bottom" sideOffset={4} avoidCollisions={false} style={{ pointerEvents: 'auto' }}>
                     <Command>
                       <CommandInput placeholder="Buscar servicio..." />
                       <CommandList className="max-h-[250px]">
