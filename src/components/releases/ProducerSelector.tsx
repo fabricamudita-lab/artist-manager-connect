@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronsUpDown, User, X } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, User, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export interface ProducerRef {
   type: "profile" | "contact";
@@ -120,12 +121,20 @@ function useProducerItems(open: boolean, artistId?: string | null) {
     return () => { cancelled = true; };
   }, [open, artistId]);
 
+  const addItem = (item: ProducerRef) => {
+    setItems((prev) => {
+      const exists = prev.some((i) => i.type === item.type && i.id === item.id);
+      if (exists) return prev;
+      return [...prev, item].sort((a, b) => a.name.localeCompare(b.name, "es"));
+    });
+  };
+
   const grouped = useMemo(() => ({
     perfiles: items.filter((i) => i.type === "profile"),
     contactos: items.filter((i) => i.type === "contact"),
   }), [items]);
 
-  return { loading, grouped };
+  return { loading, grouped, addItem };
 }
 
 // ─── Multi-select ProducerSelector ───────────────────────────────────────────
@@ -146,7 +155,9 @@ export function ProducerSelector({
   className,
 }: ProducerSelectorProps) {
   const [open, setOpen] = useState(false);
-  const { loading, grouped } = useProducerItems(open, artistId);
+  const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
+  const { loading, grouped, addItem } = useProducerItems(open, artistId);
 
   const isSelected = (item: ProducerRef) =>
     value.some((v) => v.type === item.type && v.id === item.id);
@@ -161,6 +172,35 @@ export function ProducerSelector({
 
   const remove = (item: ProducerRef) => {
     onChange(value.filter((v) => !(v.type === item.type && v.id === item.id)));
+  };
+
+  const allItems = [...grouped.perfiles, ...grouped.contactos];
+  const trimmed = search.trim();
+  const nameExists = allItems.some(
+    (i) => i.name.toLowerCase() === trimmed.toLowerCase()
+  );
+  const showCreate = trimmed.length > 1 && !nameExists && !loading;
+
+  const handleCreate = async () => {
+    if (!trimmed) return;
+    setCreating(true);
+    try {
+      const { data, error } = await supabase
+        .from("contacts")
+        .insert({ name: trimmed, created_by: (await supabase.auth.getUser()).data.user?.id ?? "" })
+        .select("id, name, stage_name")
+        .single();
+      if (error) throw error;
+      const newItem: ProducerRef = { type: "contact", id: data.id, name: data.stage_name || data.name };
+      addItem(newItem);
+      toggle(newItem);
+      setSearch("");
+      toast.success(`Productor "${trimmed}" creado`);
+    } catch {
+      toast.error("No se pudo crear el productor");
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -185,9 +225,30 @@ export function ProducerSelector({
         </PopoverTrigger>
         <PopoverContent className="w-72 p-0" align="start">
           <Command>
-            <CommandInput placeholder="Buscar..." className="h-9" />
-            <CommandList className="max-h-64">
-              <CommandEmpty>{loading ? "Cargando..." : "Sin resultados"}</CommandEmpty>
+            <CommandInput
+              placeholder="Buscar o crear..."
+              className="h-9"
+              value={search}
+              onValueChange={setSearch}
+            />
+            <CommandList className="max-h-64" onWheel={(e) => e.stopPropagation()}>
+              <CommandEmpty>
+                {loading ? "Cargando..." : "Sin resultados"}
+              </CommandEmpty>
+
+              {showCreate && (
+                <CommandGroup>
+                  <CommandItem
+                    value={`__create__${trimmed}`}
+                    onSelect={handleCreate}
+                    disabled={creating}
+                    className="text-primary"
+                  >
+                    <Plus className="mr-2 h-4 w-4 shrink-0" />
+                    <span>Crear &ldquo;{trimmed}&rdquo;</span>
+                  </CommandItem>
+                </CommandGroup>
+              )}
 
               {grouped.perfiles.length > 0 && (
                 <CommandGroup heading="Equipo del artista">
@@ -265,11 +326,42 @@ export function SingleProducerSelector({
   className,
 }: SingleProducerSelectorProps) {
   const [open, setOpen] = useState(false);
-  const { loading, grouped } = useProducerItems(open, artistId);
+  const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
+  const { loading, grouped, addItem } = useProducerItems(open, artistId);
 
   const select = (item: ProducerRef) => {
     onChange(value?.type === item.type && value?.id === item.id ? null : item);
     setOpen(false);
+  };
+
+  const allItems = [...grouped.perfiles, ...grouped.contactos];
+  const trimmed = search.trim();
+  const nameExists = allItems.some(
+    (i) => i.name.toLowerCase() === trimmed.toLowerCase()
+  );
+  const showCreate = trimmed.length > 1 && !nameExists && !loading;
+
+  const handleCreate = async () => {
+    if (!trimmed) return;
+    setCreating(true);
+    try {
+      const { data, error } = await supabase
+        .from("contacts")
+        .insert({ name: trimmed, created_by: (await supabase.auth.getUser()).data.user?.id ?? "" })
+        .select("id, name, stage_name")
+        .single();
+      if (error) throw error;
+      const newItem: ProducerRef = { type: "contact", id: data.id, name: data.stage_name || data.name };
+      addItem(newItem);
+      select(newItem);
+      setSearch("");
+      toast.success(`Productor "${trimmed}" creado`);
+    } catch {
+      toast.error("No se pudo crear el productor");
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -291,9 +383,28 @@ export function SingleProducerSelector({
       </PopoverTrigger>
       <PopoverContent className="w-64 p-0" align="start">
         <Command>
-          <CommandInput placeholder="Buscar..." className="h-9" />
-          <CommandList className="max-h-56">
+          <CommandInput
+            placeholder="Buscar o crear..."
+            className="h-9"
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList className="max-h-56" onWheel={(e) => e.stopPropagation()}>
             <CommandEmpty>{loading ? "Cargando..." : "Sin resultados"}</CommandEmpty>
+
+            {showCreate && (
+              <CommandGroup>
+                <CommandItem
+                  value={`__create__${trimmed}`}
+                  onSelect={handleCreate}
+                  disabled={creating}
+                  className="text-primary"
+                >
+                  <Plus className="mr-2 h-4 w-4 shrink-0" />
+                  <span>Crear &ldquo;{trimmed}&rdquo;</span>
+                </CommandItem>
+              </CommandGroup>
+            )}
 
             <CommandGroup heading="Acciones">
               <CommandItem value="sin_asignar" onSelect={() => { onChange(null); setOpen(false); }}>
