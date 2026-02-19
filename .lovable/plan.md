@@ -1,74 +1,142 @@
 
-# Correcciones en el wizard de Presupuesto de Lanzamiento
+# Rediseño del Paso 2 de Fechas — Visibilidad inmediata sin leer datos
 
-## 4 cambios a implementar
+## El problema actual
 
----
+La tabla actual (HITO | CRONOGRAMA | CALCULADO | SELECCIONADO) obliga al usuario a:
+1. Leer 3 columnas de fechas por fila
+2. Mentalmente comparar cuál es cuál
+3. Interpretar el badge "real" para entender el origen
+4. Procesar terminología técnica ("Calculado", "Seleccionado", "real")
 
-### 1. VERSIONES → Single select (radio)
+## La nueva propuesta: Diseño orientado a la acción
 
-**Problema:** Actualmente es multi-select con Checkboxes, pero el usuario solo debe poder seleccionar una versión.
+### Reemplazar la tabla por tarjetas de hito con indicador visual inmediato
 
-**Solución:** Convertir los `Checkbox` a `RadioGroup` / `RadioGroupItem` de Radix UI. Solo una versión seleccionable a la vez.
+Cada hito se muestra como una **fila compacta** con:
 
-- Estado: cambiar `versions: string[]` → `version: string` (single value, no array).
-- UI: Grid 2 columnas con `RadioGroupItem` en lugar de `Checkbox`.
-- Actualizar `handleSubmit` para guardar `version` (string) en metadata en lugar de `versions`.
-
-**Contraste (bug del texto):** El color actual al seleccionar usa `text-primary` sobre fondo `bg-primary/10`. En modo claro el texto verde es legible, pero en algunos temas el `text-primary` puede superponerse al fondo. El fix: cuando el item está seleccionado, el `<span>` del label usa `text-foreground font-medium` (no `text-primary`) para garantizar máximo contraste. El indicador visual (el radio circle verde) ya comunica la selección.
-
----
-
-### 2. SERVICIOS CONTRATADOS → Estética de grid con checkboxes
-
-**Problema:** El selector de servicios es un dropdown/popover tipo `Command`, con estética diferente a los otros campos (Versiones, Formatos físicos).
-
-**Solución:** Reemplazar el Popover/Command dropdown por un **bloque de checkboxes en grid 2 columnas**, idéntico visualmente al bloque de Versiones y Formatos físicos.
-
-- Eliminar el `<Popover>` y el `<Command>` de servicios.
-- Reemplazar por `<div className="rounded-md border border-border bg-muted/20 p-3">` con grid 2x columnas de checkboxes.
-- Cada servicio es `<label>` con `<Checkbox>` + `<span>`.
-
-**Contraste en checkboxes:** Cuando el checkbox está marcado, el `<span>` del texto lleva `className="text-sm text-foreground"` siempre (no heredar color del padre que puede ser `text-primary`). El `Checkbox` ya muestra el check verde sin afectar el texto.
-
----
-
-### 3. SINGLES PREVIOS → Selector de tracks existentes
-
-**Problema:** Los "Singles previos" solo tienen un date picker. No permiten seleccionar una canción existente ni añadir un nuevo título que se propague a Créditos/Audio.
-
-**Solución:** Cada single ahora tiene:
-- **Un selector de canción**: si ya existen tracks en el release, se muestra un `Select` con los tracks disponibles. Al seleccionar una canción existente, se vincula su ID y nombre.
-- **Opción "Nuevo single"**: si se elige "+ Nuevo título", aparece un `Input` para escribir el nombre. Al crear el presupuesto, en `handleSubmit` se insertará automáticamente el nuevo track en la tabla `tracks` con ese título y `track_number` = siguiente disponible.
-- **Date picker** para la fecha del single (igual que ahora).
-
-El estado `singleDates: Date[]` se amplía a `singles: { title?: string; trackId?: string; date?: Date }[]`.
-
-En `handleSubmit`, para cada single con `title` y sin `trackId`, se inserta el track en la tabla `tracks` con el título dado.
-
----
-
-### 4. FIX DE CONTRASTE EN TEXTOS SELECCIONADOS
-
-**Problema:** Al seleccionar chips/checkboxes, el texto puede volverse ilegible (texto oscuro sobre fondo oscuro, o texto claro sobre fondo claro, visible en la screenshot de "Sin asignar" azul).
-
-**Fix global en el dialog:** En todos los lugares donde se usan labels dentro de items seleccionados:
-
-```tsx
-// ANTES (problema)
-<span className="text-sm">{opt.label}</span>
-
-// DESPUÉS (fix)
-<span className="text-sm text-foreground">{opt.label}</span>
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 🟢 Grabación          15 feb ───────────────── 🗓 del cronograma│
+│ ⚫ Masters             25 dic ─ calculado automáticamente        │
+│ 🔵 Salida Digital     08 feb ↗ ajustado (era 15 feb)            │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-Específicamente en:
-- Grid de Versiones (radio labels)
-- Grid de Servicios contratados (checkbox labels)
-- Grid de Formatos físicos (checkbox labels)
-- Cualquier badge/chip con fondo de color activo
+### Diseño visual detallado
 
-Para el caso específico de "Sin asignar" en azul (screenshot 3), corresponde a un botón de tipo `variant="outline"` con clases de selección activa que fuerzan `bg-primary text-primary-foreground`. Revisar que los triggers de Select/Combobox con valor vacío muestren el placeholder correctamente.
+**Columna izquierda**: nombre del hito
+**Centro**: la fecha final única y grande, sin ambigüedad
+**Derecha**: contexto mínimo con un **pill de origen** coloreado
+
+Los pills de origen reemplazan toda la tabla comparativa:
+- 🟢 `del plan` → verde suave (viene del cronograma real)
+- ⚪ `auto` → gris (calculado por offset)
+- 🟡 `ajustado` → ámbar (cronograma + autorrelleno difieren, se tomó el cronograma)
+
+Si la fecha del cronograma y la calculada **coinciden o son muy cercanas** (≤ 3 días), no se muestra el pill para no añadir ruido.
+
+### Las 3 estrategias: renombrar a lenguaje cotidiano
+
+Eliminar "Cronograma / Recalcular / Mezclar" por nombres que cualquier usuario entiende:
+
+| Actual | Nuevo | Subtítulo |
+|--------|-------|-----------|
+| Usar cronograma | **Usar el plan** | Respeta las fechas que ya tienes |
+| Recalcular | **Calcular desde cero** | Ignora el plan, parte de la fecha de salida |
+| Mezclar | **Completar vacíos** | Usa el plan donde existe, calcula el resto |
+
+### Nuevo layout de la tabla — por fila, una fecha, un vistazo
+
+```
+Grabación    ─────────────────    07 dic   [del plan]
+Mezcla       ─────────────────    22 dic   [del plan]
+Masters      ─────────────────    25 dic   [auto]
+Arte         ─────────────────    28 dic   [auto]
+Entrega DSP  ─────────────────    28 dic   [auto]
+Pre Save     ─────────────────    11 ene   [auto]
+Anuncio      ─────────────────    25 ene   [auto]
+Salida Digital ───────────────    15 feb   [del plan]
+```
+
+Sin columnas múltiples. Una fecha, uno color.
+
+### ¿Qué pasa con la diferencia de días?
+
+Cuando `cronogramaDate` y `calculatedDate` difieren, el tooltip del pill muestra:
+> "El plan dice 07 dic, el cálculo automático dice 30 nov"
+
+Así el usuario accede al detalle **solo si le interesa**, sin tenerlo siempre a la vista.
+
+---
+
+## Cambios técnicos en `CreateReleaseBudgetDialog.tsx`
+
+### 1. Selector de estrategia (líneas 1156–1178)
+
+Reemplazar los 3 botones con iconos por una UI más clara:
+
+```tsx
+// Nuevas etiquetas
+{ value: 'cronograma', label: 'Usar el plan', desc: 'Respeta las fechas que ya tienes', icon: CalendarCheck }
+{ value: 'autocalcular', label: 'Calcular desde cero', desc: 'Ignora el plan, parte de la fecha de salida', icon: Calculator }
+{ value: 'mezclar', label: 'Completar vacíos', desc: 'Usa el plan donde existe, calcula el resto', icon: Blend }
+```
+
+### 2. Tabla comparativa (líneas 1184–1210)
+
+Reemplazar por rows de 2 columnas (nombre + fecha con pill):
+
+```tsx
+{getResolvedDeadlines().map(d => {
+  const hasDiff = d.cronogramaDate && 
+    Math.abs(differenceInDays(d.cronogramaDate, d.calculatedDate)) > 0;
+  
+  const pillLabel = d.source === 'cronograma' ? 'del plan' : 'auto';
+  const pillClass = d.source === 'cronograma' 
+    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+    : 'bg-muted text-muted-foreground';
+
+  return (
+    <div key={d.key} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
+      <span className="text-sm font-medium text-foreground">{d.name}</span>
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-semibold tabular-nums">
+          {format(d.finalDate, "d MMM", { locale: es })}
+        </span>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge className={cn("text-[10px] px-1.5 py-0 cursor-default", pillClass)}>
+                {pillLabel}
+              </Badge>
+            </TooltipTrigger>
+            {hasDiff && (
+              <TooltipContent>
+                <p>Plan: {format(d.cronogramaDate!, "d MMM", {locale: es})}</p>
+                <p>Auto: {format(d.calculatedDate, "d MMM", {locale: es})}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    </div>
+  );
+})}
+```
+
+### 3. Sección sin cronograma (líneas 1219–1231)
+
+Mismo redesign aplicado al caso "no cronograma":
+- Eliminar el label "Deadlines calculados:"
+- Mostrar directamente las filas con pill `auto` en gris
+
+### 4. Tip de offset visible
+
+Bajo cada fecha, una línea gris muy pequeña mostrando el offset:
+> "−70 días desde salida"
+
+Esto enseña la lógica sin ocupar espacio — el usuario entiende el sistema.
 
 ---
 
@@ -76,15 +144,9 @@ Para el caso específico de "Sin asignar" en azul (screenshot 3), corresponde a 
 
 Solo **`src/components/releases/CreateReleaseBudgetDialog.tsx`**:
 
-1. **~línea 221**: Cambiar estado `versions: string[]` a `version: string` (default `'original'`)
-2. **~línea 235**: Ampliar `singleDates: Date[]` a `singles: { title?: string; trackId?: string; isNew?: boolean; date?: Date }[]`
-3. **~línea 419**: Actualizar `handleSubmit` metadata: `version` (string) en lugar de `versions`
-4. **~línea 567**: En la sección de sync de tracks, añadir inserción de tracks de singles nuevos
-5. **~línea 886**: Reemplazar grid de `Checkbox` (multi) por `RadioGroup`/`RadioGroupItem` (single)
-6. **~línea 1020**: Reemplazar Popover/Command de servicios por grid de checkboxes con estética unificada
-7. **~línea 1094**: Reemplazar sección "Singles previos" con el nuevo bloque que incluye selector de track + input de título nuevo
-8. **Corrección de contraste global**: añadir `text-foreground` a todos los `<span>` de labels dentro de items seleccionables
+- Líneas ~1152–1154: Cambiar label "Estrategia de deadlines" + descripción por textos más amigables
+- Líneas ~1158–1161: Renombrar las 3 opciones de estrategia
+- Líneas ~1184–1210: Reemplazar tabla 4 columnas por lista de 2 columnas (nombre | fecha + pill)
+- Líneas ~1219–1231: Redesign del caso sin cronograma con el mismo patrón
 
-### Imports a añadir
-- `RadioGroup, RadioGroupItem` de `@/components/ui/radio-group`
-- `useTracks` de `@/hooks/useReleases` (para cargar tracks existentes en el selector de singles)
+Ningún cambio en lógica, tipos ni base de datos — solo cambios de presentación.
