@@ -1,81 +1,92 @@
 
-# Unificar la mezcla dentro del bloque de Productor
+# Añadir subcategorías de formato físico en "Fabricación física"
 
 ## Problema actual
 
-Bajo el selector de Productor/es hay **dos toggles independientes y separados**:
+La sección de Fabricación física tiene un único toggle genérico `¿Fabricación física (vinilo/CD)?`. El usuario necesita especificar **qué tipo(s) de formato físico** se van a fabricar, ya que cada uno implica costes distintos.
 
-1. `¿El productor incluye mezcla?` — toggle simple (sin segundo toggle de "Producción propia/Derivado")
-2. `¿Mezcla externa?` — aparece solo si el toggle 1 está OFF, con su selector de técnico
+## Solución
 
-Esto crea una experiencia confusa: el usuario tiene que entender que son excluyentes y que el segundo depende del primero.
+Cuando el toggle de Fabricación física esté **ON**, mostrar un bloque de selección múltiple con los formatos físicos habituales. Cada formato se puede marcar independientemente.
 
-## Solución propuesta
-
-Fusionar los dos toggles en **un único bloque de mezcla** lógicamente agrupado bajo el productor:
+### Estructura visual propuesta
 
 ```
-Productor/es
-  [selector de productores]
+FABRICACIÓN FÍSICA
+  ¿Fabricación física?  [toggle]  [Producción propia / Derivado]
 
-  ┌─ Mezcla ──────────────────────────────────────┐
-  │  ¿El productor incluye mezcla?  [toggle ON/OFF] │
-  │                                                  │
-  │  Si está OFF →                                   │
-  │    ¿Mezcla externa?  [toggle ON/OFF]             │
-  │    Si está ON → selector de técnico              │
-  └──────────────────────────────────────────────────┘
+  Si toggle ON:
+  ┌─────────────────────────────────────────────────────────┐
+  │  Formatos                                               │
+  │  [x] Vinilo (LP/12")   [ ] Vinilo doble (2xLP)         │
+  │  [ ] CD                [ ] Edición Deluxe               │
+  │  [ ] Casete            [ ] Otros formatos               │
+  └─────────────────────────────────────────────────────────┘
 ```
 
-Visualmente, el bloque de mezcla se presenta como una tarjeta/sub-sección anidada con borde izquierdo o fondo diferenciado, dejando claro que la mezcla externa solo tiene sentido cuando el productor NO la incluye.
+## Cambios técnicos
 
-## Lógica de estados (sin cambios)
+### 1. Nuevo estado
 
-Los estados existentes se mantienen exactamente igual:
-- `includesMix` / `setIncludesMix`
-- `externalMix` / `setExternalMix`
-- `externalMixEngineer` / `setExternalMixEngineer`
-
-Solo cambia la **presentación visual** del bloque.
-
-## Cambio técnico
-
-En `CreateReleaseBudgetDialog.tsx`, líneas 1075–1098, reemplazar los toggles sueltos por un bloque con cabecera de subsección:
+Añadir un array de formatos seleccionados junto a los estados existentes de fabricación (~línea 309):
 
 ```tsx
-{/* Mezcla — agrupado bajo producción */}
-<div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
-  <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Mezcla</h5>
-  
-  <ToggleRow
-    label="¿El productor incluye mezcla?"
-    checked={includesMix}
-    onChange={(v) => { setIncludesMix(v); if (v) { setExternalMix(false); setExternalMixEngineer(null); } }}
-  />
-  
-  {!includesMix && (
-    <div className="pl-3 border-l-2 border-border space-y-2">
-      <ToggleRow
-        label="¿Mezcla externa?"
-        checked={externalMix}
-        onChange={(v) => { setExternalMix(v); if (!v) setExternalMixEngineer(null); }}
-      />
-      {externalMix && (
-        <div className="space-y-1.5 pl-4 border-l-2 border-primary/30">
-          <Label className="text-xs">Técnico de mezcla externo</Label>
-          <SingleProducerSelector
-            value={externalMixEngineer}
-            onChange={setExternalMixEngineer}
-            artistId={release?.artist_id}
-            placeholder="Seleccionar técnico..."
-          />
-        </div>
-      )}
+const [fisicoFormatos, setFisicoFormatos] = useState<string[]>([]);
+```
+
+Y la constante con los formatos disponibles:
+
+```tsx
+const FORMATOS_FISICOS = [
+  { value: 'vinilo',        label: 'Vinilo (LP/12")' },
+  { value: 'vinilo_doble',  label: 'Vinilo doble (2xLP)' },
+  { value: 'cd',            label: 'CD' },
+  { value: 'deluxe',        label: 'Edición Deluxe' },
+  { value: 'cassete',       label: 'Casete' },
+  { value: 'otros',         label: 'Otros formatos' },
+];
+```
+
+### 2. UI condicional (~línea 1228–1232)
+
+Reemplazar el `ToggleRow` simple por un bloque que incluye los checkboxes cuando el toggle está activo:
+
+```tsx
+<div className="space-y-3">
+  <h4>Fabricación física</h4>
+  <ToggleRow label="¿Fabricación física?" checked={fisico} onChange={setFisico} ... />
+
+  {fisico && (
+    <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+      <Label className="text-xs font-semibold text-muted-foreground uppercase">Formatos</Label>
+      <div className="grid grid-cols-2 gap-2">
+        {FORMATOS_FISICOS.map(f => (
+          <label key={f.value} className="flex items-center gap-2 cursor-pointer">
+            <Checkbox
+              checked={fisicoFormatos.includes(f.value)}
+              onCheckedChange={(v) => {
+                setFisicoFormatos(prev =>
+                  v ? [...prev, f.value] : prev.filter(x => x !== f.value)
+                );
+              }}
+            />
+            <span className="text-sm">{f.label}</span>
+          </label>
+        ))}
+      </div>
     </div>
   )}
 </div>
 ```
 
-## Archivo a modificar
+### 3. Propagación al submit
 
-Solo **`src/components/releases/CreateReleaseBudgetDialog.tsx`**, líneas 1075–1098 — cambio puramente visual/estructural, sin modificar estados ni lógica.
+Los formatos seleccionados se incluyen en los metadatos del presupuesto. En `handleSubmit`, añadir `fisicoFormatos` al objeto de metadata que ya se guarda en `budget_metadata`.
+
+## Archivos a modificar
+
+Solo **`src/components/releases/CreateReleaseBudgetDialog.tsx`**:
+- Añadir constante `FORMATOS_FISICOS` (~línea 88)
+- Añadir estado `fisicoFormatos` (~línea 309)
+- Reemplazar el bloque de Fabricación física (~línea 1228–1232) con la nueva UI anidada
+- Incluir `fisicoFormatos` en la metadata del submit
