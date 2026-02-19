@@ -72,6 +72,20 @@ const SERVICE_OPTIONS = [
   'Fabricación física', 'Stage / Residencia', 'Evento de lanzamiento',
 ];
 
+// ─── MASTER TYPE OPTIONS ───────────────────────────────────────────
+const MASTER_TYPE_OPTIONS = [
+  { value: 'estereo',      label: 'Estéreo',              desc: 'Streaming & descarga digital (estándar universal)' },
+  { value: 'vinilo',       label: 'Vinilo',                desc: 'Corte a lacquer, ecualización RIAA para prensado' },
+  { value: 'atmos',        label: 'Dolby Atmos',           desc: 'Spatial Audio — Apple Music, Amazon, Tidal' },
+  { value: 'stem',         label: 'Stem Master',           desc: 'Masters por stems separados (remix / sync)' },
+  { value: 'cd',           label: 'CD (Red Book)',         desc: 'Prensado físico en CD, estándar ISO 9660' },
+  { value: 'hires',        label: 'Hi-Res (24-bit/96kHz)', desc: 'Alta resolución — Qobuz, Tidal HiFi, Apple Lossless' },
+  { value: 'instrumental', label: 'Instrumental / Karaoke', desc: 'Versión sin voz, obligatorio para sync y muchas distribuidoras' },
+  { value: 'surround51',   label: '5.1 Surround',          desc: 'Mezcla surround para Blu-ray y contenido audiovisual' },
+  { value: 'cassette',     label: 'Casete',                desc: 'Edición física en casete (nichos y reediciones)' },
+  { value: 'tbd',          label: 'Por determinar',        desc: '' },
+];
+
 interface CreateReleaseBudgetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -256,7 +270,7 @@ export default function CreateReleaseBudgetDialog({
   const [producers, setProducers] = useState('');
   const [includesMix, setIncludesMix] = useState(true);
   const [externalMix, setExternalMix] = useState(false);
-  const [masterType, setMasterType] = useState('estereo');
+  const [masterTypes, setMasterTypes] = useState<string[]>(['estereo']);
   const [nVideoclips, setNVideoclips] = useState(0);
   const [nCapsulasRRSS, setNCapsulasRRSS] = useState(0);
   const [shooting, setShooting] = useState(false);
@@ -359,7 +373,7 @@ export default function CreateReleaseBudgetDialog({
           producers,
           includes_mix: includesMix,
           external_mix: externalMix,
-          master_type: masterType,
+          master_types: masterTypes,
           n_videoclips: nVideoclips,
           n_capsulas_rrss: nCapsulasRRSS,
           shooting, vestuario, making_of: makingOf,
@@ -533,7 +547,10 @@ export default function CreateReleaseBudgetDialog({
   const getDefaultObservations = (catKey: string, itemName: string): string => {
     if (itemName.includes('PR + pitching (nacional)') && prNacionalProveedor) return `Proveedor: ${prNacionalProveedor}`;
     if (itemName.includes('PR + pitching (internacional)') && prIntProveedor) return `Proveedor: ${prIntProveedor}`;
-    if (itemName.includes('Master')) return `Tipo: ${masterType}`;
+    if (itemName.includes('Master')) {
+      const labels = masterTypes.map(v => MASTER_TYPE_OPTIONS.find(o => o.value === v)?.label || v);
+      return labels.length ? `Tipos: ${labels.join(', ')}` : '';
+    }
     if (itemName.includes('Producción (productor')) return producers ? `Productor/es: ${producers}` : '';
     return '';
   };
@@ -967,17 +984,38 @@ export default function CreateReleaseBudgetDialog({
                 </div>
                 <ToggleRow label="¿El productor incluye mezcla?" checked={includesMix} onChange={setIncludesMix} />
                 <ToggleRow label="¿Mezcla externa?" checked={externalMix} onChange={setExternalMix} />
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Master</Label>
-                  <Select value={masterType} onValueChange={setMasterType}>
-                    <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="estereo">Estéreo</SelectItem>
-                      <SelectItem value="vinilo">Vinilo</SelectItem>
-                      <SelectItem value="atmos">Dolby Atmos</SelectItem>
-                      <SelectItem value="tbd">Por determinar</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-2">
+                  <Label className="text-xs">Tipos de master</Label>
+                  <div className="rounded-md border border-border bg-muted/30 divide-y divide-border">
+                    {MASTER_TYPE_OPTIONS.map(opt => {
+                      const checked = masterTypes.includes(opt.value);
+                      return (
+                        <label
+                          key={opt.value}
+                          className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/60 transition-colors"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={v => {
+                              if (v) {
+                                setMasterTypes(prev => [...prev, opt.value]);
+                              } else {
+                                setMasterTypes(prev => prev.filter(x => x !== opt.value));
+                              }
+                            }}
+                            className="mt-0.5 shrink-0"
+                          />
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-medium leading-tight">{opt.label}</span>
+                            {opt.desc && <span className="text-xs text-muted-foreground leading-tight mt-0.5">{opt.desc}</span>}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {masterTypes.length === 0 && (
+                    <p className="text-xs text-destructive">Selecciona al menos un tipo de master.</p>
+                  )}
                 </div>
               </div>
 
