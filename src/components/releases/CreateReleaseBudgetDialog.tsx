@@ -87,6 +87,15 @@ const MASTER_TYPE_OPTIONS = [
   { value: 'tbd',          label: 'Por determinar',        desc: '' },
 ];
 
+const FORMATOS_FISICOS = [
+  { value: 'vinilo',       label: 'Vinilo (LP/12")' },
+  { value: 'vinilo_doble', label: 'Vinilo doble (2xLP)' },
+  { value: 'cd',           label: 'CD' },
+  { value: 'deluxe',       label: 'Edición Deluxe' },
+  { value: 'cassete',      label: 'Casete' },
+  { value: 'otros',        label: 'Otros formatos' },
+];
+
 interface CreateReleaseBudgetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -307,6 +316,7 @@ export default function CreateReleaseBudgetDialog({
   const [hospedajeCont, setHospedajeCont] = useState(false);
   const [fisico, setFisico] = useState(false);
   const [fisicoCont, setFisicoCont] = useState(false);
+  const [fisicoFormatos, setFisicoFormatos] = useState<string[]>([]);
   const [contingencia, setContingencia] = useState([10]);
 
   // Reset on open + fetch milestones
@@ -414,7 +424,7 @@ export default function CreateReleaseBudgetDialog({
           transporte, transporte_contratado: transporteCont,
           dietas, dietas_contratado: dietasCont,
           hospedaje, hospedaje_contratado: hospedajeCont,
-          fisico, fisico_contratado: fisicoCont,
+          fisico, fisico_contratado: fisicoCont, fisico_formatos: fisicoFormatos,
           contingencia_pct: contingencia[0],
         },
       };
@@ -1228,7 +1238,33 @@ export default function CreateReleaseBudgetDialog({
               {/* Fabricación física */}
               <div className="space-y-3">
                 <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Fabricación física</h4>
-                <ToggleRow label="¿Fabricación física (vinilo/CD)?" checked={fisico} onChange={setFisico} contracted={fisicoCont} onContractedChange={setFisicoCont} />
+                <ToggleRow
+                  label="¿Fabricación física (vinilo/CD)?"
+                  checked={fisico}
+                  onChange={(v) => { setFisico(v); if (!v) setFisicoFormatos([]); }}
+                  contracted={fisicoCont}
+                  onContractedChange={setFisicoCont}
+                />
+                {fisico && (
+                  <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Formatos</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      {FORMATOS_FISICOS.map(f => (
+                        <label key={f.value} className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={fisicoFormatos.includes(f.value)}
+                            onCheckedChange={(v) => {
+                              setFisicoFormatos(prev =>
+                                v ? [...prev, f.value] : prev.filter(x => x !== f.value)
+                              );
+                            }}
+                          />
+                          <span className="text-sm">{f.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Separator />
