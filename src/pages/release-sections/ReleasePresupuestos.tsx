@@ -1,7 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, DollarSign, Eye, Trash2, Receipt, FileText, Music, AlertTriangle, CalendarIcon, Link2 } from 'lucide-react';
+import {
+  ArrowLeft, Plus, DollarSign, Eye, Trash2, Receipt, FileText, Music,
+  AlertTriangle, CalendarIcon, ChevronDown, ChevronUp, CheckCircle2,
+  Calendar, ArrowRight, RefreshCw, X, Zap
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -9,7 +13,6 @@ import { useRelease, useTracks, useReleaseMilestones } from '@/hooks/useReleases
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { TrackRightsSplitsManager } from '@/components/releases/TrackRightsSplitsManager';
 import CreateReleaseBudgetDialog from '@/components/releases/CreateReleaseBudgetDialog';
 import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
@@ -23,8 +26,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { format, subDays, differenceInDays, parseISO } from 'date-fns';
+import { format, subDays, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 interface LinkedBudget {
@@ -46,11 +50,162 @@ const DEADLINE_OFFSETS: Record<string, { label: string; days: number }> = {
 };
 
 interface InconsistencyWarning {
+  key: string;
   type: 'date_mismatch' | 'track_count' | 'release_date_changed' | 'missing_vinyl_master' | 'physical_no_milestone' | 'version_no_tracks';
-  message: string;
+  title: string;
   detail: string;
   budgetId?: string;
   budgetDate?: Date;
+  releaseDate?: Date;
+}
+
+// ─── InconsistencyPanel ────────────────────────────────────────────────────
+interface InconsistencyPanelProps {
+  warnings: InconsistencyWarning[];
+  dismissedKeys: Set<string>;
+  onDismiss: (key: string) => void;
+  onResolveTrackCount: (budgetId: string) => void;
+  onResolveWithReleaseDate: (budgetId: string) => void;
+  onResolveWithBudgetDate: (budgetId: string, date: Date) => void;
+  onOpenBudget: (budgetId: string) => void;
+  onNavigateCronograma: () => void;
+  onNavigateCreditos: () => void;
+}
+
+function InconsistencyPanel({
+  warnings,
+  dismissedKeys,
+  onDismiss,
+  onResolveTrackCount,
+  onResolveWithReleaseDate,
+  onResolveWithBudgetDate,
+  onOpenBudget,
+  onNavigateCronograma,
+  onNavigateCreditos,
+}: InconsistencyPanelProps) {
+  const [expanded, setExpanded] = useState(true);
+  const visible = warnings.filter(w => !dismissedKeys.has(w.key));
+
+  if (warnings.length === 0) return null;
+
+  if (visible.length === 0) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-card text-sm text-muted-foreground">
+        <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+        <span className="text-foreground font-medium">Todo en orden</span>
+        <span className="text-muted-foreground">· Sin inconsistencias pendientes</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
+      {/* Header */}
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Zap className="h-4 w-4 text-amber-500" />
+          <span className="text-sm font-semibold text-foreground">
+            {visible.length} {visible.length === 1 ? 'punto para revisar' : 'puntos para revisar'}
+          </span>
+          <Badge variant="warning" className="text-[10px] px-1.5 py-0 h-4">
+            {visible.length}
+          </Badge>
+        </div>
+        {expanded
+          ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        }
+      </button>
+
+      {/* Task cards */}
+      {expanded && (
+        <div className="border-t border-border divide-y divide-border">
+          {visible.map((w) => {
+            const icon =
+              w.type === 'track_count' ? <RefreshCw className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" /> :
+              w.type === 'release_date_changed' ? <Calendar className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" /> :
+              w.type === 'physical_no_milestone' || w.type === 'date_mismatch' ? <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" /> :
+              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />;
+
+            return (
+              <div key={w.key} className="px-4 py-3 flex flex-col gap-2">
+                <div className="flex gap-2 items-start">
+                  {icon}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground leading-snug">{w.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{w.detail}</p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-wrap gap-2 pl-6">
+                  {/* track_count */}
+                  {w.type === 'track_count' && w.budgetId && (
+                    <>
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                        onClick={() => onResolveTrackCount(w.budgetId!)}>
+                        <RefreshCw className="h-3 w-3" />
+                        Actualizar presupuesto
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground gap-1"
+                        onClick={() => onDismiss(w.key)}>
+                        <X className="h-3 w-3" />
+                        Ignorar
+                      </Button>
+                    </>
+                  )}
+
+                  {/* release_date_changed */}
+                  {w.type === 'release_date_changed' && w.budgetId && w.budgetDate && w.releaseDate && (
+                    <>
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                        onClick={() => onResolveWithReleaseDate(w.budgetId!)}>
+                        ✓ Usar {format(w.releaseDate, 'd MMM', { locale: es })} (release)
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                        onClick={() => onResolveWithBudgetDate(w.budgetId!, w.budgetDate!)}>
+                        ✓ Usar {format(w.budgetDate, 'd MMM', { locale: es })} (presupuesto)
+                      </Button>
+                    </>
+                  )}
+
+                  {/* physical_no_milestone / date_mismatch */}
+                  {(w.type === 'physical_no_milestone' || w.type === 'date_mismatch') && (
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                      onClick={onNavigateCronograma}>
+                      <ArrowRight className="h-3 w-3" />
+                      Ir al Cronograma
+                    </Button>
+                  )}
+
+                  {/* missing_vinyl_master */}
+                  {w.type === 'missing_vinyl_master' && w.budgetId && (
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                      onClick={() => onOpenBudget(w.budgetId!)}>
+                      <Eye className="h-3 w-3" />
+                      Abrir presupuesto
+                    </Button>
+                  )}
+
+                  {/* version_no_tracks */}
+                  {w.type === 'version_no_tracks' && (
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                      onClick={onNavigateCreditos}>
+                      <ArrowRight className="h-3 w-3" />
+                      Ir a Créditos & Audio
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ReleasePresupuestos() {
@@ -152,6 +307,34 @@ export default function ReleasePresupuestos() {
     }
   };
 
+  // ─── Dismissed warnings (sessionStorage) ────────────────────────
+  const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(() => {
+    try {
+      const saved = sessionStorage.getItem(`dismissed-warnings-${id}`);
+      return new Set(saved ? JSON.parse(saved) : []);
+    } catch { return new Set(); }
+  });
+
+  const dismissWarning = (key: string) => {
+    setDismissedKeys(prev => {
+      const next = new Set(prev).add(key);
+      sessionStorage.setItem(`dismissed-warnings-${id}`, JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  // ─── Resolve: sync n_tracks in budget ────────────────────────────
+  const resolveTrackCount = async (budgetId: string) => {
+    const budget = linkedBudgets.find(b => b.id === budgetId);
+    if (!budget) return;
+    const meta = { ...(budget.metadata || {}) } as Record<string, any>;
+    if (!meta.variables) meta.variables = {};
+    meta.variables.n_tracks = tracks?.length || 0;
+    await (supabase.from('budgets').update({ metadata: meta } as any).eq('id', budgetId));
+    toast.success('Presupuesto actualizado con el número de canciones actual');
+    fetchLinkedBudgets();
+  };
+
   // ─── Inconsistency warnings ──────────────────────────────────────
   const warnings = useMemo<InconsistencyWarning[]>(() => {
     if (!release || !linkedBudgets.length) return [];
@@ -160,100 +343,109 @@ export default function ReleasePresupuestos() {
     const currentTrackCount = tracks?.length || 0;
     const currentReleaseDate = release.release_date ? new Date(release.release_date) : null;
 
+    // ── Checks PER BUDGET ──
     for (const budget of linkedBudgets) {
       const meta = budget.metadata as Record<string, any> | null;
       if (!meta?.variables) continue;
 
-      // 1. Track count mismatch
+      // 1. Track count mismatch — one warning per budget, keyed by budgetId
       const budgetTrackCount = meta.variables?.n_tracks;
       if (budgetTrackCount && currentTrackCount > 0 && budgetTrackCount !== currentTrackCount) {
         w.push({
+          key: `track_count-${budget.id}`,
           type: 'track_count',
-          message: `Nº tracks desactualizado en "${budget.name}"`,
-          detail: `El presupuesto se creó con ${budgetTrackCount} track${budgetTrackCount !== 1 ? 's' : ''}, pero el release tiene actualmente ${currentTrackCount}.`,
+          title: `El presupuesto tiene ${budgetTrackCount} canción${budgetTrackCount !== 1 ? 'es' : ''}, pero el release tiene ${currentTrackCount}`,
+          detail: `"${budget.name}" · Actualiza el número de canciones para que los cálculos sean correctos.`,
           budgetId: budget.id,
         });
       }
 
-      // 2. Release date changed
+      // 2. Release date changed — one per budget
       const budgetReleaseDate = meta.release_date_digital ? new Date(meta.release_date_digital) : null;
       if (budgetReleaseDate && currentReleaseDate) {
         const daysDiff = Math.abs(differenceInDays(currentReleaseDate, budgetReleaseDate));
         if (daysDiff > 0) {
           w.push({
+            key: `release_date_changed-${budget.id}`,
             type: 'release_date_changed',
-            message: `Fecha de lanzamiento modificada`,
-            detail: `El presupuesto "${budget.name}" usa ${format(budgetReleaseDate, "dd MMM yyyy", { locale: es })} pero la fecha actual del release es ${format(currentReleaseDate, "dd MMM yyyy", { locale: es })} (${daysDiff} días de diferencia). Los deadlines auto-calculados pueden estar desactualizados.`,
+            title: `Fecha de salida distinta en el presupuesto y en el release`,
+            detail: `"${budget.name}" usa ${format(budgetReleaseDate, "d MMM yyyy", { locale: es })} · el release dice ${format(currentReleaseDate, "d MMM yyyy", { locale: es })} · ${daysDiff} días de diferencia.`,
             budgetId: budget.id,
             budgetDate: budgetReleaseDate,
+            releaseDate: currentReleaseDate,
           });
         }
       }
 
-      // 3. Vinilo en fabricación pero no en master types
+      // 3. Vinyl in físico but no vinyl master
       const fisicoFormatos = (meta.variables?.fisico_formatos || []) as string[];
       const masterTypes = (meta.variables?.master_types || []) as string[];
       if (fisicoFormatos.includes('vinilo') && !masterTypes.includes('vinilo')) {
         w.push({
+          key: `missing_vinyl_master-${budget.id}`,
           type: 'missing_vinyl_master',
-          message: 'Fabricación vinilo sin master de vinilo',
-          detail: `El presupuesto "${budget.name}" incluye fabricación en vinilo pero no se planificó master de vinilo.`,
+          title: `Vinilo en fabricación pero sin master de vinilo`,
+          detail: `"${budget.name}" · Añade el master de vinilo en "Tipos de master" del presupuesto.`,
           budgetId: budget.id,
         });
       }
 
-      // 4. Fecha física sin hito de fabricación en el cronograma
-      const physicalDate = meta.release_date_physical ? new Date(meta.release_date_physical) : null;
-      const hasFabricacionMilestone = milestones?.some(m =>
-        m.category === 'fabricacion' ||
-        m.title.toLowerCase().includes('fabricaci') ||
-        m.title.toLowerCase().includes('prensado') ||
-        m.title.toLowerCase().includes('manufacturing')
-      );
-      if (physicalDate && !hasFabricacionMilestone) {
-        w.push({
-          type: 'physical_no_milestone',
-          message: 'Fecha física sin flujo de fabricación',
-          detail: `Hay fecha de salida física (${format(physicalDate, 'dd MMM yyyy', { locale: es })}) pero no existe ninguna tarea de fabricación en el Cronograma.`,
-        });
-      }
-
-      // 5. Versiones declaradas sin tracks correspondientes
+      // 4. Version instrumental sin track
       const versions = (meta.versions || []) as string[];
       if (versions.includes('instrumental') && currentTrackCount > 0) {
-        // Check if any track title mentions 'instrumental'
         const hasInstrumentalTrack = tracks?.some(t => t.title.toLowerCase().includes('instrumental'));
         if (!hasInstrumentalTrack) {
           w.push({
+            key: `version_no_tracks-${budget.id}`,
             type: 'version_no_tracks',
-            message: `Versión Instrumental sin track correspondiente`,
-            detail: `El presupuesto "${budget.name}" incluye versión Instrumental pero no hay tracks instrumentales en Créditos & Audio.`,
+            title: `Versión Instrumental declarada sin track correspondiente`,
+            detail: `"${budget.name}" · No hay tracks con "instrumental" en el título en Créditos & Audio.`,
             budgetId: budget.id,
           });
         }
       }
     }
 
-    // 6. Milestone vs deadline mismatches
+    // ── Checks DEL RELEASE (una sola vez) ──
+
+    // 5. Fecha física sin hito de fabricación
+    const firstPhysicalDate = linkedBudgets.reduce<Date | null>((found, budget) => {
+      if (found) return found;
+      const meta = budget.metadata as Record<string, any> | null;
+      return meta?.release_date_physical ? new Date(meta.release_date_physical) : null;
+    }, null);
+    const hasFabricacionMilestone = milestones?.some(m =>
+      m.category === 'fabricacion' ||
+      m.title.toLowerCase().includes('fabricaci') ||
+      m.title.toLowerCase().includes('prensado') ||
+      m.title.toLowerCase().includes('manufacturing')
+    );
+    if (firstPhysicalDate && !hasFabricacionMilestone) {
+      w.push({
+        key: 'physical_no_milestone-release',
+        type: 'physical_no_milestone',
+        title: `Falta el flujo de fabricación en el Cronograma`,
+        detail: `Tienes fecha física (${format(firstPhysicalDate, 'd MMM yyyy', { locale: es })}) pero no hay hitos de fabricación en el Cronograma.`,
+      });
+    }
+
+    // 6. Milestone vs deadline mismatches (release-level, deduped by key)
     if (milestones && milestones.length > 0 && currentReleaseDate) {
       const milestoneMap = new Map<string, Date>();
       for (const m of milestones) {
-        if (m.due_date) {
-          milestoneMap.set(m.title.toLowerCase(), new Date(m.due_date));
-        }
+        if (m.due_date) milestoneMap.set(m.title.toLowerCase(), new Date(m.due_date));
       }
-
       for (const [key, offset] of Object.entries(DEADLINE_OFFSETS)) {
         const expectedDate = subDays(currentReleaseDate, offset.days);
-        // Find matching milestone
         const milestoneDate = milestoneMap.get(offset.label.toLowerCase());
         if (milestoneDate) {
           const daysDiff = Math.abs(differenceInDays(milestoneDate, expectedDate));
-          if (daysDiff > 2) { // Allow 2 days tolerance
+          if (daysDiff > 2) {
             w.push({
+              key: `date_mismatch-${key}`,
               type: 'date_mismatch',
-              message: `Cronograma: "${offset.label}" desalineado`,
-              detail: `El hito del cronograma indica ${format(milestoneDate, "dd MMM yyyy", { locale: es })} pero según la fecha de lanzamiento debería ser ${format(expectedDate, "dd MMM yyyy", { locale: es })} (${daysDiff} días de diferencia).`,
+              title: `"${offset.label}" no cuadra con la fecha de salida`,
+              detail: `El Cronograma dice ${format(milestoneDate, "d MMM yyyy", { locale: es })} · el cálculo automático apunta a ${format(expectedDate, "d MMM yyyy", { locale: es })} · ${daysDiff} días de diferencia.`,
             });
           }
         }
@@ -282,70 +474,22 @@ export default function ReleasePresupuestos() {
         </div>
       </div>
 
-      {/* ─── Inconsistency Warnings ────────────────────────────────── */}
+      {/* ─── Inconsistency Task Panel ──────────────────────────────── */}
       {warnings.length > 0 && (
-        <div className="space-y-2">
-          {warnings.map((w, i) => (
-            <Alert key={i} className="border-amber-500/50 bg-amber-500/10 [&>svg]:text-amber-500">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              <AlertTitle className="text-sm font-semibold text-amber-700 dark:text-amber-400">{w.message}</AlertTitle>
-              <AlertDescription className="text-xs text-amber-700/80 dark:text-amber-400/80">
-                {w.detail}
-                {/* Date conflict: let user pick which is correct */}
-                {w.type === 'release_date_changed' && w.budgetId && w.budgetDate && release?.release_date && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs border-amber-500/50 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
-                      onClick={() => resolveWithReleaseDate(w.budgetId!)}
-                    >
-                      Usar fecha del Release ({format(new Date(release.release_date!), 'dd MMM', { locale: es })})
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs border-amber-500/50 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
-                      onClick={() => resolveWithBudgetDate(w.budgetId!, w.budgetDate!)}
-                    >
-                      Usar fecha del Presupuesto ({format(w.budgetDate, 'dd MMM', { locale: es })})
-                    </Button>
-                  </div>
-                )}
-                {/* Cronograma mismatch: navigate */}
-                {(w.type === 'date_mismatch' || w.type === 'physical_no_milestone') && (
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="h-auto p-0 ml-0 mt-1 text-xs text-amber-600 dark:text-amber-400 block"
-                    onClick={() => navigate(`/releases/${id}/cronograma`)}
-                  >
-                    <Link2 className="h-3 w-3 mr-1 inline" />
-                    Ir al Cronograma
-                  </Button>
-                )}
-                {/* Version without track: navigate to credits */}
-                {w.type === 'version_no_tracks' && (
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="h-auto p-0 ml-0 mt-1 text-xs text-amber-600 dark:text-amber-400 block"
-                    onClick={() => navigate(`/releases/${id}/creditos`)}
-                  >
-                    <Link2 className="h-3 w-3 mr-1 inline" />
-                    Ir a Créditos & Audio
-                  </Button>
-                )}
-                {/* Vinyl master warning: navigate to the budget or info */}
-                {w.type === 'missing_vinyl_master' && (
-                  <span className="block mt-1 text-amber-600 dark:text-amber-400">
-                    Edita el presupuesto y añade el master de vinilo en "Tipos de master".
-                  </span>
-                )}
-              </AlertDescription>
-            </Alert>
-          ))}
-        </div>
+        <InconsistencyPanel
+          warnings={warnings}
+          dismissedKeys={dismissedKeys}
+          onDismiss={dismissWarning}
+          onResolveTrackCount={resolveTrackCount}
+          onResolveWithReleaseDate={resolveWithReleaseDate}
+          onResolveWithBudgetDate={resolveWithBudgetDate}
+          onOpenBudget={(budgetId) => {
+            const b = linkedBudgets.find(x => x.id === budgetId);
+            if (b) { setSelectedBudget(b); setShowDetailsDialog(true); }
+          }}
+          onNavigateCronograma={() => navigate(`/releases/${id}/cronograma`)}
+          onNavigateCreditos={() => navigate(`/releases/${id}/creditos`)}
+        />
       )}
 
       {/* ─── Cronograma summary (deadlines) ──────────────────────── */}
