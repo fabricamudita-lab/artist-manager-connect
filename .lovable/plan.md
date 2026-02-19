@@ -1,45 +1,81 @@
 
-# Mover "Fabricación física" de Logística a su propia sección
+# Unificar la mezcla dentro del bloque de Productor
 
-## Problema
+## Problema actual
 
-En el paso 3 del wizard (Variables), la fila `¿Fabricación física (vinilo/CD)?` está agrupada bajo la sección **Logística**, junto a Transporte, Dietas y Hospedaje — que son conceptos de logística de tour/artista, no de producción física.
+Bajo el selector de Productor/es hay **dos toggles independientes y separados**:
 
-La fabricación de vinilo/CD es una categoría de producción totalmente distinta que ya tiene su propia sección en el sistema de partidas: `'Fabricación & logística'`.
+1. `¿El productor incluye mezcla?` — toggle simple (sin segundo toggle de "Producción propia/Derivado")
+2. `¿Mezcla externa?` — aparece solo si el toggle 1 está OFF, con su selector de técnico
 
-## Solución
+Esto crea una experiencia confusa: el usuario tiene que entender que son excluyentes y que el segundo depende del primero.
 
-Extraer `¿Fabricación física (vinilo/CD)?` de la sección Logística y colocarla en una sección propia llamada **Fabricación física**, justo después de Logística (o donde tenga más sentido en el flujo).
+## Solución propuesta
 
-### Antes:
+Fusionar los dos toggles en **un único bloque de mezcla** lógicamente agrupado bajo el productor:
+
 ```
-LOGÍSTICA
-  ¿Transporte?
-  ¿Dietas?
-  ¿Hospedaje?
-  ¿Fabricación física (vinilo/CD)?   ← fuera de lugar
+Productor/es
+  [selector de productores]
+
+  ┌─ Mezcla ──────────────────────────────────────┐
+  │  ¿El productor incluye mezcla?  [toggle ON/OFF] │
+  │                                                  │
+  │  Si está OFF →                                   │
+  │    ¿Mezcla externa?  [toggle ON/OFF]             │
+  │    Si está ON → selector de técnico              │
+  └──────────────────────────────────────────────────┘
 ```
 
-### Después:
-```
-LOGÍSTICA
-  ¿Transporte?
-  ¿Dietas?
-  ¿Hospedaje?
+Visualmente, el bloque de mezcla se presenta como una tarjeta/sub-sección anidada con borde izquierdo o fondo diferenciado, dejando claro que la mezcla externa solo tiene sentido cuando el productor NO la incluye.
 
-FABRICACIÓN FÍSICA
-  ¿Fabricación física (vinilo/CD)?   ← en su sección correcta
-```
+## Lógica de estados (sin cambios)
+
+Los estados existentes se mantienen exactamente igual:
+- `includesMix` / `setIncludesMix`
+- `externalMix` / `setExternalMix`
+- `externalMixEngineer` / `setExternalMixEngineer`
+
+Solo cambia la **presentación visual** del bloque.
 
 ## Cambio técnico
 
-Solo `src/components/releases/CreateReleaseBudgetDialog.tsx`, ~línea 1214–1221:
+En `CreateReleaseBudgetDialog.tsx`, líneas 1075–1098, reemplazar los toggles sueltos por un bloque con cabecera de subsección:
 
-1. Quitar `<ToggleRow label="¿Fabricación física (vinilo/CD)?".../>` de dentro del `<div>` de Logística
-2. Añadir un nuevo `<div className="space-y-3">` debajo con:
-   - Cabecera `<h4>` con texto **"Fabricación física"**
-   - La fila `ToggleRow` de fabricación
+```tsx
+{/* Mezcla — agrupado bajo producción */}
+<div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+  <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Mezcla</h5>
+  
+  <ToggleRow
+    label="¿El productor incluye mezcla?"
+    checked={includesMix}
+    onChange={(v) => { setIncludesMix(v); if (v) { setExternalMix(false); setExternalMixEngineer(null); } }}
+  />
+  
+  {!includesMix && (
+    <div className="pl-3 border-l-2 border-border space-y-2">
+      <ToggleRow
+        label="¿Mezcla externa?"
+        checked={externalMix}
+        onChange={(v) => { setExternalMix(v); if (!v) setExternalMixEngineer(null); }}
+      />
+      {externalMix && (
+        <div className="space-y-1.5 pl-4 border-l-2 border-primary/30">
+          <Label className="text-xs">Técnico de mezcla externo</Label>
+          <SingleProducerSelector
+            value={externalMixEngineer}
+            onChange={setExternalMixEngineer}
+            artistId={release?.artist_id}
+            placeholder="Seleccionar técnico..."
+          />
+        </div>
+      )}
+    </div>
+  )}
+</div>
+```
 
 ## Archivo a modificar
 
-Solo **`src/components/releases/CreateReleaseBudgetDialog.tsx`** — cambio mínimo de estructura JSX, sin tocar estados ni lógica.
+Solo **`src/components/releases/CreateReleaseBudgetDialog.tsx`**, líneas 1075–1098 — cambio puramente visual/estructural, sin modificar estados ni lógica.
