@@ -549,7 +549,7 @@ export default function CreateReleaseBudgetDialog({
   };
 
   // ─── Date picker helper ──────────────────────────────────────────
-  const DatePicker = ({ value, onChange, label: dateLabel }: { value?: Date; onChange: (d?: Date) => void; label: string }) => (
+  const DatePicker = ({ value, onChange, label: dateLabel, defaultMonth }: { value?: Date; onChange: (d?: Date) => void; label: string; defaultMonth?: Date }) => (
     <div className="space-y-1.5">
       <Label className="text-xs">{dateLabel}</Label>
       <Popover modal={false}>
@@ -565,7 +565,7 @@ export default function CreateReleaseBudgetDialog({
           avoidCollisions={false}
           style={{ pointerEvents: 'auto' }}
         >
-          <Calendar mode="single" selected={value} onSelect={onChange} initialFocus className="p-3" />
+          <Calendar mode="single" selected={value} onSelect={onChange} initialFocus className="p-3" defaultMonth={defaultMonth} />
         </PopoverContent>
       </Popover>
     </div>
@@ -835,7 +835,7 @@ export default function CreateReleaseBudgetDialog({
           {step === 'dates' && (
             <div className="space-y-4 pb-4">
               <DatePicker label="Fecha de lanzamiento digital (principal) *" value={releaseDate} onChange={setReleaseDate} />
-              <DatePicker label="Fecha de lanzamiento físico (opcional)" value={physicalDate} onChange={setPhysicalDate} />
+              <DatePicker label="Fecha de lanzamiento físico (opcional)" value={physicalDate} onChange={setPhysicalDate} defaultMonth={!physicalDate && releaseDate ? releaseDate : undefined} />
 
               {/* Singles previos */}
               <div className="space-y-2">
