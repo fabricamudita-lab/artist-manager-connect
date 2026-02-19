@@ -276,24 +276,36 @@ export default function CreateReleaseBudgetDialog({
   const [nVideoclips, setNVideoclips] = useState(0);
   const [nCapsulasRRSS, setNCapsulasRRSS] = useState(0);
   const [shooting, setShooting] = useState(false);
+  const [shootingContratado, setShootingContratado] = useState(false);
   const [vestuario, setVestuario] = useState(false);
+  const [vestuarioContratado, setVestuarioContratado] = useState(false);
   const [makingOf, setMakingOf] = useState(false);
+  const [makingOfContratado, setMakingOfContratado] = useState(false);
   const [edicionCapsulas, setEdicionCapsulas] = useState(false);
+  const [edicionCapsulasCont, setEdicionCapsulasCont] = useState(false);
   const [stage, setStage] = useState(false);
+  const [stageContratado, setStageContratado] = useState(false);
   const [stageDays, setStageDays] = useState(1);
   const [prNacional, setPrNacional] = useState(false);
+  const [prNacionalContratado, setPrNacionalContratado] = useState(false);
   const [prNacionalProveedor, setPrNacionalProveedor] = useState<ProducerRef | null>(null);
   const [prNacionalCoste, setPrNacionalCoste] = useState(0);
   const [prInternacional, setPrInternacional] = useState(false);
+  const [prInternacionalCont, setPrInternacionalCont] = useState(false);
   const [prIntProveedor, setPrIntProveedor] = useState<ProducerRef | null>(null);
   const [prIntCoste, setPrIntCoste] = useState(0);
   const [gestionRRSS, setGestionRRSS] = useState(false);
+  const [gestionRRSSCont, setGestionRRSSCont] = useState(false);
   const [rrssProveedor, setRrssProveedor] = useState<ProducerRef | null>(null);
   const [rrssCoste, setRrssCoste] = useState(0);
   const [transporte, setTransporte] = useState(false);
+  const [transporteCont, setTransporteCont] = useState(false);
   const [dietas, setDietas] = useState(false);
+  const [dietasCont, setDietasCont] = useState(false);
   const [hospedaje, setHospedaje] = useState(false);
+  const [hospedajeCont, setHospedajeCont] = useState(false);
   const [fisico, setFisico] = useState(false);
+  const [fisicoCont, setFisicoCont] = useState(false);
   const [contingencia, setContingencia] = useState([10]);
 
   // Reset on open + fetch milestones
@@ -380,13 +392,21 @@ export default function CreateReleaseBudgetDialog({
           master_types: masterTypes,
           n_videoclips: nVideoclips,
           n_capsulas_rrss: nCapsulasRRSS,
-          shooting, vestuario, making_of: makingOf,
-          edicion_capsulas: edicionCapsulas,
-          stage, stage_days: stageDays,
-          pr_nacional: prNacional, pr_nacional_proveedor: prNacionalProveedor, pr_nacional_coste: prNacionalCoste,
-          pr_internacional: prInternacional, pr_int_proveedor: prIntProveedor, pr_int_coste: prIntCoste,
-          gestion_rrss: gestionRRSS, rrss_proveedor: rrssProveedor, rrss_coste: rrssCoste,
-          transporte, dietas, hospedaje, fisico,
+          shooting, shooting_contratado: shootingContratado,
+          vestuario, vestuario_contratado: vestuarioContratado,
+          making_of: makingOf, making_of_contratado: makingOfContratado,
+          edicion_capsulas: edicionCapsulas, edicion_capsulas_contratado: edicionCapsulasCont,
+          stage, stage_contratado: stageContratado, stage_days: stageDays,
+          pr_nacional: prNacional, pr_nacional_contratado: prNacionalContratado,
+          pr_nacional_proveedor: prNacionalProveedor, pr_nacional_coste: prNacionalCoste,
+          pr_internacional: prInternacional, pr_internacional_contratado: prInternacionalCont,
+          pr_int_proveedor: prIntProveedor, pr_int_coste: prIntCoste,
+          gestion_rrss: gestionRRSS, gestion_rrss_contratado: gestionRRSSCont,
+          rrss_proveedor: rrssProveedor, rrss_coste: rrssCoste,
+          transporte, transporte_contratado: transporteCont,
+          dietas, dietas_contratado: dietasCont,
+          hospedaje, hospedaje_contratado: hospedajeCont,
+          fisico, fisico_contratado: fisicoCont,
           contingencia_pct: contingencia[0],
         },
       };
@@ -603,7 +623,7 @@ export default function CreateReleaseBudgetDialog({
       </Popover>
       {highlightDate && (
         <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-          <span className="inline-block w-2 h-2 rounded-sm bg-violet-400/70 shrink-0" />
+          <span className="inline-block w-2 h-2 rounded-sm bg-primary/40 shrink-0" />
           Fecha digital: {format(highlightDate, "dd MMM yyyy", { locale: es })}
         </p>
       )}
@@ -611,13 +631,42 @@ export default function CreateReleaseBudgetDialog({
   );
 
   // ─── Toggle row helper ───────────────────────────────────────────
-  const ToggleRow = ({ label: toggleLabel, checked, onChange, children }: {
-    label: string; checked: boolean; onChange: (v: boolean) => void; children?: React.ReactNode;
+  // `contracted` / `onContractedChange`: optional second toggle "Nosotros lo ejecutamos"
+  const ToggleRow = ({ label: toggleLabel, checked, onChange, contracted, onContractedChange, children }: {
+    label: string;
+    checked: boolean;
+    onChange: (v: boolean) => void;
+    contracted?: boolean;
+    onContractedChange?: (v: boolean) => void;
+    children?: React.ReactNode;
   }) => (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm">{toggleLabel}</Label>
-        <Switch checked={checked} onCheckedChange={onChange} />
+      <div className="flex items-center gap-3">
+        {/* Exists toggle */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Switch checked={checked} onCheckedChange={onChange} />
+          <Label className="text-sm cursor-pointer truncate" onClick={() => onChange(!checked)}>{toggleLabel}</Label>
+        </div>
+        {/* Contracted toggle — only shown when element exists */}
+        {onContractedChange && checked && (
+          <div className={cn(
+            "flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded-full border transition-colors",
+            contracted
+              ? "bg-primary/10 border-primary/30"
+              : "bg-muted border-border"
+          )}>
+            <Switch
+              checked={contracted ?? false}
+              onCheckedChange={onContractedChange}
+            />
+            <span className={cn(
+              "text-xs font-medium whitespace-nowrap",
+              contracted ? "text-primary" : "text-muted-foreground"
+            )}>
+              Lo ejecutamos
+            </span>
+          </div>
+        )}
       </div>
       {checked && children && <div className="pl-4 border-l-2 border-primary/20 space-y-2">{children}</div>}
     </div>
@@ -1083,10 +1132,10 @@ export default function CreateReleaseBudgetDialog({
                     <Input type="number" min={0} value={nCapsulasRRSS} onChange={e => setNCapsulasRRSS(parseInt(e.target.value) || 0)} className="h-9 text-sm" />
                   </div>
                 </div>
-                <ToggleRow label="¿Shooting?" checked={shooting} onChange={setShooting} />
-                <ToggleRow label="¿Vestuario / estilismo?" checked={vestuario} onChange={setVestuario} />
-                <ToggleRow label="¿Making of?" checked={makingOf} onChange={setMakingOf} />
-                <ToggleRow label="¿Edición de cápsulas?" checked={edicionCapsulas} onChange={setEdicionCapsulas} />
+                <ToggleRow label="¿Shooting?" checked={shooting} onChange={setShooting} contracted={shootingContratado} onContractedChange={setShootingContratado} />
+                <ToggleRow label="¿Vestuario / estilismo?" checked={vestuario} onChange={setVestuario} contracted={vestuarioContratado} onContractedChange={setVestuarioContratado} />
+                <ToggleRow label="¿Making of?" checked={makingOf} onChange={setMakingOf} contracted={makingOfContratado} onContractedChange={setMakingOfContratado} />
+                <ToggleRow label="¿Edición de cápsulas?" checked={edicionCapsulas} onChange={setEdicionCapsulas} contracted={edicionCapsulasCont} onContractedChange={setEdicionCapsulasCont} />
               </div>
 
               <Separator />
@@ -1094,7 +1143,7 @@ export default function CreateReleaseBudgetDialog({
               {/* Stage */}
               <div className="space-y-3">
                 <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Stage / Residencia técnica</h4>
-                <ToggleRow label="¿Stage / residencia técnica?" checked={stage} onChange={setStage}>
+                <ToggleRow label="¿Stage / residencia técnica?" checked={stage} onChange={setStage} contracted={stageContratado} onContractedChange={setStageContratado}>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Nº días</Label>
                     <Input type="number" min={1} value={stageDays} onChange={e => setStageDays(parseInt(e.target.value) || 1)} className="h-9 text-sm" />
@@ -1107,36 +1156,21 @@ export default function CreateReleaseBudgetDialog({
               {/* PR & Marketing */}
               <div className="space-y-3">
                 <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">PR & Marketing</h4>
-                <ToggleRow label="¿PR nacional?" checked={prNacional} onChange={setPrNacional}>
+                <ToggleRow label="¿PR nacional?" checked={prNacional} onChange={setPrNacional} contracted={prNacionalContratado} onContractedChange={setPrNacionalContratado}>
                   <div className="grid grid-cols-2 gap-2 items-start">
-                    <SingleProducerSelector
-                      value={prNacionalProveedor}
-                      onChange={setPrNacionalProveedor}
-                      artistId={release?.artist_id}
-                      placeholder="Proveedor"
-                    />
+                    <SingleProducerSelector value={prNacionalProveedor} onChange={setPrNacionalProveedor} artistId={release?.artist_id} placeholder="Proveedor" />
                     <Input type="number" value={prNacionalCoste || ''} onChange={e => setPrNacionalCoste(parseFloat(e.target.value) || 0)} placeholder="Coste €" className="h-8 text-xs" />
                   </div>
                 </ToggleRow>
-                <ToggleRow label="¿PR internacional?" checked={prInternacional} onChange={setPrInternacional}>
+                <ToggleRow label="¿PR internacional?" checked={prInternacional} onChange={setPrInternacional} contracted={prInternacionalCont} onContractedChange={setPrInternacionalCont}>
                   <div className="grid grid-cols-2 gap-2 items-start">
-                    <SingleProducerSelector
-                      value={prIntProveedor}
-                      onChange={setPrIntProveedor}
-                      artistId={release?.artist_id}
-                      placeholder="Proveedor"
-                    />
+                    <SingleProducerSelector value={prIntProveedor} onChange={setPrIntProveedor} artistId={release?.artist_id} placeholder="Proveedor" />
                     <Input type="number" value={prIntCoste || ''} onChange={e => setPrIntCoste(parseFloat(e.target.value) || 0)} placeholder="Coste €" className="h-8 text-xs" />
                   </div>
                 </ToggleRow>
-                <ToggleRow label="¿Gestión RRSS / contenidos?" checked={gestionRRSS} onChange={setGestionRRSS}>
+                <ToggleRow label="¿Gestión RRSS / contenidos?" checked={gestionRRSS} onChange={setGestionRRSS} contracted={gestionRRSSCont} onContractedChange={setGestionRRSSCont}>
                   <div className="grid grid-cols-2 gap-2 items-start">
-                    <SingleProducerSelector
-                      value={rrssProveedor}
-                      onChange={setRrssProveedor}
-                      artistId={release?.artist_id}
-                      placeholder="Proveedor"
-                    />
+                    <SingleProducerSelector value={rrssProveedor} onChange={setRrssProveedor} artistId={release?.artist_id} placeholder="Proveedor" />
                     <Input type="number" value={rrssCoste || ''} onChange={e => setRrssCoste(parseFloat(e.target.value) || 0)} placeholder="Coste €" className="h-8 text-xs" />
                   </div>
                 </ToggleRow>
@@ -1147,10 +1181,10 @@ export default function CreateReleaseBudgetDialog({
               {/* Logistics */}
               <div className="space-y-3">
                 <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Logística</h4>
-                <ToggleRow label="¿Transporte?" checked={transporte} onChange={setTransporte} />
-                <ToggleRow label="¿Dietas?" checked={dietas} onChange={setDietas} />
-                <ToggleRow label="¿Hospedaje?" checked={hospedaje} onChange={setHospedaje} />
-                <ToggleRow label="¿Fabricación física (vinilo/CD)?" checked={fisico} onChange={setFisico} />
+                <ToggleRow label="¿Transporte?" checked={transporte} onChange={setTransporte} contracted={transporteCont} onContractedChange={setTransporteCont} />
+                <ToggleRow label="¿Dietas?" checked={dietas} onChange={setDietas} contracted={dietasCont} onContractedChange={setDietasCont} />
+                <ToggleRow label="¿Hospedaje?" checked={hospedaje} onChange={setHospedaje} contracted={hospedajeCont} onContractedChange={setHospedajeCont} />
+                <ToggleRow label="¿Fabricación física (vinilo/CD)?" checked={fisico} onChange={setFisico} contracted={fisicoCont} onContractedChange={setFisicoCont} />
               </div>
 
               <Separator />
