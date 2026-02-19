@@ -1,82 +1,71 @@
 
-# Por qué no aparece David Solans en "Owner interno"
+# Sincronizar mes del calendario físico con la fecha digital
 
-## Diagnóstico exacto
+## Qué pasa actualmente
 
-El lanzamiento "La Flor de Déu" pertenece al artista **Pol Batlle Huedo** (`34ddc091`). Al inspeccionar la base de datos:
+En `CreateReleaseBudgetDialog.tsx`:
+- `releaseDate` → Fecha digital (principal)
+- `physicalDate` → Fecha física, empieza sin valor (`undefined`), y el calendario interno del `DatePicker` abre por defecto en el mes actual del sistema
 
-| Fuente | Resultado |
-|--------|-----------|
-| Contactos vinculados a Pol Batlle con `category='management'` | **0 resultados** |
-| Contacto "David Solans Cortes" vinculado a Pol Batlle | Existe, pero con `category='produccion'` |
-| Perfil de usuario "David Solans" (workspace owner) | Existe, pero no aparece porque el selector solo busca en `contacts`, no en `profiles` |
-| `artist_role_bindings` para Pol Batlle | Vacío (David no está asignado formalmente como manager de este artista) |
+## Qué debe pasar
 
-Hay **tres problemas combinados**:
+Cuando el usuario abre el calendario de "Fecha de lanzamiento físico":
+- Si ya hay una fecha digital seleccionada, el calendario debe mostrar ese mismo mes/año por defecto
+- Si no hay fecha digital, el comportamiento actual se mantiene (mes actual)
 
-1. El selector de Owner solo busca en la tabla `contacts` filtrada por `category = 'management'`. No incluye a los **usuarios internos del workspace** (tabla `profiles`) que son los managers reales.
-2. El contacto de David Solans para este artista tiene `category: produccion`, no `management`.
-3. No hay mecanismo para que el "dueño del workspace" aparezca automáticamente como opción de owner.
+El usuario **no debe ver ningún valor pre-seleccionado** — solo el calendario ya posicionado en el mes correcto.
 
-## Solución
+## Cambio técnico
 
-### Opción A (implementar): Owner ampliado con perfiles internos + contactos management
+### `src/components/releases/CreateReleaseBudgetDialog.tsx`
 
-Ampliar el campo Owner para que incluya **dos fuentes**:
+El componente interno `DatePicker` (definido dentro del mismo archivo) acepta las props estándar de `react-day-picker`. El `DayPicker` (usado dentro de `<Calendar>`) tiene una prop `defaultMonth` que controla en qué mes se posiciona inicialmente el calendario **sin seleccionar ningún día**.
 
-**Fuente 1 — Usuarios internos del workspace** (tabla `profiles`):
-- Todos los usuarios con `active_role = 'management'` o `roles @> '{management}'`
-- O cualquier usuario con `artist_role_bindings` para este artista (ARTIST_MANAGER, TEAM_MANAGER, OWNER)
-- Marcados con icono de usuario interno
+**Cambio:**
+```tsx
+// Antes:
+<DatePicker 
+  label="Fecha de lanzamiento físico (opcional)" 
+  value={physicalDate} 
+  onChange={setPhysicalDate} 
+/>
 
-**Fuente 2 — Contactos externos con categoría management** (tabla `contacts`):
-- Contactos vinculados al artista via `contact_artist_assignments` con `category = 'management'`
-- Marcados con icono de contacto externo
+// Después:
+<DatePicker 
+  label="Fecha de lanzamiento físico (opcional)" 
+  value={physicalDate} 
+  onChange={setPhysicalDate}
+  defaultMonth={!physicalDate && releaseDate ? releaseDate : undefined}
+/>
+```
 
-Esta lógica garantiza que el Owner del workspace siempre aparezca y que los managers externos también sean seleccionables.
+**También:** Pasar `defaultMonth` a la prop del componente `DatePicker` local:
+```tsx
+// Firma del DatePicker local (dentro del dialog):
+function DatePicker({ label, value, onChange, defaultMonth }: {
+  label: string;
+  value?: Date;
+  onChange: (date?: Date) => void;
+  defaultMonth?: Date;  // AÑADIR
+}) {
+  // Y pasarlo al <Calendar>:
+  <Calendar
+    mode="single"
+    selected={value}
+    onSelect={onChange}
+    defaultMonth={defaultMonth}  // AÑADIR
+    initialFocus
+    ...
+  />
+}
+```
 
-## Cambios técnicos
-
-### `src/components/releases/ReleaseBudgetContactField.tsx`
-
-Solo para `type === 'owner'`, ampliar `fetchOptions` para:
-
-1. Hacer query a `profiles` donde `roles @> '{management}'` (todos los usuarios con rol management en el workspace)
-2. Hacer query a `artist_role_bindings` para el `artistId` para obtener usuarios con roles de manager asignados específicamente a este artista
-3. Combinar ambas listas, eliminando duplicados, y marcarlos como `source: 'interno'`
-4. Seguir buscando contactos externos con `category = 'management'` vinculados al artista, marcados como `source: 'externo'`
-5. Mostrar en la UI dos secciones: "Equipo interno" y "Contactos management"
-
-El valor guardado seguirá siendo el UUID del contacto (para externos) o un identificador de perfil (para internos). Se necesitará guardar también el `name` en el metadata del presupuesto para mostrar correctamente en la vista sin ambigüedad.
-
-### Estructura de opciones ampliada
+### Lógica del `defaultMonth`
 
 ```text
-interface OwnerOption {
-  id: string;          // contact.id o profile.user_id
-  name: string;
-  source: 'interno' | 'externo';
-  avatarUrl?: string;
-}
+physicalDate ya seleccionado  → el calendario abre en la fecha seleccionada (comportamiento estándar de react-day-picker)
+physicalDate vacío + releaseDate existe  → defaultMonth = releaseDate (mismo mes que el digital)
+physicalDate vacío + releaseDate vacío  → defaultMonth = undefined (mes actual del sistema)
 ```
 
-La UI mostrará:
-- Sección "Equipo de management" → perfiles internos (con badge "interno")  
-- Sección "Contactos externos" → contacts con category=management (con badge "externo")
-
-### Dato guardado en el presupuesto
-
-En `metadata` del presupuesto se guardará:
-```json
-{
-  "owner_id": "uuid",
-  "owner_name": "David Solans Cortes",
-  "owner_source": "interno"
-}
-```
-
-Esto evita depender del tipo de ID (contact vs profile) para mostrar el nombre en pantalla.
-
-### Sin cambios en base de datos
-
-Se reutilizan tablas existentes: `profiles`, `artist_role_bindings`, `contacts`, `contact_artist_assignments`.
+Solo se modifica un archivo: `src/components/releases/CreateReleaseBudgetDialog.tsx`. Sin cambios en base de datos, sin lógica de negocio.
