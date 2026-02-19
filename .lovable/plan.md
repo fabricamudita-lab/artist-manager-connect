@@ -1,46 +1,45 @@
 
-# Fijar ancho del texto para estabilizar posición del switch
+# Mover "Fabricación física" de Logística a su propia sección
 
 ## Problema
 
-El contenedor del segundo toggle (`ToggleRow`) crece y encoge según el texto que muestre:
-- "Producción propia" → más ancho → switch desplazado a la izquierda
-- "Derivado" → más estrecho → switch desplazado a la derecha
+En el paso 3 del wizard (Variables), la fila `¿Fabricación física (vinilo/CD)?` está agrupada bajo la sección **Logística**, junto a Transporte, Dietas y Hospedaje — que son conceptos de logística de tour/artista, no de producción física.
 
-Esto hace que el switch "salte" de posición al cambiar de estado.
-
-## Causa técnica
-
-En `CreateReleaseBudgetDialog.tsx` (~línea 670), el `<span>` del texto no tiene un ancho fijo:
-
-```tsx
-<span className={cn(
-  "text-xs font-medium whitespace-nowrap",
-  contracted ? "text-primary" : "text-muted-foreground"
-)}>
-  {contracted ? "Producción propia" : "Derivado"}
-</span>
-```
-
-Al cambiar el texto, el ancho del `<span>` y del contenedor padre cambia, lo que desplaza el switch.
+La fabricación de vinilo/CD es una categoría de producción totalmente distinta que ya tiene su propia sección en el sistema de partidas: `'Fabricación & logística'`.
 
 ## Solución
 
-Fijar un ancho mínimo en el `<span>` equivalente al texto más largo ("Producción propia"). Con Tailwind, se puede usar `inline-block` + `w-[110px]` (o `min-w-[110px]`) para reservar siempre ese espacio:
+Extraer `¿Fabricación física (vinilo/CD)?` de la sección Logística y colocarla en una sección propia llamada **Fabricación física**, justo después de Logística (o donde tenga más sentido en el flujo).
 
-```tsx
-<span className={cn(
-  "text-xs font-medium whitespace-nowrap inline-block w-[110px]",
-  contracted ? "text-primary" : "text-muted-foreground"
-)}>
-  {contracted ? "Producción propia" : "Derivado"}
-</span>
+### Antes:
+```
+LOGÍSTICA
+  ¿Transporte?
+  ¿Dietas?
+  ¿Hospedaje?
+  ¿Fabricación física (vinilo/CD)?   ← fuera de lugar
 ```
 
-De esta manera el switch siempre está exactamente en la misma posición horizontal, porque el bloque de texto siempre ocupa el mismo ancho.
+### Después:
+```
+LOGÍSTICA
+  ¿Transporte?
+  ¿Dietas?
+  ¿Hospedaje?
+
+FABRICACIÓN FÍSICA
+  ¿Fabricación física (vinilo/CD)?   ← en su sección correcta
+```
+
+## Cambio técnico
+
+Solo `src/components/releases/CreateReleaseBudgetDialog.tsx`, ~línea 1214–1221:
+
+1. Quitar `<ToggleRow label="¿Fabricación física (vinilo/CD)?".../>` de dentro del `<div>` de Logística
+2. Añadir un nuevo `<div className="space-y-3">` debajo con:
+   - Cabecera `<h4>` con texto **"Fabricación física"**
+   - La fila `ToggleRow` de fabricación
 
 ## Archivo a modificar
 
-Solo **`src/components/releases/CreateReleaseBudgetDialog.tsx`**, línea 670-675 — añadir `inline-block w-[110px]` al `className` del `<span>`.
-
-Cambio mínimo, una sola línea.
+Solo **`src/components/releases/CreateReleaseBudgetDialog.tsx`** — cambio mínimo de estructura JSX, sin tocar estados ni lógica.
