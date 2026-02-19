@@ -55,6 +55,7 @@ interface InconsistencyWarning {
   title: string;
   detail: string;
   budgetId?: string;
+  budgetIds?: string[];
   budgetDate?: Date;
   releaseDate?: Date;
 }
@@ -63,8 +64,8 @@ interface InconsistencyWarning {
 interface InconsistencyPanelProps {
   warnings: InconsistencyWarning[];
   dismissedKeys: Set<string>;
-  onDismiss: (key: string) => void;
-  onResolveTrackCount: (budgetId: string) => void;
+  onDismiss: (keys: string[]) => void;
+  onResolveTrackCount: (budgetIds: string[]) => void;
   onResolveWithReleaseDate: (budgetId: string) => void;
   onResolveWithBudgetDate: (budgetId: string, date: Date) => void;
   onOpenBudget: (budgetId: string) => void;
@@ -124,11 +125,17 @@ function InconsistencyPanel({
       {expanded && (
         <div className="border-t border-border divide-y divide-border">
           {visible.map((w) => {
+            const ids = w.budgetIds && w.budgetIds.length > 0 ? w.budgetIds : (w.budgetId ? [w.budgetId] : []);
             const icon =
               w.type === 'track_count' ? <RefreshCw className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" /> :
               w.type === 'release_date_changed' ? <Calendar className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" /> :
               w.type === 'physical_no_milestone' || w.type === 'date_mismatch' ? <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" /> :
               <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />;
+
+            // Collect all keys belonging to this grouped warning for dismiss
+            const allKeys = ids.length > 0
+              ? ids.map(bid => `${w.type}-${bid}`)
+              : [w.key];
 
             return (
               <div key={w.key} className="px-4 py-3 flex flex-col gap-2">
@@ -143,15 +150,15 @@ function InconsistencyPanel({
                 {/* Actions */}
                 <div className="flex flex-wrap gap-2 pl-6">
                   {/* track_count */}
-                  {w.type === 'track_count' && w.budgetId && (
+                  {w.type === 'track_count' && ids.length > 0 && (
                     <>
                       <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
-                        onClick={() => onResolveTrackCount(w.budgetId!)}>
+                        onClick={() => onResolveTrackCount(ids)}>
                         <RefreshCw className="h-3 w-3" />
-                        Actualizar presupuesto
+                        Actualizar {ids.length > 1 ? `${ids.length} presupuestos` : 'presupuesto'}
                       </Button>
                       <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground gap-1"
-                        onClick={() => onDismiss(w.key)}>
+                        onClick={() => onDismiss(allKeys)}>
                         <X className="h-3 w-3" />
                         Ignorar
                       </Button>
@@ -315,23 +322,29 @@ export default function ReleasePresupuestos() {
     } catch { return new Set(); }
   });
 
-  const dismissWarning = (key: string) => {
+  const dismissWarning = (keys: string[]) => {
     setDismissedKeys(prev => {
-      const next = new Set(prev).add(key);
+      const next = new Set(prev);
+      keys.forEach(k => next.add(k));
       sessionStorage.setItem(`dismissed-warnings-${id}`, JSON.stringify([...next]));
       return next;
     });
   };
 
   // ─── Resolve: sync n_tracks in budget ────────────────────────────
-  const resolveTrackCount = async (budgetId: string) => {
-    const budget = linkedBudgets.find(b => b.id === budgetId);
-    if (!budget) return;
-    const meta = { ...(budget.metadata || {}) } as Record<string, any>;
-    if (!meta.variables) meta.variables = {};
-    meta.variables.n_tracks = tracks?.length || 0;
-    await (supabase.from('budgets').update({ metadata: meta } as any).eq('id', budgetId));
-    toast.success('Presupuesto actualizado con el número de canciones actual');
+  const resolveTrackCount = async (budgetIds: string[]) => {
+    for (const budgetId of budgetIds) {
+      const budget = linkedBudgets.find(b => b.id === budgetId);
+      if (!budget) continue;
+      const meta = { ...(budget.metadata || {}) } as Record<string, any>;
+      if (!meta.variables) meta.variables = {};
+      meta.variables.n_tracks = tracks?.length || 0;
+      await (supabase.from('budgets').update({ metadata: meta } as any).eq('id', budgetId));
+    }
+    toast.success(budgetIds.length > 1
+      ? `${budgetIds.length} presupuestos actualizados con el número de canciones actual`
+      : 'Presupuesto actualizado con el número de canciones actual'
+    );
     fetchLinkedBudgets();
   };
 
@@ -452,7 +465,34 @@ export default function ReleasePresupuestos() {
       }
     }
 
-    return w;
+    // ── Agrupar warnings con mismo tipo + mismo título ──
+    const grouped = new Map<string, InconsistencyWarning>();
+    for (const warning of w) {
+      const groupKey = `${warning.type}::${warning.title}`;
+      if (grouped.has(groupKey)) {
+        const existing = grouped.get(groupKey)!;
+        if (warning.budgetId) {
+          existing.budgetIds = [...(existing.budgetIds || (existing.budgetId ? [existing.budgetId] : [])), warning.budgetId];
+        }
+      } else {
+        grouped.set(groupKey, {
+          ...warning,
+          budgetIds: warning.budgetId ? [warning.budgetId] : [],
+        });
+      }
+    }
+
+    // Update detail for grouped warnings with multiple budgets
+    for (const w of grouped.values()) {
+      if (w.budgetIds && w.budgetIds.length > 1 && w.type === 'track_count') {
+        const meta0 = linkedBudgets.find(b => b.id === w.budgetIds![0])?.metadata as Record<string, any> | null;
+        const budgetTrackCount = meta0?.variables?.n_tracks;
+        w.detail = `${w.budgetIds.length} presupuestos afectados · Actualiza el número de canciones para que los cálculos sean correctos.`;
+        w.title = `Los presupuestos tienen ${budgetTrackCount} canción${budgetTrackCount !== 1 ? 'es' : ''}, pero el release tiene ${tracks?.length || 0}`;
+      }
+    }
+
+    return [...grouped.values()];
   }, [release, linkedBudgets, tracks, milestones]);
 
   const totalEstimated = Object.values(budgetTotals).reduce((sum, t) => sum + t.estimated, 0);
@@ -479,8 +519,8 @@ export default function ReleasePresupuestos() {
         <InconsistencyPanel
           warnings={warnings}
           dismissedKeys={dismissedKeys}
-          onDismiss={dismissWarning}
-          onResolveTrackCount={resolveTrackCount}
+          onDismiss={(keys) => dismissWarning(keys)}
+          onResolveTrackCount={(ids) => resolveTrackCount(ids)}
           onResolveWithReleaseDate={resolveWithReleaseDate}
           onResolveWithBudgetDate={resolveWithBudgetDate}
           onOpenBudget={(budgetId) => {
