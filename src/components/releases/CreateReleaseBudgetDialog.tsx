@@ -819,7 +819,7 @@ export default function CreateReleaseBudgetDialog({
                   <PopoverContent className="w-[280px] p-0 z-[300] bg-popover border border-border shadow-lg pointer-events-auto" align="start" side="bottom" sideOffset={4} avoidCollisions={false} style={{ pointerEvents: 'auto' }}>
                     <Command>
                       <CommandInput placeholder="Buscar servicio..." />
-                      <CommandList className="max-h-[250px]">
+                      <CommandList className="max-h-[250px]" onWheel={(e) => e.stopPropagation()}>
                         <CommandEmpty>No encontrado</CommandEmpty>
                         <CommandGroup>
                           {SERVICE_OPTIONS.map(svc => (
