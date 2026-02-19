@@ -668,7 +668,7 @@ export default function CreateReleaseBudgetDialog({
               onCheckedChange={onContractedChange}
             />
             <span className={cn(
-              "text-xs font-medium whitespace-nowrap",
+              "text-xs font-medium whitespace-nowrap inline-block w-[110px]",
               contracted ? "text-primary" : "text-muted-foreground"
             )}>
               {contracted ? "Producción propia" : "Derivado"}
