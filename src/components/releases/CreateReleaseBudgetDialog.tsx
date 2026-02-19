@@ -18,7 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { ReleaseBudgetContactField } from '@/components/releases/ReleaseBudgetContactField';
-import { ProducerSelector, type ProducerRef } from '@/components/releases/ProducerSelector';
+import { ProducerSelector, SingleProducerSelector, type ProducerRef } from '@/components/releases/ProducerSelector';
 import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -281,12 +281,13 @@ export default function CreateReleaseBudgetDialog({
   const [stage, setStage] = useState(false);
   const [stageDays, setStageDays] = useState(1);
   const [prNacional, setPrNacional] = useState(false);
-  const [prNacionalProveedor, setPrNacionalProveedor] = useState('');
+  const [prNacionalProveedor, setPrNacionalProveedor] = useState<ProducerRef | null>(null);
   const [prNacionalCoste, setPrNacionalCoste] = useState(0);
   const [prInternacional, setPrInternacional] = useState(false);
-  const [prIntProveedor, setPrIntProveedor] = useState('');
+  const [prIntProveedor, setPrIntProveedor] = useState<ProducerRef | null>(null);
   const [prIntCoste, setPrIntCoste] = useState(0);
   const [gestionRRSS, setGestionRRSS] = useState(false);
+  const [rrssProveedor, setRrssProveedor] = useState<ProducerRef | null>(null);
   const [rrssCoste, setRrssCoste] = useState(0);
   const [transporte, setTransporte] = useState(false);
   const [dietas, setDietas] = useState(false);
@@ -382,7 +383,7 @@ export default function CreateReleaseBudgetDialog({
           stage, stage_days: stageDays,
           pr_nacional: prNacional, pr_nacional_proveedor: prNacionalProveedor, pr_nacional_coste: prNacionalCoste,
           pr_internacional: prInternacional, pr_int_proveedor: prIntProveedor, pr_int_coste: prIntCoste,
-          gestion_rrss: gestionRRSS, rrss_coste: rrssCoste,
+          gestion_rrss: gestionRRSS, rrss_proveedor: rrssProveedor, rrss_coste: rrssCoste,
           transporte, dietas, hospedaje, fisico,
           contingencia_pct: contingencia[0],
         },
@@ -546,8 +547,8 @@ export default function CreateReleaseBudgetDialog({
   };
 
   const getDefaultObservations = (catKey: string, itemName: string): string => {
-    if (itemName.includes('PR + pitching (nacional)') && prNacionalProveedor) return `Proveedor: ${prNacionalProveedor}`;
-    if (itemName.includes('PR + pitching (internacional)') && prIntProveedor) return `Proveedor: ${prIntProveedor}`;
+    if (itemName.includes('PR + pitching (nacional)') && prNacionalProveedor) return `Proveedor: ${prNacionalProveedor.name}`;
+    if (itemName.includes('PR + pitching (internacional)') && prIntProveedor) return `Proveedor: ${prIntProveedor.name}`;
     if (itemName.includes('Master')) {
       const labels = masterTypes.map(v => MASTER_TYPE_OPTIONS.find(o => o.value === v)?.label || v);
       return labels.length ? `Tipos: ${labels.join(', ')}` : '';
@@ -1067,19 +1068,37 @@ export default function CreateReleaseBudgetDialog({
               <div className="space-y-3">
                 <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">PR & Marketing</h4>
                 <ToggleRow label="¿PR nacional?" checked={prNacional} onChange={setPrNacional}>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input value={prNacionalProveedor} onChange={e => setPrNacionalProveedor(e.target.value)} placeholder="Proveedor" className="h-8 text-xs" />
+                  <div className="grid grid-cols-2 gap-2 items-start">
+                    <SingleProducerSelector
+                      value={prNacionalProveedor}
+                      onChange={setPrNacionalProveedor}
+                      artistId={release?.artist_id}
+                      placeholder="Proveedor"
+                    />
                     <Input type="number" value={prNacionalCoste || ''} onChange={e => setPrNacionalCoste(parseFloat(e.target.value) || 0)} placeholder="Coste €" className="h-8 text-xs" />
                   </div>
                 </ToggleRow>
                 <ToggleRow label="¿PR internacional?" checked={prInternacional} onChange={setPrInternacional}>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input value={prIntProveedor} onChange={e => setPrIntProveedor(e.target.value)} placeholder="Proveedor" className="h-8 text-xs" />
+                  <div className="grid grid-cols-2 gap-2 items-start">
+                    <SingleProducerSelector
+                      value={prIntProveedor}
+                      onChange={setPrIntProveedor}
+                      artistId={release?.artist_id}
+                      placeholder="Proveedor"
+                    />
                     <Input type="number" value={prIntCoste || ''} onChange={e => setPrIntCoste(parseFloat(e.target.value) || 0)} placeholder="Coste €" className="h-8 text-xs" />
                   </div>
                 </ToggleRow>
                 <ToggleRow label="¿Gestión RRSS / contenidos?" checked={gestionRRSS} onChange={setGestionRRSS}>
-                  <Input type="number" value={rrssCoste || ''} onChange={e => setRrssCoste(parseFloat(e.target.value) || 0)} placeholder="Coste €" className="h-8 text-xs" />
+                  <div className="grid grid-cols-2 gap-2 items-start">
+                    <SingleProducerSelector
+                      value={rrssProveedor}
+                      onChange={setRrssProveedor}
+                      artistId={release?.artist_id}
+                      placeholder="Proveedor"
+                    />
+                    <Input type="number" value={rrssCoste || ''} onChange={e => setRrssCoste(parseFloat(e.target.value) || 0)} placeholder="Coste €" className="h-8 text-xs" />
+                  </div>
                 </ToggleRow>
               </div>
 

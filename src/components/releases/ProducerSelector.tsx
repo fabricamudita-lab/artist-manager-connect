@@ -21,22 +21,9 @@ export interface ProducerRef {
   name: string;
 }
 
-interface ProducerSelectorProps {
-  value: ProducerRef[];
-  onChange: (value: ProducerRef[]) => void;
-  artistId?: string | null;
-  placeholder?: string;
-  className?: string;
-}
+// ─── Data fetching hook ───────────────────────────────────────────────────────
 
-export function ProducerSelector({
-  value,
-  onChange,
-  artistId,
-  placeholder = "Seleccionar productor/es...",
-  className,
-}: ProducerSelectorProps) {
-  const [open, setOpen] = useState(false);
+function useProducerItems(open: boolean, artistId?: string | null) {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<ProducerRef[]>([]);
 
@@ -45,13 +32,12 @@ export function ProducerSelector({
 
     const load = async () => {
       if (!open) return;
-
       try {
         setLoading(true);
         const allItems: ProducerRef[] = [];
 
         if (artistId) {
-          // 1. Contacts linked to artist
+          // Contacts linked to artist
           const { data: assignments } = await supabase
             .from("contact_artist_assignments")
             .select("contact_id")
@@ -71,7 +57,7 @@ export function ProducerSelector({
             });
           }
 
-          // 2. Workspace profiles with artist binding
+          // Workspace profiles with artist binding
           const { data: bindings } = await supabase
             .from("artist_role_bindings")
             .select("user_id")
@@ -123,7 +109,6 @@ export function ProducerSelector({
         }
 
         if (cancelled) return;
-
         allItems.sort((a, b) => a.name.localeCompare(b.name, "es"));
         setItems(allItems);
       } finally {
@@ -139,6 +124,29 @@ export function ProducerSelector({
     perfiles: items.filter((i) => i.type === "profile"),
     contactos: items.filter((i) => i.type === "contact"),
   }), [items]);
+
+  return { loading, grouped };
+}
+
+// ─── Multi-select ProducerSelector ───────────────────────────────────────────
+
+interface ProducerSelectorProps {
+  value: ProducerRef[];
+  onChange: (value: ProducerRef[]) => void;
+  artistId?: string | null;
+  placeholder?: string;
+  className?: string;
+}
+
+export function ProducerSelector({
+  value,
+  onChange,
+  artistId,
+  placeholder = "Seleccionar productor/es...",
+  className,
+}: ProducerSelectorProps) {
+  const [open, setOpen] = useState(false);
+  const { loading, grouped } = useProducerItems(open, artistId);
 
   const isSelected = (item: ProducerRef) =>
     value.some((v) => v.type === item.type && v.id === item.id);
@@ -189,12 +197,7 @@ export function ProducerSelector({
                       value={item.name}
                       onSelect={() => toggle(item)}
                     >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4 shrink-0",
-                          isSelected(item) ? "opacity-100" : "opacity-0"
-                        )}
-                      />
+                      <Check className={cn("mr-2 h-4 w-4 shrink-0", isSelected(item) ? "opacity-100" : "opacity-0")} />
                       <span className="truncate">{item.name}</span>
                     </CommandItem>
                   ))}
@@ -209,12 +212,7 @@ export function ProducerSelector({
                       value={item.name}
                       onSelect={() => toggle(item)}
                     >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4 shrink-0",
-                          isSelected(item) ? "opacity-100" : "opacity-0"
-                        )}
-                      />
+                      <Check className={cn("mr-2 h-4 w-4 shrink-0", isSelected(item) ? "opacity-100" : "opacity-0")} />
                       <span className="truncate">{item.name}</span>
                     </CommandItem>
                   ))}
@@ -225,7 +223,6 @@ export function ProducerSelector({
         </PopoverContent>
       </Popover>
 
-      {/* Selected badges */}
       {value.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {value.map((item) => (
@@ -247,5 +244,88 @@ export function ProducerSelector({
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Single-select variant ────────────────────────────────────────────────────
+
+interface SingleProducerSelectorProps {
+  value: ProducerRef | null;
+  onChange: (value: ProducerRef | null) => void;
+  artistId?: string | null;
+  placeholder?: string;
+  className?: string;
+}
+
+export function SingleProducerSelector({
+  value,
+  onChange,
+  artistId,
+  placeholder = "Seleccionar...",
+  className,
+}: SingleProducerSelectorProps) {
+  const [open, setOpen] = useState(false);
+  const { loading, grouped } = useProducerItems(open, artistId);
+
+  const select = (item: ProducerRef) => {
+    onChange(value?.type === item.type && value?.id === item.id ? null : item);
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={cn("h-8 w-full justify-between text-xs font-normal", className)}
+        >
+          <span className="flex items-center gap-1.5 truncate text-muted-foreground">
+            <User className="h-3 w-3 shrink-0" />
+            <span className="truncate">{value?.name || placeholder}</span>
+          </span>
+          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Buscar..." className="h-9" />
+          <CommandList className="max-h-56">
+            <CommandEmpty>{loading ? "Cargando..." : "Sin resultados"}</CommandEmpty>
+
+            <CommandGroup heading="Acciones">
+              <CommandItem value="sin_asignar" onSelect={() => { onChange(null); setOpen(false); }}>
+                <span className="text-muted-foreground">Sin asignar</span>
+                <Check className={cn("ml-auto h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
+              </CommandItem>
+            </CommandGroup>
+
+            {grouped.perfiles.length > 0 && (
+              <CommandGroup heading="Equipo del artista">
+                {grouped.perfiles.map((item) => (
+                  <CommandItem key={`profile:${item.id}`} value={item.name} onSelect={() => select(item)}>
+                    <Check className={cn("mr-2 h-4 w-4 shrink-0", value?.id === item.id ? "opacity-100" : "opacity-0")} />
+                    <span className="truncate">{item.name}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+
+            {grouped.contactos.length > 0 && (
+              <CommandGroup heading="Contactos">
+                {grouped.contactos.map((item) => (
+                  <CommandItem key={`contact:${item.id}`} value={item.name} onSelect={() => select(item)}>
+                    <Check className={cn("mr-2 h-4 w-4 shrink-0", value?.id === item.id ? "opacity-100" : "opacity-0")} />
+                    <span className="truncate">{item.name}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
