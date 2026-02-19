@@ -16,7 +16,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { useTracks } from '@/hooks/useReleases';
 import { ReleaseBudgetContactField } from '@/components/releases/ReleaseBudgetContactField';
 import { ProducerSelector, SingleProducerSelector, type ProducerRef } from '@/components/releases/ProducerSelector';
 import { toast } from 'sonner';
@@ -214,11 +216,12 @@ export default function CreateReleaseBudgetDialog({
   const { profile } = useAuth();
   const [step, setStep] = useState<Step>('metadata');
   const [loading, setLoading] = useState(false);
+  const { data: existingTracks = [] } = useTracks(release?.id);
 
   // ─── Metadata ────────────────────────────────────────────────────
   const [budgetName, setBudgetName] = useState('');
   const [releaseType, setReleaseType] = useState<string>(release?.type || 'single');
-  const [versions, setVersions] = useState<string[]>(['original']);
+  const [version, setVersion] = useState<string>('original');
   const [territories, setTerritories] = useState<string[]>(['ES']);
   const [labelContactId, setLabelContactId] = useState<string | undefined>(undefined);
   const [distributionContactId, setDistributionContactId] = useState<string | undefined>(undefined);
@@ -232,7 +235,7 @@ export default function CreateReleaseBudgetDialog({
     release?.release_date ? new Date(release.release_date) : undefined
   );
   const [physicalDate, setPhysicalDate] = useState<Date | undefined>();
-  const [singleDates, setSingleDates] = useState<Date[]>([]);
+  const [singles, setSingles] = useState<{ title?: string; trackId?: string; isNew?: boolean; date?: Date }[]>([]);
   const [autoDeadlines, setAutoDeadlines] = useState(true);
 
   // ─── Cronograma integration ─────────────────────────────────────
@@ -416,7 +419,7 @@ export default function CreateReleaseBudgetDialog({
       const resolvedDeadlines = getResolvedDeadlines();
       const metadata = {
         release_type: releaseType,
-        versions,
+        version,
         territories,
         label_contact_id: labelContactId || null,
         distribution_contact_id: distributionContactId || null,
@@ -425,7 +428,7 @@ export default function CreateReleaseBudgetDialog({
         services,
         release_date_digital: releaseDate?.toISOString() || null,
         release_date_physical: physicalDate?.toISOString() || null,
-        single_dates: singleDates.map(d => d.toISOString()),
+        singles: singles.map(s => ({ title: s.title, trackId: s.trackId, date: s.date?.toISOString() })),
         auto_deadlines: autoDeadlines,
         deadline_strategy: hasCronograma ? deadlineStrategy : 'autocalcular',
         deadlines: resolvedDeadlines.map(d => ({
@@ -551,15 +554,29 @@ export default function CreateReleaseBudgetDialog({
       // ─── 3. Sync Tracks ──────────────────────────────────────────
       let tracksAdded = 0;
       let tracksWarning = false;
+
+      // Insert new tracks from singles that have a new title
+      let nextTrackNumber = existingTracks.length + 1;
+      for (const single of singles) {
+        if (single.isNew && single.title && !single.trackId) {
+          const { error: singleTrackError } = await supabase.from('tracks').insert({
+            release_id: release.id,
+            title: single.title,
+            track_number: nextTrackNumber++,
+          });
+          if (!singleTrackError) tracksAdded++;
+        }
+      }
+
       if (nTracks > 0) {
-        // Fetch current tracks for this release
-        const { data: existingTracks } = await supabase
+        // Re-fetch current tracks after singles insertion
+        const { data: currentTracks } = await supabase
           .from('tracks')
           .select('id, track_number')
           .eq('release_id', release.id)
           .order('track_number');
 
-        const currentCount = existingTracks?.length || 0;
+        const currentCount = currentTracks?.length || 0;
 
         if (nTracks > currentCount) {
           // Insert missing tracks
@@ -573,7 +590,7 @@ export default function CreateReleaseBudgetDialog({
           }
           const { error: tracksError } = await supabase.from('tracks').insert(tracksToInsert);
           if (!tracksError) {
-            tracksAdded = tracksToInsert.length;
+            tracksAdded += tracksToInsert.length;
           }
         } else if (nTracks < currentCount) {
           tracksWarning = true;
@@ -882,29 +899,21 @@ export default function CreateReleaseBudgetDialog({
                 </Select>
               </div>
 
-              {/* Versión multi-select chips */}
+              {/* Versión single-select radio */}
               <div className="space-y-1.5">
-                <Label className="text-xs">Versiones</Label>
-                <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
+                <Label className="text-xs">Versión</Label>
+                <div className="rounded-md border border-border bg-muted/20 p-3">
+                  <RadioGroup value={version} onValueChange={setVersion} className="grid grid-cols-2 gap-2">
                     {VERSION_OPTIONS.map(opt => (
-                      <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
-                        <Checkbox
-                          checked={versions.includes(opt.value)}
-                          onCheckedChange={(v) => {
-                            setVersions(prev => {
-                              const next = v ? [...prev, opt.value] : prev.filter(x => x !== opt.value);
-                              return next.length === 0 ? prev : next; // mínimo 1 seleccionada
-                            });
-                          }}
-                        />
-                        <span className="text-sm">{opt.label}</span>
+                      <label key={opt.value} className={cn(
+                        "flex items-center gap-2 cursor-pointer rounded-md px-2 py-1.5 transition-colors",
+                        version === opt.value ? "bg-primary/10" : "hover:bg-muted/60"
+                      )}>
+                        <RadioGroupItem value={opt.value} id={`ver-${opt.value}`} className="shrink-0" />
+                        <span className="text-sm text-foreground">{opt.label}</span>
                       </label>
                     ))}
-                  </div>
-                  {versions.length === 0 && (
-                    <p className="text-xs text-destructive">Selecciona al menos una versión.</p>
-                  )}
+                  </RadioGroup>
                 </div>
               </div>
 
@@ -1017,57 +1026,30 @@ export default function CreateReleaseBudgetDialog({
                 </div>
               </div>
 
-              {/* Servicios multi-select */}
+              {/* Servicios contratados - grid checkboxes */}
               <div className="space-y-1.5">
                 <Label className="text-xs">Servicios contratados</Label>
-                <Popover modal={false}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal h-auto min-h-9 text-sm py-1.5">
-                      {services.length === 0 ? (
-                        <span className="text-muted-foreground">Seleccionar servicios...</span>
-                      ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {services.map(s => (
-                            <Badge key={s} variant="secondary" className="text-xs px-1.5 py-0 h-5 gap-0.5">
-                              {s}
-                              <X className="h-2.5 w-2.5 cursor-pointer" onClick={(e) => {
-                                e.stopPropagation();
-                                setServices(prev => prev.filter(v => v !== s));
-                              }} />
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[280px] p-0 z-[300] bg-popover border border-border shadow-lg pointer-events-auto" align="start" side="bottom" sideOffset={4} avoidCollisions={false} style={{ pointerEvents: 'auto' }}>
-                    <Command>
-                      <CommandInput placeholder="Buscar servicio..." />
-                      <CommandList className="max-h-[250px]" onWheel={(e) => e.stopPropagation()}>
-                        <CommandEmpty>No encontrado</CommandEmpty>
-                        <CommandGroup>
-                          {SERVICE_OPTIONS.map(svc => (
-                            <CommandItem
-                              key={svc}
-                              value={svc}
-                              onSelect={() => {
-                                setServices(prev =>
-                                  prev.includes(svc) ? prev.filter(v => v !== svc) : [...prev, svc]
-                                );
-                              }}
-                            >
-                              <Checkbox
-                                checked={services.includes(svc)}
-                                className="mr-2 h-3.5 w-3.5"
-                              />
-                              <span className="text-sm">{svc}</span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <div className="rounded-md border border-border bg-muted/20 p-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {SERVICE_OPTIONS.map(svc => (
+                      <label key={svc} className={cn(
+                        "flex items-center gap-2 cursor-pointer rounded-md px-2 py-1.5 transition-colors",
+                        services.includes(svc) ? "bg-primary/10" : "hover:bg-muted/60"
+                      )}>
+                        <Checkbox
+                          checked={services.includes(svc)}
+                          onCheckedChange={(v) => {
+                            setServices(prev =>
+                              v ? [...prev, svc] : prev.filter(x => x !== svc)
+                            );
+                          }}
+                          className="shrink-0"
+                        />
+                        <span className="text-sm text-foreground">{svc}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -1087,20 +1069,77 @@ export default function CreateReleaseBudgetDialog({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs">Singles previos</Label>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSingleDates(prev => [...prev, new Date()])}>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSingles(prev => [...prev, { date: new Date() }])}>
                     <Plus className="h-3 w-3 mr-1" /> Añadir
                   </Button>
                 </div>
-                {singleDates.map((d, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <DatePicker label={`Single ${i + 1}`} value={d} onChange={v => {
-                      const copy = [...singleDates];
-                      copy[i] = v || new Date();
-                      setSingleDates(copy);
-                    }} />
-                    <Button variant="ghost" size="icon" className="h-8 w-8 mt-5" onClick={() => setSingleDates(prev => prev.filter((_, j) => j !== i))}>
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
+                {singles.map((s, i) => (
+                  <div key={i} className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">Single {i + 1}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSingles(prev => prev.filter((_, j) => j !== i))}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    {/* Track selector */}
+                    {existingTracks.length > 0 ? (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Canción</Label>
+                        <Select
+                          value={s.trackId || (s.isNew ? '__new__' : '')}
+                          onValueChange={(val) => {
+                            setSingles(prev => {
+                              const copy = [...prev];
+                              if (val === '__new__') {
+                                copy[i] = { ...copy[i], trackId: undefined, isNew: true, title: '' };
+                              } else {
+                                const track = existingTracks.find(t => t.id === val);
+                                copy[i] = { ...copy[i], trackId: val, isNew: false, title: track?.title };
+                              }
+                              return copy;
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Seleccionar canción..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {existingTracks.map(track => (
+                              <SelectItem key={track.id} value={track.id}>
+                                {track.track_number}. {track.title}
+                              </SelectItem>
+                            ))}
+                            <SelectItem value="__new__">+ Nuevo título</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : null}
+                    {/* New title input */}
+                    {(s.isNew || existingTracks.length === 0) && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Título</Label>
+                        <Input
+                          value={s.title || ''}
+                          onChange={e => setSingles(prev => {
+                            const copy = [...prev];
+                            copy[i] = { ...copy[i], title: e.target.value, isNew: true };
+                            return copy;
+                          })}
+                          placeholder="Nombre del single..."
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    )}
+                    {/* Date picker */}
+                    <DatePicker
+                      label="Fecha de lanzamiento"
+                      value={s.date}
+                      onChange={v => setSingles(prev => {
+                        const copy = [...prev];
+                        copy[i] = { ...copy[i], date: v };
+                        return copy;
+                      })}
+                    />
                   </div>
                 ))}
               </div>
@@ -1463,7 +1502,10 @@ export default function CreateReleaseBudgetDialog({
                     <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Formatos</Label>
                     <div className="grid grid-cols-2 gap-2 mt-1">
                       {FORMATOS_FISICOS.map(f => (
-                        <label key={f.value} className="flex items-center gap-2 cursor-pointer">
+                        <label key={f.value} className={cn(
+                          "flex items-center gap-2 cursor-pointer rounded-md px-2 py-1.5 transition-colors",
+                          fisicoFormatos.includes(f.value) ? "bg-primary/10" : "hover:bg-muted/60"
+                        )}>
                           <Checkbox
                             checked={fisicoFormatos.includes(f.value)}
                             onCheckedChange={(v) => {
@@ -1471,8 +1513,9 @@ export default function CreateReleaseBudgetDialog({
                                 v ? [...prev, f.value] : prev.filter(x => x !== f.value)
                               );
                             }}
+                            className="shrink-0"
                           />
-                          <span className="text-sm">{f.label}</span>
+                          <span className="text-sm text-foreground">{f.label}</span>
                         </label>
                       ))}
                     </div>
