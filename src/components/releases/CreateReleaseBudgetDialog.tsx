@@ -33,6 +33,7 @@ import {
   CalendarCheck
 } from 'lucide-react';
 import type { Release, ReleaseMilestone } from '@/hooks/useReleases';
+import { generateTimelineFromConfig, groupTasksByWorkflow, type ReleaseConfig } from '@/lib/releaseTimelineTemplates';
 
 // ─── TERRITORY OPTIONS ────────────────────────────────────────────
 const TERRITORY_GROUPS = [
@@ -599,60 +600,65 @@ export default function CreateReleaseBudgetDialog({
         }
       }
 
-      // ─── 4. Sync Milestones ──────────────────────────────────────
+      // ─── 4. Sync Milestones / Generate Cronograma ────────────────
       let milestonesCreated = 0;
-      let milestonesUpdated = 0;
-      const milestoneConflicts: string[] = [];
 
-      const effectiveStrategy = hasCronograma ? deadlineStrategy : 'autocalcular';
-      // Only sync if we are NOT using the existing cronograma as-is
-      if (effectiveStrategy !== 'cronograma') {
-        const resolvedForMilestones = getResolvedDeadlines();
-        const existingMap = new Map<string, { id: string; due_date: string }>();
-        for (const m of existingMilestones) {
-          existingMap.set(m.title.toLowerCase(), { id: m.id, due_date: m.due_date || '' });
-        }
+      // Check if cronograma already has data
+      const { data: existingMilestonesCheck } = await supabase
+        .from('release_milestones')
+        .select('id')
+        .eq('release_id', release.id)
+        .limit(1);
 
-        for (let idx = 0; idx < resolvedForMilestones.length; idx++) {
-          const d = resolvedForMilestones[idx];
-          const dateStr = format(d.finalDate, 'yyyy-MM-dd');
-          const existing = existingMap.get(d.name.toLowerCase());
+      const cronogramaYaExiste = (existingMilestonesCheck?.length || 0) > 0;
 
-          if (!existing) {
-            // Insert new milestone
-            await supabase.from('release_milestones').insert({
-              release_id: release.id,
-              title: d.name,
-              due_date: dateStr,
-              status: 'pending',
-              category: 'marketing',
-              sort_order: idx,
-            } as any);
-            milestonesCreated++;
-          } else {
-            // Check if dates differ
-            const existingDateStr = existing.due_date.substring(0, 10);
-            if (existingDateStr !== dateStr) {
-              // Conflict: date differs — update but record conflict
-              await supabase
-                .from('release_milestones')
-                .update({ due_date: dateStr } as any)
-                .eq('id', existing.id);
-              milestonesUpdated++;
-              milestoneConflicts.push(`"${d.name}": ${existingDateStr} → ${dateStr}`);
-            }
-          }
+      if (!cronogramaYaExiste && releaseDate) {
+        // Build ReleaseConfig from budget data
+        const config: ReleaseConfig = {
+          releaseDate,
+          physicalDate: physicalDate || null,
+          numSongs: nTracks || 1,
+          numSingles: singles.length,
+          hasVideo: nVideoclips > 0,
+          hasPhysical: fisico === true,
+        };
+
+        // Generate full timeline using the same function as the wizard
+        const generatedTasks = generateTimelineFromConfig(config);
+        const groupedTasks = groupTasksByWorkflow(generatedTasks);
+        const numWorkflows = Object.keys(groupedTasks).length;
+
+        // Build milestones in the same format that ReleaseCronograma.tsx expects
+        const milestonesToInsert = generatedTasks.map((task, index) => ({
+          release_id: release.id,
+          title: task.name,
+          due_date: format(task.startDate, 'yyyy-MM-dd'),
+          status: 'pending',
+          category: task.workflowId,
+          sort_order: index,
+          metadata: {
+            estimatedDays: task.estimatedDays,
+            anchoredTo: task.anchoredTo || null,
+            customStartDate: null,
+            subtasks: null,
+            responsible_ref: null,
+          },
+        }));
+
+        if (milestonesToInsert.length > 0) {
+          const { error: msError } = await supabase
+            .from('release_milestones')
+            .insert(milestonesToInsert as any);
+          if (!msError) milestonesCreated = milestonesToInsert.length;
         }
       }
 
       // ─── 5. Summary toast ────────────────────────────────────────
       const summaryLines: string[] = [];
       summaryLines.push(`✓ Presupuesto creado con ${activeKeys.length} categorías`);
-      if (milestonesCreated > 0) summaryLines.push(`✓ ${milestonesCreated} hito${milestonesCreated !== 1 ? 's' : ''} del cronograma creado${milestonesCreated !== 1 ? 's' : ''}`);
-      if (milestonesUpdated > 0) summaryLines.push(`✓ ${milestonesUpdated} hito${milestonesUpdated !== 1 ? 's' : ''} del cronograma actualizados`);
+      if (milestonesCreated > 0) summaryLines.push(`✓ Cronograma generado automáticamente (${milestonesCreated} tareas)`);
       if (tracksAdded > 0) summaryLines.push(`✓ ${tracksAdded} canción${tracksAdded !== 1 ? 'es' : ''} añadida${tracksAdded !== 1 ? 's' : ''} en Créditos & Audio`);
       if (tracksWarning) summaryLines.push(`⚠ El release tiene más tracks reales que los indicados en el presupuesto`);
-      if (milestoneConflicts.length > 0) summaryLines.push(`⚠ Fechas actualizadas por conflicto: ${milestoneConflicts.join(', ')}`);
 
       toast.success(summaryLines[0], {
         description: summaryLines.slice(1).join('\n') || undefined,
