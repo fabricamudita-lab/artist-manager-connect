@@ -96,6 +96,31 @@ const FORMATOS_FISICOS = [
   { value: 'otros',        label: 'Otros formatos' },
 ];
 
+// ─── VERSION OPTIONS ───────────────────────────────────────────────
+const VERSION_OPTIONS = [
+  { value: 'original',     label: 'Original' },
+  { value: 'explicit',     label: 'Explicit' },
+  { value: 'clean',        label: 'Clean (Radio Edit)' },
+  { value: 'instrumental', label: 'Instrumental' },
+  { value: 'acustica',     label: 'Acústica' },
+  { value: 'live',         label: 'Live / En directo' },
+  { value: 'remix',        label: 'Remix oficial' },
+  { value: 'extended',     label: 'Extended Mix (DJ Edit)' },
+  { value: 'deluxe',       label: 'Deluxe / Edición especial' },
+  { value: 'remaster',     label: 'Remasterizado' },
+  { value: 'ep',           label: 'EP' },
+  { value: 'otro',         label: 'Otro' },
+];
+
+// ─── PERIODOS PR ──────────────────────────────────────────────────
+const PERIODOS_PR = [
+  { value: '1m',     label: '1 mes' },
+  { value: '2m',     label: '2 meses' },
+  { value: '3m',     label: '3 meses' },
+  { value: '6m',     label: '6 meses' },
+  { value: 'puntual', label: 'Campaña puntual' },
+];
+
 interface CreateReleaseBudgetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -193,7 +218,7 @@ export default function CreateReleaseBudgetDialog({
   // ─── Metadata ────────────────────────────────────────────────────
   const [budgetName, setBudgetName] = useState('');
   const [releaseType, setReleaseType] = useState<string>(release?.type || 'single');
-  const [version, setVersion] = useState('original');
+  const [versions, setVersions] = useState<string[]>(['original']);
   const [territories, setTerritories] = useState<string[]>(['ES']);
   const [labelContactId, setLabelContactId] = useState<string | undefined>(undefined);
   const [distributionContactId, setDistributionContactId] = useState<string | undefined>(undefined);
@@ -318,6 +343,13 @@ export default function CreateReleaseBudgetDialog({
   const [fisicoCont, setFisicoCont] = useState(false);
   const [fisicoFormatos, setFisicoFormatos] = useState<string[]>([]);
   const [contingencia, setContingencia] = useState([10]);
+  // ─── New states ────────────────────────────────────────────────────────────
+  const [masterEngineers, setMasterEngineers] = useState<Record<string, ProducerRef | null>>({});
+  const [visualActivo, setVisualActivo] = useState(true);
+  const [prNacionalPeriodo, setPrNacionalPeriodo] = useState('');
+  const [prInternacionalPeriodo, setPrInternacionalPeriodo] = useState('');
+  const [rrssPeriodo, setRrssPeriodo] = useState('');
+  const [logisticaActiva, setLogisticaActiva] = useState(false);
 
   // Reset on open + fetch milestones
   useEffect(() => {
@@ -364,12 +396,12 @@ export default function CreateReleaseBudgetDialog({
     // Contingencia is always active
     active.add('contingencia');
 
-    if (nVideoclips > 0 || nCapsulasRRSS > 0 || shooting || vestuario) active.add('diseno');
+    if (visualActivo && (nVideoclips > 0 || nCapsulasRRSS > 0 || shooting || vestuario)) active.add('diseno');
     if (stage) active.add('stage');
     if (prNacional || prInternacional || gestionRRSS) active.add('pr_marketing');
-    if (transporte) active.add('transporte');
-    if (dietas) active.add('dietas');
-    if (hospedaje) active.add('hospedaje');
+    if (logisticaActiva && transporte) active.add('transporte');
+    if (logisticaActiva && dietas) active.add('dietas');
+    if (logisticaActiva && hospedaje) active.add('hospedaje');
     if (fisico) active.add('fabricacion');
 
     return Array.from(active);
@@ -384,7 +416,7 @@ export default function CreateReleaseBudgetDialog({
       const resolvedDeadlines = getResolvedDeadlines();
       const metadata = {
         release_type: releaseType,
-        version,
+        versions,
         territories,
         label_contact_id: labelContactId || null,
         distribution_contact_id: distributionContactId || null,
@@ -408,6 +440,8 @@ export default function CreateReleaseBudgetDialog({
           external_mix: externalMix,
           external_mix_engineer: externalMixEngineer,
           master_types: masterTypes,
+          master_engineers: masterEngineers,
+          visual_activo: visualActivo,
           n_videoclips: nVideoclips,
           n_capsulas_rrss: nCapsulasRRSS,
           shooting, shooting_contratado: shootingContratado,
@@ -417,10 +451,14 @@ export default function CreateReleaseBudgetDialog({
           stage, stage_contratado: stageContratado, stage_days: stageDays,
           pr_nacional: prNacional, pr_nacional_contratado: prNacionalContratado,
           pr_nacional_proveedor: prNacionalProveedor, pr_nacional_coste: prNacionalCoste,
+          pr_nacional_periodo: prNacionalPeriodo,
           pr_internacional: prInternacional, pr_internacional_contratado: prInternacionalCont,
           pr_int_proveedor: prIntProveedor, pr_int_coste: prIntCoste,
+          pr_internacional_periodo: prInternacionalPeriodo,
           gestion_rrss: gestionRRSS, gestion_rrss_contratado: gestionRRSSCont,
           rrss_proveedor: rrssProveedor, rrss_coste: rrssCoste,
+          rrss_periodo: rrssPeriodo,
+          logistica_activa: logisticaActiva,
           transporte, transporte_contratado: transporteCont,
           dietas, dietas_contratado: dietasCont,
           hospedaje, hospedaje_contratado: hospedajeCont,
@@ -739,39 +777,43 @@ export default function CreateReleaseBudgetDialog({
                 <Input value={budgetName} onChange={e => setBudgetName(e.target.value)} className="h-9 text-sm" />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Tipo de release</Label>
-                  <Select value={releaseType} onValueChange={setReleaseType}>
-                    <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="single">Single</SelectItem>
-                      <SelectItem value="ep">EP</SelectItem>
-                      <SelectItem value="album">Álbum</SelectItem>
-                      <SelectItem value="deluxe">Deluxe</SelectItem>
-                      <SelectItem value="reedicion">Re-edición</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Versión</Label>
-                  <Select value={version} onValueChange={setVersion}>
-                    <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="original">Original</SelectItem>
-                      <SelectItem value="explicit">Explicit</SelectItem>
-                      <SelectItem value="clean">Clean (Radio Edit)</SelectItem>
-                      <SelectItem value="instrumental">Instrumental</SelectItem>
-                      <SelectItem value="acustica">Acústica</SelectItem>
-                      <SelectItem value="live">Live / En directo</SelectItem>
-                      <SelectItem value="remix">Remix oficial</SelectItem>
-                      <SelectItem value="extended">Extended Mix (DJ Edit)</SelectItem>
-                      <SelectItem value="deluxe">Deluxe / Edición especial</SelectItem>
-                      <SelectItem value="remaster">Remasterizado</SelectItem>
-                      <SelectItem value="ep">EP</SelectItem>
-                      <SelectItem value="otro">Otro</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tipo de release</Label>
+                <Select value={releaseType} onValueChange={setReleaseType}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single">Single</SelectItem>
+                    <SelectItem value="ep">EP</SelectItem>
+                    <SelectItem value="album">Álbum</SelectItem>
+                    <SelectItem value="deluxe">Deluxe</SelectItem>
+                    <SelectItem value="reedicion">Re-edición</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Versión multi-select chips */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Versiones</Label>
+                <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    {VERSION_OPTIONS.map(opt => (
+                      <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={versions.includes(opt.value)}
+                          onCheckedChange={(v) => {
+                            setVersions(prev => {
+                              const next = v ? [...prev, opt.value] : prev.filter(x => x !== opt.value);
+                              return next.length === 0 ? prev : next; // mínimo 1 seleccionada
+                            });
+                          }}
+                        />
+                        <span className="text-sm">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {versions.length === 0 && (
+                    <p className="text-xs text-destructive">Selecciona al menos una versión.</p>
+                  )}
                 </div>
               </div>
 
@@ -1117,26 +1159,37 @@ export default function CreateReleaseBudgetDialog({
                     {MASTER_TYPE_OPTIONS.map(opt => {
                       const checked = masterTypes.includes(opt.value);
                       return (
-                        <label
-                          key={opt.value}
-                          className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/60 transition-colors"
-                        >
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={v => {
-                              if (v) {
-                                setMasterTypes(prev => [...prev, opt.value]);
-                              } else {
-                                setMasterTypes(prev => prev.filter(x => x !== opt.value));
-                              }
-                            }}
-                            className="mt-0.5 shrink-0"
-                          />
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-sm font-medium leading-tight">{opt.label}</span>
-                            {opt.desc && <span className="text-xs text-muted-foreground leading-tight mt-0.5">{opt.desc}</span>}
-                          </div>
-                        </label>
+                        <div key={opt.value} className="px-3 py-2.5 hover:bg-muted/60 transition-colors">
+                          <label className="flex items-start gap-3 cursor-pointer">
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={v => {
+                                if (v) {
+                                  setMasterTypes(prev => [...prev, opt.value]);
+                                } else {
+                                  setMasterTypes(prev => prev.filter(x => x !== opt.value));
+                                  setMasterEngineers(prev => { const next = { ...prev }; delete next[opt.value]; return next; });
+                                }
+                              }}
+                              className="mt-0.5 shrink-0"
+                            />
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-sm font-medium leading-tight">{opt.label}</span>
+                              {opt.desc && <span className="text-xs text-muted-foreground leading-tight mt-0.5">{opt.desc}</span>}
+                            </div>
+                          </label>
+                          {checked && (
+                            <div className="mt-2 pl-7 border-l-2 border-primary/20">
+                              <Label className="text-xs text-muted-foreground mb-1 block">Técnico de mastering</Label>
+                              <SingleProducerSelector
+                                value={masterEngineers[opt.value] ?? null}
+                                onChange={(ref) => setMasterEngineers(prev => ({ ...prev, [opt.value]: ref }))}
+                                artistId={release?.artist_id}
+                                placeholder="Seleccionar técnico..."
+                              />
+                            </div>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
@@ -1150,39 +1203,67 @@ export default function CreateReleaseBudgetDialog({
 
               {/* Visual */}
               <div className="space-y-3">
-                <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Visual & Contenido</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Nº videoclips</Label>
-                    <Input type="number" min={0} value={nVideoclips} onChange={e => setNVideoclips(parseInt(e.target.value) || 0)} className="h-9 text-sm" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <Label className="text-xs">Nº cápsulas RRSS</Label>
-                      {capsulasManuales && nCapsulasRRSS !== nVideoclips * 3 && (
-                        <button
-                          type="button"
-                          onClick={() => { setCapsulasManuales(false); setNCapsulasRRSS(nVideoclips * 3); }}
-                          title="Restaurar valor automático (videoclips × 3)"
-                          className="text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                        </button>
-                      )}
-                    </div>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={nCapsulasRRSS}
-                      onChange={e => { setCapsulasManuales(true); setNCapsulasRRSS(parseInt(e.target.value) || 0); }}
-                      className="h-9 text-sm"
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Visual & Contenido</h4>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{visualActivo ? 'Activo' : 'Inactivo'}</span>
+                    <Switch
+                      checked={visualActivo}
+                      onCheckedChange={(v) => {
+                        setVisualActivo(v);
+                        if (!v) {
+                          setNVideoclips(0);
+                          setNCapsulasRRSS(0);
+                          setCapsulasManuales(false);
+                          setShooting(false);
+                          setShootingContratado(false);
+                          setVestuario(false);
+                          setVestuarioContratado(false);
+                          setMakingOf(false);
+                          setMakingOfContratado(false);
+                          setEdicionCapsulas(false);
+                          setEdicionCapsulasCont(false);
+                        }
+                      }}
                     />
                   </div>
                 </div>
-                <ToggleRow label="¿Shooting?" checked={shooting} onChange={setShooting} contracted={shootingContratado} onContractedChange={setShootingContratado} />
-                <ToggleRow label="¿Vestuario / estilismo?" checked={vestuario} onChange={setVestuario} contracted={vestuarioContratado} onContractedChange={setVestuarioContratado} />
-                <ToggleRow label="¿Making of?" checked={makingOf} onChange={setMakingOf} contracted={makingOfContratado} onContractedChange={setMakingOfContratado} />
-                <ToggleRow label="¿Edición de cápsulas?" checked={edicionCapsulas} onChange={setEdicionCapsulas} contracted={edicionCapsulasCont} onContractedChange={setEdicionCapsulasCont} />
+                {visualActivo && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Nº videoclips</Label>
+                        <Input type="number" min={0} value={nVideoclips} onChange={e => setNVideoclips(parseInt(e.target.value) || 0)} className="h-9 text-sm" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <Label className="text-xs">Nº cápsulas RRSS</Label>
+                          {capsulasManuales && nCapsulasRRSS !== nVideoclips * 3 && (
+                            <button
+                              type="button"
+                              onClick={() => { setCapsulasManuales(false); setNCapsulasRRSS(nVideoclips * 3); }}
+                              title="Restaurar valor automático (videoclips × 3)"
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={nCapsulasRRSS}
+                          onChange={e => { setCapsulasManuales(true); setNCapsulasRRSS(parseInt(e.target.value) || 0); }}
+                          className="h-9 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <ToggleRow label="¿Shooting?" checked={shooting} onChange={setShooting} contracted={shootingContratado} onContractedChange={setShootingContratado} />
+                    <ToggleRow label="¿Vestuario / estilismo?" checked={vestuario} onChange={setVestuario} contracted={vestuarioContratado} onContractedChange={setVestuarioContratado} />
+                    <ToggleRow label="¿Making of?" checked={makingOf} onChange={setMakingOf} contracted={makingOfContratado} onContractedChange={setMakingOfContratado} />
+                    <ToggleRow label="¿Edición de cápsulas?" checked={edicionCapsulas} onChange={setEdicionCapsulas} contracted={edicionCapsulasCont} onContractedChange={setEdicionCapsulasCont} />
+                  </>
+                )}
               </div>
 
               <Separator />
@@ -1204,21 +1285,39 @@ export default function CreateReleaseBudgetDialog({
               <div className="space-y-3">
                 <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">PR & Marketing</h4>
                 <ToggleRow label="¿PR nacional?" checked={prNacional} onChange={setPrNacional} contracted={prNacionalContratado} onContractedChange={setPrNacionalContratado}>
-                  <div className="grid grid-cols-2 gap-2 items-start">
+                  <div className="grid grid-cols-3 gap-2 items-start">
                     <SingleProducerSelector value={prNacionalProveedor} onChange={setPrNacionalProveedor} artistId={release?.artist_id} placeholder="Proveedor" />
                     <Input type="number" value={prNacionalCoste || ''} onChange={e => setPrNacionalCoste(parseFloat(e.target.value) || 0)} placeholder="Coste €" className="h-8 text-xs" />
+                    <Select value={prNacionalPeriodo} onValueChange={setPrNacionalPeriodo}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Periodo" /></SelectTrigger>
+                      <SelectContent>
+                        {PERIODOS_PR.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </ToggleRow>
                 <ToggleRow label="¿PR internacional?" checked={prInternacional} onChange={setPrInternacional} contracted={prInternacionalCont} onContractedChange={setPrInternacionalCont}>
-                  <div className="grid grid-cols-2 gap-2 items-start">
+                  <div className="grid grid-cols-3 gap-2 items-start">
                     <SingleProducerSelector value={prIntProveedor} onChange={setPrIntProveedor} artistId={release?.artist_id} placeholder="Proveedor" />
                     <Input type="number" value={prIntCoste || ''} onChange={e => setPrIntCoste(parseFloat(e.target.value) || 0)} placeholder="Coste €" className="h-8 text-xs" />
+                    <Select value={prInternacionalPeriodo} onValueChange={setPrInternacionalPeriodo}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Periodo" /></SelectTrigger>
+                      <SelectContent>
+                        {PERIODOS_PR.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </ToggleRow>
                 <ToggleRow label="¿Gestión RRSS / contenidos?" checked={gestionRRSS} onChange={setGestionRRSS} contracted={gestionRRSSCont} onContractedChange={setGestionRRSSCont}>
-                  <div className="grid grid-cols-2 gap-2 items-start">
+                  <div className="grid grid-cols-3 gap-2 items-start">
                     <SingleProducerSelector value={rrssProveedor} onChange={setRrssProveedor} artistId={release?.artist_id} placeholder="Proveedor" />
                     <Input type="number" value={rrssCoste || ''} onChange={e => setRrssCoste(parseFloat(e.target.value) || 0)} placeholder="Coste €" className="h-8 text-xs" />
+                    <Select value={rrssPeriodo} onValueChange={setRrssPeriodo}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Periodo" /></SelectTrigger>
+                      <SelectContent>
+                        {PERIODOS_PR.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </ToggleRow>
               </div>
@@ -1227,10 +1326,33 @@ export default function CreateReleaseBudgetDialog({
 
               {/* Logistics */}
               <div className="space-y-3">
-                <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Logística</h4>
-                <ToggleRow label="¿Transporte?" checked={transporte} onChange={setTransporte} contracted={transporteCont} onContractedChange={setTransporteCont} />
-                <ToggleRow label="¿Dietas?" checked={dietas} onChange={setDietas} contracted={dietasCont} onContractedChange={setDietasCont} />
-                <ToggleRow label="¿Hospedaje?" checked={hospedaje} onChange={setHospedaje} contracted={hospedajeCont} onContractedChange={setHospedajeCont} />
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Logística</h4>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{logisticaActiva ? 'Activa' : 'Inactiva'}</span>
+                    <Switch
+                      checked={logisticaActiva}
+                      onCheckedChange={(v) => {
+                        setLogisticaActiva(v);
+                        if (!v) {
+                          setTransporte(false);
+                          setTransporteCont(false);
+                          setDietas(false);
+                          setDietasCont(false);
+                          setHospedaje(false);
+                          setHospedajeCont(false);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                {logisticaActiva && (
+                  <>
+                    <ToggleRow label="¿Transporte?" checked={transporte} onChange={setTransporte} contracted={transporteCont} onContractedChange={setTransporteCont} />
+                    <ToggleRow label="¿Dietas?" checked={dietas} onChange={setDietas} contracted={dietasCont} onContractedChange={setDietasCont} />
+                    <ToggleRow label="¿Hospedaje?" checked={hospedaje} onChange={setHospedaje} contracted={hospedajeCont} onContractedChange={setHospedajeCont} />
+                  </>
+                )}
               </div>
 
               <Separator />
