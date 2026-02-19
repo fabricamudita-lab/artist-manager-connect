@@ -571,7 +571,7 @@ export default function CreateReleaseBudgetDialog({
   };
 
   // ─── Date picker helper ──────────────────────────────────────────
-  const DatePicker = ({ value, onChange, label: dateLabel, defaultMonth }: { value?: Date; onChange: (d?: Date) => void; label: string; defaultMonth?: Date }) => (
+  const DatePicker = ({ value, onChange, label: dateLabel, defaultMonth, highlightDate }: { value?: Date; onChange: (d?: Date) => void; label: string; defaultMonth?: Date; highlightDate?: Date }) => (
     <div className="space-y-1.5">
       <Label className="text-xs">{dateLabel}</Label>
       <Popover modal={false}>
@@ -587,9 +587,24 @@ export default function CreateReleaseBudgetDialog({
           avoidCollisions={false}
           style={{ pointerEvents: 'auto' }}
         >
-          <Calendar mode="single" selected={value} onSelect={onChange} initialFocus className="p-3" defaultMonth={defaultMonth} />
+          <Calendar
+            mode="single"
+            selected={value}
+            onSelect={onChange}
+            initialFocus
+            className="p-3 pointer-events-auto"
+            defaultMonth={defaultMonth}
+            modifiers={{ digitalRelease: highlightDate ? [highlightDate] : [] }}
+            modifiersClassNames={{ digitalRelease: "bg-violet-500/20 text-violet-700 dark:text-violet-300 font-semibold rounded-md ring-1 ring-violet-400/50" }}
+          />
         </PopoverContent>
       </Popover>
+      {highlightDate && (
+        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+          <span className="inline-block w-2 h-2 rounded-sm bg-violet-400/70 shrink-0" />
+          Fecha digital: {format(highlightDate, "dd MMM yyyy", { locale: es })}
+        </p>
+      )}
     </div>
   );
 
@@ -857,7 +872,7 @@ export default function CreateReleaseBudgetDialog({
           {step === 'dates' && (
             <div className="space-y-4 pb-4">
               <DatePicker label="Fecha de lanzamiento digital (principal) *" value={releaseDate} onChange={setReleaseDate} />
-              <DatePicker label="Fecha de lanzamiento físico (opcional)" value={physicalDate} onChange={setPhysicalDate} defaultMonth={!physicalDate && releaseDate ? releaseDate : undefined} />
+              <DatePicker label="Fecha de lanzamiento físico (opcional)" value={physicalDate} onChange={setPhysicalDate} defaultMonth={!physicalDate && releaseDate ? releaseDate : undefined} highlightDate={releaseDate ?? undefined} />
 
               {/* Singles previos */}
               <div className="space-y-2">
