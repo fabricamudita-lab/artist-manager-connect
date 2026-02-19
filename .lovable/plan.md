@@ -1,140 +1,85 @@
 
-# Rediseño del Panel de Inconsistencias — UX orientada a tareas
+# Fix: Deduplicar warnings del mismo tipo en múltiples presupuestos
 
-## Problema #1: Duplicados de warnings
+## Causa raíz
 
-El bug de "Nº tracks desactualizado" apareciendo 3 veces se debe a que el check de `track_count` corre dentro del `for (const budget of linkedBudgets)`. Si hay 3 presupuestos, el warning se genera 3 veces (una por presupuesto), aunque todos comparten el mismo release.
+El código genera correctamente **un warning por presupuesto** con key único (`track_count-{budgetId}`). El problema es que hay **3 presupuestos vinculados** con el mismo nombre "Presupuesto - La Flor de Déu" y todos tienen `n_tracks = 1`, mientras el release tiene 2 tracks.
 
-Lo mismo ocurre con `physical_no_milestone` — es una condición del release, no de un presupuesto concreto, y se duplica si hay varios presupuestos con `release_date_physical`.
+Resultado: 3 warnings con mensajes idénticos, con keys distintos → se muestran los 3.
 
-**Fix:** Separar los checks en dos categorías:
-- **Por presupuesto** (track_count, release_date_changed, missing_vinyl_master, version_no_tracks): se generan una vez por presupuesto.
-- **Del release** (physical_no_milestone, date_mismatch): se generan una sola vez, fuera del loop de presupuestos.
+## Solución: Agrupar warnings del mismo tipo y título
 
-## Problema #2: UX del panel de alertas
+En lugar de mostrar un card por cada presupuesto afectado, **agrupar los warnings por tipo y mensaje**, y mostrar uno solo que afecta a N presupuestos a la vez.
 
-Sustituir la lista de banners ámbar por un panel tipo **"Centro de tareas pendientes"** con:
+### Lógica de agrupación
 
-### Layout nuevo
+Tras generar el array `w` en el `useMemo`, añadir un paso de agrupación:
 
-Un área colapsable con un resumen de cuántas inconsistencias hay. Al expandir, las tareas se muestran como tarjetas interactivas, agrupadas por urgencia. Cada tarjeta tiene:
+```ts
+// Agrupar warnings del mismo tipo + mismo título en uno solo
+const grouped = new Map<string, InconsistencyWarning & { budgetIds?: string[] }>();
 
-- Un **título claro y accionable** (no técnico)
-- Una **descripción breve** (1 línea)
-- **Acciones directas integradas** en la propia tarjeta, no como texto plano
-
-### Diseño de tarjeta de tarea
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│  ⚠  El presupuesto tiene 1 canción, pero el release tiene 2  │
-│     "Presupuesto - La Flor de Déu"                           │
-│                                                               │
-│  [Actualizar presupuesto]  [Ignorar]                         │
-└──────────────────────────────────────────────────────────────┘
-```
-
-Para decisiones duales (qué fecha usar):
-```
-┌──────────────────────────────────────────────────────────────┐
-│  📅 Fecha de lanzamiento distinta en presupuesto y release   │
-│     El presupuesto dice 15 feb, el release dice 22 feb       │
-│                                                               │
-│  [✓ Usar 15 feb (presupuesto)]  [✓ Usar 22 feb (release)]   │
-└──────────────────────────────────────────────────────────────┘
-```
-
-Para tareas de navegación:
-```
-┌──────────────────────────────────────────────────────────────┐
-│  📋 Falta el flujo de fabricación en el cronograma           │
-│     Tienes fecha física (22 feb) pero sin hitos de fab.      │
-│                                                               │
-│  [→ Crear hito en Cronograma]                                │
-└──────────────────────────────────────────────────────────────┘
-```
-
-### Header colapsable con indicador de estado
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│  ⚡ 3 puntos para revisar              [Ver tareas ▼]        │
-└──────────────────────────────────────────────────────────────┘
-```
-
-Cuando todas están resueltas → verde con "Todo en orden ✓".
-
-### Acciones específicas por tipo
-
-| Tipo | Acción principal | Acción secundaria |
-|------|-----------------|-------------------|
-| `track_count` | "Actualizar nº de canciones en el presupuesto" (actualiza metadata.variables.n_tracks) | "Ignorar" (descarta la warning localmente) |
-| `release_date_changed` | Botón con la fecha del presupuesto | Botón con la fecha del release |
-| `physical_no_milestone` | "Ir al Cronograma →" (navega) | — |
-| `missing_vinyl_master` | "Abrir presupuesto" (abre BudgetDetailsDialog) | — |
-| `version_no_tracks` | "Ir a Créditos & Audio →" | — |
-| `date_mismatch` | "Ir al Cronograma →" | — |
-
-### Funcionalidad de "Ignorar"
-
-Un estado local `dismissedWarnings: Set<string>` (identificado por tipo + budgetId) permite al usuario ocultar warnings que elige no resolver. El estado se guarda en `sessionStorage` para que no reaparezcan al refrescar la página en la misma sesión.
-
----
-
-## Cambios técnicos
-
-### `src/pages/release-sections/ReleasePresupuestos.tsx`
-
-**1. Fix del bug de duplicados** (~líneas 156–264):
-- Sacar `physical_no_milestone` fuera del `for (const budget of linkedBudgets)` — se comprueba una sola vez.
-- `track_count` ya está dentro del loop pero referencia `currentTrackCount` (del release). Es correcto que genere un warning por presupuesto (cada presupuesto tiene su propio `n_tracks`), pero la descripción debe ser diferenciada. El bug real es que se tienen 3 presupuestos con el mismo `n_tracks`. La solución es deduplicar warnings con el mismo `type + message` usando un `Set`.
-
-**2. Nuevo componente inline `InconsistencyPanel`** (dentro del mismo archivo):
-```tsx
-function InconsistencyPanel({ warnings, onResolve, onDismiss, ... }) {
-  const [expanded, setExpanded] = useState(true);
-  // Renders collapsible header + task cards
+for (const warning of w) {
+  const groupKey = `${warning.type}::${warning.title}`;
+  if (grouped.has(groupKey)) {
+    const existing = grouped.get(groupKey)!;
+    // Añadir el budgetId al grupo
+    existing.budgetIds = [...(existing.budgetIds || [existing.budgetId].filter(Boolean)), warning.budgetId].filter(Boolean) as string[];
+  } else {
+    grouped.set(groupKey, { ...warning, budgetIds: warning.budgetId ? [warning.budgetId] : [] });
+  }
 }
+
+return [...grouped.values()];
 ```
 
-**3. Nueva acción: actualizar n_tracks del presupuesto**:
-```tsx
-const resolveTrackCount = async (budgetId: string) => {
-  const budget = linkedBudgets.find(b => b.id === budgetId);
-  if (!budget) return;
-  const meta = { ...(budget.metadata || {}) };
-  if (!meta.variables) meta.variables = {};
-  meta.variables.n_tracks = tracks?.length || 0;
-  await supabase.from('budgets').update({ metadata: meta }).eq('id', budgetId);
-  toast.success('Número de canciones actualizado en el presupuesto');
+### Cambios en la interfaz `InconsistencyWarning`
+
+Añadir `budgetIds?: string[]` (plural) junto al `budgetId?: string` existente.
+
+### Actualizar la descripción del warning agrupado
+
+Cuando hay múltiples presupuestos afectados, el `detail` se actualiza para reflejarlo:
+
+```ts
+// Si hay más de un presupuesto con el mismo problema:
+// ANTES: '"Presupuesto - La Flor de Déu" · Actualiza el número...'
+// DESPUÉS: '3 presupuestos afectados · Actualiza el número...'
+```
+
+### Actualizar el botón "Actualizar presupuesto"
+
+La acción `onResolveTrackCount` pasa a aceptar un array de IDs:
+
+```ts
+// Resolver todos los presupuestos afectados de una sola vez
+const resolveTrackCount = async (budgetIds: string[]) => {
+  for (const budgetId of budgetIds) {
+    // mismo código actual pero en loop
+  }
+  toast.success(`${budgetIds.length} presupuesto(s) actualizados`);
   fetchLinkedBudgets();
 };
 ```
 
-**4. Estado de warnings descartados**:
-```tsx
-const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(() => {
-  try {
-    const saved = sessionStorage.getItem(`dismissed-warnings-${id}`);
-    return new Set(saved ? JSON.parse(saved) : []);
-  } catch { return new Set(); }
-});
+### Actualizar la key del panel
 
-const dismiss = (key: string) => {
-  setDismissedKeys(prev => {
-    const next = new Set(prev).add(key);
-    sessionStorage.setItem(`dismissed-warnings-${id}`, JSON.stringify([...next]));
-    return next;
-  });
-};
-```
+La key del warning agrupado se convierte en la del primero del grupo (para que el dismiss funcione), pero al ignorar se añaden al `dismissedKeys` todas las keys del grupo.
 
-Cada warning tiene un `key` único: `${type}-${budgetId || 'release'}`.
+## Cambios en `InconsistencyPanel`
 
-### Archivos a modificar
+El componente recibe `warnings` con la nueva propiedad `budgetIds`. Cuando `budgetIds.length > 1`:
+- El botón "Actualizar presupuesto" pasa el array completo a `onResolveTrackCount`
+- El texto del detalle dice "3 presupuestos afectados" en lugar del nombre
 
-| Archivo | Cambio |
-|---------|--------|
-| `src/pages/release-sections/ReleasePresupuestos.tsx` | Fix bug duplicados + nuevo panel de tareas completo |
+## Archivos a modificar
 
-Sin cambios en base de datos, sin nuevos archivos.
+Solo **`src/pages/release-sections/ReleasePresupuestos.tsx`**:
+
+1. Añadir `budgetIds?: string[]` a la interfaz `InconsistencyWarning`
+2. Al final del `useMemo` de `warnings`: añadir paso de agrupación por `type + title`
+3. Actualizar `resolveTrackCount` para aceptar `budgetIds: string[]` en lugar de `budgetId: string`
+4. Actualizar `InconsistencyPanelProps` y la lógica del componente para pasar `budgetIds` a la acción
+5. Al hacer dismiss de un warning agrupado, descartar todas las keys del grupo
+
+Sin cambios en base de datos ni nuevos archivos.
