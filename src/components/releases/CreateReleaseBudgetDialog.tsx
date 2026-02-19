@@ -271,6 +271,7 @@ export default function CreateReleaseBudgetDialog({
   const [producers, setProducers] = useState<ProducerRef[]>([]);
   const [includesMix, setIncludesMix] = useState(true);
   const [externalMix, setExternalMix] = useState(false);
+  const [externalMixEngineer, setExternalMixEngineer] = useState<ProducerRef | null>(null);
   const [masterTypes, setMasterTypes] = useState<string[]>(['estereo']);
   const [nVideoclips, setNVideoclips] = useState(0);
   const [nCapsulasRRSS, setNCapsulasRRSS] = useState(0);
@@ -375,6 +376,7 @@ export default function CreateReleaseBudgetDialog({
           producers,
           includes_mix: includesMix,
           external_mix: externalMix,
+          external_mix_engineer: externalMixEngineer,
           master_types: masterTypes,
           n_videoclips: nVideoclips,
           n_capsulas_rrss: nCapsulasRRSS,
@@ -1006,8 +1008,31 @@ export default function CreateReleaseBudgetDialog({
                     />
                   </div>
                 </div>
-                <ToggleRow label="¿El productor incluye mezcla?" checked={includesMix} onChange={setIncludesMix} />
-                <ToggleRow label="¿Mezcla externa?" checked={externalMix} onChange={setExternalMix} />
+                <ToggleRow
+                  label="¿El productor incluye mezcla?"
+                  checked={includesMix}
+                  onChange={(v) => { setIncludesMix(v); if (v) { setExternalMix(false); setExternalMixEngineer(null); } }}
+                />
+                {!includesMix && (
+                  <>
+                    <ToggleRow
+                      label="¿Mezcla externa?"
+                      checked={externalMix}
+                      onChange={(v) => { setExternalMix(v); if (!v) setExternalMixEngineer(null); }}
+                    />
+                    {externalMix && (
+                      <div className="space-y-1.5 pl-4 border-l-2 border-border ml-2">
+                        <Label className="text-xs">Técnico de mezcla externo</Label>
+                        <SingleProducerSelector
+                          value={externalMixEngineer}
+                          onChange={setExternalMixEngineer}
+                          artistId={release?.artist_id}
+                          placeholder="Seleccionar técnico..."
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
                 <div className="space-y-2">
                   <Label className="text-xs">Tipos de master</Label>
                   <div className="rounded-md border border-border bg-muted/30 divide-y divide-border">
