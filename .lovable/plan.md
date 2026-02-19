@@ -1,110 +1,84 @@
 
-# Resaltar la fecha de lanzamiento digital en el calendario de fecha física
+# Lógica condicional en toggles de Mezcla
 
 ## Situación actual
 
-El componente `DatePicker` (definido inline en línea 574 de `CreateReleaseBudgetDialog.tsx`) renderiza:
+En el paso "Variables" hay dos toggles seguidos:
 
-```tsx
-<Calendar mode="single" selected={value} onSelect={onChange} initialFocus className="p-3" defaultMonth={defaultMonth} />
+```
+¿El productor incluye mezcla?  [ON]
+¿Mezcla externa?               [OFF]
 ```
 
-El calendario de "Fecha de lanzamiento físico" ya salta al mes correcto (gracias a `defaultMonth={releaseDate}`), pero no hay ninguna indicación visual de cuál es la fecha digital de referencia.
+Y encima, el campo **Productor/es** siempre visible.
 
-## Solución
+Hay dos problemas de UX:
 
-### 1. Pasar `releaseDate` al `DatePicker` como prop `highlightDate`
+1. Si `includesMix = true` (el productor incluye mezcla), mostrar "¿Mezcla externa?" no tiene lógica — son mutuamente excluyentes.
+2. Si `externalMix = true` (la mezcla la hace alguien externo), debería aparecer un selector para vincular al **técnico de mezcla externo** — ese es el perfil que falta. El campo "Productor/es" sigue siendo válido (el productor sigue existiendo), pero necesita un campo extra para el responsable de la mezcla.
 
-Añadir una prop opcional `highlightDate?: Date` al componente `DatePicker`:
+## Cambios a implementar
 
-```tsx
-const DatePicker = ({
-  value, onChange, label: dateLabel, defaultMonth, highlightDate
-}: {
-  value?: Date;
-  onChange: (d?: Date) => void;
-  label: string;
-  defaultMonth?: Date;
-  highlightDate?: Date;           // ← nuevo
-}) => (...)
-```
+### 1. Ocultar "¿Mezcla externa?" cuando `includesMix = true`
 
-### 2. Usar `modifiers` + `modifiersClassNames` del `<Calendar>`
-
-React-day-picker soporta modificadores personalizados. Se pasa `highlightDate` como modifier `digitalRelease` y se le asigna una clase CSS:
+Si el productor incluye la mezcla, no puede ser externa al mismo tiempo. Se añade una condición:
 
 ```tsx
-<Calendar
-  mode="single"
-  selected={value}
-  onSelect={onChange}
-  initialFocus
-  className="p-3 pointer-events-auto"
-  defaultMonth={defaultMonth}
-  modifiers={{
-    digitalRelease: highlightDate ? [highlightDate] : [],
-  }}
-  modifiersClassNames={{
-    digitalRelease: "bg-violet-500/20 text-violet-700 dark:text-violet-300 font-semibold rounded-md ring-1 ring-violet-400/50",
-  }}
-/>
-```
-
-Esto resalta el día de la fecha digital con un fondo violeta suave y un anillo de color, diferenciándolo claramente del día seleccionado (`bg-primary`) y del día de hoy (`bg-accent`).
-
-### 3. Pasar `releaseDate` al `DatePicker` de fecha física
-
-```tsx
-// Antes:
-<DatePicker
-  label="Fecha de lanzamiento físico (opcional)"
-  value={physicalDate}
-  onChange={setPhysicalDate}
-  defaultMonth={!physicalDate && releaseDate ? releaseDate : undefined}
-/>
-
-// Después:
-<DatePicker
-  label="Fecha de lanzamiento físico (opcional)"
-  value={physicalDate}
-  onChange={setPhysicalDate}
-  defaultMonth={!physicalDate && releaseDate ? releaseDate : undefined}
-  highlightDate={releaseDate ?? undefined}
-/>
-```
-
-El calendario de la fecha digital no necesita `highlightDate` (ya está seleccionada y resaltada con `bg-primary`). Los calendarios de los Singles tampoco, para mantener la UI limpia.
-
-### 4. Tooltip de contexto (visual bonus)
-
-Debajo del trigger del DatePicker de fecha física, si hay `releaseDate`, añadir una línea:
-
-```tsx
-{releaseDate && (
-  <p className="text-[10px] text-muted-foreground">
-    <span className="inline-block w-2 h-2 rounded-sm bg-violet-400/70 mr-1 align-middle" />
-    Fecha digital: {format(releaseDate, "dd MMM yyyy", { locale: es })}
-  </p>
+<ToggleRow label="¿El productor incluye mezcla?" checked={includesMix} onChange={(v) => { setIncludesMix(v); if (v) setExternalMix(false); }} />
+{!includesMix && (
+  <ToggleRow label="¿Mezcla externa?" checked={externalMix} onChange={setExternalMix} />
 )}
 ```
 
-Esto proporciona contexto incluso antes de abrir el calendario.
+### 2. Mostrar selector de técnico de mezcla solo cuando `externalMix = true`
+
+Cuando hay mezcla externa, aparece un `SingleProducerSelector` para seleccionar el técnico/estudio responsable:
+
+```tsx
+{externalMix && (
+  <div className="space-y-1.5 pl-4 border-l-2 border-border ml-2">
+    <Label className="text-xs">Técnico de mezcla externo</Label>
+    <SingleProducerSelector
+      value={externalMixEngineer}
+      onChange={setExternalMixEngineer}
+      artistId={release?.artist_id}
+      placeholder="Seleccionar técnico..."
+    />
+  </div>
+)}
+```
+
+### 3. Nuevo estado `externalMixEngineer`
+
+Añadir estado:
+```tsx
+const [externalMixEngineer, setExternalMixEngineer] = useState<ProducerRef | null>(null);
+```
+
+Y incluirlo en el `metadata` al guardar, junto al resto de proveedores.
+
+### 4. Reset al desactivar
+
+Cuando `externalMix` se desactiva, limpiar `externalMixEngineer`:
+```tsx
+onChange={(v) => { setExternalMix(v); if (!v) setExternalMixEngineer(null); }}
+```
 
 ## Archivos a modificar
 
 Solo **`src/components/releases/CreateReleaseBudgetDialog.tsx`**:
 
-- Línea 574: añadir `highlightDate` a la interfaz del `DatePicker`
-- Línea 590: añadir `modifiers` + `modifiersClassNames` + `className` con `pointer-events-auto`
-- Línea 575–593: añadir el tooltip de contexto cuando hay `highlightDate`
-- Línea 860: pasar `highlightDate={releaseDate ?? undefined}` al DatePicker de fecha física
+- Línea ~175: añadir `const [externalMixEngineer, setExternalMixEngineer] = useState<ProducerRef | null>(null);`
+- Línea ~1009: modificar `ToggleRow` de `includesMix` para limpiar `externalMix` al activar
+- Línea ~1010: envolver `ToggleRow` de `externalMix` en `{!includesMix && (...)}` con reset de `externalMixEngineer`
+- Línea ~1011: añadir bloque condicional `{externalMix && ...}` con `SingleProducerSelector`
+- En la función de generación de metadata: incluir `externalMixEngineer`
 
-Sin cambios en base de datos ni en otros archivos.
+## Flujo resultante
 
-## Resultado visual esperado
-
-Al abrir el calendario de "Fecha de lanzamiento físico":
-- El calendario abre en el mes de la fecha digital (ya funciona)
-- La fecha digital aparece resaltada con un fondo violeta/lila suave + anillo de borde
-- La fecha física seleccionada (si ya existe) sigue usando el color primario (`bg-primary`)
-- Debajo del botón trigger aparece "◼ Fecha digital: 15 jun 2026" en texto pequeño gris
+```
+¿El productor incluye mezcla? [ON]  → oculta "¿Mezcla externa?"
+¿El productor incluye mezcla? [OFF] → muestra "¿Mezcla externa?"
+  ¿Mezcla externa? [ON]             → muestra selector "Técnico de mezcla externo"
+  ¿Mezcla externa? [OFF]            → sin selector adicional
+```
