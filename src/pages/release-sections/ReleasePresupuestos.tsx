@@ -46,10 +46,11 @@ const DEADLINE_OFFSETS: Record<string, { label: string; days: number }> = {
 };
 
 interface InconsistencyWarning {
-  type: 'date_mismatch' | 'track_count' | 'release_date_changed';
+  type: 'date_mismatch' | 'track_count' | 'release_date_changed' | 'missing_vinyl_master' | 'physical_no_milestone' | 'version_no_tracks';
   message: string;
   detail: string;
   budgetId?: string;
+  budgetDate?: Date;
 }
 
 export default function ReleasePresupuestos() {
@@ -124,6 +125,33 @@ export default function ReleasePresupuestos() {
     }
   };
 
+  // ─── Conflict resolution ─────────────────────────────────────────
+  const resolveWithReleaseDate = async (budgetId: string) => {
+    if (!release?.release_date) return;
+    try {
+      const budget = linkedBudgets.find(b => b.id === budgetId);
+      if (!budget) return;
+      const meta = { ...(budget.metadata || {}) };
+      meta.release_date_digital = release.release_date;
+      await (supabase.from('budgets').update({ metadata: meta } as any).eq('id', budgetId));
+      toast.success('Fecha del presupuesto actualizada con la fecha del Release');
+      fetchLinkedBudgets();
+    } catch {
+      toast.error('Error al actualizar el presupuesto');
+    }
+  };
+
+  const resolveWithBudgetDate = async (budgetId: string, budgetDate: Date) => {
+    if (!id) return;
+    try {
+      await supabase.from('releases').update({ release_date: format(budgetDate, 'yyyy-MM-dd') } as any).eq('id', id);
+      toast.success('Fecha del Release actualizada con la fecha del presupuesto');
+      fetchLinkedBudgets();
+    } catch {
+      toast.error('Error al actualizar el Release');
+    }
+  };
+
   // ─── Inconsistency warnings ──────────────────────────────────────
   const warnings = useMemo<InconsistencyWarning[]>(() => {
     if (!release || !linkedBudgets.length) return [];
@@ -157,12 +185,56 @@ export default function ReleasePresupuestos() {
             message: `Fecha de lanzamiento modificada`,
             detail: `El presupuesto "${budget.name}" usa ${format(budgetReleaseDate, "dd MMM yyyy", { locale: es })} pero la fecha actual del release es ${format(currentReleaseDate, "dd MMM yyyy", { locale: es })} (${daysDiff} días de diferencia). Los deadlines auto-calculados pueden estar desactualizados.`,
             budgetId: budget.id,
+            budgetDate: budgetReleaseDate,
+          });
+        }
+      }
+
+      // 3. Vinilo en fabricación pero no en master types
+      const fisicoFormatos = (meta.variables?.fisico_formatos || []) as string[];
+      const masterTypes = (meta.variables?.master_types || []) as string[];
+      if (fisicoFormatos.includes('vinilo') && !masterTypes.includes('vinilo')) {
+        w.push({
+          type: 'missing_vinyl_master',
+          message: 'Fabricación vinilo sin master de vinilo',
+          detail: `El presupuesto "${budget.name}" incluye fabricación en vinilo pero no se planificó master de vinilo.`,
+          budgetId: budget.id,
+        });
+      }
+
+      // 4. Fecha física sin hito de fabricación en el cronograma
+      const physicalDate = meta.release_date_physical ? new Date(meta.release_date_physical) : null;
+      const hasFabricacionMilestone = milestones?.some(m =>
+        m.category === 'fabricacion' ||
+        m.title.toLowerCase().includes('fabricaci') ||
+        m.title.toLowerCase().includes('prensado') ||
+        m.title.toLowerCase().includes('manufacturing')
+      );
+      if (physicalDate && !hasFabricacionMilestone) {
+        w.push({
+          type: 'physical_no_milestone',
+          message: 'Fecha física sin flujo de fabricación',
+          detail: `Hay fecha de salida física (${format(physicalDate, 'dd MMM yyyy', { locale: es })}) pero no existe ninguna tarea de fabricación en el Cronograma.`,
+        });
+      }
+
+      // 5. Versiones declaradas sin tracks correspondientes
+      const versions = (meta.versions || []) as string[];
+      if (versions.includes('instrumental') && currentTrackCount > 0) {
+        // Check if any track title mentions 'instrumental'
+        const hasInstrumentalTrack = tracks?.some(t => t.title.toLowerCase().includes('instrumental'));
+        if (!hasInstrumentalTrack) {
+          w.push({
+            type: 'version_no_tracks',
+            message: `Versión Instrumental sin track correspondiente`,
+            detail: `El presupuesto "${budget.name}" incluye versión Instrumental pero no hay tracks instrumentales en Créditos & Audio.`,
+            budgetId: budget.id,
           });
         }
       }
     }
 
-    // 3. Milestone vs deadline mismatches
+    // 6. Milestone vs deadline mismatches
     if (milestones && milestones.length > 0 && currentReleaseDate) {
       const milestoneMap = new Map<string, Date>();
       for (const m of milestones) {
@@ -214,21 +286,61 @@ export default function ReleasePresupuestos() {
       {warnings.length > 0 && (
         <div className="space-y-2">
           {warnings.map((w, i) => (
-            <Alert key={i} variant="destructive" className="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400 [&>svg]:text-amber-500">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle className="text-sm font-semibold">{w.message}</AlertTitle>
-              <AlertDescription className="text-xs">
+            <Alert key={i} className="border-amber-500/50 bg-amber-500/10 [&>svg]:text-amber-500">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertTitle className="text-sm font-semibold text-amber-700 dark:text-amber-400">{w.message}</AlertTitle>
+              <AlertDescription className="text-xs text-amber-700/80 dark:text-amber-400/80">
                 {w.detail}
-                {w.type === 'date_mismatch' && (
+                {/* Date conflict: let user pick which is correct */}
+                {w.type === 'release_date_changed' && w.budgetId && w.budgetDate && release?.release_date && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs border-amber-500/50 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+                      onClick={() => resolveWithReleaseDate(w.budgetId!)}
+                    >
+                      Usar fecha del Release ({format(new Date(release.release_date!), 'dd MMM', { locale: es })})
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs border-amber-500/50 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+                      onClick={() => resolveWithBudgetDate(w.budgetId!, w.budgetDate!)}
+                    >
+                      Usar fecha del Presupuesto ({format(w.budgetDate, 'dd MMM', { locale: es })})
+                    </Button>
+                  </div>
+                )}
+                {/* Cronograma mismatch: navigate */}
+                {(w.type === 'date_mismatch' || w.type === 'physical_no_milestone') && (
                   <Button
                     variant="link"
                     size="sm"
-                    className="h-auto p-0 ml-2 text-xs text-amber-600 dark:text-amber-400"
+                    className="h-auto p-0 ml-0 mt-1 text-xs text-amber-600 dark:text-amber-400 block"
                     onClick={() => navigate(`/releases/${id}/cronograma`)}
                   >
-                    <Link2 className="h-3 w-3 mr-1" />
+                    <Link2 className="h-3 w-3 mr-1 inline" />
                     Ir al Cronograma
                   </Button>
+                )}
+                {/* Version without track: navigate to credits */}
+                {w.type === 'version_no_tracks' && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 ml-0 mt-1 text-xs text-amber-600 dark:text-amber-400 block"
+                    onClick={() => navigate(`/releases/${id}/creditos`)}
+                  >
+                    <Link2 className="h-3 w-3 mr-1 inline" />
+                    Ir a Créditos & Audio
+                  </Button>
+                )}
+                {/* Vinyl master warning: navigate to the budget or info */}
+                {w.type === 'missing_vinyl_master' && (
+                  <span className="block mt-1 text-amber-600 dark:text-amber-400">
+                    Edita el presupuesto y añade el master de vinilo en "Tipos de master".
+                  </span>
                 )}
               </AlertDescription>
             </Alert>
