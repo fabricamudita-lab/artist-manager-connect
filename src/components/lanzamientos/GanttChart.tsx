@@ -466,32 +466,32 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                         className={cn('absolute rounded-full overflow-hidden group/wf bg-transparent', fitToView ? 'top-0 h-4' : 'top-0.5 h-5')}
                         style={{ left, width }}
                       >
-                        {/* Segmento retrasado */}
-                        {retrasadas > 0 && (
+                        {/* Segmento completado */}
+                        {completed > 0 && (
                           <div
-                            className="absolute top-0 left-0 h-full bg-red-500/70"
-                            style={{ width: `${pctRetrasado}%` }}
+                            className="absolute top-0 left-0 h-full bg-green-500/70"
+                            style={{ width: `${pctCompletado}%` }}
                           />
                         )}
                         {/* Segmento en proceso */}
                         {enProceso > 0 && (
                           <div
                             className="absolute top-0 h-full bg-blue-500/70"
-                            style={{ left: `${pctRetrasado}%`, width: `${pctEnProceso}%` }}
+                            style={{ left: `${pctCompletado}%`, width: `${pctEnProceso}%` }}
+                          />
+                        )}
+                        {/* Segmento retrasado */}
+                        {retrasadas > 0 && (
+                          <div
+                            className="absolute top-0 h-full bg-red-500/70"
+                            style={{ left: `${pctCompletado + pctEnProceso}%`, width: `${pctRetrasado}%` }}
                           />
                         )}
                         {/* Segmento pendientes — color clarito del flujo */}
                         {pendientes > 0 && (
                           <div
                             className={cn('absolute top-0 h-full', WORKFLOW_BAR_COLORS[workflow.id]?.bg || 'bg-primary/20')}
-                            style={{ left: `${pctRetrasado + pctEnProceso + pctCompletado}%`, width: `${pctPendiente}%` }}
-                          />
-                        )}
-                        {/* Segmento completado */}
-                        {completed > 0 && (
-                          <div
-                            className="absolute top-0 h-full bg-green-500/70"
-                            style={{ left: `${pctRetrasado + pctEnProceso}%`, width: `${pctCompletado}%` }}
+                            style={{ left: `${pctCompletado + pctEnProceso + pctRetrasado}%`, width: `${pctPendiente}%` }}
                           />
                         )}
                         <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground whitespace-nowrap opacity-0 group-hover/wf:opacity-100 transition-opacity pointer-events-none">
