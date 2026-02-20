@@ -1,188 +1,174 @@
 
-# Rediseño de la tabla de Presupuestos — columnas universales para todos los tipos
+# Fix de filtros + Edición inline en la tabla de Presupuestos
 
-## Diagnóstico del problema actual
+## Problemas identificados
 
-La tabla en `src/pages/Budgets.tsx` tiene estas columnas: **Nombre | Ciudad | Venue | Fecha | Estado | Importe | Acciones**
+### 1. Filtro por artista (bug de closure)
+En la línea 351, el `onValueChange` del Select de artista hace:
+```tsx
+onValueChange={(v) => { setFilterArtist(v); fetchBudgets(); }}
+```
+Esto falla porque `setFilterArtist` es asíncrono — cuando `fetchBudgets()` se ejecuta, `filterArtist` aún tiene el valor anterior. La query en `fetchBudgets` usa el estado `filterArtist` en el momento de ejecución (stale closure), ignorando la selección nueva.
 
-Problemas identificados en el código (y confirmados en la captura):
+**Fix**: Mover el filtrado de artista a la misma función de filtrado local (igual que el tipo), y eliminar el filtro por artista de la query de supabase. Ya tenemos todos los artistas cargados — el filtro local es más rápido y no tiene el problema de closure.
 
-1. **La columna "Venue" muestra la dirección completa** (ej: "Carrer d'Àlaba, 30, Sant Martí, 08005") — el campo `venue` en la base de datos almacena la dirección literal del lugar, no el nombre del recinto
-2. **La columna "Fecha" muestra el valor del campo `venue`** — hay un bug en el código: la línea 303 dice `{budget.venue || '-'}` en lugar de mostrar `event_date`
-3. **Ciudad y Venue solo aplican a conciertos** — un presupuesto de producción musical (como "Presupuesto - La Flor de Déu") no tiene ciudad ni venue, mostrando guiones en toda la fila
-4. **El campo `budget_status`** tiene valores `nacional/internacional` (no describe el estado del documento), mientras que `show_status` tiene `confirmado/pendiente/cancelado` (tampoco describe el estado del presupuesto como documento)
-5. **Sin diferenciación por tipo** — no se ve a simple vista si es un concierto, producción musical, campaña, etc.
-6. **Sin vínculo visible** a release, proyecto o booking
+### 2. Búsqueda por nombre (funciona pero tiene un bug visual)
+La búsqueda funciona correctamente en el array filtrado. Sin embargo, el `filterArtist` no funciona debido al bug anterior, así que aparenta que "no filtra por artista" siendo que el filtro de búsqueda sí incluye el nombre del artista.
 
-## Análisis de la base de datos
+### 3. Edición inline — no existe
+La fila entera es clickeable y abre `BudgetDetailsDialog`. No hay forma de editar campos directamente en la lista sin abrir el diálogo completo.
 
-Los campos disponibles en la tabla `budgets` son:
+---
 
-| Campo | Tipo | Para qué sirve realmente |
-|---|---|---|
-| `type` | enum | `concierto`, `produccion_musical`, `campana_promocional`, `videoclip`, `otros` |
-| `name` | text | Nombre del presupuesto |
-| `budget_status` | enum | `nacional` / `internacional` (¿ámbito geográfico, no estado del doc!) |
-| `show_status` | enum | `confirmado` / `pendiente` / `cancelado` (estado del evento, no del presupuesto) |
-| `fee` | numeric | CAPITAL / Importe principal (ingresos) |
-| `expense_budget` | numeric | Presupuesto de gastos |
-| `event_date` | date | Fecha del evento (solo conciertos) |
-| `city` | text | Ciudad (solo conciertos) |
-| `venue` | text | Nombre del recinto (pero contiene direcciones en algunos casos) |
-| `release_id` | uuid | Vínculo a discografía |
-| `project_id` | uuid | Vínculo a proyecto |
-| `artist_id` | uuid | Artista |
-| `metadata.estado` | jsonb | Estado real del workflow del presupuesto (ej: "produccion") |
-| `settlement_status` | text | Estado de liquidación (`open`) |
-| `created_at` | timestamp | Fecha de creación |
-| `updated_at` | timestamp | Última modificación |
+## Solución propuesta
 
-**Hallazgo clave**: el "estado" real del presupuesto (borrador, en revisión, aprobado, etc.) **no tiene columna propia** — vive dentro del campo `metadata` como `metadata.estado`. La interfaz usa `budget_status` para mostrar "borrador" pero ese campo contiene `nacional/internacional`.
+### Fix 1: Filtro de artista — migrar a filtrado local
 
-## Columnas universales propuestas (análisis desde gestión de proyectos)
+Eliminar el filtro de artista de la query de Supabase (que causaba el bug) y añadirlo al `filteredBudgets` junto a tipo y búsqueda:
 
-Basado en los principios de gestión financiera de proyectos creativos, las columnas óptimas para identificar cualquier presupuesto de un vistazo son:
-
-| Columna | Datos mostrados | Justificación |
-|---|---|---|
-| **Tipo** | Badge con icono (🎤 Concierto, 💿 Producción, 📣 Campaña, 🎥 Videoclip) | Contexto inmediato sin leer el nombre |
-| **Nombre** | `budget.name` | Identificador principal |
-| **Artista** | `artist_name` / `stage_name` | Qué artista concierne |
-| **Vinculado a** | Release / Proyecto / Booking | Navegación cruzada, muestra el contexto |
-| **Fecha clave** | `event_date` si es concierto, `created_at` si no | La fecha más relevante según el tipo |
-| **Estado** | `metadata.estado` o `show_status` según tipo | Estado real del documento |
-| **Capital (€)** | `fee` | Importe principal (ingresos/inversión) |
-| **Gastos (€)** | `expense_budget` | Presupuesto de costes |
-| **Acciones** | Ver, Eliminar | Acciones rápidas |
-
-## Cambios técnicos
-
-### Solo se modifica `src/pages/Budgets.tsx`
-
-**Cambio 1: Ampliar la query para traer datos de artista y vinculaciones**
-
-Reemplazar el `select('*')` actual por:
 ```ts
-.select(`
-  id, name, type, city, venue, event_date, budget_status, show_status,
-  fee, expense_budget, metadata, created_at, updated_at, artist_id,
-  release_id, project_id,
-  artists:artist_id(name, stage_name),
-  releases:release_id(title),
-  projects:project_id(name)
-`)
+const filteredBudgets = budgets.filter((budget) => {
+  const q = searchTerm.toLowerCase().trim();
+  const matchesSearch = !q ||
+    budget.name.toLowerCase().includes(q) ||
+    (budget.artists?.stage_name?.toLowerCase().includes(q) ?? false) ||
+    (budget.artists?.name?.toLowerCase().includes(q) ?? false) ||
+    (budget.releases?.title?.toLowerCase().includes(q) ?? false) ||
+    (budget.projects?.name?.toLowerCase().includes(q) ?? false) ||
+    (budget.city?.toLowerCase().includes(q) ?? false);
+
+  const matchesType = filterType === 'all' || budget.type === filterType;
+  const matchesArtist = filterArtist === 'all' || budget.artist_id === filterArtist;
+
+  return matchesSearch && matchesType && matchesArtist;
+});
 ```
 
-**Cambio 2: Ampliar la interfaz `Budget`**
-
-```ts
-interface Budget {
-  id: string;
-  name: string;
-  type: string;
-  city?: string;
-  venue?: string;
-  event_date?: string;
-  budget_status?: string;
-  show_status?: string;
-  fee?: number;
-  expense_budget?: number;
-  metadata?: Record<string, any>;
-  created_at: string;
-  updated_at?: string;
-  artist_id?: string;
-  release_id?: string;
-  project_id?: string;
-  artists?: { name: string; stage_name?: string };
-  releases?: { title: string };
-  projects?: { name: string };
-}
+Y el Select de artista pasa a ser:
+```tsx
+onValueChange={setFilterArtist}  // sin llamar fetchBudgets()
 ```
 
-**Cambio 3: Helper `getEstadoReal(budget)`**
+---
+
+### Fix 2: Edición inline — nueva columna de acciones expandida
+
+Se añade un **modo de edición por fila**. Al hacer clic en el icono de lápiz (nueva acción), la fila se convierte en editable mostrando 3 campos editables:
+
+#### Campos editables directamente en la tabla
+
+| Campo | Control | Notas |
+|---|---|---|
+| **Nombre** | Input de texto | Edit inline, guardar con Enter o botón ✓ |
+| **Estado** | Select desplegable | Opciones predefinidas |
+| **Vinculado a (proyecto)** | Select de proyectos | Con confirmación doble al desvincular |
+
+#### Campos NO editables en la tabla (requieren abrir el detalle)
+- Tipo (cambio estructural)
+- Capital / Gastos (afectan ítems internos)
+- Fecha del evento
+- Artista (afecta permisos y datos financieros)
+
+#### Diseño de la fila en modo edición
+
+Cuando el usuario hace clic en el icono lápiz de una fila:
+- La fila se resalta con `ring-2 ring-primary/30 bg-primary/5`
+- El campo **Nombre** pasa a ser un `<Input>` con el valor actual
+- El campo **Estado** pasa a ser un `<Select>` con las opciones
+- El campo **Vinculado a** muestra un `<Select>` de proyectos
+- Aparecen dos botones en Acciones: ✓ (guardar) y ✕ (cancelar)
+- Hacer clic fuera cancela la edición (sin guardar)
+
+#### Estados disponibles en el Select de Estado
+Basado en los datos reales de la base de datos:
+```
+borrador | pendiente | confirmado | en producción | facturado | liquidado | cancelado
+```
+Estos valores se guardan en `metadata.estado` para presupuestos de producción y en `show_status` para conciertos.
+
+#### Lógica de guardado de estado
+
+Para mantener consistencia con la función `getEstadoReal`, al guardar el estado se actualiza **siempre en `metadata.estado`** (el campo más universal). Si el presupuesto es de tipo `concierto` también se actualiza `show_status` para compatibilidad con el módulo de Booking.
 
 ```ts
-// El estado real vive en metadata.estado para presupuestos de producción
-// y en show_status para conciertos
-function getEstadoReal(budget: Budget): string {
-  if (budget.metadata?.estado) return budget.metadata.estado;
-  if (budget.show_status) return budget.show_status;
-  if (budget.budget_status && budget.budget_status !== 'nacional' && budget.budget_status !== 'internacional') {
-    return budget.budget_status;
+const handleInlineUpdate = async (budgetId: string, field: 'name' | 'estado' | 'project_id', value: string | null) => {
+  let updatePayload: Record<string, any> = {};
+  
+  if (field === 'name') {
+    updatePayload = { name: value };
+  } else if (field === 'estado') {
+    // Para conciertos: también actualizar show_status
+    const budget = budgets.find(b => b.id === budgetId);
+    updatePayload = { 
+      metadata: { ...(budget?.metadata || {}), estado: value },
+      ...(budget?.type === 'concierto' ? { show_status: value } : {})
+    };
+  } else if (field === 'project_id') {
+    updatePayload = { project_id: value };
   }
-  return 'borrador';
-}
-```
-
-**Cambio 4: Helper `getVinculacion(budget)` para la columna "Vinculado a"**
-
-```ts
-function getVinculacion(budget: Budget): { label: string; type: 'release' | 'project' | 'none' } | null {
-  if (budget.releases?.title) return { label: budget.releases.title, type: 'release' };
-  if (budget.projects?.name) return { label: budget.projects.name, type: 'project' };
-  return null;
-}
-```
-
-**Cambio 5: Config de tipos con icono y colores**
-
-```ts
-const BUDGET_TYPES: Record<string, { label: string; icon: string; color: string; bg: string }> = {
-  concierto:           { label: 'Concierto',   icon: '🎤', color: 'text-green-700',  bg: 'bg-green-50' },
-  produccion_musical:  { label: 'Producción',  icon: '💿', color: 'text-purple-700', bg: 'bg-purple-50' },
-  campana_promocional: { label: 'Campaña',     icon: '📣', color: 'text-pink-700',   bg: 'bg-pink-50' },
-  videoclip:           { label: 'Videoclip',   icon: '🎥', color: 'text-amber-700',  bg: 'bg-amber-50' },
-  otros:               { label: 'Otros',       icon: '📋', color: 'text-slate-700',  bg: 'bg-slate-50' },
+  
+  const { error } = await supabase.from('budgets').update(updatePayload).eq('id', budgetId);
+  if (error) throw error;
+  fetchBudgets();
 };
 ```
 
-**Cambio 6: Nueva estructura de columnas en la tabla**
+#### Doble confirmación al desvincular proyecto
+
+Si el usuario cambia "Vinculado a" de un proyecto existente a "Sin vínculo", se muestra un `AlertDialog` de confirmación:
 
 ```
-[Tipo] [Nombre] [Artista] [Vinculado a] [Fecha] [Estado] [Capital] [Gastos] [Acciones]
+¿Desvincular del proyecto "On TOUR"?
+Esta acción eliminará el vínculo entre este presupuesto y el proyecto.
+Los datos del presupuesto no se eliminarán.
+[Cancelar] [Desvincular]
 ```
 
-- **Tipo**: Badge con icono + label corto (`🎤 Concierto`)
-- **Nombre**: `budget.name`, click abre el detalle
-- **Artista**: `budget.artists?.stage_name || budget.artists?.name || '—'`
-- **Vinculado a**: badge azul para releases, verde para proyectos, `—` si nada
-- **Fecha**: `event_date` formateada si existe, si no `created_at` (con label "Creado")
-- **Estado**: badge de color (borrador=gris, pendiente=amarillo, confirmado=verde, etc.)
-- **Capital**: `€{fee}` en verde si > 0
-- **Gastos**: `€{expense_budget}` en rojo/naranja si > 0, `—` si cero
-- **Acciones**: Ver + Eliminar
+---
 
-**Cambio 7: Fix del bug de columnas duplicadas**
+## Cambios técnicos — solo `src/pages/Budgets.tsx`
 
-La línea 303 actual tiene `{budget.venue || '-'}` en la columna de Fecha. Esto se elimina completamente al reestructurar las columnas.
-
-**Cambio 8: Actualizar filtro de búsqueda**
-
-Añadir `name`, `artists.stage_name`, `releases.title`, `projects.name` al filtro de búsqueda para mayor cobertura.
-
-**Cambio 9: KPI cards actualizadas**
-
-Reemplazar los 3 KPIs actuales por métricas universales:
-- Total presupuestos
-- Capital total (suma de `fee`)
-- Gastos totales (suma de `expense_budget`)
-- (opcional) Balance neto
-
-## Resultado visual esperado
-
+### Nuevos estados
+```ts
+const [editingRowId, setEditingRowId] = useState<string | null>(null);
+const [editValues, setEditValues] = useState<{ name: string; estado: string; project_id: string | null }>({ name: '', estado: '', project_id: null });
+const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+const [confirmUnlink, setConfirmUnlink] = useState<{ budgetId: string; projectName: string } | null>(null);
 ```
-Tipo        Nombre                    Artista    Vinculado a          Fecha       Estado      Capital   Gastos
-🎤 Concierto  260419 Barcelona VIC    Artista X  —                   19/4/2026   Pendiente   €10.000   €3.200
-💿 Producción Presupuesto - Álbum    Pol Batlle  💿 La Flor de Déu  —           En produc.  €10.000   €8.500
-🎤 Concierto  Inverfest               Artista X  —                   26/4/2026   Pendiente   €15.000   €4.000
+
+### Nueva función `fetchProjects()`
+Carga los proyectos disponibles para el Select de vinculación.
+
+### Función `startEditing(budget)`
+Inicializa `editValues` con los valores actuales del presupuesto y pone `editingRowId = budget.id`.
+
+### Función `handleInlineUpdate()`
+Llama a Supabase con el payload correcto según el campo, muestra toast de éxito/error, y llama `fetchBudgets()`.
+
+### Función `handleUnlinkProject(budgetId)`
+Se llama solo después de la confirmación del `AlertDialog`. Actualiza `project_id = null`.
+
+### Cambio en `TableRow`
+- Cuando `editingRowId === budget.id`: renderiza campos editables + botones ✓/✕
+- Cuando `editingRowId !== budget.id`: renderiza la fila normal con el nuevo icono lápiz en Acciones
+- El `onClick` en `TableRow` solo se dispara si `editingRowId === null` (no en modo edición)
+
+### Cambio en el Select de Artista
+`onValueChange={setFilterArtist}` — sin llamar `fetchBudgets()`.
+
+### Añadir `matchesArtist` al filtrado local
+```ts
+const matchesArtist = filterArtist === 'all' || budget.artist_id === filterArtist;
 ```
+
+---
 
 ## Archivos afectados
 
 | Archivo | Cambio |
 |---|---|
-| `src/pages/Budgets.tsx` | Nueva query + nueva interfaz + nuevas columnas + helpers + fix del bug |
+| `src/pages/Budgets.tsx` | Fix filtros + estados de edición + fila editable + fetch proyectos |
 
-**Sin tocar**: `BudgetDetailsDialog`, `CreateBudgetDialog`, base de datos, rutas. Solo se modifica la lista/tabla.
+**Sin tocar**: base de datos (no se crea ninguna columna nueva), otros componentes, `BudgetDetailsDialog`.
 
-**Sin migraciones necesarias**: Todos los datos necesarios ya existen en la base de datos. Solo se usan correctamente.
+**Sin migraciones**: El estado se guarda en `metadata.estado` (campo JSONB existente) y `show_status` (columna existente).
