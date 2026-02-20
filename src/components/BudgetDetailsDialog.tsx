@@ -65,7 +65,8 @@ import {
   Database,
   Upload,
   Sparkles,
-  Link2
+  Link2,
+  Eraser
 } from 'lucide-react';
 import { useInvoiceAutoLink } from '@/hooks/useInvoiceAutoLink';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -587,6 +588,27 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       if (hide) next.add(categoryId); else next.delete(categoryId);
       saveHiddenCategoriesToDB(next);
       return next;
+    });
+  };
+
+  const hideEmptyCategories = () => {
+    const emptyIds = budgetCategories
+      .filter(cat => getCategoryItems(cat.id).length === 0)
+      .map(cat => cat.id);
+
+    if (emptyIds.length === 0) {
+      toast({ title: "Sin categorías vacías", description: "Todas las categorías tienen al menos un elemento." });
+      return;
+    }
+
+    const newHidden = new Set(hiddenCategories);
+    emptyIds.forEach(id => newHidden.add(id));
+    setHiddenCategories(newHidden);
+    saveHiddenCategoriesToDB(newHidden);
+
+    toast({
+      title: "Listo",
+      description: `${emptyIds.length} ${emptyIds.length === 1 ? 'categoría vacía ocultada' : 'categorías vacías ocultadas'}`
     });
   };
 
@@ -2900,10 +2922,19 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   <div className="bg-black text-white p-3 border-b border-gray-700">
                     <div className="flex items-center justify-between">
                       <h2 className="text-base font-bold">Gestión de Elementos y Categorías</h2>
-                       <div className="flex gap-2">
+                         <div className="flex gap-2">
+                           <Button
+                             onClick={hideEmptyCategories}
+                             size="sm"
+                             variant="outline"
+                             className="bg-muted/20 hover:bg-muted/40 text-muted-foreground border-border/40 text-xs"
+                             title="Ocultar categorías vacías"
+                           >
+                             <Eraser className="w-3 h-3" />
+                           </Button>
                          <Button
-                           onClick={() => {
-                             fetchAvailableFormats();
+                            onClick={() => {
+                              fetchAvailableFormats();
                              fetchTeamMembers();
                              setLoadDialogTab('formats');
                              setSelectedTeamMembers([]);
