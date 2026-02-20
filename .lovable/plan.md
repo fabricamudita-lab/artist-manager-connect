@@ -1,209 +1,178 @@
 
-# Mejora de la selección de plantillas en Solicitudes
+# Mejora del Drive: Primera impresión y usabilidad (Carpetas)
 
 ## Diagnóstico del problema
 
-El `renderTemplateSelection()` en `CreateSolicitudFromTemplateDialog.tsx` (líneas 475-516) presenta las 6 plantillas de forma idéntica:
-- Mismo fondo (`bg-gradient-primary`) para todos los iconos
-- Mismo tamaño de card
-- Descripción de una sola línea genérica
-- El único diferenciador es el número de campos (lo cual no le dice nada al usuario sobre qué esperar)
-- No hay ninguna jerarquía visual que refleje la importancia o frecuencia de cada tipo
+La función `renderCategoryFolders()` en `src/pages/Carpetas.tsx` (líneas 381–432) muestra las 12 categorías en un grid uniforme, todas con "0 archivos". Los problemas concretos son:
 
-## Propuesta: Rediseño completo de la pantalla de selección
+1. **Orden fijo**: Categorías vacías y con contenido se mezclan sin jerarquía visual.
+2. **Sin FAB de subida rápida**: Para subir hay que entrar en una categoría y luego hacer clic en "Subir".
+3. **Nombres ambiguos**: "ECONOMÍA", "PERSONAL", "MÚSICA" no son autoexplicativos.
+4. **Sin archivos recientes**: El usuario no sabe qué se tocó la última vez.
+5. **Sin contexto de contenido esperado**: El usuario no sabe qué subir en cada categoría.
 
-### 1. Jerarquía visual por importancia
+## Cambios propuestos — solo `src/pages/Carpetas.tsx` y `src/hooks/useArtistFiles.ts`
 
-**Booking** es la solicitud más compleja e importante (genera booking_offers, tiene pipeline propio, afecta al calendario). Se diferenciará visualmente del resto.
+### Cambio 1: Renombrar categorías ambiguas (`useArtistFiles.ts`)
 
-Layout:
-```text
-┌─────────────────────────────────────────────────────────┐
-│  🎤 BOOKING                                      [Hero] │
-│  Conciertos, festivales y giras · El más frecuente      │
-│  Genera automáticamente: Booking Offer + pipeline       │
-│  ──────────────────────────────────────────────────     │
-│                                                         │
-│  🎙️ Entrevista        📜 Licencia Sync/Master           │
-│  Medios y prensa      Uso de obra en terceros           │
-│                                                         │
-│  💬 Consulta          ℹ️ Información                    │
-│  Decisión interna     Datos sobre proyecto              │
-│                                                         │
-│                    📄 Otro                              │
-│            Solicitudes no categorizadas                 │
-└─────────────────────────────────────────────────────────┘
-```
+Actualizar `ARTIST_FOLDER_CATEGORIES` con nombres descriptivos e industria-correctos:
 
-### 2. Cards enriquecidas con contexto accionable
-
-Cada card mostrará:
-- **Icono con color propio** (no todos el mismo gradiente azul)
-- **Título + badge de uso sugerido** (ej: "Más frecuente", "Necesita contrato", "Interna")
-- **Descripción corta** orientada a acción ("Registra una oferta de actuación")
-- **"Qué pasa después"**: una línea indicando el flujo que se activa al crear este tipo
-
-Ejemplo para **Booking**:
-```
-🎤  Booking                          [Más frecuente]
-    Registra una oferta de actuación en concierto,
-    festival o evento privado.
-    ──────────────────────────────────────────────
-    ▶ Crea automáticamente un Booking Offer en el
-      pipeline de negociación
-```
-
-Ejemplo para **Licencia**:
-```
-📜  Licencia                         [Contrato]
-    Solicitud de uso de tu obra en medios, publicidad
-    o proyectos de terceros.
-    ──────────────────────────────────────────────
-    ▶ Requiere aprobación + gestión de derechos
-      (Master / Compositora)
-```
-
-### 3. Colores propios por tipo (en lugar de todos azul-gradiente)
-
-| Tipo | Color del icono | Badge |
+| Antes | Después | Razón |
 |---|---|---|
-| Booking | Azul intenso `bg-blue-600` | "Más frecuente" |
-| Entrevista | Verde `bg-green-600` | "Medios" |
-| Licencia | Ámbar `bg-amber-600` | "Derechos" |
-| Consulta | Violeta `bg-violet-600` | "Interna" |
-| Información | Naranja `bg-orange-500` | "Datos" |
-| Otro | Gris `bg-slate-500` | — |
+| ECONOMÍA | PRESUPUESTOS Y FACTURAS | Término del sector |
+| PERSONAL | DOCUMENTOS DEL ARTISTA | Autoexplicativo |
+| MÚSICA | AUDIO (stems, masters) | Distingue del concepto genérico |
+| DISTRIBUCIÓN | DISTRIBUCIÓN DIGITAL | Claridad |
 
-### 4. Indicador "¿Qué pasa después?"
+Se añade también un campo `description` a cada categoría para el subtítulo de ayuda:
 
-Esta es la mejora más importante desde el punto de vista de la industria. El usuario no sabe qué workflow se activa. Se añade en cada card una sección pequeña con el flujo:
-
-- **Booking** → "Se crea un Booking Offer en estado Interés. Puedes aprobarlo para moverlo a Negociación."
-- **Entrevista** → "Al aprobarla, puedes programar el encuentro y crear un evento en el calendario."
-- **Licencia** → "Registra los derechos solicitados. Al aprobarla, genera un contrato de licencia."
-- **Consulta / Información** → "Se gestiona internamente. Al resolverse, se archiva con comentario."
-- **Otro** → "Solicitud libre. Tú decides el flujo."
-
-## Cambios técnicos
-
-### Archivo afectado: `src/components/CreateSolicitudFromTemplateDialog.tsx`
-
-**Sólo se modifica la constante `templates` (líneas 27-117) y la función `renderTemplateSelection` (líneas 475-516).**
-
-El resto del archivo (toda la lógica de formularios, `handleSubmit`, campos específicos por tipo) permanece intacto.
-
-#### Cambio 1: Enriquecer la constante `templates`
-
-Añadir dos nuevos campos por plantilla:
 ```ts
-{
-  id: 'booking',
-  title: 'Booking',
-  description: 'Registra una oferta de actuación en concierto, festival o evento privado.',
-  nextStep: 'Crea un Booking Offer en el pipeline. Al aprobarse, pasa a Negociación.',
-  badge: 'Más frecuente',
-  badgeColor: 'bg-blue-100 text-blue-700',
-  iconBg: 'bg-blue-600',
-  icon: Calendar,
-  color: 'bg-blue-100 text-blue-800',
-  priority: 1,          // para ordenar Booking primero
-  fields: [...]
-}
+{ id: 'audiovisuales',  name: 'AUDIOVISUALES',            description: 'Vídeos, clips, making-of' }
+{ id: 'conciertos',     name: 'CONCIERTOS',                description: 'Riders, hojas de ruta' }
+{ id: 'contratos',      name: 'CONTRATOS / LEGAL',         description: 'PDFs firmados, acuerdos' }
+{ id: 'diseno',         name: 'DISEÑO',                    description: 'Artes, logos, flyers' }
+{ id: 'distribucion',   name: 'DISTRIBUCIÓN DIGITAL',      description: 'Pitches, UPC/ISRC, reportes' }
+{ id: 'economia',       name: 'PRESUPUESTOS Y FACTURAS',   description: 'Liquidaciones, facturas' }
+{ id: 'imagenes',       name: 'IMÁGENES',                  description: 'Fotos prensa, EPK' }
+{ id: 'marketing',      name: 'MARKETING',                 description: 'Campañas, contenido RRSS' }
+{ id: 'merch',          name: 'MERCH',                     description: 'Catálogos, proveedores' }
+{ id: 'musica',         name: 'AUDIO (stems, masters)',    description: 'Archivos de audio, mixes' }
+{ id: 'personal',       name: 'DOCUMENTOS DEL ARTISTA',   description: 'NIF, pasaporte, documentos' }
+{ id: 'prensa',         name: 'PRENSA',                    description: 'Dossiers, notas de prensa' }
 ```
 
-#### Cambio 2: Reescribir `renderTemplateSelection`
+### Cambio 2: Ordenar categorías por contenido primero (`renderCategoryFolders`)
 
-Nuevo layout de 2 secciones:
-1. **Booking como hero card** (ancho completo, más grande)
-2. **Grid 2×2 para Entrevista, Licencia, Consulta, Información** + **Otro** centrado abajo
+Antes de renderizar el grid, se ordenan las categorías: primero las que tienen archivos (`fileCounts[cat.id] > 0`), luego las vacías. Las vacías se muestran con un estilo visualmente más tenue para reducir la sensación de "todo roto".
 
-Estructura JSX propuesta:
+```ts
+const sortedCategories = [...ARTIST_FOLDER_CATEGORIES].sort((a, b) => {
+  const countA = fileCounts[a.id] || 0;
+  const countB = fileCounts[b.id] || 0;
+  return countB - countA; // con contenido primero
+});
+```
+
+Las categorías vacías llevarán `opacity-60` y un borde `border-dashed` para distinguirlas sin ocultarlas.
+
+### Cambio 3: Sección "Archivos Recientes" antes del grid
+
+Se añade una query `useQuery` en `Carpetas.tsx` para obtener los últimos 5 archivos del artista seleccionado (de `artist_files`, ordenados por `created_at DESC`, limit 5).
+
+La sección se muestra **solo si hay al menos un archivo**, así no aparece vacía:
+
 ```tsx
-<div className="space-y-4">
-  {/* Header */}
-  <div className="text-center py-2">
-    <h3 className="text-lg font-semibold mb-1">¿Qué tipo de solicitud es?</h3>
-    <p className="text-sm text-muted-foreground">Elige el tipo para ver el formulario correcto y activar el flujo adecuado</p>
-  </div>
-
-  {/* Booking hero */}
-  <Card className="cursor-pointer border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50/30 transition-all"
-        onClick={() => handleTemplateSelect('booking')}>
-    <CardContent className="p-5">
-      <div className="flex items-start gap-4">
-        <div className="w-14 h-14 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
-          <Calendar className="w-7 h-7 text-white" />
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-bold text-lg">Booking</h4>
-            <Badge className="bg-blue-100 text-blue-700 text-xs">Más frecuente</Badge>
+{recentFiles.length > 0 && (
+  <div className="space-y-3">
+    <div className="flex items-center gap-2">
+      <Clock className="w-4 h-4 text-muted-foreground" />
+      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+        Archivos Recientes
+      </h3>
+    </div>
+    <Card>
+      <CardContent className="p-0 divide-y">
+        {recentFiles.map(file => (
+          <div className="flex items-center gap-3 p-3 hover:bg-muted/50">
+            <FileIcon /> 
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm truncate">{file.file_name}</p>
+              <p className="text-xs text-muted-foreground">
+                {CATEGORY_LABELS[file.category]} · {format(date, 'd MMM')}
+              </p>
+            </div>
+            <Button size="sm" variant="ghost" onClick={open}>Abrir</Button>
           </div>
-          <p className="text-sm text-muted-foreground mb-3">
-            Registra una oferta de actuación: concierto, festival, evento privado o gira.
-          </p>
-          <div className="flex items-start gap-2 bg-blue-50 rounded-lg p-2.5 border border-blue-100">
-            <span className="text-blue-500 text-xs mt-0.5">▶</span>
-            <p className="text-xs text-blue-700">
-              Crea automáticamente un <strong>Booking Offer</strong> en el pipeline. 
-              Al aprobarse, pasa a Negociación y se puede vincular al calendario.
-            </p>
-          </div>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-
-  {/* Grid 2×2 para el resto */}
-  <div className="grid grid-cols-2 gap-3">
-    {[entrevista, licencia, consulta, informacion].map(...)}
+        ))}
+      </CardContent>
+    </Card>
   </div>
-
-  {/* Otro — secundario, al final */}
-  <Card className="cursor-pointer opacity-70 hover:opacity-100 border-dashed ...">
-    ...
-  </Card>
-</div>
+)}
 ```
 
-#### Cambio 3: Cards secundarias con el "flujo siguiente"
+### Cambio 4: Card de categoría con subtítulo descriptivo
 
-Cada card del grid mostrará una línea de color `nextStep` al pie, mucho más compacta que la del Booking.
-
-## Resultado visual final
+En lugar de solo "0 archivos", cada card mostrará un subtítulo con el tipo de contenido esperado:
 
 ```text
-┌──────────────────────────────────────────────────────────┐
-│  ¿Qué tipo de solicitud es?                              │
-│  Elige el tipo para ver el formulario correcto...        │
-│                                                          │
-│  ┌────────────────────────────── (Hero: borde azul) ──┐  │
-│  │  🎤  Booking                       [Más frecuente] │  │
-│  │      Concierto, festival, evento privado o gira    │  │
-│  │  ▶ Crea Booking Offer → pipeline Negociación       │  │
-│  └────────────────────────────────────────────────────┘  │
-│                                                          │
-│  ┌──────────────────┐  ┌──────────────────────────────┐  │
-│  │ 🎙️ Entrevista    │  │ 📜 Licencia                  │  │
-│  │ Prensa y medios  │  │ Sync/Master · Derechos       │  │
-│  │ ▶ Programa enc.  │  │ ▶ Gestión derechos           │  │
-│  └──────────────────┘  └──────────────────────────────┘  │
-│  ┌──────────────────┐  ┌──────────────────────────────┐  │
-│  │ 💬 Consulta      │  │ ℹ️ Información               │  │
-│  │ Decisión interna │  │ Datos sobre proyecto         │  │
-│  │ ▶ Gestión interna│  │ ▶ Se archiva al resolver     │  │
-│  └──────────────────┘  └──────────────────────────────┘  │
-│                                                          │
-│          - - - - - - - - - - - - - - - -                 │
-│          📄 Otro (solicitud libre)                       │
-│          - - - - - - - - - - - - - - - -                 │
-└──────────────────────────────────────────────────────────┘
+┌─────────────────────────────────┐
+│  📄  CONTRATOS / LEGAL          │
+│      PDFs firmados, acuerdos    │ ← nuevo subtítulo contextual
+│      3 archivos                 │ ← existente
+└─────────────────────────────────┘
+```
+
+El campo `description` añadido al Cambio 1 alimenta este subtítulo.
+
+### Cambio 5: FAB (Floating Action Button) de subida rápida
+
+Se añade un botón flotante verde en la esquina inferior derecha de la vista `renderCategoryFolders`. Al hacer clic, abre un pequeño popover/dialog que pregunta la categoría antes de subir:
+
+```tsx
+{/* FAB — solo visible en el nivel de categorías */}
+<div className="fixed bottom-8 right-8 z-50">
+  <Button
+    size="lg"
+    className="rounded-full shadow-lg bg-green-600 hover:bg-green-700 text-white h-14 w-14"
+    onClick={() => setShowFABDialog(true)}
+  >
+    <Plus className="w-6 h-6" />
+  </Button>
+</div>
+
+{/* FAB Dialog */}
+<Dialog open={showFABDialog} onOpenChange={setShowFABDialog}>
+  <DialogContent>
+    <DialogTitle>Subir archivo</DialogTitle>
+    <p>¿A qué categoría pertenece este archivo?</p>
+    <Select value={fabCategory} onValueChange={setFabCategory}>
+      {ARTIST_FOLDER_CATEGORIES.map(cat => (
+        <SelectItem value={cat.id}>{cat.name}</SelectItem>
+      ))}
+    </Select>
+    <Button onClick={handleFABUpload}>Seleccionar archivo</Button>
+    <input type="file" hidden ref={fabFileRef} onChange={handleFABFileSelect} />
+  </DialogContent>
+</Dialog>
+```
+
+## Resultado visual esperado
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  Artista / Categorías de Archivos                                │
+│                                                                  │
+│  🕐 ARCHIVOS RECIENTES                                           │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ 📄 contrato_festival_X.pdf  Contratos/Legal · 12 feb   Abrir│  │
+│  │ 🎵 stem_guitarra.wav        Audio (stems) · 10 feb      Abrir│  │
+│  │ 🖼️ foto_prensa_2025.jpg     Imágenes · 8 feb            Abrir│  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐               │
+│  │ 📄          │ │ 🎵          │ │ 🖼️          │               │
+│  │ CONTRATOS   │ │ AUDIO       │ │ IMÁGENES    │               │
+│  │ Legal/PDFs  │ │ stems,mast. │ │ Fotos EPK   │               │
+│  │ 3 archivos  │ │ 2 archivos  │ │ 5 archivos  │               │
+│  └─────────────┘ └─────────────┘ └─────────────┘               │
+│                                                                  │
+│  ← (vacías, con opacity-60 y borde discontinuo) →               │
+│  ┌ - - - - - - ┐ ┌ - - - - - - ┐ ┌ - - - - - - ┐             │
+│  │  DISEÑO     │ │  MERCH      │ │  MARKETING  │              │
+│  │  Artes, log │ │  Catálogos  │ │  Campañas   │              │
+│  │  0 archivos │ │  0 archivos │ │  0 archivos │              │
+│  └ - - - - - - ┘ └ - - - - - - ┘ └ - - - - - - ┘             │
+│                                                           [+]    │ ← FAB verde
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ## Archivos afectados
 
-| Archivo | Líneas | Tipo de cambio |
+| Archivo | Qué cambia | Líneas aproximadas |
 |---|---|---|
-| `src/components/CreateSolicitudFromTemplateDialog.tsx` | 27-117 + 475-516 | Enriquecer `templates[]` + reescribir `renderTemplateSelection()` |
+| `src/hooks/useArtistFiles.ts` | Añadir `description` a cada categoría + renombrar 4 nombres | 8–21 |
+| `src/pages/Carpetas.tsx` | `renderCategoryFolders()`: orden, subtítulos; nueva sección "recientes"; FAB con dialog | 381–432 + nuevo estado + nueva query |
 
-**Sin tocar**: lógica de formularios, `handleSubmit`, campos específicos, base de datos. Cambio puramente visual/UX de la pantalla de selección inicial.
+**Sin tocar**: lógica de upload, hooks, Supabase, rutas, `FileExplorer`, `ConciertosView`. Cambio puramente de presentación/UX sobre datos ya existentes.
+
+**Sin cambios de base de datos.** Los archivos recientes se obtienen de `artist_files` que ya existe.
