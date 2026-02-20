@@ -1,178 +1,263 @@
 
-# Mejora del Drive: Primera impresión y usabilidad (Carpetas)
+# FAB Inteligente: Sugerencia automática de categoría por análisis del archivo
 
-## Diagnóstico del problema
+## El problema actual
 
-La función `renderCategoryFolders()` en `src/pages/Carpetas.tsx` (líneas 381–432) muestra las 12 categorías en un grid uniforme, todas con "0 archivos". Los problemas concretos son:
+El diálogo actual del FAB pregunta primero la categoría y luego el archivo — el orden inverso a lo natural. El usuario tiene que saber de antemano dónde va el archivo. La imagen de referencia confirma este flujo: primero hay que elegir en un Select, luego seleccionar el archivo.
 
-1. **Orden fijo**: Categorías vacías y con contenido se mezclan sin jerarquía visual.
-2. **Sin FAB de subida rápida**: Para subir hay que entrar en una categoría y luego hacer clic en "Subir".
-3. **Nombres ambiguos**: "ECONOMÍA", "PERSONAL", "MÚSICA" no son autoexplicativos.
-4. **Sin archivos recientes**: El usuario no sabe qué se tocó la última vez.
-5. **Sin contexto de contenido esperado**: El usuario no sabe qué subir en cada categoría.
+## Nueva propuesta: Drag & Drop primero, categoría sugerida después
 
-## Cambios propuestos — solo `src/pages/Carpetas.tsx` y `src/hooks/useArtistFiles.ts`
-
-### Cambio 1: Renombrar categorías ambiguas (`useArtistFiles.ts`)
-
-Actualizar `ARTIST_FOLDER_CATEGORIES` con nombres descriptivos e industria-correctos:
-
-| Antes | Después | Razón |
-|---|---|---|
-| ECONOMÍA | PRESUPUESTOS Y FACTURAS | Término del sector |
-| PERSONAL | DOCUMENTOS DEL ARTISTA | Autoexplicativo |
-| MÚSICA | AUDIO (stems, masters) | Distingue del concepto genérico |
-| DISTRIBUCIÓN | DISTRIBUCIÓN DIGITAL | Claridad |
-
-Se añade también un campo `description` a cada categoría para el subtítulo de ayuda:
-
-```ts
-{ id: 'audiovisuales',  name: 'AUDIOVISUALES',            description: 'Vídeos, clips, making-of' }
-{ id: 'conciertos',     name: 'CONCIERTOS',                description: 'Riders, hojas de ruta' }
-{ id: 'contratos',      name: 'CONTRATOS / LEGAL',         description: 'PDFs firmados, acuerdos' }
-{ id: 'diseno',         name: 'DISEÑO',                    description: 'Artes, logos, flyers' }
-{ id: 'distribucion',   name: 'DISTRIBUCIÓN DIGITAL',      description: 'Pitches, UPC/ISRC, reportes' }
-{ id: 'economia',       name: 'PRESUPUESTOS Y FACTURAS',   description: 'Liquidaciones, facturas' }
-{ id: 'imagenes',       name: 'IMÁGENES',                  description: 'Fotos prensa, EPK' }
-{ id: 'marketing',      name: 'MARKETING',                 description: 'Campañas, contenido RRSS' }
-{ id: 'merch',          name: 'MERCH',                     description: 'Catálogos, proveedores' }
-{ id: 'musica',         name: 'AUDIO (stems, masters)',    description: 'Archivos de audio, mixes' }
-{ id: 'personal',       name: 'DOCUMENTOS DEL ARTISTA',   description: 'NIF, pasaporte, documentos' }
-{ id: 'prensa',         name: 'PRENSA',                    description: 'Dossiers, notas de prensa' }
-```
-
-### Cambio 2: Ordenar categorías por contenido primero (`renderCategoryFolders`)
-
-Antes de renderizar el grid, se ordenan las categorías: primero las que tienen archivos (`fileCounts[cat.id] > 0`), luego las vacías. Las vacías se muestran con un estilo visualmente más tenue para reducir la sensación de "todo roto".
-
-```ts
-const sortedCategories = [...ARTIST_FOLDER_CATEGORIES].sort((a, b) => {
-  const countA = fileCounts[a.id] || 0;
-  const countB = fileCounts[b.id] || 0;
-  return countB - countA; // con contenido primero
-});
-```
-
-Las categorías vacías llevarán `opacity-60` y un borde `border-dashed` para distinguirlas sin ocultarlas.
-
-### Cambio 3: Sección "Archivos Recientes" antes del grid
-
-Se añade una query `useQuery` en `Carpetas.tsx` para obtener los últimos 5 archivos del artista seleccionado (de `artist_files`, ordenados por `created_at DESC`, limit 5).
-
-La sección se muestra **solo si hay al menos un archivo**, así no aparece vacía:
-
-```tsx
-{recentFiles.length > 0 && (
-  <div className="space-y-3">
-    <div className="flex items-center gap-2">
-      <Clock className="w-4 h-4 text-muted-foreground" />
-      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-        Archivos Recientes
-      </h3>
-    </div>
-    <Card>
-      <CardContent className="p-0 divide-y">
-        {recentFiles.map(file => (
-          <div className="flex items-center gap-3 p-3 hover:bg-muted/50">
-            <FileIcon /> 
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate">{file.file_name}</p>
-              <p className="text-xs text-muted-foreground">
-                {CATEGORY_LABELS[file.category]} · {format(date, 'd MMM')}
-              </p>
-            </div>
-            <Button size="sm" variant="ghost" onClick={open}>Abrir</Button>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  </div>
-)}
-```
-
-### Cambio 4: Card de categoría con subtítulo descriptivo
-
-En lugar de solo "0 archivos", cada card mostrará un subtítulo con el tipo de contenido esperado:
+El flujo se invierte completamente:
 
 ```text
-┌─────────────────────────────────┐
-│  📄  CONTRATOS / LEGAL          │
-│      PDFs firmados, acuerdos    │ ← nuevo subtítulo contextual
-│      3 archivos                 │ ← existente
-└─────────────────────────────────┘
+Antes:  [Elegir categoría] → [Seleccionar archivo] → Subir
+Ahora:  [Soltar/Seleccionar archivo] → [IA analiza] → [Categoría sugerida] → Confirmar o cambiar → Subir
 ```
 
-El campo `description` añadido al Cambio 1 alimenta este subtítulo.
+## Cómo se detecta la categoría (sin IA externa, solo lógica local)
 
-### Cambio 5: FAB (Floating Action Button) de subida rápida
+Se implementa una función `detectCategory(file: File): { category: string; reason: string; confidence: 'alta' | 'media' | 'baja' }` que analiza:
 
-Se añade un botón flotante verde en la esquina inferior derecha de la vista `renderCategoryFolders`. Al hacer clic, abre un pequeño popover/dialog que pregunta la categoría antes de subir:
+### 1. Por MIME type (máxima fiabilidad)
+| MIME | Categoría sugerida |
+|---|---|
+| `image/*` | IMÁGENES |
+| `audio/*` | AUDIO (stems, masters) |
+| `video/*` | AUDIOVISUALES |
 
-```tsx
-{/* FAB — solo visible en el nivel de categorías */}
-<div className="fixed bottom-8 right-8 z-50">
-  <Button
-    size="lg"
-    className="rounded-full shadow-lg bg-green-600 hover:bg-green-700 text-white h-14 w-14"
-    onClick={() => setShowFABDialog(true)}
-  >
-    <Plus className="w-6 h-6" />
-  </Button>
-</div>
+### 2. Por extensión de archivo
+| Extensión | Categoría sugerida |
+|---|---|
+| `.pdf`, `.docx`, `.doc` | CONTRATOS / LEGAL (si el nombre incluye "contrato", "acuerdo", "rider") |
+| `.pdf` genérico | PRENSA o CONTRATOS |
+| `.ai`, `.psd`, `.svg`, `.eps`, `.png` grande | DISEÑO |
+| `.wav`, `.aif`, `.flac`, `.stem` | AUDIO (stems, masters) |
+| `.mp3`, `.ogg` | AUDIO (stems, masters) |
+| `.mp4`, `.mov`, `.avi` | AUDIOVISUALES |
+| `.xlsx`, `.xls`, `.csv` | PRESUPUESTOS Y FACTURAS |
 
-{/* FAB Dialog */}
-<Dialog open={showFABDialog} onOpenChange={setShowFABDialog}>
-  <DialogContent>
-    <DialogTitle>Subir archivo</DialogTitle>
-    <p>¿A qué categoría pertenece este archivo?</p>
-    <Select value={fabCategory} onValueChange={setFabCategory}>
-      {ARTIST_FOLDER_CATEGORIES.map(cat => (
-        <SelectItem value={cat.id}>{cat.name}</SelectItem>
-      ))}
-    </Select>
-    <Button onClick={handleFABUpload}>Seleccionar archivo</Button>
-    <input type="file" hidden ref={fabFileRef} onChange={handleFABFileSelect} />
-  </DialogContent>
-</Dialog>
-```
+### 3. Por palabras clave en el nombre del archivo
+| Palabras en el nombre | Categoría sugerida |
+|---|---|
+| `contrato`, `acuerdo`, `contract`, `legal`, `nda` | CONTRATOS / LEGAL |
+| `rider`, `hospitality`, `hoja de ruta`, `roadmap` | CONCIERTOS |
+| `factura`, `presupuesto`, `invoice`, `budget` | PRESUPUESTOS Y FACTURAS |
+| `prensa`, `press`, `dossier`, `nota de prensa` | PRENSA |
+| `logo`, `arte`, `flyer`, `cartel`, `banner` | DISEÑO |
+| `marketing`, `rrss`, `social`, `campaña` | MARKETING |
+| `merch`, `merchandise`, `tienda` | MERCH |
+| `distribucion`, `upc`, `isrc`, `pitch` | DISTRIBUCIÓN DIGITAL |
+| `stem`, `master`, `mix`, `vocal` | AUDIO (stems, masters) |
+| `nif`, `pasaporte`, `dni`, `passport` | DOCUMENTOS DEL ARTISTA |
+| `clip`, `videoclip`, `making`, `teaser` | AUDIOVISUALES |
+| `foto`, `photo`, `promo`, `portrait` | IMÁGENES |
 
-## Resultado visual esperado
+### 4. Confianza del resultado
+- **Alta**: MIME + nombre coinciden (ej: `contrato_festival.pdf` → CONTRATOS)
+- **Media**: Solo MIME o solo nombre
+- **Baja**: Ningún indicador claro → se muestra sin preselección, pidiendo al usuario que elija
 
+## Nuevo diseño del diálogo FAB
+
+### Estado 1: Zona de drop (estado inicial)
 ```text
-┌──────────────────────────────────────────────────────────────────┐
-│  Artista / Categorías de Archivos                                │
-│                                                                  │
-│  🕐 ARCHIVOS RECIENTES                                           │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │ 📄 contrato_festival_X.pdf  Contratos/Legal · 12 feb   Abrir│  │
-│  │ 🎵 stem_guitarra.wav        Audio (stems) · 10 feb      Abrir│  │
-│  │ 🖼️ foto_prensa_2025.jpg     Imágenes · 8 feb            Abrir│  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐               │
-│  │ 📄          │ │ 🎵          │ │ 🖼️          │               │
-│  │ CONTRATOS   │ │ AUDIO       │ │ IMÁGENES    │               │
-│  │ Legal/PDFs  │ │ stems,mast. │ │ Fotos EPK   │               │
-│  │ 3 archivos  │ │ 2 archivos  │ │ 5 archivos  │               │
-│  └─────────────┘ └─────────────┘ └─────────────┘               │
-│                                                                  │
-│  ← (vacías, con opacity-60 y borde discontinuo) →               │
-│  ┌ - - - - - - ┐ ┌ - - - - - - ┐ ┌ - - - - - - ┐             │
-│  │  DISEÑO     │ │  MERCH      │ │  MARKETING  │              │
-│  │  Artes, log │ │  Catálogos  │ │  Campañas   │              │
-│  │  0 archivos │ │  0 archivos │ │  0 archivos │              │
-│  └ - - - - - - ┘ └ - - - - - - ┘ └ - - - - - - ┘             │
-│                                                           [+]    │ ← FAB verde
-└──────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────┐
+│  Subir archivo inteligente                            │
+│                                                       │
+│  ┌────────────────────────────────────────────────┐   │
+│  │                                                │   │
+│  │       ↑  Arrastra tu archivo aquí             │   │
+│  │                                               │   │
+│  │    o  [Seleccionar archivo desde disco]       │   │
+│  │                                               │   │
+│  └────────────────────────────────────────────────┘   │
+│                                                       │
+│  [Cancelar]                                           │
+└───────────────────────────────────────────────────────┘
 ```
 
-## Archivos afectados
+### Estado 2: Archivo detectado — categoría sugerida
+```text
+┌───────────────────────────────────────────────────────┐
+│  Subir archivo                                        │
+│                                                       │
+│  📄 contrato_festival_mad.pdf  (245 KB)              │
+│                                                       │
+│  Categoría detectada:                                 │
+│  ┌─────────────────────────────────────────────────┐  │
+│  │ ✓  CONTRATOS / LEGAL                           │  │
+│  │    El nombre contiene "contrato" y es un PDF   │  │
+│  │    Confianza: Alta                             │  │
+│  └─────────────────────────────────────────────────┘  │
+│                                                       │
+│  ¿No es correcto? Cambiar:  [Select de categorías]   │
+│                                                       │
+│  [Cancelar]    [Subir a CONTRATOS / LEGAL →]         │
+└───────────────────────────────────────────────────────┘
+```
 
-| Archivo | Qué cambia | Líneas aproximadas |
+### Estado 3 (confianza baja): Sin sugerencia clara
+```text
+│  ⚠️ No pudimos detectar la categoría automáticamente │
+│  Por favor, selecciona dónde quieres guardar este    │
+│  archivo:  [Select de categorías]                     │
+```
+
+## Cambios técnicos
+
+### Archivos afectados: SOLO `src/pages/Carpetas.tsx`
+
+No se toca `useArtistFiles.ts`, no se crean edge functions, no hay llamadas externas. Todo el análisis es local en el cliente.
+
+### Cambio 1: Nueva función `detectCategory()`
+
+Añadir antes del componente `Carpetas`:
+
+```ts
+function detectCategory(file: File): { 
+  category: string | null; 
+  reason: string; 
+  confidence: 'alta' | 'media' | 'baja' 
+} {
+  const name = file.name.toLowerCase();
+  const mime = file.type.toLowerCase();
+
+  // MIME-based detection (alta confianza base)
+  if (mime.startsWith('audio/') || name.match(/\.(wav|aif|aiff|flac|stem|stems)$/)) {
+    return { category: 'musica', reason: 'Es un archivo de audio', confidence: 'alta' };
+  }
+  if (mime.startsWith('video/') || name.match(/\.(mp4|mov|avi|mkv|webm)$/)) {
+    // Check if it's a clip/videoclip by name
+    if (name.match(/clip|videoclip|making|teaser|trailer/)) {
+      return { category: 'audiovisuales', reason: 'El nombre sugiere contenido audiovisual', confidence: 'alta' };
+    }
+    return { category: 'audiovisuales', reason: 'Es un archivo de vídeo', confidence: 'alta' };
+  }
+  if (mime.startsWith('image/') || name.match(/\.(jpg|jpeg|png|gif|webp|heic)$/)) {
+    // Distinguish between design and press photos
+    if (name.match(/logo|arte|flyer|cartel|banner|poster|artwork/)) {
+      return { category: 'diseno', reason: 'El nombre sugiere material de diseño', confidence: 'alta' };
+    }
+    if (name.match(/foto|photo|promo|portrait|press|prensa|epk/)) {
+      return { category: 'imagenes', reason: 'El nombre sugiere fotografía de prensa o EPK', confidence: 'alta' };
+    }
+    // .ai, .psd, .svg = design
+    if (name.match(/\.(ai|psd|svg|eps|indd)$/)) {
+      return { category: 'diseno', reason: 'Es un archivo de diseño gráfico', confidence: 'alta' };
+    }
+    return { category: 'imagenes', reason: 'Es una imagen', confidence: 'media' };
+  }
+
+  // Keyword-based for documents
+  if (name.match(/contrato|contract|acuerdo|agreement|nda|legal/)) {
+    return { category: 'contratos', reason: 'El nombre incluye términos legales o contractuales', confidence: 'alta' };
+  }
+  if (name.match(/rider|hospitality|hoja.de.ruta|roadmap|backline/)) {
+    return { category: 'conciertos', reason: 'El nombre sugiere documentos de concierto o rider técnico', confidence: 'alta' };
+  }
+  if (name.match(/factura|invoice|presupuesto|budget|liquidaci/)) {
+    return { category: 'economia', reason: 'El nombre sugiere documento financiero', confidence: 'alta' };
+  }
+  if (name.match(/prensa|press|dossier|nota.de.prensa|press.release/)) {
+    return { category: 'prensa', reason: 'El nombre sugiere material de prensa', confidence: 'alta' };
+  }
+  if (name.match(/marketing|rrss|social|campa|contenido/)) {
+    return { category: 'marketing', reason: 'El nombre sugiere material de marketing', confidence: 'alta' };
+  }
+  if (name.match(/merch|merchandise|tienda|shop/)) {
+    return { category: 'merch', reason: 'El nombre sugiere material de merchandising', confidence: 'alta' };
+  }
+  if (name.match(/distribuci|upc|isrc|pitch|spotify|apple.music/)) {
+    return { category: 'distribucion', reason: 'El nombre sugiere documentos de distribución digital', confidence: 'alta' };
+  }
+  if (name.match(/stem|master|mix|vocal|instrumental|session/)) {
+    return { category: 'musica', reason: 'El nombre sugiere archivo de audio o producción', confidence: 'alta' };
+  }
+  if (name.match(/nif|pasaporte|passport|dni|dni|documento/)) {
+    return { category: 'personal', reason: 'El nombre sugiere documento personal del artista', confidence: 'alta' };
+  }
+
+  // Spreadsheet = finances
+  if (mime.includes('spreadsheet') || name.match(/\.(xlsx|xls|csv|ods)$/)) {
+    return { category: 'economia', reason: 'Es una hoja de cálculo (probablemente financiera)', confidence: 'media' };
+  }
+
+  // Generic PDF — no keyword match
+  if (mime.includes('pdf') || name.endsWith('.pdf')) {
+    return { category: 'contratos', reason: 'Es un PDF (posiblemente un contrato o documento legal)', confidence: 'baja' };
+  }
+
+  return { category: null, reason: 'No se pudo detectar la categoría automáticamente', confidence: 'baja' };
+}
+```
+
+### Cambio 2: Nuevo estado para el FAB inteligente
+
+Reemplazar:
+```ts
+const [fabCategory, setFabCategory] = useState<string>('');
+```
+
+Por:
+```ts
+const [fabCategory, setFabCategory] = useState<string>('');
+const [fabFile, setFabFile] = useState<File | null>(null);
+const [fabSuggestion, setFabSuggestion] = useState<{ category: string | null; reason: string; confidence: 'alta' | 'media' | 'baja' } | null>(null);
+const [fabDragOver, setFabDragOver] = useState(false);
+```
+
+### Cambio 3: Handlers de drag & drop y detección
+
+```ts
+const handleFABDrop = (e: React.DragEvent) => {
+  e.preventDefault();
+  setFabDragOver(false);
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const suggestion = detectCategory(file);
+    setFabFile(file);
+    setFabSuggestion(suggestion);
+    setFabCategory(suggestion.category || '');
+  }
+};
+
+const handleFABFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (file) {
+    const suggestion = detectCategory(file);
+    setFabFile(file);
+    setFabSuggestion(suggestion);
+    setFabCategory(suggestion.category || '');
+  }
+};
+
+const handleFABConfirmUpload = async () => {
+  if (!selectedArtist || !fabCategory || !fabFile) return;
+  await uploadFiles([fabFile], selectedArtist.id, fabCategory);
+  setShowFABDialog(false);
+  setFabFile(null);
+  setFabSuggestion(null);
+  setFabCategory('');
+};
+```
+
+### Cambio 4: Nuevo JSX del diálogo FAB
+
+El diálogo ahora tiene dos estados visuales: zona de drop (sin archivo) y confirmación de categoría (con archivo).
+
+El `<input type="file" hidden ref={fabFileRef}>` ya no se necesita para seleccionar el archivo antes de elegir categoría — ahora el input se activa desde la zona de drop (estado 1) y la detección es inmediata.
+
+Al cerrar el diálogo se resetea `fabFile`, `fabSuggestion` y `fabCategory`.
+
+## Archivos modificados
+
+| Archivo | Sección | Cambio |
 |---|---|---|
-| `src/hooks/useArtistFiles.ts` | Añadir `description` a cada categoría + renombrar 4 nombres | 8–21 |
-| `src/pages/Carpetas.tsx` | `renderCategoryFolders()`: orden, subtítulos; nueva sección "recientes"; FAB con dialog | 381–432 + nuevo estado + nueva query |
+| `src/pages/Carpetas.tsx` | Antes del componente | Nueva función `detectCategory()` |
+| `src/pages/Carpetas.tsx` | Estado (líneas ~155-157) | Añadir `fabFile`, `fabSuggestion`, `fabDragOver` |
+| `src/pages/Carpetas.tsx` | Handlers (líneas ~411-426) | Reemplazar `handleFABFileSelect` + `handleFABUpload` |
+| `src/pages/Carpetas.tsx` | JSX del diálogo (líneas ~555-595) | Reescribir completamente el diálogo FAB |
 
-**Sin tocar**: lógica de upload, hooks, Supabase, rutas, `FileExplorer`, `ConciertosView`. Cambio puramente de presentación/UX sobre datos ya existentes.
+**Sin tocar**: lógica de upload, `useArtistFiles`, rutas, `FileExplorer`, `ConciertosView`, categorías, archivos recientes. Solo se modifica el diálogo del FAB.
 
-**Sin cambios de base de datos.** Los archivos recientes se obtienen de `artist_files` que ya existe.
+**Sin dependencias externas.** Todo el análisis es local — sin IA externa, sin edge functions, instantáneo.
