@@ -70,7 +70,16 @@ import {
   Link as LinkIcon,
   Pencil,
   FolderInput,
+  Clock,
+  Upload as UploadIcon,
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -141,6 +150,11 @@ export default function Carpetas() {
   const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fabFileRef = useRef<HTMLInputElement>(null);
+
+  // FAB state
+  const [showFABDialog, setShowFABDialog] = useState(false);
+  const [fabCategory, setFabCategory] = useState<string>('');
 
   const isManagement = profile?.active_role === 'management';
 
@@ -158,7 +172,24 @@ export default function Carpetas() {
     },
   });
 
-  // Handle URL params for deep linking
+  // Fetch recent files for selected artist
+  const { data: recentFiles = [] } = useQuery({
+    queryKey: ['artist-recent-files', selectedArtist?.id],
+    queryFn: async () => {
+      if (!selectedArtist?.id) return [];
+      const { data, error } = await supabase
+        .from('artist_files')
+        .select('*')
+        .eq('artist_id', selectedArtist.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data as ArtistFile[];
+    },
+    enabled: !!selectedArtist?.id,
+  });
+
+
   useEffect(() => {
     const artistId = searchParams.get('artist');
     const category = searchParams.get('category');
@@ -377,62 +408,194 @@ export default function Carpetas() {
     </div>
   );
 
-  // Render Level 2: Category Folders
-  const renderCategoryFolders = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSelectedArtist(null)}
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">
-              {selectedArtist?.stage_name || selectedArtist?.name}
-            </h1>
-            <p className="text-muted-foreground">Categorías de Archivos</p>
-          </div>
-        </div>
-      </div>
+  // FAB upload handler
+  const handleFABFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedArtist || !fabCategory || !e.target.files) return;
+    const selectedFiles = Array.from(e.target.files);
+    if (selectedFiles.length > 0) {
+      await uploadFiles(selectedFiles, selectedArtist.id, fabCategory);
+    }
+    e.target.value = '';
+    setShowFABDialog(false);
+    setFabCategory('');
+  };
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-        {ARTIST_FOLDER_CATEGORIES.map((category) => {
-          const IconComponent = getCategoryIcon(category.icon);
-          const count = fileCounts[category.id] || 0;
-          const hasFolders = subfolders.filter(sf => sf.parent_id === null).length > 0;
+  const handleFABUpload = () => {
+    if (!fabCategory) return;
+    fabFileRef.current?.click();
+  };
 
-          return (
-            <Card
-              key={category.id}
-              className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group"
-              onClick={() => {
-                setSelectedCategory(category.id);
-                setCurrentFolderId(null);
-              }}
-            >
-              <CardContent className="p-6 flex flex-col items-center text-center">
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-3 group-hover:from-primary/30 group-hover:to-primary/10 transition-colors">
-                  <IconComponent className="w-7 h-7 text-primary" />
-                </div>
-                <h3 className="font-medium text-sm truncate w-full">
-                  {category.name}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {count} {count === 1 ? 'archivo' : 'archivos'}
-                </p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-    </div>
+  // Category label lookup for recent files section
+  const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
+    ARTIST_FOLDER_CATEGORIES.map(c => [c.id, c.name])
   );
 
+  // Render Level 2: Category Folders
+  const renderCategoryFolders = () => {
+    // Sort: categories with files first, empty ones last
+    const sortedCategories = [...ARTIST_FOLDER_CATEGORIES].sort((a, b) => {
+      const countA = fileCounts[a.id] || 0;
+      const countB = fileCounts[b.id] || 0;
+      return countB - countA;
+    });
 
-  // Render Level 3: Folders + Files
+    return (
+      <div className="space-y-6 pb-24">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSelectedArtist(null)}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">
+                {selectedArtist?.stage_name || selectedArtist?.name}
+              </h1>
+              <p className="text-muted-foreground">Categorías de Archivos</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Files Section — only when there are files */}
+        {recentFiles.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Archivos Recientes
+              </h3>
+            </div>
+            <Card>
+              <CardContent className="p-0 divide-y">
+                {recentFiles.map((file) => {
+                  const FileIconComp = getFileIcon(file.file_type);
+                  return (
+                    <div
+                      key={file.id}
+                      className="flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                        <FileIconComp className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{file.file_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {CATEGORY_LABELS[file.category] || file.category}
+                          {' · '}
+                          {format(new Date(file.created_at), 'd MMM', { locale: es })}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => window.open(file.file_url, '_blank')}
+                      >
+                        Abrir
+                      </Button>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Category Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+          {sortedCategories.map((category) => {
+            const IconComponent = getCategoryIcon(category.icon);
+            const count = fileCounts[category.id] || 0;
+            const isEmpty = count === 0;
+
+            return (
+              <Card
+                key={category.id}
+                className={`cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group ${
+                  isEmpty ? 'opacity-60 border-dashed' : ''
+                }`}
+                onClick={() => {
+                  setSelectedCategory(category.id);
+                  setCurrentFolderId(null);
+                }}
+              >
+                <CardContent className="p-5 flex flex-col items-center text-center">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-3 group-hover:from-primary/30 group-hover:to-primary/10 transition-colors">
+                    <IconComponent className="w-6 h-6 text-primary" />
+                  </div>
+                  <h3 className="font-medium text-xs leading-tight mb-1 w-full text-center line-clamp-2">
+                    {category.name}
+                  </h3>
+                  <p className="text-xs text-muted-foreground/70 mb-1 line-clamp-1 w-full text-center">
+                    {(category as any).description}
+                  </p>
+                  <p className="text-xs font-medium text-muted-foreground mt-auto">
+                    {count} {count === 1 ? 'archivo' : 'archivos'}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* FAB */}
+        <div className="fixed bottom-8 right-8 z-50">
+          <Button
+            size="lg"
+            className="rounded-full shadow-lg h-14 w-14 bg-green-600 hover:bg-green-700 text-white"
+            onClick={() => setShowFABDialog(true)}
+          >
+            <Plus className="w-6 h-6" />
+          </Button>
+        </div>
+
+        {/* FAB Dialog */}
+        <Dialog open={showFABDialog} onOpenChange={setShowFABDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Subir archivo</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-muted-foreground">
+                ¿A qué categoría pertenece este archivo?
+              </p>
+              <Select value={fabCategory} onValueChange={setFabCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar categoría..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {ARTIST_FOLDER_CATEGORIES.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowFABDialog(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleFABUpload} disabled={!fabCategory}>
+                <UploadIcon className="w-4 h-4 mr-2" />
+                Seleccionar archivo
+              </Button>
+            </DialogFooter>
+            <input
+              type="file"
+              multiple
+              hidden
+              ref={fabFileRef}
+              onChange={handleFABFileSelect}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  };
   const renderFilesView = () => {
     const currentCategoryObj = ARTIST_FOLDER_CATEGORIES.find(c => c.id === selectedCategory);
 

@@ -6,18 +6,18 @@ import { toast } from '@/hooks/use-toast';
 
 // Standard folder categories for every artist
 export const ARTIST_FOLDER_CATEGORIES = [
-  { id: 'audiovisuales', name: 'AUDIOVISUALES', icon: 'Video' },
-  { id: 'conciertos', name: 'CONCIERTOS', icon: 'Music' },
-  { id: 'contratos', name: 'CONTRATOS / LEGAL', icon: 'FileText' },
-  { id: 'diseno', name: 'DISEÑO', icon: 'Palette' },
-  { id: 'distribucion', name: 'DISTRIBUCIÓN', icon: 'Share2' },
-  { id: 'economia', name: 'ECONOMÍA', icon: 'Calculator' },
-  { id: 'imagenes', name: 'IMÁGENES', icon: 'Image' },
-  { id: 'marketing', name: 'MARKETING', icon: 'Megaphone' },
-  { id: 'merch', name: 'MERCH', icon: 'ShoppingBag' },
-  { id: 'musica', name: 'MÚSICA', icon: 'Disc' },
-  { id: 'personal', name: 'PERSONAL', icon: 'User' },
-  { id: 'prensa', name: 'PRENSA', icon: 'Newspaper' },
+  { id: 'audiovisuales', name: 'AUDIOVISUALES',            icon: 'Video',       description: 'Vídeos, clips, making-of' },
+  { id: 'conciertos',    name: 'CONCIERTOS',                icon: 'Music',       description: 'Riders, hojas de ruta' },
+  { id: 'contratos',     name: 'CONTRATOS / LEGAL',         icon: 'FileText',    description: 'PDFs firmados, acuerdos' },
+  { id: 'diseno',        name: 'DISEÑO',                    icon: 'Palette',     description: 'Artes, logos, flyers' },
+  { id: 'distribucion',  name: 'DISTRIBUCIÓN DIGITAL',      icon: 'Share2',      description: 'Pitches, UPC/ISRC, reportes' },
+  { id: 'economia',      name: 'PRESUPUESTOS Y FACTURAS',   icon: 'Calculator',  description: 'Liquidaciones, facturas' },
+  { id: 'imagenes',      name: 'IMÁGENES',                  icon: 'Image',       description: 'Fotos prensa, EPK' },
+  { id: 'marketing',     name: 'MARKETING',                 icon: 'Megaphone',   description: 'Campañas, contenido RRSS' },
+  { id: 'merch',         name: 'MERCH',                     icon: 'ShoppingBag', description: 'Catálogos, proveedores' },
+  { id: 'musica',        name: 'AUDIO (stems, masters)',    icon: 'Disc',        description: 'Archivos de audio, mixes' },
+  { id: 'personal',      name: 'DOCUMENTOS DEL ARTISTA',   icon: 'User',        description: 'NIF, pasaporte, documentos' },
+  { id: 'prensa',        name: 'PRENSA',                    icon: 'Newspaper',   description: 'Dossiers, notas de prensa' },
 ] as const;
 
 export type FolderCategory = typeof ARTIST_FOLDER_CATEGORIES[number]['id'];
