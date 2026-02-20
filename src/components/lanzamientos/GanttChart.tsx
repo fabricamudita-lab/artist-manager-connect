@@ -431,12 +431,23 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                 const wfDays = Math.max(1, differenceInDays(wfEnd, wfStart));
                 const { left, width } = getBarPosition(wfStart, wfDays);
                 const completed = workflowTasks.filter(t => t.status === 'completado').length;
-                const progress = workflowTasks.length > 0 ? (completed / workflowTasks.length) * 100 : 0;
-                const isWorkflowComplete = completed === workflowTasks.length && workflowTasks.length > 0;
-                const colors = isWorkflowComplete
-                  ? { bg: 'bg-green-500/20', fill: 'bg-green-500/60' }
-                  : (WORKFLOW_BAR_COLORS[workflow.id] || { bg: 'bg-primary/20', fill: 'bg-primary/60' });
-                const tooltipText = `${format(wfStart, 'dd MMM yyyy', { locale: es })} – ${format(wfEnd, 'dd MMM yyyy', { locale: es })}`;
+                const retrasadas = workflowTasks.filter(t => t.status === 'retrasado').length;
+                const enProceso = workflowTasks.filter(t => t.status === 'en_proceso').length;
+                const total = workflowTasks.length;
+                const isWorkflowComplete = completed === total && total > 0;
+
+                const pctRetrasado = total > 0 ? (retrasadas / total) * 100 : 0;
+                const pctEnProceso = total > 0 ? (enProceso / total) * 100 : 0;
+                const pctCompletado = total > 0 ? (completed / total) * 100 : 0;
+
+                const bgColor = isWorkflowComplete
+                  ? 'bg-green-500/20'
+                  : retrasadas > 0
+                    ? 'bg-red-500/20'
+                    : enProceso > 0
+                      ? 'bg-blue-500/20'
+                      : (WORKFLOW_BAR_COLORS[workflow.id]?.bg || 'bg-primary/20');
+
                 return (
                   <div
                     className={cn("flex items-center cursor-pointer select-none", fitToView ? "mb-0.5" : "mb-2")}
@@ -452,20 +463,40 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                       <workflow.icon className="w-4 h-4 shrink-0" />
                       <span className="font-semibold text-sm truncate">{workflow.name}</span>
                       <span className="text-[10px] text-muted-foreground shrink-0">
-                        {completed}/{workflowTasks.length}
+                        {completed}/{total}
                       </span>
                     </div>
                     <div className={cn("flex-1 relative", fitToView ? "h-4" : "h-6")}>
                       <div
-                        className={cn('absolute rounded-full group/wf', colors.bg, fitToView ? 'top-0 h-4' : 'top-0.5 h-5')}
+                        className={cn('absolute rounded-full overflow-hidden group/wf', bgColor, fitToView ? 'top-0 h-4' : 'top-0.5 h-5')}
                         style={{ left, width }}
                       >
-                        <div
-                          className={cn('h-full rounded-full', colors.fill)}
-                          style={{ width: `${progress}%` }}
-                        />
+                        {/* Segmento retrasado */}
+                        {retrasadas > 0 && (
+                          <div
+                            className="absolute top-0 left-0 h-full bg-red-500/70"
+                            style={{ width: `${pctRetrasado}%` }}
+                          />
+                        )}
+                        {/* Segmento en proceso */}
+                        {enProceso > 0 && (
+                          <div
+                            className="absolute top-0 h-full bg-blue-500/70"
+                            style={{ left: `${pctRetrasado}%`, width: `${pctEnProceso}%` }}
+                          />
+                        )}
+                        {/* Segmento completado */}
+                        {completed > 0 && (
+                          <div
+                            className="absolute top-0 h-full bg-green-500/70"
+                            style={{ left: `${pctRetrasado + pctEnProceso}%`, width: `${pctCompletado}%` }}
+                          />
+                        )}
                         <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground whitespace-nowrap opacity-0 group-hover/wf:opacity-100 transition-opacity pointer-events-none">
                           {format(wfStart, 'dd MMM', { locale: es })} – {format(wfEnd, 'dd MMM', { locale: es })}
+                          {retrasadas > 0 && ` · ${retrasadas} retrasada${retrasadas > 1 ? 's' : ''}`}
+                          {enProceso > 0 && ` · ${enProceso} en proceso`}
+                          {completed > 0 && ` · ${completed} completada${completed > 1 ? 's' : ''}`}
                         </span>
                       </div>
                     </div>
