@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Calculator, Trash2, FileText, Eye, Pencil, Check, X } from 'lucide-react';
+import { Plus, Search, Calculator, Trash2, FileText, Eye, Pencil, Check, X, AlertTriangle, GitMerge } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import CreateBudgetDialog from '@/components/CreateBudgetDialog';
@@ -18,6 +18,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PermissionWrapper } from '@/components/PermissionBoundary';
 import { PermissionChip } from '@/components/PermissionChip';
 import { useGlobalSearch } from '@/hooks/useKeyboardShortcuts';
@@ -146,6 +147,337 @@ function formatFecha(budget: Budget): { date: string; label: string } {
   };
 }
 
+// ─── Duplicate detection ──────────────────────────────────────────────────────
+
+function areSimilar(a: Budget, b: Budget): boolean {
+  const sameName = a.name.trim().toLowerCase() === b.name.trim().toLowerCase();
+  const sameArtist = a.artist_id === b.artist_id;
+  const sameType = (a.type ?? '') === (b.type ?? '');
+  const sameFee = (a.fee ?? 0) === (b.fee ?? 0);
+  const sameDate = (a.event_date ?? null) === (b.event_date ?? null);
+  return sameName && sameArtist && sameType && (sameFee || sameDate);
+}
+
+function detectDuplicates(budgets: Budget[]): Budget[][] {
+  const groups: Budget[][] = [];
+  const visited = new Set<string>();
+  for (let i = 0; i < budgets.length; i++) {
+    if (visited.has(budgets[i].id)) continue;
+    const group = [budgets[i]];
+    for (let j = i + 1; j < budgets.length; j++) {
+      if (!visited.has(budgets[j].id) && areSimilar(budgets[i], budgets[j])) {
+        group.push(budgets[j]);
+        visited.add(budgets[j].id);
+      }
+    }
+    if (group.length > 1) {
+      groups.push(group);
+      visited.add(budgets[i].id);
+    }
+  }
+  return groups;
+}
+
+function hasDifferences(group: Budget[]): boolean {
+  const ref = group[0];
+  return group.slice(1).some(
+    (b) =>
+      (b.fee ?? 0) !== (ref.fee ?? 0) ||
+      getEstadoReal(b) !== getEstadoReal(ref) ||
+      (b.project_id ?? null) !== (ref.project_id ?? null) ||
+      (b.release_id ?? null) !== (ref.release_id ?? null),
+  );
+}
+
+// ─── DuplicateResolverDialog ──────────────────────────────────────────────────
+
+interface DuplicateResolverDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  groups: Budget[][];
+  currentIndex: number;
+  onNavigate: (index: number) => void;
+  onKeep: (keepId: string, group: Budget[]) => Promise<void>;
+  onMerge: (targetId: string, overrides: Record<string, any>, group: Budget[]) => Promise<void>;
+}
+
+type MergeField = 'fee' | 'estado' | 'project_id';
+
+function DuplicateResolverDialog({
+  open, onOpenChange, groups, currentIndex, onNavigate, onKeep, onMerge,
+}: DuplicateResolverDialogProps) {
+  const group = groups[currentIndex];
+  const [mergeMode, setMergeMode] = useState(false);
+  // field -> budgetId that "wins"
+  const [selections, setSelections] = useState<Record<MergeField, string>>({
+    fee: '', estado: '', project_id: '',
+  });
+  const [merging, setMerging] = useState(false);
+
+  useEffect(() => {
+    if (group && group.length > 0) {
+      setSelections({ fee: group[0].id, estado: group[0].id, project_id: group[0].id });
+      setMergeMode(false);
+    }
+  }, [currentIndex, group]);
+
+  if (!group || group.length === 0) return null;
+
+  const withDiffs = hasDifferences(group);
+
+  const fieldLabel: Record<MergeField, string> = {
+    fee: '💰 Capital',
+    estado: '🗂 Estado',
+    project_id: '📁 Vinculado a',
+  };
+
+  const getFieldValue = (b: Budget, field: MergeField): string => {
+    if (field === 'fee') return b.fee ? `€${b.fee.toLocaleString('es-ES')}` : '—';
+    if (field === 'estado') return getEstadoReal(b);
+    if (field === 'project_id') return b.projects?.name ?? b.releases?.title ?? '—';
+    return '—';
+  };
+
+  const handleMerge = async () => {
+    setMerging(true);
+    const target = group[0];
+    const overrides: Record<string, any> = {};
+
+    const feeWinner = group.find((b) => b.id === selections.fee);
+    if (feeWinner) overrides.fee = feeWinner.fee ?? 0;
+
+    const estadoWinner = group.find((b) => b.id === selections.estado);
+    if (estadoWinner) {
+      const estado = getEstadoReal(estadoWinner);
+      overrides.metadata = { ...(target.metadata || {}), estado };
+      const VALID_SHOW_STATUS = ['confirmado', 'pendiente', 'cancelado'];
+      if (target.type === 'concierto' && VALID_SHOW_STATUS.includes(estado)) {
+        overrides.show_status = estado;
+      }
+    }
+
+    const projectWinner = group.find((b) => b.id === selections.project_id);
+    if (projectWinner) overrides.project_id = projectWinner.project_id ?? null;
+
+    await onMerge(target.id, overrides, group);
+    setMerging(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+            <AlertTriangle className="h-5 w-5" />
+            Posibles duplicados — Grupo {currentIndex + 1} de {groups.length}
+          </DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            <strong>"{group[0].name}"</strong>
+            {group[0].artists && (
+              <> · {group[0].artists.stage_name || group[0].artists.name}</>
+            )}
+          </p>
+        </DialogHeader>
+
+        {/* Comparison table */}
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="text-left p-3 font-medium text-muted-foreground w-[120px]">Campo</th>
+                {group.map((b, idx) => (
+                  <th key={b.id} className="text-left p-3 font-medium">
+                    <span className="text-xs text-muted-foreground">#{idx + 1}</span>
+                    <span className="ml-1 font-mono text-xs text-muted-foreground/60">
+                      …{b.id.slice(-6)}
+                    </span>
+                    {idx === 0 && (
+                      <Badge variant="outline" className="ml-2 text-[10px] py-0">original</Badge>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {/* Fecha */}
+              <tr className="border-b border-border/50">
+                <td className="p-3 text-muted-foreground">📅 Fecha</td>
+                {group.map((b, idx) => {
+                  const val = b.event_date
+                    ? new Date(b.event_date).toLocaleDateString('es-ES')
+                    : '—';
+                  const ref = group[0].event_date
+                    ? new Date(group[0].event_date).toLocaleDateString('es-ES')
+                    : '—';
+                  const diff = idx > 0 && val !== ref;
+                  return (
+                    <td key={b.id} className={`p-3 ${diff ? 'text-amber-600 dark:text-amber-400 font-medium' : ''}`}>
+                      {idx > 0 && !diff ? <span className="text-muted-foreground/40">=</span> : val}
+                    </td>
+                  );
+                })}
+              </tr>
+              {/* Capital */}
+              <tr className="border-b border-border/50">
+                <td className="p-3 text-muted-foreground">💰 Capital</td>
+                {group.map((b, idx) => {
+                  const val = b.fee ? `€${b.fee.toLocaleString('es-ES')}` : '—';
+                  const ref = group[0].fee ? `€${group[0].fee.toLocaleString('es-ES')}` : '—';
+                  const diff = idx > 0 && val !== ref;
+                  return (
+                    <td key={b.id} className={`p-3 ${diff ? 'text-amber-600 dark:text-amber-400 font-medium' : ''}`}>
+                      {idx > 0 && !diff ? <span className="text-muted-foreground/40">=</span> : val}
+                    </td>
+                  );
+                })}
+              </tr>
+              {/* Estado */}
+              <tr className="border-b border-border/50">
+                <td className="p-3 text-muted-foreground">🗂 Estado</td>
+                {group.map((b, idx) => {
+                  const val = getEstadoReal(b);
+                  const ref = getEstadoReal(group[0]);
+                  const diff = idx > 0 && val !== ref;
+                  return (
+                    <td key={b.id} className={`p-3 ${diff ? 'text-amber-600 dark:text-amber-400 font-medium' : ''}`}>
+                      {idx > 0 && !diff ? <span className="text-muted-foreground/40">=</span> : val}
+                    </td>
+                  );
+                })}
+              </tr>
+              {/* Vinculado */}
+              <tr className="border-b border-border/50">
+                <td className="p-3 text-muted-foreground">📁 Vínculo</td>
+                {group.map((b, idx) => {
+                  const val = b.projects?.name ?? b.releases?.title ?? '—';
+                  const ref = group[0].projects?.name ?? group[0].releases?.title ?? '—';
+                  const diff = idx > 0 && val !== ref;
+                  return (
+                    <td key={b.id} className={`p-3 ${diff ? 'text-amber-600 dark:text-amber-400 font-medium' : ''}`}>
+                      {idx > 0 && !diff ? <span className="text-muted-foreground/40">=</span> : val}
+                    </td>
+                  );
+                })}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {withDiffs && !mergeMode && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+            <AlertTriangle className="h-3 w-3" />
+            Se encontraron diferencias entre los duplicados. Puedes fusionarlos eligiendo campo a campo.
+          </p>
+        )}
+
+        {/* Merge mode */}
+        {mergeMode && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+            <p className="text-sm font-medium flex items-center gap-2">
+              <GitMerge className="h-4 w-4 text-primary" />
+              Elige qué valor conservar para cada campo (se guardará en #{1} y se eliminarán el resto)
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/50">
+                    <th className="text-left p-2 text-muted-foreground font-medium">Campo</th>
+                    {group.map((b, idx) => (
+                      <th key={b.id} className="text-left p-2 font-medium text-xs">#{idx + 1}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(['fee', 'estado', 'project_id'] as MergeField[]).map((field) => (
+                    <tr key={field} className="border-b border-border/30">
+                      <td className="p-2 text-muted-foreground text-xs">{fieldLabel[field]}</td>
+                      {group.map((b) => (
+                        <td key={b.id} className="p-2">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`merge-${field}`}
+                              value={b.id}
+                              checked={selections[field] === b.id}
+                              onChange={() => setSelections((s) => ({ ...s, [field]: b.id }))}
+                              className="accent-primary"
+                            />
+                            <span className={`text-xs ${selections[field] === b.id ? 'font-semibold' : 'text-muted-foreground'}`}>
+                              {getFieldValue(b, field)}
+                            </span>
+                          </label>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="space-y-2 pt-2">
+          {!mergeMode ? (
+            <>
+              <p className="text-sm font-medium text-foreground mb-3">¿Qué quieres hacer?</p>
+              <div className="flex flex-wrap gap-2">
+                {group.map((b, idx) => (
+                  <Button
+                    key={b.id}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
+                    onClick={() => onKeep(b.id, group)}
+                  >
+                    Conservar #{idx + 1} y eliminar el resto
+                  </Button>
+                ))}
+              </div>
+              {withDiffs && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs border-primary/40 text-primary hover:bg-primary/10"
+                  onClick={() => setMergeMode(true)}
+                >
+                  <GitMerge className="h-3 w-3 mr-1.5" />
+                  Fusionar (elegir campo a campo)
+                </Button>
+              )}
+              <div className="flex gap-2 pt-1">
+                {groups.length > 1 && currentIndex < groups.length - 1 && (
+                  <Button variant="ghost" size="sm" onClick={() => onNavigate(currentIndex + 1)}>
+                    Siguiente grupo →
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+                  Ignorar — mantener todos
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={handleMerge}
+                disabled={merging}
+                className="text-xs"
+              >
+                <GitMerge className="h-3 w-3 mr-1.5" />
+                {merging ? 'Fusionando…' : 'Fusionar con los valores elegidos'}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setMergeMode(false)}>
+                ← Volver
+              </Button>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Budgets() {
@@ -172,6 +504,11 @@ export default function Budgets() {
   const [savingRowId, setSavingRowId] = useState<string | null>(null);
   const [confirmUnlink, setConfirmUnlink] = useState<{ budgetId: string; projectName: string } | null>(null);
 
+  // Duplicate detection state
+  const [duplicateGroups, setDuplicateGroups] = useState<Budget[][]>([]);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [currentGroupIndex, setCurrentGroupIndex] = useState(0);
+
   const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
 
   useEffect(() => {
@@ -186,6 +523,10 @@ export default function Budgets() {
       if (budget) handleViewBudget(budget);
     }
   }, [id, budgets]);
+
+  useEffect(() => {
+    setDuplicateGroups(detectDuplicates(budgets));
+  }, [budgets]);
 
   // ─── Data fetching ──────────────────────────────────────────────────────────
 
@@ -337,6 +678,34 @@ export default function Budgets() {
 
   // ─── Filtering (all local — no stale closure bugs) ──────────────────────────
 
+  // ─── Duplicate handlers ─────────────────────────────────────────────────────
+
+  const handleKeepOne = async (keepId: string, group: Budget[]) => {
+    const toDelete = group.filter((b) => b.id !== keepId);
+    for (const b of toDelete) {
+      await handleDeleteBudget(b.id);
+    }
+    setShowDuplicateDialog(false);
+    toast({ title: 'Listo', description: `${toDelete.length} duplicado${toDelete.length !== 1 ? 's' : ''} eliminado${toDelete.length !== 1 ? 's' : ''}` });
+  };
+
+  const handleMergeAndSave = async (targetId: string, overrides: Record<string, any>, group: Budget[]) => {
+    try {
+      const { error } = await supabase.from('budgets').update(overrides).eq('id', targetId);
+      if (error) throw error;
+      const toDelete = group.filter((b) => b.id !== targetId);
+      for (const b of toDelete) {
+        await supabase.from('budgets').delete().eq('id', b.id);
+      }
+      toast({ title: 'Fusionado', description: 'Presupuesto fusionado y duplicados eliminados' });
+      setShowDuplicateDialog(false);
+      fetchBudgets();
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Error', description: 'No se pudo fusionar', variant: 'destructive' });
+    }
+  };
+
   const filteredBudgets = budgets.filter((budget) => {
     const q = searchTerm.toLowerCase().trim();
     const matchesSearch =
@@ -353,6 +722,9 @@ export default function Budgets() {
 
     return matchesSearch && matchesType && matchesArtist;
   });
+
+  // Precompute duplicate IDs for row indicators
+  const duplicateIds = new Set(duplicateGroups.flat().map((b) => b.id));
 
   // ─── KPIs ───────────────────────────────────────────────────────────────────
 
@@ -482,6 +854,25 @@ export default function Budgets() {
           </CardContent>
         </div>
 
+        {/* Duplicate warning banner */}
+        {duplicateGroups.length > 0 && (
+          <div className="flex items-center gap-3 p-3 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <span className="text-sm text-amber-800 dark:text-amber-300 flex-1">
+              Se detectaron <strong>{duplicateGroups.length} grupo{duplicateGroups.length > 1 ? 's' : ''}</strong> con posibles duplicados
+              ({duplicateGroups.reduce((n, g) => n + g.length, 0)} presupuestos)
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-amber-400 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-xs"
+              onClick={() => { setCurrentGroupIndex(0); setShowDuplicateDialog(true); }}
+            >
+              Revisar duplicados
+            </Button>
+          </div>
+        )}
+
         {/* Table */}
         <Card className="card-moodita">
           <CardHeader>
@@ -523,6 +914,7 @@ export default function Budgets() {
                       const vinculacion = getVinculacion(budget);
                       const { date, label } = formatFecha(budget);
                       const artistaLabel = budget.artists?.stage_name || budget.artists?.name || null;
+                      const isDuplicate = duplicateIds.has(budget.id);
 
                       return (
                         <TableRow
@@ -538,10 +930,25 @@ export default function Budgets() {
                         >
                           {/* Tipo — never editable */}
                           <TableCell>
-                            <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md border ${budgetType.bgClass} ${budgetType.colorClass}`}>
-                              <span>{budgetType.icon}</span>
-                              <span>{budgetType.label}</span>
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {isDuplicate && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span
+                                      className="text-amber-500 dark:text-amber-400 cursor-pointer hover:text-amber-600"
+                                      onClick={(e) => { e.stopPropagation(); setCurrentGroupIndex(0); setShowDuplicateDialog(true); }}
+                                    >
+                                      ⚠
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Posible duplicado — clic para revisar</TooltipContent>
+                                </Tooltip>
+                              )}
+                              <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md border ${budgetType.bgClass} ${budgetType.colorClass}`}>
+                                <span>{budgetType.icon}</span>
+                                <span>{budgetType.label}</span>
+                              </span>
+                            </div>
                           </TableCell>
 
                           {/* Nombre */}
@@ -817,6 +1224,19 @@ export default function Budgets() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Duplicate resolver dialog */}
+        {duplicateGroups.length > 0 && (
+          <DuplicateResolverDialog
+            open={showDuplicateDialog}
+            onOpenChange={setShowDuplicateDialog}
+            groups={duplicateGroups}
+            currentIndex={currentGroupIndex}
+            onNavigate={setCurrentGroupIndex}
+            onKeep={handleKeepOne}
+            onMerge={handleMergeAndSave}
+          />
+        )}
 
         <GlobalSearchDialog open={showGlobalSearch} onOpenChange={setShowGlobalSearch} />
       </div>
