@@ -220,41 +220,48 @@ const CONCERT_DEFAULT_CATEGORIES = [
   { name: 'Management', icon_name: 'DollarSign', sort_order: 98 },
 ];
 
-// Default categories for release/music production budgets (alineado con documento industria Vol.II)
+// Default categories for release/music production budgets (alineado con documento industria Vol.II — Bloque E)
+// Fases del proceso: A&R → Producción → Mezcla → Mastering → Visual → Campaña → Distribución → Registro
 const RELEASE_DEFAULT_CATEGORIES = [
-  { name: 'Grabación',             icon_name: 'Music',      sort_order: 0  },
-  { name: 'Mezcla y Mastering',    icon_name: 'Music',      sort_order: 1  },
-  { name: 'Producción / Arreglos', icon_name: 'Settings',   sort_order: 2  },
-  { name: 'Diseño y Arte Visual',  icon_name: 'FileText',   sort_order: 3  },
-  { name: 'Vídeo y Fotografía',    icon_name: 'FileText',   sort_order: 4  },
-  { name: 'PR & Marketing',        icon_name: 'DollarSign', sort_order: 5  },
-  { name: 'Distribución',          icon_name: 'CreditCard', sort_order: 6  },
-  { name: 'Registro SGAE / AIE',   icon_name: 'FileText',   sort_order: 7  },
-  { name: 'Transporte',            icon_name: 'Car',        sort_order: 8  },
-  { name: 'Dietas y Alojamiento',  icon_name: 'Utensils',   sort_order: 9  },
-  { name: 'Contingencia',          icon_name: 'Calculator', sort_order: 10 },
+  { name: 'Avance al Artista',       icon_name: 'Music',      sort_order: 0  }, // El pago inicial al artista antes de que existan facturas
+  { name: 'Producción y Grabación',  icon_name: 'Music',      sort_order: 1  }, // Sesiones de estudio, co-escritura, producción del beat/arreglos
+  { name: 'Mezcla',                  icon_name: 'Settings',   sort_order: 2  }, // Balance final, stems
+  { name: 'Mastering',               icon_name: 'Settings',   sort_order: 3  }, // Masterización para streaming (-14 LUFS), WAV/distribución
+  { name: 'Diseño y Arte Visual',    icon_name: 'FileText',   sort_order: 4  }, // Artwork (3000x3000px), fotografías, variantes stories
+  { name: 'Vídeo Musical',           icon_name: 'FileText',   sort_order: 5  }, // Videoclip oficial si está presupuestado
+  { name: 'Prensa y PR',             icon_name: 'DollarSign', sort_order: 6  }, // Nota de prensa, publicista, blogs, medios
+  { name: 'Campaña Digital',         icon_name: 'DollarSign', sort_order: 7  }, // Meta Ads, TikTok Ads, Spotify Marquee, SubmitHub
+  { name: 'Distribución',            icon_name: 'CreditCard', sort_order: 8  }, // Distribuidor (DistroKid, AWAL, TuneCore, etc.)
+  { name: 'Registro SGAE / AIE',     icon_name: 'FileText',   sort_order: 9  }, // Registro composición (SGAE) + intérprete (AIE)
+  { name: 'Dietas y Alojamiento',    icon_name: 'Utensils',   sort_order: 10 }, // Dietas de estudio, alojamiento durante grabación
+  { name: 'Contingencia',            icon_name: 'Calculator', sort_order: 11 }, // Fondo de reserva (~10-15% del total)
 ];
 
-// Default categories for promotional campaign budgets
+// Default categories for promotional campaign budgets (alineado con B3 — Tipos de Promoción)
 const CAMPAIGN_DEFAULT_CATEGORIES = [
-  { name: 'Meta Ads (IG + FB)',      icon_name: 'DollarSign', sort_order: 0 },
-  { name: 'TikTok Ads',              icon_name: 'DollarSign', sort_order: 1 },
-  { name: 'Google Ads',              icon_name: 'DollarSign', sort_order: 2 },
-  { name: 'Spotify (Marquee/Promo)', icon_name: 'Music',      sort_order: 3 },
-  { name: 'Prensa y PR',             icon_name: 'FileText',   sort_order: 4 },
-  { name: 'Contenido y Creatividad', icon_name: 'FileText',   sort_order: 5 },
-  { name: 'Distribución',            icon_name: 'CreditCard', sort_order: 6 },
+  { name: 'Meta Ads (IG + FB)',      icon_name: 'DollarSign', sort_order: 0 }, // 4 sem antes, 200-500€ por show/lanzamiento
+  { name: 'TikTok Ads',              icon_name: 'DollarSign', sort_order: 1 }, // 2-3 sem antes, 100-300€
+  { name: 'Google Ads',              icon_name: 'DollarSign', sort_order: 2 }, // 3-6 sem antes, búsquedas [artista] concierto
+  { name: 'Spotify (Marquee/Promo)', icon_name: 'Music',      sort_order: 3 }, // Mínimo 250€, semana del show/release
+  { name: 'Prensa y PR',             icon_name: 'FileText',   sort_order: 4 }, // Publicista, medios, blogs, radio local
+  { name: 'Contenido y Creatividad', icon_name: 'FileText',   sort_order: 5 }, // Diseño, teasers, behind the scenes, fotos
+  { name: 'Plataformas de eventos',  icon_name: 'CreditCard', sort_order: 6 }, // Songkick, Bandsintown, ticketeras
+  { name: 'Newsletter y Email',      icon_name: 'FileText',   sort_order: 7 }, // Email a lista de fans (muy alta conversión)
+  { name: 'Varios',                  icon_name: 'Calculator', sort_order: 8 }, // Cartelería, imprenta, otros
 ];
 
-// Default categories for videoclip budgets
+// Default categories for videoclip budgets (alineado con producción audiovisual profesional)
 const VIDEOCLIP_DEFAULT_CATEGORIES = [
-  { name: 'Dirección y Producción', icon_name: 'FileText',   sort_order: 0 },
-  { name: 'Equipo técnico',         icon_name: 'Lightbulb',  sort_order: 1 },
-  { name: 'Localizaciones',         icon_name: 'Car',        sort_order: 2 },
-  { name: 'Vestuario y Arte',       icon_name: 'FileText',   sort_order: 3 },
-  { name: 'Postproducción',         icon_name: 'Settings',   sort_order: 4 },
-  { name: 'Catering',               icon_name: 'Utensils',   sort_order: 5 },
-  { name: 'Varios',                 icon_name: 'Calculator', sort_order: 6 },
+  { name: 'Dirección y Producción',  icon_name: 'FileText',   sort_order: 0 }, // Director, productor ejecutivo, guión
+  { name: 'Equipo de Cámara',        icon_name: 'Lightbulb',  sort_order: 1 }, // DP, cámaras, steadicam, dron
+  { name: 'Equipo de Luz y Arte',    icon_name: 'Lightbulb',  sort_order: 2 }, // Gaffer, electricistas, dirección de arte
+  { name: 'Localizaciones',          icon_name: 'Car',        sort_order: 3 }, // Permisos, alquiler de espacios, transporte a localización
+  { name: 'Vestuario y Maquillaje',  icon_name: 'FileText',   sort_order: 4 }, // Estilismo, peluquería, maquillaje
+  { name: 'Actores y Figurantes',    icon_name: 'Users',      sort_order: 5 }, // Casting, cachés de actores/bailarines
+  { name: 'Postproducción',          icon_name: 'Settings',   sort_order: 6 }, // Montaje, color grading, VFX, motion graphics
+  { name: 'Catering',                icon_name: 'Utensils',   sort_order: 7 }, // Comida y bebida para el rodaje
+  { name: 'Transporte y Logística',  icon_name: 'Car',        sort_order: 8 }, // Furgonetas, grúas, alquiler de material
+  { name: 'Varios',                  icon_name: 'Calculator', sort_order: 9 }, // Imprevistos y gastos menores
 ];
 
 // Helper functions for billing status mapping
@@ -527,9 +534,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       setBudgetData(prev => ({ ...prev, fee: budgetAmount }));
       onUpdate();
       
+      const fieldLabel = budget.type === 'concierto' ? 'Caché' : budget.type === 'produccion_musical' ? 'Capital Aportado' : 'Capital';
       toast({
         title: "¡Éxito!",
-        description: `Caché actualizado${commissionItems.length > 0 ? ` y ${commissionItems.length} comisiones recalculadas` : ''}`
+        description: `${fieldLabel} actualizado${commissionItems.length > 0 ? ` y ${commissionItems.length} comisiones recalculadas` : ''}`
       });
     } catch (error) {
       console.error('Error updating budget amount:', error);
@@ -2849,12 +2857,26 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                         </div>
 
                         <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
-                          <div className="text-xs font-semibold text-amber-400 uppercase tracking-wide mb-1">
-                            {isProduccion ? 'AVANCE PAGADO' : 'PRESUPUESTO PLANIF.'}
+                          <div className="flex items-center gap-0.5">
+                            <div className="text-xs font-semibold text-amber-400 uppercase tracking-wide mb-1">
+                              {isProduccion ? 'AVANCE PAGADO' : 'PRESUPUESTO PLANIF.'}
+                            </div>
+                            {isProduccion && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-help text-amber-400/70 hover:text-amber-400 text-[9px] mb-1 ml-0.5">ℹ</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="bottom" className="max-w-[240px] text-xs">
+                                    Pago inicial que recibe el artista/productor al comenzar el proyecto, antes de que existan facturas reales. Se descuenta del capital aportado cuando llegan las liquidaciones.
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                           </div>
                           <div className="text-xl font-bold text-amber-400">€{campo2.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
                           <div className="text-[9px] text-amber-400/70 mt-0.5">
-                            {isProduccion ? 'Pago inicial al artista' : 'Gastos planificados'}
+                            {isProduccion ? 'Anticipo al artista/productor' : 'Gastos planificados'}
                           </div>
                         </div>
 
