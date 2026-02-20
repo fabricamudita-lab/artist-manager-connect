@@ -1,157 +1,226 @@
 
-# Optimización y complemento del módulo Proyectos
+# Reorganización funcional de la navegación (AppSidebar)
 
-## Qué existe actualmente y qué se mejora
+## Diagnóstico del problema actual
 
-El `ProjectDetail.tsx` ya tiene: hero con nombre/estado/fechas, barra de progreso del checklist, `ProjectChecklistManager` (vista lista + flujo Kanban + secciones PREPARATIVOS/PRODUCCIÓN/CIERRE), y tabs de Presupuestos, Documentos, Contratos, Solicitudes, Aprobaciones, Notas. **No se elimina nada.**
+El sidebar tiene 4 grupos arbitrarios: **Principal** (Dashboard, Artistas, Drive, Calendario, Action Center, Finanzas), **Gestión** (Booking, Sincros, Roadmaps, Proyectos, Discografía), **Herramientas** (Correo, Chat, Documentos, EPKs, Analytics), **Administración** (Equipos, Contactos, Mi Perfil, Ajustes).
 
-El prototipo propone 4 mejoras complementarias:
+Los problemas concretos:
+- "Finanzas" en Principal cuando es una herramienta operativa
+- "Action Center" es un anglicismo que no comunica qué hace el módulo
+- "Principal" y "Gestión" no son conceptos del mundo de la gestión artística
+- El usuario debe deducir qué hay detrás de cada grupo
 
----
+## Nueva estructura de grupos propuesta
 
-## Mejora 1: Tab "Vista General" como primera pestaña (Overview enriquecido)
-
-Actualmente la primera tab es "Proyectos" (gestor de archivos). El prototipo propone una tab de resumen ejecutivo que actúa como el **dashboard del proyecto**.
-
-Se añade una nueva pestaña "Vista General" como primera en el `TabsList`, con tres secciones:
-
-### 1a. Misión y "Por qué existe" (si los campos existen en el proyecto)
-
-Dos cards lado a lado:
-- Verde: "Objetivo / Misión" — usa el campo `objective` ya existente
-- Azul: "Por qué existe" — usa el campo `description` ya existente (actualmente se muestra solo en la card de Detalles del Proyecto, sin contexto visual)
-
-Estos campos ya se persisten en la base de datos y se cargan en el estado `project`.
-
-### 1b. 4 KPIs calculados dinámicamente
-
-```
-┌────────────┐ ┌──────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-│ Checklist  │ │ Presupuestos     │ │ Solicitudes      │ │ Contratos        │
-│ X/Y tareas │ │ N vinculados     │ │ N vinculadas     │ │ N vinculados     │
-│ Z% completd│ │ ver pestaña →    │ │ ver pestaña →    │ │ ver pestaña →    │
-└────────────┘ └──────────────────┘ └─────────────────┘ └─────────────────┘
-```
-
-Los datos (`budgets.length`, `contracts.length`, `solicitudes.length`) ya están en el estado del componente — solo hay que mostrarlos.
-
-### 1c. Cards de entidades vinculadas
-
-Sección "Entidades vinculadas al proyecto" con cards para:
-- **Booking** (presupuestos de tipo booking ya vinculados al proyecto via `project_id`)
-- **Solicitudes** (ya se cargan desde `solicitudes` state)
-- **Documentos** (ya se cargan desde `documents` state)
-
-Cada card muestra los primeros 3-4 items con su estado y un enlace "Ver en [módulo] →" (link de navegación).
-
----
-
-## Mejora 2: Header del proyecto — Team avatars apilados + botón "Vincular entidad"
-
-El header actual muestra artista, fecha inicio, fecha fin. No muestra el equipo.
-
-Se añaden al final del header:
-- **Avatars apilados del equipo** (los primeros 3, con +N si hay más) — datos ya disponibles en `team` state
-- **Botón "+ Vincular entidad"** en verde junto al botón "Crear nuevo" — al hacer clic abre un dropdown con: "Booking existente", "Release existente", "Solicitud existente"
-
-El botón de vincular abre el `AssociateProjectDialog` ya existente en el codebase.
-
----
-
-## Mejora 3: Cronograma como nueva tab (Gantt visual)
-
-Se añade una tab "Cronograma" entre "Checklist" y "Presupuestos" en el `TabsList`.
-
-El contenido es un **Gantt simplificado** que agrega en una línea de tiempo unificada:
-- Fechas de los `budgets` vinculados al proyecto (shows con `event_date`)
-- Fechas de las `solicitudes` vinculadas
-
-La implementación usa un grid CSS con columnas de meses, similar al prototipo pero en escala de días/semanas calculada a partir de `start_date` y `end_date_estimada` del proyecto. Es puramente visual — datos ya disponibles en los states existentes.
-
-**Layout de cada fila:**
-```
-[Nombre entidad 220px] | [barra coloreada según tipo y duración]
+```text
+┌─────────────────────────────────┐
+│  INICIO                         │
+│  · Dashboard                    │
+├─────────────────────────────────┤
+│  ARTISTAS                       │
+│  · Mis Artistas (/mi-management)│
+│  · Proyectos (/proyectos)       │
+│  · Discografía (/releases)      │
+├─────────────────────────────────┤
+│  OPERACIONES  (solo management) │
+│  · Booking (/booking)       [N] │ ← badge opcional
+│  · Sincronizaciones             │
+│  · Hojas de Ruta                │
+├─────────────────────────────────┤
+│  DINERO                         │
+│  · Finanzas (/finanzas)         │
+│  · Presupuestos (/budgets)      │
+│  · Analytics (/analytics)       │
+├─────────────────────────────────┤
+│  ARCHIVOS                       │
+│  · Drive (/drive)               │
+│  · Documentos (/documents)      │
+├─────────────────────────────────┤
+│  COMUNICACIÓN                   │
+│  · Solicitudes (/solicitudes)[N]│ ← badge obligatorio
+│  · Correo (/correo)             │
+│  · Chat (/chat)                 │
+├─────────────────────────────────┤
+│  ADMINISTRACIÓN (solo mgmt)     │
+│  · Equipos                      │
+│  · Contactos                    │
+│  · EPKs                         │
+│  · Calendario                   │
+│  · Mi Perfil                    │
+│  · Ajustes                      │
+└─────────────────────────────────┘
 ```
 
-Los tipos/colores:
-- Booking (presupuesto vinculado) → verde `bg-green-500`
-- Solicitud → azul `bg-blue-500`
-- Contrato → naranja `bg-amber-500`
+**Cambios de nombre clave:**
+- "Action Center" → **"Solicitudes"** (ya es el nombre de la ruta `/solicitudes`, solo se alinea el label)
+- "Artistas" → **"Mis Artistas"** (más específico)
+- El grupo "Principal" desaparece — Dashboard queda solo en INICIO
+- "Drive" queda en ARCHIVOS junto a Documentos (relación lógica)
+- Calendario pasa a ADMINISTRACIÓN (herramienta de soporte, no operativa)
 
----
+## Sobre los badges de conteo — Mi análisis honesto
 
-## Mejora 4: Checklist — añadir vista "Cronograma" como tercera opción
+**La pregunta es válida y la respuesta es: sí, pero con criterio estricto.**
 
-El `ProjectChecklistManager` ya tiene `viewMode: 'list' | 'flow'`. Se añade `'cronograma'` como tercera opción que muestra las tareas con fecha de vencimiento en una vista de timeline semanal ordenada por `completed_at` / fecha estimada.
+Los badges son útiles únicamente cuando:
+1. El dato es **accionable de inmediato** desde ese módulo
+2. El número cambia con suficiente frecuencia para justificar la carga
+3. El badge no se vuelve ruido de fondo que el usuario ignora (efecto "notification blindness")
 
----
+**Recomendación para esta implementación:**
 
-## Cambios técnicos concretos — solo `src/pages/ProjectDetail.tsx`
+| Item | Badge | Razón |
+|---|---|---|
+| Solicitudes | ✅ Siempre | El módulo entero es "cosas pendientes de tu acción". El badge es su razón de existir. |
+| Booking | ⚠️ Solo si hay > 0 negociaciones activas | Útil para management. Se obtiene de `action_center` ya cargado. |
+| Finanzas | ❌ No por ahora | "Facturas pendientes" requeriría otra query que hoy no existe. Añadir deuda de performance. |
+| Correo | ❌ No | El correo es mock data — badge engañoso. |
 
-No se modifica `ProjectChecklistManager`, no se crean nuevos componentes, no se cambia la base de datos.
+**Implementación técnica del badge:**
+El hook `useActionCenter` ya expone `stats.pending` (count de items `status === 'pending'`). Este dato se puede usar en el sidebar sin query adicional. Se usará específicamente para el badge de **Solicitudes**.
 
-### Cambio 1: Nueva tab "Vista General" como primera opción
+Para Booking, se puede mostrar el conteo de items `item_type === 'booking_request'` con `status === 'pending'` del mismo hook — un filtro sobre datos ya en memoria, sin query extra.
 
-Modificar el `TabsList` (líneas 1115-1155) de:
+## Implementación técnica
+
+### Solo se modifica `src/components/AppSidebar.tsx`
+
+**Cambio 1: Nueva estructura de grupos**
+
+Reemplazar la función `getNavigationItems` con grupos semánticamente correctos:
+
+```ts
+const navigationGroups = [
+  {
+    label: null, // sin label — solo Dashboard
+    items: [
+      { title: "Dashboard", url: "/dashboard", icon: Home },
+    ]
+  },
+  {
+    label: "Artistas",
+    items: [
+      { title: "Mis Artistas", url: "/mi-management", icon: Music },
+      { title: "Proyectos", url: "/proyectos", icon: FolderKanban },
+      { title: "Discografía", url: "/releases", icon: Disc3 },
+    ]
+  },
+  {
+    label: "Operaciones",
+    managementOnly: true,
+    items: [
+      { title: "Booking", url: "/booking", icon: Mic, badge: 'booking' },
+      { title: "Sincronizaciones", url: "/sincronizaciones", icon: Film },
+      { title: "Hojas de Ruta", url: "/roadmaps", icon: Map },
+    ]
+  },
+  {
+    label: "Dinero",
+    items: [
+      { title: "Finanzas", url: "/finanzas", icon: Wallet },
+      { title: "Presupuestos", url: "/budgets", icon: Calculator },
+    ],
+    managementExtra: [
+      { title: "Analytics", url: "/analytics", icon: BarChart },
+    ]
+  },
+  {
+    label: "Archivos",
+    items: [
+      { title: "Drive", url: "/drive", icon: HardDrive },
+      { title: "Documentos", url: "/documents", icon: FileText },
+    ]
+  },
+  {
+    label: "Comunicación",
+    items: [
+      { title: "Solicitudes", url: "/solicitudes", icon: Bell, badge: 'pending' },
+      { title: "Correo", url: "/correo", icon: Mail },
+      { title: "Chat", url: "/chat", icon: MessageCircle },
+    ]
+  },
+  {
+    label: "Administración",
+    managementOnly: true,
+    items: [
+      { title: "Equipos", url: "/teams", icon: UsersRound },
+      { title: "Contactos", url: "/agenda", icon: Users },
+      { title: "EPKs", url: "/epks", icon: FileImage },
+      { title: "Calendario", url: "/calendar", icon: Calendar },
+      { title: "Mi Perfil", url: "/contacts", icon: User },
+      { title: "Ajustes", url: "/settings", icon: Settings },
+    ]
+  },
+]
 ```
-grid-cols-7: Proyectos | Presupuestos | Documentos | Contratos | Solicitudes | Aprobaciones | Notas
-```
-A:
-```
-grid-cols-8: Vista General | Proyectos | Presupuestos | Documentos | Contratos | Solicitudes | Aprobaciones | Notas
-```
 
-Y añadir `defaultValue="vista-general"` al componente `Tabs`.
+**Cambio 2: Badge de Solicitudes (pendientes)**
 
-Nueva `TabsContent value="vista-general"` con:
-- Misión + Por qué (cards verde/azul usando `project.objective` y `project.description`)
-- 4 KPI cards (checklist progress, budgets.length, solicitudes.length, contracts.length)
-- Lista de entidades vinculadas (budgets como shows, solicitudes)
+El sidebar importa `useActionCenter` con filtro mínimo (`status: ['pending', 'in_review']`) para obtener el `stats.pending`. Este dato alimenta el badge rojo sobre "Solicitudes" y el badge de "Booking" si hay booking requests pendientes.
 
-### Cambio 2: Añadir team avatars al hero section
+El badge solo se renderiza si `count > 0` — nunca se muestra un "0" que es ruido.
 
-En el hero (línea 921-986), añadir después de los datos de fecha/artista:
 ```tsx
-{team.length > 0 && (
-  <div className="flex items-center gap-1 mt-2">
-    {team.slice(0, 4).map((member, i) => (
-      <Avatar key={member.id} className="w-7 h-7 border-2 border-background" style={{ marginLeft: i > 0 ? -8 : 0 }}>
-        <AvatarFallback className="text-xs bg-primary/20">
-          {member.full_name.split(' ').map(n => n[0]).join('').slice(0,2)}
-        </AvatarFallback>
-      </Avatar>
-    ))}
-    {team.length > 4 && (
-      <span className="text-xs text-muted-foreground ml-2">+{team.length - 4} más</span>
-    )}
-  </div>
+// En el renderNavItem, si el item tiene badge:
+{badge && pendingCount > 0 && !isCollapsed && (
+  <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center 
+    rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
+    {pendingCount > 99 ? '99+' : pendingCount}
+  </span>
+)}
+// En collapsed, dot indicator:
+{badge && pendingCount > 0 && isCollapsed && (
+  <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-destructive" />
 )}
 ```
 
-### Cambio 3: Nueva tab "Cronograma" en ProjectDetail
+**Cambio 3: Presupuestos añadido al grupo Dinero**
 
-Añadir `TabsTrigger value="cronograma"` y su `TabsContent` correspondiente con el Gantt calculado a partir de los datos ya disponibles.
+`/budgets` actualmente no aparece en el sidebar — solo se llega desde el Dashboard o por URL directa. Al moverlo a grupo "Dinero" junto a Finanzas, se hace accesible y lógicamente agrupado.
 
-La función `renderCronograma()` calcula el rango de meses entre `project.start_date` y `project.end_date_estimada`, y ubica cada entidad (booking, solicitud) en ese grid según sus fechas.
+**Cambio 4: collapsed mode — separadores entre grupos**
 
----
+En modo colapsado (icono only), los grupos se separan con un `<Separator />` de 1px para mantener la agrupación visual incluso sin labels de texto.
 
-## Resultado final de las tabs
+## Resultado visual esperado
 
+```text
+EXPANDIDO                           COLAPSADO
+┌────────────────────────────┐      ┌──────┐
+│ 🏠 Dashboard               │      │  🏠  │
+│                            │      │──────│
+│ ARTISTAS                   │      │  🎵  │
+│ 🎵 Mis Artistas            │      │  📁  │
+│ 📁 Proyectos               │      │  💿  │
+│ 💿 Discografía             │      │──────│
+│                            │      │  🎤  │
+│ OPERACIONES                │      │  🎬  │
+│ 🎤 Booking                 │      │  🗺  │
+│ 🎬 Sincronizaciones        │      │──────│
+│ 🗺 Hojas de Ruta           │      │  💰  │
+│                            │      │  🧮  │
+│ DINERO                     │      │──────│
+│ 💰 Finanzas                │      │  💾  │
+│ 🧮 Presupuestos            │      │  📄  │
+│                            │      │──────│
+│ ARCHIVOS                   │      │  🔔 ③│ ← dot rojo
+│ 💾 Drive                   │      │  📧  │
+│ 📄 Documentos              │      │  💬  │
+│                            │      └──────┘
+│ COMUNICACIÓN               │
+│ 🔔 Solicitudes         [3] │ ← badge rojo
+│ 📧 Correo                  │
+│ 💬 Chat                    │
+└────────────────────────────┘
 ```
-[Vista General] [Proyectos] [Checklist] [Cronograma] [Presupuestos] [Documentos] [Contratos] [Solicitudes] [Aprobaciones] [Notas]
-```
-
-La tab "Checklist" se extrae del interior de "Proyectos" y se hace independiente para mayor visibilidad (actualmente el checklist está fuera de las tabs como `ProjectChecklistManager` standalone — esto se mantiene igual, y el Cronograma se añade como tab independiente).
-
----
 
 ## Archivos afectados
 
-| Archivo | Sección | Cambio |
-|---|---|---|
-| `src/pages/ProjectDetail.tsx` | TabsList (líneas 1112-1155) | Añadir tab "Vista General" como primera, añadir tab "Cronograma" |
-| `src/pages/ProjectDetail.tsx` | Hero section (líneas 921-986) | Añadir team avatars apilados |
-| `src/pages/ProjectDetail.tsx` | Nuevas TabsContent | Vista General con KPIs + Cronograma Gantt |
+| Archivo | Cambio |
+|---|---|
+| `src/components/AppSidebar.tsx` | Reorganización completa de grupos + renombrado + badges |
 
-**Sin tocar:** `ProjectChecklistManager`, `ProjectFilesManager`, `ApprovalsModule`, base de datos, rutas, hooks existentes. Todo se basa en datos ya cargados en el state del componente.
+**Sin tocar:** rutas, hooks, páginas, base de datos, `DashboardLayout`. Cambio puramente de presentación/navegación.
+
+**Sin queries adicionales:** El badge usa `useActionCenter` con el estado en memoria existente.
