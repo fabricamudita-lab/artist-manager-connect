@@ -61,7 +61,7 @@ import {
   Home,
   Folder,
 } from "lucide-react";
-import { MessageSquare, Activity, Send, Share2 } from "lucide-react";
+import { MessageSquare, Activity, Send, Share2, BarChart2, TrendingUp } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -919,9 +919,9 @@ export default function ProjectDetail() {
       
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-primary/5 via-primary/10 to-transparent rounded-lg border p-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-3 flex-1 min-w-0">
+            <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl font-bold">{project.name}</h1>
               <Badge variant={getStatusVariant(project.status)} className="gap-1">
                 {getProjectStatusIcon(project.status)}
@@ -929,7 +929,7 @@ export default function ProjectDetail() {
               </Badge>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl">
+            <div className="flex flex-wrap gap-4 items-center">
               {project.artist_name && (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <User className="w-4 h-4" />
@@ -949,41 +949,96 @@ export default function ProjectDetail() {
                 </div>
               )}
             </div>
+
+            {/* Team avatars stacked */}
+            {team.length > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center">
+                  {team.slice(0, 4).map((member, i) => (
+                    <TooltipProvider key={member.id}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Avatar
+                            className="w-7 h-7 border-2 border-background cursor-default"
+                            style={{ marginLeft: i > 0 ? -8 : 0, zIndex: 10 - i }}
+                          >
+                            <AvatarFallback className="text-xs bg-primary/20 text-primary font-semibold">
+                              {member.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">{member.full_name}</p>
+                          {member.role && <p className="text-xs text-muted-foreground">{member.role}</p>}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ))}
+                </div>
+                {team.length > 4 && (
+                  <span className="text-xs text-muted-foreground ml-1">+{team.length - 4} más</span>
+                )}
+                <span className="text-xs text-muted-foreground">· {team.length} miembro{team.length !== 1 ? 's' : ''} en el equipo</span>
+              </div>
+            )}
           </div>
           
-          {renderIf(permissions.canEdit, (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Crear nuevo
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => setOpenBudget(true)}>
-                  <FileText className="w-4 h-4 mr-2" />
-                  Presupuesto
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setOpenSolicitud(true)}>
-                  <CalendarDays className="w-4 h-4 mr-2" />
-                  Solicitud
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Contrato (PDF)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ))}
-          
-          {renderIf(permissions.canEdit, (
-            <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleUploadContract(f);
-            }} />
-          ))}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {renderIf(permissions.canEdit, (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+                    <Link className="w-4 h-4 mr-2" />
+                    Vincular entidad
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuItem onClick={() => setOpenSolicitud(true)}>
+                    <CalendarDays className="w-4 h-4 mr-2" />
+                    Crear solicitud vinculada
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setOpenBudget(true)}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Crear presupuesto vinculado
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ))}
+
+            {renderIf(permissions.canEdit, (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Crear nuevo
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setOpenBudget(true)}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Presupuesto
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setOpenSolicitud(true)}>
+                    <CalendarDays className="w-4 h-4 mr-2" />
+                    Solicitud
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Contrato (PDF)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ))}
+          </div>
         </div>
       </div>
+          
+      {renderIf(permissions.canEdit, (
+        <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleUploadContract(f);
+        }} />
+      ))}
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1109,12 +1164,18 @@ export default function ProjectDetail() {
 
       {/* Content Tabs */}
       <Card>
-        <Tabs defaultValue="presupuestos" className="w-full">
+        <Tabs defaultValue="vista-general" className="w-full">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between w-full">
-              <TabsList className="grid grid-cols-7 flex-1">
+              <TabsList className="grid grid-cols-9 flex-1">
+                <TabsTrigger value="vista-general" className="text-xs sm:text-sm">
+                  Vista General
+                </TabsTrigger>
                 <TabsTrigger value="proyectos" className="text-xs sm:text-sm">
-                  Proyectos
+                  Archivos
+                </TabsTrigger>
+                <TabsTrigger value="cronograma" className="text-xs sm:text-sm">
+                  Cronograma
                 </TabsTrigger>
                 <TabsTrigger value="presupuestos" className="text-xs sm:text-sm">
                   Presupuestos
@@ -1161,6 +1222,316 @@ export default function ProjectDetail() {
           </CardHeader>
 
           <CardContent className="pt-0">
+            {/* ── VISTA GENERAL ─────────────────────────────────────────── */}
+            <TabsContent value="vista-general" className="mt-0 space-y-6">
+              {/* Misión + Por qué */}
+              {(project.objective || project.description) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {project.objective && (
+                    <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900 p-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Target className="w-4 h-4 text-green-700 dark:text-green-400" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-green-700 dark:text-green-400">Misión del proyecto</span>
+                      </div>
+                      <p className="text-sm leading-relaxed text-foreground">{project.objective}</p>
+                    </div>
+                  )}
+                  {project.description && project.description !== project.objective && (
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900 p-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <MessageSquare className="w-4 h-4 text-blue-700 dark:text-blue-400" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">Por qué existe</span>
+                      </div>
+                      <p className="text-sm leading-relaxed text-foreground">{project.description}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* KPIs */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {(() => {
+                  const allChecklistItems = tasks;
+                  const completedItems = allChecklistItems.filter(t => t.estado === 'completada').length;
+                  const totalItems = allChecklistItems.length;
+                  const pct = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+                  return (
+                    <div className="rounded-lg border bg-card p-4 space-y-1 cursor-pointer hover:shadow-md transition-shadow" onClick={() => {}}>
+                      <div className="text-2xl font-bold text-primary">{pct}%</div>
+                      <div className="text-sm font-semibold text-foreground">Checklist</div>
+                      <div className="text-xs text-muted-foreground">{completedItems}/{totalItems} tareas completadas</div>
+                    </div>
+                  );
+                })()}
+                <div className="rounded-lg border bg-card p-4 space-y-1 hover:shadow-md transition-shadow">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{budgets.length}</div>
+                  <div className="text-sm font-semibold text-foreground">Presupuestos</div>
+                  <div className="text-xs text-muted-foreground">vinculados al proyecto</div>
+                </div>
+                <div className="rounded-lg border bg-card p-4 space-y-1 hover:shadow-md transition-shadow">
+                  <div className="text-2xl font-bold text-violet-600 dark:text-violet-400">{solicitudes.length}</div>
+                  <div className="text-sm font-semibold text-foreground">Solicitudes</div>
+                  <div className="text-xs text-muted-foreground">vinculadas al proyecto</div>
+                </div>
+                <div className="rounded-lg border bg-card p-4 space-y-1 hover:shadow-md transition-shadow">
+                  <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{contracts.length}</div>
+                  <div className="text-sm font-semibold text-foreground">Contratos</div>
+                  <div className="text-xs text-muted-foreground">vinculados al proyecto</div>
+                </div>
+              </div>
+
+              {/* Entidades vinculadas */}
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Entidades vinculadas</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Shows / Presupuestos */}
+                  <div className="rounded-lg border bg-card p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <BarChart2 className="w-4 h-4 text-green-600" />
+                        Shows (Booking)
+                      </span>
+                      <Badge variant="secondary" className="text-xs">{budgets.length}</Badge>
+                    </div>
+                    {budgets.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-2">No hay presupuestos vinculados</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {budgets.slice(0, 4).map((b) => (
+                          <div key={b.id} className="flex items-center justify-between py-1.5 border-b border-border/50 last:border-0">
+                            <div>
+                              <p className="text-xs font-medium text-foreground">{b.name}</p>
+                              {b.event_date && <p className="text-xs text-muted-foreground">{new Date(b.event_date).toLocaleDateString('es-ES')}</p>}
+                            </div>
+                            {b.show_status && <Badge variant="outline" className="text-xs h-5">{b.show_status}</Badge>}
+                          </div>
+                        ))}
+                        {budgets.length > 4 && (
+                          <p className="text-xs text-muted-foreground pt-1">+{budgets.length - 4} más → ver en Presupuestos</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Solicitudes */}
+                  <div className="rounded-lg border bg-card p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <CalendarDays className="w-4 h-4 text-blue-600" />
+                        Solicitudes
+                      </span>
+                      <Badge variant="secondary" className="text-xs">{solicitudes.length}</Badge>
+                    </div>
+                    {solicitudes.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-2">No hay solicitudes vinculadas</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {solicitudes.slice(0, 4).map((s) => (
+                          <div key={s.id} className="flex items-center justify-between py-1.5 border-b border-border/50 last:border-0">
+                            <div>
+                              <p className="text-xs font-medium text-foreground">{s.nombre_solicitante || 'Solicitud'}</p>
+                              {s.fecha_creacion && <p className="text-xs text-muted-foreground">{new Date(s.fecha_creacion).toLocaleDateString('es-ES')}</p>}
+                            </div>
+                            <Badge variant="outline" className="text-xs h-5">{s.estado}</Badge>
+                          </div>
+                        ))}
+                        {solicitudes.length > 4 && (
+                          <p className="text-xs text-muted-foreground pt-1">+{solicitudes.length - 4} más → ver en Solicitudes</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Documentos */}
+                  <div className="rounded-lg border bg-card p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Paperclip className="w-4 h-4 text-amber-600" />
+                        Documentos
+                      </span>
+                      <Badge variant="secondary" className="text-xs">{documents.length}</Badge>
+                    </div>
+                    {documents.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-2">No hay documentos adjuntos</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {documents.slice(0, 4).map((d) => (
+                          <div key={d.id} className="flex items-center justify-between py-1.5 border-b border-border/50 last:border-0">
+                            <p className="text-xs font-medium text-foreground truncate">{d.title}</p>
+                            <Badge variant="outline" className="text-xs h-5 ml-2">{d.category}</Badge>
+                          </div>
+                        ))}
+                        {documents.length > 4 && (
+                          <p className="text-xs text-muted-foreground pt-1">+{documents.length - 4} más → ver en Documentos</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Contratos */}
+                  <div className="rounded-lg border bg-card p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-violet-600" />
+                        Contratos
+                      </span>
+                      <Badge variant="secondary" className="text-xs">{contracts.length}</Badge>
+                    </div>
+                    {contracts.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-2">No hay contratos vinculados</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {contracts.slice(0, 4).map((c) => (
+                          <div key={c.id} className="flex items-center justify-between py-1.5 border-b border-border/50 last:border-0">
+                            <p className="text-xs font-medium text-foreground truncate">{c.title || c.file_name}</p>
+                            <Badge variant="outline" className="text-xs h-5 ml-2 capitalize">{c.status}</Badge>
+                          </div>
+                        ))}
+                        {contracts.length > 4 && (
+                          <p className="text-xs text-muted-foreground pt-1">+{contracts.length - 4} más → ver en Contratos</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ── CRONOGRAMA GANTT ──────────────────────────────────────── */}
+            <TabsContent value="cronograma" className="mt-0">
+              {(() => {
+                // Build timeline from project dates
+                const startDate = project.start_date ? new Date(project.start_date) : null;
+                const endDate = project.end_date_estimada ? new Date(project.end_date_estimada) : null;
+
+                if (!startDate || !endDate) {
+                  return (
+                    <div className="text-center py-12">
+                      <TrendingUp className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                      <h3 className="text-lg font-medium mb-2">Sin rango de fechas</h3>
+                      <p className="text-sm text-muted-foreground">Define la fecha de inicio y fin del proyecto para ver el cronograma.</p>
+                    </div>
+                  );
+                }
+
+                // Generate months between start and end
+                const months: { label: string; year: number; month: number }[] = [];
+                const cur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+                const endMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+                while (cur <= endMonth) {
+                  months.push({
+                    label: cur.toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }),
+                    year: cur.getFullYear(),
+                    month: cur.getMonth(),
+                  });
+                  cur.setMonth(cur.getMonth() + 1);
+                }
+
+                const totalMonths = months.length || 1;
+
+                // Helper: get column position for a date (0-indexed month offset from start)
+                const getCol = (dateStr: string | null) => {
+                  if (!dateStr) return null;
+                  const d = new Date(dateStr);
+                  return (d.getFullYear() - startDate.getFullYear()) * 12 + (d.getMonth() - startDate.getMonth());
+                };
+
+                // Build gantt items from budgets and solicitudes
+                const ganttItems: { id: string; label: string; type: 'budget' | 'solicitud'; startCol: number; span: number; status: string }[] = [];
+
+                budgets.forEach((b) => {
+                  const col = getCol(b.event_date);
+                  if (col !== null && col >= 0 && col < totalMonths) {
+                    ganttItems.push({ id: b.id, label: b.name, type: 'budget', startCol: col, span: 1, status: b.show_status || '' });
+                  }
+                });
+
+                solicitudes.forEach((s) => {
+                  const col = getCol(s.fecha_creacion || s.created_at);
+                  if (col !== null && col >= 0 && col < totalMonths) {
+                    ganttItems.push({ id: s.id, label: s.nombre_solicitante || 'Solicitud', type: 'solicitud', startCol: col, span: 1, status: s.estado || '' });
+                  }
+                });
+
+                const typeColors = {
+                  budget: 'bg-green-500',
+                  solicitud: 'bg-blue-500',
+                };
+                const typeLabelMap = { budget: '🎤 Show/Presupuesto', solicitud: '📬 Solicitud' };
+
+                return (
+                  <div className="space-y-4">
+                    {/* Legend */}
+                    <div className="flex gap-4 flex-wrap">
+                      {Object.entries({ budget: '#22c55e', solicitud: '#3b82f6' }).map(([type, color]) => (
+                        <div key={type} className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <div className="w-3 h-3 rounded-sm" style={{ background: color }} />
+                          {typeLabelMap[type as keyof typeof typeLabelMap]}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Gantt grid */}
+                    <div className="overflow-x-auto border rounded-lg">
+                      {/* Header */}
+                      <div
+                        className="grid bg-muted/50 border-b"
+                        style={{ gridTemplateColumns: `200px repeat(${totalMonths}, minmax(64px, 1fr))` }}
+                      >
+                        <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">Entidad</div>
+                        {months.map((m, i) => (
+                          <div key={i} className="px-1 py-2 text-xs font-medium text-muted-foreground text-center border-l border-border/40">
+                            {m.label}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Rows */}
+                      {ganttItems.length === 0 ? (
+                        <div className="text-center py-10 text-sm text-muted-foreground">
+                          No hay presupuestos ni solicitudes con fechas dentro del rango del proyecto.
+                        </div>
+                      ) : (
+                        ganttItems.map((item, idx) => (
+                          <div
+                            key={item.id}
+                            className="grid border-b border-border/30 hover:bg-muted/20 transition-colors"
+                            style={{ gridTemplateColumns: `200px repeat(${totalMonths}, minmax(64px, 1fr))` }}
+                          >
+                            <div className="px-3 py-2 flex flex-col justify-center border-r border-border/30">
+                              <p className="text-xs font-medium text-foreground truncate">{item.label}</p>
+                              <p className="text-xs text-muted-foreground">{typeLabelMap[item.type]}</p>
+                            </div>
+                            {Array.from({ length: totalMonths }).map((_, col) => {
+                              const isStart = col === item.startCol;
+                              const inRange = col >= item.startCol && col < item.startCol + item.span;
+                              const isEnd = col === item.startCol + item.span - 1;
+                              return (
+                                <div key={col} className="relative h-10 border-l border-border/20 flex items-center px-0.5">
+                                  {inRange && (
+                                    <div
+                                      className={`h-5 w-full ${typeColors[item.type]} opacity-80`}
+                                      style={{
+                                        borderRadius: isStart && isEnd ? 6 : isStart ? '6px 0 0 6px' : isEnd ? '0 6px 6px 0' : 0,
+                                      }}
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900 px-4 py-3 text-xs text-amber-800 dark:text-amber-300">
+                      💡 El cronograma muestra los presupuestos (shows) y solicitudes vinculados al proyecto ordenados en el tiempo. Actualiza las fechas en sus módulos originales y aquí se reflejarán automáticamente.
+                    </div>
+                  </div>
+                );
+              })()}
+            </TabsContent>
+
             <TabsContent value="proyectos" className="mt-0">
               <ProjectFilesManager projectId={id || ""} projectName={project.name} />
             </TabsContent>
