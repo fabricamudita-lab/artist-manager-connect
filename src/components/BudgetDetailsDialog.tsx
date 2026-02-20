@@ -269,7 +269,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(new Set());
-  const [showHiddenAccordion, setShowHiddenAccordion] = useState(false);
+  
   const [draggedElement, setDraggedElement] = useState<string | null>(null);
   const [dragOverElement, setDragOverElement] = useState<string | null>(null);
   const [editingItemValues, setEditingItemValues] = useState<Partial<BudgetItem>>({});
@@ -3813,49 +3813,41 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       );
                     })}
 
-                    {/* Hidden categories accordion */}
+                    {/* Hidden categories — always visible, one-click restore */}
                     {hiddenCategories.size > 0 && (
                       <div className="mt-4 border border-dashed border-gray-600 rounded-lg overflow-hidden">
-                        <button
-                          className="w-full bg-gray-900 text-gray-400 px-4 py-3 flex items-center justify-between hover:bg-gray-800 transition-colors text-sm"
-                          onClick={() => setShowHiddenAccordion(prev => !prev)}
-                        >
-                          <div className="flex items-center gap-2">
-                            <EyeOff className="w-4 h-4" />
-                            <span>Categorías ocultas ({hiddenCategories.size})</span>
-                          </div>
-                          <ArrowRightLeft className={`w-4 h-4 rotate-90 transition-transform duration-200 ${showHiddenAccordion ? 'rotate-180' : ''}`} />
-                        </button>
-                        {showHiddenAccordion && (
-                          <div className="bg-gray-950 divide-y divide-gray-800">
-                            {sortCategoriesWithPriority(budgetCategories).filter(c => hiddenCategories.has(c.id)).map(category => {
-                              const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
-                              return (
-                                <div key={category.id} className="flex items-center justify-between px-4 py-3">
-                                  <div className="flex items-center gap-3 text-gray-400">
-                                    <IconComponent className="w-4 h-4" />
-                                    <span className="text-sm font-medium">{category.name}</span>
-                                  </div>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="text-gray-400 hover:text-white hover:bg-white/10 text-xs gap-1"
-                                    onClick={() => {
-                                      setHiddenCategories(prev => {
-                                        const next = new Set(prev);
-                                        next.delete(category.id);
-                                        return next;
-                                      });
-                                    }}
-                                  >
-                                    <Eye className="w-3 h-3" />
-                                    Mostrar
-                                  </Button>
+                        <div className="w-full bg-gray-900 px-4 py-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                          <EyeOff className="w-3.5 h-3.5" />
+                          <span>Categorías ocultas ({hiddenCategories.size})</span>
+                        </div>
+                        <div className="bg-gray-950 divide-y divide-gray-800">
+                          {sortCategoriesWithPriority(budgetCategories).filter(c => hiddenCategories.has(c.id)).map(category => {
+                            const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
+                            return (
+                              <div key={category.id} className="flex items-center justify-between px-4 py-2.5">
+                                <div className="flex items-center gap-3 text-gray-400">
+                                  <IconComponent className="w-4 h-4" />
+                                  <span className="text-sm font-medium">{category.name}</span>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-gray-400 hover:text-white hover:bg-white/10 text-xs gap-1"
+                                  onClick={() => {
+                                    setHiddenCategories(prev => {
+                                      const next = new Set(prev);
+                                      next.delete(category.id);
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  Mostrar
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
