@@ -1,263 +1,157 @@
 
-# FAB Inteligente: Sugerencia automática de categoría por análisis del archivo
+# Optimización y complemento del módulo Proyectos
 
-## El problema actual
+## Qué existe actualmente y qué se mejora
 
-El diálogo actual del FAB pregunta primero la categoría y luego el archivo — el orden inverso a lo natural. El usuario tiene que saber de antemano dónde va el archivo. La imagen de referencia confirma este flujo: primero hay que elegir en un Select, luego seleccionar el archivo.
+El `ProjectDetail.tsx` ya tiene: hero con nombre/estado/fechas, barra de progreso del checklist, `ProjectChecklistManager` (vista lista + flujo Kanban + secciones PREPARATIVOS/PRODUCCIÓN/CIERRE), y tabs de Presupuestos, Documentos, Contratos, Solicitudes, Aprobaciones, Notas. **No se elimina nada.**
 
-## Nueva propuesta: Drag & Drop primero, categoría sugerida después
+El prototipo propone 4 mejoras complementarias:
 
-El flujo se invierte completamente:
+---
 
-```text
-Antes:  [Elegir categoría] → [Seleccionar archivo] → Subir
-Ahora:  [Soltar/Seleccionar archivo] → [IA analiza] → [Categoría sugerida] → Confirmar o cambiar → Subir
+## Mejora 1: Tab "Vista General" como primera pestaña (Overview enriquecido)
+
+Actualmente la primera tab es "Proyectos" (gestor de archivos). El prototipo propone una tab de resumen ejecutivo que actúa como el **dashboard del proyecto**.
+
+Se añade una nueva pestaña "Vista General" como primera en el `TabsList`, con tres secciones:
+
+### 1a. Misión y "Por qué existe" (si los campos existen en el proyecto)
+
+Dos cards lado a lado:
+- Verde: "Objetivo / Misión" — usa el campo `objective` ya existente
+- Azul: "Por qué existe" — usa el campo `description` ya existente (actualmente se muestra solo en la card de Detalles del Proyecto, sin contexto visual)
+
+Estos campos ya se persisten en la base de datos y se cargan en el estado `project`.
+
+### 1b. 4 KPIs calculados dinámicamente
+
+```
+┌────────────┐ ┌──────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│ Checklist  │ │ Presupuestos     │ │ Solicitudes      │ │ Contratos        │
+│ X/Y tareas │ │ N vinculados     │ │ N vinculadas     │ │ N vinculados     │
+│ Z% completd│ │ ver pestaña →    │ │ ver pestaña →    │ │ ver pestaña →    │
+└────────────┘ └──────────────────┘ └─────────────────┘ └─────────────────┘
 ```
 
-## Cómo se detecta la categoría (sin IA externa, solo lógica local)
+Los datos (`budgets.length`, `contracts.length`, `solicitudes.length`) ya están en el estado del componente — solo hay que mostrarlos.
 
-Se implementa una función `detectCategory(file: File): { category: string; reason: string; confidence: 'alta' | 'media' | 'baja' }` que analiza:
+### 1c. Cards de entidades vinculadas
 
-### 1. Por MIME type (máxima fiabilidad)
-| MIME | Categoría sugerida |
-|---|---|
-| `image/*` | IMÁGENES |
-| `audio/*` | AUDIO (stems, masters) |
-| `video/*` | AUDIOVISUALES |
+Sección "Entidades vinculadas al proyecto" con cards para:
+- **Booking** (presupuestos de tipo booking ya vinculados al proyecto via `project_id`)
+- **Solicitudes** (ya se cargan desde `solicitudes` state)
+- **Documentos** (ya se cargan desde `documents` state)
 
-### 2. Por extensión de archivo
-| Extensión | Categoría sugerida |
-|---|---|
-| `.pdf`, `.docx`, `.doc` | CONTRATOS / LEGAL (si el nombre incluye "contrato", "acuerdo", "rider") |
-| `.pdf` genérico | PRENSA o CONTRATOS |
-| `.ai`, `.psd`, `.svg`, `.eps`, `.png` grande | DISEÑO |
-| `.wav`, `.aif`, `.flac`, `.stem` | AUDIO (stems, masters) |
-| `.mp3`, `.ogg` | AUDIO (stems, masters) |
-| `.mp4`, `.mov`, `.avi` | AUDIOVISUALES |
-| `.xlsx`, `.xls`, `.csv` | PRESUPUESTOS Y FACTURAS |
+Cada card muestra los primeros 3-4 items con su estado y un enlace "Ver en [módulo] →" (link de navegación).
 
-### 3. Por palabras clave en el nombre del archivo
-| Palabras en el nombre | Categoría sugerida |
-|---|---|
-| `contrato`, `acuerdo`, `contract`, `legal`, `nda` | CONTRATOS / LEGAL |
-| `rider`, `hospitality`, `hoja de ruta`, `roadmap` | CONCIERTOS |
-| `factura`, `presupuesto`, `invoice`, `budget` | PRESUPUESTOS Y FACTURAS |
-| `prensa`, `press`, `dossier`, `nota de prensa` | PRENSA |
-| `logo`, `arte`, `flyer`, `cartel`, `banner` | DISEÑO |
-| `marketing`, `rrss`, `social`, `campaña` | MARKETING |
-| `merch`, `merchandise`, `tienda` | MERCH |
-| `distribucion`, `upc`, `isrc`, `pitch` | DISTRIBUCIÓN DIGITAL |
-| `stem`, `master`, `mix`, `vocal` | AUDIO (stems, masters) |
-| `nif`, `pasaporte`, `dni`, `passport` | DOCUMENTOS DEL ARTISTA |
-| `clip`, `videoclip`, `making`, `teaser` | AUDIOVISUALES |
-| `foto`, `photo`, `promo`, `portrait` | IMÁGENES |
+---
 
-### 4. Confianza del resultado
-- **Alta**: MIME + nombre coinciden (ej: `contrato_festival.pdf` → CONTRATOS)
-- **Media**: Solo MIME o solo nombre
-- **Baja**: Ningún indicador claro → se muestra sin preselección, pidiendo al usuario que elija
+## Mejora 2: Header del proyecto — Team avatars apilados + botón "Vincular entidad"
 
-## Nuevo diseño del diálogo FAB
+El header actual muestra artista, fecha inicio, fecha fin. No muestra el equipo.
 
-### Estado 1: Zona de drop (estado inicial)
-```text
-┌───────────────────────────────────────────────────────┐
-│  Subir archivo inteligente                            │
-│                                                       │
-│  ┌────────────────────────────────────────────────┐   │
-│  │                                                │   │
-│  │       ↑  Arrastra tu archivo aquí             │   │
-│  │                                               │   │
-│  │    o  [Seleccionar archivo desde disco]       │   │
-│  │                                               │   │
-│  └────────────────────────────────────────────────┘   │
-│                                                       │
-│  [Cancelar]                                           │
-└───────────────────────────────────────────────────────┘
+Se añaden al final del header:
+- **Avatars apilados del equipo** (los primeros 3, con +N si hay más) — datos ya disponibles en `team` state
+- **Botón "+ Vincular entidad"** en verde junto al botón "Crear nuevo" — al hacer clic abre un dropdown con: "Booking existente", "Release existente", "Solicitud existente"
+
+El botón de vincular abre el `AssociateProjectDialog` ya existente en el codebase.
+
+---
+
+## Mejora 3: Cronograma como nueva tab (Gantt visual)
+
+Se añade una tab "Cronograma" entre "Checklist" y "Presupuestos" en el `TabsList`.
+
+El contenido es un **Gantt simplificado** que agrega en una línea de tiempo unificada:
+- Fechas de los `budgets` vinculados al proyecto (shows con `event_date`)
+- Fechas de las `solicitudes` vinculadas
+
+La implementación usa un grid CSS con columnas de meses, similar al prototipo pero en escala de días/semanas calculada a partir de `start_date` y `end_date_estimada` del proyecto. Es puramente visual — datos ya disponibles en los states existentes.
+
+**Layout de cada fila:**
+```
+[Nombre entidad 220px] | [barra coloreada según tipo y duración]
 ```
 
-### Estado 2: Archivo detectado — categoría sugerida
-```text
-┌───────────────────────────────────────────────────────┐
-│  Subir archivo                                        │
-│                                                       │
-│  📄 contrato_festival_mad.pdf  (245 KB)              │
-│                                                       │
-│  Categoría detectada:                                 │
-│  ┌─────────────────────────────────────────────────┐  │
-│  │ ✓  CONTRATOS / LEGAL                           │  │
-│  │    El nombre contiene "contrato" y es un PDF   │  │
-│  │    Confianza: Alta                             │  │
-│  └─────────────────────────────────────────────────┘  │
-│                                                       │
-│  ¿No es correcto? Cambiar:  [Select de categorías]   │
-│                                                       │
-│  [Cancelar]    [Subir a CONTRATOS / LEGAL →]         │
-└───────────────────────────────────────────────────────┘
+Los tipos/colores:
+- Booking (presupuesto vinculado) → verde `bg-green-500`
+- Solicitud → azul `bg-blue-500`
+- Contrato → naranja `bg-amber-500`
+
+---
+
+## Mejora 4: Checklist — añadir vista "Cronograma" como tercera opción
+
+El `ProjectChecklistManager` ya tiene `viewMode: 'list' | 'flow'`. Se añade `'cronograma'` como tercera opción que muestra las tareas con fecha de vencimiento en una vista de timeline semanal ordenada por `completed_at` / fecha estimada.
+
+---
+
+## Cambios técnicos concretos — solo `src/pages/ProjectDetail.tsx`
+
+No se modifica `ProjectChecklistManager`, no se crean nuevos componentes, no se cambia la base de datos.
+
+### Cambio 1: Nueva tab "Vista General" como primera opción
+
+Modificar el `TabsList` (líneas 1115-1155) de:
+```
+grid-cols-7: Proyectos | Presupuestos | Documentos | Contratos | Solicitudes | Aprobaciones | Notas
+```
+A:
+```
+grid-cols-8: Vista General | Proyectos | Presupuestos | Documentos | Contratos | Solicitudes | Aprobaciones | Notas
 ```
 
-### Estado 3 (confianza baja): Sin sugerencia clara
-```text
-│  ⚠️ No pudimos detectar la categoría automáticamente │
-│  Por favor, selecciona dónde quieres guardar este    │
-│  archivo:  [Select de categorías]                     │
+Y añadir `defaultValue="vista-general"` al componente `Tabs`.
+
+Nueva `TabsContent value="vista-general"` con:
+- Misión + Por qué (cards verde/azul usando `project.objective` y `project.description`)
+- 4 KPI cards (checklist progress, budgets.length, solicitudes.length, contracts.length)
+- Lista de entidades vinculadas (budgets como shows, solicitudes)
+
+### Cambio 2: Añadir team avatars al hero section
+
+En el hero (línea 921-986), añadir después de los datos de fecha/artista:
+```tsx
+{team.length > 0 && (
+  <div className="flex items-center gap-1 mt-2">
+    {team.slice(0, 4).map((member, i) => (
+      <Avatar key={member.id} className="w-7 h-7 border-2 border-background" style={{ marginLeft: i > 0 ? -8 : 0 }}>
+        <AvatarFallback className="text-xs bg-primary/20">
+          {member.full_name.split(' ').map(n => n[0]).join('').slice(0,2)}
+        </AvatarFallback>
+      </Avatar>
+    ))}
+    {team.length > 4 && (
+      <span className="text-xs text-muted-foreground ml-2">+{team.length - 4} más</span>
+    )}
+  </div>
+)}
 ```
 
-## Cambios técnicos
+### Cambio 3: Nueva tab "Cronograma" en ProjectDetail
 
-### Archivos afectados: SOLO `src/pages/Carpetas.tsx`
+Añadir `TabsTrigger value="cronograma"` y su `TabsContent` correspondiente con el Gantt calculado a partir de los datos ya disponibles.
 
-No se toca `useArtistFiles.ts`, no se crean edge functions, no hay llamadas externas. Todo el análisis es local en el cliente.
+La función `renderCronograma()` calcula el rango de meses entre `project.start_date` y `project.end_date_estimada`, y ubica cada entidad (booking, solicitud) en ese grid según sus fechas.
 
-### Cambio 1: Nueva función `detectCategory()`
+---
 
-Añadir antes del componente `Carpetas`:
+## Resultado final de las tabs
 
-```ts
-function detectCategory(file: File): { 
-  category: string | null; 
-  reason: string; 
-  confidence: 'alta' | 'media' | 'baja' 
-} {
-  const name = file.name.toLowerCase();
-  const mime = file.type.toLowerCase();
-
-  // MIME-based detection (alta confianza base)
-  if (mime.startsWith('audio/') || name.match(/\.(wav|aif|aiff|flac|stem|stems)$/)) {
-    return { category: 'musica', reason: 'Es un archivo de audio', confidence: 'alta' };
-  }
-  if (mime.startsWith('video/') || name.match(/\.(mp4|mov|avi|mkv|webm)$/)) {
-    // Check if it's a clip/videoclip by name
-    if (name.match(/clip|videoclip|making|teaser|trailer/)) {
-      return { category: 'audiovisuales', reason: 'El nombre sugiere contenido audiovisual', confidence: 'alta' };
-    }
-    return { category: 'audiovisuales', reason: 'Es un archivo de vídeo', confidence: 'alta' };
-  }
-  if (mime.startsWith('image/') || name.match(/\.(jpg|jpeg|png|gif|webp|heic)$/)) {
-    // Distinguish between design and press photos
-    if (name.match(/logo|arte|flyer|cartel|banner|poster|artwork/)) {
-      return { category: 'diseno', reason: 'El nombre sugiere material de diseño', confidence: 'alta' };
-    }
-    if (name.match(/foto|photo|promo|portrait|press|prensa|epk/)) {
-      return { category: 'imagenes', reason: 'El nombre sugiere fotografía de prensa o EPK', confidence: 'alta' };
-    }
-    // .ai, .psd, .svg = design
-    if (name.match(/\.(ai|psd|svg|eps|indd)$/)) {
-      return { category: 'diseno', reason: 'Es un archivo de diseño gráfico', confidence: 'alta' };
-    }
-    return { category: 'imagenes', reason: 'Es una imagen', confidence: 'media' };
-  }
-
-  // Keyword-based for documents
-  if (name.match(/contrato|contract|acuerdo|agreement|nda|legal/)) {
-    return { category: 'contratos', reason: 'El nombre incluye términos legales o contractuales', confidence: 'alta' };
-  }
-  if (name.match(/rider|hospitality|hoja.de.ruta|roadmap|backline/)) {
-    return { category: 'conciertos', reason: 'El nombre sugiere documentos de concierto o rider técnico', confidence: 'alta' };
-  }
-  if (name.match(/factura|invoice|presupuesto|budget|liquidaci/)) {
-    return { category: 'economia', reason: 'El nombre sugiere documento financiero', confidence: 'alta' };
-  }
-  if (name.match(/prensa|press|dossier|nota.de.prensa|press.release/)) {
-    return { category: 'prensa', reason: 'El nombre sugiere material de prensa', confidence: 'alta' };
-  }
-  if (name.match(/marketing|rrss|social|campa|contenido/)) {
-    return { category: 'marketing', reason: 'El nombre sugiere material de marketing', confidence: 'alta' };
-  }
-  if (name.match(/merch|merchandise|tienda|shop/)) {
-    return { category: 'merch', reason: 'El nombre sugiere material de merchandising', confidence: 'alta' };
-  }
-  if (name.match(/distribuci|upc|isrc|pitch|spotify|apple.music/)) {
-    return { category: 'distribucion', reason: 'El nombre sugiere documentos de distribución digital', confidence: 'alta' };
-  }
-  if (name.match(/stem|master|mix|vocal|instrumental|session/)) {
-    return { category: 'musica', reason: 'El nombre sugiere archivo de audio o producción', confidence: 'alta' };
-  }
-  if (name.match(/nif|pasaporte|passport|dni|dni|documento/)) {
-    return { category: 'personal', reason: 'El nombre sugiere documento personal del artista', confidence: 'alta' };
-  }
-
-  // Spreadsheet = finances
-  if (mime.includes('spreadsheet') || name.match(/\.(xlsx|xls|csv|ods)$/)) {
-    return { category: 'economia', reason: 'Es una hoja de cálculo (probablemente financiera)', confidence: 'media' };
-  }
-
-  // Generic PDF — no keyword match
-  if (mime.includes('pdf') || name.endsWith('.pdf')) {
-    return { category: 'contratos', reason: 'Es un PDF (posiblemente un contrato o documento legal)', confidence: 'baja' };
-  }
-
-  return { category: null, reason: 'No se pudo detectar la categoría automáticamente', confidence: 'baja' };
-}
+```
+[Vista General] [Proyectos] [Checklist] [Cronograma] [Presupuestos] [Documentos] [Contratos] [Solicitudes] [Aprobaciones] [Notas]
 ```
 
-### Cambio 2: Nuevo estado para el FAB inteligente
+La tab "Checklist" se extrae del interior de "Proyectos" y se hace independiente para mayor visibilidad (actualmente el checklist está fuera de las tabs como `ProjectChecklistManager` standalone — esto se mantiene igual, y el Cronograma se añade como tab independiente).
 
-Reemplazar:
-```ts
-const [fabCategory, setFabCategory] = useState<string>('');
-```
+---
 
-Por:
-```ts
-const [fabCategory, setFabCategory] = useState<string>('');
-const [fabFile, setFabFile] = useState<File | null>(null);
-const [fabSuggestion, setFabSuggestion] = useState<{ category: string | null; reason: string; confidence: 'alta' | 'media' | 'baja' } | null>(null);
-const [fabDragOver, setFabDragOver] = useState(false);
-```
-
-### Cambio 3: Handlers de drag & drop y detección
-
-```ts
-const handleFABDrop = (e: React.DragEvent) => {
-  e.preventDefault();
-  setFabDragOver(false);
-  const file = e.dataTransfer.files[0];
-  if (file) {
-    const suggestion = detectCategory(file);
-    setFabFile(file);
-    setFabSuggestion(suggestion);
-    setFabCategory(suggestion.category || '');
-  }
-};
-
-const handleFABFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (file) {
-    const suggestion = detectCategory(file);
-    setFabFile(file);
-    setFabSuggestion(suggestion);
-    setFabCategory(suggestion.category || '');
-  }
-};
-
-const handleFABConfirmUpload = async () => {
-  if (!selectedArtist || !fabCategory || !fabFile) return;
-  await uploadFiles([fabFile], selectedArtist.id, fabCategory);
-  setShowFABDialog(false);
-  setFabFile(null);
-  setFabSuggestion(null);
-  setFabCategory('');
-};
-```
-
-### Cambio 4: Nuevo JSX del diálogo FAB
-
-El diálogo ahora tiene dos estados visuales: zona de drop (sin archivo) y confirmación de categoría (con archivo).
-
-El `<input type="file" hidden ref={fabFileRef}>` ya no se necesita para seleccionar el archivo antes de elegir categoría — ahora el input se activa desde la zona de drop (estado 1) y la detección es inmediata.
-
-Al cerrar el diálogo se resetea `fabFile`, `fabSuggestion` y `fabCategory`.
-
-## Archivos modificados
+## Archivos afectados
 
 | Archivo | Sección | Cambio |
 |---|---|---|
-| `src/pages/Carpetas.tsx` | Antes del componente | Nueva función `detectCategory()` |
-| `src/pages/Carpetas.tsx` | Estado (líneas ~155-157) | Añadir `fabFile`, `fabSuggestion`, `fabDragOver` |
-| `src/pages/Carpetas.tsx` | Handlers (líneas ~411-426) | Reemplazar `handleFABFileSelect` + `handleFABUpload` |
-| `src/pages/Carpetas.tsx` | JSX del diálogo (líneas ~555-595) | Reescribir completamente el diálogo FAB |
+| `src/pages/ProjectDetail.tsx` | TabsList (líneas 1112-1155) | Añadir tab "Vista General" como primera, añadir tab "Cronograma" |
+| `src/pages/ProjectDetail.tsx` | Hero section (líneas 921-986) | Añadir team avatars apilados |
+| `src/pages/ProjectDetail.tsx` | Nuevas TabsContent | Vista General con KPIs + Cronograma Gantt |
 
-**Sin tocar**: lógica de upload, `useArtistFiles`, rutas, `FileExplorer`, `ConciertosView`, categorías, archivos recientes. Solo se modifica el diálogo del FAB.
-
-**Sin dependencias externas.** Todo el análisis es local — sin IA externa, sin edge functions, instantáneo.
+**Sin tocar:** `ProjectChecklistManager`, `ProjectFilesManager`, `ApprovalsModule`, base de datos, rutas, hooks existentes. Todo se basa en datos ya cargados en el state del componente.
