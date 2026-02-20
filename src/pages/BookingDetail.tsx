@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, FileText, Plane, Receipt, Edit, ExternalLink, Copy, Share2, Copy as Duplicate, FolderOpen, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, FileText, Plane, Receipt, Edit, ExternalLink, Copy, Share2, Copy as Duplicate, FolderOpen, AlertTriangle, ShieldCheck, Plus } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -16,9 +16,8 @@ import { es } from 'date-fns/locale';
 import { BookingOverviewTab } from '@/components/booking-detail/BookingOverviewTab';
 import { BookingRoadmapTab } from '@/components/booking-detail/BookingRoadmapTab';
 import { BookingExpensesTab } from '@/components/booking-detail/BookingExpensesTab';
-import { BookingDocumentsTab } from '@/components/booking-detail/BookingDocumentsTab';
 import { BookingFilesWidget } from '@/components/booking-detail/BookingFilesWidget';
-import { BookingDriveTab } from '@/components/booking-detail/BookingDriveTab';
+import { BookingFilesDocsTab } from '@/components/booking-detail/BookingFilesDocsTab';
 import { EditBookingDialog } from '@/components/booking-detail/EditBookingDialog';
 import { ShareBookingDialog } from '@/components/booking-detail/ShareBookingDialog';
 import { ViabilityChecksCard } from '@/components/booking-detail/ViabilityChecksCard';
@@ -494,10 +493,22 @@ export default function BookingDetail() {
               <div className="p-2 bg-orange-500/20 rounded-lg">
                 <Receipt className="h-5 w-5 text-orange-600" />
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Gastos Est.</p>
-                <p className="text-lg font-bold">{booking.gastos_estimados ? `${booking.gastos_estimados.toLocaleString()}€` : '-'}</p>
-              </div>
+              {booking.gastos_estimados ? (
+                <div>
+                  <p className="text-xs text-muted-foreground">Gastos Est.</p>
+                  <p className="text-lg font-bold">{booking.gastos_estimados.toLocaleString()}€</p>
+                </div>
+              ) : (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-orange-600 hover:text-orange-700 hover:bg-orange-500/10 p-0 h-auto"
+                  onClick={() => setShowEditDialog(true)}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Estimar gastos
+                </Button>
+              )}
             </CardContent>
           </Card>
           
@@ -515,17 +526,53 @@ export default function BookingDetail() {
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-purple-500/5 to-purple-500/10 border-purple-500/20">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-purple-500/20 rounded-lg">
-                <FileText className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Facturación</p>
-                <p className="text-lg font-bold capitalize">{booking.estado_facturacion || 'Pendiente'}</p>
-              </div>
-            </CardContent>
-          </Card>
+          {(() => {
+            const viabilityCount = [booking.viability_manager_approved, booking.viability_tour_manager_approved, booking.viability_production_approved].filter(Boolean).length;
+            const showViability = ['negociacion', 'confirmado', 'facturado'].includes(booking.phase?.toLowerCase() || '');
+            
+            if (showViability) {
+              return (
+                <Card 
+                  className={`cursor-pointer transition-colors ${
+                    viabilityCount === 3 
+                      ? 'bg-gradient-to-br from-green-500/5 to-green-500/10 border-green-500/20' 
+                      : viabilityCount > 0 
+                        ? 'bg-gradient-to-br from-amber-500/5 to-amber-500/10 border-amber-500/20'
+                        : 'bg-gradient-to-br from-muted/5 to-muted/10 border-muted/20'
+                  }`}
+                  onClick={() => viabilityRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                >
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${
+                      viabilityCount === 3 ? 'bg-green-500/20' : viabilityCount > 0 ? 'bg-amber-500/20' : 'bg-muted/20'
+                    }`}>
+                      <ShieldCheck className={`h-5 w-5 ${
+                        viabilityCount === 3 ? 'text-green-600' : viabilityCount > 0 ? 'text-amber-600' : 'text-muted-foreground'
+                      }`} />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Viabilidad</p>
+                      <p className="text-lg font-bold">{viabilityCount}/3</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            }
+            
+            return (
+              <Card className="bg-gradient-to-br from-purple-500/5 to-purple-500/10 border-purple-500/20">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="p-2 bg-purple-500/20 rounded-lg">
+                    <FileText className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Facturación</p>
+                    <p className="text-lg font-bold capitalize">{booking.estado_facturacion || 'Pendiente'}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
         </div>
 
         {/* Main Content Grid */}
@@ -533,7 +580,7 @@ export default function BookingDetail() {
           {/* Main Tabs - Takes 2 columns */}
           <div className="lg:col-span-2">
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid w-full grid-cols-6 mb-6">
+              <TabsList className="grid w-full grid-cols-5 mb-6">
                 <TabsTrigger value="overview" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   Overview
@@ -546,13 +593,9 @@ export default function BookingDetail() {
                   <Receipt className="h-4 w-4" />
                   Travel Expenses
                 </TabsTrigger>
-                <TabsTrigger value="documents" className="flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Documents
-                </TabsTrigger>
-                <TabsTrigger value="drive" className="flex items-center gap-2">
+                <TabsTrigger value="files" className="flex items-center gap-2">
                   <FolderOpen className="h-4 w-4" />
-                  Archivos
+                  Archivos & Docs
                 </TabsTrigger>
                 <TabsTrigger value="solicitudes" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
@@ -579,29 +622,8 @@ export default function BookingDetail() {
                 <BookingExpensesTab bookingId={booking.id} booking={booking} />
               </TabsContent>
 
-              <TabsContent value="documents">
-                <BookingDocumentsTab booking={booking} onUpdate={handleBookingUpdate} />
-              </TabsContent>
-
-              <TabsContent value="drive">
-                <BookingDriveTab 
-                  bookingId={booking.id} 
-                  artistId={booking.artist_id} 
-                  folderUrl={booking.folder_url}
-                  eventName={booking.festival_ciclo || booking.lugar || booking.ciudad || 'Evento'}
-                  eventDate={booking.fecha}
-                  bookingData={{
-                    ciudad: booking.ciudad,
-                    pais: booking.pais,
-                    venue: booking.venue,
-                    hora: booking.hora,
-                    fee: booking.fee,
-                    formato: booking.formato,
-                    festival_ciclo: booking.festival_ciclo,
-                    condiciones: booking.condiciones,
-                    es_internacional: booking.es_internacional
-                  }}
-                />
+              <TabsContent value="files">
+                <BookingFilesDocsTab booking={booking} onUpdate={handleBookingUpdate} />
               </TabsContent>
 
               <TabsContent value="solicitudes">
