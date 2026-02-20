@@ -621,6 +621,13 @@ export default function CreateReleaseBudgetDialog({
           numSingles: singles.length,
           hasVideo: nVideoclips > 0,
           hasPhysical: fisico === true,
+          // Pass exact single dates so the cronograma uses real dates, not generic offsets
+          singleDates: singles
+            .filter(s => s.date)
+            .map(s => ({
+              name: s.title || undefined,
+              date: s.date!,
+            })),
         };
 
         // Generate full timeline using the same function as the wizard

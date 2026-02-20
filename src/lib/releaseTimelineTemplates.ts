@@ -11,6 +11,11 @@ export interface TimelineTaskTemplate {
   condition: TaskCondition;
 }
 
+export interface SingleConfig {
+  name?: string;   // Ej: "Single 1" o el título de la canción
+  date: Date;      // La fecha exacta de lanzamiento del single
+}
+
 export interface ReleaseConfig {
   releaseDate: Date;
   physicalDate?: Date | null;
@@ -18,6 +23,7 @@ export interface ReleaseConfig {
   numSingles: number;
   hasVideo: boolean;
   hasPhysical: boolean;
+  singleDates?: SingleConfig[];  // Fechas reales de cada single (del presupuesto)
 }
 
 // Industry-standard offsets (days relative to digital release date)
@@ -153,7 +159,7 @@ function adjustSingleOffsets(templates: TimelineTaskTemplate[], numSingles: numb
  * Calculates dates backwards from the release date.
  */
 export function generateTimelineFromConfig(config: ReleaseConfig): GeneratedTask[] {
-  const { releaseDate, numSingles } = config;
+  const { releaseDate, numSingles, singleDates } = config;
   
   // 1. Adjust single offsets based on count
   const adjustedTemplates = adjustSingleOffsets(TIMELINE_TEMPLATES, numSingles);
@@ -161,9 +167,29 @@ export function generateTimelineFromConfig(config: ReleaseConfig): GeneratedTask
   // 2. Filter applicable tasks
   const applicableTemplates = adjustedTemplates.filter(t => taskApplies(t, config));
   
-  // 3. Calculate dates (task ends at offsetDays, starts estimatedDays before)
+  // 3. Calculate dates; if singleDates are provided, use exact dates for singles
   const tasks: GeneratedTask[] = applicableTemplates.map(template => {
-    // The deadline is release + offset, start is deadline - estimatedDays
+    // Detect single tasks (id: 'mkt-single1', 'mkt-single2', etc.)
+    const singleMatch = template.id.match(/^mkt-single(\d+)$/);
+    if (singleMatch && singleDates && singleDates.length > 0) {
+      const singleIndex = parseInt(singleMatch[1]) - 1;
+      const singleConfig = singleDates[singleIndex];
+      if (singleConfig?.date) {
+        // Use exact date from the budget instead of calculating from offset
+        return {
+          id: template.id,
+          workflowId: template.workflowId,
+          name: singleConfig.name ? `Single: ${singleConfig.name}` : template.name,
+          startDate: singleConfig.date,
+          estimatedDays: 1,
+          status: 'pendiente' as const,
+          responsible: '',
+          responsible_ref: null,
+        };
+      }
+    }
+
+    // All other tasks: normal offset calculation from release date
     const deadline = addDays(releaseDate, template.offsetDays);
     const startDate = addDays(deadline, -template.estimatedDays);
     
