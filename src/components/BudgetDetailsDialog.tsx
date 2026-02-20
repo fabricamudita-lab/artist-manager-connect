@@ -946,6 +946,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           artists!inner(name)
         `)
         .eq('is_active', true)
+        .eq('artist_id', budget.artist_id)
         .order('name');
 
       if (error) throw error;
