@@ -28,9 +28,17 @@ const templates = [
   {
     id: 'booking',
     title: 'Booking',
-    description: 'Solicitud para conciertos, festivales y eventos',
+    description: 'Registra una oferta de actuación: concierto, festival, evento privado o gira.',
+    nextStep: 'Crea automáticamente un Booking Offer en el pipeline. Al aprobarse, pasa a Negociación y se puede vincular al calendario.',
+    badge: 'Más frecuente',
+    badgeClassName: 'bg-blue-100 text-blue-700 border-0',
+    iconBg: 'bg-blue-600',
     icon: Calendar,
     color: 'bg-blue-100 text-blue-800',
+    nextStepBg: 'bg-blue-50 border-blue-100',
+    nextStepText: 'text-blue-700',
+    nextStepDot: 'text-blue-500',
+    priority: 1,
     fields: [
       'fecha',
       'festival_ciclo',
@@ -48,9 +56,17 @@ const templates = [
   {
     id: 'entrevista',
     title: 'Entrevista',
-    description: 'Solicitud para entrevistas en medios',
+    description: 'Aparición en medios: radio, TV, podcast o prensa escrita.',
+    nextStep: 'Al aprobarla, puedes programar el encuentro y crear un evento en el calendario.',
+    badge: 'Medios',
+    badgeClassName: 'bg-green-100 text-green-700 border-0',
+    iconBg: 'bg-green-600',
     icon: Mic,
     color: 'bg-green-100 text-green-800',
+    nextStepBg: 'bg-green-50 border-green-100',
+    nextStepText: 'text-green-700',
+    nextStepDot: 'text-green-500',
+    priority: 2,
     fields: [
       'programa',
       'medio_canal',
@@ -61,11 +77,42 @@ const templates = [
     ]
   },
   {
+    id: 'licencia',
+    title: 'Licencia',
+    description: 'Uso de tu obra en medios, publicidad o proyectos de terceros.',
+    nextStep: 'Registra los derechos solicitados. Al aprobarla, genera un contrato de licencia (Master / Composición).',
+    badge: 'Derechos',
+    badgeClassName: 'bg-amber-100 text-amber-700 border-0',
+    iconBg: 'bg-amber-600',
+    icon: Scale,
+    color: 'bg-amber-100 text-amber-800',
+    nextStepBg: 'bg-amber-50 border-amber-100',
+    nextStepText: 'text-amber-700',
+    nextStepDot: 'text-amber-500',
+    priority: 3,
+    fields: [
+      'tipo_licencia',
+      'obra_licenciar',
+      'medio_proyecto',
+      'territorio',
+      'duracion',
+      'empresa_artista_solicitante'
+    ]
+  },
+  {
     id: 'consulta',
     title: 'Consulta',
-    description: 'Consultas generales y preguntas',
+    description: 'Decisión interna o pregunta que requiere respuesta del equipo.',
+    nextStep: 'Se gestiona internamente. Al resolverse, se archiva con comentario de cierre.',
+    badge: 'Interna',
+    badgeClassName: 'bg-violet-100 text-violet-700 border-0',
+    iconBg: 'bg-violet-600',
     icon: HelpCircle,
     color: 'bg-yellow-100 text-yellow-800',
+    nextStepBg: 'bg-violet-50 border-violet-100',
+    nextStepText: 'text-violet-700',
+    nextStepDot: 'text-violet-500',
+    priority: 4,
     fields: [
       'asunto',
       'descripcion_contexto',
@@ -77,9 +124,17 @@ const templates = [
   {
     id: 'informacion',
     title: 'Información',
-    description: 'Solicitudes de información sobre proyectos',
+    description: 'Petición de datos concretos sobre un proyecto o artista.',
+    nextStep: 'Se gestiona internamente. Al resolverse, se archiva con comentario de cierre.',
+    badge: 'Datos',
+    badgeClassName: 'bg-orange-100 text-orange-700 border-0',
+    iconBg: 'bg-orange-500',
     icon: Info,
     color: 'bg-purple-100 text-purple-800',
+    nextStepBg: 'bg-orange-50 border-orange-100',
+    nextStepText: 'text-orange-700',
+    nextStepDot: 'text-orange-500',
+    priority: 5,
     fields: [
       'tema_proyecto',
       'detalle_solicitado',
@@ -87,26 +142,19 @@ const templates = [
     ]
   },
   {
-    id: 'licencia',
-    title: 'Licencia',
-    description: 'Solicitudes de licencias musicales',
-    icon: Scale,
-    color: 'bg-orange-100 text-orange-800',
-    fields: [
-      'tipo_licencia',
-      'obra_licenciar',
-      'medio_proyecto',
-      'territorio',
-      'duracion',
-      'empresa_artista_solicitante'
-    ]
-  },
-  {
     id: 'otros',
     title: 'Otros',
-    description: 'Otras solicitudes no categorizadas',
+    description: 'Solicitudes no categorizadas. Tú decides el flujo.',
+    nextStep: 'Solicitud libre. Puedes asignar responsable y añadir notas de seguimiento.',
+    badge: '',
+    badgeClassName: '',
+    iconBg: 'bg-slate-500',
     icon: MoreHorizontal,
     color: 'bg-gray-100 text-gray-800',
+    nextStepBg: 'bg-slate-50 border-slate-100',
+    nextStepText: 'text-slate-600',
+    nextStepDot: 'text-slate-400',
+    priority: 6,
     fields: [
       'asunto',
       'descripcion',
@@ -472,48 +520,111 @@ export function CreateSolicitudFromTemplateDialog({
     }
   };
 
-  const renderTemplateSelection = () => (
-    <div className="space-y-4">
-      <div className="text-center py-4">
-        <h3 className="text-lg font-semibold mb-2">Selecciona el tipo de solicitud</h3>
-        <p className="text-muted-foreground">Elige una plantilla predefinida para crear tu solicitud rápidamente</p>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {templates.map((template) => {
-          const IconComponent = template.icon;
-          return (
-            <Card 
-              key={template.id}
-              className="cursor-pointer hover:bg-accent/50 transition-colors"
-              onClick={() => handleTemplateSelect(template.id)}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-gradient-primary rounded-lg flex items-center justify-center">
-                    <IconComponent className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold mb-1">{template.title}</h4>
-                    <p className="text-sm text-muted-foreground mb-3">{template.description}</p>
-                    <Badge className={template.color}>
-                      {template.fields.length} campos
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+  const renderTemplateSelection = () => {
+    const booking = templates.find(t => t.id === 'booking')!;
+    const secondary = templates.filter(t => t.id !== 'booking' && t.id !== 'otros');
+    const otro = templates.find(t => t.id === 'otros')!;
 
-      <div className="flex justify-end pt-4">
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
-          Cancelar
-        </Button>
+    return (
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="text-center py-2">
+          <h3 className="text-lg font-semibold mb-1">¿Qué tipo de solicitud es?</h3>
+          <p className="text-sm text-muted-foreground">Elige el tipo para ver el formulario correcto y activar el flujo adecuado</p>
+        </div>
+
+        {/* Booking — Hero card */}
+        <Card
+          className="cursor-pointer border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50/20 transition-all"
+          onClick={() => handleTemplateSelect('booking')}
+        >
+          <CardContent className="p-5">
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                <booking.icon className="w-7 h-7 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <h4 className="font-bold text-base">Booking</h4>
+                  <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700">Más frecuente</span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">{booking.description}</p>
+                <div className={`flex items-start gap-2 rounded-lg p-2.5 border ${booking.nextStepBg}`}>
+                  <span className={`text-xs mt-0.5 flex-shrink-0 ${booking.nextStepDot}`}>▶</span>
+                  <p className={`text-xs ${booking.nextStepText}`}>
+                    Crea automáticamente un <strong>Booking Offer</strong> en el pipeline. Al aprobarse, pasa a Negociación y se puede vincular al calendario.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Grid 2×2 — tipos secundarios */}
+        <div className="grid grid-cols-2 gap-3">
+          {secondary.map((template) => {
+            const IconComponent = template.icon;
+            return (
+              <Card
+                key={template.id}
+                className="cursor-pointer hover:bg-accent/40 transition-all border hover:border-border/80"
+                onClick={() => handleTemplateSelect(template.id)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className={`w-10 h-10 ${template.iconBg} rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                      <IconComponent className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                        <h4 className="font-semibold text-sm">{template.title}</h4>
+                        {template.badge && (
+                          <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${template.badgeClassName}`}>
+                            {template.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-2 leading-relaxed">{template.description}</p>
+                      <div className={`flex items-start gap-1.5 rounded-md p-2 border ${template.nextStepBg}`}>
+                        <span className={`text-[10px] mt-0.5 flex-shrink-0 ${template.nextStepDot}`}>▶</span>
+                        <p className={`text-[10px] leading-relaxed ${template.nextStepText}`}>{template.nextStep}</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Otro — secundario, estilo dashed */}
+        <Card
+          className="cursor-pointer border-dashed border-muted-foreground/30 hover:border-muted-foreground/60 hover:bg-muted/20 transition-all opacity-70 hover:opacity-100"
+          onClick={() => handleTemplateSelect('otros')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 ${otro.iconBg} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                <otro.icon className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-medium text-sm text-muted-foreground">Otro</h4>
+                  <span className="text-xs text-muted-foreground">— Solicitud libre, tú decides el flujo</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end pt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderFormFields = () => {
     const template = templates.find(t => t.id === selectedTemplate);
