@@ -97,6 +97,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import AnchorDependencyDialog from '@/components/lanzamientos/AnchorDependencyDialog';
+import AnchoredStatusDialog from '@/components/lanzamientos/AnchoredStatusDialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import MultiAnchorSelector from '@/components/lanzamientos/MultiAnchorSelector';
 import TaskDatePopover from '@/components/lanzamientos/TaskDatePopover';
@@ -229,6 +230,7 @@ interface SortableWorkflowCardProps {
   openSections: Record<string, boolean>;
   toggleSection: (id: string) => void;
   updateTask: (workflowId: string, taskId: string, updates: Partial<ReleaseTask>) => void;
+  onUpdateTaskStatus: (workflowId: string, taskId: string, status: TaskStatus) => void;
   addTask: (workflowId: string) => void;
   requestDeleteTask: (workflowId: string, taskId: string) => void;
   toggleTaskExpanded: (workflowId: string, taskId: string) => void;
@@ -253,6 +255,7 @@ function SortableWorkflowCard({
   openSections,
   toggleSection,
   updateTask,
+  onUpdateTaskStatus,
   addTask,
   requestDeleteTask,
   toggleTaskExpanded,
@@ -443,7 +446,7 @@ function SortableWorkflowCard({
                           <TableCell className="py-1">
                             <Select
                               value={task.status}
-                              onValueChange={(value: TaskStatus) => updateTask(workflow.id, task.id, { status: value })}
+                              onValueChange={(value: TaskStatus) => onUpdateTaskStatus(workflow.id, task.id, value)}
                             >
                               <SelectTrigger className="h-8 border-0 bg-transparent px-1 w-auto">
                                 <SelectValue>
@@ -1116,7 +1119,7 @@ export default function ReleaseCronograma() {
     return wf?.tasks.find(t => t.id === ganttContextDialog.taskId) ?? null;
   }, [ganttContextDialog, workflows]);
   
-  // Anchor dependency dialog state
+  // Anchor dependency dialog state (date changes)
   const [anchorDialogOpen, setAnchorDialogOpen] = useState(false);
   const [pendingDateChange, setPendingDateChange] = useState<{
     workflowId: string;
@@ -1126,6 +1129,16 @@ export default function ReleaseCronograma() {
     oldStartDate: Date;
     daysDelta: number;
     dependentTasks: import('@/components/lanzamientos/AnchorDependencyDialog').DependentTask[];
+  } | null>(null);
+
+  // Anchored status dialog state (status → retrasado)
+  const [statusAnchorDialogOpen, setStatusAnchorDialogOpen] = useState(false);
+  const [pendingStatusChange, setPendingStatusChange] = useState<{
+    workflowId: string;
+    taskId: string;
+    newStatus: TaskStatus;
+    sourceName: string;
+    dependentTasks: { id: string; name: string; workflowId: string; workflowName: string; currentStatus: TaskStatus }[];
   } | null>(null);
 
   // Number of songs - use tracks count or default to 1
@@ -1508,6 +1521,57 @@ export default function ReleaseCronograma() {
       )
     );
   };
+
+  // Handle status update — intercepts 'retrasado' to show anchored dialog
+  const handleTaskStatusUpdate = useCallback((workflowId: string, taskId: string, status: TaskStatus) => {
+    if (status !== 'retrasado') {
+      updateTask(workflowId, taskId, { status });
+      return;
+    }
+
+    // Find all tasks anchored to this task across all workflows
+    const dependents: { id: string; name: string; workflowId: string; workflowName: string; currentStatus: TaskStatus }[] = [];
+    for (const w of workflows) {
+      for (const t of w.tasks) {
+        if (t.anchoredTo?.includes(taskId)) {
+          dependents.push({
+            id: t.id,
+            name: t.name,
+            workflowId: w.id,
+            workflowName: w.name,
+            currentStatus: t.status,
+          });
+        }
+      }
+    }
+
+    if (dependents.length === 0) {
+      updateTask(workflowId, taskId, { status });
+      return;
+    }
+
+    const sourceName = getTaskName(taskId);
+    setPendingStatusChange({ workflowId, taskId, newStatus: status, sourceName, dependentTasks: dependents });
+    setStatusAnchorDialogOpen(true);
+  }, [workflows, getTaskName]);
+
+  // Confirm handler for anchored status dialog
+  const handleStatusAnchorConfirm = useCallback((decisions: Record<string, TaskStatus | 'keep'>) => {
+    if (!pendingStatusChange) return;
+    const { workflowId, taskId, newStatus } = pendingStatusChange;
+    pushUndo();
+    setWorkflows(prev => prev.map(w => ({
+      ...w,
+      tasks: w.tasks.map(t => {
+        if (t.id === taskId && w.id === workflowId) return { ...t, status: newStatus };
+        const decision = decisions[t.id];
+        if (decision && decision !== 'keep') return { ...t, status: decision as TaskStatus };
+        return t;
+      }),
+    })));
+    setStatusAnchorDialogOpen(false);
+    setPendingStatusChange(null);
+  }, [pendingStatusChange, pushUndo]);
 
   const addTask = (workflowId: string) => {
     const newTask: ReleaseTask = {
@@ -1955,7 +2019,7 @@ export default function ReleaseCronograma() {
                 updateTask(workflowId, taskId, { anchoredTo });
               }}
               onUpdateTaskStatus={(workflowId, taskId, status) => {
-                updateTask(workflowId, taskId, { status });
+                handleTaskStatusUpdate(workflowId, taskId, status);
               }}
               onOpenResponsible={(workflowId, taskId) => {
                 setGanttContextDialog({ type: 'responsible', workflowId, taskId });
@@ -1988,6 +2052,7 @@ export default function ReleaseCronograma() {
                 openSections={openSections}
                 toggleSection={toggleSection}
                 updateTask={updateTask}
+                onUpdateTaskStatus={handleTaskStatusUpdate}
                 addTask={addTask}
                 requestDeleteTask={requestDeleteTask}
                 toggleTaskExpanded={toggleTaskExpanded}
@@ -2078,6 +2143,16 @@ export default function ReleaseCronograma() {
         dependentTasks={pendingDateChange?.dependentTasks || []}
         onConfirm={handleAnchorConfirm}
         releaseDate={release?.release_date ? new Date(release.release_date) : null}
+      />
+
+      {/* Anchored Status Dialog — shown when a task is marked retrasado and has anchored dependents */}
+      <AnchoredStatusDialog
+        open={statusAnchorDialogOpen}
+        onOpenChange={setStatusAnchorDialogOpen}
+        sourceName={pendingStatusChange?.sourceName ?? ''}
+        newStatus={pendingStatusChange?.newStatus ?? 'retrasado'}
+        dependentTasks={pendingStatusChange?.dependentTasks ?? []}
+        onConfirm={handleStatusAnchorConfirm}
       />
 
       {/* Delete Task Confirmation Dialog */}
