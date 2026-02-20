@@ -1,142 +1,113 @@
 
-# Fix: El cronograma debe usar las fechas reales de los singles del presupuesto
+# Mejora: La barra de flujo colapsada debe mostrar tareas en proceso y retrasadas
 
-## Causa raíz
+## Situación actual
 
-Cuando el presupuesto crea el cronograma, pasa solo `numSingles: singles.length` a `generateTimelineFromConfig`. Esta función ignora las fechas concretas y calcula los singles a partir de offsets genéricos (ej. "8 semanas antes del release"). Pero el usuario ya ha introducido fechas exactas para cada single — esa información se pierde completamente.
+Cuando un flujo está colapsado, la barra de resumen muestra:
+- **Fondo tenue**: el color del flujo (siempre visible)
+- **Relleno más intenso**: solo avanza cuando hay tareas `completado` (verde si todo completo)
+- Las tareas `en_proceso` y `retrasado` son invisibles desde la vista colapsada
 
-El flujo actual:
-```
-Singles con fechas reales → generateTimelineFromConfig(numSingles: 2) → offsets genéricos
-                                                                       ↓
-                                              "Single 1: 8 semanas antes" (ignorando la fecha real)
-```
+## Comportamiento propuesto
 
-El flujo correcto:
-```
-Singles con fechas reales → generateTimelineFromConfig({ singles: [{name, date}] }) → fechas exactas
-                                                                       ↓
-                                              "Single 1: 17 abr 2026" (la fecha del presupuesto)
+La barra de resumen pasará a mostrar **tres capas de información visual**, con esta prioridad (lo más urgente se ve primero):
+
+```text
+[──retrasado──][──en_proceso──][──completado──][──pendiente (fondo tenue)──]
 ```
 
-## Cambios necesarios
+### Reglas de color por estado del flujo
 
-### 1. `src/lib/releaseTimelineTemplates.ts`
+| Situación del flujo | Barra de fondo | Relleno de progreso |
+|---|---|---|
+| Todo completado | verde/20 | verde/60 (100%) |
+| Tiene retrasadas | rojo/20 | rojo/60 (% retrasadas) |
+| Tiene en proceso (sin retrasadas) | azul/20 | azul/60 (% en proceso) |
+| Todo pendiente | color flujo/20 | ninguno |
 
-Ampliar la interfaz `ReleaseConfig` para aceptar fechas individuales de singles:
+### Detalle: barra con múltiples segmentos (cuando está colapsado)
 
+En lugar de una sola barra de progreso, la barra del flujo colapsado mostrará **hasta 3 segmentos apilados** de izquierda a derecha:
+
+1. **Rojo** → % de tareas retrasadas  
+2. **Azul** → % de tareas en proceso  
+3. **Verde** → % de tareas completadas  
+4. **Fondo tenue** → resto (pendientes)
+
+Ejemplo visual:
+```
+[█████ retrasado][████ en proceso][█████████ completado][           pendiente]
+```
+
+Esto es idéntico a como funciona la barra de progreso actual, pero con múltiples franjas de color en lugar de una sola.
+
+### Tooltip mejorado (al hacer hover)
+
+Actualmente muestra solo las fechas. Se añade un resumen de estado:
+```
+Mar 2026 – May 2026 · 2 retrasadas · 1 en proceso · 3 completadas
+```
+
+## Cambio técnico
+
+Solo se modifica el bloque de la barra colapsada en **`src/components/lanzamientos/GanttChart.tsx`**, entre las líneas 426–474.
+
+### Nuevos cálculos (añadir junto a `completed`):
 ```ts
-export interface SingleConfig {
-  name?: string;   // Ej: "Single 1" o el título de la canción
-  date: Date;      // La fecha exacta de lanzamiento del single
-}
+const retrasadas = workflowTasks.filter(t => t.status === 'retrasado').length;
+const enProceso = workflowTasks.filter(t => t.status === 'en_proceso').length;
+const total = workflowTasks.length;
 
-export interface ReleaseConfig {
-  releaseDate: Date;
-  physicalDate?: Date | null;
-  numSongs: number;
-  numSingles: number;        // Mantener por compatibilidad con el wizard
-  hasVideo: boolean;
-  hasPhysical: boolean;
-  singleDates?: SingleConfig[];  // NUEVO: fechas reales de cada single
-}
+const pctRetrasado = (retrasadas / total) * 100;
+const pctEnProceso = (enProceso / total) * 100;
+const pctCompletado = (completed / total) * 100;
 ```
 
-Modificar `generateTimelineFromConfig` para que, cuando se reciban `singleDates`, genere los hitos de single usando las fechas exactas en lugar de los offsets calculados:
-
+### Color del fondo de la barra (priority: retrasado > en_proceso > completado > flujo):
 ```ts
-export function generateTimelineFromConfig(config: ReleaseConfig): GeneratedTask[] {
-  const { releaseDate, numSingles, singleDates } = config;
-
-  // Si tenemos fechas reales de singles, generamos esas tareas con fecha fija
-  // en lugar de calcularlas desde el release date
-  const adjustedTemplates = adjustSingleOffsets(TIMELINE_TEMPLATES, numSingles);
-  const applicableTemplates = adjustedTemplates.filter(t => taskApplies(t, config));
-
-  const tasks: GeneratedTask[] = applicableTemplates.map((template, idx) => {
-    // Detectar si es un single (id: 'mkt-single1', 'mkt-single2', etc.)
-    const singleMatch = template.id.match(/^mkt-single(\d+)$/);
-    if (singleMatch && singleDates && singleDates.length > 0) {
-      const singleIndex = parseInt(singleMatch[1]) - 1;
-      const singleConfig = singleDates[singleIndex];
-      if (singleConfig?.date) {
-        // Usar la fecha exacta del single
-        return {
-          id: template.id,
-          workflowId: template.workflowId,
-          name: singleConfig.name 
-            ? `Single: ${singleConfig.name}` 
-            : template.name,
-          startDate: singleConfig.date, // Fecha exacta, no calculada
-          estimatedDays: 1,
-          status: 'pendiente' as const,
-          responsible: '',
-          responsible_ref: null,
-        };
-      }
-    }
-    // Resto de tareas: cálculo normal por offset
-    const deadline = addDays(releaseDate, template.offsetDays);
-    const startDate = addDays(deadline, -template.estimatedDays);
-    return {
-      id: template.id,
-      workflowId: template.workflowId,
-      name: template.name,
-      startDate,
-      estimatedDays: template.estimatedDays,
-      status: 'pendiente' as const,
-      responsible: '',
-      responsible_ref: null,
-    };
-  });
-
-  return tasks.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-}
+const bgColor = isWorkflowComplete
+  ? 'bg-green-500/20'
+  : retrasadas > 0
+    ? 'bg-red-500/20'
+    : enProceso > 0
+      ? 'bg-blue-500/20'
+      : (WORKFLOW_BAR_COLORS[workflow.id]?.bg || 'bg-primary/20');
 ```
 
-### 2. `src/components/releases/CreateReleaseBudgetDialog.tsx`
-
-En la sección "4. Sync Milestones" (~línea 617), pasar las fechas reales de singles al config:
-
-```ts
-// ANTES:
-const config: ReleaseConfig = {
-  releaseDate,
-  physicalDate: physicalDate || null,
-  numSongs: nTracks || 1,
-  numSingles: singles.length,
-  hasVideo: nVideoclips > 0,
-  hasPhysical: fisico === true,
-};
-
-// DESPUÉS:
-const config: ReleaseConfig = {
-  releaseDate,
-  physicalDate: physicalDate || null,
-  numSongs: nTracks || 1,
-  numSingles: singles.length,
-  hasVideo: nVideoclips > 0,
-  hasPhysical: fisico === true,
-  singleDates: singles
-    .filter(s => s.date)
-    .map(s => ({
-      name: s.title || s.isNew ? s.title : undefined,
-      date: s.date!,
-    })),
-};
+### Reemplazar el único `<div>` de fill por tres segmentos apilados:
+```tsx
+{/* Segmento retrasado */}
+{retrasadas > 0 && (
+  <div className="absolute top-0 left-0 h-full rounded-l-full bg-red-500/70"
+       style={{ width: `${pctRetrasado}%` }} />
+)}
+{/* Segmento en proceso */}
+{enProceso > 0 && (
+  <div className="absolute top-0 h-full bg-blue-500/70"
+       style={{ left: `${pctRetrasado}%`, width: `${pctEnProceso}%` }} />
+)}
+{/* Segmento completado */}
+{completed > 0 && (
+  <div className={cn('absolute top-0 h-full bg-green-500/70', 
+                     retrasadas === 0 && enProceso === 0 ? 'rounded-l-full' : '')}
+       style={{ left: `${pctRetrasado + pctEnProceso}%`, width: `${pctCompletado}%` }} />
+)}
 ```
 
-Con este cambio, si el usuario ha definido "Single 1 · Arbres · 17 abr 2026", el hito en el cronograma se creará con exactamente esa fecha, y el nombre del single incluirá el título de la canción si está disponible.
+### Tooltip más informativo:
+```tsx
+<span className="...">
+  {format(wfStart, 'dd MMM', { locale: es })} – {format(wfEnd, 'dd MMM', { locale: es })}
+  {retrasadas > 0 && ` · ${retrasadas} retrasada${retrasadas > 1 ? 's' : ''}`}
+  {enProceso > 0 && ` · ${enProceso} en proceso`}
+  {completed > 0 && ` · ${completed} completada${completed > 1 ? 's' : ''}`}
+</span>
+```
 
-## Compatibilidad con el Wizard del Cronograma
+## Archivo a modificar
 
-El wizard de cronograma (`CronogramaSetupWizard.tsx`) llama a `generateTimelineFromConfig` sin `singleDates`, por lo que el nuevo campo es opcional — el comportamiento actual del wizard no cambia en absoluto.
+| Archivo | Líneas |
+|---|---|
+| `src/components/lanzamientos/GanttChart.tsx` | Bloque 426–474 (sección de la barra de resumen del workflow colapsado) |
 
-## Archivos a modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/releaseTimelineTemplates.ts` | Añadir `SingleConfig` y `singleDates` a `ReleaseConfig`; actualizar `generateTimelineFromConfig` para usar fechas exactas cuando están disponibles |
-| `src/components/releases/CreateReleaseBudgetDialog.tsx` | Pasar `singleDates` mapeadas desde el array `singles` al llamar a `generateTimelineFromConfig` |
-
-Sin cambios en base de datos, sin nuevos archivos.
+Sin cambios en base de datos, sin nuevos archivos, sin cambios en la leyenda (ya incluye En Proceso y Retrasado).
