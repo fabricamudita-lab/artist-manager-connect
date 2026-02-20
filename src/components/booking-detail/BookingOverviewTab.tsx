@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -15,10 +16,12 @@ import {
   Save,
   Music,
   Clock,
-  ExternalLink
+  ExternalLink,
+  Lock,
+  Eye,
+  Receipt
 } from 'lucide-react';
 import { BookingNotes } from './BookingNotes';
-import { LinkedSolicitudesCard } from './LinkedSolicitudesCard';
 
 interface Contact {
   id: string;
@@ -48,6 +51,7 @@ interface BookingOverviewTabProps {
     contratos?: string;
     publico?: string;
     capacidad?: number;
+    estado_facturacion?: string;
   };
   onUpdate: () => void;
 }
@@ -63,7 +67,6 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
   // Fetch contacts by name or ID
   useEffect(() => {
     const fetchContacts = async () => {
-      // Fetch Tour Manager contact
       if (booking.tour_manager_new) {
         const { data } = await supabase
           .from('contacts')
@@ -81,7 +84,6 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
         if (data) setTourManagerContact(data);
       }
 
-      // Fetch Contacto
       if (booking.contacto) {
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(booking.contacto);
         if (isUUID) {
@@ -102,7 +104,6 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
         }
       }
 
-      // Fetch Promotor
       if (booking.promotor) {
         const { data } = await supabase
           .from('contacts')
@@ -143,6 +144,13 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
       setSaving(false);
     }
   };
+
+  const facturacionLabel = booking.estado_facturacion
+    ? booking.estado_facturacion === 'pendiente' ? 'Pendiente'
+      : booking.estado_facturacion === 'facturado' ? 'Facturado'
+      : booking.estado_facturacion === 'cobrado' ? 'Cobrado'
+      : booking.estado_facturacion.charAt(0).toUpperCase() + booking.estado_facturacion.slice(1)
+    : 'Pendiente';
 
   return (
     <div className="space-y-6">
@@ -218,6 +226,20 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
                   </Badge>
                 </div>
               )}
+            </div>
+
+            {/* Estado Facturación - moved from Quick Stats */}
+            <div className="space-y-1 pt-2 border-t">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                <Receipt className="h-3 w-3" />
+                Estado Facturación
+              </p>
+              <Badge 
+                variant={booking.estado_facturacion === 'cobrado' ? 'default' : 'secondary'} 
+                className="text-xs"
+              >
+                {facturacionLabel}
+              </Badge>
             </div>
 
             {booking.condiciones && (
@@ -330,7 +352,6 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
               </div>
             )}
 
-            {/* Logistics inline if present */}
             {booking.logistica && (
               <div className="space-y-1 pt-2 border-t">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Logística</p>
@@ -341,49 +362,63 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
         </Card>
       </div>
 
-      {/* Notes Section - Side by Side */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Artist Notes */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" />
-                Notas del Artista
-              </CardTitle>
-              <Button 
-                size="sm" 
-                variant={hasChanged ? "default" : "outline"}
-                onClick={() => {
-                  handleSaveNotes();
-                  setHasChanged(false);
-                }}
-                disabled={saving || !hasChanged}
-              >
-                <Save className="h-3 w-3 mr-1" />
-                {saving ? 'Guardando...' : 'Guardar'}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Visibles para el artista
-            </p>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              value={artistNotes}
-              onChange={(e) => {
-                setArtistNotes(e.target.value);
-                setHasChanged(true);
-              }}
-              placeholder="Horarios, requerimientos, acceso..."
-              className="min-h-[120px] resize-none"
-            />
-          </CardContent>
-        </Card>
+      {/* Unified Notes Section */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" />
+            Notas
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="team" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="team" className="flex items-center gap-2 text-sm">
+                <Lock className="h-3.5 w-3.5" />
+                Equipo
+              </TabsTrigger>
+              <TabsTrigger value="artist" className="flex items-center gap-2 text-sm">
+                <Eye className="h-3.5 w-3.5" />
+                Artista
+              </TabsTrigger>
+            </TabsList>
 
-        {/* Internal Notes */}
-        <BookingNotes bookingId={booking.id} />
-      </div>
+            <TabsContent value="team">
+              <p className="text-xs text-muted-foreground mb-3">Solo visible para el equipo</p>
+              <BookingNotes bookingId={booking.id} />
+            </TabsContent>
+
+            <TabsContent value="artist">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">Visible para el artista</p>
+                  <Button 
+                    size="sm" 
+                    variant={hasChanged ? "default" : "outline"}
+                    onClick={() => {
+                      handleSaveNotes();
+                      setHasChanged(false);
+                    }}
+                    disabled={saving || !hasChanged}
+                  >
+                    <Save className="h-3 w-3 mr-1" />
+                    {saving ? 'Guardando...' : 'Guardar'}
+                  </Button>
+                </div>
+                <Textarea
+                  value={artistNotes}
+                  onChange={(e) => {
+                    setArtistNotes(e.target.value);
+                    setHasChanged(true);
+                  }}
+                  placeholder="Horarios, requerimientos, acceso..."
+                  className="min-h-[120px] resize-none"
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 }
