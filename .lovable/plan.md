@@ -1,118 +1,90 @@
 
-# Dos mejoras: Persistir categorías ocultas + mostrar contador de elementos
+# Mejora de visibilidad: Sección "Categorías ocultas" más intuitiva
 
-## Objetivo
+## Diagnóstico
 
-1. **Persistencia**: Las categorías que el usuario oculta deben seguir ocultas la próxima vez que abra el presupuesto.
-2. **Contador**: En la sección "Categorías ocultas" (dentro del panel de gestión), cada categoría debe mostrar cuántos elementos contiene.
+El trigger actual es casi invisible: texto gris pequeño uppercase (`text-xs font-semibold uppercase tracking-wider text-gray-400`) sobre un fondo gris oscuro (`bg-gray-700/50`). No hay ninguna señal visual que invite a interactuar con él.
 
----
+## Cambios propuestos (un solo archivo, líneas 3122–3129)
 
-## Solución técnica
+### 1. Separador visual antes de la sección
+Añadir un `<Separator />` con una etiqueta descriptiva antes del `Collapsible`, para crear una separación clara entre "categorías activas" y "categorías ocultas".
 
-### Persistencia — usar `metadata` (jsonb) de la tabla `budgets`
+### 2. Rediseño del trigger
+Convertir el trigger de texto gris invisible a un elemento visualmente diferenciado:
 
-La tabla `budgets` ya tiene una columna `metadata` de tipo `jsonb`. Es el lugar ideal para guardar las preferencias de visualización sin necesidad de migraciones ni nuevas tablas.
-
-La estructura que se guardará:
-```json
-{
-  "hidden_categories": ["uuid-categoria-1", "uuid-categoria-2"]
-}
+**Antes (actual):**
+```tsx
+<CollapsibleTrigger className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-gray-700/50 hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors text-xs font-semibold uppercase tracking-wider">
+  <div className="flex items-center gap-2">
+    <EyeOff className="w-3.5 h-3.5" />
+    <span>Categorías ocultas ({hiddenCategories.size})</span>
+  </div>
+  <ChevronDown className="w-3.5 h-3.5 ..." />
+</CollapsibleTrigger>
 ```
 
-**Flujo de datos:**
+**Después (propuesto):**
+```tsx
+<CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-dashed border-gray-600 hover:border-gray-500 bg-gray-800/60 hover:bg-gray-800 text-gray-300 hover:text-white transition-all group">
+  <div className="flex items-center gap-3">
+    <div className="w-7 h-7 rounded-md bg-gray-700 group-hover:bg-gray-600 flex items-center justify-center transition-colors">
+      <EyeOff className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-200" />
+    </div>
+    <div className="text-left">
+      <div className="text-sm font-medium">Categorías ocultas</div>
+      <div className="text-xs text-gray-500">
+        {hiddenCategories.size} {hiddenCategories.size === 1 ? 'categoría' : 'categorías'} · haz clic para ver y restaurar
+      </div>
+    </div>
+  </div>
+  <div className="flex items-center gap-2">
+    <Badge variant="secondary" className="text-xs bg-gray-700 text-gray-300">
+      {hiddenCategories.size}
+    </Badge>
+    <ChevronDown className="w-4 h-4 transition-transform [[data-state=open]_&]:rotate-180 text-gray-500" />
+  </div>
+</CollapsibleTrigger>
+```
+
+### 3. Añadir icono de ojo tachado por fila en la lista de ocultas
+Cada fila de la lista colapsada muestra el icono de la categoría en gris. Añadir también un pequeño `EyeOff` como indicador visual de su estado oculto, junto al nombre.
+
+## Resultado visual esperado
 
 ```text
-Abrir presupuesto
-  → fetchBudgetMetadata() lee budgets.metadata
-  → extrae hidden_categories → inicializa hiddenCategories Set
-
-Usuario oculta categoría (clic en 👁)
-  → setHiddenCategories() actualiza estado local
-  → saveHiddenCategoriesToDB() escribe budgets.metadata
-
-Usuario restaura categoría (clic en Mostrar)
-  → setHiddenCategories() actualiza estado local
-  → saveHiddenCategoriesToDB() escribe budgets.metadata
+┌─────────────────────────────────────────────────────────┐
+│  Producción         4 elementos   Seleccionar   ✏  🗑  │
+│  Grabación          5 elementos   Seleccionar   ✏  🗑  │
+│  ...                                                    │
+│                                                         │
+│  ┌ - - - - - - - - - - - - - - - - - - - - - - - - ─ ┐ │  ← borde punteado diferenciador
+│  │  👁‍🗨  Categorías ocultas              [11]  ▼      │ │
+│  │      11 categorías · haz clic para ver y restaurar  │ │
+│  └ - - - - - - - - - - - - - - - - - - - - - - - - ─ ┘ │
+│                                                         │
+│  [+ Agregar Nueva Categoría]                            │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### Cambios en `src/components/BudgetDetailsDialog.tsx`
-
-**1. Carga al abrir** — dentro del `useEffect` existente (línea 372) que ya llama a `fetchBudgetCategories()`:
-
-Añadir lectura de `budgets.metadata`:
-```tsx
-const { data: budgetMeta } = await supabase
-  .from('budgets')
-  .select('metadata')
-  .eq('id', budget.id)
-  .single();
-
-const hidden = (budgetMeta?.metadata as any)?.hidden_categories ?? [];
-setHiddenCategories(new Set(hidden));
+Cuando se despliega:
+```text
+│  ┌ - - - - - - - - - - - - - - - - - - - - - - - ─ ┐  │
+│  │  👁‍🗨  Categorías ocultas              [11]  ▲   │  │
+│  │      11 categorías · haz clic para ver y restaurar │  │
+│  ├─────────────────────────────────────────────────┤  │
+│  │  🎵  Artista Principal   (3 elementos)  [Mostrar] │  │
+│  │  👥  Músicos             (5 elementos)  [Mostrar] │  │
+│  │  🔧  Equipo técnico      (2 elementos)  [Mostrar] │  │
+│  └──────────────────────────────────────────────── ┘  │
 ```
 
-**2. Nueva función `saveHiddenCategoriesToDB`**:
-```tsx
-const saveHiddenCategoriesToDB = async (newHidden: Set<string>) => {
-  await supabase
-    .from('budgets')
-    .update({ 
-      metadata: { 
-        ...((budgetData as any).metadata || {}),
-        hidden_categories: Array.from(newHidden) 
-      } 
-    })
-    .eq('id', budget.id);
-};
-```
+## Archivo afectado
 
-**3. Helper `toggleHideCategory`** que actualiza estado + persiste:
-```tsx
-const toggleHideCategory = (categoryId: string, hide: boolean) => {
-  setHiddenCategories(prev => {
-    const next = new Set(prev);
-    if (hide) next.add(categoryId); else next.delete(categoryId);
-    saveHiddenCategoriesToDB(next);
-    return next;
-  });
-};
-```
+| Archivo | Líneas | Cambio |
+|---|---|---|
+| `src/components/BudgetDetailsDialog.tsx` | 3122–3129 | Rediseño del CollapsibleTrigger |
 
-**4. Reemplazar los 2 lugares donde se usa `setHiddenCategories` directamente** para llamar a `toggleHideCategory` en su lugar:
-- Línea 3283 (ocultar desde vista principal, icono ojo)
-- Línea 3103 (restaurar desde panel de gestión, botón Mostrar)
+Import adicional: `Badge` de `@/components/ui/badge` (ya importado en el archivo).
 
-### Contador de elementos en categorías ocultas
-
-Actualmente (línea 3094-3097), cada fila de la lista de ocultas sólo muestra icono + nombre. Se añade el conteo usando la función `getCategoryItems()` que ya existe:
-
-**Antes:**
-```tsx
-<div className="flex items-center gap-2 text-gray-400">
-  <IconComponent className="w-4 h-4" />
-  <span className="text-sm">{category.name}</span>
-</div>
-```
-
-**Después:**
-```tsx
-<div className="flex items-center gap-2 text-gray-400">
-  <IconComponent className="w-4 h-4" />
-  <span className="text-sm">{category.name}</span>
-  <span className="text-xs text-gray-500 ml-1">
-    ({getCategoryItems(category.id).length})
-  </span>
-</div>
-```
-
----
-
-## Archivos afectados
-
-| Archivo | Cambios |
-|---|---|
-| `src/components/BudgetDetailsDialog.tsx` | Carga de metadata al abrir, nueva función save, helper toggle, contador en lista de ocultas |
-
-Sin migraciones. Sin nuevos archivos. La columna `metadata` (jsonb) ya existe en producción.
+Sin cambios en base de datos. Sin nuevos archivos.
