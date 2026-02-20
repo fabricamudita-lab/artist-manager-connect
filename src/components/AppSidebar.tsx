@@ -3,85 +3,123 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { 
   Home, 
   Calendar, 
   FileText, 
   MessageCircle, 
-  DollarSign, 
   Users, 
   UsersRound,
   LogOut,
   Music,
   Menu,
   Calculator,
-  Folder,
   FolderKanban,
   Map,
   Mic,
   FileImage,
   Disc3,
-  Building2,
   User,
   Settings,
-  Inbox,
   Wallet,
   HardDrive,
-  Film
+  Film,
+  Bell,
+  Mail,
+  BarChart3,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import NotificationBell from './NotificationBell';
 import { useState } from 'react';
+import { useActionCenter } from '@/hooks/useActionCenter';
 
-// New sidebar hierarchy based on architectural refactor:
-// 1. Dashboard (Global Overview)
-// 2. Artists (Entry point to everything)
-// 3. Drive / Carpetas (Global File View)
-// 4. Calendar
-// 5. Action Center (Merged Requests/Approvals)
-// 6. Finances (Global)
+// ─── NAV ITEM TYPE ────────────────────────────────────────────────────────────
 
-const getNavigationItems = (isManagement: boolean) => {
-  const coreItems = [
-    { title: "Dashboard", url: "/dashboard", icon: Home },
-    { title: "Artistas", url: "/mi-management", icon: Music },
-    { title: "Drive", url: "/drive", icon: HardDrive },
-    { title: "Calendario", url: "/calendar", icon: Calendar },
-    { title: "Action Center", url: "/solicitudes", icon: Inbox },
-    { title: "Finanzas", url: "/finanzas", icon: Wallet },
+interface NavItem {
+  title: string;
+  url: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: 'pending' | 'booking';
+}
+
+interface NavGroup {
+  label: string | null;
+  managementOnly?: boolean;
+  items: NavItem[];
+  managementExtra?: NavItem[];
+}
+
+// ─── NAVIGATION GROUPS ────────────────────────────────────────────────────────
+
+const getNavigationGroups = (isManagement: boolean): NavGroup[] => {
+  const groups: NavGroup[] = [
+    {
+      label: null,
+      items: [
+        { title: "Dashboard", url: "/dashboard", icon: Home },
+      ],
+    },
+    {
+      label: "Artistas",
+      items: [
+        { title: "Mis Artistas", url: "/mi-management", icon: Music },
+        { title: "Proyectos", url: "/proyectos", icon: FolderKanban },
+        { title: "Discografía", url: "/releases", icon: Disc3 },
+      ],
+    },
+    {
+      label: "Operaciones",
+      managementOnly: true,
+      items: [
+        { title: "Booking", url: "/booking", icon: Mic, badge: 'booking' as const },
+        { title: "Sincronizaciones", url: "/sincronizaciones", icon: Film },
+        { title: "Hojas de Ruta", url: "/roadmaps", icon: Map },
+      ],
+    },
+    {
+      label: "Dinero",
+      items: [
+        { title: "Finanzas", url: "/finanzas", icon: Wallet },
+        { title: "Presupuestos", url: "/budgets", icon: Calculator },
+      ],
+      managementExtra: [
+        { title: "Analytics", url: "/analytics", icon: BarChart3 },
+      ],
+    },
+    {
+      label: "Archivos",
+      items: [
+        { title: "Drive", url: "/drive", icon: HardDrive },
+        { title: "Documentos", url: "/documents", icon: FileText },
+      ],
+    },
+    {
+      label: "Comunicación",
+      items: [
+        { title: "Solicitudes", url: "/solicitudes", icon: Bell, badge: 'pending' as const },
+        { title: "Correo", url: "/correo", icon: Mail },
+        { title: "Chat", url: "/chat", icon: MessageCircle },
+      ],
+    },
+    {
+      label: "Administración",
+      managementOnly: true,
+      items: [
+        { title: "Equipos", url: "/teams", icon: UsersRound },
+        { title: "Contactos", url: "/agenda", icon: Users },
+        { title: "EPKs", url: "/epks", icon: FileImage },
+        { title: "Calendario", url: "/calendar", icon: Calendar },
+        { title: "Mi Perfil", url: "/contacts", icon: User },
+        { title: "Ajustes", url: "/settings", icon: Settings },
+      ],
+    },
   ];
 
-  // Management-only items
-  const managementItems = isManagement ? [
-    { title: "Booking", url: "/booking", icon: Mic },
-    { title: "Sincronizaciones", url: "/sincronizaciones", icon: Film },
-    { title: "Hojas de Ruta", url: "/roadmaps", icon: Map },
-    { title: "Proyectos", url: "/proyectos", icon: FolderKanban },
-    { title: "Discografía", url: "/releases", icon: Disc3 },
-  ] : [];
-
-  // Common secondary items
-  const secondaryItems = [
-    { title: "Correo", url: "/correo", icon: Inbox },
-    { title: "Chat", url: "/chat", icon: MessageCircle },
-    { title: "Documentos", url: "/documents", icon: FileText },
-    { title: "EPKs", url: "/epks", icon: FileImage },
-  ];
-
-  // Management analytics
-  const analyticsItems = isManagement ? [
-    { title: "Analytics", url: "/analytics", icon: DollarSign },
-  ] : [];
-
-  return { coreItems, managementItems, secondaryItems, analyticsItems };
+  return groups.filter(g => !g.managementOnly || isManagement);
 };
 
-const adminItems = [
-  { title: "Equipos", url: "/teams", icon: UsersRound },
-  { title: "Contactos", url: "/agenda", icon: Users },
-  { title: "Mi Perfil", url: "/contacts", icon: User },
-  { title: "Ajustes", url: "/settings", icon: Settings },
-];
+// ─── COMPONENT ────────────────────────────────────────────────────────────────
 
 export function AppSidebar() {
   const { profile, signOut } = useAuth();
@@ -90,14 +128,20 @@ export function AppSidebar() {
   const currentPath = location.pathname;
 
   const isManagement = profile?.active_role === 'management';
-  const { coreItems, managementItems, secondaryItems, analyticsItems } = getNavigationItems(isManagement);
+  const navigationGroups = getNavigationGroups(isManagement);
 
-  const isActive = (path: string) => {
-    if (path.includes('?')) {
-      const [pathname, query] = path.split('?');
-      return currentPath === pathname && location.search.includes(query);
-    }
-    return currentPath === path;
+  // Badge counts — no extra queries, uses data already fetched
+  const { items: actionItems } = useActionCenter({ status: ['pending', 'in_review'] });
+  const pendingCount = actionItems.filter(i => i.status === 'pending').length;
+  const bookingPendingCount = actionItems.filter(
+    i => i.item_type === 'booking_request' && i.status === 'pending'
+  ).length;
+
+  const getBadgeCount = (badge: 'pending' | 'booking' | undefined): number => {
+    if (!badge) return 0;
+    if (badge === 'pending') return pendingCount;
+    if (badge === 'booking') return bookingPendingCount;
+    return 0;
   };
 
   const handleSignOut = async () => {
@@ -108,27 +152,80 @@ export function AppSidebar() {
     });
   };
 
-  const renderNavItem = (item: { title: string; url: string; icon: React.ComponentType<{ className?: string }> }) => (
-    <NavLink
-      key={item.title}
-      to={item.url}
-      className={({ isActive: navIsActive }) =>
-        `nav-item group ${
-          navIsActive
-            ? 'active bg-primary/10 text-primary border border-primary/20'
-            : 'hover:bg-muted/80 text-muted-foreground hover:text-foreground'
-        } ${isCollapsed ? 'justify-center' : ''}`
-      }
-    >
-      <item.icon className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
-      {!isCollapsed && <span className="font-medium">{item.title}</span>}
-      {isCollapsed && (
-        <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none whitespace-nowrap">
-          {item.title}
-        </div>
-      )}
-    </NavLink>
-  );
+  const renderNavItem = (item: NavItem) => {
+    const count = getBadgeCount(item.badge);
+
+    return (
+      <NavLink
+        key={item.title}
+        to={item.url}
+        className={({ isActive: navIsActive }) =>
+          `nav-item group relative ${
+            navIsActive
+              ? 'active bg-primary/10 text-primary border border-primary/20'
+              : 'hover:bg-muted/80 text-muted-foreground hover:text-foreground'
+          } ${isCollapsed ? 'justify-center' : ''}`
+        }
+      >
+        <item.icon className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+
+        {/* Badge dot in collapsed mode */}
+        {isCollapsed && count > 0 && (
+          <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-destructive" />
+        )}
+
+        {/* Label + badge in expanded mode */}
+        {!isCollapsed && (
+          <>
+            <span className="font-medium flex-1">{item.title}</span>
+            {count > 0 && (
+              <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
+                {count > 99 ? '99+' : count}
+              </span>
+            )}
+          </>
+        )}
+
+        {/* Tooltip in collapsed mode */}
+        {isCollapsed && (
+          <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none whitespace-nowrap">
+            {item.title}
+            {count > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center min-w-[16px] h-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold px-1">
+                {count > 99 ? '99+' : count}
+              </span>
+            )}
+          </div>
+        )}
+      </NavLink>
+    );
+  };
+
+  const renderGroup = (group: NavGroup, index: number) => {
+    const allItems = isManagement && group.managementExtra
+      ? [...group.items, ...group.managementExtra]
+      : group.items;
+
+    return (
+      <div key={group.label ?? 'inicio'}>
+        {/* Separator between groups in collapsed mode */}
+        {isCollapsed && index > 0 && (
+          <Separator className="my-1.5 mx-2 w-auto" />
+        )}
+
+        {/* Group label in expanded mode */}
+        {!isCollapsed && group.label && (
+          <h3 className="px-2 pt-1 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            {group.label}
+          </h3>
+        )}
+
+        <nav className="space-y-0.5">
+          {allItems.map(renderNavItem)}
+        </nav>
+      </div>
+    );
+  };
 
   return (
     <Card className={`h-screen border-r rounded-none ${isCollapsed ? 'w-16' : 'w-64'} transition-all duration-300`}>
@@ -157,59 +254,8 @@ export function AppSidebar() {
         </div>
 
         {/* Navigation */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-4">
-          {/* Core Navigation */}
-          <div>
-            {!isCollapsed && (
-              <h3 className="px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Principal
-              </h3>
-            )}
-            <nav className="space-y-1">
-              {coreItems.map(renderNavItem)}
-            </nav>
-          </div>
-
-          {/* Management Tools */}
-          {isManagement && managementItems.length > 0 && (
-            <div>
-              {!isCollapsed && (
-                <h3 className="px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  Gestión
-                </h3>
-              )}
-              <nav className="space-y-1">
-                {managementItems.map(renderNavItem)}
-              </nav>
-            </div>
-          )}
-
-          {/* Secondary Items */}
-          <div>
-            {!isCollapsed && (
-              <h3 className="px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Herramientas
-              </h3>
-            )}
-            <nav className="space-y-1">
-              {secondaryItems.map(renderNavItem)}
-              {analyticsItems.map(renderNavItem)}
-            </nav>
-          </div>
-
-          {/* Admin Items */}
-          {isManagement && (
-            <div>
-              {!isCollapsed && (
-                <h3 className="px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  Administración
-                </h3>
-              )}
-              <nav className="space-y-1">
-                {adminItems.map(renderNavItem)}
-              </nav>
-            </div>
-          )}
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {navigationGroups.map((group, index) => renderGroup(group, index))}
         </div>
 
         {/* Footer */}
