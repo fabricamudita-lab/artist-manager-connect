@@ -158,7 +158,7 @@ interface BudgetDetailsDialogProps {
   onDelete?: () => void;
 }
 
-const iconMap = {
+const iconMap: Record<string, React.FC<{ className?: string }>> = {
   Music: Music,
   Calculator: Calculator,
   DollarSign: DollarSign,
@@ -170,7 +170,12 @@ const iconMap = {
   FileText: FileText,
   Lightbulb: Lightbulb,
   Utensils: Utensils,
-  Bed: Bed
+  Bed: Bed,
+  Settings: Settings,
+  FolderOpen: FolderOpen,
+  Sparkles: Sparkles,
+  Download: Download,
+  Database: Database,
 };
 
 // Global category sort function - Artista Principal first, Músicos second, then others, Comisiones always last
@@ -215,19 +220,41 @@ const CONCERT_DEFAULT_CATEGORIES = [
   { name: 'Management', icon_name: 'DollarSign', sort_order: 98 },
 ];
 
-// Default categories for release/music production budgets
+// Default categories for release/music production budgets (alineado con documento industria Vol.II)
 const RELEASE_DEFAULT_CATEGORIES = [
-  { name: 'Grabación', icon_name: 'Music', sort_order: 0 },
-  { name: 'Producción', icon_name: 'Settings', sort_order: 1 },
-  { name: 'Diseño (universo visual)', icon_name: 'Camera', sort_order: 2 },
-  { name: 'Stage (residencia técnica)', icon_name: 'Clapperboard', sort_order: 3 },
-  { name: 'Transporte', icon_name: 'Car', sort_order: 4 },
-  { name: 'Dietas', icon_name: 'Utensils', sort_order: 5 },
-  { name: 'Hospedaje', icon_name: 'Bed', sort_order: 6 },
-  { name: 'PR & Marketing', icon_name: 'Megaphone', sort_order: 7 },
-  { name: 'Distribución & Admin', icon_name: 'FileText', sort_order: 8 },
-  { name: 'Fabricación & logística', icon_name: 'Package', sort_order: 9 },
-  { name: 'Contingencia', icon_name: 'ShieldAlert', sort_order: 10 },
+  { name: 'Grabación',             icon_name: 'Music',      sort_order: 0  },
+  { name: 'Mezcla y Mastering',    icon_name: 'Music',      sort_order: 1  },
+  { name: 'Producción / Arreglos', icon_name: 'Settings',   sort_order: 2  },
+  { name: 'Diseño y Arte Visual',  icon_name: 'FileText',   sort_order: 3  },
+  { name: 'Vídeo y Fotografía',    icon_name: 'FileText',   sort_order: 4  },
+  { name: 'PR & Marketing',        icon_name: 'DollarSign', sort_order: 5  },
+  { name: 'Distribución',          icon_name: 'CreditCard', sort_order: 6  },
+  { name: 'Registro SGAE / AIE',   icon_name: 'FileText',   sort_order: 7  },
+  { name: 'Transporte',            icon_name: 'Car',        sort_order: 8  },
+  { name: 'Dietas y Alojamiento',  icon_name: 'Utensils',   sort_order: 9  },
+  { name: 'Contingencia',          icon_name: 'Calculator', sort_order: 10 },
+];
+
+// Default categories for promotional campaign budgets
+const CAMPAIGN_DEFAULT_CATEGORIES = [
+  { name: 'Meta Ads (IG + FB)',      icon_name: 'DollarSign', sort_order: 0 },
+  { name: 'TikTok Ads',              icon_name: 'DollarSign', sort_order: 1 },
+  { name: 'Google Ads',              icon_name: 'DollarSign', sort_order: 2 },
+  { name: 'Spotify (Marquee/Promo)', icon_name: 'Music',      sort_order: 3 },
+  { name: 'Prensa y PR',             icon_name: 'FileText',   sort_order: 4 },
+  { name: 'Contenido y Creatividad', icon_name: 'FileText',   sort_order: 5 },
+  { name: 'Distribución',            icon_name: 'CreditCard', sort_order: 6 },
+];
+
+// Default categories for videoclip budgets
+const VIDEOCLIP_DEFAULT_CATEGORIES = [
+  { name: 'Dirección y Producción', icon_name: 'FileText',   sort_order: 0 },
+  { name: 'Equipo técnico',         icon_name: 'Lightbulb',  sort_order: 1 },
+  { name: 'Localizaciones',         icon_name: 'Car',        sort_order: 2 },
+  { name: 'Vestuario y Arte',       icon_name: 'FileText',   sort_order: 3 },
+  { name: 'Postproducción',         icon_name: 'Settings',   sort_order: 4 },
+  { name: 'Catering',               icon_name: 'Utensils',   sort_order: 5 },
+  { name: 'Varios',                 icon_name: 'Calculator', sort_order: 6 },
 ];
 
 // Helper functions for billing status mapping
@@ -289,6 +316,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [editingExpenseBudget, setEditingExpenseBudget] = useState(false);
   const [budgetAmount, setBudgetAmount] = useState<number>(budget.fee || 0);
   const [expenseBudget, setExpenseBudget] = useState<number>(budget.expense_budget || 0);
+  const [avancePagado, setAvancePagado] = useState<number>((budget as any)?.metadata?.avance_pagado ?? 0);
+  const [editingAvance, setEditingAvance] = useState(false);
   const [expandedQuantity, setExpandedQuantity] = useState<string | null>(null);
   const [showLiquidarDialog, setShowLiquidarDialog] = useState(false);
   const [showLoadFromFormatDialog, setShowLoadFromFormatDialog] = useState(false);
@@ -392,6 +421,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         .then(({ data: budgetMeta }) => {
           const hidden = (budgetMeta?.metadata as any)?.hidden_categories ?? [];
           setHiddenCategories(new Set(hidden));
+          const avance = (budgetMeta?.metadata as any)?.avance_pagado ?? 0;
+          setAvancePagado(avance);
         });
       
       // Set up real-time subscription for budget items
@@ -537,6 +568,29 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   };
 
+  const saveAvancePagado = async () => {
+    try {
+      const { data: current } = await supabase
+        .from('budgets')
+        .select('metadata')
+        .eq('id', budget.id)
+        .single();
+      const existingMeta = (current?.metadata as Record<string, unknown>) || {};
+      const { error } = await supabase
+        .from('budgets')
+        .update({ metadata: { ...existingMeta, avance_pagado: avancePagado } })
+        .eq('id', budget.id);
+      if (error) throw error;
+      setEditingAvance(false);
+      onUpdate();
+      toast({ title: "¡Éxito!", description: "Avance pagado actualizado correctamente" });
+    } catch (error) {
+      console.error('Error updating avance pagado:', error);
+      toast({ title: "Error", description: "No se pudo actualizar el avance", variant: "destructive" });
+    }
+  };
+
+
   const fetchBudgetCategories = async () => {
     try {
       console.log('Fetching budget categories for user:', user?.id);
@@ -619,16 +673,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const createDefaultCategories = async () => {
     try {
-      // Use concert categories if budget type is 'concierto', otherwise use generic categories
-      const isConcertBudget = budget?.type === 'concierto';
-      
-      const defaultCategories = isConcertBudget 
-        ? CONCERT_DEFAULT_CATEGORIES
-        : [
-            { name: 'Promoción', icon_name: 'Music', sort_order: 0 },
-            { name: 'Comisiones', icon_name: 'DollarSign', sort_order: 1 },
-            { name: 'Otros Gastos', icon_name: 'CreditCard', sort_order: 2 }
-          ];
+      const type = budget?.type;
+      let defaultCategories;
+
+      if (type === 'concierto') {
+        defaultCategories = CONCERT_DEFAULT_CATEGORIES;
+      } else if (type === 'produccion_musical') {
+        defaultCategories = RELEASE_DEFAULT_CATEGORIES;
+      } else if (type === 'campana_promocional') {
+        defaultCategories = CAMPAIGN_DEFAULT_CATEGORIES;
+      } else if (type === 'videoclip') {
+        defaultCategories = VIDEOCLIP_DEFAULT_CATEGORIES;
+      } else {
+        defaultCategories = [
+          { name: 'Gastos generales', icon_name: 'CreditCard', sort_order: 0 },
+          { name: 'Comisiones',       icon_name: 'DollarSign', sort_order: 1 },
+        ];
+      }
 
       const { data, error } = await supabase
         .from('budget_categories')
@@ -2548,111 +2609,98 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 </div>
               </div>
               
-              {/* Caché y Presupuesto editables compactos */}
+              {/* Campos editables compactos — diferenciados por tipo */}
               <div className="flex items-center gap-4">
-                {/* Presupuesto de gastos */}
-                <div className="text-right">
-                  <div className="text-xs text-gray-400">Presupuesto:</div>
-                  {editingExpenseBudget ? (
-                    <div className="flex items-center gap-1">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={expenseBudget}
-                        onChange={(e) => setExpenseBudget(parseFloat(e.target.value) || 0)}
-                        className="h-7 w-20 text-sm bg-white/10 border-white/20 text-white"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            saveExpenseBudget();
-                          } else if (e.key === 'Escape') {
-                            setEditingExpenseBudget(false);
-                            setExpenseBudget(budget.expense_budget || 0);
-                          }
-                        }}
-                        autoFocus
-                      />
-                      <Button
-                        size="sm"
-                        onClick={saveExpenseBudget}
-                        className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700"
-                      >
-                        <Save className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setEditingExpenseBudget(false);
-                          setExpenseBudget(budget.expense_budget || 0);
-                        }}
-                        className="h-6 w-6 p-0 bg-white/10 border-white/20 hover:bg-white/20"
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setEditingExpenseBudget(true)}
-                      className="text-amber-400 hover:text-amber-300 transition-colors font-medium"
-                      aria-label="Editar presupuesto de gastos"
-                    >
-                      {expenseBudget > 0 ? `€${expenseBudget.toFixed(2)}` : 'Sin definir'}
-                      <Pencil className="w-3 h-3 ml-1 inline" />
-                    </button>
-                  )}
-                </div>
+                {(() => {
+                  const isConcert = budget.type === 'concierto';
+                  const isProduccion = budget.type === 'produccion_musical';
+                  // isCapital = videoclip, campaña, otros
 
-                {/* Caché */}
-                <div className="text-right">
-                  <div className="text-xs text-gray-400">Caché:</div>
-                  {editingBudgetAmount ? (
-                    <div className="flex items-center gap-1">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={budgetAmount}
-                        onChange={(e) => setBudgetAmount(parseFloat(e.target.value) || 0)}
-                        className="h-7 w-20 text-sm bg-white/10 border-white/20 text-white"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            saveBudgetAmount();
-                          } else if (e.key === 'Escape') {
-                            setEditingBudgetAmount(false);
-                            setBudgetAmount(budget.fee || 0);
-                          }
-                        }}
-                        autoFocus
-                      />
-                      <Button
-                        size="sm"
-                        onClick={saveBudgetAmount}
-                        className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700"
-                      >
-                        <Save className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setEditingBudgetAmount(false);
-                          setBudgetAmount(budget.fee || 0);
-                        }}
-                        className="h-6 w-6 p-0 bg-white/10 border-white/20 hover:bg-white/20"
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setEditingBudgetAmount(true)}
-                      className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
-                      aria-label="Editar caché"
-                    >
-                      {budgetAmount > 0 ? `€${budgetAmount.toFixed(2)}` : 'Sin definir'}
-                      <Pencil className="w-3 h-3 ml-1 inline" />
-                    </button>
-                  )}
-                </div>
+                  return (
+                    <>
+                      {/* Campo 1: Presupuesto de gastos (solo concierto) / oculto en producción */}
+                      {isConcert && (
+                        <div className="text-right">
+                          <div className="text-xs text-gray-400">Presupuesto:</div>
+                          {editingExpenseBudget ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number" step="0.01" value={expenseBudget}
+                                onChange={(e) => setExpenseBudget(parseFloat(e.target.value) || 0)}
+                                className="h-7 w-20 text-sm bg-white/10 border-white/20 text-white"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveExpenseBudget();
+                                  else if (e.key === 'Escape') { setEditingExpenseBudget(false); setExpenseBudget(budget.expense_budget || 0); }
+                                }}
+                                autoFocus
+                              />
+                              <Button size="sm" onClick={saveExpenseBudget} className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700"><Save className="w-3 h-3" /></Button>
+                              <Button size="sm" variant="outline" onClick={() => { setEditingExpenseBudget(false); setExpenseBudget(budget.expense_budget || 0); }} className="h-6 w-6 p-0 bg-white/10 border-white/20 hover:bg-white/20"><X className="w-3 h-3" /></Button>
+                            </div>
+                          ) : (
+                            <button onClick={() => setEditingExpenseBudget(true)} className="text-amber-400 hover:text-amber-300 transition-colors font-medium" aria-label="Editar presupuesto de gastos">
+                              {expenseBudget > 0 ? `€${expenseBudget.toFixed(2)}` : 'Sin definir'}<Pencil className="w-3 h-3 ml-1 inline" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Campo 1b: Avance (solo producción musical) */}
+                      {isProduccion && (
+                        <div className="text-right">
+                          <div className="text-xs text-gray-400">Avance:</div>
+                          {editingAvance ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number" step="0.01" value={avancePagado}
+                                onChange={(e) => setAvancePagado(parseFloat(e.target.value) || 0)}
+                                className="h-7 w-20 text-sm bg-white/10 border-white/20 text-white"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveAvancePagado();
+                                  else if (e.key === 'Escape') setEditingAvance(false);
+                                }}
+                                autoFocus
+                              />
+                              <Button size="sm" onClick={saveAvancePagado} className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700"><Save className="w-3 h-3" /></Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditingAvance(false)} className="h-6 w-6 p-0 bg-white/10 border-white/20 hover:bg-white/20"><X className="w-3 h-3" /></Button>
+                            </div>
+                          ) : (
+                            <button onClick={() => setEditingAvance(true)} className="text-amber-400 hover:text-amber-300 transition-colors font-medium" aria-label="Editar avance pagado">
+                              {avancePagado > 0 ? `€${avancePagado.toFixed(2)}` : 'Sin definir'}<Pencil className="w-3 h-3 ml-1 inline" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Campo 2: Caché (concierto) / Capital Aportado (producción) / Capital (otros) */}
+                      <div className="text-right">
+                        <div className="text-xs text-gray-400">
+                          {isConcert ? 'Caché:' : isProduccion ? 'Capital Aportado:' : 'Capital:'}
+                        </div>
+                        {editingBudgetAmount ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number" step="0.01" value={budgetAmount}
+                              onChange={(e) => setBudgetAmount(parseFloat(e.target.value) || 0)}
+                              className="h-7 w-20 text-sm bg-white/10 border-white/20 text-white"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveBudgetAmount();
+                                else if (e.key === 'Escape') { setEditingBudgetAmount(false); setBudgetAmount(budget.fee || 0); }
+                              }}
+                              autoFocus
+                            />
+                            <Button size="sm" onClick={saveBudgetAmount} className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700"><Save className="w-3 h-3" /></Button>
+                            <Button size="sm" variant="outline" onClick={() => { setEditingBudgetAmount(false); setBudgetAmount(budget.fee || 0); }} className="h-6 w-6 p-0 bg-white/10 border-white/20 hover:bg-white/20"><X className="w-3 h-3" /></Button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setEditingBudgetAmount(true)} className="text-blue-400 hover:text-blue-300 transition-colors font-medium" aria-label="Editar capital">
+                            {budgetAmount > 0 ? `€${budgetAmount.toFixed(2)}` : 'Sin definir'}<Pencil className="w-3 h-3 ml-1 inline" />
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
                 
                 <div className="flex items-center gap-2">
                   {/* Botón de Descargas */}
@@ -2707,15 +2755,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             <div className="mt-4">
               {(() => {
                 const totals = calculateGrandTotals();
-                // Caché = lo que paga el promotor (budgetAmount/fee)
-                // Presupuesto = gastos planificados (expenseBudget)
-                // Beneficio = Caché - Costes netos
+                const isConcert = budget.type === 'concierto';
+                const isProduccion = budget.type === 'produccion_musical';
+                // KPIs concierto
                 const beneficio = budgetAmount - totals.neto;
-                // Margen = (Beneficio / Caché) × 100
                 const margen = budgetAmount > 0 ? ((beneficio / budgetAmount) * 100) : 0;
-                // Desviación = Gastos reales vs Presupuesto planificado
                 const desviacion = expenseBudget > 0 ? totals.neto - expenseBudget : 0;
                 const desviacionPct = expenseBudget > 0 ? ((desviacion / expenseBudget) * 100) : 0;
+                // KPIs producción/campaña/videoclip
+                const saldoPendiente = budgetAmount - avancePagado;
+                const pctEjecutado = budgetAmount > 0 ? (totals.neto / budgetAmount) * 100 : 0;
+                const campo2 = isProduccion ? avancePagado : expenseBudget;
                 // Subtotal de ítems en categorías ocultas (con IVA)
                 const hiddenTotal = items
                   .filter(item => hiddenCategories.has(item.category_id ?? ''))
@@ -2727,130 +2777,123 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 return (
                   <>
                   <div className="grid grid-cols-6 gap-2">
-                    {/* Capital aportado (antes: Caché) */}
-                    <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                      <div className="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1">CAPITAL</div>
-                      <div className="text-xl font-bold text-blue-400">
-                        €{budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                      </div>
-                      <div className="flex items-center gap-0.5 text-[9px] text-blue-400/70 mt-0.5">
-                        <span>Capital aportado</span>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="cursor-help text-blue-400/70 hover:text-blue-400 ml-0.5">ℹ</span>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-[220px] text-xs">
-                              Puede incluir caché del artista, aportación del sello o distribuidora. Parte puede ser a devolver y parte a fondo perdido (ej. marketing).
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </div>
-
-                    {/* Presupuesto (gastos planificados) */}
-                    <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
-                      <div className="text-xs font-semibold text-amber-400 uppercase tracking-wide mb-1">PRESUPUESTO</div>
-                      <div className="text-xl font-bold text-amber-400">
-                        €{expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                      </div>
-                      <div className="text-[9px] text-amber-400/70 mt-0.5">Gastos planif.</div>
-                    </div>
-
-                    {/* Gastos Reales (neto) */}
-                    <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${
-                      expenseBudget > 0 && totals.neto > expenseBudget
-                        ? 'bg-destructive/10 border-destructive/20'
-                        : 'bg-card/50 border-border'
-                    }`}>
-                      <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${
-                        expenseBudget > 0 && totals.neto > expenseBudget ? 'text-destructive' : 'text-foreground/70'
-                      }`}>GASTOS REALES</div>
-                      <div className={`text-xl font-bold ${
-                        expenseBudget > 0 && totals.neto > expenseBudget ? 'text-destructive' : 'text-foreground'
-                      }`}>
-                        €{totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                      </div>
-                      {expenseBudget > 0 && (
-                        <div className={`text-[9px] mt-0.5 ${desviacion > 0 ? 'text-destructive' : 'text-green-600'}`}>
-                          {desviacion > 0 ? '+' : ''}{desviacionPct.toFixed(0)}% vs presup.
+                    {isConcert ? (
+                      <>
+                        {/* CONCIERTO: CACHÉ | PRESUPUESTO | GASTOS REALES | TOTAL A FACTURAR | BENEFICIO | MARGEN */}
+                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                          <div className="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1">CACHÉ</div>
+                          <div className="text-xl font-bold text-blue-400">€{budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-[9px] text-blue-400/70 mt-0.5">Fee del promotor</div>
                         </div>
-                      )}
-                    </div>
 
-                    {/* Total a Facturar (con IVA & IRPF) */}
-                    <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-primary/10 rounded-lg border border-primary/20">
-                      <div className="text-[10px] font-semibold text-primary uppercase tracking-wide mb-1">TOTAL A FACTURAR</div>
-                      <div className="text-xl font-bold text-primary">
-                        €{totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                      </div>
-                      <div className="flex items-center gap-2 text-[9px] mt-0.5">
-                        <span className="text-green-600">+€{totals.iva.toFixed(0)} IVA</span>
-                        <span className="text-red-600">-€{totals.irpf.toFixed(0)} IRPF</span>
-                      </div>
-                    </div>
+                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                          <div className="text-xs font-semibold text-amber-400 uppercase tracking-wide mb-1">PRESUPUESTO</div>
+                          <div className="text-xl font-bold text-amber-400">€{expenseBudget.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-[9px] text-amber-400/70 mt-0.5">Gastos planif.</div>
+                        </div>
 
-                    {/* Beneficio (Caché - Gastos) */}
-                    <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${
-                      budgetAmount === 0 
-                        ? 'bg-muted/30 border-border'
-                        : beneficio >= 0 
-                          ? 'bg-green-500/10 border-green-500/20'
-                          : 'bg-destructive/10 border-destructive/20'
-                    }`}>
-                      <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${
-                        budgetAmount === 0 
-                          ? 'text-muted-foreground'
-                          : beneficio >= 0 
-                            ? 'text-green-600'
-                            : 'text-destructive'
-                      }`}>
-                        BENEFICIO
-                      </div>
-                      <div className={`text-xl font-bold ${
-                        budgetAmount === 0 
-                          ? 'text-muted-foreground'
-                          : beneficio >= 0 
-                            ? 'text-green-600'
-                            : 'text-destructive'
-                      }`}>
-                        {budgetAmount === 0 ? '—' : `${beneficio < 0 ? '-' : ''}€${Math.abs(beneficio).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`}
-                      </div>
-                      <div className={`text-[9px] mt-0.5 ${beneficio >= 0 ? 'text-green-600/70' : 'text-destructive/70'}`}>
-                        Caché - Gastos
-                      </div>
-                    </div>
+                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${expenseBudget > 0 && totals.neto > expenseBudget ? 'bg-destructive/10 border-destructive/20' : 'bg-card/50 border-border'}`}>
+                          <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${expenseBudget > 0 && totals.neto > expenseBudget ? 'text-destructive' : 'text-foreground/70'}`}>GASTOS REALES</div>
+                          <div className={`text-xl font-bold ${expenseBudget > 0 && totals.neto > expenseBudget ? 'text-destructive' : 'text-foreground'}`}>€{totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          {expenseBudget > 0 && <div className={`text-[9px] mt-0.5 ${desviacion > 0 ? 'text-destructive' : 'text-green-600'}`}>{desviacion > 0 ? '+' : ''}{desviacionPct.toFixed(0)}% vs presup.</div>}
+                        </div>
 
-                    {/* Margen (%) */}
-                    <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${
-                      budgetAmount === 0 
-                        ? 'bg-muted/30 border-border'
-                        : margen >= 0 
-                          ? 'bg-green-500/10 border-green-500/20'
-                          : 'bg-destructive/10 border-destructive/20'
-                    }`}>
-                      <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${
-                        budgetAmount === 0 
-                          ? 'text-muted-foreground'
-                          : margen >= 0 
-                            ? 'text-green-600'
-                            : 'text-destructive'
-                      }`}>
-                        MARGEN
-                      </div>
-                      <div className={`text-xl font-bold ${
-                        budgetAmount === 0 
-                          ? 'text-muted-foreground'
-                          : margen >= 0 
-                            ? 'text-green-600'
-                            : 'text-destructive'
-                      }`}>
-                        {budgetAmount === 0 ? '—' : `${margen.toFixed(1)}%`}
-                      </div>
-                      <div className={`text-[9px] mt-0.5 ${margen >= 0 ? 'text-green-600/70' : 'text-destructive/70'}`}>
-                        Rentabilidad
-                      </div>
-                    </div>
+                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-primary/10 rounded-lg border border-primary/20">
+                          <div className="text-[10px] font-semibold text-primary uppercase tracking-wide mb-1">TOTAL A FACTURAR</div>
+                          <div className="text-xl font-bold text-primary">€{totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="flex items-center gap-2 text-[9px] mt-0.5">
+                            <span className="text-green-600">+€{totals.iva.toFixed(0)} IVA</span>
+                            <span className="text-red-600">-€{totals.irpf.toFixed(0)} IRPF</span>
+                          </div>
+                        </div>
+
+                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${budgetAmount === 0 ? 'bg-muted/30 border-border' : beneficio >= 0 ? 'bg-green-500/10 border-green-500/20' : 'bg-destructive/10 border-destructive/20'}`}>
+                          <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${budgetAmount === 0 ? 'text-muted-foreground' : beneficio >= 0 ? 'text-green-600' : 'text-destructive'}`}>BENEFICIO</div>
+                          <div className={`text-xl font-bold ${budgetAmount === 0 ? 'text-muted-foreground' : beneficio >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                            {budgetAmount === 0 ? '—' : `${beneficio < 0 ? '-' : ''}€${Math.abs(beneficio).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`}
+                          </div>
+                          <div className={`text-[9px] mt-0.5 ${beneficio >= 0 ? 'text-green-600/70' : 'text-destructive/70'}`}>Caché - Gastos</div>
+                        </div>
+
+                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${budgetAmount === 0 ? 'bg-muted/30 border-border' : margen >= 0 ? 'bg-green-500/10 border-green-500/20' : 'bg-destructive/10 border-destructive/20'}`}>
+                          <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${budgetAmount === 0 ? 'text-muted-foreground' : margen >= 0 ? 'text-green-600' : 'text-destructive'}`}>MARGEN</div>
+                          <div className={`text-xl font-bold ${budgetAmount === 0 ? 'text-muted-foreground' : margen >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                            {budgetAmount === 0 ? '—' : `${margen.toFixed(1)}%`}
+                          </div>
+                          <div className={`text-[9px] mt-0.5 ${margen >= 0 ? 'text-green-600/70' : 'text-destructive/70'}`}>Rentabilidad</div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* PRODUCCIÓN / CAMPAÑA / VIDEOCLIP */}
+                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                          <div className="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1">
+                            {isProduccion ? 'CAPITAL APORTADO' : 'CAPITAL'}
+                          </div>
+                          <div className="text-xl font-bold text-blue-400">€{budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="flex items-center gap-0.5 text-[9px] text-blue-400/70 mt-0.5">
+                            <span>{isProduccion ? 'Inversión total' : 'Presupuesto total'}</span>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-help text-blue-400/70 hover:text-blue-400 ml-0.5">ℹ</span>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="max-w-[220px] text-xs">
+                                  {isProduccion
+                                    ? 'Capital aportado por el artista, sello o distribuidora. Parte puede ser a devolver y parte a fondo perdido (ej. marketing).'
+                                    : 'Capital total asignado a este proyecto.'}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                          <div className="text-xs font-semibold text-amber-400 uppercase tracking-wide mb-1">
+                            {isProduccion ? 'AVANCE PAGADO' : 'PRESUPUESTO PLANIF.'}
+                          </div>
+                          <div className="text-xl font-bold text-amber-400">€{campo2.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-[9px] text-amber-400/70 mt-0.5">
+                            {isProduccion ? 'Pago inicial al artista' : 'Gastos planificados'}
+                          </div>
+                        </div>
+
+                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${budgetAmount > 0 && totals.neto > budgetAmount ? 'bg-destructive/10 border-destructive/20' : 'bg-card/50 border-border'}`}>
+                          <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${budgetAmount > 0 && totals.neto > budgetAmount ? 'text-destructive' : 'text-foreground/70'}`}>EJECUTADO</div>
+                          <div className={`text-xl font-bold ${budgetAmount > 0 && totals.neto > budgetAmount ? 'text-destructive' : 'text-foreground'}`}>
+                            €{totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                          </div>
+                          <div className={`text-[9px] mt-0.5 ${totals.neto > budgetAmount ? 'text-destructive' : 'text-foreground/50'}`}>Gasto real neto</div>
+                        </div>
+
+                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-primary/10 rounded-lg border border-primary/20">
+                          <div className="text-[10px] font-semibold text-primary uppercase tracking-wide mb-1">TOTAL A FACTURAR</div>
+                          <div className="text-xl font-bold text-primary">€{totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="flex items-center gap-2 text-[9px] mt-0.5">
+                            <span className="text-green-600">+€{totals.iva.toFixed(0)} IVA</span>
+                            <span className="text-red-600">-€{totals.irpf.toFixed(0)} IRPF</span>
+                          </div>
+                        </div>
+
+                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${saldoPendiente < 0 ? 'bg-destructive/10 border-destructive/20' : 'bg-orange-500/10 border-orange-500/20'}`}>
+                          <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${saldoPendiente < 0 ? 'text-destructive' : 'text-orange-400'}`}>SALDO PENDIENTE</div>
+                          <div className={`text-xl font-bold ${saldoPendiente < 0 ? 'text-destructive' : 'text-orange-400'}`}>
+                            {budgetAmount === 0 ? '—' : `${saldoPendiente < 0 ? '-' : ''}€${Math.abs(saldoPendiente).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`}
+                          </div>
+                          <div className={`text-[9px] mt-0.5 ${saldoPendiente < 0 ? 'text-destructive/70' : 'text-orange-400/70'}`}>
+                            {isProduccion ? 'Capital − Avance' : 'Por consumir'}
+                          </div>
+                        </div>
+
+                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${budgetAmount === 0 ? 'bg-muted/30 border-border' : pctEjecutado > 100 ? 'bg-destructive/10 border-destructive/20' : 'bg-green-500/10 border-green-500/20'}`}>
+                          <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${budgetAmount === 0 ? 'text-muted-foreground' : pctEjecutado > 100 ? 'text-destructive' : 'text-green-600'}`}>% EJECUTADO</div>
+                          <div className={`text-xl font-bold ${budgetAmount === 0 ? 'text-muted-foreground' : pctEjecutado > 100 ? 'text-destructive' : 'text-green-600'}`}>
+                            {budgetAmount === 0 ? '—' : `${pctEjecutado.toFixed(1)}%`}
+                          </div>
+                          <div className={`text-[9px] mt-0.5 ${pctEjecutado > 100 ? 'text-destructive/70' : 'text-green-600/70'}`}>Ejecutado / Capital</div>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Chip ámbar: categorías ocultas incluidas en totales */}
@@ -2865,6 +2908,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   </>
                 );
               })()}
+
             </div>
             
             {/* Location and Event info compacto */}
