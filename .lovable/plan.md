@@ -1,183 +1,115 @@
 
-# Distinción por tipo de presupuesto: Concierto vs. Producción
 
-## El problema
+# Reestructuración del Detalle de Booking
 
-El diálogo `BudgetDetailsDialog.tsx` trata todos los presupuestos igual:
-- Muestra "Caché:" en el encabezado y en la tarjeta CAPITAL para tipos de producción
-- El resumen financiero (6 tarjetas) usa los mismos KPIs para todos los tipos
-- Las categorías por defecto para producción usan íconos no registrados (`Camera`, `Clapperboard`, `Megaphone`, `Package`, `ShieldAlert`) que no están en `iconMap`, por lo que no se renderizan
-- La creación de categorías por defecto no distingue `produccion_musical` de los demás tipos genéricos
-
-## Tipos de presupuesto y su lógica
-
-| Tipo | `budget.type` | Campo principal | KPIs clave |
-|---|---|---|---|
-| Concierto | `concierto` | **Caché** (lo que paga el promotor) | Caché → Gastos → Beneficio → Margen |
-| Producción musical | `produccion_musical` | **Capital Aportado** + **Avance** | Total inversión → Ejecutado → Avance pagado → Saldo pendiente |
-| Campaña promocional | `campana_promocional` | **Capital** | Total → Ejecutado → Presupuesto → Desviación |
-| Videoclip | `videoclip` | **Capital** | Igual que campaña |
-| Otros | `otros` | **Capital** | Genérico |
+5 mejoras para simplificar la pantalla y priorizar la información crítica.
 
 ---
 
-## Cambios en `BudgetDetailsDialog.tsx`
+## 1. Fusionar Documents + Archivos en una sola tab
 
-### 1. Corregir `iconMap` — añadir los íconos que faltan
+**Problema**: Dos tabs separadas para conceptos similares (Documents = contratos/riders generados; Archivos = explorador de carpetas del Drive). El usuario tiene que adivinar dónde está cada cosa.
 
-```ts
-// Línea ~162 — añadir al iconMap existente:
-Camera: Camera,
-Megaphone: Megaphone,  // → usar 'Sparkles' como alias si no existe
-Package: Package,      // → usar 'FolderOpen' como alias
-ShieldAlert: ShieldAlert,
-Clapperboard: Clapperboard, // → usar 'Music' como alias si no existe
-```
+**Solución**: Una sola tab **"Archivos & Docs"** con dos sub-secciones internas usando un mini-tab o collapsible.
 
-Se importarán desde `lucide-react` los que falten. Los que no existan en la versión instalada se mapearán a un sustituto visual cercano.
+### Cambios
 
-### 2. Corregir `RELEASE_DEFAULT_CATEGORIES` — nombres e íconos válidos
+**`src/pages/BookingDetail.tsx`**:
+- Eliminar las tabs `documents` y `drive` del `TabsList`
+- Reemplazarlas por una sola tab `files` con label "Archivos & Docs"
+- El `TabsContent` de `files` renderiza un nuevo componente `BookingFilesDocsTab`
+- El `TabsList` pasa de `grid-cols-6` a `grid-cols-5`
 
-Basado en el documento adjunto (producción discográfica en sello, fases de producción):
-
-```ts
-const RELEASE_DEFAULT_CATEGORIES = [
-  { name: 'Grabación',                icon_name: 'Music',      sort_order: 0  },
-  { name: 'Mezcla y Mastering',       icon_name: 'Music',      sort_order: 1  },
-  { name: 'Producción / Arreglos',    icon_name: 'Settings',   sort_order: 2  },
-  { name: 'Diseño y Arte Visual',     icon_name: 'FileText',   sort_order: 3  },
-  { name: 'Vídeo y Fotografía',       icon_name: 'FileText',   sort_order: 4  },
-  { name: 'PR & Marketing',           icon_name: 'DollarSign', sort_order: 5  },
-  { name: 'Distribución',             icon_name: 'CreditCard', sort_order: 6  },
-  { name: 'Registro SGAE / AIE',      icon_name: 'FileText',   sort_order: 7  },
-  { name: 'Transporte',               icon_name: 'Car',        sort_order: 8  },
-  { name: 'Dietas y Alojamiento',     icon_name: 'Utensils',   sort_order: 9  },
-  { name: 'Contingencia',             icon_name: 'Calculator', sort_order: 10 },
-];
-```
-
-Todos los `icon_name` son valores que ya existen en `iconMap`.
-
-### 3. Añadir categorías por defecto para Campaña y Videoclip
-
-```ts
-const CAMPAIGN_DEFAULT_CATEGORIES = [
-  { name: 'Meta Ads (IG + FB)',       icon_name: 'DollarSign', sort_order: 0 },
-  { name: 'TikTok Ads',               icon_name: 'DollarSign', sort_order: 1 },
-  { name: 'Google Ads',               icon_name: 'DollarSign', sort_order: 2 },
-  { name: 'Spotify (Marquee/Promo)',  icon_name: 'Music',      sort_order: 3 },
-  { name: 'Prensa y PR',              icon_name: 'FileText',   sort_order: 4 },
-  { name: 'Contenido y Creatividad',  icon_name: 'FileText',   sort_order: 5 },
-  { name: 'Distribución',             icon_name: 'CreditCard', sort_order: 6 },
-];
-
-const VIDEOCLIP_DEFAULT_CATEGORIES = [
-  { name: 'Dirección y Producción',   icon_name: 'FileText',   sort_order: 0 },
-  { name: 'Equipo técnico',           icon_name: 'Lightbulb',  sort_order: 1 },
-  { name: 'Localizaciones',           icon_name: 'Car',        sort_order: 2 },
-  { name: 'Vestuario y Arte',         icon_name: 'FileText',   sort_order: 3 },
-  { name: 'Postproducción',           icon_name: 'Settings',   sort_order: 4 },
-  { name: 'Catering',                 icon_name: 'Utensils',   sort_order: 5 },
-  { name: 'Varios',                   icon_name: 'Calculator', sort_order: 6 },
-];
-```
-
-### 4. Actualizar `createDefaultCategories` para usar la constante correcta por tipo
-
-```ts
-const createDefaultCategories = async () => {
-  const type = budget?.type;
-  let defaultCategories;
-
-  if (type === 'concierto') {
-    defaultCategories = CONCERT_DEFAULT_CATEGORIES;
-  } else if (type === 'produccion_musical') {
-    defaultCategories = RELEASE_DEFAULT_CATEGORIES;
-  } else if (type === 'campana_promocional') {
-    defaultCategories = CAMPAIGN_DEFAULT_CATEGORIES;
-  } else if (type === 'videoclip') {
-    defaultCategories = VIDEOCLIP_DEFAULT_CATEGORIES;
-  } else {
-    defaultCategories = [
-      { name: 'Gastos generales', icon_name: 'CreditCard', sort_order: 0 },
-      { name: 'Comisiones',       icon_name: 'DollarSign', sort_order: 1 },
-    ];
-  }
-  // ... resto igual
-};
-```
-
-### 5. Nuevo estado: `avancePagado` (solo producción)
-
-Los presupuestos de producción musical necesitan un campo adicional: **Avance** (parte del capital ya desembolsado). Se almacena en `budgets.metadata.avance_pagado` (sin migración de BD, ya existe la columna `metadata jsonb`).
-
-```ts
-const [avancePagado, setAvancePagado] = useState<number>(
-  (budget.metadata as any)?.avance_pagado ?? 0
-);
-const [editingAvance, setEditingAvance] = useState(false);
-
-const saveAvancePagado = async () => {
-  const { data: current } = await supabase.from('budgets').select('metadata').eq('id', budget.id).single();
-  await supabase.from('budgets').update({
-    metadata: { ...(current?.metadata || {}), avance_pagado: avancePagado }
-  }).eq('id', budget.id);
-  setEditingAvance(false);
-  onUpdate();
-};
-```
-
-### 6. Encabezado diferenciado por tipo
-
-El bloque de edición rápida (líneas 2550-2660) actualmente muestra siempre "Presupuesto:" y "Caché:". Se ajusta así:
-
-**Para conciertos** (`budget.type === 'concierto'`):
-- "Presupuesto:" → Gastos planificados (igual que ahora)
-- "Caché:" → Fee del promotor (igual que ahora)
-
-**Para producción** (`budget.type === 'produccion_musical'`):
-- "Capital Aportado:" → `budgetAmount` (renombrado del `fee`)
-- "Avance:" → `avancePagado` (nuevo campo editable en metadata)
-- Quitar el campo "Presupuesto:" del header (ya queda en las tarjetas)
-
-**Para campaña/videoclip/otros:**
-- "Capital:" → `budgetAmount`
-- "Presupuesto:" → `expenseBudget`
-
-### 7. Resumen financiero diferenciado (las 6 tarjetas)
-
-El bloque de 6 tarjetas (líneas 2729-2854) se envuelve en un `isConcert ? <ConciertSummary/> : <ProductionSummary/>` inline:
-
-**Concierto** (igual que ahora):
-CAPITAL | PRESUPUESTO | GASTOS REALES | TOTAL A FACTURAR | BENEFICIO | MARGEN
-
-**Producción / Campaña / Videoclip:**
-| Tarjeta | Valor | Color |
-|---|---|---|
-| TOTAL PRESUPUESTADO | `budgetAmount` | Azul |
-| AVANCE PAGADO | `avancePagado` (solo producción) o `expenseBudget` | Ámbar |
-| EJECUTADO | `totals.neto` | Neutro/Rojo si excede |
-| TOTAL A FACTURAR | `totals.total` (con IVA/IRPF) | Primario |
-| SALDO PENDIENTE | `budgetAmount - avancePagado` | Naranja |
-| % EJECUTADO | `(totals.neto / budgetAmount) * 100` | Verde/Rojo |
-
-Para campaña y videoclip (sin avance), el 2.º campo es "PRESUPUESTO PLANIF." con `expenseBudget`.
+**Nuevo archivo `src/components/booking-detail/BookingFilesDocsTab.tsx`**:
+- Componente wrapper que contiene un mini `Tabs` interno con dos sub-tabs:
+  - **"Contratos & Docs"** -- renderiza `BookingDocumentsTab`
+  - **"Explorador"** -- renderiza `BookingDriveTab`
+- Recibe todas las props necesarias para ambos componentes hijos
+- Los componentes `BookingDocumentsTab` y `BookingDriveTab` no se modifican internamente
 
 ---
 
-## Criterio de la industria (documento adjunto)
+## 2. Mover Viabilidad al header (Quick Stats Bar)
 
-Las fases del documento (B1-B4) confirman la estructura de un presupuesto de producción/campaña:
-- **Capital Aportado**: puede ser del artista, sello o distribuidora. Parte a devolver, parte a fondo perdido (ej. marketing).
-- **Avance**: pago inicial que recibe el artista/productor al comenzar, antes de que existan facturas reales.
-- Las categorías de producción discográfica del documento (Grabación, Mezcla, Mastering, Marketing, Distribución, Registro SGAE/AIE) se mapean directamente a las categorías por defecto propuestas.
+**Problema**: "Viabilidad 3/3" es información de decision que esta enterrada al fondo del sidebar. Es lo primero que un manager mira para decidir si avanza con un booking.
+
+**Solución**: Reemplazar la 4a tarjeta del Quick Stats Bar (Facturacion, que es menos urgente) por un indicador de Viabilidad, y mover Facturacion al Overview tab.
+
+### Cambios
+
+**`src/pages/BookingDetail.tsx`**:
+- Quick Stats Bar: Reemplazar la 4a card (Facturacion) por Viabilidad:
+  - Muestra `X/3` con colores (verde si 3/3, ambar si parcial, gris si 0)
+  - Clickable: hace scroll a `viabilityRef` en el sidebar
+  - Solo visible en fases `negociacion`, `confirmado`, `facturado`; en fases anteriores muestra Facturacion como estaba
+- Mover la info de "Facturacion" al `BookingOverviewTab` como un campo mas en el Deal Summary
+
+**`src/components/booking-detail/BookingOverviewTab.tsx`**:
+- Anadir el campo `estado_facturacion` al interface de props
+- Mostrar "Estado Facturacion" en el Deal Summary card, junto a Contrato
 
 ---
 
-## Archivos afectados
+## 3. Reemplazar "Gastos Est. -" por placeholder activo
+
+**Problema**: La tarjeta muestra "Gastos Est. -" cuando no hay datos, comunicando "incompleto" sin aportar valor.
+
+**Solución**: Si `gastos_estimados` es null/0, mostrar un boton "+Estimar gastos" que abre el dialog de edicion. Si tiene valor, mostrar normalmente.
+
+### Cambios
+
+**`src/pages/BookingDetail.tsx`**:
+- En la 2a card del Quick Stats Bar (Gastos Est.):
+  - Si `booking.gastos_estimados` tiene valor: mostrar como ahora
+  - Si no tiene valor: mostrar un boton con icono `+` y texto "Estimar gastos" que llama a `setShowEditDialog(true)` para abrir el formulario de edicion del booking
+
+---
+
+## 4. Unificar notas con toggle de privacidad
+
+**Problema**: "Notas del Artista" (campo `info_comentarios`, texto plano visible para el artista) y "Notas Internas" (campo `notas`, JSON array, solo equipo) estan separadas en dos cards que conceptualmente hacen lo mismo.
+
+**Solución**: Una sola card "Notas" con un selector de visibilidad. Las notas internas (thread de mensajes del equipo) se mantienen como estan. Las "notas del artista" se convierten en un campo tipo "Notas visibles" con un indicador claro.
+
+### Cambios
+
+**`src/components/booking-detail/BookingOverviewTab.tsx`**:
+- Eliminar el grid de 2 columnas con las dos cards de notas
+- Reemplazar por una sola card "Notas" que contiene:
+  - Un `Tabs` interno con dos sub-tabs:
+    - **"Equipo"** (icono candado) -- renderiza `BookingNotes` (el thread interno existente, sin cambios)
+    - **"Artista"** (icono ojo) -- renderiza el textarea de notas del artista con su boton guardar
+  - Cada tab tiene un subtitulo aclaratorio: "Solo visible para el equipo" / "Visible para el artista"
+- El componente `BookingNotes` no cambia internamente
+- El grid pasa a ser una sola card de ancho completo
+
+---
+
+## 5. Reordenar sidebar por urgencia
+
+**Problema**: El orden actual es Disponibilidad, Viabilidad, Archivos Vinculados, Historial. La Viabilidad ya se mueve al header (punto 2), asi que queda espacio.
+
+**Sololucion**: Reordenar el sidebar con la logica de "lo que bloquea primero":
+
+1. **Disponibilidad del Equipo** (bloquea el show si alguien no puede)
+2. **Viabilidad** (se mantiene aqui como detalle expandible, aunque el resumen ya esta en el header)
+3. **Archivos Vinculados** (contexto rapido)
+4. **Historial** (consulta historica, lo menos urgente)
+
+### Cambios
+
+**`src/pages/BookingDetail.tsx`**:
+- El sidebar ya tiene este orden exacto (lineas 614-639). **No hay cambio necesario** -- ya esta ordenado por urgencia. Lo que faltaba era subir Viabilidad al header (punto 2), que ya se resuelve.
+
+---
+
+## Resumen de archivos afectados
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/BudgetDetailsDialog.tsx` | Íconos, categorías por defecto por tipo, encabezado diferenciado, tarjetas financieras diferenciadas, estado `avancePagado` |
+| `src/pages/BookingDetail.tsx` | Fusionar 2 tabs en 1, Quick Stats viabilidad, placeholder gastos activo, sidebar sin cambio de orden |
+| `src/components/booking-detail/BookingFilesDocsTab.tsx` | **Nuevo**: wrapper con sub-tabs Contratos y Explorador |
+| `src/components/booking-detail/BookingOverviewTab.tsx` | Unificar notas con tabs internas, anadir campo facturacion |
 
-Sin tocar: base de datos (se usa `metadata` jsonb ya existente), migraciones, otros archivos.
+Sin tocar: `BookingDocumentsTab`, `BookingDriveTab`, `BookingNotes`, `ViabilityChecksCard`, `AvailabilityStatusCard`, `BookingFilesWidget`, `BookingHistorySection`. Todos se reusan tal cual.
+
