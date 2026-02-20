@@ -1,70 +1,179 @@
 
-# Mejoras al diálogo de presupuesto (BudgetDetailsDialog)
+# Feature: Diálogo de estado para tareas ancladas cuando se marca "Retrasado"
 
-## Cambios propuestos — 4 puntos
+## Contexto del sistema actual
 
----
+El flujo actual tiene dos caminos diferenciados:
+- **Cambio de fecha** → detecta dependencias → abre `AnchorDependencyDialog` → el usuario elige qué tareas mover (con cascada de fechas)
+- **Cambio de estado** → `updateTask(workflowId, taskId, { status })` → se aplica directamente sin ningún diálogo ni cascada
 
-### 1. Categorías cerradas por defecto al abrir
+Lo que se pide es un tercer comportamiento: cuando una tarea cambia su estado a `retrasado`, buscar todas las tareas que estén ancladas a ella y preguntar al usuario qué estado aplicarles.
 
-**Problema:** Al abrir el diálogo, todas las categorías se despliegan automáticamente, lo que hace difícil obtener una vista general rápida.
+## Flujo propuesto
 
-**Solución:** Inicializar `openCategories` como un `Set` vacío en lugar de uno con todos los IDs. Las categorías arrancarán cerradas; el usuario las abre haciendo clic como ya funciona hoy.
-
-- Líneas afectadas: `538` y `567` en `BudgetDetailsDialog.tsx`
-- Se cambia `new Set(data.map(c => c.id))` → `new Set()`
-
----
-
-### 2. Ocultar / mostrar categorías individualmente
-
-**Problema:** No hay forma de quitar de la vista categorías que no se usan ahora, sin eliminarlas.
-
-**Solución:** Añadir un nuevo estado local `hiddenCategories: Set<string>` y un botón de ojo (`Eye` / `EyeOff`) en la cabecera de cada categoría. Las categorías ocultas no aparecen en la lista principal, pero sí en un acordeón colapsado al final llamado **"Categorías ocultas (N)"**, donde el usuario puede volver a mostrarlas.
-
-```
-[↕] [🎵] ARTISTA PRINCIPAL  (0 elementos)  Neto €0,00  Total €0,00  [👁] [+ Agregar]
-```
-
-El estado `hiddenCategories` se guarda solo en memoria (dura hasta que se cierra el diálogo); no requiere cambios en base de datos.
-
----
-
-### 3. Eliminar la etiqueta "PRESUPUESTO NACIONAL / INTERNACIONAL" del subheader
-
-**Problema:** El usuario tiene razón — esa terminología (nacional/internacional) pertenece al ámbito de booking (tarifa nacional vs. tarifa internacional). Para un presupuesto de lanzamiento no tiene sentido.
-
-**Solución sencilla:** Eliminar directamente la línea `PRESUPUESTO {budget_status?.toUpperCase() || 'NACIONAL'}` del subheader. El `budget_status` seguirá existiendo en la base de datos (lo necesita el sistema de booking para cargar tarifas), pero dejará de mostrarse como etiqueta prominente en el diálogo de presupuesto.
-
-- Línea afectada: `2441` en `BudgetDetailsDialog.tsx`
-- Solo se elimina el texto de UI, sin cambios en la lógica ni en la base de datos.
-
----
-
-### 4. Renombrar "Caché" → "Capital" (con tooltip explicativo)
-
-**Problema:** "Caché" es el cobro de un artista en un booking. En un presupuesto de lanzamiento, la fuente de dinero puede ser el artista, el sello o la distribuidora, y parte puede ser a fondo perdido (marketing) y parte a devolver.
-
-**Solución pragmática:** Renombrar la etiqueta `CACHÉ` → `CAPITAL` en la tarjeta de ingresos del resumen financiero, y cambiar el subtexto de `Ingresos` a `Capital aportado`. Se añade un tooltip pequeño que aclara: _"Fondos disponibles (caché, sello, distribuidora, etc.)"_.
-
-Esto es un cambio de nomenclatura en la UI únicamente. La columna de base de datos (`fee`) y la lógica de comisiones no se tocan.
-
-```
-╔══════════════════════╗
-║  CAPITAL             ║
-║  €0,00               ║
-║  Capital aportado ℹ  ║
-╚══════════════════════╝
+```text
+Usuario cambia estado a "retrasado"
+        │
+        ▼
+¿Hay tareas ancladas a esta tarea?
+        │
+      SÍ ──────────────────────────────────────────────────────────────────┐
+        │                                                                  │
+        ▼                                                                  │
+Abre diálogo "AnchoredStatusDialog"                                       │
+  "Envío a Fábrica está retrasada.                                         │
+   ¿Qué hacemos con las tareas ancladas?"                                  │
+                                                                          │
+  Lista de tareas ancladas (Test Pressing, Recepción Stock...)             │
+  Con su estado actual y una acción a aplicar                              │
+                                                                          │
+  ┌──────────────────────────────────────────┐                            │
+  │  Opciones (radio/selector por tarea):    │                            │
+  │  ○ Marcar como "Retrasada"               │                            │
+  │  ○ Mantener estado actual                │                            │
+  │  ○ Marcar como "Pendiente"               │                            │
+  └──────────────────────────────────────────┘                            │
+                                                                          │
+  [Cancelar]   [Aplicar]                                                  │
+        │                                                                  │
+      NO ──────────────────────────────────────────────────────────────────┘
+        │
+        ▼
+Aplica el estado directamente (comportamiento actual)
 ```
 
-El tooltip `ℹ` mostrará: _"Puede incluir caché del artista, aportación del sello o distribuidora. Parte puede ser a devolver y parte a fondo perdido (ej. marketing)."_
+## Implementación técnica
 
----
+### Archivo nuevo: `src/components/lanzamientos/AnchoredStatusDialog.tsx`
 
-## Archivos a modificar
+Nuevo componente de diálogo con las siguientes props:
 
-| Archivo | Cambios |
+```tsx
+interface AnchoredStatusDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  sourceName: string;         // "Envío a Fábrica"
+  newStatus: TaskStatus;      // 'retrasado'
+  dependentTasks: {
+    id: string;
+    name: string;
+    workflowId: string;
+    workflowName: string;
+    currentStatus: TaskStatus;
+  }[];
+  onConfirm: (decisions: Record<string, TaskStatus | 'keep'>) => void;
+}
+```
+
+El diálogo mostrará para cada tarea dependiente una fila con 3 opciones (radio group):
+- **Marcar como Retrasada** (seleccionada por defecto)
+- **Mantener estado actual** (ej. "En Proceso")
+- **Marcar como Pendiente**
+
+### Modificación en `src/pages/release-sections/ReleaseCronograma.tsx`
+
+**1. Nuevos estados locales** (junto a `anchorDialogOpen` y `pendingDateChange`):
+```ts
+const [statusAnchorDialogOpen, setStatusAnchorDialogOpen] = useState(false);
+const [pendingStatusChange, setPendingStatusChange] = useState<{
+  workflowId: string;
+  taskId: string;
+  newStatus: TaskStatus;
+  sourceName: string;
+  dependentTasks: { id: string; name: string; workflowId: string; workflowName: string; currentStatus: TaskStatus }[];
+} | null>(null);
+```
+
+**2. Nueva función `handleTaskStatusUpdate`** que reemplaza la llamada directa a `updateTask` para cambios de estado:
+
+```ts
+const handleTaskStatusUpdate = useCallback((workflowId: string, taskId: string, status: TaskStatus) => {
+  // Solo actuar si el nuevo estado es 'retrasado'
+  if (status !== 'retrasado') {
+    updateTask(workflowId, taskId, { status });
+    return;
+  }
+
+  // Buscar tareas ancladas a esta tarea
+  const dependents = [];
+  for (const w of workflows) {
+    for (const t of w.tasks) {
+      if (t.anchoredTo?.includes(taskId)) {
+        dependents.push({
+          id: t.id,
+          name: t.name,
+          workflowId: w.id,
+          workflowName: w.name,
+          currentStatus: t.status,
+        });
+      }
+    }
+  }
+
+  if (dependents.length === 0) {
+    updateTask(workflowId, taskId, { status });
+    return;
+  }
+
+  const sourceName = getTaskName(taskId);
+  setPendingStatusChange({ workflowId, taskId, newStatus: status, sourceName, dependentTasks: dependents });
+  setStatusAnchorDialogOpen(true);
+}, [workflows, updateTask, getTaskName]);
+```
+
+**3. Handler de confirmación**:
+
+```ts
+const handleStatusAnchorConfirm = useCallback((decisions: Record<string, TaskStatus | 'keep'>) => {
+  if (!pendingStatusChange) return;
+  const { workflowId, taskId, newStatus } = pendingStatusChange;
+  pushUndo();
+  setWorkflows(prev => prev.map(w => ({
+    ...w,
+    tasks: w.tasks.map(t => {
+      if (t.id === taskId && w.id === workflowId) return { ...t, status: newStatus };
+      const decision = decisions[t.id];
+      if (decision && decision !== 'keep') return { ...t, status: decision };
+      return t;
+    }),
+  })));
+  setStatusAnchorDialogOpen(false);
+  setPendingStatusChange(null);
+}, [pendingStatusChange, pushUndo]);
+```
+
+**4. Conectar la prop `onUpdateTaskStatus`** en el `<GanttChart>` (línea ~1957) para que use `handleTaskStatusUpdate` en vez de llamar directamente a `updateTask`:
+
+```tsx
+onUpdateTaskStatus={(workflowId, taskId, status) => {
+  handleTaskStatusUpdate(workflowId, taskId, status);
+}}
+```
+
+Y también conectarlo en la vista de lista (donde también se cambia el estado de la tarea en el componente `SortableWorkflowCard`).
+
+**5. Montar el diálogo en el JSX** junto al `AnchorDependencyDialog` existente:
+
+```tsx
+<AnchoredStatusDialog
+  open={statusAnchorDialogOpen}
+  onOpenChange={setStatusAnchorDialogOpen}
+  sourceName={pendingStatusChange?.sourceName ?? ''}
+  newStatus={pendingStatusChange?.newStatus ?? 'retrasado'}
+  dependentTasks={pendingStatusChange?.dependentTasks ?? []}
+  onConfirm={handleStatusAnchorConfirm}
+/>
+```
+
+## Archivos a crear/modificar
+
+| Archivo | Acción |
 |---|---|
-| `src/components/BudgetDetailsDialog.tsx` | 4 cambios: inicialización de `openCategories`, estado `hiddenCategories`, botón ocultar por categoría, etiqueta "NACIONAL" y tarjeta "CACHÉ" |
+| `src/components/lanzamientos/AnchoredStatusDialog.tsx` | Crear nuevo |
+| `src/pages/release-sections/ReleaseCronograma.tsx` | Añadir estados, handler, y montar diálogo |
 
-Sin cambios en base de datos, sin nuevos archivos, sin migraciones.
+Sin cambios en base de datos. El estado de las tareas dependientes se persiste automáticamente por el auto-save existente (debounce de 1.5s).
+
+## Comportamiento solo para estado "retrasado"
+
+El diálogo solo se activa cuando el nuevo estado es `retrasado`. Cambios a `completado`, `en_proceso` o `pendiente` siguen aplicándose directamente sin diálogo (el comportamiento actual). Esto evita interrupciones innecesarias en el flujo normal de trabajo.
