@@ -1,131 +1,142 @@
 
-# Fix: El presupuesto debe generar el cronograma completo automáticamente
+# Fix: El cronograma debe usar las fechas reales de los singles del presupuesto
 
-## ¿Qué está pasando?
+## Causa raíz
 
-Cuando creas un presupuesto, el sistema intenta crear hitos en el cronograma — pero hay dos problemas:
+Cuando el presupuesto crea el cronograma, pasa solo `numSingles: singles.length` a `generateTimelineFromConfig`. Esta función ignora las fechas concretas y calcula los singles a partir de offsets genéricos (ej. "8 semanas antes del release"). Pero el usuario ya ha introducido fechas exactas para cada single — esa información se pierde completamente.
 
-**Problema 1 — Estructura incompleta:** El presupuesto crea sólo 8 "fechas clave" (Grabación, Mezcla, Masters...) pero todos con `category: 'marketing'`. El cronograma organiza las tareas por flujos (`audio`, `visual`, `contenido`, `fabricacion`, `marketing`) y necesita el campo `metadata.estimatedDays` para mostrarlas correctamente. Sin esa estructura, el cronograma no reconoce los datos y muestra la pantalla vacía.
-
-**Problema 2 — Aprovechamiento nulo de la info del presupuesto:** El presupuesto ya sabe cuántas canciones hay, si hay videoclip, si hay fabricación física, si hay singles... exactamente la misma información que pide el wizard del cronograma. Pero esa información nunca se usa para generar el cronograma completo.
-
-## La solución: Al guardar el presupuesto, generar el cronograma completo
-
-Usar la misma función `generateTimelineFromConfig()` que ya existe (la usa el wizard del cronograma) para generar automáticamente el cronograma completo cuando se crea el presupuesto. Los datos del presupuesto mapean directamente a los parámetros del config:
-
+El flujo actual:
 ```
-releaseDate       ← el campo "Fecha de lanzamiento digital" del presupuesto
-hasVideo          ← si el presupuesto incluye videoclip (nVideoclips > 0)
-hasPhysical       ← si el presupuesto incluye fabricación física (fisico === true)
-numSongs          ← el campo nTracks del presupuesto
-numSingles        ← el número de singles definidos en el presupuesto
-physicalDate      ← el campo "Fecha de venta física" del presupuesto
+Singles con fechas reales → generateTimelineFromConfig(numSingles: 2) → offsets genéricos
+                                                                       ↓
+                                              "Single 1: 8 semanas antes" (ignorando la fecha real)
 ```
 
-### Comportamiento
-
-Si el cronograma ya existe (tiene milestones): **no tocar nada** — respetar el trabajo existente del usuario.
-
-Si el cronograma está vacío: **generarlo completo** — todas las tareas organizadas por flujo, con fechas calculadas a partir de la fecha de lanzamiento, usando la misma lógica del wizard.
-
-### Nuevo mensaje de éxito
-
-Cuando el presupuesto se crea y genera el cronograma automáticamente:
-> ✓ Presupuesto creado con 5 categorías
-> ✓ Cronograma generado automáticamente (18 tareas en 4 flujos)
-> ✓ 2 canciones añadidas en Créditos & Audio
-
-## Cambios técnicos
-
-### `src/components/releases/CreateReleaseBudgetDialog.tsx`
-
-**1. Importar la función de generación de timeline** (ya existe):
-```ts
-import { generateTimelineFromConfig, groupTasksByWorkflow, type ReleaseConfig } from '@/lib/releaseTimelineTemplates';
+El flujo correcto:
+```
+Singles con fechas reales → generateTimelineFromConfig({ singles: [{name, date}] }) → fechas exactas
+                                                                       ↓
+                                              "Single 1: 17 abr 2026" (la fecha del presupuesto)
 ```
 
-**2. Reemplazar la sección "4. Sync Milestones" (~líneas 602-646):**
+## Cambios necesarios
 
-Lógica actual (solo crea 8 milestones simples con `category: 'marketing'`):
-```ts
-// efectua 'autocalcular' pero con estructura incompleta
-await supabase.from('release_milestones').insert({ title, due_date, category: 'marketing' })
-```
+### 1. `src/lib/releaseTimelineTemplates.ts`
 
-Nueva lógica:
+Ampliar la interfaz `ReleaseConfig` para aceptar fechas individuales de singles:
 
 ```ts
-// ─── 4. Sync Milestones / Generate Cronograma ─────────────────
-let milestonesCreated = 0;
+export interface SingleConfig {
+  name?: string;   // Ej: "Single 1" o el título de la canción
+  date: Date;      // La fecha exacta de lanzamiento del single
+}
 
-// Check if cronograma already has data
-const { data: existingMilestones } = await supabase
-  .from('release_milestones')
-  .select('id')
-  .eq('release_id', release.id)
-  .limit(1);
-
-const cronogramaYaExiste = (existingMilestones?.length || 0) > 0;
-
-if (!cronogramaYaExiste && releaseDate) {
-  // Build ReleaseConfig from budget data
-  const config: ReleaseConfig = {
-    releaseDate,
-    physicalDate: physicalDate || null,
-    numSongs: nTracks || 1,
-    numSingles: singles.length,
-    hasVideo: nVideoclips > 0,
-    hasPhysical: fisico === true,
-  };
-
-  // Generate full timeline using the same function as the wizard
-  const generatedTasks = generateTimelineFromConfig(config);
-  const groupedTasks = groupTasksByWorkflow(generatedTasks);
-
-  // Build milestones in the same format that ReleaseCronograma.tsx expects
-  const milestonesToInsert = generatedTasks.map((task, index) => ({
-    release_id: release.id,
-    title: task.name,
-    due_date: format(task.startDate, 'yyyy-MM-dd'),
-    status: 'pending',
-    category: task.workflowId,          // ← 'audio', 'visual', 'marketing', etc.
-    sort_order: index,
-    metadata: {
-      estimatedDays: task.estimatedDays,  // ← Needed by ReleaseCronograma
-      anchoredTo: task.anchoredTo || null,
-      customStartDate: null,
-      subtasks: null,
-      responsible_ref: null,
-    },
-  }));
-
-  if (milestonesToInsert.length > 0) {
-    const { error } = await supabase
-      .from('release_milestones')
-      .insert(milestonesToInsert as any);
-    if (!error) milestonesCreated = milestonesToInsert.length;
-  }
+export interface ReleaseConfig {
+  releaseDate: Date;
+  physicalDate?: Date | null;
+  numSongs: number;
+  numSingles: number;        // Mantener por compatibilidad con el wizard
+  hasVideo: boolean;
+  hasPhysical: boolean;
+  singleDates?: SingleConfig[];  // NUEVO: fechas reales de cada single
 }
 ```
 
-**3. Actualizar el mensaje de éxito** para reflejar la generación del cronograma:
+Modificar `generateTimelineFromConfig` para que, cuando se reciban `singleDates`, genere los hitos de single usando las fechas exactas en lugar de los offsets calculados:
+
 ```ts
-if (milestonesCreated > 0)
-  summaryLines.push(`✓ Cronograma generado automáticamente (${milestonesCreated} tareas)`);
+export function generateTimelineFromConfig(config: ReleaseConfig): GeneratedTask[] {
+  const { releaseDate, numSingles, singleDates } = config;
+
+  // Si tenemos fechas reales de singles, generamos esas tareas con fecha fija
+  // en lugar de calcularlas desde el release date
+  const adjustedTemplates = adjustSingleOffsets(TIMELINE_TEMPLATES, numSingles);
+  const applicableTemplates = adjustedTemplates.filter(t => taskApplies(t, config));
+
+  const tasks: GeneratedTask[] = applicableTemplates.map((template, idx) => {
+    // Detectar si es un single (id: 'mkt-single1', 'mkt-single2', etc.)
+    const singleMatch = template.id.match(/^mkt-single(\d+)$/);
+    if (singleMatch && singleDates && singleDates.length > 0) {
+      const singleIndex = parseInt(singleMatch[1]) - 1;
+      const singleConfig = singleDates[singleIndex];
+      if (singleConfig?.date) {
+        // Usar la fecha exacta del single
+        return {
+          id: template.id,
+          workflowId: template.workflowId,
+          name: singleConfig.name 
+            ? `Single: ${singleConfig.name}` 
+            : template.name,
+          startDate: singleConfig.date, // Fecha exacta, no calculada
+          estimatedDays: 1,
+          status: 'pendiente' as const,
+          responsible: '',
+          responsible_ref: null,
+        };
+      }
+    }
+    // Resto de tareas: cálculo normal por offset
+    const deadline = addDays(releaseDate, template.offsetDays);
+    const startDate = addDays(deadline, -template.estimatedDays);
+    return {
+      id: template.id,
+      workflowId: template.workflowId,
+      name: template.name,
+      startDate,
+      estimatedDays: template.estimatedDays,
+      status: 'pendiente' as const,
+      responsible: '',
+      responsible_ref: null,
+    };
+  });
+
+  return tasks.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+}
 ```
 
-### `src/components/releases/CronogramaSetupWizard.tsx`
+### 2. `src/components/releases/CreateReleaseBudgetDialog.tsx`
 
-Sin cambios — el wizard sigue funcionando igual para cuando el usuario quiere regenerar el cronograma manualmente.
+En la sección "4. Sync Milestones" (~línea 617), pasar las fechas reales de singles al config:
 
-### `src/pages/release-sections/ReleaseCronograma.tsx`
+```ts
+// ANTES:
+const config: ReleaseConfig = {
+  releaseDate,
+  physicalDate: physicalDate || null,
+  numSongs: nTracks || 1,
+  numSingles: singles.length,
+  hasVideo: nVideoclips > 0,
+  hasPhysical: fisico === true,
+};
 
-Sin cambios — ya sabe leer milestones con `category` = workflow ID y `metadata.estimatedDays`. Al recargar la página después de crear el presupuesto, verá los milestones y mostrará el cronograma completo.
+// DESPUÉS:
+const config: ReleaseConfig = {
+  releaseDate,
+  physicalDate: physicalDate || null,
+  numSongs: nTracks || 1,
+  numSingles: singles.length,
+  hasVideo: nVideoclips > 0,
+  hasPhysical: fisico === true,
+  singleDates: singles
+    .filter(s => s.date)
+    .map(s => ({
+      name: s.title || s.isNew ? s.title : undefined,
+      date: s.date!,
+    })),
+};
+```
 
-## Resumen de archivos a modificar
+Con este cambio, si el usuario ha definido "Single 1 · Arbres · 17 abr 2026", el hito en el cronograma se creará con exactamente esa fecha, y el nombre del single incluirá el título de la canción si está disponible.
+
+## Compatibilidad con el Wizard del Cronograma
+
+El wizard de cronograma (`CronogramaSetupWizard.tsx`) llama a `generateTimelineFromConfig` sin `singleDates`, por lo que el nuevo campo es opcional — el comportamiento actual del wizard no cambia en absoluto.
+
+## Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/releases/CreateReleaseBudgetDialog.tsx` | Reemplazar la sección "Sync Milestones" (~líneas 602-646) con la generación completa del cronograma usando `generateTimelineFromConfig` |
+| `src/lib/releaseTimelineTemplates.ts` | Añadir `SingleConfig` y `singleDates` a `ReleaseConfig`; actualizar `generateTimelineFromConfig` para usar fechas exactas cuando están disponibles |
+| `src/components/releases/CreateReleaseBudgetDialog.tsx` | Pasar `singleDates` mapeadas desde el array `singles` al llamar a `generateTimelineFromConfig` |
 
-Sin cambios en base de datos, sin nuevos archivos, sin cambios en el cronograma.
+Sin cambios en base de datos, sin nuevos archivos.
