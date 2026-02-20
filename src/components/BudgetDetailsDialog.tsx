@@ -2929,7 +2929,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                      <div className="bg-gray-800 text-white p-4 border-b border-gray-600">
                        <h3 className="text-md font-bold mb-3">Gestión de Categorías</h3>
                         <div className="space-y-3">
-                          {sortCategoriesWithPriority(budgetCategories).map((category, index) => (
+                          {sortCategoriesWithPriority(budgetCategories).filter(c => !hiddenCategories.has(c.id)).map((category, index) => (
                             <div 
                               key={category.id}
                               className={`flex items-center justify-between p-3 rounded-lg transition-all duration-200 cursor-move
