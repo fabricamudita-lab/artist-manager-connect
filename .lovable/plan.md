@@ -1,226 +1,188 @@
 
-# Reorganización funcional de la navegación (AppSidebar)
+# Rediseño de la tabla de Presupuestos — columnas universales para todos los tipos
 
 ## Diagnóstico del problema actual
 
-El sidebar tiene 4 grupos arbitrarios: **Principal** (Dashboard, Artistas, Drive, Calendario, Action Center, Finanzas), **Gestión** (Booking, Sincros, Roadmaps, Proyectos, Discografía), **Herramientas** (Correo, Chat, Documentos, EPKs, Analytics), **Administración** (Equipos, Contactos, Mi Perfil, Ajustes).
+La tabla en `src/pages/Budgets.tsx` tiene estas columnas: **Nombre | Ciudad | Venue | Fecha | Estado | Importe | Acciones**
 
-Los problemas concretos:
-- "Finanzas" en Principal cuando es una herramienta operativa
-- "Action Center" es un anglicismo que no comunica qué hace el módulo
-- "Principal" y "Gestión" no son conceptos del mundo de la gestión artística
-- El usuario debe deducir qué hay detrás de cada grupo
+Problemas identificados en el código (y confirmados en la captura):
 
-## Nueva estructura de grupos propuesta
+1. **La columna "Venue" muestra la dirección completa** (ej: "Carrer d'Àlaba, 30, Sant Martí, 08005") — el campo `venue` en la base de datos almacena la dirección literal del lugar, no el nombre del recinto
+2. **La columna "Fecha" muestra el valor del campo `venue`** — hay un bug en el código: la línea 303 dice `{budget.venue || '-'}` en lugar de mostrar `event_date`
+3. **Ciudad y Venue solo aplican a conciertos** — un presupuesto de producción musical (como "Presupuesto - La Flor de Déu") no tiene ciudad ni venue, mostrando guiones en toda la fila
+4. **El campo `budget_status`** tiene valores `nacional/internacional` (no describe el estado del documento), mientras que `show_status` tiene `confirmado/pendiente/cancelado` (tampoco describe el estado del presupuesto como documento)
+5. **Sin diferenciación por tipo** — no se ve a simple vista si es un concierto, producción musical, campaña, etc.
+6. **Sin vínculo visible** a release, proyecto o booking
 
-```text
-┌─────────────────────────────────┐
-│  INICIO                         │
-│  · Dashboard                    │
-├─────────────────────────────────┤
-│  ARTISTAS                       │
-│  · Mis Artistas (/mi-management)│
-│  · Proyectos (/proyectos)       │
-│  · Discografía (/releases)      │
-├─────────────────────────────────┤
-│  OPERACIONES  (solo management) │
-│  · Booking (/booking)       [N] │ ← badge opcional
-│  · Sincronizaciones             │
-│  · Hojas de Ruta                │
-├─────────────────────────────────┤
-│  DINERO                         │
-│  · Finanzas (/finanzas)         │
-│  · Presupuestos (/budgets)      │
-│  · Analytics (/analytics)       │
-├─────────────────────────────────┤
-│  ARCHIVOS                       │
-│  · Drive (/drive)               │
-│  · Documentos (/documents)      │
-├─────────────────────────────────┤
-│  COMUNICACIÓN                   │
-│  · Solicitudes (/solicitudes)[N]│ ← badge obligatorio
-│  · Correo (/correo)             │
-│  · Chat (/chat)                 │
-├─────────────────────────────────┤
-│  ADMINISTRACIÓN (solo mgmt)     │
-│  · Equipos                      │
-│  · Contactos                    │
-│  · EPKs                         │
-│  · Calendario                   │
-│  · Mi Perfil                    │
-│  · Ajustes                      │
-└─────────────────────────────────┘
+## Análisis de la base de datos
+
+Los campos disponibles en la tabla `budgets` son:
+
+| Campo | Tipo | Para qué sirve realmente |
+|---|---|---|
+| `type` | enum | `concierto`, `produccion_musical`, `campana_promocional`, `videoclip`, `otros` |
+| `name` | text | Nombre del presupuesto |
+| `budget_status` | enum | `nacional` / `internacional` (¿ámbito geográfico, no estado del doc!) |
+| `show_status` | enum | `confirmado` / `pendiente` / `cancelado` (estado del evento, no del presupuesto) |
+| `fee` | numeric | CAPITAL / Importe principal (ingresos) |
+| `expense_budget` | numeric | Presupuesto de gastos |
+| `event_date` | date | Fecha del evento (solo conciertos) |
+| `city` | text | Ciudad (solo conciertos) |
+| `venue` | text | Nombre del recinto (pero contiene direcciones en algunos casos) |
+| `release_id` | uuid | Vínculo a discografía |
+| `project_id` | uuid | Vínculo a proyecto |
+| `artist_id` | uuid | Artista |
+| `metadata.estado` | jsonb | Estado real del workflow del presupuesto (ej: "produccion") |
+| `settlement_status` | text | Estado de liquidación (`open`) |
+| `created_at` | timestamp | Fecha de creación |
+| `updated_at` | timestamp | Última modificación |
+
+**Hallazgo clave**: el "estado" real del presupuesto (borrador, en revisión, aprobado, etc.) **no tiene columna propia** — vive dentro del campo `metadata` como `metadata.estado`. La interfaz usa `budget_status` para mostrar "borrador" pero ese campo contiene `nacional/internacional`.
+
+## Columnas universales propuestas (análisis desde gestión de proyectos)
+
+Basado en los principios de gestión financiera de proyectos creativos, las columnas óptimas para identificar cualquier presupuesto de un vistazo son:
+
+| Columna | Datos mostrados | Justificación |
+|---|---|---|
+| **Tipo** | Badge con icono (🎤 Concierto, 💿 Producción, 📣 Campaña, 🎥 Videoclip) | Contexto inmediato sin leer el nombre |
+| **Nombre** | `budget.name` | Identificador principal |
+| **Artista** | `artist_name` / `stage_name` | Qué artista concierne |
+| **Vinculado a** | Release / Proyecto / Booking | Navegación cruzada, muestra el contexto |
+| **Fecha clave** | `event_date` si es concierto, `created_at` si no | La fecha más relevante según el tipo |
+| **Estado** | `metadata.estado` o `show_status` según tipo | Estado real del documento |
+| **Capital (€)** | `fee` | Importe principal (ingresos/inversión) |
+| **Gastos (€)** | `expense_budget` | Presupuesto de costes |
+| **Acciones** | Ver, Eliminar | Acciones rápidas |
+
+## Cambios técnicos
+
+### Solo se modifica `src/pages/Budgets.tsx`
+
+**Cambio 1: Ampliar la query para traer datos de artista y vinculaciones**
+
+Reemplazar el `select('*')` actual por:
+```ts
+.select(`
+  id, name, type, city, venue, event_date, budget_status, show_status,
+  fee, expense_budget, metadata, created_at, updated_at, artist_id,
+  release_id, project_id,
+  artists:artist_id(name, stage_name),
+  releases:release_id(title),
+  projects:project_id(name)
+`)
 ```
 
-**Cambios de nombre clave:**
-- "Action Center" → **"Solicitudes"** (ya es el nombre de la ruta `/solicitudes`, solo se alinea el label)
-- "Artistas" → **"Mis Artistas"** (más específico)
-- El grupo "Principal" desaparece — Dashboard queda solo en INICIO
-- "Drive" queda en ARCHIVOS junto a Documentos (relación lógica)
-- Calendario pasa a ADMINISTRACIÓN (herramienta de soporte, no operativa)
-
-## Sobre los badges de conteo — Mi análisis honesto
-
-**La pregunta es válida y la respuesta es: sí, pero con criterio estricto.**
-
-Los badges son útiles únicamente cuando:
-1. El dato es **accionable de inmediato** desde ese módulo
-2. El número cambia con suficiente frecuencia para justificar la carga
-3. El badge no se vuelve ruido de fondo que el usuario ignora (efecto "notification blindness")
-
-**Recomendación para esta implementación:**
-
-| Item | Badge | Razón |
-|---|---|---|
-| Solicitudes | ✅ Siempre | El módulo entero es "cosas pendientes de tu acción". El badge es su razón de existir. |
-| Booking | ⚠️ Solo si hay > 0 negociaciones activas | Útil para management. Se obtiene de `action_center` ya cargado. |
-| Finanzas | ❌ No por ahora | "Facturas pendientes" requeriría otra query que hoy no existe. Añadir deuda de performance. |
-| Correo | ❌ No | El correo es mock data — badge engañoso. |
-
-**Implementación técnica del badge:**
-El hook `useActionCenter` ya expone `stats.pending` (count de items `status === 'pending'`). Este dato se puede usar en el sidebar sin query adicional. Se usará específicamente para el badge de **Solicitudes**.
-
-Para Booking, se puede mostrar el conteo de items `item_type === 'booking_request'` con `status === 'pending'` del mismo hook — un filtro sobre datos ya en memoria, sin query extra.
-
-## Implementación técnica
-
-### Solo se modifica `src/components/AppSidebar.tsx`
-
-**Cambio 1: Nueva estructura de grupos**
-
-Reemplazar la función `getNavigationItems` con grupos semánticamente correctos:
+**Cambio 2: Ampliar la interfaz `Budget`**
 
 ```ts
-const navigationGroups = [
-  {
-    label: null, // sin label — solo Dashboard
-    items: [
-      { title: "Dashboard", url: "/dashboard", icon: Home },
-    ]
-  },
-  {
-    label: "Artistas",
-    items: [
-      { title: "Mis Artistas", url: "/mi-management", icon: Music },
-      { title: "Proyectos", url: "/proyectos", icon: FolderKanban },
-      { title: "Discografía", url: "/releases", icon: Disc3 },
-    ]
-  },
-  {
-    label: "Operaciones",
-    managementOnly: true,
-    items: [
-      { title: "Booking", url: "/booking", icon: Mic, badge: 'booking' },
-      { title: "Sincronizaciones", url: "/sincronizaciones", icon: Film },
-      { title: "Hojas de Ruta", url: "/roadmaps", icon: Map },
-    ]
-  },
-  {
-    label: "Dinero",
-    items: [
-      { title: "Finanzas", url: "/finanzas", icon: Wallet },
-      { title: "Presupuestos", url: "/budgets", icon: Calculator },
-    ],
-    managementExtra: [
-      { title: "Analytics", url: "/analytics", icon: BarChart },
-    ]
-  },
-  {
-    label: "Archivos",
-    items: [
-      { title: "Drive", url: "/drive", icon: HardDrive },
-      { title: "Documentos", url: "/documents", icon: FileText },
-    ]
-  },
-  {
-    label: "Comunicación",
-    items: [
-      { title: "Solicitudes", url: "/solicitudes", icon: Bell, badge: 'pending' },
-      { title: "Correo", url: "/correo", icon: Mail },
-      { title: "Chat", url: "/chat", icon: MessageCircle },
-    ]
-  },
-  {
-    label: "Administración",
-    managementOnly: true,
-    items: [
-      { title: "Equipos", url: "/teams", icon: UsersRound },
-      { title: "Contactos", url: "/agenda", icon: Users },
-      { title: "EPKs", url: "/epks", icon: FileImage },
-      { title: "Calendario", url: "/calendar", icon: Calendar },
-      { title: "Mi Perfil", url: "/contacts", icon: User },
-      { title: "Ajustes", url: "/settings", icon: Settings },
-    ]
-  },
-]
+interface Budget {
+  id: string;
+  name: string;
+  type: string;
+  city?: string;
+  venue?: string;
+  event_date?: string;
+  budget_status?: string;
+  show_status?: string;
+  fee?: number;
+  expense_budget?: number;
+  metadata?: Record<string, any>;
+  created_at: string;
+  updated_at?: string;
+  artist_id?: string;
+  release_id?: string;
+  project_id?: string;
+  artists?: { name: string; stage_name?: string };
+  releases?: { title: string };
+  projects?: { name: string };
+}
 ```
 
-**Cambio 2: Badge de Solicitudes (pendientes)**
+**Cambio 3: Helper `getEstadoReal(budget)`**
 
-El sidebar importa `useActionCenter` con filtro mínimo (`status: ['pending', 'in_review']`) para obtener el `stats.pending`. Este dato alimenta el badge rojo sobre "Solicitudes" y el badge de "Booking" si hay booking requests pendientes.
-
-El badge solo se renderiza si `count > 0` — nunca se muestra un "0" que es ruido.
-
-```tsx
-// En el renderNavItem, si el item tiene badge:
-{badge && pendingCount > 0 && !isCollapsed && (
-  <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center 
-    rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
-    {pendingCount > 99 ? '99+' : pendingCount}
-  </span>
-)}
-// En collapsed, dot indicator:
-{badge && pendingCount > 0 && isCollapsed && (
-  <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-destructive" />
-)}
+```ts
+// El estado real vive en metadata.estado para presupuestos de producción
+// y en show_status para conciertos
+function getEstadoReal(budget: Budget): string {
+  if (budget.metadata?.estado) return budget.metadata.estado;
+  if (budget.show_status) return budget.show_status;
+  if (budget.budget_status && budget.budget_status !== 'nacional' && budget.budget_status !== 'internacional') {
+    return budget.budget_status;
+  }
+  return 'borrador';
+}
 ```
 
-**Cambio 3: Presupuestos añadido al grupo Dinero**
+**Cambio 4: Helper `getVinculacion(budget)` para la columna "Vinculado a"**
 
-`/budgets` actualmente no aparece en el sidebar — solo se llega desde el Dashboard o por URL directa. Al moverlo a grupo "Dinero" junto a Finanzas, se hace accesible y lógicamente agrupado.
+```ts
+function getVinculacion(budget: Budget): { label: string; type: 'release' | 'project' | 'none' } | null {
+  if (budget.releases?.title) return { label: budget.releases.title, type: 'release' };
+  if (budget.projects?.name) return { label: budget.projects.name, type: 'project' };
+  return null;
+}
+```
 
-**Cambio 4: collapsed mode — separadores entre grupos**
+**Cambio 5: Config de tipos con icono y colores**
 
-En modo colapsado (icono only), los grupos se separan con un `<Separator />` de 1px para mantener la agrupación visual incluso sin labels de texto.
+```ts
+const BUDGET_TYPES: Record<string, { label: string; icon: string; color: string; bg: string }> = {
+  concierto:           { label: 'Concierto',   icon: '🎤', color: 'text-green-700',  bg: 'bg-green-50' },
+  produccion_musical:  { label: 'Producción',  icon: '💿', color: 'text-purple-700', bg: 'bg-purple-50' },
+  campana_promocional: { label: 'Campaña',     icon: '📣', color: 'text-pink-700',   bg: 'bg-pink-50' },
+  videoclip:           { label: 'Videoclip',   icon: '🎥', color: 'text-amber-700',  bg: 'bg-amber-50' },
+  otros:               { label: 'Otros',       icon: '📋', color: 'text-slate-700',  bg: 'bg-slate-50' },
+};
+```
+
+**Cambio 6: Nueva estructura de columnas en la tabla**
+
+```
+[Tipo] [Nombre] [Artista] [Vinculado a] [Fecha] [Estado] [Capital] [Gastos] [Acciones]
+```
+
+- **Tipo**: Badge con icono + label corto (`🎤 Concierto`)
+- **Nombre**: `budget.name`, click abre el detalle
+- **Artista**: `budget.artists?.stage_name || budget.artists?.name || '—'`
+- **Vinculado a**: badge azul para releases, verde para proyectos, `—` si nada
+- **Fecha**: `event_date` formateada si existe, si no `created_at` (con label "Creado")
+- **Estado**: badge de color (borrador=gris, pendiente=amarillo, confirmado=verde, etc.)
+- **Capital**: `€{fee}` en verde si > 0
+- **Gastos**: `€{expense_budget}` en rojo/naranja si > 0, `—` si cero
+- **Acciones**: Ver + Eliminar
+
+**Cambio 7: Fix del bug de columnas duplicadas**
+
+La línea 303 actual tiene `{budget.venue || '-'}` en la columna de Fecha. Esto se elimina completamente al reestructurar las columnas.
+
+**Cambio 8: Actualizar filtro de búsqueda**
+
+Añadir `name`, `artists.stage_name`, `releases.title`, `projects.name` al filtro de búsqueda para mayor cobertura.
+
+**Cambio 9: KPI cards actualizadas**
+
+Reemplazar los 3 KPIs actuales por métricas universales:
+- Total presupuestos
+- Capital total (suma de `fee`)
+- Gastos totales (suma de `expense_budget`)
+- (opcional) Balance neto
 
 ## Resultado visual esperado
 
-```text
-EXPANDIDO                           COLAPSADO
-┌────────────────────────────┐      ┌──────┐
-│ 🏠 Dashboard               │      │  🏠  │
-│                            │      │──────│
-│ ARTISTAS                   │      │  🎵  │
-│ 🎵 Mis Artistas            │      │  📁  │
-│ 📁 Proyectos               │      │  💿  │
-│ 💿 Discografía             │      │──────│
-│                            │      │  🎤  │
-│ OPERACIONES                │      │  🎬  │
-│ 🎤 Booking                 │      │  🗺  │
-│ 🎬 Sincronizaciones        │      │──────│
-│ 🗺 Hojas de Ruta           │      │  💰  │
-│                            │      │  🧮  │
-│ DINERO                     │      │──────│
-│ 💰 Finanzas                │      │  💾  │
-│ 🧮 Presupuestos            │      │  📄  │
-│                            │      │──────│
-│ ARCHIVOS                   │      │  🔔 ③│ ← dot rojo
-│ 💾 Drive                   │      │  📧  │
-│ 📄 Documentos              │      │  💬  │
-│                            │      └──────┘
-│ COMUNICACIÓN               │
-│ 🔔 Solicitudes         [3] │ ← badge rojo
-│ 📧 Correo                  │
-│ 💬 Chat                    │
-└────────────────────────────┘
+```
+Tipo        Nombre                    Artista    Vinculado a          Fecha       Estado      Capital   Gastos
+🎤 Concierto  260419 Barcelona VIC    Artista X  —                   19/4/2026   Pendiente   €10.000   €3.200
+💿 Producción Presupuesto - Álbum    Pol Batlle  💿 La Flor de Déu  —           En produc.  €10.000   €8.500
+🎤 Concierto  Inverfest               Artista X  —                   26/4/2026   Pendiente   €15.000   €4.000
 ```
 
 ## Archivos afectados
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/AppSidebar.tsx` | Reorganización completa de grupos + renombrado + badges |
+| `src/pages/Budgets.tsx` | Nueva query + nueva interfaz + nuevas columnas + helpers + fix del bug |
 
-**Sin tocar:** rutas, hooks, páginas, base de datos, `DashboardLayout`. Cambio puramente de presentación/navegación.
+**Sin tocar**: `BudgetDetailsDialog`, `CreateBudgetDialog`, base de datos, rutas. Solo se modifica la lista/tabla.
 
-**Sin queries adicionales:** El badge usa `useActionCenter` con el estado en memoria existente.
+**Sin migraciones necesarias**: Todos los datos necesarios ya existen en la base de datos. Solo se usan correctamente.
