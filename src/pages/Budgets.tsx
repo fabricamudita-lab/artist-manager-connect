@@ -7,16 +7,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Calculator, Trash2, Download, FileText, Eye, TrendingUp, TrendingDown, Disc3 } from 'lucide-react';
+import { Plus, Search, Calculator, Trash2, FileText, Eye, Pencil, Check, X } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import CreateBudgetDialog from '@/components/CreateBudgetDialog';
 import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
 import { CreateBudgetFromTemplateDialog } from '@/components/CreateBudgetFromTemplateDialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { PermissionWrapper } from '@/components/PermissionBoundary';
 import { PermissionChip } from '@/components/PermissionChip';
-import { useAuthz } from '@/hooks/useAuthz';
 import { useGlobalSearch } from '@/hooks/useKeyboardShortcuts';
 import { GlobalSearchDialog } from '@/components/GlobalSearchDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -45,7 +48,13 @@ interface Budget {
   projects?: { name: string } | null;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+interface EditValues {
+  name: string;
+  estado: string;
+  project_id: string | null;
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const BUDGET_TYPES: Record<string, { label: string; icon: string; colorClass: string; bgClass: string }> = {
   concierto:           { label: 'Concierto',  icon: '🎤', colorClass: 'text-emerald-700 dark:text-emerald-400', bgClass: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800' },
@@ -54,6 +63,18 @@ const BUDGET_TYPES: Record<string, { label: string; icon: string; colorClass: st
   videoclip:           { label: 'Videoclip',  icon: '🎥', colorClass: 'text-amber-700 dark:text-amber-400',    bgClass: 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800' },
   otros:               { label: 'Otros',      icon: '📋', colorClass: 'text-muted-foreground',                 bgClass: 'bg-muted/40 border-border' },
 };
+
+const ESTADO_OPTIONS = [
+  { value: 'borrador',       label: 'Borrador' },
+  { value: 'pendiente',      label: 'Pendiente' },
+  { value: 'confirmado',     label: 'Confirmado' },
+  { value: 'en produccion',  label: 'En producción' },
+  { value: 'facturado',      label: 'Facturado' },
+  { value: 'liquidado',      label: 'Liquidado' },
+  { value: 'cancelado',      label: 'Cancelado' },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getBudgetType(type?: string) {
   if (!type) return BUDGET_TYPES.otros;
@@ -112,18 +133,14 @@ function formatFecha(budget: Budget): { date: string; label: string } {
   if (budget.event_date) {
     return {
       date: new Date(budget.event_date).toLocaleDateString('es-ES', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
+        day: '2-digit', month: '2-digit', year: 'numeric',
       }),
       label: 'Evento',
     };
   }
   return {
     date: new Date(budget.created_at).toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
+      day: '2-digit', month: '2-digit', year: 'numeric',
     }),
     label: 'Creado',
   };
@@ -135,21 +152,32 @@ export default function Budgets() {
   usePageTitle('Presupuestos');
   const { id } = useParams();
   const navigate = useNavigate();
+
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterArtist, setFilterArtist] = useState('all');
   const [artists, setArtists] = useState<{ id: string; name: string; stage_name?: string }[]>([]);
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+
+  // Inline editing state
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<EditValues>({ name: '', estado: 'borrador', project_id: null });
+  const [savingRowId, setSavingRowId] = useState<string | null>(null);
+  const [confirmUnlink, setConfirmUnlink] = useState<{ budgetId: string; projectName: string } | null>(null);
+
   const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
 
   useEffect(() => {
     fetchBudgets();
     fetchArtists();
+    fetchProjects();
   }, []);
 
   useEffect(() => {
@@ -159,10 +187,12 @@ export default function Budgets() {
     }
   }, [id, budgets]);
 
+  // ─── Data fetching ──────────────────────────────────────────────────────────
+
   const fetchBudgets = async () => {
     setLoading(true);
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('budgets')
         .select(`
           id, name, type, city, venue, event_date, budget_status, show_status,
@@ -174,20 +204,11 @@ export default function Budgets() {
         `)
         .order('created_at', { ascending: false });
 
-      if (filterArtist !== 'all') {
-        query = query.eq('artist_id', filterArtist);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
       setBudgets((data as any) || []);
     } catch (error) {
       console.error('Error fetching budgets:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar los presupuestos',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'No se pudieron cargar los presupuestos', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -206,6 +227,21 @@ export default function Budgets() {
     }
   };
 
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    }
+  };
+
+  // ─── Delete ─────────────────────────────────────────────────────────────────
+
   const handleDeleteBudget = async (budgetId: string) => {
     try {
       const { error } = await supabase.from('budgets').delete().eq('id', budgetId);
@@ -223,11 +259,87 @@ export default function Budgets() {
     setShowDetailsDialog(true);
   };
 
-  // ─── Filtering ──────────────────────────────────────────────────────────────
+  // ─── Inline editing ─────────────────────────────────────────────────────────
+
+  const startEditing = (budget: Budget, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingRowId(budget.id);
+    setEditValues({
+      name: budget.name,
+      estado: getEstadoReal(budget),
+      project_id: budget.project_id ?? null,
+    });
+  };
+
+  const cancelEditing = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingRowId(null);
+  };
+
+  const handleSave = async (budgetId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const budget = budgets.find((b) => b.id === budgetId);
+    if (!budget) return;
+
+    // Check if project is being unlinked
+    const wasLinked = !!budget.project_id;
+    const isNowUnlinked = editValues.project_id === null || editValues.project_id === 'none';
+    if (wasLinked && isNowUnlinked) {
+      const projectName = budget.projects?.name ?? 'este proyecto';
+      setConfirmUnlink({ budgetId, projectName });
+      return;
+    }
+
+    await persistSave(budgetId, editValues, budget);
+  };
+
+  const persistSave = async (budgetId: string, values: EditValues, budget: Budget) => {
+    setSavingRowId(budgetId);
+    try {
+      const resolvedProjectId = (values.project_id === 'none' || values.project_id === '')
+        ? null
+        : values.project_id;
+
+      const updatePayload: Record<string, any> = {
+        name: values.name,
+        metadata: { ...(budget.metadata || {}), estado: values.estado },
+        project_id: resolvedProjectId,
+      };
+
+      // Also update show_status for concerts for backward compatibility
+      if (budget.type === 'concierto') {
+        updatePayload.show_status = values.estado;
+      }
+
+      const { error } = await supabase.from('budgets').update(updatePayload).eq('id', budgetId);
+      if (error) throw error;
+
+      toast({ title: 'Guardado', description: 'Presupuesto actualizado correctamente' });
+      setEditingRowId(null);
+      fetchBudgets();
+    } catch (error) {
+      console.error('Error saving budget:', error);
+      toast({ title: 'Error', description: 'No se pudo guardar', variant: 'destructive' });
+    } finally {
+      setSavingRowId(null);
+    }
+  };
+
+  const handleConfirmedUnlink = async () => {
+    if (!confirmUnlink) return;
+    const budget = budgets.find((b) => b.id === confirmUnlink.budgetId);
+    if (!budget) return;
+    const values: EditValues = { ...editValues, project_id: null };
+    setConfirmUnlink(null);
+    await persistSave(confirmUnlink.budgetId, values, budget);
+  };
+
+  // ─── Filtering (all local — no stale closure bugs) ──────────────────────────
 
   const filteredBudgets = budgets.filter((budget) => {
-    const q = searchTerm.toLowerCase();
+    const q = searchTerm.toLowerCase().trim();
     const matchesSearch =
+      !q ||
       budget.name.toLowerCase().includes(q) ||
       (budget.artists?.stage_name?.toLowerCase().includes(q) ?? false) ||
       (budget.artists?.name?.toLowerCase().includes(q) ?? false) ||
@@ -236,8 +348,9 @@ export default function Budgets() {
       (budget.city?.toLowerCase().includes(q) ?? false);
 
     const matchesType = filterType === 'all' || budget.type === filterType;
+    const matchesArtist = filterArtist === 'all' || budget.artist_id === filterArtist;
 
-    return matchesSearch && matchesType;
+    return matchesSearch && matchesType && matchesArtist;
   });
 
   // ─── KPIs ───────────────────────────────────────────────────────────────────
@@ -334,6 +447,7 @@ export default function Budgets() {
                 />
               </div>
               <div className="flex gap-3 flex-wrap">
+                {/* Tipo filter */}
                 <Select value={filterType} onValueChange={setFilterType}>
                   <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="Tipo" />
@@ -348,7 +462,8 @@ export default function Budgets() {
                   </SelectContent>
                 </Select>
 
-                <Select value={filterArtist} onValueChange={(v) => { setFilterArtist(v); fetchBudgets(); }}>
+                {/* Artista filter — local, no stale-closure bug */}
+                <Select value={filterArtist} onValueChange={setFilterArtist}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Artista" />
                   </SelectTrigger>
@@ -395,47 +510,87 @@ export default function Budgets() {
                       <TableHead>Estado</TableHead>
                       <TableHead className="text-right">Capital</TableHead>
                       <TableHead className="text-right">Gastos</TableHead>
-                      <TableHead className="text-right w-[90px]">Acciones</TableHead>
+                      <TableHead className="text-right w-[110px]">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredBudgets.map((budget) => {
+                      const isEditing = editingRowId === budget.id;
+                      const isSaving = savingRowId === budget.id;
                       const budgetType = getBudgetType(budget.type);
                       const estado = getEstadoReal(budget);
                       const vinculacion = getVinculacion(budget);
                       const { date, label } = formatFecha(budget);
-                      const artistaLabel =
-                        budget.artists?.stage_name || budget.artists?.name || null;
+                      const artistaLabel = budget.artists?.stage_name || budget.artists?.name || null;
 
                       return (
                         <TableRow
                           key={budget.id}
-                          className="hover:bg-muted/40 cursor-pointer transition-colors"
-                          onClick={() => handleViewBudget(budget)}
+                          className={`transition-colors ${
+                            isEditing
+                              ? 'ring-2 ring-inset ring-primary/30 bg-primary/5'
+                              : 'hover:bg-muted/40 cursor-pointer'
+                          }`}
+                          onClick={() => {
+                            if (!isEditing) handleViewBudget(budget);
+                          }}
                         >
-                          {/* Tipo */}
+                          {/* Tipo — never editable */}
                           <TableCell>
-                            <span
-                              className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md border ${budgetType.bgClass} ${budgetType.colorClass}`}
-                            >
+                            <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md border ${budgetType.bgClass} ${budgetType.colorClass}`}>
                               <span>{budgetType.icon}</span>
                               <span>{budgetType.label}</span>
                             </span>
                           </TableCell>
 
                           {/* Nombre */}
-                          <TableCell className="font-medium max-w-[220px] truncate">
-                            {budget.name}
+                          <TableCell className="font-medium max-w-[220px]">
+                            {isEditing ? (
+                              <Input
+                                value={editValues.name}
+                                onChange={(e) => setEditValues((v) => ({ ...v, name: e.target.value }))}
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Escape') setEditingRowId(null);
+                                }}
+                                className="h-8 text-sm"
+                                autoFocus
+                              />
+                            ) : (
+                              <span className="truncate block">{budget.name}</span>
+                            )}
                           </TableCell>
 
-                          {/* Artista */}
+                          {/* Artista — never editable */}
                           <TableCell className="text-sm text-muted-foreground">
                             {artistaLabel ?? <span className="text-muted-foreground/50">—</span>}
                           </TableCell>
 
                           {/* Vinculado a */}
                           <TableCell>
-                            {vinculacion ? (
+                            {isEditing ? (
+                              <Select
+                                value={editValues.project_id ?? 'none'}
+                                onValueChange={(v) =>
+                                  setEditValues((prev) => ({ ...prev, project_id: v === 'none' ? null : v }))
+                                }
+                              >
+                                <SelectTrigger
+                                  className="h-8 text-xs w-[160px]"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <SelectValue placeholder="Sin proyecto" />
+                                </SelectTrigger>
+                                <SelectContent onClick={(e) => e.stopPropagation()}>
+                                  <SelectItem value="none">Sin vínculo</SelectItem>
+                                  {projects.map((p) => (
+                                    <SelectItem key={p.id} value={p.id}>
+                                      {p.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : vinculacion ? (
                               <span
                                 className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${
                                   vinculacion.type === 'release'
@@ -451,7 +606,7 @@ export default function Budgets() {
                             )}
                           </TableCell>
 
-                          {/* Fecha */}
+                          {/* Fecha — never editable */}
                           <TableCell>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -463,12 +618,33 @@ export default function Budgets() {
 
                           {/* Estado */}
                           <TableCell>
-                            <Badge variant={getEstadoBadgeVariant(estado)} className="capitalize text-xs">
-                              {estado}
-                            </Badge>
+                            {isEditing ? (
+                              <Select
+                                value={editValues.estado}
+                                onValueChange={(v) => setEditValues((prev) => ({ ...prev, estado: v }))}
+                              >
+                                <SelectTrigger
+                                  className="h-8 text-xs w-[150px]"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent onClick={(e) => e.stopPropagation()}>
+                                  {ESTADO_OPTIONS.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Badge variant={getEstadoBadgeVariant(estado)} className="capitalize text-xs">
+                                {estado}
+                              </Badge>
+                            )}
                           </TableCell>
 
-                          {/* Capital */}
+                          {/* Capital — never editable */}
                           <TableCell className="text-right tabular-nums">
                             {(budget.fee ?? 0) > 0 ? (
                               <span className="text-emerald-600 dark:text-emerald-400 font-medium">
@@ -479,7 +655,7 @@ export default function Budgets() {
                             )}
                           </TableCell>
 
-                          {/* Gastos */}
+                          {/* Gastos — never editable */}
                           <TableCell className="text-right tabular-nums">
                             {(budget.expense_budget ?? 0) > 0 ? (
                               <span className="text-destructive font-medium">
@@ -493,43 +669,94 @@ export default function Budgets() {
                           {/* Acciones */}
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleViewBudget(budget)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <PermissionWrapper requiredPermission="manage">
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="text-destructive hover:text-destructive"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>¿Eliminar presupuesto?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Esta acción no se puede deshacer. El presupuesto "{budget.name}" será eliminado permanentemente.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => handleDeleteBudget(budget.id)}
-                                        className="bg-destructive hover:bg-destructive/90"
+                              {isEditing ? (
+                                <>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={isSaving}
+                                        onClick={(e) => handleSave(budget.id, e)}
+                                        className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                                       >
-                                        Eliminar
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </PermissionWrapper>
+                                        <Check className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Guardar</TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={cancelEditing}
+                                        className="text-muted-foreground hover:text-foreground"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Cancelar</TooltipContent>
+                                  </Tooltip>
+                                </>
+                              ) : (
+                                <>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => startEditing(budget, e)}
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Editar fila</TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleViewBudget(budget)}
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Ver detalle</TooltipContent>
+                                  </Tooltip>
+                                  <PermissionWrapper requiredPermission="manage">
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-destructive hover:text-destructive"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>¿Eliminar presupuesto?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Esta acción no se puede deshacer. El presupuesto "{budget.name}" será eliminado permanentemente.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() => handleDeleteBudget(budget.id)}
+                                            className="bg-destructive hover:bg-destructive/90"
+                                          >
+                                            Eliminar
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </PermissionWrapper>
+                                </>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -569,6 +796,26 @@ export default function Budgets() {
             onUpdate={fetchBudgets}
           />
         )}
+
+        {/* Confirm unlink project dialog */}
+        <AlertDialog open={!!confirmUnlink} onOpenChange={(open) => { if (!open) setConfirmUnlink(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Desvincular del proyecto?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esto eliminará el vínculo entre este presupuesto y el proyecto{' '}
+                <strong>"{confirmUnlink?.projectName}"</strong>.
+                Los datos del presupuesto no se eliminarán.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setConfirmUnlink(null)}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmedUnlink} className="bg-destructive hover:bg-destructive/90">
+                Desvincular
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <GlobalSearchDialog open={showGlobalSearch} onOpenChange={setShowGlobalSearch} />
       </div>
