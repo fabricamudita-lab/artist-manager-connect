@@ -272,6 +272,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(new Set());
+  const [hiddenCategoryAlert, setHiddenCategoryAlert] = useState<{
+    categoryId: string;
+    categoryName: string;
+    itemCount: number;
+  } | null>(null);
   
   const [draggedElement, setDraggedElement] = useState<string | null>(null);
   const [dragOverElement, setDragOverElement] = useState<string | null>(null);
@@ -1163,7 +1168,15 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
         setSelectedTeamMembers([]);
         setShowLoadFromFormatDialog(false);
-        fetchBudgetItems();
+        await fetchBudgetItems();
+        // Alert if any inserted items landed in hidden categories
+        const hiddenCategoryIds = new Set(
+          itemsToInsert.map(i => i.category_id).filter(Boolean) as string[]
+        );
+        for (const catId of hiddenCategoryIds) {
+          const count = itemsToInsert.filter(i => i.category_id === catId).length;
+          checkAndAlertHiddenCategory(catId, count);
+        }
       }
     } catch (error) {
       console.error('Error adding team members:', error);
@@ -1504,6 +1517,16 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
       await fetchBudgetItems();
       setShowLoadFromFormatDialog(false);
+      // Alert for each hidden category that received items
+      const insertedByCat = new Map<string, number>();
+      for (const item of budgetItems) {
+        if (item.category_id) {
+          insertedByCat.set(item.category_id, (insertedByCat.get(item.category_id) || 0) + 1);
+        }
+      }
+      for (const [catId, count] of insertedByCat) {
+        checkAndAlertHiddenCategory(catId, count);
+      }
       
       toast({
         title: "¡Equipo cargado!",
@@ -1516,6 +1539,15 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         description: "No se pudo cargar el equipo del formato",
         variant: "destructive"
       });
+    }
+  };
+
+  const checkAndAlertHiddenCategory = (categoryId: string, itemCount = 1) => {
+    if (hiddenCategories.has(categoryId)) {
+      const cat = budgetCategories.find(c => c.id === categoryId);
+      if (cat) {
+        setHiddenCategoryAlert({ categoryId, categoryName: cat.name, itemCount });
+      }
     }
   };
 
@@ -1545,6 +1577,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       if (error) throw error;
       
       await fetchBudgetItems();
+      checkAndAlertHiddenCategory(categoryId, 1);
       setEditingItem(data.id);
       setEditingItemValues({
         ...data,
@@ -2683,8 +2716,16 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 // Desviación = Gastos reales vs Presupuesto planificado
                 const desviacion = expenseBudget > 0 ? totals.neto - expenseBudget : 0;
                 const desviacionPct = expenseBudget > 0 ? ((desviacion / expenseBudget) * 100) : 0;
+                // Subtotal de ítems en categorías ocultas (con IVA)
+                const hiddenTotal = items
+                  .filter(item => hiddenCategories.has(item.category_id ?? ''))
+                  .reduce((sum, item) => {
+                    const sub = (item.unit_price ?? 0) * (item.quantity || 1);
+                    return sum + sub + sub * ((item.iva_percentage ?? 0) / 100);
+                  }, 0);
                 
                 return (
+                  <>
                   <div className="grid grid-cols-6 gap-2">
                     {/* Capital aportado (antes: Caché) */}
                     <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
@@ -2811,6 +2852,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       </div>
                     </div>
                   </div>
+
+                  {/* Chip ámbar: categorías ocultas incluidas en totales */}
+                  {hiddenTotal > 0 && (
+                    <div className="flex items-center gap-1.5 mt-2 px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 w-fit">
+                      <EyeOff className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                      <span className="text-xs text-amber-400">
+                        €{hiddenTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })} en categorías ocultas incluidas en los totales
+                      </span>
+                    </div>
+                  )}
+                  </>
                 );
               })()}
             </div>
@@ -4249,6 +4301,43 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           <div className="flex justify-end">
             <Button variant="outline" onClick={() => setShowLoadFromFormatDialog(false)}>
               Cancelar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: alerta de elementos añadidos a categoría oculta */}
+      <Dialog open={!!hiddenCategoryAlert} onOpenChange={() => setHiddenCategoryAlert(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <EyeOff className="w-5 h-5 text-amber-400" />
+              Elementos en categoría oculta
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {hiddenCategoryAlert?.itemCount === 1
+                ? 'Se ha añadido 1 elemento'
+                : `Se han añadido ${hiddenCategoryAlert?.itemCount} elementos`}{' '}
+              a la categoría{' '}
+              <strong>"{hiddenCategoryAlert?.categoryName}"</strong>, que actualmente está oculta.
+            </p>
+            <p className="text-xs text-muted-foreground p-3 bg-amber-500/10 border border-amber-500/20 rounded-md">
+              ⚠️ Los elementos existen y se incluyen en los totales del presupuesto, pero no son visibles en la vista principal.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2 mt-2">
+            <Button variant="outline" onClick={() => setHiddenCategoryAlert(null)}>
+              Mantener oculta
+            </Button>
+            <Button onClick={() => {
+              if (hiddenCategoryAlert) {
+                toggleHideCategory(hiddenCategoryAlert.categoryId, false);
+                setHiddenCategoryAlert(null);
+              }
+            }}>
+              Mostrar "{hiddenCategoryAlert?.categoryName}"
             </Button>
           </div>
         </DialogContent>
