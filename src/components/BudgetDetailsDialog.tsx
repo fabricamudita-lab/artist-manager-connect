@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip as RechartsTooltip } from 'recharts';
 import { 
   Plus, 
   Trash2, 
@@ -45,6 +45,7 @@ import {
   Maximize2,
   Minimize2,
   Eye,
+  EyeOff,
   Settings,
   Pencil,
   GripVertical,
@@ -68,6 +69,7 @@ import {
 } from 'lucide-react';
 import { useInvoiceAutoLink } from '@/hooks/useInvoiceAutoLink';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -266,6 +268,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   // Element movement states
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
+  const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(new Set());
+  const [showHiddenAccordion, setShowHiddenAccordion] = useState(false);
   const [draggedElement, setDraggedElement] = useState<string | null>(null);
   const [dragOverElement, setDragOverElement] = useState<string | null>(null);
   const [editingItemValues, setEditingItemValues] = useState<Partial<BudgetItem>>({});
@@ -535,7 +539,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       
       // Apply priority sorting: Artista Principal first, Músicos second, Comisiones last
       setBudgetCategories(sortCategoriesWithPriority(categoriesWithConcert));
-      setOpenCategories(new Set(categoriesWithConcert.map(c => c.id)));
+      setOpenCategories(new Set()); // Categories start collapsed
     } catch (error) {
       console.error('Error fetching budget categories:', error);
     }
@@ -564,7 +568,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
       if (error) throw error;
       setBudgetCategories(sortCategoriesWithPriority(data || []));
-      setOpenCategories(new Set((data || []).map(c => c.id)));
+      setOpenCategories(new Set()); // Categories start collapsed
     } catch (error) {
       console.error('Error creating default categories:', error);
     }
@@ -2437,9 +2441,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       </Button>
                     )}
                   </div>
-                  <p className="text-gray-400 text-sm">
-                    PRESUPUESTO {budgetData.budget_status?.toUpperCase() || 'NACIONAL'}
-                    {budgetData.formato && <span className="ml-2 text-primary">• {budgetData.formato}</span>}
+                   <p className="text-gray-400 text-sm">
+                    {budgetData.formato ? <span className="text-primary">{budgetData.formato}</span> : 'Presupuesto'}
                   </p>
                 </div>
               </div>
@@ -2615,13 +2618,25 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 
                 return (
                   <div className="grid grid-cols-6 gap-2">
-                    {/* Caché (lo que paga el promotor) */}
+                    {/* Capital aportado (antes: Caché) */}
                     <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                      <div className="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1">CACHÉ</div>
+                      <div className="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1">CAPITAL</div>
                       <div className="text-xl font-bold text-blue-400">
                         €{budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                       </div>
-                      <div className="text-[9px] text-blue-400/70 mt-0.5">Ingresos</div>
+                      <div className="flex items-center gap-0.5 text-[9px] text-blue-400/70 mt-0.5">
+                        <span>Capital aportado</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help text-blue-400/70 hover:text-blue-400 ml-0.5">ℹ</span>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-[220px] text-xs">
+                              Puede incluir caché del artista, aportación del sello o distribuidora. Parte puede ser a devolver y parte a fondo perdido (ej. marketing).
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                     </div>
 
                     {/* Presupuesto (gastos planificados) */}
@@ -3163,7 +3178,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
                     {/* Categories Section */}
                    <div className="flex-1 overflow-auto">
-                    {sortCategoriesWithPriority(budgetCategories).map((category) => {
+                    {sortCategoriesWithPriority(budgetCategories).filter(c => !hiddenCategories.has(c.id)).map((category) => {
                       const categoryItems = getCategoryItems(category.id);
                       const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
                       
@@ -3220,6 +3235,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   </div>
                                 </div>
                               </div>
+                              {/* Eye button to hide category */}
+                              <Button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setHiddenCategories(prev => {
+                                    const next = new Set(prev);
+                                    next.add(category.id);
+                                    return next;
+                                  });
+                                }}
+                                size="sm"
+                                variant="ghost"
+                                className="text-white/60 hover:text-white hover:bg-white/10"
+                                title="Ocultar categoría"
+                              >
+                                <EyeOff className="w-4 h-4" />
+                              </Button>
                               <Button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -3780,6 +3812,52 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                         </div>
                       );
                     })}
+
+                    {/* Hidden categories accordion */}
+                    {hiddenCategories.size > 0 && (
+                      <div className="mt-4 border border-dashed border-gray-600 rounded-lg overflow-hidden">
+                        <button
+                          className="w-full bg-gray-900 text-gray-400 px-4 py-3 flex items-center justify-between hover:bg-gray-800 transition-colors text-sm"
+                          onClick={() => setShowHiddenAccordion(prev => !prev)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <EyeOff className="w-4 h-4" />
+                            <span>Categorías ocultas ({hiddenCategories.size})</span>
+                          </div>
+                          <ArrowRightLeft className={`w-4 h-4 rotate-90 transition-transform duration-200 ${showHiddenAccordion ? 'rotate-180' : ''}`} />
+                        </button>
+                        {showHiddenAccordion && (
+                          <div className="bg-gray-950 divide-y divide-gray-800">
+                            {sortCategoriesWithPriority(budgetCategories).filter(c => hiddenCategories.has(c.id)).map(category => {
+                              const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
+                              return (
+                                <div key={category.id} className="flex items-center justify-between px-4 py-3">
+                                  <div className="flex items-center gap-3 text-gray-400">
+                                    <IconComponent className="w-4 h-4" />
+                                    <span className="text-sm font-medium">{category.name}</span>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-gray-400 hover:text-white hover:bg-white/10 text-xs gap-1"
+                                    onClick={() => {
+                                      setHiddenCategories(prev => {
+                                        const next = new Set(prev);
+                                        next.delete(category.id);
+                                        return next;
+                                      });
+                                    }}
+                                  >
+                                    <Eye className="w-3 h-3" />
+                                    Mostrar
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </TabsContent>
@@ -3816,7 +3894,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   <Cell key={`cell-${index}`} fill={entry.color} />
                                 ))}
                               </Pie>
-                              <Tooltip 
+                              <RechartsTooltip 
                                 formatter={(value: number, name: string, props: any) => {
                                   const total = getCategoryChartData().reduce((sum, item) => sum + item.value, 0);
                                   const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
