@@ -78,6 +78,8 @@ import LiquidarFacturasDialog from '@/components/LiquidarFacturasDialog';
 import { BudgetContactSelector } from '@/components/BudgetContactSelector';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -3072,14 +3074,53 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                              </div>
                            </div>
                          ))}
-                         <Button
-                           onClick={addNewCategory}
-                           variant="outline"
-                           className="w-full bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
-                         >
-                           <Plus className="w-4 h-4 mr-2" />
-                           Agregar Nueva Categoría
-                         </Button>
+                          {/* Hidden categories subsection inside the management panel */}
+                          {hiddenCategories.size > 0 && (
+                            <Collapsible defaultOpen={false}>
+                              <CollapsibleTrigger className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-gray-700/50 hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors text-xs font-semibold uppercase tracking-wider">
+                                <div className="flex items-center gap-2">
+                                  <EyeOff className="w-3.5 h-3.5" />
+                                  <span>Categorías ocultas ({hiddenCategories.size})</span>
+                                </div>
+                                <ChevronDown className="w-3.5 h-3.5 transition-transform [[data-state=open]_&]:rotate-180" />
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <div className="mt-1 rounded-lg overflow-hidden border border-gray-700 divide-y divide-gray-700">
+                                  {sortCategoriesWithPriority(budgetCategories)
+                                    .filter(c => hiddenCategories.has(c.id))
+                                    .map(category => {
+                                      const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
+                                      return (
+                                        <div key={category.id} className="flex items-center justify-between px-3 py-2 bg-gray-800">
+                                          <div className="flex items-center gap-2 text-gray-400">
+                                            <IconComponent className="w-4 h-4" />
+                                            <span className="text-sm">{category.name}</span>
+                                          </div>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="text-gray-400 hover:text-white hover:bg-white/10 text-xs gap-1 h-7"
+                                            onClick={() => setHiddenCategories(prev => {
+                                              const next = new Set(prev); next.delete(category.id); return next;
+                                            })}
+                                          >
+                                            <Eye className="w-3 h-3" /> Mostrar
+                                          </Button>
+                                        </div>
+                                      );
+                                    })}
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+                          <Button
+                            onClick={addNewCategory}
+                            variant="outline"
+                            className="w-full bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Agregar Nueva Categoría
+                          </Button>
                        </div>
                      </div>
                    )}
@@ -3813,44 +3854,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       );
                     })}
 
-                    {/* Hidden categories — always visible, one-click restore */}
-                    {hiddenCategories.size > 0 && (
-                      <div className="mt-4 border border-dashed border-gray-600 rounded-lg overflow-hidden">
-                        <div className="w-full bg-gray-900 px-4 py-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                          <EyeOff className="w-3.5 h-3.5" />
-                          <span>Categorías ocultas ({hiddenCategories.size})</span>
-                        </div>
-                        <div className="bg-gray-950 divide-y divide-gray-800">
-                          {sortCategoriesWithPriority(budgetCategories).filter(c => hiddenCategories.has(c.id)).map(category => {
-                            const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
-                            return (
-                              <div key={category.id} className="flex items-center justify-between px-4 py-2.5">
-                                <div className="flex items-center gap-3 text-gray-400">
-                                  <IconComponent className="w-4 h-4" />
-                                  <span className="text-sm font-medium">{category.name}</span>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-gray-400 hover:text-white hover:bg-white/10 text-xs gap-1"
-                                  onClick={() => {
-                                    setHiddenCategories(prev => {
-                                      const next = new Set(prev);
-                                      next.delete(category.id);
-                                      return next;
-                                    });
-                                  }}
-                                >
-                                  <Eye className="w-3 h-3" />
-                                  Mostrar
-                                </Button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                   </div>
                 </div>
               </TabsContent>
 
