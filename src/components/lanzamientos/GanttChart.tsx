@@ -440,13 +440,8 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                 const pctEnProceso = total > 0 ? (enProceso / total) * 100 : 0;
                 const pctCompletado = total > 0 ? (completed / total) * 100 : 0;
 
-                const bgColor = isWorkflowComplete
-                  ? 'bg-green-500/20'
-                  : retrasadas > 0
-                    ? 'bg-red-500/20'
-                    : enProceso > 0
-                      ? 'bg-blue-500/20'
-                      : (WORKFLOW_BAR_COLORS[workflow.id]?.bg || 'bg-primary/20');
+                const pendientes = total - retrasadas - enProceso - completed;
+                const pctPendiente = total > 0 ? (pendientes / total) * 100 : 0;
 
                 return (
                   <div
@@ -468,7 +463,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                     </div>
                     <div className={cn("flex-1 relative", fitToView ? "h-4" : "h-6")}>
                       <div
-                        className={cn('absolute rounded-full overflow-hidden group/wf', bgColor, fitToView ? 'top-0 h-4' : 'top-0.5 h-5')}
+                        className={cn('absolute rounded-full overflow-hidden group/wf bg-transparent', fitToView ? 'top-0 h-4' : 'top-0.5 h-5')}
                         style={{ left, width }}
                       >
                         {/* Segmento retrasado */}
@@ -485,6 +480,13 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                             style={{ left: `${pctRetrasado}%`, width: `${pctEnProceso}%` }}
                           />
                         )}
+                        {/* Segmento pendientes — color clarito del flujo */}
+                        {pendientes > 0 && (
+                          <div
+                            className={cn('absolute top-0 h-full', WORKFLOW_BAR_COLORS[workflow.id]?.bg || 'bg-primary/20')}
+                            style={{ left: `${pctRetrasado + pctEnProceso + pctCompletado}%`, width: `${pctPendiente}%` }}
+                          />
+                        )}
                         {/* Segmento completado */}
                         {completed > 0 && (
                           <div
@@ -497,6 +499,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                           {retrasadas > 0 && ` · ${retrasadas} retrasada${retrasadas > 1 ? 's' : ''}`}
                           {enProceso > 0 && ` · ${enProceso} en proceso`}
                           {completed > 0 && ` · ${completed} completada${completed > 1 ? 's' : ''}`}
+                          {pendientes > 0 && ` · ${pendientes} pendiente${pendientes > 1 ? 's' : ''}`}
                         </span>
                       </div>
                     </div>
