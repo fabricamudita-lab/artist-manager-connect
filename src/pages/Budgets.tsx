@@ -306,8 +306,9 @@ export default function Budgets() {
         project_id: resolvedProjectId,
       };
 
-      // Also update show_status for concerts for backward compatibility
-      if (budget.type === 'concierto') {
+      // Also update show_status for concerts — only if the value is valid for that enum
+      const VALID_SHOW_STATUS = ['confirmado', 'pendiente', 'cancelado'];
+      if (budget.type === 'concierto' && VALID_SHOW_STATUS.includes(values.estado)) {
         updatePayload.show_status = values.estado;
       }
 
