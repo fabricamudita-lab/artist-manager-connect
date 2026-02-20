@@ -1,179 +1,46 @@
 
-# Feature: Diálogo de estado para tareas ancladas cuando se marca "Retrasado"
+# Mejora: Categorías ocultas visibles de inmediato con un solo clic para recuperarlas
 
-## Contexto del sistema actual
+## Problema actual
 
-El flujo actual tiene dos caminos diferenciados:
-- **Cambio de fecha** → detecta dependencias → abre `AnchorDependencyDialog` → el usuario elige qué tareas mover (con cascada de fechas)
-- **Cambio de estado** → `updateTask(workflowId, taskId, { status })` → se aplica directamente sin ningún diálogo ni cascada
+La sección "Categorías ocultas" funciona pero requiere **dos pasos**:
+1. Clic en el acordeón para expandirlo
+2. Clic en "Mostrar" para recuperar la categoría
 
-Lo que se pide es un tercer comportamiento: cuando una tarea cambia su estado a `retrasado`, buscar todas las tareas que estén ancladas a ella y preguntar al usuario qué estado aplicarles.
+El usuario quiere recuperarla con **un solo clic**.
 
-## Flujo propuesto
+## Solución
 
-```text
-Usuario cambia estado a "retrasado"
-        │
-        ▼
-¿Hay tareas ancladas a esta tarea?
-        │
-      SÍ ──────────────────────────────────────────────────────────────────┐
-        │                                                                  │
-        ▼                                                                  │
-Abre diálogo "AnchoredStatusDialog"                                       │
-  "Envío a Fábrica está retrasada.                                         │
-   ¿Qué hacemos con las tareas ancladas?"                                  │
-                                                                          │
-  Lista de tareas ancladas (Test Pressing, Recepción Stock...)             │
-  Con su estado actual y una acción a aplicar                              │
-                                                                          │
-  ┌──────────────────────────────────────────┐                            │
-  │  Opciones (radio/selector por tarea):    │                            │
-  │  ○ Marcar como "Retrasada"               │                            │
-  │  ○ Mantener estado actual                │                            │
-  │  ○ Marcar como "Pendiente"               │                            │
-  └──────────────────────────────────────────┘                            │
-                                                                          │
-  [Cancelar]   [Aplicar]                                                  │
-        │                                                                  │
-      NO ──────────────────────────────────────────────────────────────────┘
-        │
-        ▼
-Aplica el estado directamente (comportamiento actual)
+Eliminar el acordeón colapsable. En su lugar, mostrar las categorías ocultas **siempre visibles** en una franja compacta al final de la lista. Cada fila tiene directamente el icono de ojo para restaurar con un solo clic.
+
+```
+┌─────────────────────────────────────────────────────┐
+│  👁 CATEGORÍAS OCULTAS                              │
+├─────────────────────────────────────────────────────┤
+│  $ ARTISTA PRINCIPAL              [👁 Mostrar →]   │
+│  🎵 COMUNICACIÓN                  [👁 Mostrar →]   │
+└─────────────────────────────────────────────────────┘
 ```
 
-## Implementación técnica
+## Cambio técnico — solo 1 bloque de código
 
-### Archivo nuevo: `src/components/lanzamientos/AnchoredStatusDialog.tsx`
+**Archivo:** `src/components/BudgetDetailsDialog.tsx`  
+**Líneas:** 3816–3860
 
-Nuevo componente de diálogo con las siguientes props:
+Se elimina:
+- El estado `showHiddenAccordion` y el botón toggle
+- El `{showHiddenAccordion && (…)}` condicional
 
-```tsx
-interface AnchoredStatusDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  sourceName: string;         // "Envío a Fábrica"
-  newStatus: TaskStatus;      // 'retrasado'
-  dependentTasks: {
-    id: string;
-    name: string;
-    workflowId: string;
-    workflowName: string;
-    currentStatus: TaskStatus;
-  }[];
-  onConfirm: (decisions: Record<string, TaskStatus | 'keep'>) => void;
-}
-```
+Se sustituye por:
+- Una sección siempre visible con encabezado fijo `"CATEGORÍAS OCULTAS (N)"`
+- Cada categoría en una fila compacta con icono + nombre + **botón Eye directo**
+- El botón dispara directamente `setHiddenCategories` → delete sin pasos intermedios
 
-El diálogo mostrará para cada tarea dependiente una fila con 3 opciones (radio group):
-- **Marcar como Retrasada** (seleccionada por defecto)
-- **Mantener estado actual** (ej. "En Proceso")
-- **Marcar como Pendiente**
+También se puede eliminar el estado `showHiddenAccordion` (línea 272) ya que deja de usarse.
 
-### Modificación en `src/pages/release-sections/ReleaseCronograma.tsx`
+## Resultado visual
 
-**1. Nuevos estados locales** (junto a `anchorDialogOpen` y `pendingDateChange`):
-```ts
-const [statusAnchorDialogOpen, setStatusAnchorDialogOpen] = useState(false);
-const [pendingStatusChange, setPendingStatusChange] = useState<{
-  workflowId: string;
-  taskId: string;
-  newStatus: TaskStatus;
-  sourceName: string;
-  dependentTasks: { id: string; name: string; workflowId: string; workflowName: string; currentStatus: TaskStatus }[];
-} | null>(null);
-```
+Antes: acordeón colapsado → expandir → "Mostrar" (2 clics)  
+Después: lista directa → clic en 👁 (1 clic)
 
-**2. Nueva función `handleTaskStatusUpdate`** que reemplaza la llamada directa a `updateTask` para cambios de estado:
-
-```ts
-const handleTaskStatusUpdate = useCallback((workflowId: string, taskId: string, status: TaskStatus) => {
-  // Solo actuar si el nuevo estado es 'retrasado'
-  if (status !== 'retrasado') {
-    updateTask(workflowId, taskId, { status });
-    return;
-  }
-
-  // Buscar tareas ancladas a esta tarea
-  const dependents = [];
-  for (const w of workflows) {
-    for (const t of w.tasks) {
-      if (t.anchoredTo?.includes(taskId)) {
-        dependents.push({
-          id: t.id,
-          name: t.name,
-          workflowId: w.id,
-          workflowName: w.name,
-          currentStatus: t.status,
-        });
-      }
-    }
-  }
-
-  if (dependents.length === 0) {
-    updateTask(workflowId, taskId, { status });
-    return;
-  }
-
-  const sourceName = getTaskName(taskId);
-  setPendingStatusChange({ workflowId, taskId, newStatus: status, sourceName, dependentTasks: dependents });
-  setStatusAnchorDialogOpen(true);
-}, [workflows, updateTask, getTaskName]);
-```
-
-**3. Handler de confirmación**:
-
-```ts
-const handleStatusAnchorConfirm = useCallback((decisions: Record<string, TaskStatus | 'keep'>) => {
-  if (!pendingStatusChange) return;
-  const { workflowId, taskId, newStatus } = pendingStatusChange;
-  pushUndo();
-  setWorkflows(prev => prev.map(w => ({
-    ...w,
-    tasks: w.tasks.map(t => {
-      if (t.id === taskId && w.id === workflowId) return { ...t, status: newStatus };
-      const decision = decisions[t.id];
-      if (decision && decision !== 'keep') return { ...t, status: decision };
-      return t;
-    }),
-  })));
-  setStatusAnchorDialogOpen(false);
-  setPendingStatusChange(null);
-}, [pendingStatusChange, pushUndo]);
-```
-
-**4. Conectar la prop `onUpdateTaskStatus`** en el `<GanttChart>` (línea ~1957) para que use `handleTaskStatusUpdate` en vez de llamar directamente a `updateTask`:
-
-```tsx
-onUpdateTaskStatus={(workflowId, taskId, status) => {
-  handleTaskStatusUpdate(workflowId, taskId, status);
-}}
-```
-
-Y también conectarlo en la vista de lista (donde también se cambia el estado de la tarea en el componente `SortableWorkflowCard`).
-
-**5. Montar el diálogo en el JSX** junto al `AnchorDependencyDialog` existente:
-
-```tsx
-<AnchoredStatusDialog
-  open={statusAnchorDialogOpen}
-  onOpenChange={setStatusAnchorDialogOpen}
-  sourceName={pendingStatusChange?.sourceName ?? ''}
-  newStatus={pendingStatusChange?.newStatus ?? 'retrasado'}
-  dependentTasks={pendingStatusChange?.dependentTasks ?? []}
-  onConfirm={handleStatusAnchorConfirm}
-/>
-```
-
-## Archivos a crear/modificar
-
-| Archivo | Acción |
-|---|---|
-| `src/components/lanzamientos/AnchoredStatusDialog.tsx` | Crear nuevo |
-| `src/pages/release-sections/ReleaseCronograma.tsx` | Añadir estados, handler, y montar diálogo |
-
-Sin cambios en base de datos. El estado de las tareas dependientes se persiste automáticamente por el auto-save existente (debounce de 1.5s).
-
-## Comportamiento solo para estado "retrasado"
-
-El diálogo solo se activa cuando el nuevo estado es `retrasado`. Cambios a `completado`, `en_proceso` o `pendiente` siguen aplicándose directamente sin diálogo (el comportamiento actual). Esto evita interrupciones innecesarias en el flujo normal de trabajo.
+Sin cambios en base de datos. Sin nuevos archivos.
