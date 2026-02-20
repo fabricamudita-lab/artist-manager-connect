@@ -1,46 +1,38 @@
 
-# Mejora: Categorías ocultas visibles de inmediato con un solo clic para recuperarlas
+# Mejora: Ocultar categorías del panel de Gestión cuando están ocultas
 
-## Problema actual
+## Problema
 
-La sección "Categorías ocultas" funciona pero requiere **dos pasos**:
-1. Clic en el acordeón para expandirlo
-2. Clic en "Mostrar" para recuperar la categoría
-
-El usuario quiere recuperarla con **un solo clic**.
+El panel "Gestión de Categorías" (que aparece al hacer clic en el botón de gestión) muestra **todas** las categorías, incluidas las que el usuario ha ocultado con el icono 👁. Esto crea inconsistencia: la categoría desaparece de la vista principal pero sigue apareciendo en el gestor.
 
 ## Solución
 
-Eliminar el acordeón colapsable. En su lugar, mostrar las categorías ocultas **siempre visibles** en una franja compacta al final de la lista. Cada fila tiene directamente el icono de ojo para restaurar con un solo clic.
+Un cambio de **una sola línea** en `BudgetDetailsDialog.tsx`.
 
-```
-┌─────────────────────────────────────────────────────┐
-│  👁 CATEGORÍAS OCULTAS                              │
-├─────────────────────────────────────────────────────┤
-│  $ ARTISTA PRINCIPAL              [👁 Mostrar →]   │
-│  🎵 COMUNICACIÓN                  [👁 Mostrar →]   │
-└─────────────────────────────────────────────────────┘
+**Línea 2932 — antes:**
+```tsx
+{sortCategoriesWithPriority(budgetCategories).map((category, index) => (
 ```
 
-## Cambio técnico — solo 1 bloque de código
+**Línea 2932 — después:**
+```tsx
+{sortCategoriesWithPriority(budgetCategories).filter(c => !hiddenCategories.has(c.id)).map((category, index) => (
+```
 
-**Archivo:** `src/components/BudgetDetailsDialog.tsx`  
-**Líneas:** 3816–3860
+Esto hace que el panel de gestión y la vista principal estén siempre sincronizados: si una categoría está oculta, no aparece en ninguno de los dos sitios. Para recuperarla, el usuario usa la sección "Categorías ocultas" que ya está al final de la vista principal.
 
-Se elimina:
-- El estado `showHiddenAccordion` y el botón toggle
-- El `{showHiddenAccordion && (…)}` condicional
+## Comportamiento resultante
 
-Se sustituye por:
-- Una sección siempre visible con encabezado fijo `"CATEGORÍAS OCULTAS (N)"`
-- Cada categoría en una fila compacta con icono + nombre + **botón Eye directo**
-- El botón dispara directamente `setHiddenCategories` → delete sin pasos intermedios
+| Zona | Categoría visible | Categoría oculta |
+|---|---|---|
+| Vista principal (acordeón) | ✅ Visible | ❌ Oculta |
+| Panel Gestión de Categorías | ✅ Visible | ❌ Oculta |
+| Sección "Categorías ocultas" | ❌ No aparece | ✅ Visible con botón Mostrar |
 
-También se puede eliminar el estado `showHiddenAccordion` (línea 272) ya que deja de usarse.
+## Archivo afectado
 
-## Resultado visual
+| Archivo | Línea | Cambio |
+|---|---|---|
+| `src/components/BudgetDetailsDialog.tsx` | 2932 | Añadir `.filter(c => !hiddenCategories.has(c.id))` |
 
-Antes: acordeón colapsado → expandir → "Mostrar" (2 clics)  
-Después: lista directa → clic en 👁 (1 clic)
-
-Sin cambios en base de datos. Sin nuevos archivos.
+Sin cambios en base de datos. Sin nuevos archivos. Cambio quirúrgico de una línea.
