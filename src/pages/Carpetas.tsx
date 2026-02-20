@@ -1,4 +1,64 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+
+// ─── Intelligent category detection ────────────────────────────────────────
+function detectCategory(file: File): {
+  category: string | null;
+  reason: string;
+  confidence: 'alta' | 'media' | 'baja';
+} {
+  const name = file.name.toLowerCase();
+  const mime = file.type.toLowerCase();
+
+  // 1. MIME / extension — máxima fiabilidad
+  if (mime.startsWith('audio/') || /\.(wav|aif|aiff|flac|stem|stems|mp3|ogg|aac)$/.test(name)) {
+    if (/stem|master|mix|vocal|instrumental|session/.test(name))
+      return { category: 'musica', reason: 'El nombre sugiere archivo de producción o audio profesional', confidence: 'alta' };
+    return { category: 'musica', reason: 'Es un archivo de audio', confidence: 'alta' };
+  }
+  if (mime.startsWith('video/') || /\.(mp4|mov|avi|mkv|webm)$/.test(name)) {
+    return { category: 'audiovisuales', reason: 'Es un archivo de vídeo', confidence: 'alta' };
+  }
+  if (mime.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic)$/.test(name)) {
+    if (/logo|arte|flyer|cartel|banner|poster|artwork/.test(name))
+      return { category: 'diseno', reason: 'El nombre sugiere material de diseño gráfico', confidence: 'alta' };
+    if (/foto|photo|promo|portrait|press|prensa|epk/.test(name))
+      return { category: 'imagenes', reason: 'El nombre sugiere fotografía de prensa o EPK', confidence: 'alta' };
+    return { category: 'imagenes', reason: 'Es una imagen', confidence: 'media' };
+  }
+  if (/\.(ai|psd|svg|eps|indd)$/.test(name))
+    return { category: 'diseno', reason: 'Es un archivo de diseño gráfico', confidence: 'alta' };
+
+  // 2. Palabras clave en el nombre del archivo
+  if (/contrato|contract|acuerdo|agreement|nda|legal/.test(name))
+    return { category: 'contratos', reason: 'El nombre incluye términos legales o contractuales', confidence: 'alta' };
+  if (/rider|hospitality|hoja.de.ruta|roadmap|backline/.test(name))
+    return { category: 'conciertos', reason: 'El nombre sugiere documentos de concierto o rider técnico', confidence: 'alta' };
+  if (/factura|invoice|presupuesto|budget|liquidaci/.test(name))
+    return { category: 'economia', reason: 'El nombre sugiere un documento financiero', confidence: 'alta' };
+  if (/prensa|dossier|nota.de.prensa|press.release/.test(name))
+    return { category: 'prensa', reason: 'El nombre sugiere material de prensa', confidence: 'alta' };
+  if (/marketing|rrss|social|campa|contenido/.test(name))
+    return { category: 'marketing', reason: 'El nombre sugiere material de marketing', confidence: 'alta' };
+  if (/merch|merchandise|tienda|shop/.test(name))
+    return { category: 'merch', reason: 'El nombre sugiere material de merchandising', confidence: 'alta' };
+  if (/distribuci|upc|isrc|pitch|spotify|apple.music/.test(name))
+    return { category: 'distribucion', reason: 'El nombre sugiere documentos de distribución digital', confidence: 'alta' };
+  if (/stem|master|mix|vocal|instrumental|session/.test(name))
+    return { category: 'musica', reason: 'El nombre sugiere archivo de audio o producción', confidence: 'alta' };
+  if (/nif|pasaporte|passport|dni|documento/.test(name))
+    return { category: 'personal', reason: 'El nombre sugiere documento personal del artista', confidence: 'alta' };
+  if (/clip|videoclip|making|teaser|trailer/.test(name))
+    return { category: 'audiovisuales', reason: 'El nombre sugiere contenido audiovisual', confidence: 'alta' };
+
+  // 3. Tipo de archivo genérico
+  if (mime.includes('spreadsheet') || /\.(xlsx|xls|csv|ods)$/.test(name))
+    return { category: 'economia', reason: 'Es una hoja de cálculo, probablemente financiera', confidence: 'media' };
+  if (mime.includes('pdf') || name.endsWith('.pdf'))
+    return { category: 'contratos', reason: 'Es un PDF sin palabras clave claras en el nombre', confidence: 'baja' };
+
+  return { category: null, reason: 'No se pudo detectar la categoría automáticamente', confidence: 'baja' };
+}
+// ───────────────────────────────────────────────────────────────────────────
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -155,6 +215,13 @@ export default function Carpetas() {
   // FAB state
   const [showFABDialog, setShowFABDialog] = useState(false);
   const [fabCategory, setFabCategory] = useState<string>('');
+  const [fabFile, setFabFile] = useState<File | null>(null);
+  const [fabSuggestion, setFabSuggestion] = useState<{
+    category: string | null;
+    reason: string;
+    confidence: 'alta' | 'media' | 'baja';
+  } | null>(null);
+  const [fabDragOver, setFabDragOver] = useState(false);
 
   const isManagement = profile?.active_role === 'management';
 
@@ -408,21 +475,39 @@ export default function Carpetas() {
     </div>
   );
 
-  // FAB upload handler
-  const handleFABFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!selectedArtist || !fabCategory || !e.target.files) return;
-    const selectedFiles = Array.from(e.target.files);
-    if (selectedFiles.length > 0) {
-      await uploadFiles(selectedFiles, selectedArtist.id, fabCategory);
-    }
-    e.target.value = '';
-    setShowFABDialog(false);
+  // FAB — reset helper
+  const resetFAB = () => {
+    setFabFile(null);
+    setFabSuggestion(null);
     setFabCategory('');
   };
 
-  const handleFABUpload = () => {
-    if (!fabCategory) return;
-    fabFileRef.current?.click();
+  // FAB — file selected via input or drop
+  const processFABFile = (file: File) => {
+    const suggestion = detectCategory(file);
+    setFabFile(file);
+    setFabSuggestion(suggestion);
+    setFabCategory(suggestion.category || '');
+  };
+
+  const handleFABFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFABFile(file);
+    e.target.value = '';
+  };
+
+  const handleFABDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setFabDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) processFABFile(file);
+  };
+
+  const handleFABConfirmUpload = async () => {
+    if (!selectedArtist || !fabCategory || !fabFile) return;
+    await uploadFiles([fabFile], selectedArtist.id, fabCategory);
+    setShowFABDialog(false);
+    resetFAB();
   };
 
   // Category label lookup for recent files section
@@ -546,50 +631,165 @@ export default function Carpetas() {
           <Button
             size="lg"
             className="rounded-full shadow-lg h-14 w-14 bg-green-600 hover:bg-green-700 text-white"
-            onClick={() => setShowFABDialog(true)}
+            onClick={() => { resetFAB(); setShowFABDialog(true); }}
           >
             <Plus className="w-6 h-6" />
           </Button>
         </div>
 
-        {/* FAB Dialog */}
-        <Dialog open={showFABDialog} onOpenChange={setShowFABDialog}>
-          <DialogContent>
+        {/* FAB Dialog — Intelligent upload */}
+        <Dialog
+          open={showFABDialog}
+          onOpenChange={(open) => {
+            if (!open) resetFAB();
+            setShowFABDialog(open);
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Subir archivo</DialogTitle>
+              <DialogTitle>
+                {fabFile ? 'Confirmar subida' : 'Subir archivo inteligente'}
+              </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-2">
-              <p className="text-sm text-muted-foreground">
-                ¿A qué categoría pertenece este archivo?
-              </p>
-              <Select value={fabCategory} onValueChange={setFabCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar categoría..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {ARTIST_FOLDER_CATEGORIES.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowFABDialog(false)}>
+
+            {/* STATE 1: Drop zone */}
+            {!fabFile && (
+              <div className="py-2 space-y-4">
+                <div
+                  className={`relative border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center gap-3 transition-colors cursor-pointer ${
+                    fabDragOver
+                      ? 'border-primary bg-primary/5'
+                      : 'border-muted-foreground/30 hover:border-primary/60 hover:bg-muted/40'
+                  }`}
+                  onDragOver={(e) => { e.preventDefault(); setFabDragOver(true); }}
+                  onDragLeave={() => setFabDragOver(false)}
+                  onDrop={handleFABDrop}
+                  onClick={() => fabFileRef.current?.click()}
+                >
+                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                    <UploadIcon className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium">Arrastra tu archivo aquí</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      o haz clic para seleccionarlo desde disco
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground/60">
+                    PDF, Word, Excel, imágenes, audio, vídeo…
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* STATE 2: File detected */}
+            {fabFile && fabSuggestion && (
+              <div className="py-2 space-y-4">
+                {/* File info */}
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <div className="w-10 h-10 rounded-lg bg-background border flex items-center justify-center flex-shrink-0">
+                    {(() => {
+                      const Icon = getFileIcon(fabFile.type);
+                      return <Icon className="w-5 h-5 text-muted-foreground" />;
+                    })()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{fabFile.name}</p>
+                    <p className="text-xs text-muted-foreground">{formatFileSize(fabFile.size)}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-xs text-muted-foreground shrink-0"
+                    onClick={() => { resetFAB(); }}
+                  >
+                    Cambiar
+                  </Button>
+                </div>
+
+                {/* Detection result */}
+                {fabSuggestion.category && fabSuggestion.confidence !== 'baja' ? (
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0">
+                        <svg className="w-3 h-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-semibold flex-1">
+                        {CATEGORY_LABELS[fabSuggestion.category]}
+                      </p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        fabSuggestion.confidence === 'alta'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        Confianza {fabSuggestion.confidence}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground pl-7">{fabSuggestion.reason}</p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">⚠️</span>
+                      <p className="text-sm font-medium text-yellow-800">
+                        No pudimos detectar la categoría automáticamente
+                      </p>
+                    </div>
+                    <p className="text-xs text-yellow-700 pl-7">Por favor, selecciona dónde quieres guardar este archivo.</p>
+                  </div>
+                )}
+
+                {/* Category override */}
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground font-medium">
+                    {fabSuggestion.category && fabSuggestion.confidence !== 'baja'
+                      ? '¿No es correcta? Cambiar categoría:'
+                      : 'Selecciona la categoría:'}
+                  </p>
+                  <Select value={fabCategory} onValueChange={setFabCategory}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar categoría..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ARTIST_FOLDER_CATEGORIES.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => { setShowFABDialog(false); resetFAB(); }}
+              >
                 Cancelar
               </Button>
-              <Button onClick={handleFABUpload} disabled={!fabCategory}>
-                <UploadIcon className="w-4 h-4 mr-2" />
-                Seleccionar archivo
-              </Button>
+              {fabFile && (
+                <Button
+                  onClick={handleFABConfirmUpload}
+                  disabled={!fabCategory || isUploading}
+                >
+                  <UploadIcon className="w-4 h-4 mr-2" />
+                  {isUploading
+                    ? 'Subiendo…'
+                    : `Subir a ${CATEGORY_LABELS[fabCategory] || 'categoría seleccionada'}`}
+                </Button>
+              )}
             </DialogFooter>
+
+            {/* Hidden input — triggered from drop zone click and Cambiar button */}
             <input
               type="file"
-              multiple
               hidden
               ref={fabFileRef}
-              onChange={handleFABFileSelect}
+              onChange={handleFABFileInputChange}
             />
           </DialogContent>
         </Dialog>
