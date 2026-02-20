@@ -377,6 +377,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       fetchBudgetItems();
       fetchBudgetCategories();
       
+      // Load hidden categories from budget metadata
+      supabase
+        .from('budgets')
+        .select('metadata')
+        .eq('id', budget.id)
+        .single()
+        .then(({ data: budgetMeta }) => {
+          const hidden = (budgetMeta?.metadata as any)?.hidden_categories ?? [];
+          setHiddenCategories(new Set(hidden));
+        });
+      
       // Set up real-time subscription for budget items
       const channel = supabase
         .channel('budget-items-changes')
@@ -545,6 +556,38 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     } catch (error) {
       console.error('Error fetching budget categories:', error);
     }
+  };
+
+  const saveHiddenCategoriesToDB = async (newHidden: Set<string>) => {
+    try {
+      const { data: current } = await supabase
+        .from('budgets')
+        .select('metadata')
+        .eq('id', budget.id)
+        .single();
+      
+      const existingMeta = (current?.metadata as Record<string, unknown>) || {};
+      await supabase
+        .from('budgets')
+        .update({
+          metadata: {
+            ...existingMeta,
+            hidden_categories: Array.from(newHidden)
+          }
+        })
+        .eq('id', budget.id);
+    } catch (error) {
+      console.error('Error saving hidden categories:', error);
+    }
+  };
+
+  const toggleHideCategory = (categoryId: string, hide: boolean) => {
+    setHiddenCategories(prev => {
+      const next = new Set(prev);
+      if (hide) next.add(categoryId); else next.delete(categoryId);
+      saveHiddenCategoriesToDB(next);
+      return next;
+    });
   };
 
   const createDefaultCategories = async () => {
@@ -3095,14 +3138,13 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                           <div className="flex items-center gap-2 text-gray-400">
                                             <IconComponent className="w-4 h-4" />
                                             <span className="text-sm">{category.name}</span>
+                                            <span className="text-xs text-gray-500 ml-1">({getCategoryItems(category.id).length})</span>
                                           </div>
                                           <Button
                                             size="sm"
                                             variant="ghost"
                                             className="text-gray-400 hover:text-white hover:bg-white/10 text-xs gap-1 h-7"
-                                            onClick={() => setHiddenCategories(prev => {
-                                              const next = new Set(prev); next.delete(category.id); return next;
-                                            })}
+                                            onClick={() => toggleHideCategory(category.id, false)}
                                           >
                                             <Eye className="w-3 h-3" /> Mostrar
                                           </Button>
@@ -3280,11 +3322,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                               <Button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setHiddenCategories(prev => {
-                                    const next = new Set(prev);
-                                    next.add(category.id);
-                                    return next;
-                                  });
+                                  toggleHideCategory(category.id, true);
                                 }}
                                 size="sm"
                                 variant="ghost"
