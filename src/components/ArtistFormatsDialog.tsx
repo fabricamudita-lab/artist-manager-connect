@@ -265,12 +265,13 @@ function SortableCrewMember({
     </div>
   );
 }
-export function ArtistFormatsDialog({ 
-  open, 
-  onOpenChange, 
-  artistId, 
-  artistName 
-}: ArtistFormatsDialogProps) {
+interface ArtistFormatsContentProps {
+  artistId: string;
+  artistName: string;
+  onClose?: () => void;
+}
+
+export function ArtistFormatsContent({ artistId, artistName, onClose }: ArtistFormatsContentProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [formats, setFormats] = useState<BookingProduct[]>([]);
@@ -295,7 +296,7 @@ export function ArtistFormatsDialog({
       if (error) throw error;
       return data;
     },
-    enabled: open && !!artistId,
+    enabled: !!artistId,
   });
 
   // Fetch existing formats
@@ -310,7 +311,7 @@ export function ArtistFormatsDialog({
       if (error) throw error;
       return data;
     },
-    enabled: open && !!artistId,
+    enabled: !!artistId,
   });
 
   // Fetch crew assignments for existing formats
@@ -327,7 +328,7 @@ export function ArtistFormatsDialog({
       if (error) throw error;
       return data;
     },
-    enabled: open && !!artistId && !!existingFormats && existingFormats.length > 0,
+    enabled: !!artistId && !!existingFormats && existingFormats.length > 0,
   });
 
   // Initialize formats from database
@@ -453,7 +454,7 @@ export function ArtistFormatsDialog({
       queryClient.invalidateQueries({ queryKey: ['booking-products', artistId] });
       queryClient.invalidateQueries({ queryKey: ['booking-product-crew', artistId] });
       toast.success('Formatos guardados correctamente');
-      onOpenChange(false);
+      onClose?.();
     },
     onError: (error) => {
       console.error('Error saving formats:', error);
@@ -620,16 +621,8 @@ export function ArtistFormatsDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Settings2 className="h-5 w-5" />
-            Formatos de Booking - {artistName}
-          </DialogTitle>
-        </DialogHeader>
-
-        {isLoading ? (
+    <div>
+      {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
@@ -1022,9 +1015,11 @@ export function ArtistFormatsDialog({
 
             {/* Save Button */}
             <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
-              </Button>
+              {onClose && (
+                <Button variant="outline" onClick={onClose}>
+                  Cancelar
+                </Button>
+              )}
               <Button 
                 onClick={() => saveMutation.mutate()}
                 disabled={saveMutation.isPending}
@@ -1035,6 +1030,31 @@ export function ArtistFormatsDialog({
             </div>
           </div>
         )}
+    </div>
+  );
+}
+
+// Dialog wrapper for backward compatibility
+export function ArtistFormatsDialog({ 
+  open, 
+  onOpenChange, 
+  artistId, 
+  artistName 
+}: ArtistFormatsDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Settings2 className="h-5 w-5" />
+            Formatos de Booking - {artistName}
+          </DialogTitle>
+        </DialogHeader>
+        <ArtistFormatsContent 
+          artistId={artistId} 
+          artistName={artistName} 
+          onClose={() => onOpenChange(false)} 
+        />
       </DialogContent>
     </Dialog>
   );
