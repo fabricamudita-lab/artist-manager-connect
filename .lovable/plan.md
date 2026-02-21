@@ -1,115 +1,94 @@
 
+# Mejoras al Perfil del Artista (ArtistProfile.tsx)
 
-# Reestructuración del Detalle de Booking
-
-5 mejoras para simplificar la pantalla y priorizar la información crítica.
-
----
-
-## 1. Fusionar Documents + Archivos en una sola tab
-
-**Problema**: Dos tabs separadas para conceptos similares (Documents = contratos/riders generados; Archivos = explorador de carpetas del Drive). El usuario tiene que adivinar dónde está cada cosa.
-
-**Solución**: Una sola tab **"Archivos & Docs"** con dos sub-secciones internas usando un mini-tab o collapsible.
-
-### Cambios
-
-**`src/pages/BookingDetail.tsx`**:
-- Eliminar las tabs `documents` y `drive` del `TabsList`
-- Reemplazarlas por una sola tab `files` con label "Archivos & Docs"
-- El `TabsContent` de `files` renderiza un nuevo componente `BookingFilesDocsTab`
-- El `TabsList` pasa de `grid-cols-6` a `grid-cols-5`
-
-**Nuevo archivo `src/components/booking-detail/BookingFilesDocsTab.tsx`**:
-- Componente wrapper que contiene un mini `Tabs` interno con dos sub-tabs:
-  - **"Contratos & Docs"** -- renderiza `BookingDocumentsTab`
-  - **"Explorador"** -- renderiza `BookingDriveTab`
-- Recibe todas las props necesarias para ambos componentes hijos
-- Los componentes `BookingDocumentsTab` y `BookingDriveTab` no se modifican internamente
+5 cambios aditivos que mejoran la jerarquia visual y la utilidad del perfil sin eliminar nada del codigo existente.
 
 ---
 
-## 2. Mover Viabilidad al header (Quick Stats Bar)
+## 1. Card de "Estado de Carrera" con fase actual
 
-**Problema**: "Viabilidad 3/3" es información de decision que esta enterrada al fondo del sidebar. Es lo primero que un manager mira para decidir si avanza con un booking.
+Una card nueva justo debajo del header que calcula automaticamente la fase del artista basandose en los datos existentes:
 
-**Solución**: Reemplazar la 4a tarjeta del Quick Stats Bar (Facturacion, que es menos urgente) por un indicador de Viabilidad, y mover Facturacion al Overview tab.
+| Fase | Condicion |
+|---|---|
+| Descubrimiento | 0 releases, 0-2 shows |
+| Construccion | 1-3 releases O 3-10 shows |
+| Consolidacion | 4+ releases O 10+ shows O ingresos > 5000 |
+| Expansion | 10+ releases O 20+ shows O ingresos > 20000 |
 
-### Cambios
+Se muestra como una barra de progreso con 4 segmentos y un badge con la fase actual. La logica es un `useMemo` que evalua `releases.length`, `bookings.length` y `totalRevenue`.
 
-**`src/pages/BookingDetail.tsx`**:
-- Quick Stats Bar: Reemplazar la 4a card (Facturacion) por Viabilidad:
-  - Muestra `X/3` con colores (verde si 3/3, ambar si parcial, gris si 0)
-  - Clickable: hace scroll a `viabilityRef` en el sidebar
-  - Solo visible en fases `negociacion`, `confirmado`, `facturado`; en fases anteriores muestra Facturacion como estaba
-- Mover la info de "Facturacion" al `BookingOverviewTab` como un campo mas en el Deal Summary
+### Aspecto visual
 
-**`src/components/booking-detail/BookingOverviewTab.tsx`**:
-- Anadir el campo `estado_facturacion` al interface de props
-- Mostrar "Estado Facturacion" en el Deal Summary card, junto a Contrato
+```
+[=========>                    ]  Construccion
+ Descubrimiento  Construccion  Consolidacion  Expansion
+```
 
----
-
-## 3. Reemplazar "Gastos Est. -" por placeholder activo
-
-**Problema**: La tarjeta muestra "Gastos Est. -" cuando no hay datos, comunicando "incompleto" sin aportar valor.
-
-**Solución**: Si `gastos_estimados` es null/0, mostrar un boton "+Estimar gastos" que abre el dialog de edicion. Si tiene valor, mostrar normalmente.
-
-### Cambios
-
-**`src/pages/BookingDetail.tsx`**:
-- En la 2a card del Quick Stats Bar (Gastos Est.):
-  - Si `booking.gastos_estimados` tiene valor: mostrar como ahora
-  - Si no tiene valor: mostrar un boton con icono `+` y texto "Estimar gastos" que llama a `setShowEditDialog(true)` para abrir el formulario de edicion del booking
+Una `Progress` bar con el porcentaje mapeado (25/50/75/100) y labels debajo.
 
 ---
 
-## 4. Unificar notas con toggle de privacidad
+## 2. Metricas en 0 mostradas diferente
 
-**Problema**: "Notas del Artista" (campo `info_comentarios`, texto plano visible para el artista) y "Notas Internas" (campo `notas`, JSON array, solo equipo) estan separadas en dos cards que conceptualmente hacen lo mismo.
+Las stats cards con valor 0 (o "0") se renderizan con estilo atenuado y un boton "+" en lugar del numero grande:
 
-**Solución**: Una sola card "Notas" con un selector de visibilidad. Las notas internas (thread de mensajes del equipo) se mantienen como estan. Las "notas del artista" se convierten en un campo tipo "Notas visibles" con un indicador claro.
+- Si `stat.value === 0` o `stat.value === '0'`:
+  - Fondo mas tenue (`opacity-60`)
+  - En lugar del "0" grande, un boton `+ Crear` que navega a la ruta correspondiente
+- Si tiene valor: se muestra exactamente como ahora
 
-### Cambios
-
-**`src/components/booking-detail/BookingOverviewTab.tsx`**:
-- Eliminar el grid de 2 columnas con las dos cards de notas
-- Reemplazar por una sola card "Notas" que contiene:
-  - Un `Tabs` interno con dos sub-tabs:
-    - **"Equipo"** (icono candado) -- renderiza `BookingNotes` (el thread interno existente, sin cambios)
-    - **"Artista"** (icono ojo) -- renderiza el textarea de notas del artista con su boton guardar
-  - Cada tab tiene un subtitulo aclaratorio: "Solo visible para el equipo" / "Visible para el artista"
-- El componente `BookingNotes` no cambia internamente
-- El grid pasa a ser una sola card de ancho completo
+No se elimina ninguna card, solo cambia la presentacion visual.
 
 ---
 
-## 5. Reordenar sidebar por urgencia
+## 3. Reordenar tabs por frecuencia de uso
 
-**Problema**: El orden actual es Disponibilidad, Viabilidad, Archivos Vinculados, Historial. La Viabilidad ya se mueve al header (punto 2), asi que queda espacio.
+Cambiar el orden de las tabs de:
+```
+Equipo | Shows | Proyectos | Releases | Solicitudes | Finanzas
+```
+a:
+```
+Shows | Finanzas | Releases | Equipo | Proyectos | Solicitudes
+```
 
-**Sololucion**: Reordenar el sidebar con la logica de "lo que bloquea primero":
+Y cambiar el `defaultValue` de `"team"` a `"bookings"`.
 
-1. **Disponibilidad del Equipo** (bloquea el show si alguien no puede)
-2. **Viabilidad** (se mantiene aqui como detalle expandible, aunque el resumen ya esta en el header)
-3. **Archivos Vinculados** (contexto rapido)
-4. **Historial** (consulta historica, lo menos urgente)
-
-### Cambios
-
-**`src/pages/BookingDetail.tsx`**:
-- El sidebar ya tiene este orden exacto (lineas 614-639). **No hay cambio necesario** -- ya esta ordenado por urgencia. Lo que faltaba era subir Viabilidad al header (punto 2), que ya se resuelve.
+Solo se reordenan los `TabsTrigger` y los `TabsContent` correspondientes. El contenido de cada tab no cambia.
 
 ---
 
-## Resumen de archivos afectados
+## 4. Header del artista con bio rapida y links sociales
+
+Expandir el header actual (lineas 281-302) para incluir:
+
+- **Genero musical**: badge junto al nombre si `artist.genre` existe
+- **Descripcion corta**: 1-2 lineas directamente en el header (no en una card separada). Si no hay descripcion, mostrar un boton sutil "Anadir descripcion" que abre el `ArtistInfoDialog`
+- **Links sociales**: iconos clickables de Spotify, Instagram, TikTok si las URLs existen en la BD. Si no hay ninguno, mostrar "Anadir redes" como link sutil
+
+Esto requiere ampliar la query del artista (linea 100) para incluir `genre, spotify_url, instagram_url, tiktok_url, avatar_url` en el `select('*')` (ya lo hace porque usa `*`). Solo hay que ampliar la interfaz `Artist` para incluir estos campos.
+
+La card separada de descripcion (lineas 305-311) se elimina porque la bio ahora vive en el header. **Nota**: la card no se "elimina" del codigo, se condiciona para no renderizar cuando la descripcion ya se muestra en el header (siempre).
+
+---
+
+## 5. Desglose de ingresos en la card de finanzas (stats)
+
+La card "Ingresos totales" (6a posicion en stats) actualmente muestra solo el total de booking fees. Se enriquece con un mini donut chart inline:
+
+- Se calcula el desglose: **Booking** (fees de `booking_offers`), **Royalties** (de `platform_earnings` via `useRoyalties`), **Sync** (placeholder 0 por ahora)
+- La card muestra el total arriba y un mini `PieChart` de recharts (40x40px) con 2-3 segmentos de colores
+- Si solo hay un tipo de ingreso, no se muestra el donut (solo el total)
+
+Se necesita importar `usePlatformEarnings` y `useSongs` de `useRoyalties.ts` para obtener los earnings del artista. Los datos ya existen en la BD.
+
+---
+
+## Archivos afectados
 
 | Archivo | Cambio |
 |---|---|
-| `src/pages/BookingDetail.tsx` | Fusionar 2 tabs en 1, Quick Stats viabilidad, placeholder gastos activo, sidebar sin cambio de orden |
-| `src/components/booking-detail/BookingFilesDocsTab.tsx` | **Nuevo**: wrapper con sub-tabs Contratos y Explorador |
-| `src/components/booking-detail/BookingOverviewTab.tsx` | Unificar notas con tabs internas, anadir campo facturacion |
+| `src/pages/ArtistProfile.tsx` | Interfaz Artist ampliada, header con bio/links, card de fase de carrera, stats cards con estilo diferenciado para 0s, tabs reordenadas, desglose de ingresos con mini donut |
 
-Sin tocar: `BookingDocumentsTab`, `BookingDriveTab`, `BookingNotes`, `ViabilityChecksCard`, `AvailabilityStatusCard`, `BookingFilesWidget`, `BookingHistorySection`. Todos se reusan tal cual.
-
+No se tocan otros archivos. No se necesitan migraciones.
