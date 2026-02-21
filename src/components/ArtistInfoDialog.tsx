@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,8 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
-import { User, Music, Globe, Edit, Save, X, Share2, Instagram, Loader2 } from 'lucide-react';
+import { User, Music, Globe, Edit, Save, X, Share2, Instagram, Loader2, Camera } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { ImageCropperDialog } from '@/components/ui/image-cropper-dialog';
+import { GenreCombobox } from '@/components/GenreCombobox';
+import { cn } from '@/lib/utils';
 
 interface ArtistData {
   id: string;
@@ -53,6 +56,12 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
     legal_name: '',
     tax_id: '',
   });
+
+  // Avatar upload states
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (open && artistId) {
@@ -120,19 +129,66 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
       toast({ title: "Éxito", description: "Información del artista actualizada." });
       setEditing(false);
       fetchArtist();
+      queryClient.invalidateQueries({ queryKey: ['artists'] });
     } catch (error) {
       toast({ title: "Error", description: "No se pudo actualizar la información.", variant: "destructive" });
     }
   };
 
   const canEdit = currentProfile?.active_role === 'management';
+
+  // Avatar upload handlers
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "Error", description: "Solo se permiten archivos de imagen.", variant: "destructive" });
+      return;
+    }
+    setCropFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleAvatarUpload = async (blob: Blob) => {
+    if (!artistId) return;
+    setUploadingAvatar(true);
+    setCropFile(null);
+    try {
+      const filePath = `${artistId}/${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('artist-assets')
+        .upload(filePath, blob, { contentType: 'image/jpeg', upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrl } = supabase.storage
+        .from('artist-assets')
+        .getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase
+        .from('artists')
+        .update({ avatar_url: publicUrl.publicUrl })
+        .eq('id', artistId);
+
+      if (updateError) throw updateError;
+
+      setArtistData(prev => prev ? { ...prev, avatar_url: publicUrl.publicUrl } : prev);
+      queryClient.invalidateQueries({ queryKey: ['artists'] });
+      toast({ title: "Éxito", description: "Imagen del artista actualizada." });
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast({ title: "Error", description: "No se pudo subir la imagen.", variant: "destructive" });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const [generatingLink, setGeneratingLink] = useState(false);
 
   const handleGenerateFormLink = async () => {
     if (!artistId) return;
     setGeneratingLink(true);
     try {
-      // Check if active token exists
       const { data: existing } = await supabase
         .from('artist_form_tokens' as any)
         .select('token')
@@ -199,10 +255,25 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <Avatar className="h-16 w-16">
-                    <AvatarImage src={artistData.avatar_url || ''} />
-                    <AvatarFallback><User className="h-8 w-8" /></AvatarFallback>
-                  </Avatar>
+                  <div
+                    className={cn('relative group', canEdit && 'cursor-pointer')}
+                    onClick={() => canEdit && fileInputRef.current?.click()}
+                  >
+                    <Avatar className="h-16 w-16">
+                      <AvatarImage src={artistData.avatar_url || ''} />
+                      <AvatarFallback><User className="h-8 w-8" /></AvatarFallback>
+                    </Avatar>
+                    {canEdit && !uploadingAvatar && (
+                      <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Camera className="h-5 w-5 text-white" />
+                      </div>
+                    )}
+                    {uploadingAvatar && (
+                      <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
+                        <Loader2 className="h-5 w-5 text-white animate-spin" />
+                      </div>
+                    )}
+                  </div>
                   <div>
                     <CardTitle>{artistData.name}</CardTitle>
                     {artistData.stage_name && (
@@ -227,6 +298,26 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
               </div>
             </CardHeader>
           </Card>
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+
+          {/* Image Cropper Dialog */}
+          <ImageCropperDialog
+            file={cropFile}
+            open={!!cropFile}
+            onConfirm={handleAvatarUpload}
+            onCancel={() => setCropFile(null)}
+            aspectRatio={1}
+            circular
+            title="Ajustar foto del artista"
+          />
 
           {/* Info general */}
           <Card>
@@ -255,7 +346,10 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
               <div className="space-y-2">
                 <Label>Género musical</Label>
                 {editing ? (
-                  <Input value={formData.genre} onChange={(e) => setFormData({ ...formData, genre: e.target.value })} placeholder="Género musical" />
+                  <GenreCombobox
+                    value={formData.genre}
+                    onValueChange={(v) => setFormData({ ...formData, genre: v })}
+                  />
                 ) : (
                   <Input value={artistData.genre || 'No especificado'} disabled />
                 )}
