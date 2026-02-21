@@ -1,49 +1,42 @@
 
 
-# Renombrar tab "Equipo" a "Formatos" y mostrar formatos inline
+# Reordenar formatos arrastrando (drag-and-drop)
 
-Reemplazar el contenido de la tab "Equipo" (que muestra miembros del equipo asignados) por el formulario de formatos de booking que actualmente aparece al hacer clic en "Configurar Formatos". El usuario no tendra que abrir ningun dialog -- los formatos se veran directamente en la tab.
-
----
-
-## Cambios
-
-### 1. Extraer contenido del dialog a un componente reutilizable
-
-**Archivo: `src/components/ArtistFormatsDialog.tsx`**
-
-- Extraer toda la logica interna del dialog (queries, estados, handlers, UI) a un nuevo componente exportado `ArtistFormatsContent` que recibe `artistId` y `artistName` como props.
-- `ArtistFormatsDialog` pasa a ser un wrapper simple: renderiza `Dialog` > `DialogContent` > `ArtistFormatsContent`.
-- Esto permite reusar `ArtistFormatsContent` tanto en el dialog (si se usa desde otro lugar) como inline en la tab.
-
-### 2. Reemplazar tab "Equipo" por "Formatos"
-
-**Archivo: `src/pages/ArtistProfile.tsx`**
-
-- Renombrar `TabsTrigger value="team"` de "Equipo" a "Formatos" (con icono `Settings2` en vez de `Users`).
-- En `TabsContent value="team"`, eliminar todo el bloque de equipo (header con botones, grid de miembros agrupados por categoria, empty state).
-- En su lugar, renderizar `<ArtistFormatsContent artistId={id} artistName={artist.stage_name || artist.name} />` directamente.
-- Eliminar `showFormatsDialog` state y el render de `ArtistFormatsDialog` al final del archivo (ya no se necesita el dialog).
-- Eliminar `showAddTeamMember` state y el render de `AddTeamContactDialog` (la gestion de equipo se hace desde la pagina de Equipos).
-- Limpiar imports no usados: `AddTeamContactDialog`, `ArtistFormatsDialog`.
-
-### 3. Actualizar stat "Equipo" en el header
-
-- Mantener la stat card "Equipo" con su valor (`teamMembers.length`) y su enlace a `/teams?artistId=...` ya que sigue siendo util como indicador rapido. No se elimina.
+Actualmente los formatos del artista muestran un icono de arrastre (las 6 bolitas) pero no funciona: solo el crew dentro de cada formato es reordenable. Se implementara drag-and-drop a nivel de formato completo.
 
 ---
 
-## Resultado
+## Cambios en `src/components/ArtistFormatsDialog.tsx`
 
-- La tab se llama "Formatos" y muestra directamente los presets rapidos, los formatos existentes con sus crews, cachés, riders, etc.
-- No hay que hacer clic en "Configurar Formatos" -- ya esta todo visible.
-- La gestion del equipo sigue accesible desde la pagina de Equipos y desde la stat card del header.
+### 1. Crear un componente `SortableFormatCard`
 
-## Detalle tecnico
+Envolver cada `Collapsible` (tarjeta de formato) en un componente sortable usando `useSortable` de `@dnd-kit/sortable`. El drag handle sera el icono `GripVertical` que ya existe en el header de cada card.
 
-El componente `ArtistFormatsContent` mantendra exactamente la misma logica que tiene `ArtistFormatsDialog` internamente (queries de `booking_products`, `booking_product_crew`, team members, drag-and-drop, save mutation, etc.), pero sin el wrapper `Dialog`/`DialogContent`/`DialogHeader`. Incluira el boton "Guardar Formatos" al final.
+Cada formato necesita un `id` estable para dnd-kit. Se usara `format.id || \`new-\${index}\`` como identificador unico.
 
-| Archivo | Cambio |
+### 2. Envolver la lista de formatos con DndContext + SortableContext
+
+Alrededor del `div.space-y-4` que mapea los formatos (linea 652), agregar:
+- `DndContext` con sensores (PointerSensor con distancia minima de 8px para no interferir con clics) y `closestCenter`
+- `SortableContext` con `verticalListSortingStrategy`
+
+### 3. Handler de reordenacion
+
+Crear `handleFormatDragEnd` que use `arrayMove` para reordenar el array `formats` en el estado local. Como el guardado ya respeta el indice del array para `sort_order` (linea 420: `sort_order: idx`), el orden se persistira correctamente al guardar.
+
+### 4. Separar sensors
+
+Crear un segundo set de sensors para los formatos (distancia de activacion de 8px) separado del de crew members, para evitar conflictos entre los dos niveles de drag-and-drop anidados.
+
+---
+
+## Resumen tecnico
+
+| Elemento | Detalle |
 |---|---|
-| `src/components/ArtistFormatsDialog.tsx` | Extraer logica a `ArtistFormatsContent` (exportado). Dialog se convierte en wrapper |
-| `src/pages/ArtistProfile.tsx` | Tab "Equipo" pasa a "Formatos", renderiza `ArtistFormatsContent` inline, elimina dialog y team member grid |
+| Archivo | `src/components/ArtistFormatsDialog.tsx` |
+| Nuevo componente interno | `SortableFormatCard` (wrap del Collapsible existente) |
+| DnD wrapper | `DndContext` + `SortableContext` con `verticalListSortingStrategy` |
+| IDs | `format.id \|\| \`temp-\${index}\`` |
+| Persistencia | Ya funciona: `sort_order: idx` al guardar |
+| Sensor | `PointerSensor` con `distance: 8` para no interferir con clic/expand |
