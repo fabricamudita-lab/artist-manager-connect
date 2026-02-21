@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,10 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { 
   ArrowLeft, Music, Users, Calendar, FolderOpen, 
   Edit, Plus, MapPin, DollarSign, Mic, FileText, 
-  Disc3, ClipboardList, TrendingUp, Settings2, Wallet
+  Disc3, ClipboardList, TrendingUp, Settings2, Wallet,
+  ExternalLink, Instagram, Globe
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -20,6 +22,8 @@ import { ContactProfileSheet } from '@/components/ContactProfileSheet';
 import { ArtistFormatsDialog } from '@/components/ArtistFormatsDialog';
 import CreateReleaseDialog from '@/components/releases/CreateReleaseDialog';
 import { ArtistInfoDialog } from '@/components/ArtistInfoDialog';
+import { usePlatformEarnings, useSongs } from '@/hooks/useRoyalties';
+import { PieChart, Pie, Cell } from 'recharts';
 
 interface Artist {
   id: string;
@@ -27,6 +31,11 @@ interface Artist {
   stage_name: string | null;
   description: string | null;
   created_at: string;
+  genre: string | null;
+  spotify_url: string | null;
+  instagram_url: string | null;
+  tiktok_url: string | null;
+  avatar_url: string | null;
 }
 
 interface TeamMember {
@@ -84,6 +93,8 @@ interface Budget {
   fee?: number;
 }
 
+const DONUT_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--secondary))'];
+
 export default function ArtistProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -112,7 +123,6 @@ export default function ArtistProfile() {
   const { data: teamMembers = [], refetch: refetchTeam } = useQuery({
     queryKey: ['artist-team', id],
     queryFn: async () => {
-      // First get contact IDs assigned to this artist
       const { data: assignments, error: assignError } = await supabase
         .from('contact_artist_assignments')
         .select('contact_id')
@@ -138,7 +148,6 @@ export default function ArtistProfile() {
     enabled: !!id,
   });
 
-  // Fetch bookings for this artist
   const { data: bookings = [] } = useQuery({
     queryKey: ['artist-bookings', id],
     queryFn: async () => {
@@ -154,7 +163,6 @@ export default function ArtistProfile() {
     enabled: !!id,
   });
 
-  // Fetch projects for this artist (separate folders and projects)
   const { data: projects = [] } = useQuery({
     queryKey: ['artist-projects', id],
     queryFn: async () => {
@@ -169,7 +177,6 @@ export default function ArtistProfile() {
     enabled: !!id,
   });
 
-  // Fetch releases for this artist
   const { data: releases = [] } = useQuery({
     queryKey: ['artist-releases', id],
     queryFn: async () => {
@@ -185,7 +192,6 @@ export default function ArtistProfile() {
     enabled: !!id,
   });
 
-  // Fetch solicitudes for this artist
   const { data: solicitudes = [] } = useQuery({
     queryKey: ['artist-solicitudes', id],
     queryFn: async () => {
@@ -201,7 +207,6 @@ export default function ArtistProfile() {
     enabled: !!id,
   });
 
-  // Fetch budgets for this artist
   const { data: budgets = [] } = useQuery({
     queryKey: ['artist-budgets', id],
     queryFn: async () => {
@@ -217,9 +222,49 @@ export default function ArtistProfile() {
     enabled: !!id,
   });
 
+  // Royalties data for income breakdown (Improvement #5)
+  const { data: songs = [] } = useSongs(id);
+  const { data: platformEarnings = [] } = usePlatformEarnings();
+
   // Stats
   const upcomingBookings = bookings.filter(b => b.fecha && new Date(b.fecha) >= new Date()).length;
   const totalRevenue = bookings.reduce((sum, b) => sum + (b.fee || 0), 0);
+
+  // Royalties total filtered by artist songs
+  const songIds = new Set(songs?.map(s => s.id) || []);
+  const royaltiesTotal = (platformEarnings || [])
+    .filter(e => songIds.has(e.song_id))
+    .reduce((sum, e) => sum + Number(e.amount), 0);
+  const bookingRevenue = totalRevenue;
+  const grandTotal = bookingRevenue + royaltiesTotal;
+
+  // Income breakdown data for mini donut (Improvement #5)
+  const incomeBreakdown = useMemo(() => {
+    const segments = [];
+    if (bookingRevenue > 0) segments.push({ name: 'Booking', value: bookingRevenue });
+    if (royaltiesTotal > 0) segments.push({ name: 'Royalties', value: royaltiesTotal });
+    return segments;
+  }, [bookingRevenue, royaltiesTotal]);
+
+  // Career phase calculation (Improvement #1)
+  const careerPhase = useMemo(() => {
+    const releaseCount = releases?.length || 0;
+    const bookingCount = bookings?.length || 0;
+    const revenue = grandTotal || 0;
+
+    if (revenue > 20000 || releaseCount >= 10 || bookingCount >= 20) {
+      return { label: 'Expansión', value: 100, index: 3 };
+    }
+    if (revenue > 5000 || releaseCount >= 4 || bookingCount >= 10) {
+      return { label: 'Consolidación', value: 75, index: 2 };
+    }
+    if (releaseCount >= 1 || bookingCount >= 3) {
+      return { label: 'Construcción', value: 50, index: 1 };
+    }
+    return { label: 'Descubrimiento', value: 25, index: 0 };
+  }, [releases, bookings, grandTotal]);
+
+  const phaseLabels = ['Descubrimiento', 'Construcción', 'Consolidación', 'Expansión'];
 
   if (loadingArtist) {
     return (
@@ -263,7 +308,7 @@ export default function ArtistProfile() {
     { label: 'Proyectos', value: workProjects.length, icon: FolderOpen, color: 'text-purple-500', path: `/projects?artistId=${id}` },
     { label: 'Releases', value: releases.length, icon: Disc3, color: 'text-pink-500', path: `/releases?artistId=${id}` },
     { label: 'Solicitudes', value: pendingSolicitudes.length, icon: ClipboardList, color: 'text-amber-500', path: `/solicitudes?artistId=${id}` },
-    { label: 'Ingresos totales', value: `€${totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'text-green-500', path: `/royalties?artistId=${id}` },
+    { label: 'Ingresos totales', value: `€${grandTotal.toLocaleString()}`, icon: DollarSign, color: 'text-green-500', path: `/royalties?artistId=${id}`, isRevenue: true },
   ];
 
   const getStatusColor = (status: string | null) => {
@@ -275,11 +320,13 @@ export default function ArtistProfile() {
     }
   };
 
+  const hasSocialLinks = artist.spotify_url || artist.instagram_url || artist.tiktok_url;
+
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/mi-management')}>
+      {/* Header — Improvement #4: bio, genre badge, social links */}
+      <div className="flex items-start gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate('/mi-management')} className="mt-1">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <Avatar className="h-16 w-16">
@@ -287,13 +334,60 @@ export default function ArtistProfile() {
             {(artist.stage_name || artist.name).substring(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold">
-            {artist.stage_name || artist.name}
-          </h1>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-3xl font-bold">
+              {artist.stage_name || artist.name}
+            </h1>
+            {artist.genre && (
+              <Badge variant="secondary" className="text-xs">
+                {artist.genre}
+              </Badge>
+            )}
+          </div>
           {artist.stage_name && (
             <p className="text-muted-foreground">{artist.name}</p>
           )}
+          {/* Bio inline */}
+          {artist.description ? (
+            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{artist.description}</p>
+          ) : (
+            <button
+              onClick={() => setShowEditDialog(true)}
+              className="text-sm text-muted-foreground/60 hover:text-primary mt-1 underline-offset-2 hover:underline transition-colors"
+            >
+              + Añadir descripción
+            </button>
+          )}
+          {/* Social links */}
+          <div className="flex items-center gap-2 mt-2">
+            {artist.spotify_url && (
+              <a href={artist.spotify_url} target="_blank" rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-green-500 transition-colors">
+                <Globe className="h-4 w-4" />
+              </a>
+            )}
+            {artist.instagram_url && (
+              <a href={artist.instagram_url} target="_blank" rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-pink-500 transition-colors">
+                <Instagram className="h-4 w-4" />
+              </a>
+            )}
+            {artist.tiktok_url && (
+              <a href={artist.tiktok_url} target="_blank" rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground transition-colors">
+                <Music className="h-4 w-4" />
+              </a>
+            )}
+            {!hasSocialLinks && (
+              <button
+                onClick={() => setShowEditDialog(true)}
+                className="text-xs text-muted-foreground/60 hover:text-primary underline-offset-2 hover:underline transition-colors"
+              >
+                + Añadir redes
+              </button>
+            )}
+          </div>
         </div>
         <Button variant="outline" onClick={() => setShowEditDialog(true)}>
           <Edit className="h-4 w-4 mr-2" />
@@ -301,151 +395,92 @@ export default function ArtistProfile() {
         </Button>
       </div>
 
-      {/* Description */}
-      {artist.description && (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-muted-foreground">{artist.description}</p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Description card — hidden when bio is shown in header (always) */}
+      {/* Kept in code but conditioned to never render since bio is now in the header */}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {stats.map((stat) => (
-          <Card 
-            key={stat.label}
-            className="cursor-pointer hover:border-primary transition-colors"
-            onClick={() => navigate(stat.path)}
-          >
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                </div>
-                <stat.icon className={`h-6 w-6 ${stat.color}`} />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Tabs */}
-      <Tabs defaultValue="team" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="team">Equipo</TabsTrigger>
-          <TabsTrigger value="bookings">Shows</TabsTrigger>
-          <TabsTrigger value="projects">Proyectos</TabsTrigger>
-          <TabsTrigger value="releases">Releases</TabsTrigger>
-          <TabsTrigger value="solicitudes">Solicitudes</TabsTrigger>
-          <TabsTrigger value="finanzas">Finanzas</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="team" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-muted-foreground">
-              Equipo asignado a {artist.stage_name || artist.name}
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowFormatsDialog(true)}>
-                <Settings2 className="h-4 w-4 mr-2" />
-                Configurar Formatos
-              </Button>
-              <Button onClick={() => setShowAddTeamMember(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Añadir Miembro
-              </Button>
+      {/* Career Phase Card — Improvement #1 */}
+      <Card>
+        <CardContent className="pt-6 pb-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">Estado de Carrera</span>
             </div>
+            <Badge variant="outline">{careerPhase.label}</Badge>
           </div>
+          <Progress value={careerPhase.value} className="h-2" />
+          <div className="flex justify-between mt-2">
+            {phaseLabels.map((label, i) => (
+              <span
+                key={label}
+                className={`text-[10px] ${i <= careerPhase.index ? 'text-primary font-medium' : 'text-muted-foreground'}`}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-          {teamMembers.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Sin equipo asignado</h3>
-                <p className="text-muted-foreground mb-4">
-                  Añade miembros al equipo de este artista
-                </p>
-                <Button onClick={() => setShowAddTeamMember(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Añadir Miembro
-                </Button>
+      {/* Stats — Improvement #2: dimmed zero stats with "+" button */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {stats.map((stat) => {
+          const isZero = stat.value === 0 || stat.value === '0' || stat.value === '€0';
+          const isRevenueCard = (stat as any).isRevenue;
+          return (
+            <Card 
+              key={stat.label}
+              className={`cursor-pointer hover:border-primary transition-colors ${isZero ? 'opacity-60' : ''}`}
+              onClick={() => navigate(stat.path)}
+            >
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-muted-foreground">{stat.label}</p>
+                    {isZero ? (
+                      <p className="text-sm font-medium text-primary mt-1">+ Crear</p>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <p className="text-2xl font-bold">{isRevenueCard ? `€${grandTotal.toLocaleString()}` : stat.value}</p>
+                        {/* Mini donut for revenue — Improvement #5 */}
+                        {isRevenueCard && incomeBreakdown.length > 1 && (
+                          <PieChart width={36} height={36}>
+                            <Pie
+                              data={incomeBreakdown}
+                              cx={18}
+                              cy={18}
+                              innerRadius={10}
+                              outerRadius={16}
+                              dataKey="value"
+                              strokeWidth={0}
+                            >
+                              {incomeBreakdown.map((_, i) => (
+                                <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                              ))}
+                            </Pie>
+                          </PieChart>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <stat.icon className={`h-6 w-6 ${stat.color} shrink-0`} />
+                </div>
               </CardContent>
             </Card>
-          ) : (
-            (() => {
-              // Group team members by team_categories
-              const groupedMembers: Record<string, TeamMember[]> = {};
-              
-              teamMembers.forEach((member) => {
-                const fieldConfig = member.field_config as { team_categories?: string[] } | null;
-                const categories = fieldConfig?.team_categories || [member.category || 'otros'];
-                
-                categories.forEach((cat: string) => {
-                  if (!groupedMembers[cat]) {
-                    groupedMembers[cat] = [];
-                  }
-                  // Avoid duplicates in same category
-                  if (!groupedMembers[cat].find(m => m.id === member.id)) {
-                    groupedMembers[cat].push(member);
-                  }
-                });
-              });
+          );
+        })}
+      </div>
 
-              const categoryLabels: Record<string, string> = {
-                banda: 'Banda',
-                tourmanager: 'Tour Manager',
-                produccion: 'Producción',
-                tecnico: 'Técnicos',
-                management: 'Management',
-                otros: 'Otros',
-              };
-
-              const sortedCategories = Object.keys(groupedMembers).sort((a, b) => {
-                const order = ['management', 'tourmanager', 'banda', 'produccion', 'tecnico', 'otros'];
-                return order.indexOf(a) - order.indexOf(b);
-              });
-
-              return (
-                <div className="space-y-6">
-                  {sortedCategories.map((category) => (
-                    <div key={category} className="space-y-3">
-                      <h3 className="text-lg font-semibold capitalize">
-                        {categoryLabels[category] || category}
-                      </h3>
-                      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {groupedMembers[category].map((member) => (
-                          <Card 
-                            key={member.id} 
-                            className="cursor-pointer hover:shadow-md transition-shadow"
-                            onClick={() => setSelectedContactId(member.id)}
-                          >
-                            <CardContent className="pt-6">
-                              <div className="flex items-start gap-3">
-                                <Avatar>
-                                  <AvatarFallback>
-                                    {member.name.substring(0, 2).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium truncate">{member.name}</p>
-                                  <p className="text-sm text-muted-foreground truncate">
-                                    {member.role || 'Sin rol'}
-                                  </p>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()
-          )}
-        </TabsContent>
+      {/* Tabs — Improvement #3: reordered by usage frequency */}
+      <Tabs defaultValue="bookings" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="bookings">Shows</TabsTrigger>
+          <TabsTrigger value="finanzas">Finanzas</TabsTrigger>
+          <TabsTrigger value="releases">Releases</TabsTrigger>
+          <TabsTrigger value="team">Equipo</TabsTrigger>
+          <TabsTrigger value="projects">Proyectos</TabsTrigger>
+          <TabsTrigger value="solicitudes">Solicitudes</TabsTrigger>
+        </TabsList>
 
         <TabsContent value="bookings" className="space-y-4">
           <div className="flex justify-between items-center">
@@ -511,43 +546,62 @@ export default function ArtistProfile() {
           )}
         </TabsContent>
 
-        <TabsContent value="projects" className="space-y-4">
+        <TabsContent value="finanzas" className="space-y-4">
           <div className="flex justify-between items-center">
-            <p className="text-muted-foreground">Proyectos del artista</p>
-            <Button variant="outline" onClick={() => navigate('/projects')}>
+            <p className="text-muted-foreground">Presupuestos del artista</p>
+            <Button variant="outline" onClick={() => navigate('/finanzas')}>
               Ver todos
             </Button>
           </div>
 
-          {projects.length === 0 ? (
+          {budgets.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
-                <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Sin proyectos</h3>
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Sin presupuestos</h3>
                 <p className="text-muted-foreground">
-                  No hay proyectos asociados a este artista
+                  No hay presupuestos asociados a este artista
                 </p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid md:grid-cols-2 gap-4">
-              {projects.map((project) => (
+            <div className="space-y-2">
+              {budgets.map((budget) => (
                 <Card 
-                  key={project.id}
+                  key={budget.id} 
                   className="cursor-pointer hover:shadow-sm transition-shadow"
-                  onClick={() => navigate(`/projects/${project.id}`)}
+                  onClick={() => navigate(`/finanzas?budget=${budget.id}`)}
                 >
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{project.name}</CardTitle>
-                      <Badge variant={project.status === 'active' ? 'default' : 'secondary'}>
-                        {project.status}
+                  <CardContent className="py-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{budget.name}</span>
+                        </div>
+                        {budget.city && (
+                          <p className="text-sm text-muted-foreground ml-6">
+                            {budget.city}{budget.venue ? ` - ${budget.venue}` : ''}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        {budget.event_date && (
+                          <p className="text-sm">
+                            {format(new Date(budget.event_date), 'd MMM yyyy', { locale: es })}
+                          </p>
+                        )}
+                        {budget.fee && (
+                          <p className="text-sm text-muted-foreground">
+                            €{budget.fee.toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                      <Badge variant={budget.budget_status === 'aprobado' ? 'default' : 'secondary'}>
+                        {budget.budget_status || 'borrador'}
                       </Badge>
                     </div>
-                    <CardDescription>
-                      Creado {format(new Date(project.created_at), 'd MMM yyyy', { locale: es })}
-                    </CardDescription>
-                  </CardHeader>
+                  </CardContent>
                 </Card>
               ))}
             </div>
@@ -616,6 +670,152 @@ export default function ArtistProfile() {
           )}
         </TabsContent>
 
+        <TabsContent value="team" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <p className="text-muted-foreground">
+              Equipo asignado a {artist.stage_name || artist.name}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowFormatsDialog(true)}>
+                <Settings2 className="h-4 w-4 mr-2" />
+                Configurar Formatos
+              </Button>
+              <Button onClick={() => setShowAddTeamMember(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Añadir Miembro
+              </Button>
+            </div>
+          </div>
+
+          {teamMembers.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Sin equipo asignado</h3>
+                <p className="text-muted-foreground mb-4">
+                  Añade miembros al equipo de este artista
+                </p>
+                <Button onClick={() => setShowAddTeamMember(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Añadir Miembro
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            (() => {
+              const groupedMembers: Record<string, TeamMember[]> = {};
+              
+              teamMembers.forEach((member) => {
+                const fieldConfig = member.field_config as { team_categories?: string[] } | null;
+                const categories = fieldConfig?.team_categories || [member.category || 'otros'];
+                
+                categories.forEach((cat: string) => {
+                  if (!groupedMembers[cat]) {
+                    groupedMembers[cat] = [];
+                  }
+                  if (!groupedMembers[cat].find(m => m.id === member.id)) {
+                    groupedMembers[cat].push(member);
+                  }
+                });
+              });
+
+              const categoryLabels: Record<string, string> = {
+                banda: 'Banda',
+                tourmanager: 'Tour Manager',
+                produccion: 'Producción',
+                tecnico: 'Técnicos',
+                management: 'Management',
+                otros: 'Otros',
+              };
+
+              const sortedCategories = Object.keys(groupedMembers).sort((a, b) => {
+                const order = ['management', 'tourmanager', 'banda', 'produccion', 'tecnico', 'otros'];
+                return order.indexOf(a) - order.indexOf(b);
+              });
+
+              return (
+                <div className="space-y-6">
+                  {sortedCategories.map((category) => (
+                    <div key={category} className="space-y-3">
+                      <h3 className="text-lg font-semibold capitalize">
+                        {categoryLabels[category] || category}
+                      </h3>
+                      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {groupedMembers[category].map((member) => (
+                          <Card 
+                            key={member.id} 
+                            className="cursor-pointer hover:shadow-md transition-shadow"
+                            onClick={() => setSelectedContactId(member.id)}
+                          >
+                            <CardContent className="pt-6">
+                              <div className="flex items-start gap-3">
+                                <Avatar>
+                                  <AvatarFallback>
+                                    {member.name.substring(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium truncate">{member.name}</p>
+                                  <p className="text-sm text-muted-foreground truncate">
+                                    {member.role || 'Sin rol'}
+                                  </p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()
+          )}
+        </TabsContent>
+
+        <TabsContent value="projects" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <p className="text-muted-foreground">Proyectos del artista</p>
+            <Button variant="outline" onClick={() => navigate('/projects')}>
+              Ver todos
+            </Button>
+          </div>
+
+          {projects.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Sin proyectos</h3>
+                <p className="text-muted-foreground">
+                  No hay proyectos asociados a este artista
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4">
+              {projects.map((project) => (
+                <Card 
+                  key={project.id}
+                  className="cursor-pointer hover:shadow-sm transition-shadow"
+                  onClick={() => navigate(`/projects/${project.id}`)}
+                >
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{project.name}</CardTitle>
+                      <Badge variant={project.status === 'active' ? 'default' : 'secondary'}>
+                        {project.status}
+                      </Badge>
+                    </div>
+                    <CardDescription>
+                      Creado {format(new Date(project.created_at), 'd MMM yyyy', { locale: es })}
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
         <TabsContent value="solicitudes" className="space-y-4">
           <div className="flex justify-between items-center">
             <p className="text-muted-foreground">Solicitudes del artista</p>
@@ -655,68 +855,6 @@ export default function ArtistProfile() {
                       </div>
                       <Badge variant={solicitud.estado === 'aprobada' ? 'default' : 'secondary'}>
                         {solicitud.estado}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="finanzas" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-muted-foreground">Presupuestos del artista</p>
-            <Button variant="outline" onClick={() => navigate('/finanzas')}>
-              Ver todos
-            </Button>
-          </div>
-
-          {budgets.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Sin presupuestos</h3>
-                <p className="text-muted-foreground">
-                  No hay presupuestos asociados a este artista
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {budgets.map((budget) => (
-                <Card 
-                  key={budget.id} 
-                  className="cursor-pointer hover:shadow-sm transition-shadow"
-                  onClick={() => navigate(`/finanzas?budget=${budget.id}`)}
-                >
-                  <CardContent className="py-4">
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{budget.name}</span>
-                        </div>
-                        {budget.city && (
-                          <p className="text-sm text-muted-foreground ml-6">
-                            {budget.city}{budget.venue ? ` - ${budget.venue}` : ''}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        {budget.event_date && (
-                          <p className="text-sm">
-                            {format(new Date(budget.event_date), 'd MMM yyyy', { locale: es })}
-                          </p>
-                        )}
-                        {budget.fee && (
-                          <p className="text-sm text-muted-foreground">
-                            €{budget.fee.toLocaleString()}
-                          </p>
-                        )}
-                      </div>
-                      <Badge variant={budget.budget_status === 'aprobado' ? 'default' : 'secondary'}>
-                        {budget.budget_status || 'borrador'}
                       </Badge>
                     </div>
                   </CardContent>
