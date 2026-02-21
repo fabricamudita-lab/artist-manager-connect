@@ -265,6 +265,30 @@ function SortableCrewMember({
     </div>
   );
 }
+// Sortable Format Card wrapper
+function SortableFormatCard({ id, children }: { id: string; children: (dragListeners: Record<string, any>) => React.ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      {children(listeners ?? {})}
+    </div>
+  );
+}
+
 interface ArtistFormatsContentProps {
   artistId: string;
   artistName: string;
@@ -277,7 +301,7 @@ export function ArtistFormatsContent({ artistId, artistName, onClose }: ArtistFo
   const [formats, setFormats] = useState<BookingProduct[]>([]);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [selectingCrewForIndex, setSelectingCrewForIndex] = useState<number | null>(null);
-  const [expandedFormats, setExpandedFormats] = useState<Set<number>>(new Set());
+  const [expandedFormats, setExpandedFormats] = useState<Set<string>>(new Set());
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   
   // Fetch team members for this artist
@@ -579,12 +603,38 @@ export function ArtistFormatsContent({ artistId, artistName, onClose }: ArtistFo
     }
   };
 
+  // Sensors for crew member drag (no activation constraint)
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Sensors for format card drag (with distance to avoid interfering with clicks/expand)
+  const formatSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Stable IDs for formats (used by dnd-kit)
+  const formatIds = useMemo(
+    () => formats.map((f, i) => f.id || `temp-${i}`),
+    [formats]
+  );
+
+  const handleFormatDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = formatIds.indexOf(String(active.id));
+    const newIndex = formatIds.indexOf(String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    setFormats(prev => arrayMove(prev, oldIndex, newIndex));
+  };
 
   const handleRiderUpload = async (index: number, file: File) => {
     if (!user || !artistId) return;
@@ -649,20 +699,28 @@ export function ArtistFormatsContent({ artistId, artistName, onClose }: ArtistFo
             )}
 
             {/* Format Cards */}
+            <DndContext
+              sensors={formatSensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleFormatDragEnd}
+            >
+              <SortableContext items={formatIds} strategy={verticalListSortingStrategy}>
             <div className="space-y-4">
               {formats.map((format, index) => {
-                const isExpanded = expandedFormats.has(index);
+                const formatId = format.id || `temp-${index}`;
+                const isExpanded = expandedFormats.has(formatId);
                 return (
+                <SortableFormatCard key={formatId} id={formatId}>
+                  {(dragListeners: Record<string, any>) => (
                 <Collapsible
-                  key={index}
                   open={isExpanded}
                   onOpenChange={(open) => {
                     setExpandedFormats(prev => {
                       const next = new Set(prev);
                       if (open) {
-                        next.add(index);
+                        next.add(formatId);
                       } else {
-                        next.delete(index);
+                        next.delete(formatId);
                       }
                       return next;
                     });
@@ -672,7 +730,15 @@ export function ArtistFormatsContent({ artistId, artistName, onClose }: ArtistFo
                     <CollapsibleTrigger asChild>
                       <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-accent/50 transition-colors rounded-t-lg">
                         <div className="flex items-center gap-2">
-                          <GripVertical className="h-4 w-4 text-muted-foreground" />
+                          <button
+                            type="button"
+                            className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+                            onClick={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            {...dragListeners}
+                          >
+                            <GripVertical className="h-4 w-4" />
+                          </button>
                           <span className="text-lg font-semibold">{format.name || 'Nuevo Formato'}</span>
                           {format.crewMembers.length > 0 && (
                             <Badge variant="secondary" className="ml-2">
@@ -986,6 +1052,8 @@ export function ArtistFormatsContent({ artistId, artistName, onClose }: ArtistFo
                 </CollapsibleContent>
               </Card>
             </Collapsible>
+                  )}
+                </SortableFormatCard>
               );
               })}
 
@@ -1001,6 +1069,8 @@ export function ArtistFormatsContent({ artistId, artistName, onClose }: ArtistFo
                 </Card>
               )}
             </div>
+              </SortableContext>
+            </DndContext>
 
             {/* Add Custom Format */}
             <Button
