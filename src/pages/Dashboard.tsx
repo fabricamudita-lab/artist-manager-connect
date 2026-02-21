@@ -2,9 +2,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/useCommon';
 import { OwnerDashboard } from '@/components/dashboard/OwnerDashboard';
 import { CollaboratorDashboard } from '@/components/dashboard/CollaboratorDashboard';
-import { PermissionChip } from '@/components/PermissionChip';
+import { Badge } from '@/components/ui/badge';
 import TestUserSetup from '@/components/TestUserSetup';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Crown, Music } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export default function Dashboard() {
@@ -56,7 +56,10 @@ export default function Dashboard() {
               Bienvenido, {profile.full_name} ({isOwner ? 'Management' : 'Artista'})
             </p>
           </div>
-          <PermissionChip />
+          <Badge variant={isOwner ? 'default' : 'secondary'} className="flex items-center gap-1.5">
+            {isOwner ? <Crown className="h-3.5 w-3.5" /> : <Music className="h-3.5 w-3.5" />}
+            {isOwner ? 'Manager' : 'Artista'}
+          </Badge>
         </div>
       </div>
       
