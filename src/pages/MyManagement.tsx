@@ -5,11 +5,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { 
-  Users, Music, Calendar, Plus, 
-  Building2, UserPlus, FolderOpen, ArrowRight, Film 
+  Music, Calendar, Plus, 
+  Building2, FolderOpen, ArrowRight, Film 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { CreateArtistDialog } from '@/components/management/CreateArtistDialog';
@@ -22,20 +21,11 @@ interface Artist {
   created_at: string;
 }
 
-interface TeamMember {
-  id: string;
-  name: string;
-  role: string | null;
-  email: string | null;
-  category: string | null;
-}
-
 export default function MyManagement() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [showCreateArtist, setShowCreateArtist] = useState(false);
 
-  // Fetch artists
   const { data: artists = [], refetch: refetchArtists } = useQuery({
     queryKey: ['management-artists'],
     queryFn: async () => {
@@ -48,30 +38,6 @@ export default function MyManagement() {
     },
   });
 
-  // Fetch management team (only contacts marked as team members with 'management' category)
-  const { data: managementTeam = [] } = useQuery({
-    queryKey: ['management-team'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contacts')
-        .select('id, name, role, email, category, field_config')
-        .is('artist_id', null)
-        .order('name');
-      if (error) throw error;
-      
-      // Filter to only show contacts that are team members with 'management' in their team_categories
-      const filtered = (data || []).filter(contact => {
-        const config = contact.field_config as Record<string, any> | null;
-        if (!config?.is_team_member) return false;
-        const teamCategories = config?.team_categories as string[] | undefined;
-        return teamCategories?.includes('management');
-      });
-      
-      return filtered as TeamMember[];
-    },
-  });
-
-  // Fetch upcoming bookings count
   const { data: upcomingBookings = 0 } = useQuery({
     queryKey: ['management-bookings-count'],
     queryFn: async () => {
@@ -85,7 +51,6 @@ export default function MyManagement() {
     },
   });
 
-  // Fetch active projects count
   const { data: activeProjects = 0 } = useQuery({
     queryKey: ['management-projects-count'],
     queryFn: async () => {
@@ -98,7 +63,6 @@ export default function MyManagement() {
     },
   });
 
-  // Fetch sync offers count
   const { data: syncOffers = 0 } = useQuery({
     queryKey: ['management-sync-count'],
     queryFn: async () => {
@@ -113,7 +77,6 @@ export default function MyManagement() {
 
   const stats = [
     { label: 'Artistas', value: artists.length, icon: Music, color: 'text-purple-500', onClick: undefined },
-    { label: 'Equipo', value: managementTeam.length, icon: Users, color: 'text-blue-500', onClick: () => navigate('/teams') },
     { label: 'Shows próximos', value: upcomingBookings, icon: Calendar, color: 'text-green-500', onClick: () => navigate('/booking') },
     { label: 'Proyectos activos', value: activeProjects, icon: FolderOpen, color: 'text-orange-500', onClick: () => navigate('/proyectos') },
     { label: 'Sincronizaciones', value: syncOffers, icon: Film, color: 'text-pink-500', onClick: () => navigate('/sincronizaciones') },
@@ -159,126 +122,65 @@ export default function MyManagement() {
         ))}
       </div>
 
-      {/* Main Content */}
-      <Tabs defaultValue="roster" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="roster">Roster de Artistas</TabsTrigger>
-          <TabsTrigger value="team">Equipo Management</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="roster" className="space-y-4">
-          {artists.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Music className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Sin artistas</h3>
-                <p className="text-muted-foreground mb-4">
-                  Añade tu primer artista para comenzar
-                </p>
-                <Button onClick={() => setShowCreateArtist(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Crear Artista
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {artists.map((artist) => (
-                <Card 
-                  key={artist.id} 
-                  className="cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => navigate(`/artistas/${artist.id}`)}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-12 w-12">
-                        <AvatarFallback className="bg-primary/10 text-primary">
-                          {(artist.stage_name || artist.name).substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-lg truncate">
-                          {artist.stage_name || artist.name}
-                        </CardTitle>
-                        {artist.stage_name && (
-                          <CardDescription className="truncate">
-                            {artist.name}
-                          </CardDescription>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                      {artist.description || 'Sin descripción'}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary">Artista</Badge>
-                      <Button variant="ghost" size="sm">
-                        Ver perfil <ArrowRight className="h-4 w-4 ml-1" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="team" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-muted-foreground">
-              Equipo interno de tu empresa de management
-            </p>
-            <Button variant="outline" onClick={() => navigate('/contacts')}>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Gestionar en Contactos
-            </Button>
-          </div>
-
-          {managementTeam.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Sin equipo</h3>
-                <p className="text-muted-foreground mb-4">
-                  Añade miembros a tu equipo de management
-                </p>
-                <Button variant="outline" onClick={() => navigate('/contacts')}>
-                  Ir a Contactos
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {managementTeam.map((member) => (
-                <Card key={member.id}>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarFallback>
-                          {member.name.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{member.name}</p>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {member.role || 'Sin rol'}
-                        </p>
-                      </div>
-                      {member.category && (
-                        <Badge variant="outline" className="shrink-0">
-                          {member.category}
-                        </Badge>
+      {/* Roster de Artistas */}
+      <div className="space-y-4">
+        {artists.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Music className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">Sin artistas</h3>
+              <p className="text-muted-foreground mb-4">
+                Añade tu primer artista para comenzar
+              </p>
+              <Button onClick={() => setShowCreateArtist(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Crear Artista
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {artists.map((artist) => (
+              <Card 
+                key={artist.id} 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => navigate(`/artistas/${artist.id}`)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12">
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        {(artist.stage_name || artist.name).substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg truncate">
+                        {artist.stage_name || artist.name}
+                      </CardTitle>
+                      {artist.stage_name && (
+                        <CardDescription className="truncate">
+                          {artist.name}
+                        </CardDescription>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                    {artist.description || 'Sin descripción'}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary">Artista</Badge>
+                    <Button variant="ghost" size="sm">
+                      Ver perfil <ArrowRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
 
       <CreateArtistDialog 
         open={showCreateArtist} 
