@@ -17,9 +17,8 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { AddTeamContactDialog } from '@/components/AddTeamContactDialog';
 import { ContactProfileSheet } from '@/components/ContactProfileSheet';
-import { ArtistFormatsDialog } from '@/components/ArtistFormatsDialog';
+import { ArtistFormatsContent } from '@/components/ArtistFormatsDialog';
 import CreateReleaseDialog from '@/components/releases/CreateReleaseDialog';
 import { ArtistInfoDialog } from '@/components/ArtistInfoDialog';
 import { usePlatformEarnings, useSongs } from '@/hooks/useRoyalties';
@@ -98,9 +97,7 @@ const DONUT_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--se
 export default function ArtistProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [showAddTeamMember, setShowAddTeamMember] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
-  const [showFormatsDialog, setShowFormatsDialog] = useState(false);
   const [showCreateReleaseDialog, setShowCreateReleaseDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
 
@@ -477,7 +474,7 @@ export default function ArtistProfile() {
           <TabsTrigger value="bookings">Shows</TabsTrigger>
           <TabsTrigger value="finanzas">Finanzas</TabsTrigger>
           <TabsTrigger value="releases">Releases</TabsTrigger>
-          <TabsTrigger value="team">Equipo</TabsTrigger>
+          <TabsTrigger value="team">Formatos</TabsTrigger>
           <TabsTrigger value="projects">Proyectos</TabsTrigger>
           <TabsTrigger value="solicitudes">Solicitudes</TabsTrigger>
         </TabsList>
@@ -671,106 +668,10 @@ export default function ArtistProfile() {
         </TabsContent>
 
         <TabsContent value="team" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-muted-foreground">
-              Equipo asignado a {artist.stage_name || artist.name}
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowFormatsDialog(true)}>
-                <Settings2 className="h-4 w-4 mr-2" />
-                Configurar Formatos
-              </Button>
-              <Button onClick={() => setShowAddTeamMember(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Añadir Miembro
-              </Button>
-            </div>
-          </div>
-
-          {teamMembers.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Sin equipo asignado</h3>
-                <p className="text-muted-foreground mb-4">
-                  Añade miembros al equipo de este artista
-                </p>
-                <Button onClick={() => setShowAddTeamMember(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Añadir Miembro
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            (() => {
-              const groupedMembers: Record<string, TeamMember[]> = {};
-              
-              teamMembers.forEach((member) => {
-                const fieldConfig = member.field_config as { team_categories?: string[] } | null;
-                const categories = fieldConfig?.team_categories || [member.category || 'otros'];
-                
-                categories.forEach((cat: string) => {
-                  if (!groupedMembers[cat]) {
-                    groupedMembers[cat] = [];
-                  }
-                  if (!groupedMembers[cat].find(m => m.id === member.id)) {
-                    groupedMembers[cat].push(member);
-                  }
-                });
-              });
-
-              const categoryLabels: Record<string, string> = {
-                banda: 'Banda',
-                tourmanager: 'Tour Manager',
-                produccion: 'Producción',
-                tecnico: 'Técnicos',
-                management: 'Management',
-                otros: 'Otros',
-              };
-
-              const sortedCategories = Object.keys(groupedMembers).sort((a, b) => {
-                const order = ['management', 'tourmanager', 'banda', 'produccion', 'tecnico', 'otros'];
-                return order.indexOf(a) - order.indexOf(b);
-              });
-
-              return (
-                <div className="space-y-6">
-                  {sortedCategories.map((category) => (
-                    <div key={category} className="space-y-3">
-                      <h3 className="text-lg font-semibold capitalize">
-                        {categoryLabels[category] || category}
-                      </h3>
-                      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {groupedMembers[category].map((member) => (
-                          <Card 
-                            key={member.id} 
-                            className="cursor-pointer hover:shadow-md transition-shadow"
-                            onClick={() => setSelectedContactId(member.id)}
-                          >
-                            <CardContent className="pt-6">
-                              <div className="flex items-start gap-3">
-                                <Avatar>
-                                  <AvatarFallback>
-                                    {member.name.substring(0, 2).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium truncate">{member.name}</p>
-                                  <p className="text-sm text-muted-foreground truncate">
-                                    {member.role || 'Sin rol'}
-                                  </p>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()
-          )}
+          <ArtistFormatsContent 
+            artistId={id || ''} 
+            artistName={artist.stage_name || artist.name} 
+          />
         </TabsContent>
 
         <TabsContent value="projects" className="space-y-4">
@@ -865,27 +766,10 @@ export default function ArtistProfile() {
         </TabsContent>
       </Tabs>
 
-      <AddTeamContactDialog
-        open={showAddTeamMember}
-        onOpenChange={setShowAddTeamMember}
-        onContactAdded={() => {
-          refetchTeam();
-          setShowAddTeamMember(false);
-        }}
-        defaultArtistId={id}
-      />
-
       <ContactProfileSheet
         open={!!selectedContactId}
         onOpenChange={(open) => !open && setSelectedContactId(null)}
         contactId={selectedContactId || ''}
-      />
-
-      <ArtistFormatsDialog
-        open={showFormatsDialog}
-        onOpenChange={setShowFormatsDialog}
-        artistId={id || ''}
-        artistName={artist?.stage_name || artist?.name || ''}
       />
 
       <CreateReleaseDialog
