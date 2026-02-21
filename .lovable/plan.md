@@ -1,42 +1,92 @@
 
 
-# Reordenar formatos arrastrando (drag-and-drop)
+# Mejoras al OwnerDashboard: jerarquia visual, tendencias, atencion urgente y PermissionChip
 
-Actualmente los formatos del artista muestran un icono de arrastre (las 6 bolitas) pero no funciona: solo el crew dentro de cada formato es reordenable. Se implementara drag-and-drop a nivel de formato completo.
-
----
-
-## Cambios en `src/components/ArtistFormatsDialog.tsx`
-
-### 1. Crear un componente `SortableFormatCard`
-
-Envolver cada `Collapsible` (tarjeta de formato) en un componente sortable usando `useSortable` de `@dnd-kit/sortable`. El drag handle sera el icono `GripVertical` que ya existe en el header de cada card.
-
-Cada formato necesita un `id` estable para dnd-kit. Se usara `format.id || \`new-\${index}\`` como identificador unico.
-
-### 2. Envolver la lista de formatos con DndContext + SortableContext
-
-Alrededor del `div.space-y-4` que mapea los formatos (linea 652), agregar:
-- `DndContext` con sensores (PointerSensor con distancia minima de 8px para no interferir con clics) y `closestCenter`
-- `SortableContext` con `verticalListSortingStrategy`
-
-### 3. Handler de reordenacion
-
-Crear `handleFormatDragEnd` que use `arrayMove` para reordenar el array `formats` en el estado local. Como el guardado ya respeta el indice del array para `sort_order` (linea 420: `sort_order: idx`), el orden se persistira correctamente al guardar.
-
-### 4. Separar sensors
-
-Crear un segundo set de sensors para los formatos (distancia de activacion de 8px) separado del de crew members, para evitar conflictos entre los dos niveles de drag-and-drop anidados.
+Cuatro mejoras al dashboard del manager sin eliminar codigo existente — solo se anade y reorganiza.
 
 ---
 
-## Resumen tecnico
+## 1. Seccion "Requiere Atencion Hoy" como primera card
 
-| Elemento | Detalle |
+Antes de las stats, insertar una card destacada que muestre una lista priorizada de items que necesitan accion inmediata:
+
+- **Solicitudes pendientes de mas de 48h**: query `solicitudes` con `estado = 'pendiente'` y `fecha_creacion < now() - 48h`
+- **Bookings confirmados sin contrato subido**: query `booking_offers` con `estado = 'confirmado'` y sin documentos tipo contrato asociados en `booking_documents`
+- **Eventos proximos (7 dias) sin roadmap**: query `events` proximos 7 dias que no tengan `roadmap` asociado
+
+Si no hay items urgentes, se muestra un mensaje positivo ("Todo al dia") en verde.
+
+### Implementacion
+
+Se anade la logica de fetch de estos 3 queries dentro de `fetchGlobalData` en `OwnerDashboard.tsx`. Se crea un nuevo estado `attentionItems` con la lista de items. Se renderiza la card antes de las stat cards.
+
+---
+
+## 2. Micro-tendencias con flechas y % de cambio
+
+Cada KPI card principal mostrara: valor actual + comparacion vs mes anterior.
+
+### Logica de calculo
+
+Dentro de `fetchGlobalData`, para las 4 metricas principales se consultan tambien los datos del mes anterior:
+
+- **Artistas**: comparar count actual vs count hace 30 dias (usando `created_at`)
+- **Ingresos**: comparar revenue de bookings confirmados este mes vs mes anterior (usando `created_at` de booking_offers)
+- **Eventos**: comparar count eventos proximos 30 dias actual vs mismo periodo hace 30 dias
+- **Solicitudes pendientes**: comparar count actual vs hace 30 dias
+
+Cada stat card muestra una flecha verde (arriba) o roja (abajo) con el % de cambio. Si no hay datos del mes anterior, no se muestra tendencia.
+
+### Implementacion
+
+Nuevo estado `trends` con `{ artists: number | null, revenue: number | null, events: number | null, solicitudes: number | null }`. Se calcula `((actual - anterior) / anterior) * 100`. Se pasa como prop `trend` a cada card.
+
+---
+
+## 3. Reemplazar PermissionChip por indicador de rol claro
+
+El `PermissionChip` sin contexto (sin `projectId`/`artistId`) muestra "Sin acceso" en rojo porque no puede evaluar permisos sin un recurso especifico. Esto es confuso en el dashboard.
+
+### Solucion
+
+En `Dashboard.tsx`, reemplazar `<PermissionChip />` por un `Badge` simple que muestre el rol activo del usuario:
+- **Management**: Badge con icono `Crown` y texto "Manager", variante `default`
+- **Artist**: Badge con icono `Music` y texto "Artista", variante `secondary`
+
+No se elimina `PermissionChip` del codebase — solo se deja de usar en esta pagina especifica. Sigue disponible para contextos con recurso (proyectos, artistas).
+
+---
+
+## 4. Jerarquia visual: cards grandes y pequenas
+
+Reorganizar las 8 metricas en dos niveles de importancia:
+
+### Fila principal (cards grandes, `md:grid-cols-2`)
+- **Artistas activos**: card grande con icono, numero y tendencia
+- **Ingresos totales**: card grande con icono, numero y tendencia
+
+### Fila secundaria (cards pequenas, `md:grid-cols-3 lg:grid-cols-6`)
+- Proximos Eventos, Solicitudes Pendientes, Sincronizaciones, Presupuestos, EPKs, Contactos
+- Mas compactas: solo icono, numero y label, sin subtitulo
+
+### Implementacion
+
+En `OwnerDashboard.tsx`, dividir el grid actual en dos secciones:
+1. `grid md:grid-cols-2 gap-4` para las 2 cards principales (mas altas, con tendencia y gradiente sutil)
+2. `grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3` para las 6 cards secundarias (compactas)
+
+---
+
+## Archivos afectados
+
+| Archivo | Cambio |
 |---|---|
-| Archivo | `src/components/ArtistFormatsDialog.tsx` |
-| Nuevo componente interno | `SortableFormatCard` (wrap del Collapsible existente) |
-| DnD wrapper | `DndContext` + `SortableContext` con `verticalListSortingStrategy` |
-| IDs | `format.id \|\| \`temp-\${index}\`` |
-| Persistencia | Ya funciona: `sort_order: idx` al guardar |
-| Sensor | `PointerSensor` con `distance: 8` para no interferir con clic/expand |
+| `src/components/dashboard/OwnerDashboard.tsx` | Seccion atencion, tendencias en KPIs, jerarquia visual (cards grandes/pequenas) |
+| `src/pages/Dashboard.tsx` | Reemplazar `PermissionChip` por Badge de rol |
+
+## Lo que NO se elimina
+
+- Todo el codigo existente de `OwnerDashboard` (queries, estados, logica)
+- `PermissionChip` sigue en el codebase, solo deja de usarse en Dashboard
+- `CollaboratorDashboard` no se toca
+- Las secciones de "Solicitudes Pendientes" y "Proximos Eventos" al final se mantienen
