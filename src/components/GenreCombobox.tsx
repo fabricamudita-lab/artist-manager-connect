@@ -290,7 +290,16 @@ export function GenreCombobox({ value, onValueChange, placeholder = 'Buscar gén
     [value]
   );
 
-  const results = useMemo(() => searchGenres(search), [search]);
+  const results = useMemo(() => {
+    const genres = searchGenres(search);
+    if (!search.trim()) {
+      const selectedSet = new Set(selected);
+      const sel = genres.filter(g => selectedSet.has(g.label));
+      const rest = genres.filter(g => !selectedSet.has(g.label));
+      return [...sel, ...rest];
+    }
+    return genres;
+  }, [search, selected]);
 
   const toggleGenre = (label: string) => {
     const next = selected.includes(label)
