@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Check, ChevronsUpDown, Music } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 
 interface Genre {
   label: string;
@@ -336,8 +336,7 @@ export function GenreCombobox({ value, onValueChange, placeholder = 'Buscar gén
             autoFocus
           />
         </div>
-        <ScrollArea className="max-h-60">
-          <div className="p-1">
+        <div className="max-h-60 overflow-y-auto overscroll-contain p-1" onWheel={(e) => e.stopPropagation()}>
             {results.length === 0 ? (
               <div className="py-4 text-center text-sm text-muted-foreground">
                 No se encontraron géneros
@@ -361,8 +360,7 @@ export function GenreCombobox({ value, onValueChange, placeholder = 'Buscar gén
                 );
               })
             )}
-          </div>
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );
