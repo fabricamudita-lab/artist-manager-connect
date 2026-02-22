@@ -27,6 +27,7 @@ import { CategoryManagerSheet } from '@/components/CategoryManagerSheet';
 import { TEAM_CATEGORIES } from '@/lib/teamCategories';
 import { MemberType } from '@/components/TeamMemberCard';
 import { ContactDashboardDialog } from '@/components/ContactDashboardDialog';
+import { ArtistInfoDialog } from '@/components/ArtistInfoDialog';
 
 type TeamCategory = 'banda' | 'artistico' | 'tecnico' | 'management' | 'comunicacion' | 'legal' | 'produccion' | 'otro';
 
@@ -94,6 +95,7 @@ export default function Teams() {
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [restoredProfiles, setRestoredProfiles] = useState<any[] | null>(null);
   const [ownerInfo, setOwnerInfo] = useState<{ name: string; avatarUrl?: string } | null>(null);
+  const [artistInfoDialog, setArtistInfoDialog] = useState<{ open: boolean; artistId: string | null }>({ open: false, artistId: null });
 
   // Restore dashboard state when navigating back
   useEffect(() => {
@@ -1211,6 +1213,8 @@ export default function Teams() {
               onMemberEdit={(member) => {
                 if (member.type === 'profile') {
                   setEditingContact(member.rawData);
+                } else if (member.type === 'artist') {
+                  setArtistInfoDialog({ open: true, artistId: member.rawData?.artistId });
                 }
               }}
               onMemberRemove={(member) => {
@@ -1258,6 +1262,8 @@ export default function Teams() {
               onMemberEdit={(member) => {
                 if (member.type === 'profile') {
                   setEditingContact(member.rawData);
+                } else if (member.type === 'artist') {
+                  setArtistInfoDialog({ open: true, artistId: member.rawData?.artistId });
                 }
               }}
               onMemberRemove={(member) => {
@@ -1284,6 +1290,8 @@ export default function Teams() {
               onMemberEdit={(member) => {
                 if (member.type === 'profile') {
                   setEditingContact(member.rawData);
+                } else if (member.type === 'artist') {
+                  setArtistInfoDialog({ open: true, artistId: member.rawData?.artistId });
                 }
               }}
               onMemberRemove={(member) => {
@@ -1361,6 +1369,8 @@ export default function Teams() {
                     onMemberEdit={(member) => {
                       if (member.type === 'profile') {
                         setEditingContact(member.rawData);
+                      } else if (member.type === 'artist') {
+                        setArtistInfoDialog({ open: true, artistId: member.rawData?.artistId });
                       }
                     }}
                     onMemberRemove={(member) => {
@@ -1408,6 +1418,8 @@ export default function Teams() {
                     onMemberEdit={(member) => {
                       if (member.type === 'profile') {
                         setEditingContact(member.rawData);
+                      } else if (member.type === 'artist') {
+                        setArtistInfoDialog({ open: true, artistId: member.rawData?.artistId });
                       }
                     }}
                     onMemberRemove={(member) => {
@@ -1434,6 +1446,8 @@ export default function Teams() {
                     onMemberEdit={(member) => {
                       if (member.type === 'profile') {
                         setEditingContact(member.rawData);
+                      } else if (member.type === 'artist') {
+                        setArtistInfoDialog({ open: true, artistId: member.rawData?.artistId });
                       }
                     }}
                     onMemberRemove={(member) => {
@@ -1621,6 +1635,12 @@ export default function Teams() {
         onRename={handleRenameCategory}
         onDelete={handleDeleteCategory}
         onReorder={handleCategoryReorder}
+      />
+
+      <ArtistInfoDialog
+        artistId={artistInfoDialog.artistId}
+        open={artistInfoDialog.open}
+        onOpenChange={(open) => setArtistInfoDialog({ open, artistId: open ? artistInfoDialog.artistId : null })}
       />
 
       <Dialog open={!!editingMemberRole} onOpenChange={(open) => !open && setEditingMemberRole(null)}>
