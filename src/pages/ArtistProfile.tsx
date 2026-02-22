@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { 
@@ -327,6 +327,7 @@ export default function ArtistProfile() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <Avatar className="h-16 w-16">
+          {artist.avatar_url && <AvatarImage src={artist.avatar_url} alt={artist.stage_name || artist.name} />}
           <AvatarFallback className="bg-primary/10 text-primary text-xl">
             {(artist.stage_name || artist.name).substring(0, 2).toUpperCase()}
           </AvatarFallback>
