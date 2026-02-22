@@ -543,14 +543,18 @@ export type Database = {
       }
       artists: {
         Row: {
+          address: string | null
+          allergies: string | null
           avatar_url: string | null
           bank_name: string | null
           brand_color: string | null
           calendar_url: string | null
+          clothing_size: string | null
           company_name: string | null
           created_at: string
           created_by: string
           description: string | null
+          email: string | null
           genre: string | null
           header_image_url: string | null
           iban: string | null
@@ -559,7 +563,11 @@ export type Database = {
           legal_name: string | null
           metadata: Json | null
           name: string
+          notes: string | null
+          phone: string | null
           profile_id: string | null
+          shoe_size: string | null
+          special_needs: string | null
           spotify_url: string | null
           stage_name: string | null
           swift_code: string | null
@@ -569,14 +577,18 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          address?: string | null
+          allergies?: string | null
           avatar_url?: string | null
           bank_name?: string | null
           brand_color?: string | null
           calendar_url?: string | null
+          clothing_size?: string | null
           company_name?: string | null
           created_at?: string
           created_by: string
           description?: string | null
+          email?: string | null
           genre?: string | null
           header_image_url?: string | null
           iban?: string | null
@@ -585,7 +597,11 @@ export type Database = {
           legal_name?: string | null
           metadata?: Json | null
           name: string
+          notes?: string | null
+          phone?: string | null
           profile_id?: string | null
+          shoe_size?: string | null
+          special_needs?: string | null
           spotify_url?: string | null
           stage_name?: string | null
           swift_code?: string | null
@@ -595,14 +611,18 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          address?: string | null
+          allergies?: string | null
           avatar_url?: string | null
           bank_name?: string | null
           brand_color?: string | null
           calendar_url?: string | null
+          clothing_size?: string | null
           company_name?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
+          email?: string | null
           genre?: string | null
           header_image_url?: string | null
           iban?: string | null
@@ -611,7 +631,11 @@ export type Database = {
           legal_name?: string | null
           metadata?: Json | null
           name?: string
+          notes?: string | null
+          phone?: string | null
           profile_id?: string | null
+          shoe_size?: string | null
+          special_needs?: string | null
           spotify_url?: string | null
           stage_name?: string | null
           swift_code?: string | null

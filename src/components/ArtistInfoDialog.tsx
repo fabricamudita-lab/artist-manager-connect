@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
-import { User, Music, Globe, Edit, Save, X, Share2, Instagram, Loader2, Camera } from 'lucide-react';
+import { User, Music, Globe, Edit, Save, X, Share2, Instagram, Loader2, Camera, Phone, MapPin, Mail, Shirt, Heart, Landmark, StickyNote } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ImageCropperDialog } from '@/components/ui/image-cropper-dialog';
 import { GenreCombobox } from '@/components/GenreCombobox';
@@ -31,7 +31,38 @@ interface ArtistData {
   tax_id: string | null;
   brand_color: string | null;
   created_at: string;
+  // Contact fields
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  // Sizes
+  clothing_size: string | null;
+  shoe_size: string | null;
+  // Health
+  allergies: string | null;
+  special_needs: string | null;
+  // Bank
+  bank_name: string | null;
+  iban: string | null;
+  swift_code: string | null;
+  // Notes
+  notes: string | null;
 }
+
+const FORM_FIELDS = [
+  'name', 'stage_name', 'description', 'genre',
+  'email', 'phone', 'address',
+  'instagram_url', 'spotify_url', 'tiktok_url',
+  'clothing_size', 'shoe_size',
+  'allergies', 'special_needs',
+  'company_name', 'legal_name', 'tax_id',
+  'bank_name', 'iban', 'swift_code',
+  'notes',
+] as const;
+
+type FormData = Record<typeof FORM_FIELDS[number], string>;
+
+const emptyForm = (): FormData => Object.fromEntries(FORM_FIELDS.map(f => [f, ''])) as FormData;
 
 interface ArtistInfoDialogProps {
   artistId: string | null;
@@ -44,18 +75,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
   const [artistData, setArtistData] = useState<ArtistData | null>(null);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    stage_name: '',
-    description: '',
-    genre: '',
-    instagram_url: '',
-    spotify_url: '',
-    tiktok_url: '',
-    company_name: '',
-    legal_name: '',
-    tax_id: '',
-  });
+  const [formData, setFormData] = useState<FormData>(emptyForm());
 
   // Avatar upload states
   const [cropFile, setCropFile] = useState<File | null>(null);
@@ -80,24 +100,14 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
         .maybeSingle();
 
       if (error) throw error;
-      if (!data) {
-        setArtistData(null);
-        return;
-      }
+      if (!data) { setArtistData(null); return; }
 
-      setArtistData(data);
-      setFormData({
-        name: data.name || '',
-        stage_name: data.stage_name || '',
-        description: data.description || '',
-        genre: data.genre || '',
-        instagram_url: data.instagram_url || '',
-        spotify_url: data.spotify_url || '',
-        tiktok_url: data.tiktok_url || '',
-        company_name: data.company_name || '',
-        legal_name: data.legal_name || '',
-        tax_id: data.tax_id || '',
-      });
+      setArtistData(data as unknown as ArtistData);
+      const fd = emptyForm();
+      for (const key of FORM_FIELDS) {
+        fd[key] = (data as any)[key] || '';
+      }
+      setFormData(fd);
     } catch (error) {
       console.error('Error fetching artist:', error);
       toast({ title: "Error", description: "No se pudo cargar la información del artista.", variant: "destructive" });
@@ -109,20 +119,16 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
   const handleSave = async () => {
     if (!artistId) return;
     try {
+      const updateData: Record<string, string | null> = {};
+      for (const key of FORM_FIELDS) {
+        updateData[key] = formData[key] || null;
+      }
+      // name is required
+      updateData.name = formData.name;
+
       const { error } = await supabase
         .from('artists')
-        .update({
-          name: formData.name,
-          stage_name: formData.stage_name || null,
-          description: formData.description || null,
-          genre: formData.genre || null,
-          instagram_url: formData.instagram_url || null,
-          spotify_url: formData.spotify_url || null,
-          tiktok_url: formData.tiktok_url || null,
-          company_name: formData.company_name || null,
-          legal_name: formData.legal_name || null,
-          tax_id: formData.tax_id || null,
-        })
+        .update(updateData)
         .eq('id', artistId);
 
       if (error) throw error;
@@ -137,7 +143,6 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
 
   const canEdit = currentProfile?.active_role === 'management';
 
-  // Avatar upload handlers
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -158,7 +163,6 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
       const { error: uploadError } = await supabase.storage
         .from('artist-assets')
         .upload(filePath, blob, { contentType: 'image/jpeg', upsert: true });
-
       if (uploadError) throw uploadError;
 
       const { data: publicUrl } = supabase.storage
@@ -169,7 +173,6 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
         .from('artists')
         .update({ avatar_url: publicUrl.publicUrl })
         .eq('id', artistId);
-
       if (updateError) throw updateError;
 
       setArtistData(prev => prev ? { ...prev, avatar_url: publicUrl.publicUrl } : prev);
@@ -197,7 +200,6 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
         .maybeSingle();
 
       let tokenValue: string;
-
       if (existing && (existing as any).token) {
         tokenValue = (existing as any).token;
       } else {
@@ -206,7 +208,6 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
           .insert({ artist_id: artistId, created_by: currentProfile?.user_id } as any)
           .select('token')
           .single();
-
         if (error) throw error;
         tokenValue = (newToken as any).token;
       }
@@ -221,6 +222,35 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
       setGeneratingLink(false);
     }
   };
+
+  const set = (key: typeof FORM_FIELDS[number]) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setFormData(prev => ({ ...prev, [key]: e.target.value }));
+
+  const Field = ({ label, field, icon, placeholder, disabled: forceDisabled }: {
+    label: string; field: typeof FORM_FIELDS[number]; icon?: React.ReactNode; placeholder?: string; disabled?: boolean;
+  }) => (
+    <div className="space-y-2">
+      <Label className={icon ? "flex items-center gap-2" : ""}>{icon}{label}</Label>
+      {editing && !forceDisabled ? (
+        <Input value={formData[field]} onChange={set(field)} placeholder={placeholder || label} />
+      ) : (
+        <Input value={(artistData as any)?.[field] || 'No especificado'} disabled />
+      )}
+    </div>
+  );
+
+  const TextareaField = ({ label, field, placeholder, rows = 3 }: {
+    label: string; field: typeof FORM_FIELDS[number]; placeholder?: string; rows?: number;
+  }) => (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      {editing ? (
+        <Textarea value={formData[field]} onChange={set(field)} placeholder={placeholder || label} rows={rows} />
+      ) : (
+        <Textarea value={(artistData as any)?.[field] || 'Sin información'} disabled rows={rows} />
+      )}
+    </div>
+  );
 
   if (loading) {
     return (
@@ -276,9 +306,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
                   </div>
                   <div>
                     <CardTitle>{artistData.name}</CardTitle>
-                    {artistData.stage_name && (
-                      <p className="text-sm text-muted-foreground">{artistData.stage_name}</p>
-                    )}
+                    {artistData.stage_name && <p className="text-sm text-muted-foreground">{artistData.stage_name}</p>}
                     {artistData.genre && <Badge variant="secondary">{artistData.genre}</Badge>}
                   </div>
                 </div>
@@ -300,13 +328,7 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
           </Card>
 
           {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleFileSelect}
-          />
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
 
           {/* Image Cropper Dialog */}
           <ImageCropperDialog
@@ -319,86 +341,79 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
             title="Ajustar foto del artista"
           />
 
-          {/* Info general */}
+          {/* Información General */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Music className="h-5 w-5" />Información General</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Nombre</Label>
-                  {editing ? (
-                    <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-                  ) : (
-                    <Input value={artistData.name} disabled />
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label>Nombre artístico</Label>
-                  {editing ? (
-                    <Input value={formData.stage_name} onChange={(e) => setFormData({ ...formData, stage_name: e.target.value })} placeholder="Nombre artístico" />
-                  ) : (
-                    <Input value={artistData.stage_name || 'No especificado'} disabled />
-                  )}
-                </div>
+                <Field label="Nombre" field="name" />
+                <Field label="Nombre artístico" field="stage_name" placeholder="Nombre artístico" />
               </div>
               <div className="space-y-2">
                 <Label>Género musical</Label>
                 {editing ? (
-                  <GenreCombobox
-                    value={formData.genre}
-                    onValueChange={(v) => setFormData({ ...formData, genre: v })}
-                  />
+                  <GenreCombobox value={formData.genre} onValueChange={(v) => setFormData(prev => ({ ...prev, genre: v }))} />
                 ) : (
                   <Input value={artistData.genre || 'No especificado'} disabled />
                 )}
               </div>
-              <div className="space-y-2">
-                <Label>Descripción / Bio</Label>
-                {editing ? (
-                  <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Biografía del artista" rows={3} />
-                ) : (
-                  <Textarea value={artistData.description || 'Sin descripción'} disabled rows={3} />
-                )}
-              </div>
+              <TextareaField label="Descripción / Bio" field="description" placeholder="Biografía del artista" />
             </CardContent>
           </Card>
 
-          {/* Redes sociales */}
+          {/* Contacto */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Phone className="h-5 w-5" />Contacto</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Email" field="email" icon={<Mail className="h-4 w-4" />} placeholder="email@ejemplo.com" />
+                <Field label="Teléfono" field="phone" icon={<Phone className="h-4 w-4" />} placeholder="+34 600 000 000" />
+              </div>
+              <Field label="Dirección" field="address" icon={<MapPin className="h-4 w-4" />} placeholder="Dirección completa" />
+            </CardContent>
+          </Card>
+
+          {/* Redes Sociales */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" />Redes Sociales</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2"><Instagram className="h-4 w-4" />Instagram</Label>
-                {editing ? (
-                  <Input value={formData.instagram_url} onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })} placeholder="https://instagram.com/..." />
-                ) : (
-                  <Input value={artistData.instagram_url || 'No especificado'} disabled />
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Spotify</Label>
-                {editing ? (
-                  <Input value={formData.spotify_url} onChange={(e) => setFormData({ ...formData, spotify_url: e.target.value })} placeholder="https://open.spotify.com/..." />
-                ) : (
-                  <Input value={artistData.spotify_url || 'No especificado'} disabled />
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>TikTok</Label>
-                {editing ? (
-                  <Input value={formData.tiktok_url} onChange={(e) => setFormData({ ...formData, tiktok_url: e.target.value })} placeholder="https://tiktok.com/..." />
-                ) : (
-                  <Input value={artistData.tiktok_url || 'No especificado'} disabled />
-                )}
+              <Field label="Instagram" field="instagram_url" icon={<Instagram className="h-4 w-4" />} placeholder="https://instagram.com/..." />
+              <Field label="Spotify" field="spotify_url" placeholder="https://open.spotify.com/..." />
+              <Field label="TikTok" field="tiktok_url" placeholder="https://tiktok.com/..." />
+            </CardContent>
+          </Card>
+
+          {/* Tallas */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Shirt className="h-5 w-5" />Tallas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Talla de ropa" field="clothing_size" placeholder="M, L, XL..." />
+                <Field label="Talla de calzado" field="shoe_size" placeholder="42, 43..." />
               </div>
             </CardContent>
           </Card>
 
-          {/* Datos fiscales (solo management) */}
+          {/* Salud y Necesidades */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Heart className="h-5 w-5" />Salud y Necesidades</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <TextareaField label="Alergias" field="allergies" placeholder="Alergias alimentarias, medicamentos..." rows={2} />
+              <TextareaField label="Necesidades especiales" field="special_needs" placeholder="Requisitos especiales..." rows={2} />
+            </CardContent>
+          </Card>
+
+          {/* Datos Fiscales (solo management) */}
           {canEdit && (
             <Card>
               <CardHeader>
@@ -406,34 +421,37 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Empresa</Label>
-                    {editing ? (
-                      <Input value={formData.company_name} onChange={(e) => setFormData({ ...formData, company_name: e.target.value })} placeholder="Nombre de empresa" />
-                    ) : (
-                      <Input value={artistData.company_name || 'No especificado'} disabled />
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Nombre legal</Label>
-                    {editing ? (
-                      <Input value={formData.legal_name} onChange={(e) => setFormData({ ...formData, legal_name: e.target.value })} placeholder="Nombre legal" />
-                    ) : (
-                      <Input value={artistData.legal_name || 'No especificado'} disabled />
-                    )}
-                  </div>
+                  <Field label="Empresa" field="company_name" placeholder="Nombre de empresa" />
+                  <Field label="Nombre legal" field="legal_name" placeholder="Nombre legal" />
                 </div>
-                <div className="space-y-2">
-                  <Label>CIF / NIF</Label>
-                  {editing ? (
-                    <Input value={formData.tax_id} onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })} placeholder="CIF o NIF" />
-                  ) : (
-                    <Input value={artistData.tax_id || 'No especificado'} disabled />
-                  )}
-                </div>
+                <Field label="CIF / NIF" field="tax_id" placeholder="CIF o NIF" />
               </CardContent>
             </Card>
           )}
+
+          {/* Datos Bancarios (solo management) */}
+          {canEdit && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Landmark className="h-5 w-5" />Datos Bancarios</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Field label="Banco" field="bank_name" placeholder="Nombre del banco" />
+                <Field label="IBAN" field="iban" placeholder="ES00 0000 0000 0000 0000 0000" />
+                <Field label="Código SWIFT" field="swift_code" placeholder="BBVAESMMXXX" />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Observaciones */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><StickyNote className="h-5 w-5" />Observaciones</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TextareaField label="Notas" field="notes" placeholder="Notas adicionales sobre el artista..." rows={3} />
+            </CardContent>
+          </Card>
 
           {/* Botones */}
           {editing && (
