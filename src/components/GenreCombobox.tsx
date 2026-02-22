@@ -285,7 +285,20 @@ export function GenreCombobox({ value, onValueChange, placeholder = 'Buscar gén
   const [search, setSearch] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const selected = useMemo(
+    () => value.split(',').map(s => s.trim()).filter(Boolean),
+    [value]
+  );
+
   const results = useMemo(() => searchGenres(search), [search]);
+
+  const toggleGenre = (label: string) => {
+    const next = selected.includes(label)
+      ? selected.filter(g => g !== label)
+      : [...selected, label];
+    onValueChange(next.join(', '));
+    setSearch('');
+  };
 
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(''); }}>
@@ -298,7 +311,7 @@ export function GenreCombobox({ value, onValueChange, placeholder = 'Buscar gén
         >
           <span className="flex items-center gap-2 truncate">
             <Music className="h-4 w-4 shrink-0 text-muted-foreground" />
-            {value || 'Seleccionar género...'}
+            {selected.length > 0 ? selected.join(', ') : 'Seleccionar géneros...'}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -321,24 +334,23 @@ export function GenreCombobox({ value, onValueChange, placeholder = 'Buscar gén
                 No se encontraron géneros
               </div>
             ) : (
-              results.map((genre) => (
-                <button
-                  key={genre.label}
-                  className={cn(
-                    'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer',
-                    value === genre.label && 'bg-accent'
-                  )}
-                  onClick={() => {
-                    onValueChange(genre.label);
-                    setOpen(false);
-                    setSearch('');
-                  }}
-                >
-                  <Check className={cn('h-4 w-4 shrink-0', value === genre.label ? 'opacity-100' : 'opacity-0')} />
-                  <span>{genre.label}</span>
-                  <span className="ml-auto text-xs text-muted-foreground capitalize">{genre.family}</span>
-                </button>
-              ))
+              results.map((genre) => {
+                const isSelected = selected.includes(genre.label);
+                return (
+                  <button
+                    key={genre.label}
+                    className={cn(
+                      'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer',
+                      isSelected && 'bg-accent'
+                    )}
+                    onClick={() => toggleGenre(genre.label)}
+                  >
+                    <Check className={cn('h-4 w-4 shrink-0', isSelected ? 'opacity-100' : 'opacity-0')} />
+                    <span>{genre.label}</span>
+                    <span className="ml-auto text-xs text-muted-foreground capitalize">{genre.family}</span>
+                  </button>
+                );
+              })
             )}
           </div>
         </ScrollArea>
