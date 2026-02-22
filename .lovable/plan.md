@@ -1,39 +1,31 @@
 
+# Mostrar la foto de perfil del artista en todos los sitios
 
-# Mostrar artistas en la vista "Ver todo" de Equipos
-
-Actualmente los artistas principales solo aparecen cuando se selecciona un equipo especifico. En la vista "Ver todo", no se incluyen porque la logica solo los inyecta cuando hay un artista seleccionado individualmente.
-
----
-
-## Causa
-
-En `allTeamByCategory` (linea 832), la condicion es:
-
-```text
-if (selectedArtist && ...) { artistAsMember = ... }
-```
-
-Cuando `selectedArtistId === 'all'`, `selectedArtist` es `null`, asi que nunca se crean las entradas de artista.
-
-## Solucion
-
-Modificar la logica en `src/pages/Teams.tsx` para que, cuando el filtro sea "Ver todo" (`selectedArtistId === 'all'`), se inyecten TODOS los artistas en la categoria `artistico` o `banda`. Se iterara sobre el array `artists` y se creara una entrada por cada artista.
-
-### Cambio concreto
-
-En el bloque `allTeamByCategory` (lineas 832-841), reemplazar la logica de `artistAsMember` unico por un array `artistMembers`:
-
-- Si `selectedArtistId === 'all'` y la categoria es `artistico` o `banda`: inyectar todos los artistas del array `artists`
-- Si hay un artista seleccionado: mantener el comportamiento actual (inyectar solo ese artista)
-- Ajustar el calculo de `total` para sumar `artistMembers.length` en vez de 1
-- Ajustar `buildGridMembers` para iterar sobre el array de artistas en vez de un unico `artistMember`
+Actualmente la foto de perfil (`avatar_url`) del artista se guarda correctamente en la base de datos, pero varios componentes solo muestran las iniciales (AvatarFallback) sin intentar cargar la imagen.
 
 ---
 
-## Archivo afectado
+## Lugares a corregir
+
+### 1. Perfil del Artista (`src/pages/ArtistProfile.tsx`)
+
+El header del perfil (linea 329) solo tiene `AvatarFallback`. Se anadira `AvatarImage` para mostrar `artist.avatar_url` cuando exista.
+
+### 2. Dashboard de Management (`src/pages/MyManagement.tsx`)
+
+Las tarjetas de artista (linea 151) solo tienen `AvatarFallback`. Ademas, la interfaz `Artist` no incluye el campo `avatar_url`. Se anadira el campo a la interfaz y `AvatarImage` al componente.
+
+### 3. Equipos (`src/pages/Teams.tsx`)
+
+Este ya funciona correctamente -- pasa `avatarUrl` a `TeamMemberCard` que si renderiza la imagen.
+
+---
+
+## Cambios concretos
 
 | Archivo | Cambio |
 |---|---|
-| `src/pages/Teams.tsx` | Inyectar todos los artistas en "Ver todo", adaptar `allTeamByCategory` y `buildGridMembers` |
+| `src/pages/ArtistProfile.tsx` | Importar `AvatarImage`, anadir `<AvatarImage src={artist.avatar_url}>` dentro del Avatar del header |
+| `src/pages/MyManagement.tsx` | Anadir `avatar_url` a la interfaz `Artist`, importar `AvatarImage`, anadir `<AvatarImage>` en las tarjetas de artista |
 
+Son cambios minimos (2-3 lineas por archivo) que garantizan que la foto aparezca en todos los sitios donde se muestra el artista.
