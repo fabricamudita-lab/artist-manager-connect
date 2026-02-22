@@ -1,65 +1,44 @@
 
-# Completar la ficha del artista con todos los campos relevantes
+# Completar ficha del artista y arreglar boton "Editar"
 
-El perfil de artista actualmente solo muestra 10 campos, mientras que un contacto puede tener hasta 17. Hay que equipararlos anadiendo los campos que faltan tanto en la base de datos como en el formulario.
-
----
-
-## Estado actual
-
-**Tabla `artists` - columnas que YA existen pero NO se muestran en el formulario:**
-- `iban`, `swift_code`, `bank_name` (datos bancarios)
-
-**Columnas que FALTAN en la tabla `artists` (pero si existen en `contacts`):**
-- `email`, `phone`, `address`
-- `clothing_size`, `shoe_size`
-- `allergies`, `special_needs`
-- `notes`
+Hay dos problemas independientes que resolver:
 
 ---
 
-## Cambios
+## Problema 1: "Editar" en Rita Payes no hace nada
 
-### 1. Migracion de base de datos
+En la pagina de Equipos, cuando haces clic en el menu de 3 puntos de un miembro de tipo "artist" (Artista principal) y seleccionas "Editar", no pasa nada. Esto ocurre porque el handler `onMemberEdit` solo gestiona miembros de tipo `profile` (contactos), pero ignora los de tipo `artist`.
 
-Anadir columnas a la tabla `artists`:
+### Solucion
 
-```sql
-ALTER TABLE artists
-  ADD COLUMN IF NOT EXISTS email text,
-  ADD COLUMN IF NOT EXISTS phone text,
-  ADD COLUMN IF NOT EXISTS address text,
-  ADD COLUMN IF NOT EXISTS clothing_size text,
-  ADD COLUMN IF NOT EXISTS shoe_size text,
-  ADD COLUMN IF NOT EXISTS allergies text,
-  ADD COLUMN IF NOT EXISTS special_needs text,
-  ADD COLUMN IF NOT EXISTS notes text;
-```
+En `src/pages/Teams.tsx`, en **todos** los callbacks `onMemberEdit`, anadir una condicion para el tipo `artist` que abra el `ArtistInfoDialog`:
 
-### 2. Actualizar tipos de Supabase
+- Importar `ArtistInfoDialog` en Teams.tsx
+- Anadir estado para controlar el dialogo: `artistInfoDialog = { open, artistId }`
+- En cada `onMemberEdit`, anadir:
+  ```
+  if (member.type === 'artist') {
+    setArtistInfoDialog({ open: true, artistId: member.rawData?.artistId });
+  }
+  ```
+- Renderizar `<ArtistInfoDialog>` en el JSX
 
-Regenerar o actualizar manualmente `src/integrations/supabase/types.ts` para incluir las nuevas columnas.
+---
 
-### 3. Actualizar `ArtistInfoDialog.tsx`
+## Problema 2: La ficha del artista no muestra los nuevos campos
 
-Reorganizar el formulario en secciones coherentes con los campos de contacto:
+La migracion de base de datos para anadir las 8 columnas nuevas (`email`, `phone`, `address`, `clothing_size`, `shoe_size`, `allergies`, `special_needs`, `notes`) no se llego a aplicar. Tambien faltan las columnas ya existentes `iban`, `swift_code`, `bank_name` en el formulario.
 
-| Seccion | Campos |
-|---|---|
-| Informacion General | nombre, nombre artistico, genero musical, descripcion/bio |
-| Contacto | email, telefono, direccion |
-| Redes Sociales | Instagram, Spotify, TikTok |
-| Tallas | talla de ropa, talla de calzado |
-| Salud y Necesidades | alergias, necesidades especiales |
-| Datos Fiscales | empresa, nombre legal, CIF/NIF |
-| Datos Bancarios | banco, IBAN, codigo SWIFT |
-| Observaciones | notas |
+### Solucion
 
-Cada seccion sera una Card con sus campos, igual que ya se hace con "Informacion General" y "Redes Sociales". Los datos bancarios (iban, swift_code, bank_name) ya estan en la BD pero no se mostraban -- ahora si.
-
-### 4. Actualizar `ArtistData` interface y `formData`
-
-Anadir los nuevos campos al interface, al estado del formulario, al `fetchArtist` y al `handleSave`.
+1. **Crear migracion SQL** para anadir las 8 columnas a la tabla `artists`
+2. **Actualizar `src/integrations/supabase/types.ts`** con los nuevos campos
+3. **Actualizar `src/components/ArtistInfoDialog.tsx`** para incluir las nuevas secciones:
+   - Contacto (email, telefono, direccion)
+   - Tallas (ropa, calzado)
+   - Salud y Necesidades (alergias, necesidades especiales)
+   - Datos Bancarios (banco, IBAN, SWIFT) -- columnas que ya existen en BD
+   - Observaciones (notas)
 
 ---
 
@@ -67,8 +46,7 @@ Anadir los nuevos campos al interface, al estado del formulario, al `fetchArtist
 
 | Archivo | Cambio |
 |---|---|
-| Nueva migracion SQL | Anadir 8 columnas a `artists` |
-| `src/integrations/supabase/types.ts` | Actualizar tipos de la tabla `artists` |
-| `src/components/ArtistInfoDialog.tsx` | Anadir secciones: Contacto, Tallas, Salud, Bancarios, Notas. Exponer iban/swift/bank existentes |
-
-No se modifica la logica de contactos ni ninguna otra pagina. Solo se amplia la ficha del artista para que tenga paridad con los contactos.
+| Nueva migracion SQL | Anadir 8 columnas a la tabla `artists` |
+| `src/integrations/supabase/types.ts` | Anadir tipos para las nuevas columnas |
+| `src/components/ArtistInfoDialog.tsx` | Anadir secciones: Contacto, Tallas, Salud, Bancarios, Notas + exponer iban/swift/bank |
+| `src/pages/Teams.tsx` | Importar ArtistInfoDialog, anadir estado y logica para abrir al hacer clic en "Editar" en artistas |
