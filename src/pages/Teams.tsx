@@ -829,26 +829,38 @@ export default function Teams() {
         return categories.includes(cat.value) || singleCategory === cat.value;
       });
 
-      let artistAsMember: any = null;
-      if (selectedArtist && (cat.value === 'artistico' || cat.value === 'banda')) {
-        artistAsMember = {
-          id: `artist-${selectedArtist.id}`,
-          isArtist: true,
-          name: selectedArtist.stage_name || selectedArtist.name,
-          role: 'Artista principal',
-          artistId: selectedArtist.id
-        };
+      let artistMembers: any[] = [];
+      if (cat.value === 'artistico' || cat.value === 'banda') {
+        if (selectedArtistId === 'all' && artists && artists.length > 0) {
+          artistMembers = artists.map(a => ({
+            id: `artist-${a.id}`,
+            isArtist: true,
+            name: a.stage_name || a.name,
+            role: 'Artista principal',
+            artistId: a.id,
+            avatarUrl: a.avatar_url,
+          }));
+        } else if (selectedArtist) {
+          artistMembers = [{
+            id: `artist-${selectedArtist.id}`,
+            isArtist: true,
+            name: selectedArtist.stage_name || selectedArtist.name,
+            role: 'Artista principal',
+            artistId: selectedArtist.id,
+            avatarUrl: selectedArtist.avatar_url,
+          }];
+        }
       }
 
       return {
         ...cat,
         members: wsMembers,
         contacts: contacts,
-        artistMember: artistAsMember,
-        total: wsMembers.length + contacts.length + (artistAsMember ? 1 : 0),
+        artistMembers,
+        total: wsMembers.length + contacts.length + artistMembers.length,
       };
     }).filter(cat => cat.total > 0);
-  }, [allCategoriesForDisplay, teamMembers, teamContacts, selectedArtistId, selectedArtist]);
+  }, [allCategoriesForDisplay, teamMembers, teamContacts, selectedArtistId, selectedArtist, artists]);
 
   // Build flat member list for grid view
   const buildGridMembers = (categoryValue: string) => {
@@ -866,15 +878,18 @@ export default function Teams() {
       rawData: any;
     }> = [];
 
-    // Add artist if present
-    if (category.artistMember) {
-      members.push({
-        id: category.artistMember.id,
-        name: category.artistMember.name,
-        role: category.artistMember.role,
-        type: 'artist' as MemberType,
-        currentCategory: categoryValue,
-        rawData: category.artistMember,
+    // Add artists if present
+    if (category.artistMembers) {
+      category.artistMembers.forEach((am: any) => {
+        members.push({
+          id: am.id,
+          name: am.name,
+          role: am.role,
+          avatarUrl: am.avatarUrl,
+          type: 'artist' as MemberType,
+          currentCategory: categoryValue,
+          rawData: am,
+        });
       });
     }
 
