@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Music, Calendar, Plus, 
   Building2, FolderOpen, ArrowRight, Film 
@@ -18,6 +18,7 @@ interface Artist {
   name: string;
   stage_name: string | null;
   description: string | null;
+  avatar_url: string | null;
   created_at: string;
 }
 
@@ -149,6 +150,7 @@ export default function MyManagement() {
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-12 w-12">
+                      {artist.avatar_url && <AvatarImage src={artist.avatar_url} alt={artist.stage_name || artist.name} />}
                       <AvatarFallback className="bg-primary/10 text-primary">
                         {(artist.stage_name || artist.name).substring(0, 2).toUpperCase()}
                       </AvatarFallback>
