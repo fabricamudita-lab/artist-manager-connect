@@ -13,8 +13,9 @@ import {
   ArrowLeft, Music, Users, Calendar, FolderOpen, 
   Edit, Plus, MapPin, DollarSign, Mic, FileText, 
   Disc3, ClipboardList, TrendingUp, Settings2, Wallet,
-  ExternalLink, Instagram, Globe
+  ExternalLink, Instagram, Globe, ChevronDown
 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ContactProfileSheet } from '@/components/ContactProfileSheet';
@@ -398,26 +399,35 @@ export default function ArtistProfile() {
 
       {/* Career Phase Card — Improvement #1 */}
       <Card>
-        <CardContent className="pt-6 pb-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">Estado de Carrera</span>
-            </div>
-            <Badge variant="outline">{careerPhase.label}</Badge>
-          </div>
-          <Progress value={careerPhase.value} className="h-2" />
-          <div className="flex justify-between mt-2">
-            {phaseLabels.map((label, i) => (
-              <span
-                key={label}
-                className={`text-[10px] ${i <= careerPhase.index ? 'text-primary font-medium' : 'text-muted-foreground'}`}
-              >
-                {label}
-              </span>
-            ))}
-          </div>
-        </CardContent>
+        <Collapsible defaultOpen={false}>
+          <CardContent className="pt-6 pb-4">
+            <CollapsibleTrigger asChild>
+              <button className="flex items-center justify-between w-full text-left">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">Estado de Carrera</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{careerPhase.label}</Badge>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                </div>
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-3">
+              <Progress value={careerPhase.value} className="h-2" />
+              <div className="flex justify-between mt-2">
+                {phaseLabels.map((label, i) => (
+                  <span
+                    key={label}
+                    className={`text-[10px] ${i <= careerPhase.index ? 'text-primary font-medium' : 'text-muted-foreground'}`}
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </CardContent>
+        </Collapsible>
       </Card>
 
       {/* Stats — Improvement #2: dimmed zero stats with "+" button */}
