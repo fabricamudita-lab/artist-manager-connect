@@ -1320,33 +1320,51 @@ export default function ProjectDetail() {
               {/* KPIs */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {(() => {
-                  const allChecklistItems = tasks;
-                  const completedItems = allChecklistItems.filter(t => t.estado === 'completada').length;
-                  const totalItems = allChecklistItems.length;
-                  const pct = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+                  const confirmedBudgets = budgets.filter(b => {
+                    const estado = (b as any).metadata?.estado || b.budget_status || b.show_status;
+                    return estado === 'confirmado';
+                  });
+                  const feeConfirmado = confirmedBudgets.reduce((sum, b) => sum + (b.fee || 0), 0);
+
+                  const negociacionBudgets = budgets.filter(b => {
+                    const estado = (b as any).metadata?.estado || b.budget_status || b.show_status;
+                    return estado === 'pendiente' || estado === 'negociacion';
+                  });
+                  const feeNegociacion = negociacionBudgets.reduce((sum, b) => sum + (b.fee || 0), 0);
+
+                  const totalBudgeted = budgets.reduce((sum, b) => sum + (b.fee || 0), 0);
+
+                  const completedTasks = tasks.filter(t => t.estado === 'completada').length;
+                  const totalTasks = tasks.length;
+                  const pct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+                  const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1).replace('.0', '')}k€` : `${n}€`;
+
                   return (
-                    <div className="rounded-lg border bg-card p-4 space-y-1 cursor-pointer hover:shadow-md transition-shadow" onClick={() => {}}>
-                      <div className="text-2xl font-bold text-primary">{pct}%</div>
-                      <div className="text-sm font-semibold text-foreground">Checklist</div>
-                      <div className="text-xs text-muted-foreground">{completedItems}/{totalItems} tareas completadas</div>
-                    </div>
+                    <>
+                      <div className="rounded-lg border bg-card p-4 space-y-1 hover:shadow-md transition-shadow">
+                        <div className="text-[13px] font-medium text-foreground">✅ Fee confirmado</div>
+                        <div className="text-2xl font-bold text-foreground">{fmt(feeConfirmado)}</div>
+                        <div className="text-[11px] text-muted-foreground">{confirmedBudgets.length} show{confirmedBudgets.length !== 1 ? 's' : ''} confirmado{confirmedBudgets.length !== 1 ? 's' : ''}</div>
+                      </div>
+                      <div className="rounded-lg border bg-card p-4 space-y-1 hover:shadow-md transition-shadow">
+                        <div className="text-[13px] font-medium text-foreground">🤝 En negociación</div>
+                        <div className="text-2xl font-bold text-foreground">{fmt(feeNegociacion)}</div>
+                        <div className="text-[11px] text-muted-foreground">potencial pendiente</div>
+                      </div>
+                      <div className="rounded-lg border bg-card p-4 space-y-1 hover:shadow-md transition-shadow">
+                        <div className="text-[13px] font-medium text-foreground">📤 Presupuesto ejecutado</div>
+                        <div className="text-2xl font-bold text-foreground">{fmt(0)}</div>
+                        <div className="text-[11px] text-muted-foreground">de {fmt(totalBudgeted)} total</div>
+                      </div>
+                      <div className="rounded-lg border bg-card p-4 space-y-1 hover:shadow-md transition-shadow">
+                        <div className="text-[13px] font-medium text-foreground">📋 Tareas completadas</div>
+                        <div className="text-2xl font-bold text-foreground">{completedTasks}/{totalTasks}</div>
+                        <div className="text-[11px] text-muted-foreground">{pct}% del proyecto</div>
+                      </div>
+                    </>
                   );
                 })()}
-                <div className="rounded-lg border bg-card p-4 space-y-1 hover:shadow-md transition-shadow">
-                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{budgets.length}</div>
-                  <div className="text-sm font-semibold text-foreground">Presupuestos</div>
-                  <div className="text-xs text-muted-foreground">vinculados al proyecto</div>
-                </div>
-                <div className="rounded-lg border bg-card p-4 space-y-1 hover:shadow-md transition-shadow">
-                  <div className="text-2xl font-bold text-violet-600 dark:text-violet-400">{solicitudes.length}</div>
-                  <div className="text-sm font-semibold text-foreground">Solicitudes</div>
-                  <div className="text-xs text-muted-foreground">vinculadas al proyecto</div>
-                </div>
-                <div className="rounded-lg border bg-card p-4 space-y-1 hover:shadow-md transition-shadow">
-                  <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{contracts.length}</div>
-                  <div className="text-sm font-semibold text-foreground">Contratos</div>
-                  <div className="text-xs text-muted-foreground">vinculados al proyecto</div>
-                </div>
               </div>
 
               {/* Entidades vinculadas */}
