@@ -1032,6 +1032,75 @@ export default function ProjectDetail() {
           </div>
         </div>
       </div>
+
+      {/* Mission & Strategic Context — Collapsible */}
+      <Collapsible>
+        <CollapsibleTrigger asChild>
+          <button className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors py-1 group">
+            <ChevronRight className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]:rotate-90" />
+            <span className="group-data-[state=open]:hidden">Ver misión y por qué</span>
+            <span className="hidden group-data-[state=open]:inline">Ocultar misión y por qué</span>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="border-l-4 border-primary rounded-r-lg bg-muted/30 p-4 mt-1 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Misión */}
+            <div className="space-y-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">Misión</span>
+              {permissions.canEdit ? (
+                <div
+                  contentEditable
+                  suppressContentEditableWarning
+                  className="text-sm min-h-[40px] rounded px-2 py-1 hover:bg-muted/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-ring transition-colors empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:italic"
+                  data-placeholder="Sin definir — haz clic para añadir"
+                  onBlur={async (e) => {
+                    const newVal = e.currentTarget.textContent || '';
+                    if (newVal !== (project?.description || '')) {
+                      try {
+                        await supabase.from('projects').update({ description: newVal || null }).eq('id', id!);
+                        setProject(prev => prev ? { ...prev, description: newVal || null } : prev);
+                        toast({ title: 'Misión actualizada' });
+                      } catch { toast({ title: 'Error', variant: 'destructive' }); }
+                    }
+                  }}
+                  dangerouslySetInnerHTML={{ __html: project?.description || '' }}
+                />
+              ) : (
+                <p className="text-sm text-foreground">
+                  {project?.description || <span className="text-muted-foreground italic">Sin definir</span>}
+                </p>
+              )}
+            </div>
+            {/* Por qué / Justificación */}
+            <div className="space-y-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-accent-foreground">Por qué / Justificación</span>
+              {permissions.canEdit ? (
+                <div
+                  contentEditable
+                  suppressContentEditableWarning
+                  className="text-sm min-h-[40px] rounded px-2 py-1 hover:bg-muted/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-ring transition-colors empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:italic"
+                  data-placeholder="Sin definir — haz clic para añadir"
+                  onBlur={async (e) => {
+                    const newVal = e.currentTarget.textContent || '';
+                    if (newVal !== (project?.objective || '')) {
+                      try {
+                        await supabase.from('projects').update({ objective: newVal || null }).eq('id', id!);
+                        setProject(prev => prev ? { ...prev, objective: newVal || null } : prev);
+                        toast({ title: 'Justificación actualizada' });
+                      } catch { toast({ title: 'Error', variant: 'destructive' }); }
+                    }
+                  }}
+                  dangerouslySetInnerHTML={{ __html: project?.objective || '' }}
+                />
+              ) : (
+                <p className="text-sm text-foreground">
+                  {project?.objective || <span className="text-muted-foreground italic">Sin definir</span>}
+                </p>
+              )}
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
           
       {renderIf(permissions.canEdit, (
         <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={(e) => {
