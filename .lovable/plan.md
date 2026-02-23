@@ -1,31 +1,45 @@
 
-# Mostrar la foto de perfil del artista en todos los sitios
+# Simplificar la pagina de Proyectos
 
-Actualmente la foto de perfil (`avatar_url`) del artista se guarda correctamente en la base de datos, pero varios componentes solo muestran las iniciales (AvatarFallback) sin intentar cargar la imagen.
-
----
-
-## Lugares a corregir
-
-### 1. Perfil del Artista (`src/pages/ArtistProfile.tsx`)
-
-El header del perfil (linea 329) solo tiene `AvatarFallback`. Se anadira `AvatarImage` para mostrar `artist.avatar_url` cuando exista.
-
-### 2. Dashboard de Management (`src/pages/MyManagement.tsx`)
-
-Las tarjetas de artista (linea 151) solo tienen `AvatarFallback`. Ademas, la interfaz `Artist` no incluye el campo `avatar_url`. Se anadira el campo a la interfaz y `AvatarImage` al componente.
-
-### 3. Equipos (`src/pages/Teams.tsx`)
-
-Este ya funciona correctamente -- pasa `avatarUrl` a `TeamMemberCard` que si renderiza la imagen.
+La pagina actual `/proyectos` muestra dos pestanas: "Por Artistas" y "Por Proyectos". El objetivo es eliminar las pestanas y mostrar directamente un listado de proyectos con filtros y acceso rapido con un solo clic.
 
 ---
 
-## Cambios concretos
+## Cambios en `src/pages/Proyectos.tsx`
 
-| Archivo | Cambio |
+### 1. Eliminar las pestanas (Tabs)
+Quitar la estructura de Tabs con "Por Artistas" / "Por Proyectos" y mostrar directamente la lista de proyectos.
+
+### 2. Anadir barra de filtros
+Reemplazar el area de pestanas por una barra horizontal de filtros:
+- **Busqueda**: Campo de texto (ya existe)
+- **Filtro por artista**: Select con los artistas disponibles (reutilizando la query existente)
+- **Filtro por estado**: Select con opciones "Todos", "En curso", "Finalizado", "Archivado"
+- **Filtro por fecha**: Ordenar por fecha de creacion (mas reciente / mas antiguo)
+
+### 3. Mostrar tarjetas de proyecto clicables
+Cada tarjeta de proyecto mostrara:
+- Nombre del proyecto
+- Artista asociado (si tiene)
+- Estado (badge con color)
+- Descripcion breve
+- Stats resumidos (presupuestos, documentos, solicitudes)
+- Al hacer clic navega a `/projects/{id}` (detalle del proyecto)
+
+### 4. Boton "Nuevo Proyecto"
+Mantener un boton visible para crear nuevos proyectos.
+
+---
+
+## Datos tecnicos
+
+| Elemento | Detalle |
 |---|---|
-| `src/pages/ArtistProfile.tsx` | Importar `AvatarImage`, anadir `<AvatarImage src={artist.avatar_url}>` dentro del Avatar del header |
-| `src/pages/MyManagement.tsx` | Anadir `avatar_url` a la interfaz `Artist`, importar `AvatarImage`, anadir `<AvatarImage>` en las tarjetas de artista |
+| Archivo | `src/pages/Proyectos.tsx` |
+| Queries existentes reutilizadas | `proyectos-projects`, `proyectos-artists`, `project-stats` |
+| Queries eliminadas | `artist-stats` (ya no se necesita) |
+| Navegacion al clic | `navigate(/projects/${project.id})` (ya implementado en la tab actual) |
+| Filtro de estado | Usa campo `status` de la tabla `projects` con valores `en_curso`, `finalizado`, `archivado` |
+| Filtro de artista | Select con artistas obtenidos de la query existente |
 
-Son cambios minimos (2-3 lineas por archivo) que garantizan que la foto aparezca en todos los sitios donde se muestra el artista.
+Se mantiene la misma estructura visual (grid de cards) pero sin las pestanas, mostrando solo proyectos con filtros en linea.
