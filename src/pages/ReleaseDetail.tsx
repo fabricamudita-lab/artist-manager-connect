@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useRelease, useDeleteRelease } from '@/hooks/useReleases';
 import EditReleaseDialog from '@/components/releases/EditReleaseDialog';
+import ReleaseTaskCenter from '@/components/releases/ReleaseTaskCenter';
 
 const TYPE_ICONS = {
   album: Album,
@@ -259,6 +260,8 @@ export default function ReleaseDetail() {
           </Card>
         ))}
       </div>
+
+      <ReleaseTaskCenter releaseId={id!} onNavigate={handleSectionClick} />
 
       <EditReleaseDialog
         open={showEditDialog}
