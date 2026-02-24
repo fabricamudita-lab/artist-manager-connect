@@ -1,45 +1,66 @@
 
 
-## Funcionalidad de subida de archivos en Imagen & Video
+## Multiples Checklists por Proyecto
 
-### Problema actual
-Los botones "Subir" y "Subir Archivos" en la pagina de Imagen & Video no hacen nada. No hay bucket de storage ni logica de subida implementada.
+Actualmente solo hay un checklist por proyecto. El objetivo es poder crear varias checklists dentro del mismo proyecto (ej: "Show Barcelona", "Lanzamiento single", "Reunion mensual"), seleccionables desde un dropdown.
 
-### Cambios necesarios
+---
 
-**1. Crear bucket de storage `release-assets` (migracion SQL)**
+### Diseno visual (segun la captura)
 
-Nueva migracion que:
-- Crea el bucket `release-assets` como publico (para poder mostrar las imagenes directamente)
-- Agrega politicas RLS para que usuarios autenticados puedan subir, leer y eliminar archivos
+- El titulo "Checklist" se convierte en un **dropdown** que muestra el nombre de la checklist activa
+- Al desplegar, se ven las checklists existentes + opcion de "Crear nueva checklist"
+- Cada checklist tiene su propio progreso ("0 completadas . 0%")
+- El badge en la pestana "Checklist 6" cuenta las tareas pendientes de TODAS las checklists
 
-**2. Agregar hook de subida de assets en `src/hooks/useReleases.ts`**
+---
 
-Nuevo mutation `useUploadReleaseAsset` que:
-- Recibe un `File` y metadata (release_id, type, title)
-- Sube el archivo a `release-assets/{release_id}/{filename}` en Supabase Storage
-- Obtiene la URL publica
-- Inserta un registro en `release_assets` con la URL, tipo, titulo
-- Invalida la query `release-assets` para refrescar la galeria
+### Cambios tecnicos
 
-Nuevo mutation `useDeleteReleaseAsset` que:
-- Elimina el archivo del storage
-- Elimina el registro de `release_assets`
+**1. Nueva tabla `project_checklists` (migracion SQL)**
 
-**3. Actualizar `src/pages/release-sections/ReleaseImagenVideo.tsx`**
+```text
+project_checklists
+  - id (UUID, PK)
+  - project_id (UUID, FK -> projects)
+  - name (TEXT, NOT NULL)
+  - sort_order (INT, default 0)
+  - created_by (UUID)
+  - created_at (TIMESTAMPTZ)
+  - updated_at (TIMESTAMPTZ)
+```
 
-- Agregar un input `<input type="file" accept="image/*,video/*" multiple>` oculto
-- Los botones "Subir" activan el file input via `ref.click()`
-- Al seleccionar archivos, se llama al mutation por cada archivo
-- Mostrar estado de carga (spinner/progress) mientras se suben
-- Agregar boton de eliminar en cada asset card (visible en hover)
-- Permitir subir multiples archivos a la vez
+- RLS: mismas politicas que `project_checklist_items` (basadas en acceso al proyecto)
+- Agregar columna `checklist_id UUID` a `project_checklist_items` (nullable para retrocompatibilidad)
+- Migracion de datos: crear un checklist "General" por cada proyecto que tenga items existentes, y asignar el `checklist_id` correspondiente
+
+**2. Modificar `ProjectChecklistManager.tsx`**
+
+- Agregar estado `checklists` (lista) y `activeChecklistId` (seleccionado)
+- Fetch de checklists al montar: `SELECT * FROM project_checklists WHERE project_id = ?`
+- Si no hay checklists, crear automaticamente una "General"
+- Filtrar items por `checklist_id` activo
+- Reemplazar el titulo "Checklist" por un `<Select>` / dropdown con:
+  - Opciones: lista de checklists existentes
+  - Opcion final: "+ Crear nueva checklist" que abre un input inline
+- Al crear checklist nueva: insertar en `project_checklists`, seleccionarla como activa
+- Al aplicar template: las tareas se crean con el `checklist_id` activo
+- Al agregar tarea manual: incluir `checklist_id` activo
+- Opcion de renombrar/eliminar checklist en el menu de acciones (tres puntos)
+
+**3. Modificar `ProjectDetail.tsx`**
+
+- El badge de la pestana "Checklist N" debe contar items pendientes de TODAS las checklists del proyecto (sin cambios en la query, ya filtra por `project_id`)
+
+---
 
 ### Archivos a modificar/crear
 
 | Archivo | Cambio |
 |---------|--------|
-| Nueva migracion SQL | Crear bucket `release-assets` + politicas |
-| `src/hooks/useReleases.ts` | Agregar `useUploadReleaseAsset` y `useDeleteReleaseAsset` |
-| `src/pages/release-sections/ReleaseImagenVideo.tsx` | Conectar botones a subida real con file input |
+| Nueva migracion SQL | Crear tabla `project_checklists`, agregar `checklist_id` a items, migrar datos |
+| `src/components/ProjectChecklistManager.tsx` | Dropdown de checklists, CRUD de checklists, filtrar items por checklist activo |
+| `src/integrations/supabase/types.ts` | Se actualiza automaticamente con la migracion |
+
+No se necesitan cambios en `ProjectDetail.tsx` ya que el badge cuenta todos los items del proyecto independientemente del checklist.
 
