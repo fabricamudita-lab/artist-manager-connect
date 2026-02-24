@@ -1,78 +1,100 @@
 
-## Navegacion contextual desde el Centro de Tareas con resaltado visual
+## Rediseno del Proyecto segun el mockup original
 
-### Que cambia
+### Cambios en el Header (ProjectDetail.tsx, lineas ~1157-1260)
 
-Cuando el usuario hace clic en "Ir a Cronograma" (o cualquier seccion) desde el Centro de Tareas, la pagina destino recibira un parametro `?alert=<alertId>` en la URL. Cada seccion leera ese parametro y ejecutara una accion contextual:
+**Progreso + Badges de alerta inline**
+- Debajo del titulo/artista/fechas, anadir una barra de progreso de tareas completadas con el porcentaje a la derecha
+- A la derecha del porcentaje, mostrar 3 badges de alerta en linea:
+  - `🔥 X urgentes` (rojo) - tareas urgentes no completadas
+  - `⚡ X imprevistos` (verde/emerald) - incidentes abiertos
+  - `❓ X dudas` (borde outline) - dudas sin respuesta
+- Los badges solo aparecen si el conteo es > 0
 
-### Mapeo de alertas a acciones
+**Botones del header**
+- Cambiar "Vincular entidad" a "Vincular" con icono de link (mas compacto, estilo outline con borde primary)
+- Mantener "+ Crear" como boton solido verde/primary
 
-| Alert ID | Seccion | Accion |
-|---|---|---|
-| `cronograma-upcoming` | Cronograma | Abre todas las secciones, hace scroll a las tareas proximas a vencer y las resalta con un anillo pulsante |
-| `cronograma-delayed` | Cronograma | Abre todas las secciones, hace scroll a las tareas retrasadas y las resalta |
-| `cronograma-empty` | Cronograma | Abre automaticamente el wizard de creacion de cronograma |
-| `credits-missing` | Creditos | Hace scroll al primer track sin creditos y lo resalta con un borde pulsante; muestra un banner superior "X canciones pendientes de inscribir creditos" |
-| `audio-missing` | Audio | Hace scroll al primer track sin archivo de audio y lo resalta; muestra banner invitando a subir archivos |
-| `budget-empty` | Presupuestos | Abre automaticamente el dialogo de crear presupuesto |
-| `budget-over` | Presupuestos | Resalta la fila del resumen de totales con un borde de advertencia |
-| `media-empty` | Imagen & Video | Resalta el boton "Subir Archivos" con un anillo pulsante |
-| `epf-empty` | EPF | Resalta el boton "Subir Documento" con un anillo pulsante |
+---
+
+### Reorganizacion de Tabs (ProjectDetail.tsx, lineas ~1460-1536)
+
+Nuevo orden de tabs segun el mockup:
+1. **Pulso** (con badge de alertas criticas)
+2. **Workflows** (con icono ⚡)
+3. **Checklist** (con badge de conteo de tareas pendientes) -- mover el ChecklistManager dentro del tab
+4. **Imprevistos** (con badge de abiertos)
+5. **Dudas** (con badge de abiertas)
+6. **Cronograma**
+7. **Finanzas**
+8. **Archivos**
+
+Tabs a eliminar de la lista visible (su contenido se redistribuye):
+- "Vista General" (su info ya esta en Pulso y en el header)
+- "Contratos", "Solicitudes", "Presupuestos", "Aprobaciones", "Notas" se mueven como sub-secciones dentro de Finanzas o se mantienen pero al final
+
+Mover `ProjectChecklistManager` de su posicion actual (linea 1454) a dentro del `TabsContent value="checklist"`.
+
+---
+
+### Rediseno del tab Pulso (ProjectPulseTab.tsx)
+
+Cambio completo del layout para coincidir con el mockup:
+
+**5 KPI Cards en una fila** (grid de 5 columnas):
+1. 💚 Salud del proyecto - `30%` / "Necesita atencion" (con icono de corazon verde, valor en color segun salud)
+2. 🔥 Tareas urgentes - `2` / "de 5 pendientes"
+3. 🚧 Tareas bloqueadas - `2` / "esperando otra accion"
+4. ⚡ Imprevistos abiertos - `2` / "1 criticos"
+5. ❓ Dudas sin respuesta - `3` / "2 urgentes"
+
+Cada card tiene:
+- Icono grande (emoji) arriba a la izquierda
+- Valor numerico grande debajo en color contextual (verde, rojo, ambar, etc.)
+- Titulo en texto blanco/foreground debajo
+- Subtitulo en muted-foreground
+
+**Seccion inferior en 2 columnas**:
+
+**Columna izquierda: "PROXIMAS ACCIONES"**
+- Header con titulo en uppercase tracking-wider y badge de conteo
+- Lista de tareas pendientes ordenadas por urgencia/fecha
+- Cada tarea muestra:
+  - Punto de color segun prioridad (rojo = urgente, azul = normal)
+  - Titulo de la tarea + nombre de entidad vinculada
+  - Badge de la entidad (ej: "Sala El Sol -- Madrid") con icono
+  - Etapa (Produccion, Admin) + badge URGENTE si aplica + badge BLOQUEADA si aplica
+  - Fecha a la derecha
+
+**Columna derecha: "IMPREVISTOS ACTIVOS"**
+- Header en uppercase con badge de conteo (color rojo/destructive)
+- Cards de imprevistos con:
+  - Titulo
+  - Badge de severidad (Alto = ambar, Critico = rojo)
+  - Descripcion truncada
+  - Categoria + fecha
+
+**Debajo: "DUDAS SIN RESPUESTA"**
+- Header en uppercase con badge de conteo
+- Lista similar de dudas pendientes
 
 ---
 
 ### Detalles tecnicos
 
-**1. `src/components/releases/ReleaseTaskCenter.tsx`**
-- Cambiar la firma de `onNavigate` de `(sectionId: string) => void` a `(sectionId: string, alertId?: string) => void`
-- En el boton "Ir a seccion", pasar tambien el `alert.id`: `onClick={() => onNavigate(alert.section, alert.id)}`
+**Archivos a modificar:**
 
-**2. `src/pages/ReleaseDetail.tsx`**
-- Actualizar `handleSectionClick` para aceptar un segundo parametro `alertId` opcional
-- Navegar con query param: `navigate(\`/releases/\${id}/\${sectionId}\${alertId ? \`?alert=\${alertId}\` : ''}\`)`
+1. **`src/pages/ProjectDetail.tsx`**
+   - Header: Anadir Progress bar + badges de alerta despues de la seccion de fechas/equipo (antes de los botones de accion)
+   - Tabs: Reorganizar el orden, anadir tab "checklist", mover ChecklistManager dentro del tab
+   - Cambiar texto "Vincular entidad" a "Vincular"
 
-**3. `src/pages/release-sections/ReleaseCronograma.tsx`**
-- Leer `searchParams.get('alert')` al montar
-- Si `alert === 'cronograma-upcoming'`: filtrar milestones que vencen en 7 dias, abrir sus secciones padre, hacer scroll y aplicar clase `ring-2 ring-amber-500 animate-pulse` durante 3 segundos
-- Si `alert === 'cronograma-delayed'`: similar pero para tareas con `status === 'delayed'`, usando `ring-destructive`
-- Si `alert === 'cronograma-empty'`: llamar a `setShowWizard(true)` automaticamente
-- Limpiar el parametro despues de procesarlo
+2. **`src/components/project-detail/ProjectPulseTab.tsx`**
+   - Reescritura completa del layout para coincidir con el mockup
+   - 5 KPI cards con emojis grandes y valores coloridos
+   - Seccion "Proximas Acciones" con tareas del proyecto y sus entidades vinculadas
+   - Seccion "Imprevistos Activos" mostrando los incidentes abiertos inline
+   - Seccion "Dudas sin respuesta" mostrando preguntas abiertas inline
+   - Pasar `linkedEntities` como prop para mostrar el contexto de cada tarea
 
-**4. `src/pages/release-sections/ReleaseCreditos.tsx`**
-- Leer `searchParams.get('alert')`
-- Si `alert === 'credits-missing'`: mostrar un banner ambar en la parte superior con el mensaje "Hay canciones pendientes de inscribir creditos. Las canciones sin creditos estan resaltadas abajo"
-- Marcar visualmente (borde ambar pulsante) los acordeones de tracks que no tienen creditos registrados
-- Hacer scroll automatico al primer track sin creditos
-- Limpiar el parametro despues
-
-**5. `src/pages/release-sections/ReleaseAudio.tsx`**
-- Leer `searchParams.get('alert')`
-- Si `alert === 'audio-missing'`: mostrar banner superior invitando a subir audio, resaltar los tracks sin versiones de audio con borde pulsante, scroll al primero
-- Limpiar el parametro despues
-
-**6. `src/pages/release-sections/ReleasePresupuestos.tsx`**
-- Leer `searchParams.get('alert')`
-- Si `alert === 'budget-empty'`: abrir automaticamente el dialogo `CreateReleaseBudgetDialog` (setear su estado open a true)
-- Si `alert === 'budget-over'`: resaltar la fila de totales con borde rojo pulsante
-- Limpiar el parametro despues
-
-**7. `src/pages/release-sections/ReleaseImagenVideo.tsx`**
-- Leer `searchParams.get('alert')`
-- Si `alert === 'media-empty'`: aplicar clase de resaltado pulsante al boton "Subir Archivos" del empty state y al boton "Subir" del toolbar
-- Limpiar el parametro despues
-
-**8. `src/pages/release-sections/ReleaseEPF.tsx`**
-- Leer `searchParams.get('alert')`
-- Si `alert === 'epf-empty'`: aplicar clase de resaltado pulsante al boton "Subir Documento"
-- Limpiar el parametro despues
-
-### Patron de resaltado comun
-
-Se usara un patron CSS consistente en todas las secciones:
-- Clase temporal: `ring-2 ring-primary ring-offset-2 transition-all` (o `ring-amber-500` / `ring-destructive` segun severidad)
-- Duracion: 3 segundos, luego se remueve
-- Scroll: `scrollIntoView({ behavior: 'smooth', block: 'center' })`
-- Se crea un hook utilitario `useAlertHighlight` en `src/hooks/useAlertHighlight.ts` que encapsula la logica comun:
-  - Lee `searchParams.get('alert')`
-  - Expone `alertId` y una funcion `highlightElement(selector, ringColor?)` que hace scroll + flash
-  - Limpia el param automaticamente despues de procesarlo
+3. **No se crean archivos nuevos ni se modifican tablas** - todo es reorganizacion visual de datos existentes
