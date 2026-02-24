@@ -1,57 +1,90 @@
 
-## Add Responsible Selector and Subtask Options to Project Checklist Tasks
+## Release Task Center -- Avisos inteligentes en la vista de Lanzamiento
 
-### What changes
+### Que se va a hacer
 
-Each task row in the Project Checklist (Lista view) will get two new interactive elements:
+Se creara un panel de avisos en la parte inferior de la pagina de detalle de cada lanzamiento (`ReleaseDetail.tsx`). Este panel analiza automaticamente el estado de todas las secciones del lanzamiento y muestra tarjetas de aviso con acciones rapidas.
 
-1. **Responsible Selector** -- A button/chip to assign a responsible person using the existing `ResponsibleSelector` component (same one used in the release cronograma). This will appear inline in each task row.
+### Avisos implementados
 
-2. **"+" Dropdown Menu** -- A dropdown with 4 options:
-   - Subtarea completa (full subtask with its own responsible, dates, status)
-   - Casilla de verificacion (simple checkbox item)
-   - Nota (directed note to a team member)
-   - Comentario (hilo) (threaded comment discussion)
+| Seccion | Condicion | Icono | Severidad | Ejemplo de mensaje |
+|---------|-----------|-------|-----------|-------------------|
+| Creditos | Tracks sin creditos registrados | Users | warning (ambar) | "Faltan 5 de 6 canciones por inscribir en Creditos y Autoria" |
+| Audio | Tracks sin archivos de audio subidos | Music | warning (ambar) | "3 canciones sin archivo de audio" |
+| Cronograma | No hay milestones creados | Calendar | info (azul) | "El Cronograma aun no ha sido creado" |
+| Cronograma | Milestones con fecha proxima (7 dias) | Calendar | urgent (rojo) | "2 tareas del cronograma vencen en los proximos 7 dias" |
+| Cronograma | Milestones retrasados | Calendar | urgent (rojo) | "3 tareas del cronograma estan retrasadas" |
+| Presupuestos | Gastos reales superan estimados | DollarSign | warning (ambar) | "El presupuesto esta sobregirado en $2,500" |
+| Presupuestos | No hay presupuesto creado | DollarSign | info (azul) | "No se han definido presupuestos" |
+| Imagen & Video | No hay assets de imagen subidos | Image | info (azul) | "No se han subido imagenes ni videos" |
+| EPF | No hay documentos de prensa | FileText | info (azul) | "El EPF esta vacio" |
+| Derechos | Publishing o Master splits no suman 100% | AlertTriangle | warning (ambar) | "Los splits de autoria no suman 100% en 2 canciones" |
 
-When subtasks exist, they render below the parent task row (expandable), following the same patterns already implemented in `ReleaseCronograma.tsx`.
+### Comportamiento
+
+- Los avisos se agrupan por severidad: urgent primero, warning segundo, info tercero
+- Cada tarjeta tiene un boton "Ir a seccion" que navega directamente a la seccion correspondiente
+- Los avisos de tipo "info" pueden descartarse (se guardan en sessionStorage para no molestar en la sesion)
+- Si no hay avisos pendientes, se muestra un chip verde: "Todo al dia"
+- El panel tiene un titulo "Centro de Tareas" con un contador de avisos
+
+### Aspecto visual
+
+```text
++------------------------------------------------------+
+| Centro de Tareas (4)                                  |
++------------------------------------------------------+
+| ! Faltan 5 canciones por inscribir    [Ir a Creditos] |
+| ! 3 canciones sin archivo de audio    [Ir a Audio]    |
+| i El Cronograma aun no ha sido creado [Ir a Crono]    |
+| i El EPF esta vacio                   [Ir a EPF]  [x] |
++------------------------------------------------------+
+```
 
 ---
 
-### Technical Details
+### Detalles tecnicos
 
-**File: `src/pages/ProjectDetail.tsx`**
+**Nuevo archivo: `src/components/releases/ReleaseTaskCenter.tsx`**
 
-1. **Extend the task data model** (around line 176):
-   - Add `responsible_ref?: { type: 'profile' | 'contact'; id: string; name: string } | null`
-   - Add `subtasks?: Array<Subtask>` using a `Subtask` type similar to ReleaseCronograma (supports types: `full`, `checkbox`, `note`, `comment`)
-   - Add `expanded?: boolean` to control subtask visibility
+Componente que recibe el `releaseId` y consulta todos los datos necesarios:
+- `useTracks(releaseId)` -- obtiene la lista de tracks
+- `useReleaseMilestones(releaseId)` -- obtiene milestones del cronograma
+- `useReleaseBudgets(releaseId)` -- obtiene items de presupuesto
+- `useReleaseAssets(releaseId)` -- obtiene imagenes/videos/documentos
+- Para creditos: consulta `track_credits` agrupados por `track_id` para saber cuantos tracks tienen al menos un credito
+- Para audio: consulta `track_versions` agrupados por `track_id` para saber cuantos tracks tienen al menos un archivo
 
-2. **Add helper functions** (around line 530):
-   - `handleAddSubtask(taskId)` -- adds a full subtask
-   - `handleAddChecklistItem(taskId)` -- adds a checkbox subtask
-   - `handleAddNote(taskId)` -- adds a note subtask
-   - `handleAddCommentThread(taskId)` -- adds a comment thread
-   - `handleUpdateSubtask(taskId, subtaskId, updates)`
-   - `handleDeleteSubtask(taskId, subtaskId)`
-   - `handleToggleTaskExpand(taskId)` -- toggle subtask visibility
+Logica de generacion de avisos:
+1. Compara `tracks.length` vs tracks con creditos -> aviso si hay diferencia
+2. Compara `tracks.length` vs tracks con versiones de audio -> aviso si hay diferencia
+3. Revisa `milestones.length === 0` -> aviso info
+4. Filtra milestones con `due_date` en los proximos 7 dias y `status !== 'completed'` -> aviso urgent
+5. Filtra milestones con `status === 'delayed'` -> aviso urgent
+6. Suma `estimated_cost` vs `actual_cost` en budgets -> aviso si actual > estimated
+7. Cuenta assets de tipo `image` o `video` -> aviso info si 0
+8. Cuenta assets de tipo `document` -> aviso info si 0
 
-3. **Update the task row rendering** (lines 442-489):
-   - Add expand/collapse chevron button before the status icon (only shown if task has subtasks)
-   - Keep existing urgency badge, name, category, responsables chips, and due date
-   - Add `ResponsibleSelector` component inline (compact mode)
-   - Add `DropdownMenu` with the 4 subtask type options (using `ListTodo`, `CheckCircle2`, `StickyNote`, `MessageCircle` icons)
-   - Add a delete button (trash icon)
+**Archivo modificado: `src/pages/ReleaseDetail.tsx`**
 
-4. **Add subtask rendering below each task row** (after line 488):
-   - When `task.expanded` is true, render subtasks below the parent
-   - Each subtask type has its own visual treatment (same patterns as ReleaseCronograma):
-     - **Full subtask**: name input, responsible selector, status dropdown
-     - **Checkbox**: circle toggle + name, with strikethrough when completed
-     - **Note**: amber background, "Nota para:" with ResponsibleSelector + textarea
-     - **Comment thread**: blue border, message list, input to add new messages, resolve/reopen button
+- Importar `ReleaseTaskCenter`
+- Añadirlo debajo del grid de secciones, antes de `EditReleaseDialog`:
+  ```
+  <ReleaseTaskCenter releaseId={id!} onNavigate={handleSectionClick} />
+  ```
 
-5. **Add imports**:
-   - Import `ResponsibleSelector` from `@/components/releases/ResponsibleSelector`
-   - Ensure `ListTodo`, `StickyNote`, `MessageCircle`, `CheckCircle2`, `Circle`, `GripVertical`, `Send`, `AtSign`, `CheckCheck` icons are imported
-   - Import `DropdownMenu` components
-   - Import `Textarea` if not already imported
+**Nuevo hook: `src/hooks/useReleaseHealthCheck.ts`**
+
+Hook que centraliza todas las consultas y devuelve un array de avisos tipados:
+```
+interface ReleaseAlert {
+  id: string;
+  section: string; // 'creditos' | 'audio' | 'cronograma' | etc.
+  severity: 'urgent' | 'warning' | 'info';
+  message: string;
+  icon: LucideIcon;
+  dismissible: boolean;
+}
+```
+
+Usa los hooks existentes de `useReleases.ts` (`useTracks`, `useReleaseMilestones`, `useReleaseBudgets`, `useReleaseAssets`) mas dos queries adicionales para `track_credits` y `track_versions` agrupados por release.
