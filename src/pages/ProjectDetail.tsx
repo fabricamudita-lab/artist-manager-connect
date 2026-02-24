@@ -2356,6 +2356,7 @@ export default function ProjectDetail() {
                 tasks={tasks}
                 budgets={budgets}
                 solicitudes={solicitudes}
+                linkedEntities={linkedEntities}
               />
             </TabsContent>
 
