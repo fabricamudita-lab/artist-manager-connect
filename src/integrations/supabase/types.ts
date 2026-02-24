@@ -4211,6 +4211,62 @@ export type Database = {
           },
         ]
       }
+      project_incidents: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          description: string | null
+          id: string
+          impact: string | null
+          project_id: string
+          reported_by: string | null
+          resolution: string | null
+          resolved_at: string | null
+          severity: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          impact?: string | null
+          project_id: string
+          reported_by?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          impact?: string | null
+          project_id?: string
+          reported_by?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_incidents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_linked_entities: {
         Row: {
           created_at: string
@@ -4248,6 +4304,62 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "project_linked_entities_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_questions: {
+        Row: {
+          answer: string | null
+          answered_by: string | null
+          asked_by: string | null
+          assigned_to: string | null
+          context: string | null
+          created_at: string
+          id: string
+          priority: string
+          project_id: string
+          question: string
+          resolved_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          answer?: string | null
+          answered_by?: string | null
+          asked_by?: string | null
+          assigned_to?: string | null
+          context?: string | null
+          created_at?: string
+          id?: string
+          priority?: string
+          project_id: string
+          question: string
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string | null
+          answered_by?: string | null
+          asked_by?: string | null
+          assigned_to?: string | null
+          context?: string | null
+          created_at?: string
+          id?: string
+          priority?: string
+          project_id?: string
+          question?: string
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_questions_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
