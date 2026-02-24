@@ -1,39 +1,40 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Link2, Zap } from "lucide-react";
+import { Check, Link2 } from "lucide-react";
+import { WorkflowToast } from "./WorkflowToast";
 
 /* ── Phase maps per entity type ──────────────────────────────── */
 
 interface PhaseConfig {
   id: string;
   label: string;
-  color: string;       // tailwind ring / bg for "current"
-  textColor: string;   // label text when current
+  color: string;
+  textColor: string;
 }
 
 const SHOW_PHASES: PhaseConfig[] = [
-  { id: "interes",      label: "Interés",      color: "bg-blue-500",   textColor: "text-blue-600 dark:text-blue-400" },
-  { id: "negociacion",  label: "Negociación",  color: "bg-amber-500",  textColor: "text-amber-600 dark:text-amber-400" },
-  { id: "confirmado",   label: "Confirmado",   color: "bg-green-500",  textColor: "text-green-600 dark:text-green-400" },
-  { id: "completado",   label: "Completado",   color: "bg-emerald-600",textColor: "text-emerald-600 dark:text-emerald-400" },
-  { id: "cancelado",    label: "Cancelado",    color: "bg-red-500",    textColor: "text-red-600 dark:text-red-400" },
+  { id: "interes",      label: "Interés",      color: "bg-blue-500",    textColor: "text-blue-600 dark:text-blue-400" },
+  { id: "negociacion",  label: "Negociación",  color: "bg-amber-500",   textColor: "text-amber-600 dark:text-amber-400" },
+  { id: "confirmado",   label: "Confirmado",   color: "bg-green-500",   textColor: "text-green-600 dark:text-green-400" },
+  { id: "completado",   label: "Completado",   color: "bg-emerald-600", textColor: "text-emerald-600 dark:text-emerald-400" },
+  { id: "cancelado",    label: "Cancelado",    color: "bg-red-500",     textColor: "text-red-600 dark:text-red-400" },
 ];
 
 const RELEASE_PHASES: PhaseConfig[] = [
-  { id: "produccion",   label: "Producción",   color: "bg-blue-500",   textColor: "text-blue-600 dark:text-blue-400" },
-  { id: "masterizado",  label: "Masterizado",  color: "bg-violet-500", textColor: "text-violet-600 dark:text-violet-400" },
-  { id: "distribucion", label: "Distribución", color: "bg-amber-500",  textColor: "text-amber-600 dark:text-amber-400" },
-  { id: "lanzado",      label: "Lanzado",      color: "bg-green-500",  textColor: "text-green-600 dark:text-green-400" },
+  { id: "en_desarrollo", label: "En desarrollo", color: "bg-blue-500",    textColor: "text-blue-600 dark:text-blue-400" },
+  { id: "en_produccion", label: "En producción", color: "bg-violet-500",  textColor: "text-violet-600 dark:text-violet-400" },
+  { id: "en_revision",   label: "En revisión",   color: "bg-amber-500",   textColor: "text-amber-600 dark:text-amber-400" },
+  { id: "lanzado",       label: "Lanzado",        color: "bg-green-500",   textColor: "text-green-600 dark:text-green-400" },
 ];
 
 const SYNC_PHASES: PhaseConfig[] = [
-  { id: "solicitud",       label: "Solicitud",        color: "bg-blue-500",   textColor: "text-blue-600 dark:text-blue-400" },
-  { id: "cotizacion",      label: "Cotización",       color: "bg-violet-500", textColor: "text-violet-600 dark:text-violet-400" },
-  { id: "negociacion",     label: "Negociación",      color: "bg-amber-500",  textColor: "text-amber-600 dark:text-amber-400" },
-  { id: "licencia_firmada",label: "Licencia Firmada", color: "bg-green-500",  textColor: "text-green-600 dark:text-green-400" },
-  { id: "facturado",       label: "Facturado",        color: "bg-emerald-600",textColor: "text-emerald-600 dark:text-emerald-400" },
+  { id: "interes",      label: "Interés",        color: "bg-blue-500",    textColor: "text-blue-600 dark:text-blue-400" },
+  { id: "negociacion",  label: "Negociación",     color: "bg-amber-500",   textColor: "text-amber-600 dark:text-amber-400" },
+  { id: "confirmado",   label: "Confirmado",      color: "bg-green-500",   textColor: "text-green-600 dark:text-green-400" },
+  { id: "completado",   label: "Completado",      color: "bg-emerald-600", textColor: "text-emerald-600 dark:text-emerald-400" },
+  { id: "caido",        label: "Caído",           color: "bg-red-500",     textColor: "text-red-600 dark:text-red-400" },
 ];
 
 const ENTITY_PHASE_MAP: Record<string, PhaseConfig[]> = {
@@ -45,60 +46,73 @@ const ENTITY_PHASE_MAP: Record<string, PhaseConfig[]> = {
   merch: SHOW_PHASES,
 };
 
-/* ── Next actions map (best-practice tasks per transition) ──── */
+/* ── Enriched workflow triggers ─────────────────────────────── */
 
-const NEXT_ACTIONS_MAP: Record<string, Record<string, string[]>> = {
-  show: {
-    interes: [
-      "Enviar disponibilidad de fechas al promotor",
-      "Compartir rider técnico actualizado",
-      "Solicitar condiciones económicas del venue",
-    ],
-    negociacion: [
-      "Solicitar contrato firmado al promotor",
-      "Facturar anticipo del 50%",
-      "Añadir al plan de PR y comunicación",
-      "Coordinar logística de viaje",
-    ],
-    confirmado: [
-      "Confirmar soundcheck y horarios",
-      "Enviar lista de invitados",
-      "Preparar setlist y producción",
-    ],
-  },
-  release: {
-    produccion: [
-      "Finalizar mezcla con el ingeniero",
-      "Aprobar masters de todas las pistas",
-      "Registrar ISRC y metadatos",
-    ],
-    masterizado: [
-      "Subir a distribuidora digital",
-      "Configurar pre-save y pitch editorial",
-      "Preparar assets de lanzamiento",
-    ],
-    distribucion: [
-      "Publicar en redes sociales",
-      "Activar campaña de ads",
-      "Enviar a medios y playlists",
+export interface WorkflowAction {
+  txt: string;
+  resp: string;
+  plazo: string;
+  prio: "crítica" | "alta" | "media";
+}
+
+export interface WorkflowTrigger {
+  titulo: string;
+  icono: string;
+  acciones: WorkflowAction[];
+}
+
+export const WORKFLOW_TRIGGERS: Record<string, WorkflowTrigger> = {
+  "show:interes→negociacion": {
+    titulo: "Show entra en negociación",
+    icono: "🤝",
+    acciones: [
+      { txt: "Enviar disponibilidad de fechas al promotor",     resp: "Booking",     plazo: "24h",   prio: "alta"   },
+      { txt: "Compartir rider técnico y hospitalidad",          resp: "Producción",  plazo: "48h",   prio: "alta"   },
+      { txt: "Solicitar condiciones económicas (caché, split)", resp: "Management",  plazo: "48h",   prio: "alta"   },
+      { txt: "Confirmar aforo y tipo de sala",                  resp: "Booking",     plazo: "48h",   prio: "media"  },
     ],
   },
-  sync: {
-    solicitud: [
-      "Preparar cotización según brief",
-      "Verificar derechos y splits disponibles",
+  "show:negociacion→confirmado": {
+    titulo: "Show confirmado 🎉",
+    icono: "✅",
+    acciones: [
+      { txt: "Solicitar contrato firmado al promotor",          resp: "Management",   plazo: "72h",   prio: "crítica" },
+      { txt: "Facturar anticipo del 50% del caché",             resp: "Admin",        plazo: "72h",   prio: "crítica" },
+      { txt: "Añadir al plan de PR y comunicación",             resp: "PR/Marketing", plazo: "1 sem", prio: "alta"    },
+      { txt: "Briefing de producción: backline, PA, luces",     resp: "Producción",   plazo: "2 sem", prio: "alta"    },
+      { txt: "Gestionar alojamiento y transporte",              resp: "Tour Manager", plazo: "2 sem", prio: "media"   },
+      { txt: "Publicar en RRSS y añadir a la web",              resp: "PR/Marketing", plazo: "1 sem", prio: "media"   },
     ],
-    cotizacion: [
-      "Negociar términos con el supervisor",
-      "Revisar contrato de licencia",
+  },
+  "release:en_produccion→lanzado": {
+    titulo: "Release publicado",
+    icono: "💿",
+    acciones: [
+      { txt: "Pitch a listas editoriales de Spotify/Apple",     resp: "Distribución", plazo: "Inmediato", prio: "crítica" },
+      { txt: "Enviar a medios y blogs especializados",          resp: "PR",           plazo: "Inmediato", prio: "alta"    },
+      { txt: "Publicar en todas las RRSS del artista",          resp: "PR/Marketing", plazo: "Inmediato", prio: "alta"    },
+      { txt: "Notificar a la lista de email/fans",              resp: "Management",   plazo: "24h",       prio: "media"   },
+      { txt: "Registrar en SGAE/CEDRO si no está hecho",        resp: "Admin",        plazo: "1 sem",     prio: "alta"    },
     ],
-    negociacion: [
-      "Firmar contrato de licencia",
-      "Enviar stems y archivos master",
+  },
+  "sync:interes→negociacion": {
+    titulo: "Sincronización entra en negociación",
+    icono: "🎬",
+    acciones: [
+      { txt: "Confirmar uso: territorio, duración, exclusividad", resp: "Management",  plazo: "48h",    prio: "crítica" },
+      { txt: "Revisar quién posee el máster y la composición",    resp: "Admin/Legal",  plazo: "24h",    prio: "crítica" },
+      { txt: "Preparar propuesta de tarifa (MFN/buyout/royalty)", resp: "Management",  plazo: "3 días", prio: "alta"    },
+      { txt: "Consultar con el artista si acepta el uso",         resp: "Management",  plazo: "24h",    prio: "alta"    },
     ],
-    licencia_firmada: [
-      "Emitir factura por fee de sync",
-      "Registrar ingreso en contabilidad",
+  },
+  "sync:negociacion→confirmado": {
+    titulo: "Sync confirmada 💰",
+    icono: "🎬",
+    acciones: [
+      { txt: "Redactar y firmar contrato de licencia de sync",  resp: "Legal",       plazo: "5 días",        prio: "crítica" },
+      { txt: "Facturar el importe acordado",                    resp: "Admin",       plazo: "5 días",        prio: "crítica" },
+      { txt: "Entregar stems y máster en el formato solicitado", resp: "Producción",  plazo: "Según contrato", prio: "alta"    },
+      { txt: "Comunicar a SGAE/entidad de gestión el uso",      resp: "Admin",       plazo: "1 mes",         prio: "media"   },
     ],
   },
 };
@@ -109,9 +123,15 @@ const ENTITY_TYPE_CONFIG: Record<string, { emoji: string; label: string }> = {
   show:      { emoji: "🎤", label: "Show" },
   release:   { emoji: "💿", label: "Release" },
   sync:      { emoji: "🎬", label: "Sync" },
-  videoclip: { emoji: "📹", label: "Videoclip" },
+  videoclip: { emoji: "🎥", label: "Videoclip" },
   prensa:    { emoji: "📰", label: "Prensa" },
   merch:     { emoji: "👕", label: "Merch" },
+};
+
+const PRIO_COLORS: Record<string, string> = {
+  "crítica": "text-red-500",
+  "alta":    "text-amber-500",
+  "media":   "text-blue-500",
 };
 
 /* ── Helpers ────────────────────────────────────────────────── */
@@ -145,6 +165,8 @@ interface ProjectWorkflowsTabProps {
 export function ProjectWorkflowsTab({
   linkedEntities = [],
 }: ProjectWorkflowsTabProps) {
+  const [activeTrigger, setActiveTrigger] = useState<string | null>(null);
+
   const entitiesWithPhases = useMemo(() => {
     return linkedEntities
       .filter((e) => ENTITY_PHASE_MAP[e.entity_type])
@@ -152,40 +174,39 @@ export function ProjectWorkflowsTab({
         const phases = ENTITY_PHASE_MAP[entity.entity_type] || SHOW_PHASES;
         const currentIdx = getCurrentPhaseIndex(phases, entity.entity_status);
         const nextPhase = currentIdx < phases.length - 1 ? phases[currentIdx + 1] : null;
-        const actionsKey = entity.entity_type;
         const currentPhaseId = phases[currentIdx]?.id;
-        const nextActions = nextPhase
-          ? (NEXT_ACTIONS_MAP[actionsKey]?.[currentPhaseId] || [])
-          : [];
+        const triggerKey = nextPhase
+          ? `${entity.entity_type}:${currentPhaseId}→${nextPhase.id}`
+          : null;
+        const trigger = triggerKey ? WORKFLOW_TRIGGERS[triggerKey] : null;
 
         return {
           ...entity,
           phases,
           currentIdx,
           nextPhase,
-          nextActions,
+          triggerKey,
+          trigger,
         };
       });
   }, [linkedEntities]);
 
+  const handlePhaseClick = (_entityId: string, _phaseId: string) => {
+    // In real implementation this would update the entity status via supabase
+    // For now we just show the trigger preview
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Banner explicativo */}
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="p-5">
-          <div className="flex items-start gap-3">
-            <span className="text-2xl mt-0.5">⚡</span>
-            <div>
-              <h3 className="font-semibold text-base mb-1">Motor de workflows</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Cuando cambias el estado de una entidad, el sistema detecta la transición y activa
-                automáticamente las tareas que corresponden según el workflow de la industria musical.
-                Pruébalo: cambia el estado de cualquier entidad abajo.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-5">
+      {/* Banner */}
+      <div className="rounded-xl border border-blue-500/20 bg-blue-500/[0.08] p-4">
+        <div className="text-[13px] font-bold text-blue-300 dark:text-blue-300 mb-1">⚡ Motor de workflows</div>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Cuando cambias el estado de una entidad, el sistema detecta la transición y activa
+          automáticamente las tareas que corresponden según el workflow de la industria musical.
+          Pruébalo: cambia el estado de cualquier entidad abajo.
+        </p>
+      </div>
 
       {/* Empty state */}
       {entitiesWithPhases.length === 0 && (
@@ -203,118 +224,91 @@ export function ProjectWorkflowsTab({
         </Card>
       )}
 
-      {/* Entity cards with steppers */}
-      <div className="space-y-4">
+      {/* Entity cards */}
+      <div className="flex flex-col gap-2.5">
         {entitiesWithPhases.map((entity) => {
           const typeConfig = ENTITY_TYPE_CONFIG[entity.entity_type] || { emoji: "📋", label: entity.entity_type };
-          const MAX_ACTIONS_SHOWN = 3;
-          const visibleActions = entity.nextActions.slice(0, MAX_ACTIONS_SHOWN);
-          const extraActions = entity.nextActions.length - MAX_ACTIONS_SHOWN;
 
           return (
             <Card key={entity.id} className="overflow-hidden">
-              <CardContent className="p-5">
-                {/* Entity header + stepper */}
-                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                  {/* Left: entity info */}
-                  <div className="flex items-center gap-3 min-w-0 lg:w-[280px] shrink-0">
-                    <span className="text-2xl">{typeConfig.emoji}</span>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-sm truncate">
-                        {entity.entity_name || "Sin nombre"}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {typeConfig.label}
-                        {entity.entity_date && (
-                          <> · {new Date(entity.entity_date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</>
-                        )}
-                      </p>
-                    </div>
+              <CardContent className="p-3.5">
+                <div className="flex items-center gap-3">
+                  {/* Entity info */}
+                  <span className="text-[22px] flex-shrink-0">{typeConfig.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-[13px] truncate">{entity.entity_name || "Sin nombre"}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {typeConfig.label}
+                      {entity.entity_date && (
+                        <> · {new Date(entity.entity_date).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}</>
+                      )}
+                      {entity.entity_module && <> · {entity.entity_module}</>}
+                    </p>
                   </div>
 
-                  {/* Right: phase stepper */}
-                  <div className="flex-1 overflow-x-auto">
-                    <div className="flex items-center gap-0 min-w-max">
-                      {entity.phases.map((phase: PhaseConfig, idx: number) => {
-                        const isCompleted = idx < entity.currentIdx;
-                        const isCurrent = idx === entity.currentIdx;
-                        const isFuture = idx > entity.currentIdx;
+                  {/* Interactive phase stepper */}
+                  <div className="flex items-center gap-1">
+                    {entity.phases.map((phase: PhaseConfig, idx: number) => {
+                      const isCompleted = idx < entity.currentIdx;
+                      const isCurrent = idx === entity.currentIdx;
 
-                        return (
-                          <div key={phase.id} className="flex items-center">
-                            <div className="flex flex-col items-center gap-1.5 min-w-[80px]">
-                              {/* Circle */}
-                              <div
-                                className={cn(
-                                  "rounded-full flex items-center justify-center transition-all",
-                                  isCompleted && "w-7 h-7 bg-green-500",
-                                  isCurrent && cn("w-9 h-9", phase.color),
-                                  isFuture && "w-7 h-7 border-2 border-muted-foreground/30 bg-transparent"
-                                )}
-                              >
-                                {isCompleted && (
-                                  <CheckCircle2 className="h-4 w-4 text-white" />
-                                )}
-                                {isCurrent && (
-                                  <Zap className="h-4 w-4 text-white" />
-                                )}
-                              </div>
-                              {/* Label */}
-                              <span
-                                className={cn(
-                                  "text-[11px] leading-tight text-center whitespace-nowrap",
-                                  isCompleted && "text-green-600 dark:text-green-400 font-medium",
-                                  isCurrent && cn("font-bold", phase.textColor),
-                                  isFuture && "text-muted-foreground"
-                                )}
-                              >
-                                {phase.label}
-                              </span>
-                            </div>
-
-                            {/* Connector line */}
-                            {idx < entity.phases.length - 1 && (
-                              <div
-                                className={cn(
-                                  "h-0.5 w-6 mx-0.5 mt-[-18px]",
-                                  idx < entity.currentIdx
-                                    ? "bg-green-500"
-                                    : "bg-muted-foreground/20"
-                                )}
-                              />
+                      return (
+                        <button
+                          key={phase.id}
+                          onClick={() => handlePhaseClick(entity.id, phase.id)}
+                          className="flex flex-col items-center gap-1 bg-transparent border-none cursor-pointer px-1.5 py-1"
+                        >
+                          {/* Circle */}
+                          <div
+                            className={cn(
+                              "w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all",
+                              isCompleted && "border-green-500/40 bg-green-500/10",
+                              isCurrent && cn("border-transparent", phase.color),
+                              !isCompleted && !isCurrent && "border-muted-foreground/25 bg-transparent"
+                            )}
+                          >
+                            {isCompleted && (
+                              <Check className="h-3 w-3 text-green-500" />
+                            )}
+                            {isCurrent && (
+                              <div className="w-2 h-2 rounded-full bg-black dark:bg-white/90" />
                             )}
                           </div>
-                        );
-                      })}
-                    </div>
+                          {/* Label */}
+                          <span
+                            className={cn(
+                              "text-[9px] whitespace-nowrap leading-tight",
+                              isCompleted && "text-green-500 font-medium",
+                              isCurrent && cn("font-bold", phase.textColor),
+                              !isCompleted && !isCurrent && "text-muted-foreground/60"
+                            )}
+                          >
+                            {phase.label}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* Next actions preview */}
-                {entity.nextPhase && entity.nextActions.length > 0 && (
-                  <div
-                    className={cn(
-                      "mt-4 pl-4 border-l-4 py-3 pr-3 rounded-r-lg bg-muted/30",
-                      entity.nextPhase.color.replace("bg-", "border-")
-                    )}
-                  >
-                    <p className="text-xs text-muted-foreground mb-2">
+                {entity.trigger && entity.nextPhase && (
+                  <div className="mt-2.5 p-2 px-3 bg-green-500/[0.06] border border-green-500/[0.15] rounded-lg">
+                    <p className="text-[11px] text-muted-foreground mb-2">
                       Si avanzas a{" "}
-                      <span className={cn("font-bold", entity.nextPhase.textColor)}>
-                        {entity.nextPhase.label}
-                      </span>
+                      <strong className="text-green-500">{entity.nextPhase.label}</strong>
                       , se activarán:
                     </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {visibleActions.map((action: string, i: number) => (
-                        <Badge key={i} variant="secondary" className="text-[11px] h-6 font-normal max-w-[240px] truncate">
-                          {action}
-                        </Badge>
+                    <div className="flex gap-2 flex-wrap">
+                      {entity.trigger.acciones.slice(0, 3).map((a: WorkflowAction, i: number) => (
+                        <span key={i} className="text-[10px] text-muted-foreground bg-background px-2 py-0.5 rounded-md">
+                          {a.txt.length > 40 ? a.txt.slice(0, 40) + "…" : a.txt}
+                        </span>
                       ))}
-                      {extraActions > 0 && (
-                        <Badge variant="outline" className="text-[11px] h-6 font-normal">
-                          +{extraActions} más
-                        </Badge>
+                      {entity.trigger.acciones.length > 3 && (
+                        <span className="text-[10px] text-muted-foreground">
+                          +{entity.trigger.acciones.length - 3} más
+                        </span>
                       )}
                     </div>
                   </div>
@@ -324,6 +318,14 @@ export function ProjectWorkflowsTab({
           );
         })}
       </div>
+
+      {/* Workflow Toast */}
+      {activeTrigger && WORKFLOW_TRIGGERS[activeTrigger] && (
+        <WorkflowToast
+          trigger={WORKFLOW_TRIGGERS[activeTrigger]}
+          onClose={() => setActiveTrigger(null)}
+        />
+      )}
     </div>
   );
 }
