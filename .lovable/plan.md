@@ -1,100 +1,69 @@
 
-## Rediseno del Proyecto segun el mockup original
+## Rediseno completo del Motor de Workflows
 
-### Cambios en el Header (ProjectDetail.tsx, lineas ~1157-1260)
-
-**Progreso + Badges de alerta inline**
-- Debajo del titulo/artista/fechas, anadir una barra de progreso de tareas completadas con el porcentaje a la derecha
-- A la derecha del porcentaje, mostrar 3 badges de alerta en linea:
-  - `🔥 X urgentes` (rojo) - tareas urgentes no completadas
-  - `⚡ X imprevistos` (verde/emerald) - incidentes abiertos
-  - `❓ X dudas` (borde outline) - dudas sin respuesta
-- Los badges solo aparecen si el conteo es > 0
-
-**Botones del header**
-- Cambiar "Vincular entidad" a "Vincular" con icono de link (mas compacto, estilo outline con borde primary)
-- Mantener "+ Crear" como boton solido verde/primary
+El tab "Workflows" actual muestra un pipeline basado en etapas de tareas (Preparativos, Produccion, Cierre). El mockup muestra algo completamente diferente: un **motor de workflows centrado en entidades vinculadas**, donde cada entidad del proyecto muestra su fase actual en un stepper horizontal, con una previsualizacion de las tareas que se activaran al avanzar de fase.
 
 ---
 
-### Reorganizacion de Tabs (ProjectDetail.tsx, lineas ~1460-1536)
+### Diseno visual segun el mockup
 
-Nuevo orden de tabs segun el mockup:
-1. **Pulso** (con badge de alertas criticas)
-2. **Workflows** (con icono ⚡)
-3. **Checklist** (con badge de conteo de tareas pendientes) -- mover el ChecklistManager dentro del tab
-4. **Imprevistos** (con badge de abiertos)
-5. **Dudas** (con badge de abiertas)
-6. **Cronograma**
-7. **Finanzas**
-8. **Archivos**
+**1. Banner explicativo (parte superior)**
+- Card con fondo sutil y borde
+- Titulo: "⚡ Motor de workflows"
+- Texto: "Cuando cambias el estado de una entidad, el sistema detecta la transicion y activa automaticamente las tareas que corresponden segun el workflow de la industria musical. Pruebalo: cambia el estado de cualquier entidad abajo."
 
-Tabs a eliminar de la lista visible (su contenido se redistribuye):
-- "Vista General" (su info ya esta en Pulso y en el header)
-- "Contratos", "Solicitudes", "Presupuestos", "Aprobaciones", "Notas" se mueven como sub-secciones dentro de Finanzas o se mantienen pero al final
+**2. Lista de entidades vinculadas con stepper de fases**
 
-Mover `ProjectChecklistManager` de su posicion actual (linea 1454) a dentro del `TabsContent value="checklist"`.
+Cada entidad vinculada se muestra como una card/fila con:
+- **Izquierda**: Emoji del tipo de entidad (ej: microfono para Show) + nombre en negrita (ej: "La Nau -- Barcelona") + subtitulo (tipo + fecha + entidad)
+- **Derecha**: Stepper horizontal con las fases del tipo de entidad
 
----
+Stepper visual para cada fase:
+- **Completada**: Circulo verde con check blanco, label verde debajo
+- **Actual**: Circulo grande relleno del color de la fase (azul para Interes, ambar para Negociacion, verde para Confirmado), label en color y negrita debajo
+- **Futura**: Circulo vacio con borde gris, label gris debajo
 
-### Rediseno del tab Pulso (ProjectPulseTab.tsx)
+Fases para tipo "show" (booking): Interes, Negociacion, Confirmado, Completado, Cancelado
+Fases para tipo "release": Produccion, Masterizado, Distribucion, Lanzado
+Fases para tipo "sync": Solicitud, Cotizacion, Negociacion, Licencia Firmada, Facturado
 
-Cambio completo del layout para coincidir con el mockup:
+**3. Preview de "proximas acciones" (debajo de cada entidad)**
 
-**5 KPI Cards en una fila** (grid de 5 columnas):
-1. 💚 Salud del proyecto - `30%` / "Necesita atencion" (con icono de corazon verde, valor en color segun salud)
-2. 🔥 Tareas urgentes - `2` / "de 5 pendientes"
-3. 🚧 Tareas bloqueadas - `2` / "esperando otra accion"
-4. ⚡ Imprevistos abiertos - `2` / "1 criticos"
-5. ❓ Dudas sin respuesta - `3` / "2 urgentes"
+Si la entidad NO esta en su fase final, mostrar un recuadro con borde izquierdo de color:
+- Texto: "Si avanzas a **[siguiente fase]**, se activaran:"
+- Chips/badges con tareas que se activarian (truncadas con "...")
+- Si hay mas de 3, mostrar "+X mas"
 
-Cada card tiene:
-- Icono grande (emoji) arriba a la izquierda
-- Valor numerico grande debajo en color contextual (verde, rojo, ambar, etc.)
-- Titulo en texto blanco/foreground debajo
-- Subtitulo en muted-foreground
-
-**Seccion inferior en 2 columnas**:
-
-**Columna izquierda: "PROXIMAS ACCIONES"**
-- Header con titulo en uppercase tracking-wider y badge de conteo
-- Lista de tareas pendientes ordenadas por urgencia/fecha
-- Cada tarea muestra:
-  - Punto de color segun prioridad (rojo = urgente, azul = normal)
-  - Titulo de la tarea + nombre de entidad vinculada
-  - Badge de la entidad (ej: "Sala El Sol -- Madrid") con icono
-  - Etapa (Produccion, Admin) + badge URGENTE si aplica + badge BLOQUEADA si aplica
-  - Fecha a la derecha
-
-**Columna derecha: "IMPREVISTOS ACTIVOS"**
-- Header en uppercase con badge de conteo (color rojo/destructive)
-- Cards de imprevistos con:
-  - Titulo
-  - Badge de severidad (Alto = ambar, Critico = rojo)
-  - Descripcion truncada
-  - Categoria + fecha
-
-**Debajo: "DUDAS SIN RESPUESTA"**
-- Header en uppercase con badge de conteo
-- Lista similar de dudas pendientes
+Las tareas sugeridas son estaticas por tipo de entidad y fase (hardcoded), representando best practices de la industria musical:
+- Show: Interes -> Negociacion: "Enviar disponibilidad de fechas...", "Compartir rider tecnico...", "Solicitar condiciones economicas..."
+- Show: Negociacion -> Confirmado: "Solicitar contrato firmado...", "Facturar anticipo del 50%...", "Anadir al plan de PR..."
+- etc.
 
 ---
 
-### Detalles tecnicos
+### Cambios tecnicos
 
-**Archivos a modificar:**
+**Archivo a modificar: `src/components/project-detail/ProjectWorkflowsTab.tsx`**
 
-1. **`src/pages/ProjectDetail.tsx`**
-   - Header: Anadir Progress bar + badges de alerta despues de la seccion de fechas/equipo (antes de los botones de accion)
-   - Tabs: Reorganizar el orden, anadir tab "checklist", mover ChecklistManager dentro del tab
-   - Cambiar texto "Vincular entidad" a "Vincular"
+Reescritura completa:
+- Cambiar props: recibir `linkedEntities` ademas de `tasks`, `budgets`, `solicitudes`
+- Definir mapa de fases por tipo de entidad (ENTITY_PHASE_MAP)
+- Definir mapa de acciones sugeridas por transicion (NEXT_ACTIONS_MAP)
+- Determinar fase actual de cada entidad a partir de `entity_status`
+- Renderizar el banner explicativo
+- Renderizar cada entidad con su stepper horizontal y preview de acciones
+- Estado vacio: si no hay entidades vinculadas, mostrar mensaje invitando a vincular
 
-2. **`src/components/project-detail/ProjectPulseTab.tsx`**
-   - Reescritura completa del layout para coincidir con el mockup
-   - 5 KPI cards con emojis grandes y valores coloridos
-   - Seccion "Proximas Acciones" con tareas del proyecto y sus entidades vinculadas
-   - Seccion "Imprevistos Activos" mostrando los incidentes abiertos inline
-   - Seccion "Dudas sin respuesta" mostrando preguntas abiertas inline
-   - Pasar `linkedEntities` como prop para mostrar el contexto de cada tarea
+**Archivo a modificar: `src/pages/ProjectDetail.tsx`**
 
-3. **No se crean archivos nuevos ni se modifican tablas** - todo es reorganizacion visual de datos existentes
+- Pasar `linkedEntities` como prop al `ProjectWorkflowsTab`:
+  ```
+  <ProjectWorkflowsTab
+    tasks={tasks}
+    budgets={budgets}
+    solicitudes={solicitudes}
+    linkedEntities={linkedEntities}
+  />
+  ```
+
+No se crean archivos nuevos ni tablas. Es una reorganizacion visual del componente existente usando datos que ya estan disponibles.
