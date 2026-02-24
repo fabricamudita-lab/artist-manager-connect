@@ -8,7 +8,7 @@ import { SelectionCheckbox } from "@/components/ui/selection-checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical, Clock, CheckCircle, ChevronUp, TriangleAlert, Link, Search, Pencil, ListChecks } from "lucide-react";
+import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical, Clock, CheckCircle, ChevronUp, TriangleAlert, Link, Search, Pencil, ListChecks, Copy } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TemplateSelectionDialog } from "./TemplateSelectionDialog";
 import { SaveTemplateDialog } from "./SaveAsTemplateDialog";
@@ -1007,6 +1007,53 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     }
   };
 
+  const duplicateChecklist = async () => {
+    const activeChecklist = checklists.find(c => c.id === activeChecklistId);
+    if (!activeChecklist) return;
+    try {
+      const user = await supabase.auth.getUser();
+      const { data: newChecklist, error: insertError } = await supabase
+        .from('project_checklists')
+        .insert({
+          project_id: projectId,
+          name: `${activeChecklist.name} (copia)`,
+          sort_order: checklists.length,
+          created_by: user.data.user?.id || null,
+        })
+        .select()
+        .single();
+      if (insertError) throw insertError;
+
+      // Copy items from active checklist
+      const activeItems = items.filter(i => i.checklist_id === activeChecklistId);
+      if (activeItems.length > 0) {
+        const newItems = activeItems.map((item, idx) => ({
+          project_id: projectId,
+          title: item.title,
+          description: item.description,
+          section: item.section,
+          sort_order: idx,
+          created_by: user.data.user?.id || '',
+          checklist_id: newChecklist.id,
+        }));
+        const { error: itemsError } = await supabase
+          .from('project_checklist_items')
+          .insert(newItems);
+        if (itemsError) throw itemsError;
+      }
+
+      await fetchChecklists();
+      setActiveChecklistId(newChecklist.id);
+      toast({
+        title: "Checklist duplicada",
+        description: `Se creó "${newChecklist.name}" con ${activeItems.length} tarea(s).`,
+      });
+    } catch (error) {
+      console.error('Error duplicating checklist:', error);
+      toast({ title: "Error", description: "No se pudo duplicar la checklist.", variant: "destructive" });
+    }
+  };
+
   const deleteChecklist = async () => {
     if (!deleteChecklistConfirm) return;
     try {
@@ -1350,6 +1397,22 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                         <Save className="w-4 h-4 mr-2" />
                         Guardar como plantilla
                       </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => {
+                        if (activeChecklistId) {
+                          const cl = checklists.find(c => c.id === activeChecklistId);
+                          setRenamingChecklistId(activeChecklistId);
+                          setRenameChecklistName(cl?.name || "");
+                        }
+                      }}>
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Renombrar checklist
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => duplicateChecklist()}>
+                        <Copy className="w-4 h-4 mr-2" />
+                        Duplicar checklist
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       {items.length > 0 && (
                         <DropdownMenuItem 
                           onClick={() => setClearAllConfirm(true)}
@@ -1357,6 +1420,18 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                         >
                           <Trash2 className="w-4 h-4 mr-2" />
                           Vaciar todo
+                        </DropdownMenuItem>
+                      )}
+                      {checklists.length > 1 && (
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            const cl = checklists.find(c => c.id === activeChecklistId);
+                            if (cl) setDeleteChecklistConfirm(cl);
+                          }}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Eliminar checklist
                         </DropdownMenuItem>
                       )}
                     </DropdownMenuContent>
