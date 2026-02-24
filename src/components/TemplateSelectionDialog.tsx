@@ -47,6 +47,7 @@ interface TemplateSelectionDialogProps {
   onOpenChange: (open: boolean) => void;
   projectId: string;
   onTemplateApplied: () => void;
+  checklistId?: string | null;
 }
 
 // Emoji mapping for template names
@@ -73,7 +74,8 @@ export function TemplateSelectionDialog({
   open, 
   onOpenChange, 
   projectId, 
-  onTemplateApplied 
+  onTemplateApplied,
+  checklistId 
 }: TemplateSelectionDialogProps) {
   const [systemTemplates, setSystemTemplates] = useState<Template[]>([]);
   const [userTemplates, setUserTemplates] = useState<Template[]>([]);
@@ -189,10 +191,16 @@ export function TemplateSelectionDialog({
       const userId = user.data.user?.id;
       if (!userId) throw new Error('User not authenticated');
 
-      const { data: existingItems, error: checkError } = await supabase
+      let existingQuery = supabase
         .from('project_checklist_items')
         .select('id')
         .eq('project_id', projectId);
+      
+      if (checklistId) {
+        existingQuery = existingQuery.eq('checklist_id', checklistId);
+      }
+
+      const { data: existingItems, error: checkError } = await existingQuery;
 
       if (checkError) throw checkError;
 
@@ -206,10 +214,16 @@ export function TemplateSelectionDialog({
           return;
         }
 
-        const { error: deleteError } = await supabase
+        let deleteQuery = supabase
           .from('project_checklist_items')
           .delete()
           .eq('project_id', projectId);
+        
+        if (checklistId) {
+          deleteQuery = deleteQuery.eq('checklist_id', checklistId);
+        }
+
+        const { error: deleteError } = await deleteQuery;
 
         if (deleteError) throw deleteError;
       }
@@ -224,6 +238,7 @@ export function TemplateSelectionDialog({
         sort_order: index,
         created_by: userId,
         status: 'PENDING' as const,
+        checklist_id: checklistId || null,
       }));
 
       const { error } = await supabase

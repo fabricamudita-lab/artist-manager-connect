@@ -4073,6 +4073,7 @@ export type Database = {
       }
       project_checklist_items: {
         Row: {
+          checklist_id: string | null
           completed_at: string | null
           completed_by: string | null
           created_at: string
@@ -4088,6 +4089,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          checklist_id?: string | null
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
@@ -4103,6 +4105,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          checklist_id?: string | null
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
@@ -4117,7 +4120,53 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "project_checklist_items_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "project_checklists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_checklists: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          project_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          project_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          project_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_checklists_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_file_links: {
         Row: {
