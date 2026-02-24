@@ -70,6 +70,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ProjectChecklistManager } from "@/components/ProjectChecklistManager";
 import { ProjectFilesManager } from "@/components/ProjectFilesManager";
 import { ProjectShareDialog } from "@/components/ProjectShareDialog";
+import { LinkEntityToProjectDialog } from "@/components/LinkEntityToProjectDialog";
 
 interface Project {
   id: string;
@@ -137,6 +138,8 @@ export default function ProjectDetail() {
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showLinkEntityDialog, setShowLinkEntityDialog] = useState(false);
+  const [linkedEntities, setLinkedEntities] = useState<any[]>([]);
   
   // Document upload state
   const [showDocumentUpload, setShowDocumentUpload] = useState(false);
@@ -724,8 +727,20 @@ export default function ProjectDetail() {
       }
     };
 
+    const loadLinkedEntities = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('project_linked_entities' as any)
+          .select('*')
+          .eq('project_id', id)
+          .order('created_at', { ascending: false });
+        if (!error) setLinkedEntities(data || []);
+      } catch (e) { console.error('Error loading linked entities', e); }
+    };
+
     load();
     loadLinked();
+    loadLinkedEntities();
   }, [id]);
 
   // Team member management functions
@@ -985,24 +1000,14 @@ export default function ProjectDetail() {
           
           <div className="flex items-center gap-2 flex-shrink-0">
             {renderIf(permissions.canEdit, (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-                    <Link className="w-4 h-4 mr-2" />
-                    Vincular entidad
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuItem onClick={() => setOpenSolicitud(true)}>
-                    <CalendarDays className="w-4 h-4 mr-2" />
-                    Crear solicitud vinculada
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setOpenBudget(true)}>
-                    <FileText className="w-4 h-4 mr-2" />
-                    Crear presupuesto vinculado
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button
+                variant="outline"
+                className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                onClick={() => setShowLinkEntityDialog(true)}
+              >
+                <Link className="w-4 h-4 mr-2" />
+                Vincular entidad
+              </Button>
             ))}
 
             {renderIf(permissions.canEdit, (
@@ -1371,12 +1376,11 @@ export default function ProjectDetail() {
               <div>
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Entidades vinculadas</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Shows / Presupuestos */}
+                  {/* Shows / Presupuestos (from project_id) */}
                   <div className="rounded-lg border bg-card p-4">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <BarChart2 className="w-4 h-4 text-green-600" />
-                        Shows (Booking)
+                        🎤 Shows (Booking)
                       </span>
                       <Badge variant="secondary" className="text-xs">{budgets.length}</Badge>
                     </div>
@@ -1394,18 +1398,17 @@ export default function ProjectDetail() {
                           </div>
                         ))}
                         {budgets.length > 4 && (
-                          <p className="text-xs text-muted-foreground pt-1">+{budgets.length - 4} más → ver en Presupuestos</p>
+                          <p className="text-xs text-muted-foreground pt-1">+{budgets.length - 4} más</p>
                         )}
                       </div>
                     )}
                   </div>
 
-                  {/* Solicitudes */}
+                  {/* Solicitudes (from project_id) */}
                   <div className="rounded-lg border bg-card p-4">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <CalendarDays className="w-4 h-4 text-blue-600" />
-                        Solicitudes
+                        📋 Solicitudes
                       </span>
                       <Badge variant="secondary" className="text-xs">{solicitudes.length}</Badge>
                     </div>
@@ -1423,18 +1426,62 @@ export default function ProjectDetail() {
                           </div>
                         ))}
                         {solicitudes.length > 4 && (
-                          <p className="text-xs text-muted-foreground pt-1">+{solicitudes.length - 4} más → ver en Solicitudes</p>
+                          <p className="text-xs text-muted-foreground pt-1">+{solicitudes.length - 4} más</p>
                         )}
                       </div>
                     )}
                   </div>
 
+                  {/* Linked entities from project_linked_entities table, grouped by type */}
+                  {(() => {
+                    const typeConfig: Record<string, { emoji: string; label: string }> = {
+                      show: { emoji: '🎤', label: 'Shows vinculados' },
+                      release: { emoji: '💿', label: 'Releases' },
+                      sync: { emoji: '🎬', label: 'Sincronizaciones' },
+                      videoclip: { emoji: '🎥', label: 'Videoclips' },
+                      prensa: { emoji: '📰', label: 'Prensa' },
+                      merch: { emoji: '👕', label: 'Merch' },
+                    };
+                    const grouped: Record<string, any[]> = {};
+                    linkedEntities.forEach((le: any) => {
+                      if (!grouped[le.entity_type]) grouped[le.entity_type] = [];
+                      grouped[le.entity_type].push(le);
+                    });
+
+                    return Object.entries(grouped).map(([type, entities]) => {
+                      const cfg = typeConfig[type] || { emoji: '📎', label: type };
+                      return (
+                        <div key={type} className="rounded-lg border bg-card p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                              {cfg.emoji} {cfg.label}
+                            </span>
+                            <Badge variant="secondary" className="text-xs">{entities.length}</Badge>
+                          </div>
+                          <div className="space-y-2">
+                            {entities.slice(0, 4).map((e: any) => (
+                              <div key={e.id} className="flex items-center justify-between py-1.5 border-b border-border/50 last:border-0">
+                                <div>
+                                  <p className="text-xs font-medium text-foreground">{e.entity_name}</p>
+                                  {e.entity_date && <p className="text-xs text-muted-foreground">{new Date(e.entity_date).toLocaleDateString('es-ES')}</p>}
+                                </div>
+                                {e.entity_status && <Badge variant="outline" className="text-xs h-5">{e.entity_status}</Badge>}
+                              </div>
+                            ))}
+                            {entities.length > 4 && (
+                              <p className="text-xs text-muted-foreground pt-1">+{entities.length - 4} más</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+
                   {/* Documentos */}
                   <div className="rounded-lg border bg-card p-4">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <Paperclip className="w-4 h-4 text-amber-600" />
-                        Documentos
+                        📎 Documentos
                       </span>
                       <Badge variant="secondary" className="text-xs">{documents.length}</Badge>
                     </div>
@@ -1449,7 +1496,7 @@ export default function ProjectDetail() {
                           </div>
                         ))}
                         {documents.length > 4 && (
-                          <p className="text-xs text-muted-foreground pt-1">+{documents.length - 4} más → ver en Documentos</p>
+                          <p className="text-xs text-muted-foreground pt-1">+{documents.length - 4} más</p>
                         )}
                       </div>
                     )}
@@ -1459,8 +1506,7 @@ export default function ProjectDetail() {
                   <div className="rounded-lg border bg-card p-4">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-violet-600" />
-                        Contratos
+                        📝 Contratos
                       </span>
                       <Badge variant="secondary" className="text-xs">{contracts.length}</Badge>
                     </div>
@@ -1475,7 +1521,7 @@ export default function ProjectDetail() {
                           </div>
                         ))}
                         {contracts.length > 4 && (
-                          <p className="text-xs text-muted-foreground pt-1">+{contracts.length - 4} más → ver en Contratos</p>
+                          <p className="text-xs text-muted-foreground pt-1">+{contracts.length - 4} más</p>
                         )}
                       </div>
                     )}
@@ -2928,6 +2974,24 @@ export default function ProjectDetail() {
         onOpenChange={setShowShareDialog}
         projectId={id || ""}
         projectName={project.name}
+      />
+
+      {/* Link Entity Dialog */}
+      <LinkEntityToProjectDialog
+        open={showLinkEntityDialog}
+        onOpenChange={setShowLinkEntityDialog}
+        projectId={id || ""}
+        artistId={project?.artist_id}
+        userId={profile?.user_id || ""}
+        onLinked={() => {
+          // Reload linked entities
+          supabase
+            .from('project_linked_entities' as any)
+            .select('*')
+            .eq('project_id', id!)
+            .order('created_at', { ascending: false })
+            .then(({ data }) => setLinkedEntities(data || []));
+        }}
       />
     </div>
   );
