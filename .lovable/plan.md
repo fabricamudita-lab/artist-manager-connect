@@ -1,32 +1,15 @@
 
-# Hacer colapsable la card de Estado de Carrera
 
-Convertir la card "Estado de Carrera" en un componente colapsable. Cuando este minimizada, solo mostrara una linea con el titulo y el badge del estado actual. Cuando este expandida, mostrara la barra de progreso y las etiquetas como ahora.
+## Fix: Template cards not clickable in ScrollArea
 
-## Cambio en `src/pages/ArtistProfile.tsx`
+### Problem
+The custom `ScrollArea` component has drag-to-scroll enabled by default (`enableDragScroll={true}`). When you click on a template card, the ScrollArea's `pointerdown` handler captures the pointer event for drag-scrolling, which prevents the browser from firing a `click` event on the Card underneath.
 
-Envolver el contenido de la card con `Collapsible` de Radix (ya instalado y disponible en `@/components/ui/collapsible`):
+### Solution
+Pass `enableDragScroll={false}` to the two `ScrollArea` components in `TemplateSelectionDialog.tsx` that wrap the template lists (lines 336 and 356). This disables the drag-scroll behavior so clicks pass through normally to the Cards.
 
-- **Siempre visible**: Fila con icono, texto "Estado de Carrera", badge con la fase actual, y boton de toggle (ChevronDown/ChevronUp)
-- **Colapsable**: La barra de progreso (`Progress`) y las etiquetas de fases
-- **Estado inicial**: Colapsado (minimizado), mostrando solo "Estado de Carrera - Descubrimiento"
+### File changed
+`src/components/TemplateSelectionDialog.tsx` -- two one-line changes:
+- Line 336: `<ScrollArea className="h-[400px]">` becomes `<ScrollArea className="h-[400px]" enableDragScroll={false}>`
+- Line 356: same change for the user templates ScrollArea
 
-### Estructura resultante
-
-```text
-[Card]
-  [Collapsible]
-    [Trigger row]  Icono + "Estado de Carrera" + Badge("Descubrimiento") + chevron
-    [CollapsibleContent]
-      Progress bar
-      Phase labels
-```
-
-### Imports adicionales
-- `Collapsible, CollapsibleContent, CollapsibleTrigger` desde `@/components/ui/collapsible`
-- `ChevronDown` desde `lucide-react`
-- `useState` para controlar el estado abierto/cerrado
-
-| Archivo | Lineas afectadas |
-|---|---|
-| `src/pages/ArtistProfile.tsx` | ~399-421 (card de Estado de Carrera) |
