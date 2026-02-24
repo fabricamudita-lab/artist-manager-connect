@@ -171,7 +171,19 @@ export default function ProjectDetail() {
   };
 
   // Tasks state
-  const [tasks, setTasks] = useState([
+  const [tasks, setTasks] = useState<Array<{
+    id: string;
+    etapa: string;
+    nombre: string;
+    categoria: string;
+    responsables: string[];
+    prioridad: string;
+    estado: string;
+    comentarios: string;
+    is_urgent?: boolean;
+    fecha_vencimiento?: string;
+    [key: string]: any;
+  }>>([
     // Seed data for testing
     {
       id: "1",
@@ -181,7 +193,8 @@ export default function ProjectDetail() {
       responsables: ["María García"],
       prioridad: "Alta",
       estado: "completada",
-      comentarios: ""
+      comentarios: "",
+      fecha_vencimiento: "2026-03-15"
     },
     {
       id: "2", 
@@ -191,7 +204,9 @@ export default function ProjectDetail() {
       responsables: ["Juan López", "Ana Martín"],
       prioridad: "Media",
       estado: "en_progreso",
-      comentarios: ""
+      comentarios: "",
+      is_urgent: true,
+      fecha_vencimiento: "2026-02-28"
     },
     {
       id: "3",
@@ -211,7 +226,8 @@ export default function ProjectDetail() {
       responsables: ["Equipo Técnico"],
       prioridad: "Alta",
       estado: "pendiente",
-      comentarios: ""
+      comentarios: "",
+      fecha_vencimiento: "2026-04-10"
     },
     {
       id: "5",
@@ -300,16 +316,22 @@ export default function ProjectDetail() {
       'Financiero': [],
       'Prensa': [],
       'Legal': [],
+      'Fotos': [],
+      'Hojas de Ruta': [],
       'Otros': []
     };
 
     documents.forEach((doc) => {
-      const categoryMapping = {
+      const categoryMapping: Record<string, string> = {
         'contract': 'Contratos',
         'rider': 'Riders', 
         'financial': 'Financiero',
         'press': 'Prensa',
         'legal': 'Legal',
+        'photo': 'Fotos',
+        'photos': 'Fotos',
+        'roadmap': 'Hojas de Ruta',
+        'hoja_ruta': 'Hojas de Ruta',
         'other': 'Otros',
         'setlist': 'Otros'
       };
@@ -432,12 +454,33 @@ export default function ProjectDetail() {
               {getStatusIcon(task.estado)}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-sm flex-wrap">
+                {task.is_urgent && task.estado !== 'completada' && (
+                  <Badge variant="destructive" className="text-[10px] h-5 px-1.5 font-bold">URGENTE</Badge>
+                )}
                 <span className="font-medium">{task.nombre}</span>
                 <span className="text-muted-foreground">|</span>
                 <span className="text-muted-foreground">{task.categoria}</span>
-                <span className="text-muted-foreground">|</span>
-                <span className="text-muted-foreground">{task.responsables.join(", ")}</span>
+                {task.responsables?.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    {task.responsables.slice(0, 2).map((r: string, i: number) => (
+                      <span key={i} className="inline-flex items-center gap-1 bg-muted rounded-full px-2 py-0.5 text-xs text-muted-foreground">
+                        <span className="w-4 h-4 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                          {r.charAt(0).toUpperCase()}
+                        </span>
+                        <span className="truncate max-w-[80px]">{r}</span>
+                      </span>
+                    ))}
+                    {task.responsables.length > 2 && (
+                      <span className="text-xs text-muted-foreground">+{task.responsables.length - 2}</span>
+                    )}
+                  </div>
+                )}
+                {task.fecha_vencimiento && (
+                  <span className="inline-flex items-center bg-muted rounded-full px-2 py-0.5 text-[11px] text-muted-foreground">
+                    {new Date(task.fecha_vencimiento).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -1241,12 +1284,17 @@ export default function ProjectDetail() {
         <Tabs defaultValue="vista-general" className="w-full">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between w-full">
-              <TabsList className="grid grid-cols-9 flex-1">
+              <TabsList className="grid grid-cols-8 flex-1">
                 <TabsTrigger value="vista-general" className="text-xs sm:text-sm">
                   Vista General
                 </TabsTrigger>
                 <TabsTrigger value="proyectos" className="text-xs sm:text-sm">
                   Archivos
+                  {(documents.length > 0) && (
+                    <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">
+                      {documents.length}
+                    </Badge>
+                  )}
                 </TabsTrigger>
                 <TabsTrigger value="cronograma" className="text-xs sm:text-sm">
                   Cronograma
@@ -1256,14 +1304,6 @@ export default function ProjectDetail() {
                   {budgets.length > 0 && (
                     <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">
                       {budgets.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="documentos" className="text-xs sm:text-sm">
-                  Documentos
-                  {documents.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">
-                      {documents.length}
                     </Badge>
                   )}
                 </TabsTrigger>
@@ -1666,7 +1706,118 @@ export default function ProjectDetail() {
             </TabsContent>
 
             <TabsContent value="proyectos" className="mt-0">
-              <ProjectFilesManager projectId={id || ""} projectName={project.name} />
+              <div className="space-y-6">
+                <ProjectFilesManager projectId={id || ""} projectName={project.name} />
+                
+                <Separator />
+                
+                {/* Documents section (merged from Documentos tab) */}
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Documentos del proyecto</h3>
+                  <div className="flex items-center gap-2 mb-4 flex-wrap">
+                    <Button
+                      variant={currentDocumentFolder === null ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentDocumentFolder(null)}
+                      className="flex items-center gap-2"
+                    >
+                      <Home className="w-4 h-4" />
+                      Todos
+                    </Button>
+                    {['Contratos', 'Riders', 'Financiero', 'Prensa', 'Legal', 'Fotos', 'Hojas de Ruta', 'Otros'].map((folder) => (
+                      <Button
+                        key={folder}
+                        variant={currentDocumentFolder === folder ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentDocumentFolder(folder)}
+                        className="flex items-center gap-2"
+                      >
+                        <Folder className="w-4 h-4" />
+                        {folder}
+                        {documentFolders[folder]?.length > 0 && (
+                          <Badge variant="secondary" className="ml-1 h-5 text-xs">
+                            {documentFolders[folder].length}
+                          </Badge>
+                        )}
+                      </Button>
+                    ))}
+                  </div>
+
+                  {currentDocumentFolder && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                      <Home className="w-4 h-4" />
+                      <ChevronRight className="w-4 h-4" />
+                      <Folder className="w-4 h-4" />
+                      <span className="font-medium">{currentDocumentFolder}</span>
+                    </div>
+                  )}
+
+                  {(() => {
+                    const categoryMapping: Record<string, string[]> = {
+                      'Contratos': ['contract'],
+                      'Riders': ['rider'],
+                      'Financiero': ['financial'],
+                      'Prensa': ['press'],
+                      'Legal': ['legal'],
+                      'Fotos': ['photo', 'photos'],
+                      'Hojas de Ruta': ['roadmap', 'hoja_ruta'],
+                      'Otros': ['other', 'setlist']
+                    };
+                    const filteredDocs = currentDocumentFolder
+                      ? documents.filter(doc => categoryMapping[currentDocumentFolder]?.includes(doc.category) || false)
+                      : documents;
+
+                    if (filteredDocs.length === 0) {
+                      return (
+                        <div className="text-center py-8">
+                          <Paperclip className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
+                          <p className="text-sm text-muted-foreground mb-3">
+                            {currentDocumentFolder ? `No hay documentos en ${currentDocumentFolder}` : 'No hay documentos'}
+                          </p>
+                          <Button variant="outline" size="sm" onClick={() => setShowDocumentUpload(true)}>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Subir documento
+                          </Button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-3">
+                        {filteredDocs.map((doc) => (
+                          <Card key={doc.id} className="p-3 hover:shadow-md transition-shadow">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-muted rounded-md">
+                                  <Paperclip className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <h4 className="font-medium text-sm">{doc.title}</h4>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <Badge variant="outline" className="h-5 text-xs">{doc.category}</Badge>
+                                  </div>
+                                </div>
+                              </div>
+                              <Button variant="outline" size="sm" asChild>
+                                <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  Ver
+                                </a>
+                              </Button>
+                            </div>
+                          </Card>
+                        ))}
+                        <div className="flex justify-center pt-2">
+                          <Button variant="outline" size="sm" onClick={() => setShowDocumentUpload(true)}>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Subir documento
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
             </TabsContent>
 
             <TabsContent value="presupuestos" className="mt-0">
@@ -1712,141 +1863,6 @@ export default function ProjectDetail() {
               )}
             </TabsContent>
 
-            <TabsContent value="documentos" className="mt-0">
-              <div className="space-y-4">
-                {/* Folder Navigation */}
-                <div className="flex items-center gap-2 mb-4">
-                  <Button
-                    variant={currentDocumentFolder === null ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setCurrentDocumentFolder(null)}
-                    className="flex items-center gap-2"
-                  >
-                    <Home className="w-4 h-4" />
-                    Todos
-                  </Button>
-                  {['Contratos', 'Riders', 'Financiero', 'Prensa', 'Legal', 'Otros'].map((folder) => (
-                    <Button
-                      key={folder}
-                      variant={currentDocumentFolder === folder ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentDocumentFolder(folder)}
-                      className="flex items-center gap-2"
-                    >
-                      <Folder className="w-4 h-4" />
-                      {folder}
-                      {documentFolders[folder]?.length > 0 && (
-                        <Badge variant="secondary" className="ml-1 h-5 text-xs">
-                          {documentFolders[folder].length}
-                        </Badge>
-                      )}
-                    </Button>
-                  ))}
-                </div>
-
-                {/* Current folder breadcrumb */}
-                {currentDocumentFolder && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                    <Home className="w-4 h-4" />
-                    <ChevronRight className="w-4 h-4" />
-                    <Folder className="w-4 h-4" />
-                    <span className="font-medium">{currentDocumentFolder}</span>
-                  </div>
-                )}
-
-                {/* Documents List */}
-                {(() => {
-                  const filteredDocs = currentDocumentFolder 
-                    ? documents.filter(doc => {
-                        const categoryMapping = {
-                          'Contratos': ['contract'],
-                          'Riders': ['rider'],
-                          'Financiero': ['financial'],
-                          'Prensa': ['press'],
-                          'Legal': ['legal'],
-                          'Otros': ['other', 'setlist']
-                        };
-                        return categoryMapping[currentDocumentFolder]?.includes(doc.category) || false;
-                      })
-                    : documents;
-
-                  if (filteredDocs.length === 0) {
-                    return (
-                      <div className="text-center py-12">
-                        <Paperclip className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                        <h3 className="text-lg font-medium mb-2">
-                          {currentDocumentFolder ? `No hay documentos en ${currentDocumentFolder}` : 'No hay documentos'}
-                        </h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          {currentDocumentFolder 
-                            ? `Sube documentos a la carpeta ${currentDocumentFolder}` 
-                            : 'Sube documentos relacionados con este proyecto'
-                          }
-                        </p>
-                        <Button variant="outline" onClick={() => setShowDocumentUpload(true)}>
-                          <Upload className="w-4 h-4 mr-2" />
-                          Subir documento
-                        </Button>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="space-y-4">
-                      <div className="grid gap-4">
-                        {filteredDocs.map((doc) => (
-                          <Card key={doc.id} className="p-4 hover:shadow-md transition-shadow">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="p-2 bg-muted rounded-md">
-                                  <Paperclip className="w-4 h-4" />
-                                </div>
-                                <div>
-                                  <h4 className="font-medium">{doc.title}</h4>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <Badge variant="outline" className="h-5 text-xs">
-                                      {doc.category}
-                                    </Badge>
-                                    {!currentDocumentFolder && (
-                                      <Badge variant="secondary" className="h-5 text-xs">
-                                        {(() => {
-                                          const folderMapping = {
-                                            'contract': 'Contratos',
-                                            'rider': 'Riders',
-                                            'financial': 'Financiero',
-                                            'press': 'Prensa',
-                                            'legal': 'Legal',
-                                            'other': 'Otros',
-                                            'setlist': 'Otros'
-                                          };
-                                          return folderMapping[doc.category] || 'Otros';
-                                        })()}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                              <Button variant="outline" size="sm" asChild>
-                                <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-                                  <Eye className="w-4 h-4 mr-2" />
-                                  Ver
-                                </a>
-                              </Button>
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                      <div className="flex justify-center pt-4">
-                        <Button variant="outline" onClick={() => setShowDocumentUpload(true)}>
-                          <Upload className="w-4 h-4 mr-2" />
-                          Subir documento
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            </TabsContent>
 
             <TabsContent value="contratos" className="mt-0">
               {contracts.length === 0 ? (
