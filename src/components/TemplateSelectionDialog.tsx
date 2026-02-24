@@ -191,41 +191,23 @@ export function TemplateSelectionDialog({
       const userId = user.data.user?.id;
       if (!userId) throw new Error('User not authenticated');
 
-      let existingQuery = supabase
-        .from('project_checklist_items')
-        .select('id')
-        .eq('project_id', projectId);
-      
-      if (checklistId) {
-        existingQuery = existingQuery.eq('checklist_id', checklistId);
-      }
+      let targetChecklistId = checklistId;
 
-      const { data: existingItems, error: checkError } = await existingQuery;
+      // If no checklist exists yet, create one with the template name
+      if (!targetChecklistId) {
+        const { data: newChecklist, error: clError } = await supabase
+          .from('project_checklists')
+          .insert({
+            project_id: projectId,
+            name: selectedTemplate.name_es || selectedTemplate.name,
+            sort_order: 0,
+            created_by: userId,
+          })
+          .select()
+          .single();
 
-      if (checkError) throw checkError;
-
-      if (existingItems && existingItems.length > 0) {
-        const shouldReplace = confirm(
-          `Ya existen ${existingItems.length} elementos en este checklist. ¿Deseas reemplazarlos con la plantilla seleccionada?`
-        );
-        
-        if (!shouldReplace) {
-          setApplying(false);
-          return;
-        }
-
-        let deleteQuery = supabase
-          .from('project_checklist_items')
-          .delete()
-          .eq('project_id', projectId);
-        
-        if (checklistId) {
-          deleteQuery = deleteQuery.eq('checklist_id', checklistId);
-        }
-
-        const { error: deleteError } = await deleteQuery;
-
-        if (deleteError) throw deleteError;
+        if (clError) throw clError;
+        targetChecklistId = newChecklist.id;
       }
 
       const selectedTemplateItems = selectedTemplate.items.filter(item => selectedItems.has(item.id));
@@ -238,7 +220,7 @@ export function TemplateSelectionDialog({
         sort_order: index,
         created_by: userId,
         status: 'PENDING' as const,
-        checklist_id: checklistId || null,
+        checklist_id: targetChecklistId,
       }));
 
       const { error } = await supabase
