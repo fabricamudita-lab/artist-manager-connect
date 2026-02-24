@@ -333,7 +333,7 @@ export function TemplateSelectionDialog({
               </TabsList>
 
               <TabsContent value="system" className="mt-4">
-                <ScrollArea className="h-[400px]">
+                <ScrollArea className="h-[400px]" enableDragScroll={false}>
                   {loading ? (
                     <div className="text-center text-muted-foreground py-8">
                       Cargando plantillas...
@@ -353,7 +353,7 @@ export function TemplateSelectionDialog({
               </TabsContent>
 
               <TabsContent value="user" className="mt-4">
-                <ScrollArea className="h-[400px]">
+                <ScrollArea className="h-[400px]" enableDragScroll={false}>
                   {loading ? (
                     <div className="text-center text-muted-foreground py-8">
                       Cargando plantillas...
