@@ -1211,23 +1211,58 @@ export default function ProjectDetail() {
                     </TooltipProvider>
                   ))}
                 </div>
-                {team.length > 4 && (
+            {team.length > 4 && (
                   <span className="text-xs text-muted-foreground ml-1">+{team.length - 4} más</span>
                 )}
                 <span className="text-xs text-muted-foreground">· {team.length} miembro{team.length !== 1 ? 's' : ''} en el equipo</span>
               </div>
             )}
+
+            {/* Progress bar + alert badges */}
+            {tasks.length > 0 && (() => {
+              const completed = tasks.filter((t: any) => t.estado === 'completada').length;
+              const pct = Math.round((completed / tasks.length) * 100);
+              const urgent = tasks.filter((t: any) => t.is_urgent && t.estado !== 'completada').length;
+              const openInc = incidents.filter((i: any) => i.status === 'abierto' || i.status === 'en_progreso').length;
+              const openQ = questions.filter((q: any) => q.status === 'abierta' || q.status === 'en_discusion').length;
+              return (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-2 flex-1 min-w-[120px] max-w-[220px]">
+                    <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
+                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-xs font-medium text-muted-foreground">{pct}%</span>
+                  </div>
+                  {urgent > 0 && (
+                    <Badge variant="destructive" className="text-[10px] px-2 py-0.5 gap-1">
+                      🔥 {urgent} urgente{urgent !== 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                  {openInc > 0 && (
+                    <Badge variant="success" className="text-[10px] px-2 py-0.5 gap-1">
+                      ⚡ {openInc} imprevisto{openInc !== 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                  {openQ > 0 && (
+                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 gap-1">
+                      ❓ {openQ} duda{openQ !== 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           
           <div className="flex items-center gap-2 flex-shrink-0">
             {renderIf(permissions.canEdit, (
               <Button
                 variant="outline"
+                size="sm"
                 className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
                 onClick={() => setShowLinkEntityDialog(true)}
               >
-                <Link className="w-4 h-4 mr-2" />
-                Vincular entidad
+                <Link className="w-4 h-4 mr-1" />
+                Vincular
               </Button>
             ))}
 
@@ -1451,11 +1486,7 @@ export default function ProjectDetail() {
         </Card>
       </div>
 
-      {/* Checklist Section */}
-      <ProjectChecklistManager 
-        projectId={id || ""} 
-        canEdit={permissions.canEdit || profile?.active_role === 'management' || profile?.active_role === 'artist' || true}
-      />
+      {/* Checklist moved inside tabs */}
 
       {/* Content Tabs */}
       <Card>
@@ -1467,19 +1498,49 @@ export default function ProjectDetail() {
                   <TabsTrigger value="pulso" className="text-xs sm:text-sm gap-1">
                     💡 Pulso
                     {(() => {
-                      const alertCount = incidents.filter(i => i.status === 'abierto' && i.severity === 'critica').length
-                        + questions.filter(q => q.priority === 'urgente' && q.status !== 'resuelta').length
-                        + tasks.filter(t => t.is_urgent && t.estado !== 'completada').length;
+                      const alertCount = incidents.filter((i: any) => i.status === 'abierto' && i.severity === 'critica').length
+                        + questions.filter((q: any) => q.priority === 'urgente' && q.status !== 'resuelta').length
+                        + tasks.filter((t: any) => t.is_urgent && t.estado !== 'completada').length;
                       return alertCount > 0 ? (
                         <Badge variant="destructive" className="ml-0.5 h-4 min-w-[16px] px-1 text-[10px]">{alertCount}</Badge>
                       ) : null;
                     })()}
                   </TabsTrigger>
-                  <TabsTrigger value="vista-general" className="text-xs sm:text-sm">
-                    Vista General
-                  </TabsTrigger>
                   <TabsTrigger value="workflows" className="text-xs sm:text-sm">
-                    🔄 Workflows
+                    ⚡ Workflows
+                  </TabsTrigger>
+                  <TabsTrigger value="checklist" className="text-xs sm:text-sm gap-1">
+                    ✅ Checklist
+                    {(() => {
+                      const pending = tasks.filter((t: any) => t.estado !== 'completada').length;
+                      return pending > 0 ? (
+                        <Badge variant="secondary" className="ml-0.5 h-4 min-w-[16px] px-1 text-[10px]">{pending}</Badge>
+                      ) : null;
+                    })()}
+                  </TabsTrigger>
+                  <TabsTrigger value="imprevistos" className="text-xs sm:text-sm gap-1">
+                    ⚡ Imprevistos
+                    {(() => {
+                      const open = incidents.filter((i: any) => i.status === 'abierto' || i.status === 'en_progreso').length;
+                      return open > 0 ? (
+                        <Badge variant="warning" className="ml-0.5 h-4 min-w-[16px] px-1 text-[10px]">{open}</Badge>
+                      ) : null;
+                    })()}
+                  </TabsTrigger>
+                  <TabsTrigger value="dudas" className="text-xs sm:text-sm gap-1">
+                    ❓ Dudas
+                    {(() => {
+                      const open = questions.filter((q: any) => q.status === 'abierta' || q.status === 'en_discusion').length;
+                      return open > 0 ? (
+                        <Badge variant="secondary" className="ml-0.5 h-4 min-w-[16px] px-1 text-[10px]">{open}</Badge>
+                      ) : null;
+                    })()}
+                  </TabsTrigger>
+                  <TabsTrigger value="cronograma" className="text-xs sm:text-sm">
+                    Cronograma
+                  </TabsTrigger>
+                  <TabsTrigger value="finanzas" className="text-xs sm:text-sm">
+                    Finanzas
                   </TabsTrigger>
                   <TabsTrigger value="proyectos" className="text-xs sm:text-sm">
                     Archivos
@@ -1487,8 +1548,8 @@ export default function ProjectDetail() {
                       <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">{documents.length}</Badge>
                     )}
                   </TabsTrigger>
-                  <TabsTrigger value="cronograma" className="text-xs sm:text-sm">
-                    Cronograma
+                  <TabsTrigger value="vista-general" className="text-xs sm:text-sm">
+                    Vista General
                   </TabsTrigger>
                   <TabsTrigger value="presupuestos" className="text-xs sm:text-sm">
                     Presupuestos
@@ -1508,31 +1569,10 @@ export default function ProjectDetail() {
                       <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">{solicitudes.length}</Badge>
                     )}
                   </TabsTrigger>
-                  <TabsTrigger value="imprevistos" className="text-xs sm:text-sm gap-1">
-                    ⚡ Imprevistos
-                    {(() => {
-                      const open = incidents.filter(i => i.status === 'abierto' || i.status === 'en_progreso').length;
-                      return open > 0 ? (
-                        <Badge variant="warning" className="ml-0.5 h-4 min-w-[16px] px-1 text-[10px]">{open}</Badge>
-                      ) : null;
-                    })()}
-                  </TabsTrigger>
-                  <TabsTrigger value="dudas" className="text-xs sm:text-sm gap-1">
-                    ❓ Dudas
-                    {(() => {
-                      const open = questions.filter(q => q.status === 'abierta' || q.status === 'en_discusion').length;
-                      return open > 0 ? (
-                        <Badge variant="secondary" className="ml-0.5 h-4 min-w-[16px] px-1 text-[10px]">{open}</Badge>
-                      ) : null;
-                    })()}
-                  </TabsTrigger>
                   <TabsTrigger value="aprobaciones" className="text-xs sm:text-sm">
                     Aprobaciones
                   </TabsTrigger>
                   <TabsTrigger value="notas" className="text-xs sm:text-sm">Notas</TabsTrigger>
-                  <TabsTrigger value="finanzas" className="text-xs sm:text-sm">
-                    Finanzas
-                  </TabsTrigger>
                 </TabsList>
               </div>
               <Button variant="outline" size="sm" onClick={() => setShowShareDialog(true)} className="ml-4 flex-shrink-0">
@@ -2316,6 +2356,14 @@ export default function ProjectDetail() {
                 tasks={tasks}
                 budgets={budgets}
                 solicitudes={solicitudes}
+              />
+            </TabsContent>
+
+            {/* ── CHECKLIST ──────────────────────────────────────────── */}
+            <TabsContent value="checklist" className="mt-0">
+              <ProjectChecklistManager 
+                projectId={id || ""} 
+                canEdit={permissions.canEdit || profile?.active_role === 'management' || profile?.active_role === 'artist' || true}
               />
             </TabsContent>
 
