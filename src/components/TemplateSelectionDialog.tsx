@@ -39,6 +39,7 @@ interface Template {
   is_system_template: boolean;
   workspace_id: string | null;
   items?: TemplateItem[];
+  item_count?: number;
 }
 
 interface TemplateSelectionDialogProps {
@@ -46,6 +47,26 @@ interface TemplateSelectionDialogProps {
   onOpenChange: (open: boolean) => void;
   projectId: string;
   onTemplateApplied: () => void;
+}
+
+// Emoji mapping for template names
+const TEMPLATE_EMOJI: Record<string, string> = {
+  'Concierto': '🎶',
+  'Producción': '🎛️',
+  'Campaña': '📢',
+  'Tour': '🗓️',
+  'Gira Nacional': '🚌',
+  'Lanzamiento Álbum': '🎵',
+  'Producción Videoclip': '🎥',
+  'Campaña de Sync': '🎬',
+};
+
+function getTemplateEmoji(nameEs: string | null): string {
+  if (!nameEs) return '📋';
+  for (const [key, emoji] of Object.entries(TEMPLATE_EMOJI)) {
+    if (nameEs.includes(key)) return emoji;
+  }
+  return '📋';
 }
 
 export function TemplateSelectionDialog({ 
@@ -70,36 +91,45 @@ export function TemplateSelectionDialog({
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      console.log('Fetching templates...');
-      // Fetch system templates
+      // Fetch system templates with item counts
       const { data: systemData, error: systemError } = await supabase
         .from('checklist_templates')
         .select('id, name, name_es, description, description_es, is_system_template, workspace_id')
         .eq('is_system_template', true)
         .order('name_es');
 
-      if (systemError) {
-        console.error('System templates error:', systemError);
-        throw systemError;
-      }
+      if (systemError) throw systemError;
 
-      // Fetch user templates (personal + workspace)
+      // Fetch user templates
       const { data: userData, error: userError } = await supabase
         .from('checklist_templates')
         .select('id, name, name_es, description, description_es, is_system_template, workspace_id')
         .eq('is_system_template', false)
         .order('name_es');
 
-      if (userError) {
-        console.error('User templates error:', userError);
-        throw userError;
-      }
+      if (userError) throw userError;
 
-      console.log('System templates:', systemData);
-      console.log('User templates:', userData);
+      // Fetch item counts for all templates
+      const allTemplates = [...(systemData || []), ...(userData || [])];
+      const templateIds = allTemplates.map(t => t.id);
       
-      setSystemTemplates(systemData || []);
-      setUserTemplates(userData || []);
+      const { data: itemCounts, error: countError } = await supabase
+        .from('checklist_template_items')
+        .select('template_id')
+        .in('template_id', templateIds);
+
+      const countMap: Record<string, number> = {};
+      (itemCounts || []).forEach(item => {
+        countMap[item.template_id] = (countMap[item.template_id] || 0) + 1;
+      });
+
+      const enrichTemplate = (t: any): Template => ({
+        ...t,
+        item_count: countMap[t.id] || 0,
+      });
+
+      setSystemTemplates((systemData || []).map(enrichTemplate));
+      setUserTemplates((userData || []).map(enrichTemplate));
     } catch (error) {
       console.error('Error fetching templates:', error);
       toast({
@@ -127,7 +157,6 @@ export function TemplateSelectionDialog({
     try {
       const items = await fetchTemplateItems(template.id);
       setSelectedTemplate({ ...template, items });
-      // Select all items by default
       setSelectedItems(new Set(items.map(item => item.id)));
     } catch (error) {
       console.error('Error fetching template items:', error);
@@ -152,30 +181,21 @@ export function TemplateSelectionDialog({
   };
 
   const applyTemplate = async () => {
-    console.log('applyTemplate called', { selectedTemplate, selectedItems: Array.from(selectedItems) });
-    if (!selectedTemplate?.items) {
-      console.log('No selected template or items');
-      return;
-    }
+    if (!selectedTemplate?.items) return;
 
     setApplying(true);
     try {
       const user = await supabase.auth.getUser();
       const userId = user.data.user?.id;
-
-      console.log('User ID:', userId);
       if (!userId) throw new Error('User not authenticated');
 
-      // First, check if there are existing items
       const { data: existingItems, error: checkError } = await supabase
         .from('project_checklist_items')
         .select('id')
         .eq('project_id', projectId);
 
-      console.log('Existing items check:', { existingItems, checkError });
       if (checkError) throw checkError;
 
-      // If there are existing items, ask for confirmation to replace them
       if (existingItems && existingItems.length > 0) {
         const shouldReplace = confirm(
           `Ya existen ${existingItems.length} elementos en este checklist. ¿Deseas reemplazarlos con la plantilla seleccionada?`
@@ -186,19 +206,15 @@ export function TemplateSelectionDialog({
           return;
         }
 
-        // Delete existing items
         const { error: deleteError } = await supabase
           .from('project_checklist_items')
           .delete()
           .eq('project_id', projectId);
 
-        console.log('Delete result:', { deleteError });
         if (deleteError) throw deleteError;
       }
 
-      // Group items by section and create checklist items (only for selected items)
       const selectedTemplateItems = selectedTemplate.items.filter(item => selectedItems.has(item.id));
-      console.log('Selected template items:', selectedTemplateItems);
       
       const checklistItems = selectedTemplateItems.map((item, index) => ({
         project_id: projectId,
@@ -207,16 +223,13 @@ export function TemplateSelectionDialog({
         section: item.section_es,
         sort_order: index,
         created_by: userId,
-        status: 'PENDING' as const // Adding required status field
+        status: 'PENDING' as const,
       }));
 
-      console.log('Checklist items to insert:', checklistItems);
-
-      const { error, data } = await supabase
+      const { error } = await supabase
         .from('project_checklist_items')
         .insert(checklistItems);
 
-      console.log('Insert result:', { error, data });
       if (error) throw error;
 
       toast({
@@ -228,7 +241,7 @@ export function TemplateSelectionDialog({
       onOpenChange(false);
       setSelectedTemplate(null);
       setSelectedItems(new Set());
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error applying template:', error);
       toast({
         title: "Error",
@@ -251,38 +264,51 @@ export function TemplateSelectionDialog({
     return grouped;
   };
 
-  const TemplateCard = ({ template }: { template: Template }) => (
-    <Card 
-      className={`cursor-pointer transition-all hover:shadow-md ${
-        selectedTemplate?.id === template.id ? 'ring-2 ring-primary' : ''
-      }`}
-      onClick={() => handleTemplateSelect(template)}
-    >
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-medium">{template.name_es}</CardTitle>
-          {template.is_system_template ? (
-            <Badge variant="secondary" className="text-xs">
-              <Crown className="w-3 h-3 mr-1" />
-              Sistema
-            </Badge>
-          ) : template.workspace_id ? (
-            <Badge variant="outline" className="text-xs">
-              Workspace
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="text-xs">
-              <User className="w-3 h-3 mr-1" />
-              Personal
-            </Badge>
+  const TemplateCard = ({ template }: { template: Template }) => {
+    const emoji = getTemplateEmoji(template.name_es);
+    const isSelected = selectedTemplate?.id === template.id;
+    
+    return (
+      <Card 
+        className={`cursor-pointer transition-all hover:shadow-md ${
+          isSelected ? 'ring-2 ring-primary' : ''
+        }`}
+        onClick={() => handleTemplateSelect(template)}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">{emoji}</span>
+              <CardTitle className="text-base font-medium">{template.name_es}</CardTitle>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs font-normal">
+                {template.item_count || 0} tareas
+              </Badge>
+              {template.is_system_template ? (
+                <Badge variant="secondary" className="text-xs">
+                  <Crown className="w-3 h-3 mr-1" />
+                  Sistema
+                </Badge>
+              ) : template.workspace_id ? (
+                <Badge variant="outline" className="text-xs">
+                  Workspace
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs">
+                  <User className="w-3 h-3 mr-1" />
+                  Personal
+                </Badge>
+              )}
+            </div>
+          </div>
+          {template.description_es && (
+            <p className="text-sm text-muted-foreground mt-1">{template.description_es}</p>
           )}
-        </div>
-        {template.description_es && (
-          <p className="text-sm text-muted-foreground">{template.description_es}</p>
-        )}
-      </CardHeader>
-    </Card>
-  );
+        </CardHeader>
+      </Card>
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -358,7 +384,10 @@ export function TemplateSelectionDialog({
                 {selectedTemplate ? (
                   <div className="space-y-4">
                     <div>
-                      <h4 className="font-medium text-lg">{selectedTemplate.name_es}</h4>
+                      <h4 className="font-medium text-lg flex items-center gap-2">
+                        <span>{getTemplateEmoji(selectedTemplate.name_es)}</span>
+                        {selectedTemplate.name_es}
+                      </h4>
                       {selectedTemplate.description_es && (
                         <p className="text-sm text-muted-foreground mt-1">
                           {selectedTemplate.description_es}
@@ -384,7 +413,7 @@ export function TemplateSelectionDialog({
                                 >
                                   <Checkbox 
                                     checked={selectedItems.has(item.id)}
-                                    onChange={() => {}} // Controlled by the parent click
+                                    onChange={() => {}}
                                     className="mt-1"
                                   />
                                   <div className="flex-1">
@@ -400,7 +429,7 @@ export function TemplateSelectionDialog({
                                   {item.due_anchor && (
                                     <span className={`text-xs text-muted-foreground ml-auto ${selectedItems.has(item.id) ? '' : 'opacity-50'}`}>
                                       {item.due_days_offset !== 0 ? 
-                                        `${item.due_days_offset > 0 ? '+' : ''}${item.due_days_offset}d` : 
+                                        `${item.due_days_offset! > 0 ? '+' : ''}${item.due_days_offset}d` : 
                                         'Día clave'
                                       }
                                     </span>

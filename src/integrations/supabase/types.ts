@@ -4402,6 +4402,7 @@ export type Database = {
           project_type: Database["public"]["Enums"]["project_type"] | null
           public_share_enabled: boolean | null
           public_share_expires_at: string | null
+          public_share_sections: Json | null
           public_share_token: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"]
@@ -4425,6 +4426,7 @@ export type Database = {
           project_type?: Database["public"]["Enums"]["project_type"] | null
           public_share_enabled?: boolean | null
           public_share_expires_at?: string | null
+          public_share_sections?: Json | null
           public_share_token?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
@@ -4448,6 +4450,7 @@ export type Database = {
           project_type?: Database["public"]["Enums"]["project_type"] | null
           public_share_enabled?: boolean | null
           public_share_expires_at?: string | null
+          public_share_sections?: Json | null
           public_share_token?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
