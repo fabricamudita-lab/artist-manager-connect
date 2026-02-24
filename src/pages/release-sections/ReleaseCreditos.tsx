@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,6 +54,8 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import { LinkCreditContactDialog } from '@/components/credits/LinkCreditContactDialog';
 import { AddCreditWithProfileForm } from '@/components/credits/AddCreditWithProfileForm';
+import { useAlertHighlight } from '@/hooks/useAlertHighlight';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const sortCreditsBySortOrder = (credits: TrackCredit[]) => {
   return [...credits].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
@@ -65,11 +67,32 @@ export default function ReleaseCreditos() {
   const queryClient = useQueryClient();
   const { data: release, isLoading: loadingRelease } = useRelease(id);
   const { data: tracks, isLoading: loadingTracks } = useTracks(id);
+  const { alertId } = useAlertHighlight();
 
   const [isCreateTrackOpen, setIsCreateTrackOpen] = useState(false);
   const [isEditTrackOpen, setIsEditTrackOpen] = useState(false);
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [deleteTrackId, setDeleteTrackId] = useState<string | null>(null);
+  const [showCreditsBanner, setShowCreditsBanner] = useState(false);
+
+  useEffect(() => {
+    if (alertId === 'credits-missing' && !loadingTracks) {
+      setShowCreditsBanner(true);
+      // Highlight tracks without credits after render
+      setTimeout(() => {
+        const items = document.querySelectorAll<HTMLElement>('[data-no-credits="true"]');
+        if (items.length > 0) {
+          items[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+          items.forEach((el) => {
+            el.classList.add('ring-2', 'ring-amber-500', 'ring-offset-2', 'transition-all', 'duration-300');
+            setTimeout(() => {
+              el.classList.remove('ring-2', 'ring-amber-500', 'ring-offset-2', 'transition-all', 'duration-300');
+            }, 3000);
+          });
+        }
+      }, 600);
+    }
+  }, [alertId, loadingTracks]);
 
   // Create track mutation
   const createTrack = useMutation({
@@ -166,6 +189,16 @@ export default function ReleaseCreditos() {
         <CardHeader>
           <CardTitle>Canciones y Autoría</CardTitle>
         </CardHeader>
+        {showCreditsBanner && (
+          <div className="mx-4 mb-2">
+            <Alert className="border-amber-500/30 bg-amber-500/10">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertDescription className="text-sm">
+                Hay canciones pendientes de inscribir créditos. Las canciones sin créditos están resaltadas abajo.
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
         <CardContent>
           {loadingTracks ? (
             <Skeleton className="h-32 w-full" />
@@ -302,7 +335,7 @@ function TrackCreditsItem({
   });
 
   return (
-    <AccordionItem value={track.id}>
+    <AccordionItem value={track.id} data-no-credits={credits.length === 0 ? 'true' : undefined}>
       <AccordionTrigger className="hover:no-underline">
         <div className="flex items-center gap-3 flex-1">
           <span className="text-muted-foreground w-6">{track.track_number}.</span>

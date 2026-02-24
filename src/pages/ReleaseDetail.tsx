@@ -115,8 +115,9 @@ export default function ReleaseDetail() {
     navigate('/releases');
   };
 
-  const handleSectionClick = (sectionId: string) => {
-    navigate(`/releases/${id}/${sectionId}`);
+  const handleSectionClick = (sectionId: string, alertId?: string) => {
+    const url = `/releases/${id}/${sectionId}${alertId ? `?alert=${alertId}` : ''}`;
+    navigate(url);
   };
 
   if (isLoading) {

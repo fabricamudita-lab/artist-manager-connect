@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRelease, useReleaseAssets } from '@/hooks/useReleases';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useAlertHighlight } from '@/hooks/useAlertHighlight';
 
 export default function ReleaseImagenVideo() {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +14,18 @@ export default function ReleaseImagenVideo() {
   const { data: release, isLoading: loadingRelease } = useRelease(id);
   const { data: assets, isLoading: loadingAssets } = useReleaseAssets(id);
   const [filter, setFilter] = useState<'all' | 'image' | 'video'>('all');
+  const { alertId, highlightElement } = useAlertHighlight();
+  const uploadBtnRef = useRef<HTMLButtonElement>(null);
+  const uploadBtnEmptyRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (alertId === 'media-empty') {
+      setTimeout(() => {
+        if (uploadBtnRef.current) highlightElement(uploadBtnRef.current);
+        if (uploadBtnEmptyRef.current) highlightElement(uploadBtnEmptyRef.current);
+      }, 400);
+    }
+  }, [alertId, highlightElement]);
 
   const filteredAssets = assets?.filter((a) => filter === 'all' || a.type === filter) || [];
 
@@ -46,7 +59,7 @@ export default function ReleaseImagenVideo() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <Button size="sm">
+        <Button size="sm" ref={uploadBtnRef}>
           <Plus className="mr-2 h-4 w-4" />
           Subir
         </Button>
@@ -88,7 +101,7 @@ export default function ReleaseImagenVideo() {
           <p className="text-muted-foreground mb-4">
             Sube fotos de sesiones y videoclips
           </p>
-          <Button>
+          <Button ref={uploadBtnEmptyRef}>
             <Plus className="mr-2 h-4 w-4" />
             Subir Archivos
           </Button>

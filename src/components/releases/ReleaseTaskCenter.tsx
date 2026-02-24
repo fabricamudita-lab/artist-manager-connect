@@ -34,7 +34,7 @@ const SEVERITY_STYLES: Record<string, { bg: string; border: string; icon: string
 
 interface Props {
   releaseId: string;
-  onNavigate: (sectionId: string) => void;
+  onNavigate: (sectionId: string, alertId?: string) => void;
 }
 
 export default function ReleaseTaskCenter({ releaseId, onNavigate }: Props) {
@@ -94,7 +94,7 @@ export default function ReleaseTaskCenter({ releaseId, onNavigate }: Props) {
                   variant="ghost"
                   size="sm"
                   className="h-7 text-xs shrink-0"
-                  onClick={() => onNavigate(alert.section)}
+                  onClick={() => onNavigate(alert.section, alert.id)}
                 >
                   Ir a {SECTION_LABELS[alert.section] || alert.section}
                   <ArrowRight className="ml-1 h-3 w-3" />

@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAlertHighlight } from '@/hooks/useAlertHighlight';
 import { supabase } from '@/integrations/supabase/client';
 import {
   ArrowLeft, Plus, DollarSign, Eye, Trash2, Receipt, FileText, Music,
@@ -228,9 +229,25 @@ export default function ReleasePresupuestos() {
   const [selectedBudget, setSelectedBudget] = useState<LinkedBudget | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [deleteBudgetId, setDeleteBudgetId] = useState<string | null>(null);
+  const { alertId, highlightElement } = useAlertHighlight();
+  const totalsRowRef = useRef<HTMLTableRowElement>(null);
 
   // Budget items totals
-  const [budgetTotals, setBudgetTotals] = useState<Record<string, { estimated: number; actual: number }>>({});
+  const [budgetTotals, setBudgetTotals] = useState<Record<string, { estimated: number; actual: number }>>({}); 
+
+  // Handle alert-based actions
+  useEffect(() => {
+    if (alertId === 'budget-empty' && !loadingBudgets) {
+      setTimeout(() => setShowCreateDialog(true), 400);
+    }
+    if (alertId === 'budget-over' && !loadingBudgets) {
+      setTimeout(() => {
+        if (totalsRowRef.current) {
+          highlightElement(totalsRowRef.current, 'ring-2 ring-destructive ring-offset-2');
+        }
+      }, 400);
+    }
+  }, [alertId, loadingBudgets, highlightElement]);
 
   const fetchLinkedBudgets = async () => {
     if (!id) return;

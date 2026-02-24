@@ -358,7 +358,14 @@ function SortableWorkflowCard({
 
                     return (
                       <Fragment key={task.id}>
-                        <TableRow>
+                        <TableRow 
+                          data-task-status={task.status}
+                          data-task-upcoming={
+                            dueDate && task.status !== 'completado' && 
+                            differenceInDays(dueDate, new Date()) <= 7 && differenceInDays(dueDate, new Date()) >= 0
+                              ? 'true' : undefined
+                          }
+                        >
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Button
@@ -1038,6 +1045,58 @@ export default function ReleaseCronograma() {
   }, [id]);
   const [showWizard, setShowWizard] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Alert-based navigation from Task Center
+  useEffect(() => {
+    const alertParam = searchParams.get('alert');
+    if (!alertParam || loadingMilestones) return;
+
+    if (alertParam === 'cronograma-empty') {
+      setTimeout(() => setShowWizard(true), 400);
+    }
+
+    if (alertParam === 'cronograma-delayed' || alertParam === 'cronograma-upcoming') {
+      // Open all sections
+      setOpenSections(Object.fromEntries(Object.keys(WORKFLOW_METADATA).map(id => [id, true])));
+      
+      setTimeout(() => {
+        const statusToFind = alertParam === 'cronograma-delayed' ? 'retrasado' : null;
+        const ringColor = alertParam === 'cronograma-delayed' 
+          ? ['ring-2', 'ring-destructive', 'ring-offset-2']
+          : ['ring-2', 'ring-amber-500', 'ring-offset-2'];
+        
+        // Find matching task rows
+        const allRows = document.querySelectorAll<HTMLElement>('tr[data-task-status]');
+        const matchingRows: HTMLElement[] = [];
+        
+        allRows.forEach(row => {
+          const status = row.getAttribute('data-task-status');
+          if (alertParam === 'cronograma-delayed' && status === 'retrasado') {
+            matchingRows.push(row);
+          } else if (alertParam === 'cronograma-upcoming' && row.hasAttribute('data-task-upcoming')) {
+            matchingRows.push(row);
+          }
+        });
+
+        if (matchingRows.length > 0) {
+          matchingRows[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+          matchingRows.forEach(el => {
+            el.classList.add(...ringColor, 'transition-all', 'duration-300');
+            setTimeout(() => {
+              el.classList.remove(...ringColor, 'transition-all', 'duration-300');
+            }, 3000);
+          });
+        }
+      }, 800);
+    }
+
+    // Clean alert param
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete('alert');
+      return next;
+    }, { replace: true });
+  }, [loadingMilestones]);
   
   // Regenerate confirmation state
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);

@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
 import { ArrowLeft, Plus, FileText, Download, Eye, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,12 +8,29 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useAlertHighlight } from '@/hooks/useAlertHighlight';
 
 export default function ReleaseEPF() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: release, isLoading: loadingRelease } = useRelease(id);
   const { data: assets, isLoading: loadingAssets } = useReleaseAssets(id);
+  const { alertId, highlightElement } = useAlertHighlight();
+  const uploadBtnRef = useRef<HTMLButtonElement>(null);
+  const uploadBtnEmptyRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (alertId === 'epf-empty') {
+      setTimeout(() => {
+        if (uploadBtnRef.current) {
+          highlightElement(uploadBtnRef.current);
+        }
+        if (uploadBtnEmptyRef.current) {
+          highlightElement(uploadBtnEmptyRef.current);
+        }
+      }, 400);
+    }
+  }, [alertId, highlightElement]);
 
   const documents = assets?.filter((a) => a.type === 'document') || [];
 
@@ -35,7 +53,7 @@ export default function ReleaseEPF() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Documentos de Prensa</CardTitle>
-          <Button size="sm">
+          <Button size="sm" ref={uploadBtnRef}>
             <Plus className="mr-2 h-4 w-4" />
             Subir Documento
           </Button>
@@ -85,7 +103,7 @@ export default function ReleaseEPF() {
               <p className="text-muted-foreground mb-4">
                 Sube notas de prensa, bios y otros documentos
               </p>
-              <Button>
+              <Button ref={uploadBtnEmptyRef}>
                 <Plus className="mr-2 h-4 w-4" />
                 Subir Documento
               </Button>
