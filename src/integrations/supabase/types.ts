@@ -4211,6 +4211,50 @@ export type Database = {
           },
         ]
       }
+      project_linked_entities: {
+        Row: {
+          created_at: string
+          entity_date: string | null
+          entity_id: string | null
+          entity_name: string
+          entity_status: string | null
+          entity_type: string
+          id: string
+          linked_by: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          entity_date?: string | null
+          entity_id?: string | null
+          entity_name: string
+          entity_status?: string | null
+          entity_type: string
+          id?: string
+          linked_by: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          entity_date?: string | null
+          entity_id?: string | null
+          entity_name?: string
+          entity_status?: string | null
+          entity_type?: string
+          id?: string
+          linked_by?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_linked_entities_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_resources: {
         Row: {
           display_order: number | null
