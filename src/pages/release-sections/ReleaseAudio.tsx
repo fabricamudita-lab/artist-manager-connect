@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,12 +22,36 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { useAlertHighlight } from '@/hooks/useAlertHighlight';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertTriangle as AlertTriangleIcon } from 'lucide-react';
 
 export default function ReleaseAudio() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: release, isLoading: loadingRelease } = useRelease(id);
   const { data: tracks, isLoading: loadingTracks } = useTracks(id);
+  const { alertId, highlightElement } = useAlertHighlight();
+  const [showAudioBanner, setShowAudioBanner] = useState(false);
+
+  useEffect(() => {
+    if (alertId === 'audio-missing' && !loadingTracks) {
+      setShowAudioBanner(true);
+      // Highlight tracks without audio after render
+      setTimeout(() => {
+        const cards = document.querySelectorAll<HTMLElement>('[data-no-audio="true"]');
+        if (cards.length > 0) {
+          cards[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+          cards.forEach((el) => {
+            el.classList.add('ring-2', 'ring-amber-500', 'ring-offset-2', 'transition-all', 'duration-300');
+            setTimeout(() => {
+              el.classList.remove('ring-2', 'ring-amber-500', 'ring-offset-2', 'transition-all', 'duration-300');
+            }, 3000);
+          });
+        }
+      }, 600);
+    }
+  }, [alertId, loadingTracks, highlightElement]);
 
   if (loadingRelease) {
     return <Skeleton className="h-64 w-full" />;
@@ -46,6 +70,16 @@ export default function ReleaseAudio() {
       </div>
 
       <Card>
+        {showAudioBanner && (
+          <div className="mx-4 mt-4">
+            <Alert className="border-amber-500/30 bg-amber-500/10">
+              <AlertTriangleIcon className="h-4 w-4 text-amber-500" />
+              <AlertDescription className="text-sm">
+                Hay canciones sin archivo de audio. Las canciones pendientes están resaltadas abajo.
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Tracklist</CardTitle>
         </CardHeader>
@@ -275,7 +309,7 @@ function TrackAudioCard({ track }: { track: Track }) {
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div className="border rounded-lg">
+      <div className="border rounded-lg" data-no-audio={versions.length === 0 ? 'true' : undefined}>
         <CollapsibleTrigger asChild>
           <div className="flex items-center gap-4 p-3 cursor-pointer hover:bg-muted/50 transition-colors">
             <span className="text-muted-foreground w-6 text-right">
