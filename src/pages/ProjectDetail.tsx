@@ -77,6 +77,10 @@ import { ProjectShareDialog } from "@/components/ProjectShareDialog";
 import { LinkEntityToProjectDialog } from "@/components/LinkEntityToProjectDialog";
 import { Progress } from "@/components/ui/progress";
 import { DollarSign, Wallet, BarChart3 } from "lucide-react";
+import { ProjectPulseTab } from "@/components/project-detail/ProjectPulseTab";
+import { ProjectWorkflowsTab } from "@/components/project-detail/ProjectWorkflowsTab";
+import { ProjectIncidentsTab } from "@/components/project-detail/ProjectIncidentsTab";
+import { ProjectQuestionsTab } from "@/components/project-detail/ProjectQuestionsTab";
 
 interface Project {
   id: string;
@@ -146,6 +150,8 @@ export default function ProjectDetail() {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showLinkEntityDialog, setShowLinkEntityDialog] = useState(false);
   const [linkedEntities, setLinkedEntities] = useState<any[]>([]);
+  const [incidents, setIncidents] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<any[]>([]);
   
   // Document upload state
   const [showDocumentUpload, setShowDocumentUpload] = useState(false);
@@ -907,9 +913,33 @@ export default function ProjectDetail() {
       } catch (e) { console.error('Error loading linked entities', e); }
     };
 
+    const loadIncidents = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('project_incidents' as any)
+          .select('*')
+          .eq('project_id', id)
+          .order('created_at', { ascending: false });
+        if (!error) setIncidents(data || []);
+      } catch (e) { console.error('Error loading incidents', e); }
+    };
+
+    const loadQuestions = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('project_questions' as any)
+          .select('*')
+          .eq('project_id', id)
+          .order('created_at', { ascending: false });
+        if (!error) setQuestions(data || []);
+      } catch (e) { console.error('Error loading questions', e); }
+    };
+
     load();
     loadLinked();
     loadLinkedEntities();
+    loadIncidents();
+    loadQuestions();
   }, [id]);
 
   // Team member management functions
@@ -1086,6 +1116,28 @@ export default function ProjectDetail() {
     } catch (e) {
       console.error('Error refreshing budgets', e);
     }
+  };
+
+  const refreshIncidents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('project_incidents' as any)
+        .select('*')
+        .eq('project_id', id)
+        .order('created_at', { ascending: false });
+      if (!error) setIncidents(data || []);
+    } catch (e) { console.error('Error refreshing incidents', e); }
+  };
+
+  const refreshQuestions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('project_questions' as any)
+        .select('*')
+        .eq('project_id', id)
+        .order('created_at', { ascending: false });
+      if (!error) setQuestions(data || []);
+    } catch (e) { console.error('Error refreshing questions', e); }
   };
 
   if (!project) {
@@ -1407,58 +1459,83 @@ export default function ProjectDetail() {
 
       {/* Content Tabs */}
       <Card>
-        <Tabs defaultValue="vista-general" className="w-full">
+        <Tabs defaultValue="pulso" className="w-full">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between w-full">
-              <TabsList className="grid grid-cols-9 flex-1">
-                <TabsTrigger value="vista-general" className="text-xs sm:text-sm">
-                  Vista General
-                </TabsTrigger>
-                <TabsTrigger value="proyectos" className="text-xs sm:text-sm">
-                  Archivos
-                  {(documents.length > 0) && (
-                    <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">
-                      {documents.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="cronograma" className="text-xs sm:text-sm">
-                  Cronograma
-                </TabsTrigger>
-                <TabsTrigger value="presupuestos" className="text-xs sm:text-sm">
-                  Presupuestos
-                  {budgets.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">
-                      {budgets.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="contratos" className="text-xs sm:text-sm">
-                  Contratos
-                  {contracts.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">
-                      {contracts.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="solicitudes" className="text-xs sm:text-sm">
-                  Solicitudes
-                  {solicitudes.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">
-                      {solicitudes.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="aprobaciones" className="text-xs sm:text-sm">
-                  Aprobaciones
-                </TabsTrigger>
-                <TabsTrigger value="notas" className="text-xs sm:text-sm">Notas</TabsTrigger>
-                <TabsTrigger value="finanzas" className="text-xs sm:text-sm">
-                  Finanzas
-                  <Badge className="ml-1 h-4 px-1.5 text-[10px] bg-green-500 text-white border-0">NUEVO</Badge>
-                </TabsTrigger>
-              </TabsList>
-              <Button variant="outline" size="sm" onClick={() => setShowShareDialog(true)} className="ml-4">
+              <div className="flex-1 overflow-x-auto">
+                <TabsList className="inline-flex h-10 w-auto">
+                  <TabsTrigger value="pulso" className="text-xs sm:text-sm gap-1">
+                    💡 Pulso
+                    {(() => {
+                      const alertCount = incidents.filter(i => i.status === 'abierto' && i.severity === 'critica').length
+                        + questions.filter(q => q.priority === 'urgente' && q.status !== 'resuelta').length
+                        + tasks.filter(t => t.is_urgent && t.estado !== 'completada').length;
+                      return alertCount > 0 ? (
+                        <Badge variant="destructive" className="ml-0.5 h-4 min-w-[16px] px-1 text-[10px]">{alertCount}</Badge>
+                      ) : null;
+                    })()}
+                  </TabsTrigger>
+                  <TabsTrigger value="vista-general" className="text-xs sm:text-sm">
+                    Vista General
+                  </TabsTrigger>
+                  <TabsTrigger value="workflows" className="text-xs sm:text-sm">
+                    🔄 Workflows
+                  </TabsTrigger>
+                  <TabsTrigger value="proyectos" className="text-xs sm:text-sm">
+                    Archivos
+                    {documents.length > 0 && (
+                      <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">{documents.length}</Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="cronograma" className="text-xs sm:text-sm">
+                    Cronograma
+                  </TabsTrigger>
+                  <TabsTrigger value="presupuestos" className="text-xs sm:text-sm">
+                    Presupuestos
+                    {budgets.length > 0 && (
+                      <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">{budgets.length}</Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="contratos" className="text-xs sm:text-sm">
+                    Contratos
+                    {contracts.length > 0 && (
+                      <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">{contracts.length}</Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="solicitudes" className="text-xs sm:text-sm">
+                    Solicitudes
+                    {solicitudes.length > 0 && (
+                      <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] text-xs">{solicitudes.length}</Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="imprevistos" className="text-xs sm:text-sm gap-1">
+                    ⚡ Imprevistos
+                    {(() => {
+                      const open = incidents.filter(i => i.status === 'abierto' || i.status === 'en_progreso').length;
+                      return open > 0 ? (
+                        <Badge variant="warning" className="ml-0.5 h-4 min-w-[16px] px-1 text-[10px]">{open}</Badge>
+                      ) : null;
+                    })()}
+                  </TabsTrigger>
+                  <TabsTrigger value="dudas" className="text-xs sm:text-sm gap-1">
+                    ❓ Dudas
+                    {(() => {
+                      const open = questions.filter(q => q.status === 'abierta' || q.status === 'en_discusion').length;
+                      return open > 0 ? (
+                        <Badge variant="secondary" className="ml-0.5 h-4 min-w-[16px] px-1 text-[10px]">{open}</Badge>
+                      ) : null;
+                    })()}
+                  </TabsTrigger>
+                  <TabsTrigger value="aprobaciones" className="text-xs sm:text-sm">
+                    Aprobaciones
+                  </TabsTrigger>
+                  <TabsTrigger value="notas" className="text-xs sm:text-sm">Notas</TabsTrigger>
+                  <TabsTrigger value="finanzas" className="text-xs sm:text-sm">
+                    Finanzas
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setShowShareDialog(true)} className="ml-4 flex-shrink-0">
                 <Share2 className="w-4 h-4 mr-2" />
                 Compartir
               </Button>
@@ -2218,6 +2295,46 @@ export default function ProjectDetail() {
                   </>
                 );
               })()}
+            </TabsContent>
+
+            {/* ── PULSO (Dashboard) ──────────────────────────────────── */}
+            <TabsContent value="pulso" className="mt-0">
+              <ProjectPulseTab
+                tasks={tasks}
+                budgets={budgets}
+                solicitudes={solicitudes}
+                incidents={incidents}
+                questions={questions}
+                linkedEntities={linkedEntities}
+                project={project}
+              />
+            </TabsContent>
+
+            {/* ── WORKFLOWS ──────────────────────────────────────────── */}
+            <TabsContent value="workflows" className="mt-0">
+              <ProjectWorkflowsTab
+                tasks={tasks}
+                budgets={budgets}
+                solicitudes={solicitudes}
+              />
+            </TabsContent>
+
+            {/* ── IMPREVISTOS ────────────────────────────────────────── */}
+            <TabsContent value="imprevistos" className="mt-0">
+              <ProjectIncidentsTab
+                projectId={id!}
+                incidents={incidents}
+                onRefresh={refreshIncidents}
+              />
+            </TabsContent>
+
+            {/* ── DUDAS ──────────────────────────────────────────────── */}
+            <TabsContent value="dudas" className="mt-0">
+              <ProjectQuestionsTab
+                projectId={id!}
+                questions={questions}
+                onRefresh={refreshQuestions}
+              />
             </TabsContent>
           </CardContent>
         </Tabs>
