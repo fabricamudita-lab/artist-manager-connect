@@ -61,8 +61,12 @@ import {
   Home,
   Folder,
 } from "lucide-react";
-import { MessageSquare, Activity, Send, Share2, BarChart2, TrendingUp } from "lucide-react";
+import { MessageSquare, Activity, Send, Share2, BarChart2, TrendingUp, StickyNote, MessageCircle, Circle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
+import { ResponsibleSelector } from "@/components/releases/ResponsibleSelector";
+import type { ResponsibleRef } from "@/components/releases/ResponsibleSelector";
+import { ProjectTaskSubtasks } from "@/components/project-detail/ProjectTaskSubtasks";
+import type { ProjectSubtask } from "@/components/project-detail/ProjectTaskTypes";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -184,6 +188,9 @@ export default function ProjectDetail() {
     comentarios: string;
     is_urgent?: boolean;
     fecha_vencimiento?: string;
+    responsible_ref?: ResponsibleRef | null;
+    subtasks?: ProjectSubtask[];
+    expanded?: boolean;
     [key: string]: any;
   }>>([
     // Seed data for testing
@@ -438,55 +445,133 @@ export default function ProjectDetail() {
     }
 
     return (
-      <div className="space-y-3">
-        {stageTasks.map(task => (
-          <div 
-            key={task.id} 
-            className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors"
-            onClick={() => {
-              setSelectedTask(task);
-              setTaskPanelOpen(true);
-            }}
-          >
-            <div 
-              className="text-sm leading-none flex-shrink-0"
-              title={getStatusLabel(task.estado)}
-              style={{ fontSize: '14px' }}
-            >
-              {getStatusIcon(task.estado)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 text-sm flex-wrap">
-                {task.is_urgent && task.estado !== 'completada' && (
-                  <Badge variant="destructive" className="text-[10px] h-5 px-1.5 font-bold">URGENTE</Badge>
-                )}
-                <span className="font-medium">{task.nombre}</span>
-                <span className="text-muted-foreground">|</span>
-                <span className="text-muted-foreground">{task.categoria}</span>
-                {task.responsables?.length > 0 && (
-                  <div className="flex items-center gap-1">
-                    {task.responsables.slice(0, 2).map((r: string, i: number) => (
-                      <span key={i} className="inline-flex items-center gap-1 bg-muted rounded-full px-2 py-0.5 text-xs text-muted-foreground">
-                        <span className="w-4 h-4 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-                          {r.charAt(0).toUpperCase()}
-                        </span>
-                        <span className="truncate max-w-[80px]">{r}</span>
+      <div className="space-y-1">
+        {stageTasks.map(task => {
+          const hasSubtasks = (task.subtasks?.length || 0) > 0;
+          return (
+            <div key={task.id}>
+              <div 
+                className="flex items-center gap-2 p-2.5 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors"
+                onClick={() => {
+                  setSelectedTask(task);
+                  setTaskPanelOpen(true);
+                }}
+              >
+                {/* Expand/collapse button */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-6 w-6 shrink-0", !hasSubtasks && "invisible")}
+                  onClick={(e) => { e.stopPropagation(); handleToggleTaskExpand(task.id); }}
+                >
+                  {task.expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                </Button>
+
+                {/* Status icon */}
+                <div 
+                  className="text-sm leading-none flex-shrink-0"
+                  title={getStatusLabel(task.estado)}
+                  style={{ fontSize: '14px' }}
+                >
+                  {getStatusIcon(task.estado)}
+                </div>
+
+                {/* Task info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 text-sm flex-wrap">
+                    {task.is_urgent && task.estado !== 'completada' && (
+                      <Badge variant="destructive" className="text-[10px] h-5 px-1.5 font-bold">URGENTE</Badge>
+                    )}
+                    <span className="font-medium">{task.nombre}</span>
+                    <span className="text-muted-foreground">|</span>
+                    <span className="text-muted-foreground">{task.categoria}</span>
+                    {task.responsables?.length > 0 && (
+                      <div className="flex items-center gap-1">
+                        {task.responsables.slice(0, 2).map((r: string, i: number) => (
+                          <span key={i} className="inline-flex items-center gap-1 bg-muted rounded-full px-2 py-0.5 text-xs text-muted-foreground">
+                            <span className="w-4 h-4 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                              {r.charAt(0).toUpperCase()}
+                            </span>
+                            <span className="truncate max-w-[80px]">{r}</span>
+                          </span>
+                        ))}
+                        {task.responsables.length > 2 && (
+                          <span className="text-xs text-muted-foreground">+{task.responsables.length - 2}</span>
+                        )}
+                      </div>
+                    )}
+                    {hasSubtasks && (
+                      <Badge variant="outline" className="text-[10px] h-5 px-1.5">
+                        {(task.subtasks || []).filter(st => st.type === 'checkbox' ? st.completed : st.status === 'completada').length}/{task.subtasks!.length}
+                      </Badge>
+                    )}
+                    {task.fecha_vencimiento && (
+                      <span className="inline-flex items-center bg-muted rounded-full px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {new Date(task.fecha_vencimiento).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })}
                       </span>
-                    ))}
-                    {task.responsables.length > 2 && (
-                      <span className="text-xs text-muted-foreground">+{task.responsables.length - 2}</span>
                     )}
                   </div>
-                )}
-                {task.fecha_vencimiento && (
-                  <span className="inline-flex items-center bg-muted rounded-full px-2 py-0.5 text-[11px] text-muted-foreground">
-                    {new Date(task.fecha_vencimiento).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })}
-                  </span>
-                )}
+                </div>
+
+                {/* Responsible selector */}
+                <div onClick={(e) => e.stopPropagation()}>
+                  <ResponsibleSelector
+                    value={task.responsible_ref ?? null}
+                    onChange={(ref) => handleUpdateTaskResponsible(task.id, ref)}
+                    artistId={project?.artist_id}
+                    placeholder="Asignar"
+                    compact
+                  />
+                </div>
+
+                {/* Add subtask dropdown */}
+                <div onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" title="Añadir subtarea">
+                        <ListTodo className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleAddSubtask(task.id, 'full')}>
+                        <ListTodo className="w-4 h-4 mr-2" /> Subtarea completa
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleAddSubtask(task.id, 'checkbox')}>
+                        <CheckCircle2 className="w-4 h-4 mr-2" /> Casilla de verificación
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleAddSubtask(task.id, 'note')}>
+                        <StickyNote className="w-4 h-4 mr-2" /> Nota (para un miembro)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleAddSubtask(task.id, 'comment')}>
+                        <MessageCircle className="w-4 h-4 mr-2" /> Comentario (hilo)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Delete */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
+
+              {/* Subtasks */}
+              {task.expanded && hasSubtasks && (
+                <ProjectTaskSubtasks
+                  subtasks={task.subtasks!}
+                  artistId={project?.artist_id}
+                  onUpdate={(subtaskId, updates) => handleUpdateSubtask(task.id, subtaskId, updates)}
+                  onDelete={(subtaskId) => handleDeleteSubtask(task.id, subtaskId)}
+                />
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div className="pt-2">
           <Button variant="secondary" size="sm" onClick={() => {
             setCurrentStage(etapa);
@@ -533,6 +618,45 @@ export default function ProjectDetail() {
     setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
     setTaskPanelOpen(false);
     setSelectedTask(null);
+  };
+
+  // Subtask handlers
+  const handleToggleTaskExpand = (taskId: string) => {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, expanded: !t.expanded } : t));
+  };
+
+  const handleAddSubtask = (taskId: string, type: ProjectSubtask['type']) => {
+    const newSubtask: ProjectSubtask = {
+      id: `st-${Date.now()}`,
+      name: type === 'note' ? '' : type === 'comment' ? '' : 'Nueva subtarea',
+      type,
+      ...(type === 'full' ? { status: 'pendiente' } : {}),
+      ...(type === 'checkbox' ? { completed: false } : {}),
+      ...(type === 'comment' ? { thread: [], resolved: false } : {}),
+    };
+    setTasks(prev => prev.map(t =>
+      t.id === taskId ? { ...t, subtasks: [...(t.subtasks || []), newSubtask], expanded: true } : t
+    ));
+  };
+
+  const handleUpdateSubtask = (taskId: string, subtaskId: string, updates: Partial<ProjectSubtask>) => {
+    setTasks(prev => prev.map(t =>
+      t.id === taskId
+        ? { ...t, subtasks: (t.subtasks || []).map(st => st.id === subtaskId ? { ...st, ...updates } : st) }
+        : t
+    ));
+  };
+
+  const handleDeleteSubtask = (taskId: string, subtaskId: string) => {
+    setTasks(prev => prev.map(t =>
+      t.id === taskId ? { ...t, subtasks: (t.subtasks || []).filter(st => st.id !== subtaskId) } : t
+    ));
+  };
+
+  const handleUpdateTaskResponsible = (taskId: string, ref: ResponsibleRef | null) => {
+    setTasks(prev => prev.map(t =>
+      t.id === taskId ? { ...t, responsible_ref: ref } : t
+    ));
   };
 
   // Task duplicate function
