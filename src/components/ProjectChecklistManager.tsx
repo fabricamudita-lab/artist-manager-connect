@@ -155,29 +155,13 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
       let checklistsList = data || [];
 
-      // If no checklists exist, create a "General" one
-      if (checklistsList.length === 0) {
-        const user = await supabase.auth.getUser();
-        const { data: newChecklist, error: insertError } = await supabase
-          .from('project_checklists')
-          .insert({
-            project_id: projectId,
-            name: 'General',
-            sort_order: 0,
-            created_by: user.data.user?.id || null,
-          })
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        checklistsList = [newChecklist];
-      }
-
       setChecklists(checklistsList);
 
       // Set active checklist if none selected or current one no longer exists
-      if (!activeChecklistId || !checklistsList.find(c => c.id === activeChecklistId)) {
+      if (checklistsList.length > 0 && (!activeChecklistId || !checklistsList.find(c => c.id === activeChecklistId))) {
         setActiveChecklistId(checklistsList[0]?.id || null);
+      } else if (checklistsList.length === 0) {
+        setActiveChecklistId(null);
       }
 
       return checklistsList;
@@ -398,10 +382,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       );
       setItems(checklistItems);
       
-      // If checklist is empty, load a default system template (unless explicitly skipped)
-      if (checklistItems.length === 0 && canEdit && !skipDefaultTemplate) {
-        await loadDefaultTemplate();
-      }
+      // No auto-loading of templates - user decides when to create
     } catch (error) {
       console.error('Error fetching checklist items:', error);
       toast({
@@ -414,63 +395,6 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     }
   };
 
-  const loadDefaultTemplate = async () => {
-    try {
-      // Load the "Concert" template as default
-      const { data: template, error: templateError } = await supabase
-        .from('checklist_templates')
-        .select('*')
-        .eq('is_system_template', true)
-        .eq('name_es', 'Concierto')
-        .maybeSingle();
-
-      if (templateError || !template) {
-        console.log('No default template found, skipping auto-load');
-        return;
-      }
-
-      await applyTemplate(template.id);
-    } catch (error) {
-      console.error('Error loading default template:', error);
-    }
-  };
-
-  const applyTemplate = async (templateId: string) => {
-    try {
-      const { data: templateItems, error } = await supabase
-        .from('checklist_template_items')
-        .select('*')
-        .eq('template_id', templateId)
-        .order('sort_order', { ascending: true });
-
-      if (error) throw error;
-
-      const user = await supabase.auth.getUser();
-      const userId = user.data.user?.id || '';
-
-      const checklistItems = (templateItems || []).map((item, index) => ({
-        project_id: projectId,
-        title: item.task_es || item.task,
-        description: item.owner_label_es || null,
-        section: item.section_es || item.section,
-        sort_order: index,
-        created_by: userId,
-        checklist_id: activeChecklistId,
-      }));
-
-      if (checklistItems.length > 0) {
-        const { error: insertError } = await supabase
-          .from('project_checklist_items')
-          .insert(checklistItems);
-
-        if (insertError) throw insertError;
-        
-        fetchChecklistItems();
-      }
-    } catch (error) {
-      console.error('Error applying template:', error);
-    }
-  };
 
   const addChecklistItem = async () => {
     if (!newTitle.trim()) return;
@@ -1274,6 +1198,64 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
   const activeChecklist = checklists.find(c => c.id === activeChecklistId);
 
+  // Empty state: no checklists at all
+  if (checklists.length === 0 && !loading) {
+    return (
+      <>
+        <Card className="border-dashed border-2">
+          <CardContent className="text-center p-12">
+            <div className="bg-muted/50 rounded-2xl w-16 h-16 flex items-center justify-center mx-auto mb-6">
+              <ListChecks className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="font-semibold text-xl mb-3">No hay checklists en este proyecto</h3>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              Crea una checklist para organizar las tareas del proyecto.
+            </p>
+            {canEdit && (
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button onClick={() => setOpenTemplateDialog(true)}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Crear desde plantilla
+                </Button>
+                <Button variant="outline" onClick={() => setIsCreatingChecklist(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Crear checklist vacía
+                </Button>
+              </div>
+            )}
+            {isCreatingChecklist && (
+              <div className="mt-4 flex gap-2 max-w-xs mx-auto">
+                <Input
+                  value={newChecklistName}
+                  onChange={(e) => setNewChecklistName(e.target.value)}
+                  placeholder="Nombre de la checklist..."
+                  className="text-sm"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') createChecklist();
+                    if (e.key === 'Escape') {
+                      setIsCreatingChecklist(false);
+                      setNewChecklistName("");
+                    }
+                  }}
+                />
+                <Button size="sm" onClick={createChecklist}>Crear</Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <TemplateSelectionDialog
+          open={openTemplateDialog}
+          onOpenChange={setOpenTemplateDialog}
+          projectId={projectId}
+          onTemplateApplied={() => fetchChecklists()}
+          checklistId={activeChecklistId}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       <Collapsible open={isChecklistExpanded} onOpenChange={setIsChecklistExpanded}>
@@ -1323,7 +1305,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                             >
                               <Pencil className="w-3 h-3" />
                             </Button>
-                            {checklists.length > 1 && (
+                            {(
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -1364,10 +1346,16 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                             </Button>
                           </div>
                         ) : (
-                          <DropdownMenuItem onClick={() => setIsCreatingChecklist(true)}>
-                            <Plus className="w-4 h-4 mr-2" />
-                            Crear nueva checklist
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuItem onClick={() => setIsCreatingChecklist(true)}>
+                              <Plus className="w-4 h-4 mr-2" />
+                              Crear checklist vacía
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setOpenTemplateDialog(true)}>
+                              <FileText className="w-4 h-4 mr-2" />
+                              Crear desde plantilla
+                            </DropdownMenuItem>
+                          </>
                         )}
                       </>
                     )}
@@ -1385,10 +1373,6 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56 bg-background border shadow-lg">
-                      <DropdownMenuItem onClick={() => setOpenTemplateDialog(true)}>
-                        <FileText className="w-4 h-4 mr-2" />
-                        Crear desde plantilla
-                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setOpenAddDialog(true)}>
                         <Plus className="w-4 h-4 mr-2" />
                         Añadir elemento
@@ -1422,7 +1406,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                           Vaciar todo
                         </DropdownMenuItem>
                       )}
-                      {checklists.length > 1 && (
+                      {(
                         <DropdownMenuItem 
                           onClick={() => {
                             const cl = checklists.find(c => c.id === activeChecklistId);
@@ -1478,8 +1462,15 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
             <CardContent>
               {items.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
-                  No hay elementos en la checklist.
-                  {canEdit && " Se cargará automáticamente una plantilla predeterminada."}
+                  No hay elementos en esta checklist.
+                  {canEdit && (
+                    <div className="mt-4 flex justify-center gap-3">
+                      <Button size="sm" variant="outline" onClick={() => setOpenAddDialog(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Añadir elemento
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
