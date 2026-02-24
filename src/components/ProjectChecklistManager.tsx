@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SelectionCheckbox } from "@/components/ui/selection-checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
-import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical, Clock, CheckCircle, ChevronUp, TriangleAlert, Link, Search } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Trash2, Plus, CheckCircle2, FileText, Save, Filter, Users, ChevronDown, MoreVertical, Clock, CheckCircle, ChevronUp, TriangleAlert, Link, Search, Pencil, ListChecks } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TemplateSelectionDialog } from "./TemplateSelectionDialog";
 import { SaveTemplateDialog } from "./SaveAsTemplateDialog";
@@ -51,6 +51,17 @@ export interface ChecklistItem {
   section?: string;
   section_es?: string;
   owner_label_es?: string;
+  checklist_id?: string | null;
+}
+
+interface ProjectChecklist {
+  id: string;
+  project_id: string;
+  name: string;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface ProjectChecklistManagerProps {
@@ -79,7 +90,15 @@ const STATUS_COLORS: Record<TaskStatus, string> = {
 export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklistManagerProps) {
   const [viewMode, setViewMode] = useState<'list' | 'flow'>('list');
   const [items, setItems] = useState<ChecklistItem[]>([]);
+  const [allItems, setAllItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checklists, setChecklists] = useState<ProjectChecklist[]>([]);
+  const [activeChecklistId, setActiveChecklistId] = useState<string | null>(null);
+  const [isCreatingChecklist, setIsCreatingChecklist] = useState(false);
+  const [newChecklistName, setNewChecklistName] = useState("");
+  const [renamingChecklistId, setRenamingChecklistId] = useState<string | null>(null);
+  const [renameChecklistName, setRenameChecklistName] = useState("");
+  const [deleteChecklistConfirm, setDeleteChecklistConfirm] = useState<ProjectChecklist | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<ChecklistItem | null>(null);
   const [clearAllConfirm, setClearAllConfirm] = useState(false);
   const [openAddDialog, setOpenAddDialog] = useState(false);
@@ -123,9 +142,64 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     return storedLinks ? JSON.parse(storedLinks).length : 0;
   };
 
+  // Fetch checklists for this project
+  const fetchChecklists = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('project_checklists')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('sort_order', { ascending: true });
+
+      if (error) throw error;
+
+      let checklistsList = data || [];
+
+      // If no checklists exist, create a "General" one
+      if (checklistsList.length === 0) {
+        const user = await supabase.auth.getUser();
+        const { data: newChecklist, error: insertError } = await supabase
+          .from('project_checklists')
+          .insert({
+            project_id: projectId,
+            name: 'General',
+            sort_order: 0,
+            created_by: user.data.user?.id || null,
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        checklistsList = [newChecklist];
+      }
+
+      setChecklists(checklistsList);
+
+      // Set active checklist if none selected or current one no longer exists
+      if (!activeChecklistId || !checklistsList.find(c => c.id === activeChecklistId)) {
+        setActiveChecklistId(checklistsList[0]?.id || null);
+      }
+
+      return checklistsList;
+    } catch (error) {
+      console.error('Error fetching checklists:', error);
+      return [];
+    }
+  }, [projectId, activeChecklistId]);
+
   useEffect(() => {
-    fetchChecklistItems();
+    const init = async () => {
+      await fetchChecklists();
+    };
+    init();
   }, [projectId]);
+
+  // Fetch items when activeChecklistId changes
+  useEffect(() => {
+    if (activeChecklistId) {
+      fetchChecklistItems();
+    }
+  }, [activeChecklistId]);
 
   // Helper functions for dependency management
   const extractBlockingInfo = (description: string | null) => {
@@ -308,15 +382,20 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
   const fetchChecklistItems = async (skipDefaultTemplate = false) => {
     try {
-      const { data, error } = await supabase
+      // Fetch ALL items for the project (for badge count etc.)
+      const { data: allData, error: allError } = await supabase
         .from('project_checklist_items')
         .select('*')
         .eq('project_id', projectId)
         .order('sort_order', { ascending: true });
 
-      if (error) throw error;
-      
-      const checklistItems = data || [];
+      if (allError) throw allError;
+      setAllItems(allData || []);
+
+      // Filter by active checklist
+      const checklistItems = (allData || []).filter(item => 
+        activeChecklistId ? item.checklist_id === activeChecklistId : true
+      );
       setItems(checklistItems);
       
       // If checklist is empty, load a default system template (unless explicitly skipped)
@@ -376,6 +455,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         section: item.section_es || item.section,
         sort_order: index,
         created_by: userId,
+        checklist_id: activeChecklistId,
       }));
 
       if (checklistItems.length > 0) {
@@ -405,6 +485,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           description: newDescription.trim() || null,
           sort_order: items.length,
           created_by: user.data.user?.id || '',
+          checklist_id: activeChecklistId,
         });
 
       if (error) throw error;
@@ -831,25 +912,130 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
   const clearAllItems = async () => {
     try {
-      const { error } = await supabase
+      let query = supabase
         .from('project_checklist_items')
         .delete()
         .eq('project_id', projectId);
+      
+      if (activeChecklistId) {
+        query = query.eq('checklist_id', activeChecklistId);
+      }
+
+      const { error } = await query;
 
       if (error) throw error;
 
       setClearAllConfirm(false);
-      setItems([]); // Clear the items immediately
+      setItems([]);
       
       toast({
         title: "Tareas vaciadas",
-        description: "Todas las tareas han sido eliminadas.",
+        description: "Todas las tareas de esta checklist han sido eliminadas.",
       });
     } catch (error) {
       console.error('Error clearing checklist:', error);
       toast({
         title: "Error",
         description: "No se pudo vaciar las tareas.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Checklist CRUD
+  const createChecklist = async () => {
+    if (!newChecklistName.trim()) return;
+    try {
+      const user = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from('project_checklists')
+        .insert({
+          project_id: projectId,
+          name: newChecklistName.trim(),
+          sort_order: checklists.length,
+          created_by: user.data.user?.id || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setNewChecklistName("");
+      setIsCreatingChecklist(false);
+      setActiveChecklistId(data.id);
+      await fetchChecklists();
+      
+      toast({
+        title: "Checklist creada",
+        description: `"${data.name}" se ha creado correctamente.`,
+      });
+    } catch (error) {
+      console.error('Error creating checklist:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo crear la checklist.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const renameChecklist = async () => {
+    if (!renamingChecklistId || !renameChecklistName.trim()) return;
+    try {
+      const { error } = await supabase
+        .from('project_checklists')
+        .update({ name: renameChecklistName.trim(), updated_at: new Date().toISOString() })
+        .eq('id', renamingChecklistId);
+
+      if (error) throw error;
+
+      setRenamingChecklistId(null);
+      setRenameChecklistName("");
+      await fetchChecklists();
+
+      toast({
+        title: "Checklist renombrada",
+        description: "El nombre se ha actualizado correctamente.",
+      });
+    } catch (error) {
+      console.error('Error renaming checklist:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo renombrar la checklist.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteChecklist = async () => {
+    if (!deleteChecklistConfirm) return;
+    try {
+      // Delete items first (cascade should handle it but be safe)
+      const { error } = await supabase
+        .from('project_checklists')
+        .delete()
+        .eq('id', deleteChecklistConfirm.id);
+
+      if (error) throw error;
+
+      setDeleteChecklistConfirm(null);
+      
+      // If we deleted the active one, switch to the first remaining
+      if (activeChecklistId === deleteChecklistConfirm.id) {
+        setActiveChecklistId(null);
+      }
+      
+      await fetchChecklists();
+      
+      toast({
+        title: "Checklist eliminada",
+        description: `"${deleteChecklistConfirm.name}" y sus tareas han sido eliminadas.`,
+      });
+    } catch (error) {
+      console.error('Error deleting checklist:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la checklist.",
         variant: "destructive",
       });
     }
@@ -1039,77 +1225,163 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
     return acc;
   }, {} as Record<TaskStatus, number>);
 
+  const activeChecklist = checklists.find(c => c.id === activeChecklistId);
+
   return (
     <>
       <Collapsible open={isChecklistExpanded} onOpenChange={setIsChecklistExpanded}>
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
                     <CheckCircle2 className="w-5 h-5" />
-                    Checklist
                     {isChecklistExpanded ? (
-                      <ChevronUp className="w-4 h-4 ml-2" />
+                      <ChevronUp className="w-4 h-4 ml-1" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 ml-2" />
+                      <ChevronDown className="w-4 h-4 ml-1" />
                     )}
-                  </CardTitle>
-                </Button>
-              </CollapsibleTrigger>
-              {canEdit && (
+                  </Button>
+                </CollapsibleTrigger>
+
+                {/* Checklist Selector Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="sm" variant="outline">
-                      <MoreVertical className="w-4 h-4 mr-2" />
-                      Acciones
+                    <Button variant="outline" size="sm" className="gap-1.5 font-semibold">
+                      <ListChecks className="w-4 h-4" />
+                      {activeChecklist?.name || 'Checklist'}
+                      <ChevronDown className="w-3.5 h-3.5 opacity-60" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56 bg-background border shadow-lg">
-                    <DropdownMenuItem onClick={() => setOpenTemplateDialog(true)}>
-                      <FileText className="w-4 h-4 mr-2" />
-                      Crear desde plantilla
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setOpenAddDialog(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Añadir elemento
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setOpenSaveTemplateDialog(true)}>
-                      <Save className="w-4 h-4 mr-2" />
-                      Guardar como plantilla
-                    </DropdownMenuItem>
-                    {items.length > 0 && (
-                      <DropdownMenuItem 
-                        onClick={() => setClearAllConfirm(true)}
-                        className="text-destructive focus:text-destructive"
+                  <DropdownMenuContent align="start" className="w-64 bg-background border shadow-lg z-50">
+                    {checklists.map((cl) => (
+                      <DropdownMenuItem
+                        key={cl.id}
+                        className={`flex items-center justify-between ${cl.id === activeChecklistId ? 'bg-accent' : ''}`}
+                        onClick={() => setActiveChecklistId(cl.id)}
                       >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Vaciar todo
+                        <span className="truncate">{cl.name}</span>
+                        {canEdit && (
+                          <div className="flex items-center gap-1 ml-2" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRenamingChecklistId(cl.id);
+                                setRenameChecklistName(cl.name);
+                              }}
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </Button>
+                            {checklists.length > 1 && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteChecklistConfirm(cl);
+                                }}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        )}
                       </DropdownMenuItem>
+                    ))}
+                    {canEdit && (
+                      <>
+                        <DropdownMenuSeparator />
+                        {isCreatingChecklist ? (
+                          <div className="p-2 flex gap-2" onClick={(e) => e.stopPropagation()}>
+                            <Input
+                              value={newChecklistName}
+                              onChange={(e) => setNewChecklistName(e.target.value)}
+                              placeholder="Nombre..."
+                              className="h-8 text-sm"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') createChecklist();
+                                if (e.key === 'Escape') {
+                                  setIsCreatingChecklist(false);
+                                  setNewChecklistName("");
+                                }
+                              }}
+                            />
+                            <Button size="sm" className="h-8 px-2" onClick={createChecklist}>
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <DropdownMenuItem onClick={() => setIsCreatingChecklist(true)}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Crear nueva checklist
+                          </DropdownMenuItem>
+                        )}
+                      </>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
-              )}
-              
-              {/* View Mode Toggle */}
-              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-                <Button
-                  size="sm"
-                  variant={viewMode === 'list' ? 'default' : 'ghost'}
-                  onClick={() => setViewMode('list')}
-                  className="h-7 px-3 text-xs"
-                >
-                  Lista
-                </Button>
-                <Button
-                  size="sm"
-                  variant={viewMode === 'flow' ? 'default' : 'ghost'}
-                  onClick={() => setViewMode('flow')}
-                  className="h-7 px-3 text-xs"
-                >
-                  Flujo
-                </Button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {canEdit && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm" variant="outline">
+                        <MoreVertical className="w-4 h-4 mr-2" />
+                        Acciones
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 bg-background border shadow-lg">
+                      <DropdownMenuItem onClick={() => setOpenTemplateDialog(true)}>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Crear desde plantilla
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setOpenAddDialog(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Añadir elemento
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setOpenSaveTemplateDialog(true)}>
+                        <Save className="w-4 h-4 mr-2" />
+                        Guardar como plantilla
+                      </DropdownMenuItem>
+                      {items.length > 0 && (
+                        <DropdownMenuItem 
+                          onClick={() => setClearAllConfirm(true)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Vaciar todo
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+                
+                {/* View Mode Toggle */}
+                <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                  <Button
+                    size="sm"
+                    variant={viewMode === 'list' ? 'default' : 'ghost'}
+                    onClick={() => setViewMode('list')}
+                    className="h-7 px-3 text-xs"
+                  >
+                    Lista
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={viewMode === 'flow' ? 'default' : 'ghost'}
+                    onClick={() => setViewMode('flow')}
+                    className="h-7 px-3 text-xs"
+                  >
+                    Flujo
+                  </Button>
+                </div>
               </div>
             </div>
             {items.length > 0 && (
@@ -1750,6 +2022,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         onOpenChange={setOpenTemplateDialog}
         projectId={projectId}
         onTemplateApplied={fetchChecklistItems}
+        checklistId={activeChecklistId}
       />
 
       {/* Save Template Dialog */}
@@ -1794,6 +2067,51 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           }}
         />
       )}
+
+      {/* Rename Checklist Dialog */}
+      <Dialog open={!!renamingChecklistId} onOpenChange={() => { setRenamingChecklistId(null); setRenameChecklistName(""); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Renombrar checklist</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={renameChecklistName}
+            onChange={(e) => setRenameChecklistName(e.target.value)}
+            placeholder="Nuevo nombre..."
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') renameChecklist();
+            }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRenamingChecklistId(null); setRenameChecklistName(""); }}>
+              Cancelar
+            </Button>
+            <Button onClick={renameChecklist}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Checklist Confirmation */}
+      <AlertDialog open={!!deleteChecklistConfirm} onOpenChange={() => setDeleteChecklistConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar checklist?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará la checklist "{deleteChecklistConfirm?.name}" y todas sus tareas permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteChecklist}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
