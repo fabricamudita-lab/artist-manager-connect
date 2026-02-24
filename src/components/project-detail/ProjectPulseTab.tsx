@@ -1,17 +1,9 @@
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import {
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
-  TrendingUp,
-  Zap,
-  HelpCircle,
-  DollarSign,
-  ListTodo,
-} from "lucide-react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { MapPin, Calendar } from "lucide-react";
 
 interface ProjectPulseTabProps {
   tasks: any[];
@@ -38,6 +30,7 @@ export function ProjectPulseTab({
   const stats = useMemo(() => {
     const totalTasks = tasks.length;
     const completedTasks = tasks.filter((t) => t.estado === "completada").length;
+    const pendingTasks = tasks.filter((t) => t.estado !== "completada").length;
     const blockedTasks = tasks.filter((t) => t.estado === "bloqueada").length;
     const urgentTasks = tasks.filter(
       (t) => t.is_urgent && t.estado !== "completada"
@@ -53,7 +46,10 @@ export function ProjectPulseTab({
       (i) => i.status === "abierto" || i.status === "en_progreso"
     ).length;
     const criticalIncidents = incidents.filter(
-      (i) => i.severity === "critica" && i.status !== "resuelto" && i.status !== "cerrado"
+      (i) =>
+        i.severity === "critica" &&
+        i.status !== "resuelto" &&
+        i.status !== "cerrado"
     ).length;
 
     const openQuestions = questions.filter(
@@ -63,14 +59,7 @@ export function ProjectPulseTab({
       (q) => q.priority === "urgente" && q.status !== "resuelta"
     ).length;
 
-    const confirmedFee = budgets
-      .filter(
-        (b) =>
-          b.budget_status === "confirmado" || b.show_status === "confirmado"
-      )
-      .reduce((s: number, b: any) => s + (b.fee || 0), 0);
-
-    // Health score: simple weighted calculation
+    // Health score
     let health = 100;
     if (totalTasks > 0) {
       health -= blockedTasks * 5;
@@ -85,6 +74,7 @@ export function ProjectPulseTab({
     return {
       totalTasks,
       completedTasks,
+      pendingTasks,
       blockedTasks,
       urgentTasks,
       overdueTasks,
@@ -93,203 +83,326 @@ export function ProjectPulseTab({
       criticalIncidents,
       openQuestions,
       urgentQuestions,
-      confirmedFee,
       health,
     };
-  }, [tasks, budgets, incidents, questions]);
+  }, [tasks, incidents, questions]);
 
   const getHealthColor = (h: number) => {
-    if (h >= 80) return "text-green-600";
-    if (h >= 50) return "text-amber-600";
-    return "text-red-600";
+    if (h >= 80) return "text-green-500";
+    if (h >= 50) return "text-amber-500";
+    return "text-red-500";
   };
 
   const getHealthLabel = (h: number) => {
     if (h >= 80) return "Saludable";
-    if (h >= 50) return "Atención requerida";
+    if (h >= 50) return "Necesita atención";
     return "Crítico";
   };
 
-  const getHealthBg = (h: number) => {
-    if (h >= 80) return "bg-green-500";
-    if (h >= 50) return "bg-amber-500";
-    return "bg-red-500";
+  // Pending tasks sorted by urgency then date
+  const pendingActions = useMemo(() => {
+    return tasks
+      .filter((t) => t.estado !== "completada")
+      .sort((a, b) => {
+        if (a.is_urgent && !b.is_urgent) return -1;
+        if (!a.is_urgent && b.is_urgent) return 1;
+        if (a.estado === "bloqueada" && b.estado !== "bloqueada") return -1;
+        if (a.estado !== "bloqueada" && b.estado === "bloqueada") return 1;
+        const da = a.fecha_vencimiento ? new Date(a.fecha_vencimiento).getTime() : Infinity;
+        const db = b.fecha_vencimiento ? new Date(b.fecha_vencimiento).getTime() : Infinity;
+        return da - db;
+      })
+      .slice(0, 8);
+  }, [tasks]);
+
+  const activeIncidents = useMemo(() => {
+    return incidents
+      .filter((i) => i.status === "abierto" || i.status === "en_progreso")
+      .slice(0, 5);
+  }, [incidents]);
+
+  const openQs = useMemo(() => {
+    return questions
+      .filter((q) => q.status === "abierta" || q.status === "en_discusion")
+      .slice(0, 5);
+  }, [questions]);
+
+  // Find linked entity for a task (by booking_id or similar)
+  const getLinkedEntityLabel = (task: any) => {
+    if (!task.linked_entity_id || linkedEntities.length === 0) return null;
+    const entity = linkedEntities.find((e) => e.entity_id === task.linked_entity_id);
+    if (!entity) return null;
+    return entity.entity_name || entity.entity_type;
   };
 
-  const fmt = (n: number) =>
-    n >= 1000 ? `${(n / 1000).toFixed(1).replace(".0", "")}k€` : `${n}€`;
+  const formatDate = (d: string | null) => {
+    if (!d) return null;
+    try {
+      return format(new Date(d), "d MMM", { locale: es });
+    } catch {
+      return null;
+    }
+  };
+
+  const getSeverityBadge = (severity: string) => {
+    switch (severity) {
+      case "critica":
+        return <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Crítico</Badge>;
+      case "alta":
+        return <Badge variant="warning" className="text-[10px] px-1.5 py-0">Alto</Badge>;
+      case "media":
+        return <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Medio</Badge>;
+      default:
+        return <Badge variant="outline" className="text-[10px] px-1.5 py-0">Bajo</Badge>;
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Health Score Hero */}
-      <div className="rounded-xl border bg-gradient-to-br from-primary/5 via-background to-background p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold">Salud del Proyecto</h3>
-            <p className="text-sm text-muted-foreground">
-              Puntuación basada en tareas, imprevistos y dudas
+      {/* 5 KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {/* Health */}
+        <Card className="bg-card border">
+          <CardContent className="p-4 space-y-1">
+            <span className="text-2xl">💚</span>
+            <p className={`text-3xl font-bold ${getHealthColor(stats.health)}`}>
+              {stats.health}%
             </p>
-          </div>
-          <div className="text-right">
-            <span className={`text-4xl font-bold ${getHealthColor(stats.health)}`}>
-              {stats.health}
-            </span>
-            <p className={`text-sm font-medium ${getHealthColor(stats.health)}`}>
-              {getHealthLabel(stats.health)}
-            </p>
-          </div>
-        </div>
-        <Progress
-          value={stats.health}
-          className="h-3"
-        />
-      </div>
-
-      {/* Alert Badges Row */}
-      {(stats.urgentTasks > 0 ||
-        stats.criticalIncidents > 0 ||
-        stats.urgentQuestions > 0 ||
-        stats.overdueTasks > 0) && (
-        <div className="flex flex-wrap gap-2">
-          {stats.overdueTasks > 0 && (
-            <Badge variant="destructive" className="gap-1 px-3 py-1.5">
-              🔥 {stats.overdueTasks} tarea{stats.overdueTasks !== 1 ? "s" : ""} vencida{stats.overdueTasks !== 1 ? "s" : ""}
-            </Badge>
-          )}
-          {stats.criticalIncidents > 0 && (
-            <Badge variant="destructive" className="gap-1 px-3 py-1.5">
-              ⚡ {stats.criticalIncidents} imprevisto{stats.criticalIncidents !== 1 ? "s" : ""} crítico{stats.criticalIncidents !== 1 ? "s" : ""}
-            </Badge>
-          )}
-          {stats.urgentQuestions > 0 && (
-            <Badge variant="warning" className="gap-1 px-3 py-1.5">
-              ❓ {stats.urgentQuestions} duda{stats.urgentQuestions !== 1 ? "s" : ""} urgente{stats.urgentQuestions !== 1 ? "s" : ""}
-            </Badge>
-          )}
-          {stats.urgentTasks > 0 && (
-            <Badge variant="warning" className="gap-1 px-3 py-1.5">
-              🚨 {stats.urgentTasks} tarea{stats.urgentTasks !== 1 ? "s" : ""} urgente{stats.urgentTasks !== 1 ? "s" : ""}
-            </Badge>
-          )}
-        </div>
-      )}
-
-      {/* KPI Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4 flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-green-500/10">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Tareas completadas</p>
-              <p className="text-xl font-bold">
-                {stats.completedTasks}/{stats.totalTasks}
-              </p>
-              <Progress value={stats.taskPct} className="h-1.5 mt-1" />
-            </div>
+            <p className="text-sm font-medium text-foreground">Salud del proyecto</p>
+            <p className="text-xs text-muted-foreground">{getHealthLabel(stats.health)}</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4 flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-red-500/10">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Bloqueadas</p>
-              <p className="text-xl font-bold">{stats.blockedTasks}</p>
-              <p className="text-xs text-muted-foreground">
-                {stats.overdueTasks} vencidas
-              </p>
-            </div>
+        {/* Urgent tasks */}
+        <Card className="bg-card border">
+          <CardContent className="p-4 space-y-1">
+            <span className="text-2xl">🔥</span>
+            <p className="text-3xl font-bold text-red-500">{stats.urgentTasks}</p>
+            <p className="text-sm font-medium text-foreground">Tareas urgentes</p>
+            <p className="text-xs text-muted-foreground">de {stats.pendingTasks} pendientes</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4 flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-amber-500/10">
-              <Zap className="h-5 w-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Imprevistos abiertos</p>
-              <p className="text-xl font-bold">{stats.openIncidents}</p>
-              <p className="text-xs text-muted-foreground">
-                {stats.criticalIncidents} críticos
-              </p>
-            </div>
+        {/* Blocked tasks */}
+        <Card className="bg-card border">
+          <CardContent className="p-4 space-y-1">
+            <span className="text-2xl">🚧</span>
+            <p className="text-3xl font-bold text-amber-500">{stats.blockedTasks}</p>
+            <p className="text-sm font-medium text-foreground">Tareas bloqueadas</p>
+            <p className="text-xs text-muted-foreground">esperando otra acción</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4 flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-blue-500/10">
-              <HelpCircle className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Dudas abiertas</p>
-              <p className="text-xl font-bold">{stats.openQuestions}</p>
-              <p className="text-xs text-muted-foreground">
-                {stats.urgentQuestions} urgentes
-              </p>
-            </div>
+        {/* Open incidents */}
+        <Card className="bg-card border">
+          <CardContent className="p-4 space-y-1">
+            <span className="text-2xl">⚡</span>
+            <p className="text-3xl font-bold text-amber-500">{stats.openIncidents}</p>
+            <p className="text-sm font-medium text-foreground">Imprevistos abiertos</p>
+            <p className="text-xs text-muted-foreground">{stats.criticalIncidents} críticos</p>
+          </CardContent>
+        </Card>
+
+        {/* Open questions */}
+        <Card className="bg-card border">
+          <CardContent className="p-4 space-y-1">
+            <span className="text-2xl">❓</span>
+            <p className="text-3xl font-bold text-blue-500">{stats.openQuestions}</p>
+            <p className="text-sm font-medium text-foreground">Dudas sin respuesta</p>
+            <p className="text-xs text-muted-foreground">{stats.urgentQuestions} urgentes</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Stage Progress */}
-      <Card>
-        <CardContent className="p-4 space-y-4">
-          <h4 className="text-sm font-semibold flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Progreso por etapa
-          </h4>
-          {["PREPARATIVOS", "PRODUCCIÓN", "CIERRE"].map((etapa) => {
-            const stageTasks = tasks.filter((t) => t.etapa === etapa);
-            const completed = stageTasks.filter(
-              (t) => t.estado === "completada"
-            ).length;
-            const total = stageTasks.length;
-            const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-            return (
-              <div key={etapa} className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{etapa}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {completed}/{total} ({pct}%)
-                  </span>
-                </div>
-                <Progress value={pct} className="h-2" />
+      {/* Two-column layout: Próximas Acciones + Imprevistos Activos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Próximas Acciones */}
+        <Card className="border">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Próximas Acciones
+              </h4>
+              {pendingActions.length > 0 && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                  {stats.pendingTasks}
+                </Badge>
+              )}
+            </div>
+            {pendingActions.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                🎉 Sin tareas pendientes
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {pendingActions.map((task) => {
+                  const linkedLabel = getLinkedEntityLabel(task);
+                  const isOverdue =
+                    task.fecha_vencimiento &&
+                    task.estado !== "completada" &&
+                    new Date(task.fecha_vencimiento) < new Date();
+                  return (
+                    <div
+                      key={task.id}
+                      className="flex items-start gap-2.5 py-2 border-b border-border/50 last:border-0"
+                    >
+                      <div
+                        className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                          task.is_urgent
+                            ? "bg-red-500"
+                            : task.estado === "bloqueada"
+                            ? "bg-amber-500"
+                            : "bg-blue-500"
+                        }`}
+                      />
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <p className="text-sm font-medium leading-tight truncate">
+                          {task.titulo}
+                        </p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {linkedLabel && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0 h-4 gap-0.5"
+                            >
+                              <MapPin className="w-2.5 h-2.5" />
+                              {linkedLabel}
+                            </Badge>
+                          )}
+                          {task.etapa && (
+                            <span className="text-[10px] text-muted-foreground">
+                              {task.etapa}
+                            </span>
+                          )}
+                          {task.is_urgent && (
+                            <Badge variant="destructive" className="text-[9px] px-1 py-0 h-3.5">
+                              URGENTE
+                            </Badge>
+                          )}
+                          {task.estado === "bloqueada" && (
+                            <Badge variant="warning" className="text-[9px] px-1 py-0 h-3.5">
+                              BLOQUEADA
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      {task.fecha_vencimiento && (
+                        <span
+                          className={`text-[11px] flex-shrink-0 ${
+                            isOverdue ? "text-red-500 font-semibold" : "text-muted-foreground"
+                          }`}
+                        >
+                          {formatDate(task.fecha_vencimiento)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Financial Summary */}
-      <Card>
-        <CardContent className="p-4">
-          <h4 className="text-sm font-semibold flex items-center gap-2 mb-3">
-            <DollarSign className="h-4 w-4" />
-            Resumen financiero
-          </h4>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Fee confirmado</p>
-              <p className="text-lg font-bold text-green-600">
-                {fmt(stats.confirmedFee)}
+        {/* Imprevistos Activos */}
+        <Card className="border">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Imprevistos Activos
+              </h4>
+              {activeIncidents.length > 0 && (
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">
+                  {stats.openIncidents}
+                </Badge>
+              )}
+            </div>
+            {activeIncidents.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                ✅ Sin imprevistos activos
               </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Presupuestos</p>
-              <p className="text-lg font-bold">{budgets.length}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Solicitudes</p>
-              <p className="text-lg font-bold">{solicitudes.length}</p>
-            </div>
+            ) : (
+              <div className="space-y-2">
+                {activeIncidents.map((inc) => (
+                  <div
+                    key={inc.id}
+                    className="rounded-lg border border-border/50 p-3 space-y-1.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-medium leading-tight">{inc.title}</p>
+                      {getSeverityBadge(inc.severity)}
+                    </div>
+                    {inc.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {inc.description}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      {inc.category && <span>{inc.category}</span>}
+                      {inc.created_at && (
+                        <span className="flex items-center gap-0.5">
+                          <Calendar className="w-2.5 h-2.5" />
+                          {formatDate(inc.created_at)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Dudas sin respuesta */}
+      <Card className="border">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Dudas sin Respuesta
+            </h4>
+            {openQs.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                {stats.openQuestions}
+              </Badge>
+            )}
           </div>
+          {openQs.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              ✅ Todas las dudas resueltas
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {openQs.map((q) => (
+                <div
+                  key={q.id}
+                  className="flex items-start gap-2.5 py-2 border-b border-border/50 last:border-0"
+                >
+                  <div
+                    className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                      q.priority === "urgente" ? "bg-red-500" : "bg-blue-500"
+                    }`}
+                  />
+                  <div className="flex-1 min-w-0 space-y-0.5">
+                    <p className="text-sm font-medium leading-tight truncate">
+                      {q.question}
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      {q.priority === "urgente" && (
+                        <Badge variant="destructive" className="text-[9px] px-1 py-0 h-3.5">
+                          URGENTE
+                        </Badge>
+                      )}
+                      {q.created_at && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatDate(q.created_at)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
