@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,8 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Link, ExternalLink, AlertCircle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Copy, Link, ExternalLink, AlertCircle, FileText, Music, ListChecks, Calculator, StickyNote } from 'lucide-react';
 import { useProjectShare } from '@/hooks/useProjectFiles';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -25,6 +27,14 @@ interface ProjectShareDialogProps {
   projectName: string;
 }
 
+const SHARE_SECTIONS = [
+  { id: 'archivos', label: 'Archivos del proyecto', icon: FileText, defaultChecked: true },
+  { id: 'rider', label: 'Rider técnico', icon: Music, defaultChecked: true },
+  { id: 'checklist', label: 'Checklist', icon: ListChecks, defaultChecked: false },
+  { id: 'presupuestos', label: 'Presupuestos', icon: Calculator, defaultChecked: false },
+  { id: 'notas', label: 'Notas', icon: StickyNote, defaultChecked: false },
+];
+
 export function ProjectShareDialog({
   open,
   onOpenChange,
@@ -32,6 +42,9 @@ export function ProjectShareDialog({
   projectName,
 }: ProjectShareDialogProps) {
   const [expiresInDays, setExpiresInDays] = useState(7);
+  const [selectedSections, setSelectedSections] = useState<Set<string>>(
+    new Set(SHARE_SECTIONS.filter(s => s.defaultChecked).map(s => s.id))
+  );
   
   const {
     shareInfo,
@@ -43,6 +56,28 @@ export function ProjectShareDialog({
     getPublicUrl,
     isShared,
   } = useProjectShare(projectId);
+
+  // Load saved sections from DB when dialog opens
+  useEffect(() => {
+    if (open && projectId) {
+      loadSavedSections();
+    }
+  }, [open, projectId]);
+
+  const loadSavedSections = async () => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('public_share_sections')
+      .eq('id', projectId)
+      .single();
+
+    if (!error && data?.public_share_sections) {
+      const sections = data.public_share_sections as string[];
+      if (Array.isArray(sections)) {
+        setSelectedSections(new Set(sections));
+      }
+    }
+  };
 
   const publicUrl = getPublicUrl();
 
@@ -56,11 +91,45 @@ export function ProjectShareDialog({
     }
   };
 
-  const handleToggleShare = () => {
+  const toggleSection = (sectionId: string) => {
+    setSelectedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleShare = async () => {
     if (isShared) {
       disableShare();
     } else {
+      // Save selected sections to DB before enabling
+      const sectionsArray = Array.from(selectedSections);
+      await supabase
+        .from('projects')
+        .update({ public_share_sections: sectionsArray })
+        .eq('id', projectId);
+
       enableShare(expiresInDays);
+    }
+  };
+
+  const handleUpdateSections = async () => {
+    const sectionsArray = Array.from(selectedSections);
+    const { error } = await supabase
+      .from('projects')
+      .update({ public_share_sections: sectionsArray })
+      .eq('id', projectId);
+
+    if (!error) {
+      toast({
+        title: 'Secciones actualizadas',
+        description: 'Las secciones compartidas se han actualizado.',
+      });
     }
   };
 
@@ -73,11 +142,35 @@ export function ProjectShareDialog({
             Compartir Proyecto
           </DialogTitle>
           <DialogDescription>
-            Genera un enlace público para compartir los archivos de "{projectName}" con externos.
+            Genera un enlace público para compartir "{projectName}" con externos.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Section Selection */}
+          <div className="space-y-3">
+            <Label className="font-medium">Secciones a compartir</Label>
+            <div className="space-y-2">
+              {SHARE_SECTIONS.map((section) => {
+                const Icon = section.icon;
+                return (
+                  <div
+                    key={section.id}
+                    className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() => toggleSection(section.id)}
+                  >
+                    <Checkbox
+                      checked={selectedSections.has(section.id)}
+                      onCheckedChange={() => toggleSection(section.id)}
+                    />
+                    <Icon className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{section.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Toggle share */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
@@ -85,14 +178,14 @@ export function ProjectShareDialog({
                 Enlace público
               </Label>
               <p className="text-sm text-muted-foreground">
-                Cualquiera con el enlace puede ver los archivos
+                Cualquiera con el enlace puede ver las secciones marcadas
               </p>
             </div>
             <Switch
               id="share-toggle"
               checked={isShared}
               onCheckedChange={handleToggleShare}
-              disabled={isEnabling || isDisabling}
+              disabled={isEnabling || isDisabling || selectedSections.size === 0}
             />
           </div>
 
@@ -144,6 +237,11 @@ export function ProjectShareDialog({
                   </span>
                 </div>
               )}
+
+              {/* Update sections button */}
+              <Button variant="outline" size="sm" className="w-full" onClick={handleUpdateSections}>
+                Actualizar secciones compartidas
+              </Button>
             </div>
           )}
 
@@ -154,7 +252,7 @@ export function ProjectShareDialog({
             </Badge>
             {isShared && (
               <span className="text-xs text-muted-foreground">
-                Los archivos son accesibles públicamente
+                {selectedSections.size} sección(es) accesible(s)
               </span>
             )}
           </div>
