@@ -342,3 +342,83 @@ export function useReleaseAssets(releaseId: string | undefined) {
     enabled: !!releaseId,
   });
 }
+
+// Upload release asset
+export function useUploadReleaseAsset() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ file, releaseId, type, title }: { file: File; releaseId: string; type: 'image' | 'video'; title: string }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      const ext = file.name.split('.').pop();
+      const fileName = `${releaseId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('release-assets')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('release-assets')
+        .getPublicUrl(fileName);
+
+      const { data, error } = await supabase
+        .from('release_assets')
+        .insert({
+          release_id: releaseId,
+          type,
+          title,
+          file_url: urlData.publicUrl,
+          file_bucket: fileName,
+          uploaded_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['release-assets', data.release_id] });
+      toast.success('Archivo subido');
+    },
+    onError: () => {
+      toast.error('Error al subir el archivo');
+    },
+  });
+}
+
+// Delete release asset
+export function useDeleteReleaseAsset() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (asset: ReleaseAsset) => {
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('release-assets')
+        .remove([asset.file_bucket]);
+
+      if (storageError) throw storageError;
+
+      // Delete from DB
+      const { error } = await supabase
+        .from('release_assets')
+        .delete()
+        .eq('id', asset.id);
+
+      if (error) throw error;
+      return asset;
+    },
+    onSuccess: (asset) => {
+      queryClient.invalidateQueries({ queryKey: ['release-assets', asset.release_id] });
+      toast.success('Archivo eliminado');
+    },
+    onError: () => {
+      toast.error('Error al eliminar');
+    },
+  });
+}
