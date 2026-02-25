@@ -65,16 +65,6 @@ import Correo from "./pages/Correo";
 const queryClient = new QueryClient();
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
-  }
-  
-  if (user) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  
   return <>{children}</>;
 }
 
@@ -88,11 +78,7 @@ const App = () => (
           <DevRoleSwitcher />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={
-                <PublicRoute>
-                  <Auth />
-                </PublicRoute>
-              } />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/auth" element={
                 <PublicRoute>
                   <Auth />

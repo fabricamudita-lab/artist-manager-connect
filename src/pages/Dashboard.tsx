@@ -32,19 +32,13 @@ export default function Dashboard() {
     );
   }
 
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p>No se pudo cargar el perfil de usuario.</p>
-          <p>Redirigiendo...</p>
-        </div>
-      </div>
-    );
-  }
+  // Mock profile for unauthenticated visitors
+  const displayProfile = profile ?? {
+    full_name: 'Demo User',
+    active_role: 'management' as const,
+  };
 
-  // Determine if user is Owner (management role) or Collaborator (artist role)
-  const isOwner = profile.active_role === 'management';
+  const isOwner = displayProfile.active_role === 'management';
 
   return (
     <div className="p-6">
@@ -53,7 +47,7 @@ export default function Dashboard() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground">
-              Bienvenido, {profile.full_name} ({isOwner ? 'Management' : 'Artista'})
+              Bienvenido, {displayProfile.full_name} ({isOwner ? 'Management' : 'Artista'})
             </p>
           </div>
           <Badge variant={isOwner ? 'default' : 'secondary'} className="flex items-center gap-1.5">
