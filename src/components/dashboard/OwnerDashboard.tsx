@@ -21,12 +21,7 @@ import {
   TrendingDown,
   CheckCircle2,
   AlertTriangle,
-  FileWarning,
-  Mic,
-  Disc3,
-  FolderKanban,
-  UsersRound,
-  Map
+  FileWarning
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -41,11 +36,6 @@ interface GlobalStats {
   pendingSolicitudes: number;
   totalContacts: number;
   totalSyncOffers: number;
-  totalBookings: number;
-  totalReleases: number;
-  totalProjects: number;
-  totalTeams: number;
-  totalRoadmaps: number;
 }
 
 interface Trends {
@@ -102,12 +92,7 @@ export function OwnerDashboard() {
     upcomingEvents: 0,
     pendingSolicitudes: 0,
     totalContacts: 0,
-    totalSyncOffers: 0,
-    totalBookings: 0,
-    totalReleases: 0,
-    totalProjects: 0,
-    totalTeams: 0,
-    totalRoadmaps: 0
+    totalSyncOffers: 0
   });
   const [trends, setTrends] = useState<Trends>({
     artists: null,
@@ -196,28 +181,6 @@ export function OwnerDashboard() {
         .from('sync_offers')
         .select('*', { count: 'exact', head: true })
         .not('phase', 'eq', 'facturado');
-
-      // Fetch total bookings count
-      const { count: bookingsCount } = await supabase
-        .from('booking_offers')
-        .select('*', { count: 'exact', head: true });
-
-      // Fetch releases count
-      const { count: releasesCount } = await supabase
-        .from('releases')
-        .select('*', { count: 'exact', head: true });
-
-      // Fetch projects count
-      const { count: projectsCount } = await supabase
-        .from('projects')
-        .select('*', { count: 'exact', head: true });
-
-      // Teams - no dedicated table, skip
-      const teamsCount = 0;
-      // Fetch roadmaps count
-      const { count: roadmapsCount } = await supabase
-        .from('tour_roadmaps')
-        .select('*', { count: 'exact', head: true });
 
       // ---- Trend queries (previous 30 days) ----
 
@@ -361,12 +324,7 @@ export function OwnerDashboard() {
         upcomingEvents: eventsCount || 0,
         pendingSolicitudes: solicitudesCount || 0,
         totalContacts: contactsCount || 0,
-        totalSyncOffers: syncCount || 0,
-        totalBookings: bookingsCount || 0,
-        totalReleases: releasesCount || 0,
-        totalProjects: projectsCount || 0,
-        totalTeams: teamsCount || 0,
-        totalRoadmaps: roadmapsCount || 0
+        totalSyncOffers: syncCount || 0
       });
 
       setTrends({
@@ -575,65 +533,12 @@ export function OwnerDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/contacts')}>
+        <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <Users className="h-5 w-5 text-primary flex-shrink-0" />
             <div>
               <p className="text-lg font-bold leading-none">{stats.totalContacts}</p>
               <p className="text-xs text-muted-foreground mt-0.5">Contactos</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Additional Data Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/booking')}>
-          <CardContent className="p-4 flex items-center gap-3">
-            <Mic className="h-5 w-5 text-primary flex-shrink-0" />
-            <div>
-              <p className="text-lg font-bold leading-none">{stats.totalBookings}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Bookings</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/releases')}>
-          <CardContent className="p-4 flex items-center gap-3">
-            <Disc3 className="h-5 w-5 text-primary flex-shrink-0" />
-            <div>
-              <p className="text-lg font-bold leading-none">{stats.totalReleases}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Releases</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/projects')}>
-          <CardContent className="p-4 flex items-center gap-3">
-            <FolderKanban className="h-5 w-5 text-primary flex-shrink-0" />
-            <div>
-              <p className="text-lg font-bold leading-none">{stats.totalProjects}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Proyectos</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/teams')}>
-          <CardContent className="p-4 flex items-center gap-3">
-            <UsersRound className="h-5 w-5 text-primary flex-shrink-0" />
-            <div>
-              <p className="text-lg font-bold leading-none">{stats.totalTeams}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Equipos</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/roadmaps')}>
-          <CardContent className="p-4 flex items-center gap-3">
-            <Map className="h-5 w-5 text-primary flex-shrink-0" />
-            <div>
-              <p className="text-lg font-bold leading-none">{stats.totalRoadmaps}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Roadmaps</p>
             </div>
           </CardContent>
         </Card>
