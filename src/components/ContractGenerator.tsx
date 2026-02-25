@@ -24,7 +24,8 @@ import {
 import { cn } from "@/lib/utils";
 import { 
   FileText, Check, ChevronRight, ChevronLeft, ClipboardCopy, Eye, 
-  Building, User, Calendar, CreditCard, Scale, Users, Download
+  Building, User, Calendar, CreditCard, Scale, Users, Download,
+  Plus, Trash2, Save
 } from "lucide-react";
 import jsPDF from "jspdf";
 import {
@@ -76,6 +77,12 @@ const WIZARD_STEPS: WizardStep[] = [
   { id: 'preview', title: 'Vista Previa', description: 'Revisa y guarda el contrato', icon: <Eye className="h-5 w-5" /> }
 ];
 
+const SPONSOR_PRESETS: Record<string, string> = {
+  estricta: 'No, y nunca en caja escénica del escenario sin previo acuerdo del artista. Sin marcas ni patrocinadores visibles.',
+  con_permiso: 'Marcas permitidas únicamente con permiso previo por escrito en la caja escénica.',
+  sin_limitaciones: 'Sin limitaciones respecto a patrocinadores y marcas.',
+};
+
 const ContractGenerator: React.FC<ContractGeneratorProps> = ({
   open,
   onOpenChange,
@@ -84,6 +91,8 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [contractDate, setContractDate] = useState(format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es }));
+  const [savingContact, setSavingContact] = useState(false);
+  const [sponsorPreset, setSponsorPreset] = useState<string>('estricta');
   
   // Agent Data
   const [agentData, setAgentData] = useState<AgentData>(DEFAULT_AGENT_DATA);
@@ -97,6 +106,11 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     cargo: ''
   });
   const [selectedContactId, setSelectedContactId] = useState<string>('');
+  
+  // Ticket prices
+  const [ticketPrices, setTicketPrices] = useState<{ tipo: string; precio: string }[]>([
+    { tipo: 'General', precio: '' }
+  ]);
   
   // Conditions
   const [conditions, setConditions] = useState<ContractConditions>({
@@ -116,8 +130,8 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     curfew: 'TBC',
     cacheGarantizado: '',
     comisionAgencia: '10%',
-    precioTickets: 'TBC',
-    sponsors: '',
+    precioTickets: [{ tipo: 'General', precio: '' }],
+    sponsors: SPONSOR_PRESETS.estricta,
     riderTecnico: true,
     riderHospitalidad: 'Catering de cortesía',
     hoteles: false,
@@ -171,7 +185,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
         setPromoterData({
           contactId: contact.id,
           nombre: contact.company || contact.name,
-          cif: contact.iban || '', // Use iban field for CIF if available
+          cif: contact.iban || '',
           direccion: `${contact.address || ''}, ${contact.city || ''}, ${contact.country || ''}`.replace(/^, |, $/g, ''),
           representante: contact.name,
           cargo: contact.role || ''
@@ -183,10 +197,11 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
   }, [selectedContactId]);
 
   const generateContract = () => {
+    const finalConditions = { ...conditions, precioTickets: ticketPrices };
     return generateContractDocument(
       agentData,
       promoterData,
-      conditions,
+      finalConditions,
       paymentTerms,
       legalClauses,
       contractDate
@@ -211,11 +226,16 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     setAgentData(DEFAULT_AGENT_DATA);
     setPromoterData({ nombre: '', cif: '', direccion: '', representante: '', cargo: '' });
     setSelectedContactId('');
+    setSavingContact(false);
+    setSponsorPreset('estricta');
+    setTicketPrices([{ tipo: 'General', precio: '' }]);
     setConditions({
       artista: '', ciudad: '', aforo: '', recinto: '', evento: '', billing: 'TBC',
       otrosArtistas: '', fechaAnuncio: 'TBC', fechaActuacion: '', duracion: '',
       montajePrueba: 'TBC', aperturaPuertas: 'TBC', inicioConcierto: '', curfew: 'TBC',
-      cacheGarantizado: '', comisionAgencia: '10%', precioTickets: 'TBC', sponsors: '',
+      cacheGarantizado: '', comisionAgencia: '10%',
+      precioTickets: [{ tipo: 'General', precio: '' }],
+      sponsors: SPONSOR_PRESETS.estricta,
       riderTecnico: true, riderHospitalidad: 'Catering de cortesía',
       hoteles: false, transporteInterno: false, vuelos: false, backline: true
     });
@@ -310,6 +330,35 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     </div>
   );
 
+  // Save promoter as new contact
+  const handleSaveAsContact = async () => {
+    if (!promoterData.representante || !promoterData.nombre) {
+      toast({ description: "Introduce al menos nombre/empresa y representante", variant: "destructive" });
+      return;
+    }
+    setSavingContact(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No autenticado");
+      
+      const { data, error } = await supabase.from('contacts').insert({
+        name: promoterData.representante,
+        company: promoterData.nombre,
+        address: promoterData.direccion || null,
+        role: promoterData.cargo || null,
+        created_by: user.id,
+      }).select('id').single();
+      
+      if (error) throw error;
+      setSelectedContactId(data.id);
+      setPromoterData(prev => ({ ...prev, contactId: data.id }));
+      toast({ description: "Contacto guardado correctamente" });
+    } catch (err: any) {
+      toast({ description: "Error al guardar contacto: " + err.message, variant: "destructive" });
+      setSavingContact(false);
+    }
+  };
+
   // Step 2: Promoter Data
   const renderPromoterStep = () => (
     <div className="space-y-4">
@@ -351,6 +400,19 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
           <Input value={promoterData.cargo} onChange={e => setPromoterData({ ...promoterData, cargo: e.target.value })} placeholder="Ej: Alcalde, Director..." />
         </div>
       </div>
+
+      {!selectedContactId && promoterData.representante && promoterData.nombre && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full mt-2"
+          onClick={handleSaveAsContact}
+          disabled={savingContact || !!promoterData.contactId}
+        >
+          <Save className="h-4 w-4 mr-2" />
+          {promoterData.contactId ? 'Contacto vinculado ✓' : 'Guardar como contacto nuevo'}
+        </Button>
+      )}
     </div>
   );
 
@@ -410,7 +472,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
 
       <div className="border-t pt-4">
         <h4 className="font-medium mb-3">Económico</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Caché Garantizado *</Label>
             <Input value={conditions.cacheGarantizado} onChange={e => setConditions({ ...conditions, cacheGarantizado: e.target.value })} placeholder="12.000€ + IVA" />
@@ -419,9 +481,43 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
             <Label>Comisión Agencia</Label>
             <Input value={conditions.comisionAgencia} onChange={e => setConditions({ ...conditions, comisionAgencia: e.target.value })} />
           </div>
+        </div>
+        
+        <div className="mt-4 space-y-2">
+          <Label>Precio Tickets</Label>
           <div className="space-y-2">
-            <Label>Precio Tickets</Label>
-            <Input value={conditions.precioTickets} onChange={e => setConditions({ ...conditions, precioTickets: e.target.value })} />
+            {ticketPrices.map((tp, idx) => (
+              <div key={idx} className="flex gap-2 items-center">
+                <Input
+                  className="flex-1"
+                  placeholder="Tipo (General, VIP...)"
+                  value={tp.tipo}
+                  onChange={e => {
+                    const next = [...ticketPrices];
+                    next[idx] = { ...next[idx], tipo: e.target.value };
+                    setTicketPrices(next);
+                  }}
+                />
+                <Input
+                  className="w-32"
+                  placeholder="Precio"
+                  value={tp.precio}
+                  onChange={e => {
+                    const next = [...ticketPrices];
+                    next[idx] = { ...next[idx], precio: e.target.value };
+                    setTicketPrices(next);
+                  }}
+                />
+                {ticketPrices.length > 1 && (
+                  <Button type="button" variant="ghost" size="icon" onClick={() => setTicketPrices(ticketPrices.filter((_, i) => i !== idx))}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={() => setTicketPrices([...ticketPrices, { tipo: '', precio: '' }])}>
+              <Plus className="h-4 w-4 mr-1" /> Agregar precio
+            </Button>
           </div>
         </div>
       </div>
@@ -451,7 +547,23 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
         </div>
         <div className="mt-4 space-y-2">
           <Label>Sponsors</Label>
-          <Textarea value={conditions.sponsors} onChange={e => setConditions({ ...conditions, sponsors: e.target.value })} rows={2} placeholder="Condiciones de patrocinios..." />
+          <Select value={sponsorPreset} onValueChange={v => {
+            setSponsorPreset(v);
+            if (v !== 'personalizado') {
+              setConditions(prev => ({ ...prev, sponsors: SPONSOR_PRESETS[v] || '' }));
+            }
+          }}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="estricta">Estricta — Sin marcas</SelectItem>
+              <SelectItem value="con_permiso">Con permiso por escrito</SelectItem>
+              <SelectItem value="sin_limitaciones">Sin limitaciones</SelectItem>
+              <SelectItem value="personalizado">Personalizado</SelectItem>
+            </SelectContent>
+          </Select>
+          {sponsorPreset === 'personalizado' && (
+            <Textarea value={conditions.sponsors} onChange={e => setConditions({ ...conditions, sponsors: e.target.value })} rows={2} placeholder="Condiciones de patrocinios..." />
+          )}
         </div>
       </div>
     </div>
@@ -549,14 +661,13 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     const maxWidth = pageWidth - margin * 2;
     const lineHeight = 5;
     
-    // Add logo to first page
     const addLogo = () => {
       try {
         const logoWidth = 40;
         const logoHeight = 15;
         const logoX = (pageWidth - logoWidth) / 2;
         doc.addImage(cityzenLogo, 'PNG', logoX, 10, logoWidth, logoHeight);
-        return 30; // Return starting Y position after logo
+        return 30;
       } catch {
         return margin;
       }
@@ -568,7 +679,6 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     
-    // Clean content to remove problematic characters
     const cleanContent = content
       .replace(/[""]/g, '"')
       .replace(/['']/g, "'")
@@ -590,18 +700,16 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
         addPageNumber();
         doc.addPage();
         pageNumber++;
-        // Add logo to each page
         y = addLogo();
       }
       
-      // Check for section headers (numbered sections like "1.", "2.", etc. or all caps)
       const isSectionHeader = /^\d+\./.test(line.trim()) || 
         (line.length < 70 && line === line.toUpperCase() && line.trim().length > 0 && !line.includes('-'));
       
       if (isSectionHeader) {
         doc.setFont("helvetica", "bold");
         if (/^\d+\./.test(line.trim()) && !line.includes('.1') && !line.includes('.2') && !line.includes('.3')) {
-          y += 3; // Add extra spacing before main sections
+          y += 3;
         }
       } else {
         doc.setFont("helvetica", "normal");
@@ -611,7 +719,6 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
       y += lineHeight;
     });
     
-    // Add page number to last page
     addPageNumber();
     
     const fileName = `Contrato_${conditions.artista.replace(/\s+/g, "_")}_${conditions.evento || conditions.ciudad || "booking"}.pdf`;

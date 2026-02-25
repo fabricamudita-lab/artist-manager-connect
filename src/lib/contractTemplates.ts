@@ -35,7 +35,7 @@ export interface ContractConditions {
   curfew: string;
   cacheGarantizado: string;
   comisionAgencia: string;
-  precioTickets: string;
+  precioTickets: { tipo: string; precio: string }[];
   sponsors: string;
   riderTecnico: boolean;
   riderHospitalidad: string;
@@ -155,7 +155,7 @@ CACHÉ GARANTIZADO:
 ${conditions.cacheGarantizado}${conditions.comisionAgencia ? ` (${conditions.comisionAgencia} Comisión Agencia incluida)` : ''}
 
 PRECIO TICKETS
-${conditions.precioTickets || 'TBC'}
+${conditions.precioTickets.length > 0 ? conditions.precioTickets.map(p => `- ${p.tipo}: ${p.precio}`).join('\n') : 'TBC'}
 
 SPONSORS:
 ${conditions.sponsors || 'No, y nunca en caja escénica del escenario sin previo acuerdo del artista'}
