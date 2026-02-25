@@ -45,12 +45,19 @@ interface Trends {
   solicitudes: number | null;
 }
 
+interface SuggestedAction {
+  label: string;
+  route: string;
+  variant?: 'default' | 'outline';
+}
+
 interface AttentionItem {
   id: string;
   type: 'solicitud_antigua' | 'booking_sin_contrato' | 'evento_sin_roadmap';
   label: string;
   sublabel?: string;
   route: string;
+  suggestedActions: SuggestedAction[];
 }
 
 interface UpcomingEvent {
@@ -250,7 +257,11 @@ export function OwnerDashboard() {
           type: 'solicitud_antigua',
           label: `Solicitud pendiente: ${s.nombre_solicitante}`,
           sublabel: 'Más de 48h sin respuesta',
-          route: `/solicitudes?id=${s.id}`
+          route: `/solicitudes?id=${s.id}`,
+          suggestedActions: [
+            { label: 'Responder', route: `/solicitudes?id=${s.id}&action=respond`, variant: 'default' },
+            { label: 'Rechazar', route: `/solicitudes?id=${s.id}&action=reject`, variant: 'outline' },
+          ]
         });
       });
 
@@ -274,12 +285,17 @@ export function OwnerDashboard() {
           .filter(b => !bookingsWithContract.has(b.id))
           .slice(0, 3)
           .forEach(b => {
+            const bookingId = b.id;
             items.push({
-              id: `bk-${b.id}`,
+              id: `bk-${bookingId}`,
               type: 'booking_sin_contrato',
               label: `Booking sin contrato: ${b.festival_ciclo || b.ciudad || 'Sin nombre'}`,
               sublabel: b.venue || undefined,
-              route: `/booking/${b.id}`
+              route: `/booking/${bookingId}`,
+              suggestedActions: [
+                { label: 'Solicitar contrato', route: `/booking/${bookingId}?tab=documentos`, variant: 'default' },
+                { label: 'Generar contrato', route: `/booking/${bookingId}?tab=documentos&action=generate`, variant: 'outline' },
+              ]
             });
           });
       }
@@ -310,7 +326,10 @@ export function OwnerDashboard() {
               type: 'evento_sin_roadmap',
               label: `Evento sin booking: ${e.title}`,
               sublabel: 'Próximos 7 días',
-              route: `/calendar`
+              route: `/calendar`,
+              suggestedActions: [
+                { label: 'Crear booking', route: `/booking?nuevo=true&event_id=${e.id}`, variant: 'default' },
+              ]
             });
           });
       }
@@ -410,15 +429,34 @@ export function OwnerDashboard() {
               {attentionItems.map(item => (
                 <div
                   key={item.id}
-                  className="flex items-center gap-3 p-2.5 rounded-lg bg-background/60 hover:bg-background cursor-pointer transition-colors"
-                  onClick={() => navigate(item.route)}
+                  className="flex flex-col gap-2 p-3 rounded-lg bg-background/60 hover:bg-background transition-colors"
                 >
-                  {attentionIcon[item.type]}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{item.label}</p>
-                    {item.sublabel && <p className="text-xs text-muted-foreground">{item.sublabel}</p>}
+                  <div
+                    className="flex items-center gap-3 cursor-pointer"
+                    onClick={() => navigate(item.route)}
+                  >
+                    {attentionIcon[item.type]}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{item.label}</p>
+                      {item.sublabel && <p className="text-xs text-muted-foreground">{item.sublabel}</p>}
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  {item.suggestedActions.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pl-7">
+                      {item.suggestedActions.map((action) => (
+                        <Button
+                          key={action.label}
+                          size="sm"
+                          variant={action.variant === 'default' ? 'default' : 'outline'}
+                          className="h-7 text-xs"
+                          onClick={(e) => { e.stopPropagation(); navigate(action.route); }}
+                        >
+                          {action.label}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
