@@ -1,20 +1,35 @@
 
 
-## Fix: Scroll con trackpad en dropdowns del dialog de creditos
+## Desactivar autenticacion para acceso publico
 
-El problema es conocido: los dialogos de Radix UI bloquean el scroll, lo que impide hacer scroll con trackpad/dedos en elementos scrollables renderizados dentro de Portals (como el `SelectContent` del selector de rol y el `CommandList` de busqueda de perfil).
-
-### Solucion
-
-Aplicar `onWheel={(e) => e.stopPropagation()}` en los contenedores con scroll para evitar que el dialog intercepte los eventos de trackpad.
+El objetivo es permitir que cualquier visitante (incluido Claude.ai) pueda ver todas las paginas sin necesidad de registrarse o iniciar sesion.
 
 ### Cambios
 
-**`src/components/credits/GroupedRoleSelect.tsx`**
-- Agregar `onWheel={e => e.stopPropagation()}` al `ScrollArea` dentro del `SelectContent`
+**1. `src/components/ProtectedRoute.tsx`**
 
-**`src/components/credits/AddCreditWithProfileForm.tsx`**
-- Agregar `onWheel={e => e.stopPropagation()}` al `ScrollArea` que envuelve el `CommandList` en la busqueda de perfiles
+Modificar el componente para que siempre permita el acceso sin verificar autenticacion:
+- Eliminar la redireccion a `/auth` cuando no hay usuario
+- Eliminar la verificacion de permisos
+- Renderizar directamente los `children` sin esperar carga de sesion
+- Mantener el componente para no romper imports, pero que sea un passthrough
 
-Ambos son cambios de una sola linea que resuelven el problema sin efectos secundarios.
+**2. `src/App.tsx`**
+
+Modificar `PublicRoute` para que no redirija a `/dashboard` cuando hay usuario autenticado. Simplemente renderiza sus children siempre. Tambien cambiar la ruta raiz `/` para que vaya directamente al Dashboard en vez de a Auth.
+
+**3. `src/pages/Dashboard.tsx`**
+
+Agregar un perfil mock cuando no hay perfil cargado (usuario no autenticado), para que el dashboard se renderice correctamente con datos de ejemplo en vez de mostrar "No se pudo cargar el perfil".
+
+**4. `src/hooks/useAuth.tsx`**
+
+No se modifica. El hook seguira funcionando normalmente, simplemente el `profile` sera null para visitantes no autenticados, y el Dashboard manejara ese caso con el perfil mock.
+
+### Resultado
+
+- Todas las rutas seran accesibles sin login
+- El dashboard mostrara un perfil de demo
+- Los componentes que dependen de datos de Supabase mostraran estados vacios (sin datos) pero no bloquearan la navegacion
+- Las rutas publicas (EPK, shared, etc.) seguiran funcionando igual
 
