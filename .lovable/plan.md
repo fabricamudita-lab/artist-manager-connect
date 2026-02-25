@@ -1,45 +1,56 @@
 
 
-## Sugerencias Automaticas de Tareas en "Requiere Atencion"
+## Mejoras en el Generador de Contratos
 
-Actualmente, la seccion "Requiere Atencion" del Dashboard detecta problemas (booking sin contrato, solicitud antigua, evento sin booking) pero solo muestra alertas pasivas. El objetivo es convertir cada alerta en una **sugerencia accionable** con un boton que permita resolver el problema directamente.
+Tres mejoras en el componente `ContractGenerator.tsx` y su plantilla `contractTemplates.ts`:
 
-### Diseno
+### 1. Promotor: Guardar como contacto nuevo
 
-Cada tipo de atencion tendra una o mas **acciones sugeridas** asociadas:
+En el paso "Promotor", cuando se introducen datos manualmente (sin seleccionar un contacto existente), agregar un boton "Guardar como contacto" que cree un registro en la tabla `contacts` con los datos introducidos (nombre, CIF, direccion, representante, cargo). Tras guardarlo, se vincula automaticamente como `selectedContactId`.
 
-| Tipo de alerta | Acciones sugeridas |
+**Archivo: `src/components/ContractGenerator.tsx`**
+- Agregar boton "Guardar como contacto" debajo del formulario manual del promotor
+- Al hacer clic, insertar en `contacts` con los campos: `name` = representante, `company` = nombre, `address` = direccion, `role` = cargo
+- Tras el insert, setear `selectedContactId` con el nuevo ID
+- Mostrar un toast de confirmacion y deshabilitar el boton (ya vinculado)
+
+### 2. Precio Tickets: Multiples tipos de precio
+
+Reemplazar el input simple de "Precio Tickets" por un sistema que permita agregar multiples lineas de precio (ej: "General: 22EUR", "VIP: 45EUR", "Early Bird: 18EUR").
+
+**Archivo: `src/lib/contractTemplates.ts`**
+- Cambiar `precioTickets: string` a `precioTickets: { tipo: string; precio: string }[]` en `ContractConditions`
+- Actualizar `generateContractDocument` para renderizar la lista de precios
+
+**Archivo: `src/components/ContractGenerator.tsx`**
+- Reemplazar el input unico por una lista dinamica con boton "+ Agregar precio"
+- Cada fila tiene dos campos: "Tipo" (ej: General, VIP, Early Bird) y "Precio" (ej: 22EUR)
+- Boton para eliminar cada fila
+- Default: una fila vacia o con "General" / "TBC"
+
+### 3. Artista: Pre-rellenar desde booking
+
+El campo "Artista" ya se pre-rellena desde `bookingData.artista`, pero se mantendra como esta ya que funciona correctamente con el `useEffect` existente. No requiere cambios adicionales.
+
+### 4. Sponsors: Selector con opciones predefinidas
+
+Reemplazar el textarea libre por un `Select` con tres opciones predefinidas, mas la posibilidad de texto personalizado.
+
+**Archivo: `src/components/ContractGenerator.tsx`**
+- Reemplazar el `Textarea` de sponsors por un `Select` con las opciones:
+  - **"Estricta"**: Valor = "No, y nunca en caja escenica del escenario sin previo acuerdo del artista. Sin marcas ni patrocinadores visibles."
+  - **"Con permiso"**: Valor = "Marcas permitidas unicamente con permiso previo por escrito en la caja escenica."
+  - **"Sin limitaciones"**: Valor = "Sin limitaciones respecto a patrocinadores y marcas."
+  - **"Personalizado"**: Muestra un textarea para escribir condiciones libres
+- Default: "Estricta"
+
+**Archivo: `src/lib/contractTemplates.ts`**
+- No requiere cambios estructurales, `sponsors` sigue siendo string
+
+### Archivos modificados
+
+| Archivo | Cambio |
 |---|---|
-| Booking sin contrato | "Solicitar contrato", "Generar contrato" |
-| Solicitud pendiente >48h | "Responder solicitud", "Rechazar solicitud" |
-| Evento sin booking | "Crear booking para evento" |
+| `src/lib/contractTemplates.ts` | Cambiar tipo `precioTickets` a array, actualizar generador |
+| `src/components/ContractGenerator.tsx` | Boton guardar contacto, precios multiples, selector sponsors |
 
-### Cambios
-
-**1. `src/components/dashboard/OwnerDashboard.tsx`**
-
-- Ampliar la interfaz `AttentionItem` con un campo `suggestedActions`:
-  ```text
-  suggestedActions: { label: string; route: string; variant?: 'default' | 'outline' }[]
-  ```
-
-- Al construir cada `AttentionItem`, incluir las acciones sugeridas segun el tipo:
-  - `booking_sin_contrato`: boton "Solicitar contrato" que navega a `/booking/{id}?tab=documentos` y boton "Generar contrato" que navega a `/booking/{id}?tab=documentos&action=generate`
-  - `solicitud_antigua`: boton "Responder" que navega a `/solicitudes?id={id}&action=respond`
-  - `evento_sin_roadmap`: boton "Crear booking" que navega a `/booking?nuevo=true&event_id={id}`
-
-- Modificar el renderizado de cada item de atencion para mostrar los botones de accion sugerida debajo del texto, con estilo compacto (botones pequenos con iconos)
-
-**2. Estilo visual**
-
-- Cada item de atencion pasara de ser una fila simple a tener dos lineas: la alerta arriba y las acciones sugeridas abajo
-- Los botones seran `size="sm"` con variante `outline` o `default` segun prioridad
-- Iconos relevantes: FileText para contrato, Reply para responder, Plus para crear
-- Se mantiene la navegacion con click en la fila completa, pero los botones de accion navegan a rutas especificas con parametros
-
-### Resultado
-
-- Las alertas del dashboard pasan de ser informativas a accionables
-- Un click en "Solicitar contrato" lleva directamente a la pestana de documentos del booking
-- Un click en "Responder" lleva a la solicitud con el dialogo de respuesta
-- La seccion se convierte en un centro de tareas sugeridas inteligente
