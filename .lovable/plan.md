@@ -1,62 +1,81 @@
 
 
-## Ordenar la seccion de Checklist para que sea completamente funcional e intuitiva
+## Descargar Label Copy en PDF desde la pestana de Creditos y Autoria
 
-Tras revisar el codigo actual, hay varios problemas que impiden un flujo limpio:
+### Que es un Label Copy
 
-1. **Cuando se crea desde plantilla en el estado vacio**, el `checklistId` es `null`, asi que el `TemplateSelectionDialog` crea la checklist internamente, pero luego el componente padre no se entera y no recarga correctamente las checklists.
-2. **El callback `onTemplateApplied` en el estado vacio** llama a `fetchChecklists()` pero no refresca los items ni selecciona la checklist nueva.
-3. **El dropdown de checklists tiene inline-editing** con input que puede generar conflictos de UX al crear y renombrar.
-4. **Falta la opcion "Crear desde plantilla" en el menu Acciones** para poder importar plantillas dentro de una checklist existente (agregar tareas de plantilla a la checklist activa).
+Un Label Copy es el documento oficial que acompana a un lanzamiento musical con toda la informacion de creditos, derechos y letras de cada cancion. Incluye: titulo del release, artista, sello, UPC, y por cada cancion: titulo, ISRC, creditos agrupados por rol, porcentajes de autoria/master, y la letra completa.
 
 ---
 
-### Cambios en `src/components/ProjectChecklistManager.tsx`
+### Cambios
 
-**1. Corregir el flujo de "Crear desde plantilla" en estado vacio**
-- En el estado vacio, al llamar `onTemplateApplied`, debe hacer `fetchChecklists()` completo y luego seleccionar la primera checklist disponible.
-- Cambiar el callback a una funcion que haga fetch de checklists, seleccione la primera, y luego haga fetch de items.
+**1. Nuevo archivo `src/utils/exportLabelCopyPDF.ts`**
 
-**2. Corregir el `onTemplateApplied` del dialog principal (linea 2090)**
-- Actualmente solo llama `fetchChecklistItems`, pero si se creo una checklist nueva (cuando no habia `activeChecklistId`), hay que recargar tambien las checklists.
-- Cambiar a una funcion que haga `fetchChecklists()` + `fetchChecklistItems()`.
+Funcion `exportLabelCopyPDF` que genera un PDF vertical (portrait) con:
 
-**3. Agregar "Crear desde plantilla" al menu Acciones**
-- Dentro del menu Acciones (junto a "Anadir elemento"), agregar opcion para importar plantilla a la checklist activa.
-- Esto permite incorporar plantillas en cualquier momento sobre una checklist existente (las tareas se agregan, no se sobreescriben).
+- **Cabecera**: Titulo del release, artista, sello, UPC, fecha de lanzamiento, tipo (Single/EP/Album), fecha de exportacion
+- **Por cada cancion** (ordenadas por track_number):
+  - Numero y titulo de la cancion
+  - ISRC (si existe)
+  - Creditos agrupados por categoria (Compositor, Autoria, Produccion, Interprete, Contribuidor) usando `CREDIT_CATEGORIES` de `creditRoles.ts`
+  - Porcentajes de autoria y master si estan registrados
+  - Letra completa (con formato preservado)
+  - Separador visual entre canciones
 
-**4. Mejorar el estado vacio de checklist sin items**
-- Cuando una checklist existe pero no tiene tareas (linea 1463-1474), agregar tambien el boton "Crear desde plantilla" para poder importar tareas desde plantilla a esa checklist activa.
+Usa `jsPDF` (ya instalado) sin autoTable, con texto formateado manualmente para un aspecto limpio tipo documento legal/profesional.
 
-**5. Limpiar el comentario "Template dialogs temporarily disabled" (linea 1884)**
-- Es un comentario residual que confunde; eliminarlo.
+**2. Modificacion de `src/pages/release-sections/ReleaseCreditos.tsx`**
 
-**6. Asegurar que el dropdown cierra correctamente al crear checklist**
-- El input inline del dropdown puede quedar abierto; al crear la checklist, cerrar el dropdown limpiamente.
-
----
-
-### Cambios en `src/components/TemplateSelectionDialog.tsx`
-
-**7. Mejorar la experiencia post-aplicacion**
-- Actualmente no hay forma de que el componente padre sepa que checklist se creo. Agregar el ID de la checklist creada al callback.
-- Cambiar `onTemplateApplied` a `onTemplateApplied: (newChecklistId?: string) => void`.
-- Cuando se crea una checklist nueva (porque `checklistId` era null), pasar el ID al callback para que el padre pueda seleccionarla.
+- Agregar boton "Descargar Label Copy" (icono `FileDown`) junto al boton "Nueva Cancion" en el header
+- El boton necesita los creditos de TODAS las canciones, asi que se hara un fetch directo de `track_credits` filtrado por los IDs de los tracks del release
+- Al hacer clic, se llama a `exportLabelCopyPDF` pasando release, tracks y creditos
 
 ---
 
-### Resumen de archivos a modificar
+### Detalle tecnico
+
+**Estructura del PDF generado:**
+
+```text
+LABEL COPY
+──────────────────────────────
+Titulo: Con una mano delante y otra detras
+Artista: Leyre
+Sello: [sello]
+UPC: [upc]
+Tipo: Single
+Fecha: 14 de marzo 2026
+
+──────────────────────────────
+1. Titulo de la cancion
+   ISRC: ES-XXX-00-00001
+
+   CREDITOS:
+   Compositor: Nombre (50% Autoria)
+   Letrista: Nombre (50% Autoria)
+   Productor: Nombre (100% Master)
+   Voz Principal: Nombre
+   Guitarra: Nombre
+
+   LETRA:
+   [texto completo de la letra]
+
+──────────────────────────────
+2. Siguiente cancion...
+```
+
+**Datos necesarios para el boton:**
+- `release` (ya disponible en el componente)
+- `tracks` (ya disponible)
+- Creditos de todos los tracks: se hara una query `supabase.from('track_credits').select('*').in('track_id', trackIds)` al momento de exportar
+
+---
+
+### Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/ProjectChecklistManager.tsx` | Corregir callbacks de template, agregar "Crear desde plantilla" en Acciones y estado vacio de checklist, limpiar comentario |
-| `src/components/TemplateSelectionDialog.tsx` | Pasar `newChecklistId` en callback para que el padre seleccione la checklist correcta |
-
-### Resultado esperado
-
-- **Estado vacio (sin checklists)**: Dos botones claros: "Crear desde plantilla" y "Crear checklist vacia". Al usar plantilla, se crea la checklist y se muestra directamente con las tareas.
-- **Dropdown de checklists**: Lista de checklists con iconos de editar/eliminar, y al final opciones de crear nueva o desde plantilla.
-- **Menu Acciones (por checklist activa)**: Anadir elemento, Crear desde plantilla, Guardar como plantilla, separador, Renombrar, Duplicar, separador, Vaciar todo, Eliminar.
-- **Checklist vacia (existe pero sin tareas)**: Botones de "Anadir elemento" y "Crear desde plantilla".
-- Todo funcional: crear, renombrar, duplicar, eliminar, importar plantillas en cualquier momento.
+| `src/utils/exportLabelCopyPDF.ts` | Nuevo archivo con la funcion de generacion del PDF |
+| `src/pages/release-sections/ReleaseCreditos.tsx` | Agregar boton "Descargar Label Copy" y logica de fetch + export |
 
