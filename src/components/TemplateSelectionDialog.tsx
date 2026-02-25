@@ -46,7 +46,7 @@ interface TemplateSelectionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
-  onTemplateApplied: () => void;
+  onTemplateApplied: (newChecklistId?: string) => void;
   checklistId?: string | null;
 }
 
@@ -234,7 +234,7 @@ export function TemplateSelectionDialog({
         description: `Se han añadido ${checklistItems.length} elementos desde la plantilla "${selectedTemplate.name_es}".`,
       });
 
-      onTemplateApplied();
+      onTemplateApplied(targetChecklistId || undefined);
       onOpenChange(false);
       setSelectedTemplate(null);
       setSelectedItems(new Set());
