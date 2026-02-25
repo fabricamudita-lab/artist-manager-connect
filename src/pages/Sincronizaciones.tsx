@@ -220,63 +220,24 @@ export default function Sincronizaciones() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card className="card-moodita">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <FileText className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Solicitudes</p>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="card-moodita">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-warning/10">
-                  <Clock className="h-5 w-5 text-warning" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">En Negociación</p>
-                  <p className="text-2xl font-bold">{stats.enNegociacion}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="card-moodita">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-success/10">
-                  <CheckCircle2 className="h-5 w-5 text-success" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Confirmadas</p>
-                  <p className="text-2xl font-bold">{stats.confirmadas}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="card-moodita">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Facturado</p>
-                  <p className="text-2xl font-bold">€{stats.totalFacturado.toLocaleString()}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Quick Stats Bar */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-muted/50 rounded-lg px-3 py-2">
+            <p className="text-xs text-muted-foreground">Total Solicitudes</p>
+            <p className="text-lg font-bold">{stats.total}</p>
+          </div>
+          <div className="bg-amber-500/10 rounded-lg px-3 py-2 border border-amber-500/20">
+            <p className="text-xs text-muted-foreground">En Negociación</p>
+            <p className="text-lg font-bold text-amber-600">{stats.enNegociacion}</p>
+          </div>
+          <div className="bg-green-500/10 rounded-lg px-3 py-2 border border-green-500/20">
+            <p className="text-xs text-muted-foreground">Confirmadas</p>
+            <p className="text-lg font-bold text-green-600">{stats.confirmadas}</p>
+          </div>
+          <div className="bg-emerald-500/10 rounded-lg px-3 py-2 border border-emerald-500/20">
+            <p className="text-xs text-muted-foreground">Total Facturado</p>
+            <p className="text-lg font-bold text-emerald-600">€{stats.totalFacturado.toLocaleString()}</p>
+          </div>
         </div>
 
         {/* Main Content */}
