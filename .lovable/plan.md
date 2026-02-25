@@ -1,35 +1,36 @@
 
 
-## Desactivar autenticacion para acceso publico
+## Mostrar datos de MOODITA Management en modo demo
 
-El objetivo es permitir que cualquier visitante (incluido Claude.ai) pueda ver todas las paginas sin necesidad de registrarse o iniciar sesion.
+Actualmente, cuando no hay sesion activa, el Dashboard muestra "Demo User" y el sidebar muestra campos vacios (sin nombre ni rol). Vamos a hacer que toda la app muestre "MOODITA Management" con rol "management" como perfil de demo.
 
 ### Cambios
 
-**1. `src/components/ProtectedRoute.tsx`**
+**1. `src/hooks/useAuth.tsx`** - Perfil demo centralizado
 
-Modificar el componente para que siempre permita el acceso sin verificar autenticacion:
-- Eliminar la redireccion a `/auth` cuando no hay usuario
-- Eliminar la verificacion de permisos
-- Renderizar directamente los `children` sin esperar carga de sesion
-- Mantener el componente para no romper imports, pero que sea un passthrough
+En lugar de parchear cada componente individualmente, haremos que el hook `useAuth` devuelva un perfil mock cuando no hay usuario autenticado. Asi todos los componentes (sidebar, dashboard, role selector, etc.) reciben datos consistentes.
 
-**2. `src/App.tsx`**
+- Cuando `loading` sea false y no haya `profile`, devolver un perfil demo:
+  - `full_name`: "MOODITA Management"
+  - `active_role`: "management"
+  - `roles`: ["management", "artist"]
+  - `email`: "demo@moodita.app"
+- El `loading` se pondra en false inmediatamente si no hay sesion
 
-Modificar `PublicRoute` para que no redirija a `/dashboard` cuando hay usuario autenticado. Simplemente renderiza sus children siempre. Tambien cambiar la ruta raiz `/` para que vaya directamente al Dashboard en vez de a Auth.
+**2. `src/pages/Dashboard.tsx`** - Limpiar mock redundante
 
-**3. `src/pages/Dashboard.tsx`**
+- Eliminar el mock local de `displayProfile` ya que el hook ahora devuelve el perfil demo
+- Usar directamente `profile` que siempre tendra valor
 
-Agregar un perfil mock cuando no hay perfil cargado (usuario no autenticado), para que el dashboard se renderice correctamente con datos de ejemplo en vez de mostrar "No se pudo cargar el perfil".
+**3. `src/components/AppSidebar.tsx`** - Sidebar siempre con datos
 
-**4. `src/hooks/useAuth.tsx`**
-
-No se modifica. El hook seguira funcionando normalmente, simplemente el `profile` sera null para visitantes no autenticados, y el Dashboard manejara ese caso con el perfil mock.
+- El footer del sidebar ya usa `profile?.full_name` y `profile?.active_role` - con el cambio en el hook, estos campos se llenaran automaticamente con "MOODITA Management" y "management"
+- Cambiar el boton "Cerrar Sesion" para que no aparezca en modo demo (cuando no hay `user`)
 
 ### Resultado
 
-- Todas las rutas seran accesibles sin login
-- El dashboard mostrara un perfil de demo
-- Los componentes que dependen de datos de Supabase mostraran estados vacios (sin datos) pero no bloquearan la navegacion
-- Las rutas publicas (EPK, shared, etc.) seguiran funcionando igual
+- El sidebar mostrara "MOODITA Management" con rol "management"
+- El dashboard dira "Bienvenido, MOODITA Management (Management)"
+- Todas las secciones de management seran visibles en la navegacion
+- No aparecera el boton de cerrar sesion en modo demo
 
