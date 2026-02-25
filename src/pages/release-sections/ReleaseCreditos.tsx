@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, Link2 } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, Link2, FileDown, Loader2 } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,6 +56,7 @@ import { LinkCreditContactDialog } from '@/components/credits/LinkCreditContactD
 import { AddCreditWithProfileForm } from '@/components/credits/AddCreditWithProfileForm';
 import { useAlertHighlight } from '@/hooks/useAlertHighlight';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { exportLabelCopyPDF } from '@/utils/exportLabelCopyPDF';
 
 const sortCreditsBySortOrder = (credits: TrackCredit[]) => {
   return [...credits].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
@@ -74,6 +75,41 @@ export default function ReleaseCreditos() {
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [deleteTrackId, setDeleteTrackId] = useState<string | null>(null);
   const [showCreditsBanner, setShowCreditsBanner] = useState(false);
+  const [isExportingLabelCopy, setIsExportingLabelCopy] = useState(false);
+
+  const handleExportLabelCopy = async () => {
+    if (!tracks || tracks.length === 0 || !release) {
+      toast.error('No hay canciones para exportar');
+      return;
+    }
+    setIsExportingLabelCopy(true);
+    try {
+      const trackIds = tracks.map((t) => t.id);
+      const { data: allCredits, error } = await supabase
+        .from('track_credits')
+        .select('*')
+        .in('track_id', trackIds);
+      if (error) throw error;
+
+      exportLabelCopyPDF(
+        release,
+        tracks,
+        (allCredits || []).map((c: any) => ({
+          track_id: c.track_id,
+          name: c.name,
+          role: c.role,
+          publishing_percentage: c.publishing_percentage,
+          master_percentage: c.master_percentage,
+        })),
+      );
+      toast.success('Label Copy descargado');
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al generar el Label Copy');
+    } finally {
+      setIsExportingLabelCopy(false);
+    }
+  };
 
   useEffect(() => {
     if (alertId === 'credits-missing' && !loadingTracks) {
@@ -165,6 +201,18 @@ export default function ReleaseCreditos() {
           <p className="text-sm text-muted-foreground">{release?.title}</p>
           <h1 className="text-2xl font-bold">Créditos y Autoría</h1>
         </div>
+        <Button
+          variant="outline"
+          onClick={handleExportLabelCopy}
+          disabled={isExportingLabelCopy || !tracks || tracks.length === 0}
+        >
+          {isExportingLabelCopy ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <FileDown className="mr-2 h-4 w-4" />
+          )}
+          Descargar Label Copy
+        </Button>
         <Dialog open={isCreateTrackOpen} onOpenChange={setIsCreateTrackOpen}>
           <DialogTrigger asChild>
             <Button>
