@@ -663,16 +663,22 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingReorder(null)}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
+            <AlertDialogCancel onClick={() => {
               if (pendingReorder) {
                 updateDay(pendingReorder.dayId, { items: pendingReorder.items });
                 setPendingReorder(null);
               }
             }}>
-              Sí, mantener este orden
+              Forzar este orden
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (pendingReorder) {
+                const sorted = sortByTime(pendingReorder.items);
+                updateDay(pendingReorder.dayId, { items: sorted });
+                setPendingReorder(null);
+              }
+            }}>
+              Mantener orden cronológico
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
