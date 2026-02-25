@@ -21,11 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { 
   FileText, Check, ChevronRight, ChevronLeft, ClipboardCopy, Eye, 
   Building, User, Calendar, CreditCard, Scale, Users, Download,
-  Plus, Trash2, Save
+  Plus, Trash2, Save, ChevronDown
 } from "lucide-react";
 import jsPDF from "jspdf";
 import {
@@ -40,7 +41,7 @@ import {
 } from "@/lib/contractTemplates";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import cityzenLogo from "@/assets/cityzen-logo.png";
+import mooditaLogo from "@/assets/moodita-logo.png";
 
 type ContractGeneratorProps = {
   open: boolean;
@@ -82,6 +83,70 @@ const SPONSOR_PRESETS: Record<string, string> = {
   con_permiso: 'Marcas permitidas únicamente con permiso previo por escrito en la caja escénica.',
   sin_limitaciones: 'Sin limitaciones respecto a patrocinadores y marcas.',
 };
+
+interface ClauseSection {
+  title: string;
+  clauses: { key: keyof LegalClauses; label: string }[];
+}
+
+const CLAUSE_SECTIONS: ClauseSection[] = [
+  {
+    title: '1. Propiedad Intelectual y Grabaciones',
+    clauses: [
+      { key: 'propiedadIntelectual', label: '1.1 Propiedad Intelectual' },
+      { key: 'grabaciones', label: '1.2 Grabaciones' },
+    ]
+  },
+  {
+    title: '2. Publicidad, Patrocinio y Merchandising',
+    clauses: [
+      { key: 'publicidad', label: '2.1 Publicidad' },
+      { key: 'noAnunciarSinPago', label: '2.2 No anunciar sin pago' },
+      { key: 'patrocinios', label: '2.3 Patrocinios' },
+      { key: 'merchandising', label: '2.4 Entrevistas y promoción' },
+      { key: 'merchandisingDerechos', label: '2.5 Merchandising' },
+    ]
+  },
+  {
+    title: '3. Recinto, Escenario y Camerinos',
+    clauses: [
+      { key: 'recinto', label: '3.1 Equipo técnico' },
+      { key: 'calidadEquipo', label: '3.2 Calidad del equipo' },
+      { key: 'camerinos', label: '3.3 Camerinos' },
+    ]
+  },
+  {
+    title: '4. Riders y Control Creativo',
+    clauses: [
+      { key: 'riders', label: '4.1 Riders técnico y hospitality' },
+      { key: 'retrasos', label: '4.2 Retrasos del promotor' },
+    ]
+  },
+  {
+    title: '5. Obligaciones del Promotor',
+    clauses: [
+      { key: 'obligaciones', label: '5.1 Permisos y seguridad' },
+      { key: 'segurosIndemnidad', label: '5.2 Seguros e indemnidad' },
+      { key: 'certificadosSeguros', label: '5.3 Certificados de seguros' },
+      { key: 'cancelacion', label: '5.4 Cancelación' },
+      { key: 'fuerzaMayor', label: '5.5 Fuerza mayor' },
+      { key: 'covid', label: '5.6 Restricciones sanitarias' },
+      { key: 'impagoPenalizacion', label: '5.7 Impago y penalización' },
+      { key: 'ticketingReporting', label: '5.8 Ticketing y reporting' },
+      { key: 'invitaciones', label: '5.9 Invitaciones' },
+      { key: 'liquidacionSGAE', label: '5.10 Liquidación SGAE' },
+      { key: 'porcentajeBeneficios', label: '5.11 Porcentaje beneficios' },
+    ]
+  },
+  {
+    title: '6-8. Efectividad, Confidencialidad y Jurisdicción',
+    clauses: [
+      { key: 'contratoFirme', label: 'Contrato firme (pago = vinculante)' },
+      { key: 'confidencialidad', label: '7. Confidencialidad' },
+      { key: 'jurisdiccion', label: '8. Ley y Jurisdicción' },
+    ]
+  },
+];
 
 const ContractGenerator: React.FC<ContractGeneratorProps> = ({
   open,
@@ -613,32 +678,29 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     </div>
   );
 
-  // Step 5: Legal Clauses
+  // Step 5: Legal Clauses — grouped with Collapsible
   const renderLegalStep = () => (
-    <div className="space-y-4">
-      {[
-        { key: 'propiedadIntelectual', label: '1. Propiedad Intelectual' },
-        { key: 'grabaciones', label: '1.2 Grabaciones' },
-        { key: 'publicidad', label: '2. Publicidad' },
-        { key: 'patrocinios', label: '2.2 Patrocinios' },
-        { key: 'merchandising', label: '2.3 Entrevistas y promoción' },
-        { key: 'recinto', label: '3. Recinto, escenario y camerinos' },
-        { key: 'riders', label: '4. Riders técnico y hospitality' },
-        { key: 'obligaciones', label: '5. Otras obligaciones' },
-        { key: 'cancelacion', label: '5.2 Cancelación' },
-        { key: 'fuerzaMayor', label: '5.3 Fuerza Mayor' },
-        { key: 'confidencialidad', label: '7. Confidencialidad' },
-        { key: 'jurisdiccion', label: '8. Ley y Jurisdicción' },
-      ].map(item => (
-        <div key={item.key} className="space-y-2">
-          <Label>{item.label}</Label>
-          <Textarea 
-            value={legalClauses[item.key as keyof LegalClauses]} 
-            onChange={e => setLegalClauses({ ...legalClauses, [item.key]: e.target.value })} 
-            rows={3}
-            className="text-sm"
-          />
-        </div>
+    <div className="space-y-3">
+      {CLAUSE_SECTIONS.map((section, sIdx) => (
+        <Collapsible key={sIdx} defaultOpen={sIdx === 0}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-muted/40 rounded-lg hover:bg-muted/60 transition-colors text-left">
+            <span className="font-medium text-sm">{section.title}</span>
+            <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2 space-y-3 pl-2">
+            {section.clauses.map(item => (
+              <div key={item.key} className="space-y-1">
+                <Label className="text-xs text-muted-foreground">{item.label}</Label>
+                <Textarea 
+                  value={legalClauses[item.key]} 
+                  onChange={e => setLegalClauses({ ...legalClauses, [item.key]: e.target.value })} 
+                  rows={3}
+                  className="text-sm"
+                />
+              </div>
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
       ))}
       <Button 
         type="button" 
@@ -666,11 +728,20 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
         const logoWidth = 40;
         const logoHeight = 15;
         const logoX = (pageWidth - logoWidth) / 2;
-        doc.addImage(cityzenLogo, 'PNG', logoX, 10, logoWidth, logoHeight);
+        doc.addImage(mooditaLogo, 'PNG', logoX, 10, logoWidth, logoHeight);
         return 30;
       } catch {
         return margin;
       }
+    };
+
+    const addFooter = (pNum: number) => {
+      doc.setFontSize(7);
+      doc.setTextColor(150);
+      doc.text('MOODITA', pageWidth / 2, pageHeight - 7, { align: 'center' });
+      doc.text(String(pNum), pageWidth / 2, pageHeight - 12, { align: 'center' });
+      doc.setTextColor(0);
+      doc.setFontSize(10);
     };
     
     let y = addLogo();
@@ -689,15 +760,9 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     
     const lines = doc.splitTextToSize(cleanContent, maxWidth);
     
-    const addPageNumber = () => {
-      doc.setFontSize(8);
-      doc.text(String(pageNumber), pageWidth / 2, pageHeight - 10, { align: 'center' });
-      doc.setFontSize(10);
-    };
-    
     lines.forEach((line: string) => {
       if (y + lineHeight > pageHeight - 20) {
-        addPageNumber();
+        addFooter(pageNumber);
         doc.addPage();
         pageNumber++;
         y = addLogo();
@@ -719,7 +784,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
       y += lineHeight;
     });
     
-    addPageNumber();
+    addFooter(pageNumber);
     
     const fileName = `Contrato_${conditions.artista.replace(/\s+/g, "_")}_${conditions.evento || conditions.ciudad || "booking"}.pdf`;
     doc.save(fileName);
