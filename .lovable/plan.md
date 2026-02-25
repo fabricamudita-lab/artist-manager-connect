@@ -1,42 +1,16 @@
 
 
-## Auto-ordenacion cronologica + confirmacion de reorden manual
+## Cambiar botones del dialogo de orden cronologico
 
-### Problema
-Actualmente las actividades del schedule se pueden reordenar libremente con drag-and-drop sin validacion. Esto permite situaciones incoherentes (ej: evento a las 20:30 seguido de otro a las 20:25).
+### Cambio en `src/components/roadmap-blocks/ScheduleBlock.tsx` (lineas 665-677)
 
-### Solucion
+Invertir la jerarquia visual de los botones:
 
-**Archivo: `src/components/roadmap-blocks/ScheduleBlock.tsx`**
+- **"Mantener orden cronologico"** (boton principal/destacado, `AlertDialogAction`) - es la accion sugerida, aplica el auto-sort cronologico en vez de simplemente cancelar.
+- **"Forzar este orden"** (boton secundario/outline, `AlertDialogCancel`) - permite mantener el orden manual no cronologico.
 
-**1. Auto-ordenacion al cambiar hora**
-- En `updateItem`, cuando `field === 'startTime'`, tras actualizar el valor, reordenar automaticamente los items del dia por `startTime` ascendente.
-- Esto garantiza que al escribir/editar una hora, la lista se reordena sola.
-
-**2. Confirmacion al hacer drag-and-drop manual**
-- En `handleDragEnd`, antes de aplicar el `arrayMove`, comprobar si el resultado rompe el orden cronologico.
-- Si lo rompe, en vez de aplicar directamente, guardar el movimiento pendiente en un nuevo estado `pendingReorder: { oldIndex, newIndex } | null`.
-- Mostrar un `AlertDialog` de doble confirmacion: "Esta actividad quedara fuera de orden cronologico (XX:XX antes de YY:YY). Esto es correcto?"
-- Si confirma: aplicar el reorden. Si cancela: no hacer nada.
-
-**3. Auto-ordenacion al anadir actividad**
-- En `addItem`, tras insertar la nueva actividad, ordenar los items por `startTime` (los vacios van al final).
-
-### Detalles tecnicos
-
-- Funcion helper `sortByTime(items: ScheduleItem[])`: ordena por `startTime`, items sin hora van al final.
-- Funcion helper `isChronological(items: ScheduleItem[])`: verifica si estan en orden.
-- Nuevo estado: `pendingReorder: { dayId: string; items: ScheduleItem[] } | null`
-- Nuevo `AlertDialog` (importar de `@/components/ui/alert-dialog`) para la confirmacion.
-
-### Estructura visual del dialogo
-
-```text
-[!] Orden no cronologico
-
-La actividad "Soundcheck" (20:30) quedara despues de "Show" (20:25).
-Esto rompe el orden cronologico. Estas seguro?
-
-[Cancelar]  [Si, mantener este orden]
-```
+Logica:
+- El boton principal ("Mantener orden cronologico") ejecuta `sortByTime` sobre los items del dia y guarda el resultado ordenado.
+- El boton secundario ("Forzar este orden") aplica el reorden manual tal como el usuario lo arrastro.
+- Esto invierte la logica actual: antes confirmar era "mantener desorden" y cancelar era "no hacer nada". Ahora confirmar es "corregir al orden cronologico" y la opcion secundaria es "forzar desorden".
 
