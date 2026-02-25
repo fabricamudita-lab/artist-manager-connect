@@ -122,7 +122,7 @@ const getNavigationGroups = (isManagement: boolean): NavGroup[] => {
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
 
 export function AppSidebar() {
-  const { profile, signOut } = useAuth();
+  const { profile, user, signOut } = useAuth();
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const currentPath = location.pathname;
@@ -275,15 +275,17 @@ export function AppSidebar() {
             </div>
           )}
           
-          <Button
-            variant="outline"
-            size={isCollapsed ? "icon" : "sm"}
-            onClick={handleSignOut}
-            className="w-full"
-          >
-            <LogOut className="w-4 h-4" />
-            {!isCollapsed && <span className="ml-2">Cerrar Sesión</span>}
-          </Button>
+          {user && (
+            <Button
+              variant="outline"
+              size={isCollapsed ? "icon" : "sm"}
+              onClick={handleSignOut}
+              className="w-full"
+            >
+              <LogOut className="w-4 h-4" />
+              {!isCollapsed && <span className="ml-2">Cerrar Sesión</span>}
+            </Button>
+          )}
           
           {isCollapsed && (
             <div className="flex justify-center">
