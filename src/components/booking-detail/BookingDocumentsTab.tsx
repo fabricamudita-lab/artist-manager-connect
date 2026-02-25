@@ -16,6 +16,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { 
   FileText, 
   Upload,
@@ -27,7 +32,8 @@ import {
   Edit3,
   Eye,
   MoreHorizontal,
-  Pencil
+  Pencil,
+  ChevronDown
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -35,6 +41,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ContractGenerator } from '@/components/ContractGenerator';
 import { ContractSignersManager } from './ContractSignersManager';
+import { ContractSignersSummary } from './ContractSignersSummary';
 import { ContractSignaturesFooter, getDocumentSigners } from './ContractSignaturesFooter';
 import jsPDF from 'jspdf';
 import cityzenLogo from "@/assets/cityzen-logo.png";
@@ -95,6 +102,16 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
   const [viewingContract, setViewingContract] = useState<BookingDocument | null>(null);
   const [contractContents, setContractContents] = useState<Record<string, string>>({});
   const [previewDoc, setPreviewDoc] = useState<BookingDocument | null>(null);
+  const [expandedContracts, setExpandedContracts] = useState<Set<string>>(new Set());
+
+  const toggleContract = (id: string) => {
+    setExpandedContracts(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   useEffect(() => {
     fetchDocuments();
@@ -754,38 +771,96 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
               description="Genera un contrato desde una plantilla o sube uno existente"
             />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {contracts.map((doc) => {
                 const statusConfig = STATUS_CONFIG[doc.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.draft;
                 const StatusIcon = statusConfig.icon;
                 const isGenerated = doc.file_url === 'generated';
                 const isSigned = doc.status === 'signed';
                 const isPendingSignature = doc.status === 'pending_signature';
+                const isExpanded = expandedContracts.has(doc.id);
 
                 return (
-                  <div
+                  <Collapsible
                     key={doc.id}
-                    className={`p-4 bg-muted/30 rounded-lg border group ${isSigned ? 'border-green-500/50 bg-green-500/5' : ''}`}
+                    open={isExpanded}
+                    onOpenChange={() => toggleContract(doc.id)}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3">
-                        <div className={`p-2 rounded-lg ${isSigned ? 'bg-green-500/20' : 'bg-primary/10'}`}>
-                          {isSigned ? (
-                            <CheckCircle className="h-5 w-5 text-green-600" />
-                          ) : (
-                            <FileText className={`h-5 w-5 text-primary`} />
-                          )}
+                    <div className={`rounded-lg border transition-colors ${isSigned ? 'border-green-500/50 bg-green-500/5' : 'bg-muted/30'}`}>
+                      {/* Minimized row — always visible */}
+                      <div className="flex items-center justify-between px-4 py-3">
+                        <CollapsibleTrigger asChild>
+                          <button className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-80 transition-opacity">
+                            <div className={`p-1.5 rounded-md shrink-0 ${isSigned ? 'bg-green-500/20' : 'bg-primary/10'}`}>
+                              {isSigned ? (
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <FileText className="h-4 w-4 text-primary" />
+                              )}
+                            </div>
+                            <span className="font-medium truncate text-sm">{doc.file_name}</span>
+                            <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                          </button>
+                        </CollapsibleTrigger>
+
+                        <div className="flex items-center gap-2 ml-3 shrink-0">
+                          <ContractSignersSummary documentId={doc.id} />
+                          <Badge className={`${statusConfig.color} ${isSigned ? 'bg-green-600' : ''} text-white`}>
+                            <StatusIcon className="h-3 w-3 mr-1" />
+                            {statusConfig.label}
+                          </Badge>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewContract(doc)}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                Ver contrato
+                              </DropdownMenuItem>
+                              {!isSigned && !isPendingSignature && (
+                                <DropdownMenuItem onClick={() => handleEditContract(doc)}>
+                                  <Pencil className="h-4 w-4 mr-2" />
+                                  Editar contrato
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onClick={() => handleDownloadPDF(doc)}>
+                                <Download className="h-4 w-4 mr-2" />
+                                Descargar PDF
+                              </DropdownMenuItem>
+                              {doc.file_url && doc.file_url !== 'generated' && (
+                                <DropdownMenuItem onClick={() => handleCopyLink(doc.file_url)}>
+                                  <LinkIcon className="h-4 w-4 mr-2" />
+                                  Copiar enlace
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteDocument(doc.id)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                        <div className="space-y-1">
-                          <p className="font-medium">{doc.file_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(doc.created_at).toLocaleDateString()}
+                      </div>
+
+                      {/* Expanded content */}
+                      <CollapsibleContent>
+                        <div className="px-4 pb-4 space-y-4">
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(doc.created_at).toLocaleDateString('es-ES', { dateStyle: 'medium' })}
                             {isGenerated && ' • Generado'}
-                          </p>
-                          
-                          {/* Show signature info when signed */}
+                          </div>
+
+                          {/* Legacy signature info */}
                           {isSigned && (
-                            <div className="mt-2 p-3 bg-green-500/10 rounded-lg border border-green-500/30 space-y-2">
+                            <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/30 space-y-2">
                               <div className="flex items-center gap-2 text-sm">
                                 <CheckCircle className="h-4 w-4 text-green-600" />
                                 <span className="font-medium text-green-700 dark:text-green-400">
@@ -794,113 +869,58 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
                               </div>
                               {doc.signed_at && (
                                 <p className="text-xs text-muted-foreground">
-                                  Fecha: {new Date(doc.signed_at).toLocaleString('es-ES', {
-                                    dateStyle: 'long',
-                                    timeStyle: 'short'
-                                  })}
+                                  Fecha: {new Date(doc.signed_at).toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' })}
                                 </p>
                               )}
                               {doc.signature_image_url && (
                                 <div className="mt-2 bg-white dark:bg-gray-900 rounded p-2 border">
-                                  <img 
-                                    src={doc.signature_image_url} 
-                                    alt="Firma" 
-                                    className="max-h-16 mx-auto"
-                                  />
+                                  <img src={doc.signature_image_url} alt="Firma" className="max-h-16 mx-auto" />
                                 </div>
                               )}
                             </div>
                           )}
-                        </div>
-                      </div>
 
-                      <div className="flex items-center gap-3">
-                        {/* Send to Sign Button */}
-                        {!isSigned && !isPendingSignature && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleSendToSign(doc.id)}
-                            className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10"
-                          >
-                            <Send className="h-4 w-4 mr-2" />
-                            Enviar a Firmar
-                          </Button>
-                        )}
-
-                        {/* Copy Signature Link Button */}
-                        {isPendingSignature && doc.contract_token && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              const signUrl = `${window.location.origin}/sign/${doc.contract_token}`;
-                              navigator.clipboard.writeText(signUrl);
-                              toast({
-                                title: "Enlace copiado",
-                                description: "Compártelo con el firmante.",
-                              });
-                            }}
-                            className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10"
-                          >
-                            <LinkIcon className="h-4 w-4 mr-2" />
-                            Copiar Link Firma
-                          </Button>
-                        )}
-
-                        <Badge className={`${statusConfig.color} ${isSigned ? 'bg-green-600' : ''}`}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {statusConfig.label}
-                        </Badge>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewContract(doc)}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              Ver contrato
-                            </DropdownMenuItem>
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-2">
                             {!isSigned && !isPendingSignature && (
-                              <DropdownMenuItem onClick={() => handleEditContract(doc)}>
-                                <Pencil className="h-4 w-4 mr-2" />
-                                Editar contrato
-                              </DropdownMenuItem>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleSendToSign(doc.id)}
+                                className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10"
+                              >
+                                <Send className="h-4 w-4 mr-2" />
+                                Enviar a Firmar
+                              </Button>
                             )}
-                            <DropdownMenuItem onClick={() => handleDownloadPDF(doc)}>
-                              <Download className="h-4 w-4 mr-2" />
-                              Descargar PDF
-                            </DropdownMenuItem>
-                            {doc.file_url && doc.file_url !== 'generated' && (
-                              <DropdownMenuItem onClick={() => handleCopyLink(doc.file_url)}>
+                            {isPendingSignature && doc.contract_token && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const signUrl = `${window.location.origin}/sign/${doc.contract_token}`;
+                                  navigator.clipboard.writeText(signUrl);
+                                  toast({ title: "Enlace copiado", description: "Compártelo con el firmante." });
+                                }}
+                                className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10"
+                              >
                                 <LinkIcon className="h-4 w-4 mr-2" />
-                                Copiar enlace
-                              </DropdownMenuItem>
+                                Copiar Link Firma
+                              </Button>
                             )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteDocument(doc.id)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
+                          </div>
 
-                    {/* Multi-Signer Manager */}
-                    <div className="mt-4 pt-4 border-t">
-                      <ContractSignersManager 
-                        documentId={doc.id} 
-                        onSignersChange={fetchDocuments}
-                      />
+                          {/* Multi-Signer Manager */}
+                          <div className="pt-2 border-t">
+                            <ContractSignersManager 
+                              documentId={doc.id} 
+                              onSignersChange={fetchDocuments}
+                            />
+                          </div>
+                        </div>
+                      </CollapsibleContent>
                     </div>
-                  </div>
+                  </Collapsible>
                 );
               })}
             </div>
