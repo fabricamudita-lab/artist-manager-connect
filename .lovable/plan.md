@@ -1,49 +1,42 @@
 
 
-## Contratos minimizables con vista rapida de firmas
+## Auto-ordenacion cronologica + confirmacion de reorden manual
 
-### Objetivo
-Cada contrato en la lista se muestra como una tarjeta colapsable. Por defecto aparece minimizado mostrando solo el nombre del archivo, el badge de estado y un resumen de firmas (ej: "2/3 firmados"). Al expandir se ve el detalle completo (firmantes, botones de accion, etc.).
+### Problema
+Actualmente las actividades del schedule se pueden reordenar libremente con drag-and-drop sin validacion. Esto permite situaciones incoherentes (ej: evento a las 20:30 seguido de otro a las 20:25).
 
-### Cambios en `src/components/booking-detail/BookingDocumentsTab.tsx`
+### Solucion
 
-**1. Estado de expansion por contrato**
-- Agregar estado `expandedContracts: Set<string>` para trackear que contratos estan expandidos.
-- Por defecto todos minimizados.
+**Archivo: `src/components/roadmap-blocks/ScheduleBlock.tsx`**
 
-**2. Vista minimizada (siempre visible)**
-- Fila compacta con:
-  - Icono (check verde si firmado, documento si no)
-  - Nombre del archivo
-  - Badge de estado (Borrador / Enviado / Firma pendiente / Firmado)
-  - Indicador de firmas: badge pequeno "X/Y firmados" (datos del `ContractSignersManager`)
-  - Chevron para expandir/colapsar
-  - Menu de acciones (tres puntos) siempre accesible
+**1. Auto-ordenacion al cambiar hora**
+- En `updateItem`, cuando `field === 'startTime'`, tras actualizar el valor, reordenar automaticamente los items del dia por `startTime` ascendente.
+- Esto garantiza que al escribir/editar una hora, la lista se reordena sola.
 
-**3. Vista expandida (al hacer clic)**
-- Todo el contenido actual: info de firma legacy, botones "Enviar a Firmar" / "Copiar Link", y el `ContractSignersManager` completo.
+**2. Confirmacion al hacer drag-and-drop manual**
+- En `handleDragEnd`, antes de aplicar el `arrayMove`, comprobar si el resultado rompe el orden cronologico.
+- Si lo rompe, en vez de aplicar directamente, guardar el movimiento pendiente en un nuevo estado `pendingReorder: { oldIndex, newIndex } | null`.
+- Mostrar un `AlertDialog` de doble confirmacion: "Esta actividad quedara fuera de orden cronologico (XX:XX antes de YY:YY). Esto es correcto?"
+- Si confirma: aplicar el reorden. Si cancela: no hacer nada.
 
-**4. Resumen de firmantes en la fila minimizada**
-- Nuevo componente interno `ContractSignersSummary` que consulta `contract_signers` y muestra un badge compacto con el conteo.
-- Reutiliza la misma query que `ContractSignersManager` pero solo muestra el badge, sin la lista completa.
+**3. Auto-ordenacion al anadir actividad**
+- En `addItem`, tras insertar la nueva actividad, ordenar los items por `startTime` (los vacios van al final).
 
-### Estructura visual
+### Detalles tecnicos
+
+- Funcion helper `sortByTime(items: ScheduleItem[])`: ordena por `startTime`, items sin hora van al final.
+- Funcion helper `isChronological(items: ScheduleItem[])`: verifica si estan en orden.
+- Nuevo estado: `pendingReorder: { dayId: string; items: ScheduleItem[] } | null`
+- Nuevo `AlertDialog` (importar de `@/components/ui/alert-dialog`) para la confirmacion.
+
+### Estructura visual del dialogo
 
 ```text
-Minimizado:
-[icon] Contrato Rita Payes - M00DITA.pdf    [2/3 firmados] [Firma pendiente] [...] [v]
+[!] Orden no cronologico
 
-Expandido:
-[icon] Contrato Rita Payes - M00DITA.pdf    [2/3 firmados] [Firma pendiente] [...] [^]
-  25/2/2026 - Generado
-  [Enviar a Firmar]  [Copiar Link]
-  ---- Firmantes ----
-  [lista completa de firmantes con acciones]
+La actividad "Soundcheck" (20:30) quedara despues de "Show" (20:25).
+Esto rompe el orden cronologico. Estas seguro?
+
+[Cancelar]  [Si, mantener este orden]
 ```
-
-### Archivo modificado
-
-| Archivo | Cambio |
-|---|---|
-| `src/components/booking-detail/BookingDocumentsTab.tsx` | Envolver cada contrato en Collapsible, agregar ContractSignersSummary, estado expandedContracts |
 
