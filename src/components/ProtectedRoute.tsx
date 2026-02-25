@@ -16,68 +16,8 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({
   children,
-  projectId,
-  artistId,
-  workspaceId,
-  requiredAction = 'VIEW_PROJECT',
-  fallbackPath = '/403'
 }: ProtectedRouteProps) {
-  const { user, loading } = useAuth();
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [checking, setChecking] = useState(true);
-  const location = useLocation();
-
-  useEffect(() => {
-    async function checkPermissions() {
-      if (!user) {
-        setChecking(false);
-        return;
-      }
-
-      try {
-        if (projectId) {
-          const canView = await canViewProject(user.id, projectId);
-          setHasPermission(canView);
-        } else {
-          // For now, allow access if no specific resource is specified
-          setHasPermission(true);
-        }
-      } catch (error) {
-        console.error('Error checking permissions:', error);
-        setHasPermission(false);
-      } finally {
-        setChecking(false);
-      }
-    }
-
-    if (!loading) {
-      checkPermissions();
-    }
-  }, [user, loading, projectId, artistId, workspaceId, requiredAction]);
-
-  // Show loading state
-  if (loading || checking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Verificando permisos...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Redirect to login if not authenticated
-  if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
-  }
-
-  // Show 403 if no permission
-  if (hasPermission === false) {
-    return <Navigate to={fallbackPath} replace />;
-  }
-
-  // Render children if all checks pass
+  // Auth bypass: allow all visitors to access every route
   return <>{children}</>;
 }
 
