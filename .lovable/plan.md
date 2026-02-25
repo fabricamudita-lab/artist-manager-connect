@@ -1,74 +1,89 @@
 
 
-## Descargar Label Copy en PDF desde la pestana de Creditos y Autoria
+## Mejoras en creditos para Label Copy profesional
 
-### Que es un Label Copy
-
-Un Label Copy es el documento oficial que acompana a un lanzamiento musical con toda la informacion de creditos, derechos y letras de cada cancion. Incluye: titulo del release, artista, sello, UPC, y por cada cancion: titulo, ISRC, creditos agrupados por rol, porcentajes de autoria/master, y la letra completa.
+El objetivo es enriquecer el sistema de creditos para soportar toda la informacion que necesita un label copy profesional: estudio de grabacion por credito, detalle de instrumento, metadatos de grabacion por cancion, y lineas P/C a nivel de release.
 
 ---
 
-### Cambios
+### 1. Migracion de base de datos
 
-**1. Nuevo archivo `src/utils/exportLabelCopyPDF.ts`**
+**Tabla `track_credits` - nuevas columnas:**
+- `instrument_detail` (text, nullable): Detalle libre del instrumento/rol, ej. "Voz, Trombon y Arreglo de Cuerdas"
+- `studio` (text, nullable): Estudio donde grabo, ej. "Estudis Ground" o "Santa Rita Records (Mataro)"
 
-Funcion `exportLabelCopyPDF` que genera un PDF vertical (portrait) con:
+**Tabla `tracks` - nuevas columnas:**
+- `rec_period` (text, nullable): Periodo de grabacion, ej. "Abril 2024"
+- `recorded_at` (text, nullable): Estudio(s) de grabacion, ej. "Estudis Ground (Cornella de Terri), Santa Rita Records (Mataro), Spain"
+- `p_line` (text, nullable): Linea (P), ej. "(P) De Esta Edicion 2024 Sony Music..."
+- `repertoire_owner` (text, nullable): Propietario del repertorio, ej. "Rita Payes Roma (License)"
 
-- **Cabecera**: Titulo del release, artista, sello, UPC, fecha de lanzamiento, tipo (Single/EP/Album), fecha de exportacion
-- **Por cada cancion** (ordenadas por track_number):
-  - Numero y titulo de la cancion
-  - ISRC (si existe)
-  - Creditos agrupados por categoria (Compositor, Autoria, Produccion, Interprete, Contribuidor) usando `CREDIT_CATEGORIES` de `creditRoles.ts`
-  - Porcentajes de autoria y master si estan registrados
-  - Letra completa (con formato preservado)
-  - Separador visual entre canciones
+**Tabla `releases` - nuevas columnas:**
+- `c_line` (text, nullable): Linea (C) a nivel de release
+- `p_line` (text, nullable): Linea (P) a nivel de release
 
-Usa `jsPDF` (ya instalado) sin autoTable, con texto formateado manualmente para un aspecto limpio tipo documento legal/profesional.
-
-**2. Modificacion de `src/pages/release-sections/ReleaseCreditos.tsx`**
-
-- Agregar boton "Descargar Label Copy" (icono `FileDown`) junto al boton "Nueva Cancion" en el header
-- El boton necesita los creditos de TODAS las canciones, asi que se hara un fetch directo de `track_credits` filtrado por los IDs de los tracks del release
-- Al hacer clic, se llama a `exportLabelCopyPDF` pasando release, tracks y creditos
+Se crea una migracion SQL para agregar estas columnas.
 
 ---
 
-### Detalle tecnico
+### 2. Actualizar tipos TypeScript
 
-**Estructura del PDF generado:**
+**`src/hooks/useReleases.ts`:**
+- Agregar `instrument_detail`, `studio` a la interfaz `TrackCredit`
+- Agregar `rec_period`, `recorded_at`, `p_line`, `repertoire_owner` a la interfaz `Track`
+- Agregar `c_line`, `p_line` a la interfaz `Release`
 
-```text
-LABEL COPY
-──────────────────────────────
-Titulo: Con una mano delante y otra detras
-Artista: Leyre
-Sello: [sello]
-UPC: [upc]
-Tipo: Single
-Fecha: 14 de marzo 2026
+---
 
-──────────────────────────────
-1. Titulo de la cancion
-   ISRC: ES-XXX-00-00001
+### 3. Formulario de creditos mejorado
 
-   CREDITOS:
-   Compositor: Nombre (50% Autoria)
-   Letrista: Nombre (50% Autoria)
-   Productor: Nombre (100% Master)
-   Voz Principal: Nombre
-   Guitarra: Nombre
+**`src/components/credits/AddCreditWithProfileForm.tsx`:**
+- Agregar campo opcional "Detalle de instrumento" (Input, placeholder: "Ej. Voz, Trombon y Arreglo de Cuerdas")
+- Agregar campo opcional "Estudio" (Input, placeholder: "Ej. Estudis Ground")
+- Ambos campos se muestran debajo del selector de rol
+- Pasar `instrument_detail` y `studio` en el `onSubmit`
 
-   LETRA:
-   [texto completo de la letra]
+**`src/pages/release-sections/ReleaseCreditos.tsx` - SortableCreditRow:**
+- Mostrar `instrument_detail` debajo del nombre cuando existe (texto gris mas pequeno)
+- Mostrar `studio` con prefijo "At" cuando existe
+- En modo edicion: agregar campos para editar `instrument_detail` y `studio`
 
-──────────────────────────────
-2. Siguiente cancion...
-```
+---
 
-**Datos necesarios para el boton:**
-- `release` (ya disponible en el componente)
-- `tracks` (ya disponible)
-- Creditos de todos los tracks: se hara una query `supabase.from('track_credits').select('*').in('track_id', trackIds)` al momento de exportar
+### 4. Formularios de cancion mejorados
+
+**CreateTrackForm y EditTrackForm** (dentro de `ReleaseCreditos.tsx`):
+- Agregar seccion colapsable "Datos de grabacion" con:
+  - Periodo de grabacion (Input, placeholder: "Ej. Abril 2024")
+  - Lugar de grabacion (Input, placeholder: "Ej. Estudis Ground, Santa Rita Records, Spain")
+  - Linea (P) (Input, placeholder: "(P) De Esta Edicion 2024...")
+  - Propietario del repertorio (Input, placeholder: "Ej. Rita Payes Roma (License)")
+
+---
+
+### 5. Campos P-line y C-line a nivel de release
+
+**`src/pages/ReleaseDetail.tsx`:**
+- Agregar campos editables para C-line y P-line en la seccion de informacion del release (junto a UPC, sello, etc.)
+
+---
+
+### 6. Actualizar exportacion Label Copy PDF
+
+**`src/utils/exportLabelCopyPDF.ts`:**
+- Agregar C-line y P-line del release en la cabecera
+- Por cada cancion: renderizar los creditos con `instrument_detail` en lugar del rol generico cuando exista (ej. "Voz, Trombon y Arreglo de Cuerdas: Rita Payes" en vez de "Violin: Rita Payes")
+- Agregar "At [studio]" despues del nombre cuando el credito tiene estudio
+- Agregar al final de cada cancion: Rec Period, Recorded at, P-line, Repertoire Owner
+- Actualizar las interfaces para incluir los nuevos campos
+
+---
+
+### 7. Actualizar la llamada al export desde ReleaseCreditos
+
+**`src/pages/release-sections/ReleaseCreditos.tsx` - handleExportLabelCopy:**
+- Pasar `instrument_detail` y `studio` en los creditos al PDF
+- Pasar `rec_period`, `recorded_at`, `p_line`, `repertoire_owner` en los tracks al PDF
 
 ---
 
@@ -76,6 +91,10 @@ Fecha: 14 de marzo 2026
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/utils/exportLabelCopyPDF.ts` | Nuevo archivo con la funcion de generacion del PDF |
-| `src/pages/release-sections/ReleaseCreditos.tsx` | Agregar boton "Descargar Label Copy" y logica de fetch + export |
+| Nueva migracion SQL | Agregar columnas a track_credits, tracks, releases |
+| `src/hooks/useReleases.ts` | Actualizar interfaces Track, TrackCredit, Release |
+| `src/components/credits/AddCreditWithProfileForm.tsx` | Campos instrument_detail y studio |
+| `src/pages/release-sections/ReleaseCreditos.tsx` | Mostrar/editar nuevos campos, formularios de track mejorados, export actualizado |
+| `src/utils/exportLabelCopyPDF.ts` | Renderizar instrument_detail, studio, metadatos de grabacion, P/C lines |
+| `src/pages/ReleaseDetail.tsx` | Campos C-line y P-line editables |
 
