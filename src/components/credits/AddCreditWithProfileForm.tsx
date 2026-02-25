@@ -169,7 +169,7 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId 
             <Command className="rounded-lg border">
               <CommandInput placeholder="Buscar artistas, equipo o contactos..." />
               <CommandList>
-                <ScrollArea className="h-[200px]">
+                <ScrollArea className="h-[200px]" onWheel={(e) => e.stopPropagation()}>
                   <CommandEmpty>No se encontraron perfiles.</CommandEmpty>
                   
                   {/* Artistas del Roster */}

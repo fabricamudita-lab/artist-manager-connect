@@ -36,7 +36,7 @@ export function GroupedRoleSelect({
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent className={className}>
-        <ScrollArea className="max-h-[300px]">
+        <ScrollArea className="max-h-[300px]" onWheel={(e) => e.stopPropagation()}>
           {groups.map((group) => (
             <SelectGroup key={group.category.id}>
               <SelectLabel className={`${group.category.textClass} font-semibold`}>
