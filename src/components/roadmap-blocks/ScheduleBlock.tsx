@@ -1,11 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2, Pencil, Music, Utensils, Hotel, Plane, Users, Clock, GripVertical, X } from 'lucide-react';
+import { Plus, Trash2, Pencil, Music, Utensils, Hotel, Plane, Users, Clock, GripVertical, X, AlertTriangle } from 'lucide-react';
 import { LocationAutocomplete } from './LocationAutocomplete';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useDebounce } from '@/hooks/useDebounce';
 import { TeamMemberSelector } from './TeamMemberSelector';
 import { InlineEditCell, InlineSelectCell } from '@/components/ui/inline-edit';
@@ -71,6 +81,40 @@ const activityTypes = [
 const getActivityConfig = (type: string) => {
   return activityTypes.find(a => a.value === type) || activityTypes[activityTypes.length - 1];
 };
+
+/** Sort schedule items by startTime ascending; items without a time go to the end */
+function sortByTime(items: ScheduleItem[]): ScheduleItem[] {
+  return [...items].sort((a, b) => {
+    if (!a.startTime && !b.startTime) return 0;
+    if (!a.startTime) return 1;
+    if (!b.startTime) return -1;
+    return a.startTime.localeCompare(b.startTime);
+  });
+}
+
+/** Check if items are in chronological order (ignoring items without a time) */
+function isChronological(items: ScheduleItem[]): boolean {
+  let lastTime = '';
+  for (const item of items) {
+    if (!item.startTime) continue;
+    if (lastTime && item.startTime < lastTime) return false;
+    lastTime = item.startTime;
+  }
+  return true;
+}
+
+/** Find the first pair that breaks chronological order */
+function findFirstBreak(items: ScheduleItem[]): { before: ScheduleItem; after: ScheduleItem } | null {
+  let lastWithTime: ScheduleItem | null = null;
+  for (const item of items) {
+    if (!item.startTime) continue;
+    if (lastWithTime && item.startTime < lastWithTime.startTime) {
+      return { before: lastWithTime, after: item };
+    }
+    lastWithTime = item;
+  }
+  return null;
+}
 
 interface SortableScheduleRowProps {
   item: ScheduleItem;
@@ -180,6 +224,7 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
   const [editingAssignments, setEditingAssignments] = useState<{ dayId: string; itemId: string } | null>(null);
   const [tempAssignedIds, setTempAssignedIds] = useState<string[]>([]);
   const [pendingSyncTime, setPendingSyncTime] = useState<string | null>(null);
+  const [pendingReorder, setPendingReorder] = useState<{ dayId: string; items: ScheduleItem[]; movedItem: ScheduleItem; conflictItem: ScheduleItem } | null>(null);
 
   const lastSyncedRef = useRef<string>(JSON.stringify(incomingDays));
   const debouncedDays = useDebounce(localDays, 500);
@@ -292,9 +337,14 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
     };
 
     setLocalDays((prev) =>
-      prev.map((d) => d.id === dayId ? { ...d, items: [...d.items, newItem] } : d)
+      prev.map((d) => {
+        if (d.id !== dayId) return d;
+        const updatedItems = [...d.items, newItem];
+        return { ...d, items: sortByTime(updatedItems) };
+      })
     );
   };
+
 
   const updateItem = (dayId: string, itemId: string, field: keyof ScheduleItem, value: unknown) => {
     // Detect show time change to offer sync
@@ -309,12 +359,14 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
     setLocalDays((prev) =>
       prev.map((d) => {
         if (d.id !== dayId) return d;
-        return {
-          ...d,
-          items: d.items.map((item) =>
-            item.id === itemId ? { ...item, [field]: value } : item
-          )
-        };
+        const updatedItems = d.items.map((item) =>
+          item.id === itemId ? { ...item, [field]: value } : item
+        );
+        // Auto-sort when time changes
+        if (field === 'startTime') {
+          return { ...d, items: sortByTime(updatedItems) };
+        }
+        return { ...d, items: updatedItems };
       })
     );
   };
@@ -362,6 +414,19 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
     const newIndex = currentDay.items.findIndex(i => i.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
     const newItems = arrayMove(currentDay.items, oldIndex, newIndex);
+    
+    if (!isChronological(newItems)) {
+      const breakInfo = findFirstBreak(newItems);
+      if (breakInfo) {
+        setPendingReorder({
+          dayId: currentDay.id,
+          items: newItems,
+          movedItem: breakInfo.after,
+          conflictItem: breakInfo.before,
+        });
+        return;
+      }
+    }
     updateDay(currentDay.id, { items: newItems });
   };
 
@@ -579,6 +644,39 @@ export function ScheduleBlock({ data, onChange, tourDates, bookingInfo, artistId
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Chronological reorder confirmation */}
+      <AlertDialog open={!!pendingReorder} onOpenChange={(open) => !open && setPendingReorder(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-6 w-6 text-amber-500" />
+              <AlertDialogTitle>Orden no cronológico</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-base">
+              {pendingReorder && (
+                <>
+                  La actividad "<span className="font-semibold text-foreground">{pendingReorder.movedItem.title || pendingReorder.movedItem.activityType}</span>" ({pendingReorder.movedItem.startTime}) quedará después de "<span className="font-semibold text-foreground">{pendingReorder.conflictItem.title || pendingReorder.conflictItem.activityType}</span>" ({pendingReorder.conflictItem.startTime}).
+                  <br />Esto rompe el orden cronológico. ¿Estás seguro?
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingReorder(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (pendingReorder) {
+                updateDay(pendingReorder.dayId, { items: pendingReorder.items });
+                setPendingReorder(null);
+              }
+            }}>
+              Sí, mantener este orden
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
