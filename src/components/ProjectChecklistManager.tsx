@@ -1249,7 +1249,14 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
           open={openTemplateDialog}
           onOpenChange={setOpenTemplateDialog}
           projectId={projectId}
-          onTemplateApplied={() => fetchChecklists()}
+          onTemplateApplied={async (newChecklistId) => {
+            const cls = await fetchChecklists();
+            if (newChecklistId) {
+              setActiveChecklistId(newChecklistId);
+            } else if (cls.length > 0) {
+              setActiveChecklistId(cls[0].id);
+            }
+          }}
           checklistId={activeChecklistId}
         />
       </>
@@ -1377,6 +1384,10 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                         <Plus className="w-4 h-4 mr-2" />
                         Añadir elemento
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setOpenTemplateDialog(true)}>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Importar desde plantilla
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setOpenSaveTemplateDialog(true)}>
                         <Save className="w-4 h-4 mr-2" />
                         Guardar como plantilla
@@ -1468,6 +1479,10 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                       <Button size="sm" variant="outline" onClick={() => setOpenAddDialog(true)}>
                         <Plus className="w-4 h-4 mr-2" />
                         Añadir elemento
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setOpenTemplateDialog(true)}>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Importar desde plantilla
                       </Button>
                     </div>
                   )}
@@ -1881,7 +1896,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Template dialogs temporarily disabled - will be fixed in next update */}
+      
 
       {/* Add new item dialog */}
       <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
@@ -2087,7 +2102,13 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         open={openTemplateDialog}
         onOpenChange={setOpenTemplateDialog}
         projectId={projectId}
-        onTemplateApplied={fetchChecklistItems}
+        onTemplateApplied={async (newChecklistId) => {
+          const cls = await fetchChecklists();
+          if (newChecklistId) {
+            setActiveChecklistId(newChecklistId);
+          }
+          fetchChecklistItems();
+        }}
         checklistId={activeChecklistId}
       />
 
