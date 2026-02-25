@@ -53,6 +53,7 @@ import {
   Loader2,
   Maximize2,
   Minimize2,
+  FileDown,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -130,6 +131,7 @@ import {
 } from '@/components/ui/dialog';
 import GanttChart from '@/components/lanzamientos/GanttChart';
 import { useRelease, useTracks, useReleaseMilestones, type ReleaseMilestone } from '@/hooks/useReleases';
+import { exportCronogramaPDF } from '@/utils/exportCronogramaPDF';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -1987,6 +1989,27 @@ export default function ReleaseCronograma() {
           }}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Regenerar fechas
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => {
+            exportCronogramaPDF(
+              workflows.map(w => ({
+                id: w.id,
+                name: w.name,
+                tasks: w.tasks.map(t => ({
+                  name: t.name,
+                  responsible: t.responsible,
+                  startDate: t.startDate,
+                  estimatedDays: t.estimatedDays,
+                  status: t.status,
+                })),
+              })),
+              release?.title || 'Sin título',
+              undefined,
+              release?.release_date ? format(new Date(release.release_date), "d 'de' MMMM yyyy", { locale: es }) : undefined,
+            );
+          }}>
+            <FileDown className="w-4 h-4 mr-2" />
+            Exportar PDF
           </Button>
           {hiddenTasksInfo.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setShowHiddenDialog(true)}>
