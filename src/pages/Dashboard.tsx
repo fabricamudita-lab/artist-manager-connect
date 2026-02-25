@@ -32,13 +32,7 @@ export default function Dashboard() {
     );
   }
 
-  // Mock profile for unauthenticated visitors
-  const displayProfile = profile ?? {
-    full_name: 'Demo User',
-    active_role: 'management' as const,
-  };
-
-  const isOwner = displayProfile.active_role === 'management';
+  const isOwner = profile?.active_role === 'management';
 
   return (
     <div className="p-6">
@@ -47,7 +41,7 @@ export default function Dashboard() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground">
-              Bienvenido, {displayProfile.full_name} ({isOwner ? 'Management' : 'Artista'})
+              Bienvenido, {profile?.full_name} ({isOwner ? 'Management' : 'Artista'})
             </p>
           </div>
           <Badge variant={isOwner ? 'default' : 'secondary'} className="flex items-center gap-1.5">

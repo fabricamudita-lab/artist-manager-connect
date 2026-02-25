@@ -189,10 +189,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const demoProfile: Profile = {
+    id: 'demo',
+    user_id: 'demo',
+    email: 'demo@moodita.app',
+    full_name: 'MOODITA Management',
+    roles: ['management', 'artist'],
+    active_role: 'management',
+  };
+
   const value = {
     user,
     session,
-    profile,
+    profile: profile ?? (!loading && !user ? demoProfile : profile),
     loading,
     signIn,
     signUp,
