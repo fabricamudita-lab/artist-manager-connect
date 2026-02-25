@@ -29,6 +29,7 @@ import {
   Plus, Trash2, Save, ChevronDown
 } from "lucide-react";
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   AgentData,
   PromoterData,
@@ -714,81 +715,423 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
   );
 
   const downloadPDF = async () => {
-    const content = generateContract();
-    const doc = new jsPDF();
-    
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 20;
-    const maxWidth = pageWidth - margin * 2;
-    const lineHeight = 5;
-    
-    const addLogo = () => {
-      try {
-        const logoWidth = 40;
-        const logoHeight = 15;
-        const logoX = (pageWidth - logoWidth) / 2;
-        doc.addImage(mooditaLogo, 'PNG', logoX, 10, logoWidth, logoHeight);
-        return 30;
-      } catch {
-        return margin;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+    // ── Constants ──
+    const PW = 210; // page width
+    const PH = 297; // page height
+    const ML = 25;  // margin left
+    const MR = 20;  // margin right
+    const MB = 25;  // margin bottom
+    const TW = PW - ML - MR; // text width
+    const LH = 5.5; // line height
+    const HEADER_Y = 30; // y after header
+    const FONT = 'helvetica';
+
+    // ── Safe helper ──
+    const safe = (v: any, fb = '') => {
+      if (v === undefined || v === null || v === 'undefined' || v === 'null' || v === '') return fb;
+      if (typeof v === 'boolean') return v ? 'SÍ' : 'NO';
+      return String(v);
+    };
+
+    const clean = (s: string) =>
+      s.replace(/[""]/g, '"').replace(/['']/g, "'").replace(/–/g, '-').replace(/—/g, '-').replace(/…/g, '...').replace(/\u00A0/g, ' ');
+
+    // ── Logo preload ──
+    let logoImg: HTMLImageElement | null = null;
+    let logoAR = 1;
+    try {
+      logoImg = await new Promise<HTMLImageElement>((res, rej) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => res(img);
+        img.onerror = rej;
+        img.src = mooditaLogo;
+      });
+      logoAR = logoImg.naturalWidth / logoImg.naturalHeight;
+    } catch { logoImg = null; }
+
+    let pageNum = 1;
+
+    // ── addHeader ──
+    const addHeader = () => {
+      const logoH = 12;
+      if (logoImg) {
+        const logoW = logoH * logoAR;
+        const logoX = (PW - logoW) / 2;
+        doc.addImage(logoImg, 'PNG', logoX, 8, logoW, logoH);
+      }
+      // Brand text
+      doc.setFont(FONT, 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.text('MOODITA', PW / 2, 22, { align: 'center' });
+      // Separator line
+      doc.setDrawColor(180);
+      doc.setLineWidth(0.3);
+      doc.line(ML, 25, PW - MR, 25);
+      doc.setTextColor(0);
+    };
+
+    // ── addPageNumber ──
+    const addPageNumber = () => {
+      doc.setFont(FONT, 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(String(pageNum), PW - MR, PH - 10, { align: 'right' });
+      doc.setTextColor(0);
+    };
+
+    // ── y cursor ──
+    let y = HEADER_Y;
+
+    const ensureSpace = (needed: number) => {
+      if (y + needed > PH - MB) {
+        addPageNumber();
+        doc.addPage();
+        pageNum++;
+        addHeader();
+        y = HEADER_Y;
       }
     };
 
-    const addFooter = (pNum: number) => {
-      doc.setFontSize(7);
-      doc.setTextColor(150);
-      doc.text('MOODITA', pageWidth / 2, pageHeight - 7, { align: 'center' });
-      doc.text(String(pNum), pageWidth / 2, pageHeight - 12, { align: 'center' });
-      doc.setTextColor(0);
-      doc.setFontSize(10);
+    // ── addParagraph: renders justified multi-line text ──
+    const addParagraph = (text: string, x: number, fontSize = 10, fontStyle: 'normal' | 'bold' = 'normal') => {
+      doc.setFont(FONT, fontStyle);
+      doc.setFontSize(fontSize);
+      const maxW = PW - x - MR;
+      const lines: string[] = doc.splitTextToSize(clean(text), maxW);
+      lines.forEach((line: string) => {
+        ensureSpace(LH);
+        doc.text(line, x, y, { maxWidth: maxW });
+        y += LH;
+      });
     };
-    
-    let y = addLogo();
-    let pageNumber = 1;
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    
-    const cleanContent = content
-      .replace(/[""]/g, '"')
-      .replace(/['']/g, "'")
-      .replace(/–/g, '-')
-      .replace(/—/g, '-')
-      .replace(/…/g, '...')
-      .replace(/\u00A0/g, ' ');
-    
-    const lines = doc.splitTextToSize(cleanContent, maxWidth);
-    
-    lines.forEach((line: string) => {
-      if (y + lineHeight > pageHeight - 20) {
-        addFooter(pageNumber);
-        doc.addPage();
-        pageNumber++;
-        y = addLogo();
-      }
-      
-      const isSectionHeader = /^\d+\./.test(line.trim()) || 
-        (line.length < 70 && line === line.toUpperCase() && line.trim().length > 0 && !line.includes('-'));
-      
-      if (isSectionHeader) {
-        doc.setFont("helvetica", "bold");
-        if (/^\d+\./.test(line.trim()) && !line.includes('.1') && !line.includes('.2') && !line.includes('.3')) {
-          y += 3;
-        }
+
+    const addBlankLine = (h = LH) => { y += h; };
+
+    const addCenteredText = (text: string, fontSize = 10, fontStyle: 'normal' | 'bold' = 'normal') => {
+      ensureSpace(LH + 2);
+      doc.setFont(FONT, fontStyle);
+      doc.setFontSize(fontSize);
+      doc.text(clean(text), PW / 2, y, { align: 'center' });
+      y += LH;
+    };
+
+    const addRightText = (text: string, fontSize = 10) => {
+      ensureSpace(LH);
+      doc.setFont(FONT, 'normal');
+      doc.setFontSize(fontSize);
+      doc.text(clean(text), PW - MR, y, { align: 'right' });
+      y += LH;
+    };
+
+    const addSectionTitle = (text: string) => {
+      addBlankLine(3);
+      ensureSpace(LH + 4);
+      doc.setFont(FONT, 'bold');
+      doc.setFontSize(10);
+      doc.text(clean(text.toUpperCase()), ML, y);
+      y += LH + 1;
+    };
+
+    const addLabelValue = (label: string, value: string, indent = ML) => {
+      ensureSpace(LH);
+      doc.setFont(FONT, 'bold');
+      doc.setFontSize(10);
+      const labelText = clean(label + ': ');
+      const labelW = doc.getTextWidth(labelText);
+      doc.text(labelText, indent, y);
+      doc.setFont(FONT, 'normal');
+      const valLines: string[] = doc.splitTextToSize(clean(value), PW - indent - labelW - MR);
+      if (valLines.length === 1) {
+        doc.text(valLines[0], indent + labelW, y);
+        y += LH;
       } else {
-        doc.setFont("helvetica", "normal");
+        // First part on same line
+        doc.text(valLines[0], indent + labelW, y);
+        y += LH;
+        for (let i = 1; i < valLines.length; i++) {
+          ensureSpace(LH);
+          doc.text(valLines[i], indent + labelW, y);
+          y += LH;
+        }
       }
-      
-      doc.text(line, margin, y);
-      y += lineHeight;
+    };
+
+    // ═══════════════════════════════════════
+    // PAGE 1 — Header + Title + Parties
+    // ═══════════════════════════════════════
+    addHeader();
+
+    addBlankLine(4);
+    addCenteredText('CONTRATO CON PROMOTOR PARA LA ACTUACIÓN PÚBLICA DE ARTISTA', 12, 'bold');
+    addBlankLine(3);
+
+    addRightText(`En ${safe(agentData.direccion.split(',').pop()?.trim(), 'Madrid')}, el ${safe(contractDate)}.`, 10);
+    addBlankLine(4);
+
+    // Parties
+    addParagraph('DE UNA PARTE:', ML, 10, 'bold');
+    addBlankLine(1);
+    addParagraph(
+      `${safe(agentData.representante)}, en nombre y representación como Administrador de la sociedad ${safe(agentData.nombre)}, con C.I.F. número ${safe(agentData.cif)} con domicilio social ${safe(agentData.direccion)} (en lo sucesivo, EL AGENTE).`,
+      ML
+    );
+    addBlankLine(3);
+
+    addParagraph('DE LA OTRA:', ML, 10, 'bold');
+    addBlankLine(1);
+    const promoterIntro = `${safe(promoterData.representante)}${promoterData.cargo ? `, en calidad de ${safe(promoterData.cargo)},` : ''} en nombre y representación de ${safe(promoterData.nombre)}${promoterData.cif ? `, con C.I.F número ${safe(promoterData.cif)}` : ''}${promoterData.direccion ? ` con domicilio social ${safe(promoterData.direccion)}` : ''} (en lo sucesivo, EL PROMOTOR).`;
+    addParagraph(promoterIntro, ML);
+    addBlankLine(5);
+
+    addCenteredText('PACTAN:', 10, 'bold');
+    addBlankLine(2);
+    addParagraph('El compromiso de actuación del artista en las condiciones particulares y generales detalladas a continuación y en sus correspondientes Anexos.', ML);
+    addBlankLine(4);
+
+    // ═══════════════════════════════════════
+    // CONDITIONS TABLE (jspdf-autotable)
+    // ═══════════════════════════════════════
+    addCenteredText('CONDICIONES PARTICULARES', 11, 'bold');
+    addBlankLine(2);
+
+    const finalConditions = { ...conditions, precioTickets: ticketPrices };
+
+    const ticketsText = finalConditions.precioTickets.length > 0
+      ? finalConditions.precioTickets.map(p => `${safe(p.tipo, 'General')}: ${safe(p.precio, 'TBC')}`).join(' / ')
+      : 'TBC';
+
+    const horariosText = [
+      `- Montaje y prueba sonido: ${safe(finalConditions.montajePrueba, 'TBC')}`,
+      `- Apertura puertas: ${safe(finalConditions.aperturaPuertas, 'TBC')}`,
+      `- Inicio concierto: ${safe(finalConditions.inicioConcierto, 'TBC')}`,
+      `- Curfew: ${safe(finalConditions.curfew, 'TBC')}`,
+    ].join('\n');
+
+    const tableBody: (string | { content: string; colSpan?: number; styles?: any })[][] = [
+      [{ content: 'ARTISTA', styles: { fontStyle: 'bold' } }, { content: safe(finalConditions.artista, 'TBC'), colSpan: 2 }],
+      [{ content: 'CIUDAD', styles: { fontStyle: 'bold' } }, { content: safe(finalConditions.ciudad, 'TBC'), colSpan: 2 }],
+      [
+        { content: `AFORO\n${safe(finalConditions.aforo, 'TBC')}`, styles: { fontStyle: 'bold', halign: 'center' } },
+        { content: `RECINTO\n${safe(finalConditions.recinto, 'TBC')}`, styles: { fontStyle: 'bold', halign: 'center' } },
+        { content: `EVENTO\n${safe(finalConditions.evento, 'TBC')}`, styles: { fontStyle: 'bold', halign: 'center' } },
+      ],
+      [{ content: 'BILLING', styles: { fontStyle: 'bold' } }, { content: safe(finalConditions.billing, 'TBC'), colSpan: 2 }],
+      [{ content: 'OTROS ARTISTAS/DJs', styles: { fontStyle: 'bold' } }, { content: safe(finalConditions.otrosArtistas, 'SIN ESPECIFICAR'), colSpan: 2 }],
+      [{ content: 'FECHA ANUNCIO', styles: { fontStyle: 'bold' } }, { content: safe(finalConditions.fechaAnuncio, 'TBC'), colSpan: 2 }],
+      [{ content: 'FECHA ACTUACIÓN', styles: { fontStyle: 'bold' } }, { content: safe(finalConditions.fechaActuacion, 'TBC'), colSpan: 2 }],
+      [{ content: 'DURACIÓN ACTUACIÓN', styles: { fontStyle: 'bold' } }, { content: safe(finalConditions.duracion, 'TBC'), colSpan: 2 }],
+      [{ content: 'HORARIOS', styles: { fontStyle: 'bold' } }, { content: horariosText, colSpan: 2 }],
+    ];
+
+    autoTable(doc, {
+      startY: y,
+      margin: { left: ML, right: MR },
+      body: tableBody,
+      theme: 'grid',
+      styles: {
+        font: FONT,
+        fontSize: 9,
+        cellPadding: 3,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.2,
+        textColor: [0, 0, 0],
+        overflow: 'linebreak',
+      },
+      columnStyles: {
+        0: { cellWidth: 45 },
+      },
+      didDrawPage: () => {
+        addHeader();
+        addPageNumber();
+      },
     });
-    
-    addFooter(pageNumber);
-    
-    const fileName = `Contrato_${conditions.artista.replace(/\s+/g, "_")}_${conditions.evento || conditions.ciudad || "booking"}.pdf`;
+
+    y = (doc as any).lastAutoTable.finalY + 4;
+
+    // ═══════════════════════════════════════
+    // Post-table fields
+    // ═══════════════════════════════════════
+    addLabelValue('CACHÉ GARANTIZADO', `${safe(finalConditions.cacheGarantizado, 'TBC')}${finalConditions.comisionAgencia ? ` (${safe(finalConditions.comisionAgencia)} Comisión Agencia incluida)` : ''}`);
+    addLabelValue('PRECIO TICKETS', ticketsText);
+    addLabelValue('SPONSORS', safe(finalConditions.sponsors, 'No, y nunca en caja escénica sin previo acuerdo'));
+    addBlankLine(2);
+    addLabelValue('RIDER TÉCNICO', safe(finalConditions.riderTecnico));
+    addLabelValue('RIDER HOSPITALIDAD', safe(finalConditions.riderHospitalidad, 'Catering de cortesía'));
+    addLabelValue('HOTELES', safe(finalConditions.hoteles));
+    addLabelValue('TRANSPORTE INTERNO', safe(finalConditions.transporteInterno));
+    addLabelValue('VUELOS', safe(finalConditions.vuelos));
+    addLabelValue('BACKLINE', safe(finalConditions.backline));
+
+    // ═══════════════════════════════════════
+    // Payment
+    // ═══════════════════════════════════════
+    addBlankLine(4);
+    addSectionTitle('FORMA DE PAGO');
+    const paymentLines = generatePaymentText_internal();
+    paymentLines.forEach(line => addParagraph(line, ML + 5));
+    addBlankLine(3);
+
+    addParagraph('Los pagos se realizarán mediante transferencia bancaria a:', ML);
+    addBlankLine(1);
+    addLabelValue('Titular', safe(agentData.nombre), ML + 10);
+    addLabelValue('Banco', safe(agentData.banco), ML + 10);
+    addLabelValue('IBAN', safe(agentData.iban), ML + 10);
+    addBlankLine(3);
+
+    // Contrato firme clause
+    addParagraph(clean(legalClauses.contratoFirme), ML, 10, 'normal');
+    addBlankLine(2);
+    addParagraph('El CONTRATO está formado por estas CONDICIONES PARTICULARES, las CONDICIONES GENERALES que siguen y los RIDERS anexos. En caso de contradicciones entre los términos de las CONDICIONES GENERALES y los RIDERS, prevalecerá lo establecido en los RIDERS.', ML);
+
+    // ═══════════════════════════════════════
+    // CONDICIONES GENERALES
+    // ═══════════════════════════════════════
+    addBlankLine(6);
+    addCenteredText('CONDICIONES GENERALES', 11, 'bold');
+    addBlankLine(3);
+
+    // Section rendering helper
+    const addClauseSection = (num: string, title: string, subclauses: { num: string; title?: string; text: string }[]) => {
+      addSectionTitle(`${num}. ${title}`);
+      subclauses.forEach(sc => {
+        addBlankLine(1);
+        if (sc.title) {
+          addParagraph(`${sc.num}. ${sc.title}`, ML, 10, 'bold');
+        } else {
+          doc.setFont(FONT, 'bold');
+          doc.setFontSize(10);
+          ensureSpace(LH);
+          doc.text(`${sc.num}.`, ML, y);
+          y += LH;
+        }
+        addParagraph(sc.text, ML + 5);
+      });
+    };
+
+    addClauseSection('1', 'OBJETO DEL CONTRATO Y DERECHOS DE PROPIEDAD INTELECTUAL', [
+      { num: '1.1', text: legalClauses.propiedadIntelectual },
+      { num: '1.2', text: legalClauses.grabaciones },
+    ]);
+
+    addClauseSection('2', 'DERECHOS DE IMAGEN; PUBLICIDAD, PATROCINIO Y MERCHANDISING', [
+      { num: '2.1', text: legalClauses.publicidad },
+      { num: '2.2', text: legalClauses.noAnunciarSinPago },
+      { num: '2.3', text: legalClauses.patrocinios },
+      { num: '2.4', text: legalClauses.merchandising },
+      { num: '2.5', title: 'MERCHANDISING', text: legalClauses.merchandisingDerechos },
+    ]);
+
+    addClauseSection('3', 'RECINTO, ESCENARIO Y CAMERINOS', [
+      { num: '3.1', text: legalClauses.recinto },
+      { num: '3.2', text: legalClauses.calidadEquipo },
+      { num: '3.3', title: 'CAMERINOS', text: legalClauses.camerinos },
+    ]);
+
+    addClauseSection('4', 'RIDERS TÉCNICO Y HOSPITALITY - CONTROL CREATIVO Y TIEMPO DE ACTUACIÓN', [
+      { num: '4.1', text: legalClauses.riders },
+      { num: '4.2', title: 'RETRASOS', text: legalClauses.retrasos },
+    ]);
+
+    addClauseSection('5', 'OTRAS OBLIGACIONES DEL PROMOTOR', [
+      { num: '5.1', text: legalClauses.obligaciones },
+      { num: '5.2', title: 'SEGUROS E INDEMNIDAD', text: legalClauses.segurosIndemnidad },
+      { num: '5.3', title: 'CERTIFICADOS DE SEGUROS', text: legalClauses.certificadosSeguros },
+      { num: '5.4', title: 'CANCELACIÓN', text: legalClauses.cancelacion },
+      { num: '5.5', title: 'FUERZA MAYOR', text: legalClauses.fuerzaMayor },
+      { num: '5.6', title: 'RESTRICCIONES SANITARIAS', text: legalClauses.covid },
+      { num: '5.7', title: 'IMPAGO Y PENALIZACIÓN', text: legalClauses.impagoPenalizacion },
+      { num: '5.8', title: 'TICKETING Y REPORTING', text: legalClauses.ticketingReporting },
+      { num: '5.9', title: 'INVITACIONES', text: legalClauses.invitaciones },
+      { num: '5.10', title: 'LIQUIDACIÓN SGAE', text: legalClauses.liquidacionSGAE },
+      { num: '5.11', title: 'PORCENTAJE SOBRE BENEFICIOS', text: legalClauses.porcentajeBeneficios },
+    ]);
+
+    // Section 6 - Effectiveness
+    addSectionTitle('6. EFECTIVIDAD DEL CONTRATO');
+    addParagraph('Las partes aceptan expresamente que el hecho de que el Promotor anuncie públicamente la celebración de la actuación que es el objeto de este contrato será interpretado como una aceptación de todos los términos y condiciones del presente contrato, produciendo éste plenos efectos entre las partes. Los cambios, enmiendas o modificaciones que el Promotor haga por escrito en el contrato y los Riders no producirán efecto alguno hasta que sean aprobados por el Agente por escrito.', ML + 5);
+
+    // Section 7 - Confidentiality
+    addSectionTitle('7. CONFIDENCIALIDAD');
+    addParagraph(legalClauses.confidencialidad, ML + 5);
+
+    // Section 8 - Jurisdiction
+    addSectionTitle('8. LEY Y JURISDICCIÓN');
+    addParagraph(legalClauses.jurisdiccion, ML + 5);
+
+    addBlankLine(3);
+    addParagraph('Y en prueba de su conformidad, firman el presente contrato y sus anexos, por duplicado y a un solo efecto, en el lugar y fecha arriba indicados.', ML);
+
+    // ═══════════════════════════════════════
+    // SIGNATURE BLOCK
+    // ═══════════════════════════════════════
+    ensureSpace(50);
+    addBlankLine(10);
+
+    const sigColW = TW / 2;
+    const sigLeftX = ML;
+    const sigRightX = ML + sigColW;
+
+    doc.setFont(FONT, 'bold');
+    doc.setFontSize(10);
+    doc.text('EL AGENTE', sigLeftX + sigColW / 2, y, { align: 'center' });
+    doc.text('EL PROMOTOR', sigRightX + sigColW / 2, y, { align: 'center' });
+    y += 25; // space for signature
+
+    doc.setFont(FONT, 'normal');
+    doc.setFontSize(9);
+    doc.text('_________________________', sigLeftX + sigColW / 2, y, { align: 'center' });
+    doc.text('_________________________', sigRightX + sigColW / 2, y, { align: 'center' });
+    y += LH;
+    doc.text(safe(agentData.representante), sigLeftX + sigColW / 2, y, { align: 'center' });
+    doc.text(safe(promoterData.representante), sigRightX + sigColW / 2, y, { align: 'center' });
+    y += LH;
+    doc.setFontSize(8);
+    doc.text(safe(agentData.nombre), sigLeftX + sigColW / 2, y, { align: 'center' });
+    doc.text(safe(promoterData.nombre), sigRightX + sigColW / 2, y, { align: 'center' });
+
+    // ── Final page numbers ──
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      if (i === 1) addHeader(); // ensure first page header
+      doc.setFont(FONT, 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(String(i), PW - MR, PH - 10, { align: 'right' });
+      doc.setTextColor(0);
+    }
+
+    // ── Save ──
+    const fileName = `Contrato_${safe(conditions.artista, 'Artista').replace(/\s+/g, '_')}_${safe(conditions.evento || conditions.ciudad, 'booking')}.pdf`;
     doc.save(fileName);
-    toast({ description: "PDF descargado correctamente" });
+    toast({ description: 'PDF descargado correctamente' });
+  };
+
+  // Helper for payment text inside PDF (avoids importing internal function)
+  const generatePaymentText_internal = (): string[] => {
+    switch (paymentTerms.tipo) {
+      case 'post-concierto':
+        return ['- A pagar por transferencia bancaria, 100% el día posterior al concierto, previa presentación de factura.'];
+      case '50-50':
+        return ['- 50% A la firma del presente contrato.', '- 50% El día hábil después de la actuación.'];
+      case 'personalizado': {
+        const lines: string[] = [];
+        if (paymentTerms.primerPagoPorcentaje && paymentTerms.primerPagoMomento) {
+          lines.push(`- ${paymentTerms.primerPagoPorcentaje}% ${paymentTerms.primerPagoMomento}`);
+        }
+        if (paymentTerms.segundoPagoPorcentaje && paymentTerms.segundoPagoMomento) {
+          lines.push(`- ${paymentTerms.segundoPagoPorcentaje}% ${paymentTerms.segundoPagoMomento}`);
+        }
+        if (paymentTerms.condicionesAdicionales) lines.push(paymentTerms.condicionesAdicionales);
+        return lines.length ? lines : ['- Condiciones de pago a acordar'];
+      }
+      default:
+        return ['- A pagar por transferencia bancaria, 100% el día posterior al concierto, previa presentación de factura.'];
+    }
   };
 
   // Step 6: Preview
