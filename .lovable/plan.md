@@ -1,37 +1,67 @@
 
 
-## Fix: Deteccion de contratos en Dashboard y Validaciones
+## Ampliar Automatizaciones con Knowledge Base Completa
 
-### Problema
-El dashboard dice "Booking sin contrato" para MOODITA, pero el contrato existe y esta firmado (2/2). La causa es un bug de inconsistencia en como se detectan los contratos:
+### Resumen
+El documento define automatizaciones para todos los modulos que actualmente estan vacios o incompletos. De las ~50 automatizaciones descritas en el documento, ya hay 21 implementadas. Se anadiran ~30 nuevas.
 
-1. **Dashboard** (`OwnerDashboard.tsx` linea 281): Busca documentos con `document_type = 'contrato'` (espanol)
-2. **Documentos reales** (`BookingDocumentsTab.tsx` linea 540): Se guardan con `document_type = 'contract'` (ingles)
+### Nuevas automatizaciones por modulo
 
-Nunca coinciden, asi que el dashboard siempre cree que no hay contrato.
+**Booking (6 nuevas)**
+- `booking_offer_at_risk`: Oferta en riesgo (+5 dias sin movimiento en Interes, diferente de la existente de +3 dias)
+- `booking_formal_offer_no_response`: Oferta formal sin respuesta del promotor (+7 dias)
+- `booking_offer_no_rider`: Oferta sin rider adjunto al enviar oferta formal
+- `booking_accommodation_pending`: Alojamiento sin confirmar (14 dias antes)
+- `booking_event_reminder`: Recordatorio general del evento al equipo (7 dias antes)
+- `booking_real_expenses_missing`: Gastos reales no registrados (+3 dias post-evento)
 
-Ademas, el sistema de validaciones (`bookingValidations.ts` linea 135) comprueba el campo legacy `offer.contratos` (un campo de texto en la tabla `booking_offers`) en vez de consultar la tabla `booking_documents`.
+**Hojas de Ruta (4 nuevas)**
+- `roadmap_production_incomplete`: Produccion tecnica sin completar (21 dias antes)
+- `roadmap_travel_incomplete`: Logistica de viaje y alojamiento sin completar (14 dias antes)
+- `roadmap_send_to_promoter`: Enviar HdR definitiva al promotor (3 dias antes)
+- `roadmap_event_day_reminder`: Enviar HdR al artista el dia del evento
 
-### Solucion
+**Finanzas (4 nuevas)**
+- `finance_sgae_quarterly`: Liquidacion de SGAE esperada sin registrar (trimestral)
+- `finance_uncategorized_expenses`: Gastos de gira sin categorizar (mensual)
+- `finance_quarterly_tax_prep`: Recordatorio de preparacion fiscal (inicio trimestre)
+- `finance_annual_review`: Recordatorio de revision contable anual
 
-**1. Corregir el filtro del Dashboard**
-Archivo: `src/components/dashboard/OwnerDashboard.tsx`
+**Presupuestos (4 nuevas)**
+- `budget_tour_missing`: Gira con conciertos confirmados sin presupuesto de gira
+- `budget_deviation_alert`: Desviacion real vs presupuestado mayor del 15%
+- `budget_project_start`: Recordatorio de crear presupuesto al iniciar proyecto
+- `budget_project_close`: Recordatorio de comparar presupuesto vs real al cerrar proyecto
 
-- Cambiar `.eq('document_type', 'contrato')` por `.eq('document_type', 'contract')` para que coincida con el valor real almacenado.
+**Discografica (3 nuevas)**
+- `release_distributor_delivery`: Entrega al distribuidor pendiente (4 semanas antes)
+- `release_spotify_pitch`: Pitch a Spotify editorial pendiente (7 semanas antes)
+- `release_artwork_pending`: Artwork sin aprobar (6 semanas antes)
 
-**2. Corregir la validacion de bookings**
-Archivo: `src/lib/bookingValidations.ts`
+**Sincronizaciones (5 nuevas)**
+- `sync_contract_unsigned`: Contrato de sync sin firma (+7 dias)
+- `sync_request_no_response`: Solicitud de sync sin respuesta (+3 dias)
+- `sync_materials_pending`: Entrega de materiales pendiente (+2 dias tras confirmar)
+- `sync_payment_pending`: Pago de sync pendiente (+30 dias)
+- `sync_check_rights`: Brief recibido, consultar disponibilidad de derechos
 
-- Eliminar la validacion basada en `offer.contratos` (campo legacy de texto).
-- En su lugar, aceptar un parametro opcional `hasContract?: boolean` que indique si existe un documento de tipo `contract` en `booking_documents`.
-- Si no se pasa el parametro, no emitir el error de contrato (fail-open para no romper otros usos).
+**Artistas (7 nuevas - modulo actualmente vacio)**
+- `artist_bio_outdated`: Bio no actualizada en +18 meses
+- `artist_photos_outdated`: Fotos de prensa no actualizadas en +18 meses
+- `artist_no_release`: Sin lanzamiento en los ultimos 12 meses
+- `artist_no_concerts`: Sin conciertos en los proximos 60 dias
+- `artist_contract_expiry`: Contrato de management proximo a vencer (90 dias antes)
+- `artist_contract_anniversary`: Aniversario de contrato, recordatorio de revision
+- `artist_quarterly_tax`: Declaracion trimestral de autonomos pendiente
 
-**3. Pasar la info de contrato a la validacion**
-Archivo: `src/pages/Booking.tsx` (o donde se llame a `validateBookingOffer`)
+### Cambios tecnicos
 
-- Antes de validar, consultar `booking_documents` para saber que bookings tienen contrato, y pasar esa info a la funcion de validacion.
+**Archivo a modificar: `src/lib/automationDefinitions.ts`**
+- Anadir las ~33 nuevas definiciones al array `AUTOMATIONS`
+- Cada una con sus valores por defecto extraidos del documento (trigger days, rol, industry tip, CTA label)
+- Marcar como `recommended: true` las que el documento marca con icono rojo, y `recommended: false` las verdes
 
-### Resultado
-- El dashboard ya no mostrara falsas alertas de "sin contrato" cuando el contrato existe.
-- Las validaciones reflejaran correctamente el estado real de los documentos.
+No se requieren cambios en la base de datos, hook ni UI: el sistema existente renderiza dinamicamente desde el array de definiciones.
 
+### Total final
+De 21 automatizaciones actuales a ~54 automatizaciones, cubriendo completamente los 7 modulos del Knowledge Base.
