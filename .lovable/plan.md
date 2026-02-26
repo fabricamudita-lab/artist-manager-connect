@@ -1,34 +1,37 @@
 
 
-## Rediseno de Sincronizaciones para coherencia con Booking
+## Fix: Deteccion de contratos en Dashboard y Validaciones
 
 ### Problema
-La pagina de Sincronizaciones tiene un diseno visual diferente al de Booking, y el Kanban obliga a deslizar horizontalmente porque usa columnas de ancho fijo (300px) con scroll horizontal, mientras que Booking usa un grid responsive que muestra todas las fases en pantalla.
+El dashboard dice "Booking sin contrato" para MOODITA, pero el contrato existe y esta firmado (2/2). La causa es un bug de inconsistencia en como se detectan los contratos:
 
-### Cambios
+1. **Dashboard** (`OwnerDashboard.tsx` linea 281): Busca documentos con `document_type = 'contrato'` (espanol)
+2. **Documentos reales** (`BookingDocumentsTab.tsx` linea 540): Se guardan con `document_type = 'contract'` (ingles)
 
-**1. SyncKanban: Grid responsive en vez de scroll horizontal**
-Archivo: `src/components/sync/SyncKanban.tsx`
+Nunca coinciden, asi que el dashboard siempre cree que no hay contrato.
 
-- Cambiar el contenedor de `flex gap-4 overflow-x-auto` con columnas fijas de 300px a `grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-5 gap-3` (igual que BookingKanban).
-- Eliminar `min-w-[300px] max-w-[300px]` de `DroppableColumn`.
-- Usar `Card` con header compacto (mismo patron que BookingKanban: `CardHeader` + `CardTitle` con Badge de conteo y boton "+").
-- Reemplazar las cabeceras de colores solidos por el estilo de Booking (fondo tenue con borde).
+Ademas, el sistema de validaciones (`bookingValidations.ts` linea 135) comprueba el campo legacy `offer.contratos` (un campo de texto en la tabla `booking_offers`) en vez de consultar la tabla `booking_documents`.
 
-**2. Sincronizaciones page: Stats compactos como Booking**
-Archivo: `src/pages/Sincronizaciones.tsx`
+### Solucion
 
-- Reemplazar las 4 Cards grandes con iconos por una barra de stats compacta igual a Booking: `grid grid-cols-2 md:grid-cols-4 gap-3` con divs `bg-muted/50 rounded-lg px-3 py-2`.
-- Esto reduce el espacio vertical y se ve identico a Booking.
+**1. Corregir el filtro del Dashboard**
+Archivo: `src/components/dashboard/OwnerDashboard.tsx`
 
-**3. Tarjetas de Sync: Estilo coherente con CompactBookingCard**
-Archivo: `src/components/sync/SyncKanban.tsx`
+- Cambiar `.eq('document_type', 'contrato')` por `.eq('document_type', 'contract')` para que coincida con el valor real almacenado.
 
-- Ajustar las tarjetas `DraggableSyncCard` para que tengan la misma densidad y estilo que `CompactBookingCard`: compactas, con la info clave visible (titulo, artista/cancion, fee, territorio).
-- Mantener el contenido especifico de sync (tipo de produccion, territorio) pero con el mismo formato visual.
+**2. Corregir la validacion de bookings**
+Archivo: `src/lib/bookingValidations.ts`
 
-### Resultado visual esperado
+- Eliminar la validacion basada en `offer.contratos` (campo legacy de texto).
+- En su lugar, aceptar un parametro opcional `hasContract?: boolean` que indique si existe un documento de tipo `contract` en `booking_documents`.
+- Si no se pasa el parametro, no emitir el error de contrato (fail-open para no romper otros usos).
 
-Antes: Cards grandes de stats + Kanban con scroll horizontal
-Despues: Stats compactos inline + Grid responsive de 5 columnas que caben en pantalla, identico al layout de Booking
+**3. Pasar la info de contrato a la validacion**
+Archivo: `src/pages/Booking.tsx` (o donde se llame a `validateBookingOffer`)
+
+- Antes de validar, consultar `booking_documents` para saber que bookings tienen contrato, y pasar esa info a la funcion de validacion.
+
+### Resultado
+- El dashboard ya no mostrara falsas alertas de "sin contrato" cuando el contrato existe.
+- Las validaciones reflejaran correctamente el estado real de los documentos.
 
