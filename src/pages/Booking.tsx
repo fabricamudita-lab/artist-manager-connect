@@ -235,10 +235,19 @@ export default function Booking() {
     console.log('Validating all offers:', offers.length);
     const results: Record<string, ValidationResult> = {};
     try {
+      // Fetch contract info from booking_documents for all offers at once
+      const offerIds = offers.map(o => o.id).filter(Boolean) as string[];
+      const { data: docsData } = await supabase
+        .from('booking_documents')
+        .select('booking_id')
+        .in('booking_id', offerIds)
+        .eq('document_type', 'contract');
+      const bookingsWithContract = new Set(docsData?.map(d => d.booking_id) || []);
+
       for (const offer of offers) {
         if (offer.id) {
-          console.log('Validating offer:', offer.id);
-          results[offer.id] = await validateBookingOffer(offer);
+          const hasContract = bookingsWithContract.has(offer.id);
+          results[offer.id] = await validateBookingOffer(offer, false, hasContract);
         }
       }
       console.log('Validation results:', results);
