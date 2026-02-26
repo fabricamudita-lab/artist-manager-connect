@@ -741,6 +741,51 @@ export type Database = {
           },
         ]
       }
+      automation_executions: {
+        Row: {
+          automation_key: string
+          entity_id: string
+          entity_type: string
+          fired_at: string
+          id: string
+          notification_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          automation_key: string
+          entity_id: string
+          entity_type: string
+          fired_at?: string
+          id?: string
+          notification_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          automation_key?: string
+          entity_id?: string
+          entity_type?: string
+          fired_at?: string
+          id?: string
+          notification_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_executions_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_executions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_availability_history: {
         Row: {
           actor_user_id: string
