@@ -1,121 +1,52 @@
 
 
-## Motor de Ejecucion - Plan Unificado con Sistemas Existentes
+## Perfiles Colaboradores en MyManagement
 
-### Inventario de lo que ya existe
+### Problema
+Cuando un artista del roster (ej: Rita Payes) colabora con otro artista externo (ej: Lucia Fumero), necesitas tener el perfil de Lucia en el sistema para poder trabajar con normalidad en releases, creditos, splits, etc.
 
-El proyecto tiene **6 sistemas de alertas/avisos** que NO se deben romper:
+### Solucion
 
-1. **Tabla `notifications`** + hook `useNotifications` + `NotificationBell` (campana): Notificaciones persistentes en BD. El trigger `notify_solicitud_status_change` ya inserta aqui.
-2. **Tabla `action_center`** + hook `useActionCenter`: Solicitudes/aprobaciones con workflow de estados (pending, approved, rejected...). Se usa en el sidebar para badges.
-3. **`useBookingReminders`** + `ReminderBadge`: Avisos computados en cliente (contrato pendiente, link de venta, logistica) para bookings confirmados. Se muestra en Calendario y Booking.
-4. **`useReleaseHealthCheck`**: Alertas computadas en cliente para lanzamientos (creditos, audio, cronograma, presupuestos).
-5. **`AlertsBadge`** + `bookingValidations.ts`: Validaciones en tiempo real al editar una oferta de booking.
-6. **Triggers de BD**: `on_booking_confirmed` (crea carpetas, presupuesto, transacciones), `check_pending_royalty_payments`.
+Añadir un campo `artist_type` a la tabla `artists` con dos valores: `roster` (por defecto) y `collaborator`. En la UI de MyManagement, mostrar dos secciones separadas: "Mi Roster" arriba y "Colaboradores" abajo.
 
-### Estrategia de unificacion
+### Cambios
 
-El motor de ejecucion NO debe duplicar estos sistemas. Debe **reutilizar la tabla `notifications`** como destino de las alertas generadas, que es el canal "in_app" que ya existe y que el usuario ve en la campana.
+#### 1. Migracion SQL
+- Añadir columna `artist_type text NOT NULL DEFAULT 'roster'` a la tabla `artists`
+- Todos los artistas existentes quedaran como `roster` automaticamente
 
-```text
-+----------------------------+
-| automation_configs         |  <-- Ya existe (54 reglas configurables)
-+----------------------------+
-            |
-            v
-+----------------------------+
-| Edge Function              |  <-- NUEVO: evaluate-automations
-| (cron cada 6h)             |
-+----------------------------+
-            |
-    +-------+-------+
-    |               |
-    v               v
-+--------+   +-----------------+
-| notifi-|   | automation_     |
-| cations|   | executions (log)|
-| (exist)|   | (NUEVO)         |
-+--------+   +-----------------+
-```
+#### 2. MyManagement (`src/pages/MyManagement.tsx`)
+- Separar la query de artistas en dos grupos: `roster` y `collaborator`
+- Seccion "Mi Roster" con los artistas actuales (sin cambios visuales)
+- Seccion "Colaboradores" debajo, con un diseño mas compacto y un badge "Colaborador" en lugar de "Artista"
+- Boton "Nuevo Artista" se convierte en un dropdown con dos opciones: "Artista del roster" y "Colaborador"
+- El stat de "Artistas" mostrara solo el conteo del roster
 
-### Cambios concretos
+#### 3. CreateArtistDialog (`src/components/management/CreateArtistDialog.tsx`)
+- Añadir prop `artistType: 'roster' | 'collaborator'` para saber que tipo crear
+- Ajustar textos del dialogo segun el tipo (ej: "Nuevo Colaborador" vs "Nuevo Artista")
+- Pasar `artist_type` en el insert
 
-#### 1. Nueva tabla `automation_executions` (log de deduplicacion)
-
-Registra cada vez que el motor dispara una automatizacion para evitar duplicados.
-
-```sql
-CREATE TABLE automation_executions (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id uuid NOT NULL REFERENCES workspaces(id),
-  automation_key text NOT NULL,
-  entity_id uuid NOT NULL,        -- ID del booking/release/artista afectado
-  entity_type text NOT NULL,       -- 'booking_offer', 'release', 'artist', etc.
-  notification_id uuid REFERENCES notifications(id),
-  fired_at timestamptz DEFAULT now(),
-  UNIQUE(workspace_id, automation_key, entity_id)
-);
-```
-
-La constraint UNIQUE evita que la misma regla se dispare dos veces para la misma entidad.
-
-#### 2. Edge Function `evaluate-automations`
-
-Funcion que:
-- Lee `automation_configs` activas del workspace
-- Para cada una, ejecuta la query de evaluacion correspondiente
-- Comprueba si ya se disparo (tabla `automation_executions`)
-- Si no, inserta en `notifications` y registra en `automation_executions`
-
-**Batch 1 - 5 automatizaciones de booking** (las mas directas con queries SQL):
-
-| Clave | Query |
-|-------|-------|
-| `booking_offer_no_response` | Bookings en phase='interes', sin update en X dias |
-| `booking_negotiation_stalled` | phase='negociacion', sin update en X dias |
-| `booking_confirmed_no_contract` | estado='confirmado', sin documento tipo 'contrato' en booking_documents |
-| `booking_invoice_missing` | estado='confirmado', fecha pasada, sin factura en booking_documents |
-| `booking_signed_no_payment` | Contrato firmado, sin transaccion de tipo 'income' con status='completed' |
-
-Cada query respeta el campo `artist_ids` de la config: si no esta vacio, filtra solo esos artistas.
-
-#### 3. Cron job (pg_cron + pg_net)
-
-Ejecutar la edge function cada 6 horas (suficiente para alertas medidas en dias).
-
-```sql
-SELECT cron.schedule(
-  'evaluate-automations-6h',
-  '0 */6 * * *',
-  $$ SELECT net.http_post(...) $$
-);
-```
-
-#### 4. Sin cambios en la UI existente
-
-- Las notificaciones generadas apareceran automaticamente en la **campana** (`NotificationBell`) porque van a la tabla `notifications`.
-- Los sistemas existentes (`useBookingReminders`, `useReleaseHealthCheck`, `AlertsBadge`, `action_center`) **no se tocan**.
-- La pagina de Automatizaciones sigue funcionando igual (toggle on/off, config por artista, etc.).
-
-#### 5. Relacion con sistemas existentes
-
-- `useBookingReminders` es un sistema client-side que seguira funcionando en paralelo. Algunas automatizaciones se solapan (ej: contrato pendiente), pero el motor de BD actua aunque el usuario no tenga la app abierta, mientras que `useBookingReminders` solo funciona en el navegador.
-- `useReleaseHealthCheck` tampoco se toca: es health-check visual de cada release, no genera notificaciones persistentes.
-- `action_center` es para solicitudes con workflow de aprobacion, no para alertas automaticas.
-
-### Archivos a crear/modificar
-
-1. **Migracion SQL**: Crear tabla `automation_executions`
-2. **`supabase/functions/evaluate-automations/index.ts`**: Edge function con las 5 queries de Batch 1
-3. **SQL insert (pg_cron)**: Programar el cron cada 6 horas
-4. **`supabase/config.toml`**: Registrar la nueva edge function con `verify_jwt = false`
+#### 4. Selectores de artistas
+- `SingleArtistSelector`, `ArtistFilter`, y otros selectores seguiran mostrando TODOS los artistas (roster + colaboradores) ya que los colaboradores deben poder asignarse a releases, creditos, etc.
+- No se requieren cambios en estos componentes
 
 ### Lo que NO se toca
+- La tabla `artists` mantiene su estructura actual, solo se añade una columna
+- Los perfiles de artista (`/artistas/:id`) funcionan igual para ambos tipos
+- Releases, creditos, splits, bookings - todo sigue funcionando sin cambios
+- Los selectores de artistas muestran todos los perfiles sin distincion
 
-- `useBookingReminders`, `ReminderBadge` -- sin cambios
-- `useReleaseHealthCheck` -- sin cambios
-- `AlertsBadge`, `bookingValidations` -- sin cambios
-- `useActionCenter`, `action_center` -- sin cambios
-- `NotificationBell`, `useNotifications` -- sin cambios (solo recibe mas datos)
-- `AutomationCard`, pagina `Automatizaciones` -- sin cambios
+### Detalle tecnico
+
+```sql
+ALTER TABLE public.artists 
+ADD COLUMN artist_type text NOT NULL DEFAULT 'roster';
+```
+
+En la UI, el filtrado es simplemente:
+```typescript
+const rosterArtists = artists.filter(a => a.artist_type !== 'collaborator');
+const collaboratorArtists = artists.filter(a => a.artist_type === 'collaborator');
+```
 
