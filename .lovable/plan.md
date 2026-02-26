@@ -1,67 +1,73 @@
 
 
-## Ampliar Automatizaciones con Knowledge Base Completa
+## Automatizaciones por artista + canal WhatsApp
 
-### Resumen
-El documento define automatizaciones para todos los modulos que actualmente estan vacios o incompletos. De las ~50 automatizaciones descritas en el documento, ya hay 21 implementadas. Se anadiran ~30 nuevas.
+### Objetivo
+Permitir que cada automatizacion se configure de forma distinta segun el artista: aplicar a todos, o solo a artistas seleccionados. Ademas, anadir WhatsApp como canal de notificacion.
 
-### Nuevas automatizaciones por modulo
+### Cambios
 
-**Booking (6 nuevas)**
-- `booking_offer_at_risk`: Oferta en riesgo (+5 dias sin movimiento en Interes, diferente de la existente de +3 dias)
-- `booking_formal_offer_no_response`: Oferta formal sin respuesta del promotor (+7 dias)
-- `booking_offer_no_rider`: Oferta sin rider adjunto al enviar oferta formal
-- `booking_accommodation_pending`: Alojamiento sin confirmar (14 dias antes)
-- `booking_event_reminder`: Recordatorio general del evento al equipo (7 dias antes)
-- `booking_real_expenses_missing`: Gastos reales no registrados (+3 dias post-evento)
+#### 1. Migracion de base de datos
 
-**Hojas de Ruta (4 nuevas)**
-- `roadmap_production_incomplete`: Produccion tecnica sin completar (21 dias antes)
-- `roadmap_travel_incomplete`: Logistica de viaje y alojamiento sin completar (14 dias antes)
-- `roadmap_send_to_promoter`: Enviar HdR definitiva al promotor (3 dias antes)
-- `roadmap_event_day_reminder`: Enviar HdR al artista el dia del evento
+Modificar la tabla `automation_configs`:
 
-**Finanzas (4 nuevas)**
-- `finance_sgae_quarterly`: Liquidacion de SGAE esperada sin registrar (trimestral)
-- `finance_uncategorized_expenses`: Gastos de gira sin categorizar (mensual)
-- `finance_quarterly_tax_prep`: Recordatorio de preparacion fiscal (inicio trimestre)
-- `finance_annual_review`: Recordatorio de revision contable anual
+- Anadir columna `artist_ids uuid[] DEFAULT '{}'` (array de IDs de artistas). Vacio = aplica a todos.
+- Actualizar el constraint UNIQUE de `(workspace_id, automation_key)` -- se mantiene igual, ya que la configuracion sigue siendo una por automatizacion por workspace, pero ahora incluye a que artistas aplica.
 
-**Presupuestos (4 nuevas)**
-- `budget_tour_missing`: Gira con conciertos confirmados sin presupuesto de gira
-- `budget_deviation_alert`: Desviacion real vs presupuestado mayor del 15%
-- `budget_project_start`: Recordatorio de crear presupuesto al iniciar proyecto
-- `budget_project_close`: Recordatorio de comparar presupuesto vs real al cerrar proyecto
+No se necesita cambiar el constraint porque el modelo es: **una fila por automatizacion por workspace**, y dentro de esa fila el campo `artist_ids` indica el alcance.
 
-**Discografica (3 nuevas)**
-- `release_distributor_delivery`: Entrega al distribuidor pendiente (4 semanas antes)
-- `release_spotify_pitch`: Pitch a Spotify editorial pendiente (7 semanas antes)
-- `release_artwork_pending`: Artwork sin aprobar (6 semanas antes)
+#### 2. Actualizar definiciones de canales
 
-**Sincronizaciones (5 nuevas)**
-- `sync_contract_unsigned`: Contrato de sync sin firma (+7 dias)
-- `sync_request_no_response`: Solicitud de sync sin respuesta (+3 dias)
-- `sync_materials_pending`: Entrega de materiales pendiente (+2 dias tras confirmar)
-- `sync_payment_pending`: Pago de sync pendiente (+30 dias)
-- `sync_check_rights`: Brief recibido, consultar disponibilidad de derechos
+Archivo: `src/lib/automationDefinitions.ts`
 
-**Artistas (7 nuevas - modulo actualmente vacio)**
-- `artist_bio_outdated`: Bio no actualizada en +18 meses
-- `artist_photos_outdated`: Fotos de prensa no actualizadas en +18 meses
-- `artist_no_release`: Sin lanzamiento en los ultimos 12 meses
-- `artist_no_concerts`: Sin conciertos en los proximos 60 dias
-- `artist_contract_expiry`: Contrato de management proximo a vencer (90 dias antes)
-- `artist_contract_anniversary`: Aniversario de contrato, recordatorio de revision
-- `artist_quarterly_tax`: Declaracion trimestral de autonomos pendiente
+- Cambiar `CHANNEL_OPTIONS` para incluir WhatsApp:
+  - `in_app` -> In-app
+  - `email` -> Email  
+  - `whatsapp` -> WhatsApp
 
-### Cambios tecnicos
+- Eliminar la opcion "Ambos" (redundante si se puede elegir multiples canales en el futuro, pero por ahora mantener opciones simples: in_app, email, whatsapp).
 
-**Archivo a modificar: `src/lib/automationDefinitions.ts`**
-- Anadir las ~33 nuevas definiciones al array `AUTOMATIONS`
-- Cada una con sus valores por defecto extraidos del documento (trigger days, rol, industry tip, CTA label)
-- Marcar como `recommended: true` las que el documento marca con icono rojo, y `recommended: false` las verdes
+#### 3. Actualizar el hook `useAutomationConfigs`
 
-No se requieren cambios en la base de datos, hook ni UI: el sistema existente renderiza dinamicamente desde el array de definiciones.
+Archivo: `src/hooks/useAutomationConfigs.ts`
 
-### Total final
-De 21 automatizaciones actuales a ~54 automatizaciones, cubriendo completamente los 7 modulos del Knowledge Base.
+- Anadir `artist_ids` al tipo `AutomationConfig`
+- Incluir `artist_ids` en el merge de configs (default: array vacio = todos)
+- Pasar `artist_ids` en el upsert
+- Cargar la lista de artistas del workspace para el selector
+
+#### 4. Actualizar la UI de la tarjeta de automatizacion
+
+Archivo: `src/pages/Automatizaciones.tsx`
+
+- En la seccion de "Configuracion avanzada", anadir un nuevo campo **"Aplica a"** con dos modos:
+  - **Todos los artistas** (por defecto): no se selecciona ningun artista especifico
+  - **Artistas seleccionados**: aparece un multi-select con los artistas del workspace
+- Mostrar un indicador visual en la tarjeta cuando la automatizacion esta limitada a artistas especificos (ej: chips con nombres de artistas)
+- Actualizar el selector de canal para mostrar las 3 opciones: In-app, Email, WhatsApp
+
+#### 5. Resumen visual del flujo
+
+```text
+Tarjeta de automatizacion
++--------------------------------------------------+
+| Oferta sin respuesta                    [ON/OFF]  |
+| Descripcion...                                    |
+|                                                   |
+| [3 dias] [Equipo Booking] [In-app] [Todos]        |
+|                                                   |
+| [v Configuracion avanzada]                        |
+|   Dias de espera: [====3====]                     |
+|   Notificar a: [Equipo Booking v]                 |
+|   Canal: [In-app v]  (opciones: In-app/Email/WA)  |
+|   Aplica a: ( ) Todos  (x) Seleccionar artistas  |
+|             [Artista 1] [Artista 2] [+]           |
++--------------------------------------------------+
+```
+
+### Archivos a modificar
+1. **Migracion SQL** -- anadir columna `artist_ids` a `automation_configs`
+2. `src/lib/automationDefinitions.ts` -- actualizar `CHANNEL_OPTIONS`
+3. `src/hooks/useAutomationConfigs.ts` -- incluir `artist_ids` y carga de artistas
+4. `src/pages/Automatizaciones.tsx` -- UI del selector de artistas y canal WhatsApp
+
