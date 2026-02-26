@@ -693,6 +693,7 @@ export type Database = {
       }
       automation_configs: {
         Row: {
+          artist_ids: string[] | null
           automation_key: string
           created_at: string
           custom_settings: Json | null
@@ -705,6 +706,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          artist_ids?: string[] | null
           automation_key: string
           created_at?: string
           custom_settings?: Json | null
@@ -717,6 +719,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          artist_ids?: string[] | null
           automation_key?: string
           created_at?: string
           custom_settings?: Json | null

@@ -10,7 +10,7 @@ export interface AutomationDefinition {
   defaultTriggerDays: number | null; // null = immediate
   triggerDaysRange?: [number, number];
   defaultNotifyRole: string;
-  defaultChannel: 'in_app' | 'email' | 'both';
+  defaultChannel: 'in_app' | 'email' | 'whatsapp';
   ctaLabel: string;
   recommended: boolean;
 }
@@ -39,7 +39,7 @@ export const NOTIFY_ROLE_OPTIONS = [
 export const CHANNEL_OPTIONS = [
   { value: 'in_app', label: 'In-app' },
   { value: 'email', label: 'Email' },
-  { value: 'both', label: 'Ambos' },
+  { value: 'whatsapp', label: 'WhatsApp' },
 ] as const;
 
 export const AUTOMATIONS: AutomationDefinition[] = [
@@ -395,7 +395,7 @@ export const AUTOMATIONS: AutomationDefinition[] = [
     defaultTriggerDays: 7,
     triggerDaysRange: [1, 14],
     defaultNotifyRole: 'tour_manager',
-    defaultChannel: 'both',
+    defaultChannel: 'email',
     ctaLabel: 'Ver detalle del evento',
     recommended: false,
   },
@@ -466,7 +466,7 @@ export const AUTOMATIONS: AutomationDefinition[] = [
     defaultTriggerDays: 0,
     triggerDaysRange: [0, 1],
     defaultNotifyRole: 'artista',
-    defaultChannel: 'both',
+    defaultChannel: 'whatsapp',
     ctaLabel: 'Enviar HdR al artista',
     recommended: false,
   },
@@ -509,7 +509,7 @@ export const AUTOMATIONS: AutomationDefinition[] = [
     defaultTriggerDays: 90,
     triggerDaysRange: [30, 120],
     defaultNotifyRole: 'administracion',
-    defaultChannel: 'both',
+    defaultChannel: 'email',
     ctaLabel: 'Preparar documentación fiscal',
     recommended: true,
   },
@@ -522,7 +522,7 @@ export const AUTOMATIONS: AutomationDefinition[] = [
     defaultTriggerDays: 365,
     triggerDaysRange: [180, 365],
     defaultNotifyRole: 'administracion',
-    defaultChannel: 'both',
+    defaultChannel: 'email',
     ctaLabel: 'Iniciar revisión contable',
     recommended: false,
   },
@@ -757,7 +757,7 @@ export const AUTOMATIONS: AutomationDefinition[] = [
     defaultTriggerDays: 90,
     triggerDaysRange: [30, 180],
     defaultNotifyRole: 'yo',
-    defaultChannel: 'both',
+    defaultChannel: 'email',
     ctaLabel: 'Iniciar renovación de contrato',
     recommended: true,
   },
@@ -784,7 +784,7 @@ export const AUTOMATIONS: AutomationDefinition[] = [
     defaultTriggerDays: 90,
     triggerDaysRange: [30, 120],
     defaultNotifyRole: 'administracion',
-    defaultChannel: 'both',
+    defaultChannel: 'email',
     ctaLabel: 'Preparar declaración trimestral',
     recommended: true,
   },

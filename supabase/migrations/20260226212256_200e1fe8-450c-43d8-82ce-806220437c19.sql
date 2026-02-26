@@ -1,0 +1,1 @@
+ALTER TABLE public.automation_configs ADD COLUMN IF NOT EXISTS artist_ids uuid[] DEFAULT '{}';
