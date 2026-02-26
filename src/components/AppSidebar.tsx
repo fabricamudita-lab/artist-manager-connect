@@ -28,6 +28,7 @@ import {
   Bell,
   Mail,
   BarChart3,
+  Zap,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import NotificationBell from './NotificationBell';
@@ -106,6 +107,7 @@ const getNavigationGroups = (isManagement: boolean): NavGroup[] => {
       label: "Administración",
       managementOnly: true,
       items: [
+        { title: "Automatizaciones", url: "/automatizaciones", icon: Zap },
         { title: "Equipos", url: "/teams", icon: UsersRound },
         { title: "Contactos", url: "/agenda", icon: Users },
         { title: "EPKs", url: "/epks", icon: FileImage },

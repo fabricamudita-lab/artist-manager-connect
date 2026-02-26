@@ -61,7 +61,7 @@ import RoadmapDetail from "./pages/RoadmapDetail";
 import MyManagement from "./pages/MyManagement";
 import ArtistProfile from "./pages/ArtistProfile";
 import Correo from "./pages/Correo";
-
+import Automatizaciones from "./pages/Automatizaciones";
 const queryClient = new QueryClient();
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
@@ -360,6 +360,13 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <RoadmapDetail />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/automatizaciones" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Automatizaciones />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />

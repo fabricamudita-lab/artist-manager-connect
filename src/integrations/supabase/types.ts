@@ -691,6 +691,53 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_configs: {
+        Row: {
+          automation_key: string
+          created_at: string
+          custom_settings: Json | null
+          id: string
+          is_enabled: boolean
+          notify_channel: string
+          notify_role: string | null
+          trigger_days: number | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          automation_key: string
+          created_at?: string
+          custom_settings?: Json | null
+          id?: string
+          is_enabled?: boolean
+          notify_channel?: string
+          notify_role?: string | null
+          trigger_days?: number | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          automation_key?: string
+          created_at?: string
+          custom_settings?: Json | null
+          id?: string
+          is_enabled?: boolean
+          notify_channel?: string
+          notify_role?: string | null
+          trigger_days?: number | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_configs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_availability_history: {
         Row: {
           actor_user_id: string
