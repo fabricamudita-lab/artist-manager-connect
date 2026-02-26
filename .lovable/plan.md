@@ -1,73 +1,121 @@
 
 
-## Automatizaciones por artista + canal WhatsApp
+## Motor de Ejecucion - Plan Unificado con Sistemas Existentes
 
-### Objetivo
-Permitir que cada automatizacion se configure de forma distinta segun el artista: aplicar a todos, o solo a artistas seleccionados. Ademas, anadir WhatsApp como canal de notificacion.
+### Inventario de lo que ya existe
 
-### Cambios
+El proyecto tiene **6 sistemas de alertas/avisos** que NO se deben romper:
 
-#### 1. Migracion de base de datos
+1. **Tabla `notifications`** + hook `useNotifications` + `NotificationBell` (campana): Notificaciones persistentes en BD. El trigger `notify_solicitud_status_change` ya inserta aqui.
+2. **Tabla `action_center`** + hook `useActionCenter`: Solicitudes/aprobaciones con workflow de estados (pending, approved, rejected...). Se usa en el sidebar para badges.
+3. **`useBookingReminders`** + `ReminderBadge`: Avisos computados en cliente (contrato pendiente, link de venta, logistica) para bookings confirmados. Se muestra en Calendario y Booking.
+4. **`useReleaseHealthCheck`**: Alertas computadas en cliente para lanzamientos (creditos, audio, cronograma, presupuestos).
+5. **`AlertsBadge`** + `bookingValidations.ts`: Validaciones en tiempo real al editar una oferta de booking.
+6. **Triggers de BD**: `on_booking_confirmed` (crea carpetas, presupuesto, transacciones), `check_pending_royalty_payments`.
 
-Modificar la tabla `automation_configs`:
+### Estrategia de unificacion
 
-- Anadir columna `artist_ids uuid[] DEFAULT '{}'` (array de IDs de artistas). Vacio = aplica a todos.
-- Actualizar el constraint UNIQUE de `(workspace_id, automation_key)` -- se mantiene igual, ya que la configuracion sigue siendo una por automatizacion por workspace, pero ahora incluye a que artistas aplica.
-
-No se necesita cambiar el constraint porque el modelo es: **una fila por automatizacion por workspace**, y dentro de esa fila el campo `artist_ids` indica el alcance.
-
-#### 2. Actualizar definiciones de canales
-
-Archivo: `src/lib/automationDefinitions.ts`
-
-- Cambiar `CHANNEL_OPTIONS` para incluir WhatsApp:
-  - `in_app` -> In-app
-  - `email` -> Email  
-  - `whatsapp` -> WhatsApp
-
-- Eliminar la opcion "Ambos" (redundante si se puede elegir multiples canales en el futuro, pero por ahora mantener opciones simples: in_app, email, whatsapp).
-
-#### 3. Actualizar el hook `useAutomationConfigs`
-
-Archivo: `src/hooks/useAutomationConfigs.ts`
-
-- Anadir `artist_ids` al tipo `AutomationConfig`
-- Incluir `artist_ids` en el merge de configs (default: array vacio = todos)
-- Pasar `artist_ids` en el upsert
-- Cargar la lista de artistas del workspace para el selector
-
-#### 4. Actualizar la UI de la tarjeta de automatizacion
-
-Archivo: `src/pages/Automatizaciones.tsx`
-
-- En la seccion de "Configuracion avanzada", anadir un nuevo campo **"Aplica a"** con dos modos:
-  - **Todos los artistas** (por defecto): no se selecciona ningun artista especifico
-  - **Artistas seleccionados**: aparece un multi-select con los artistas del workspace
-- Mostrar un indicador visual en la tarjeta cuando la automatizacion esta limitada a artistas especificos (ej: chips con nombres de artistas)
-- Actualizar el selector de canal para mostrar las 3 opciones: In-app, Email, WhatsApp
-
-#### 5. Resumen visual del flujo
+El motor de ejecucion NO debe duplicar estos sistemas. Debe **reutilizar la tabla `notifications`** como destino de las alertas generadas, que es el canal "in_app" que ya existe y que el usuario ve en la campana.
 
 ```text
-Tarjeta de automatizacion
-+--------------------------------------------------+
-| Oferta sin respuesta                    [ON/OFF]  |
-| Descripcion...                                    |
-|                                                   |
-| [3 dias] [Equipo Booking] [In-app] [Todos]        |
-|                                                   |
-| [v Configuracion avanzada]                        |
-|   Dias de espera: [====3====]                     |
-|   Notificar a: [Equipo Booking v]                 |
-|   Canal: [In-app v]  (opciones: In-app/Email/WA)  |
-|   Aplica a: ( ) Todos  (x) Seleccionar artistas  |
-|             [Artista 1] [Artista 2] [+]           |
-+--------------------------------------------------+
++----------------------------+
+| automation_configs         |  <-- Ya existe (54 reglas configurables)
++----------------------------+
+            |
+            v
++----------------------------+
+| Edge Function              |  <-- NUEVO: evaluate-automations
+| (cron cada 6h)             |
++----------------------------+
+            |
+    +-------+-------+
+    |               |
+    v               v
++--------+   +-----------------+
+| notifi-|   | automation_     |
+| cations|   | executions (log)|
+| (exist)|   | (NUEVO)         |
++--------+   +-----------------+
 ```
 
-### Archivos a modificar
-1. **Migracion SQL** -- anadir columna `artist_ids` a `automation_configs`
-2. `src/lib/automationDefinitions.ts` -- actualizar `CHANNEL_OPTIONS`
-3. `src/hooks/useAutomationConfigs.ts` -- incluir `artist_ids` y carga de artistas
-4. `src/pages/Automatizaciones.tsx` -- UI del selector de artistas y canal WhatsApp
+### Cambios concretos
+
+#### 1. Nueva tabla `automation_executions` (log de deduplicacion)
+
+Registra cada vez que el motor dispara una automatizacion para evitar duplicados.
+
+```sql
+CREATE TABLE automation_executions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid NOT NULL REFERENCES workspaces(id),
+  automation_key text NOT NULL,
+  entity_id uuid NOT NULL,        -- ID del booking/release/artista afectado
+  entity_type text NOT NULL,       -- 'booking_offer', 'release', 'artist', etc.
+  notification_id uuid REFERENCES notifications(id),
+  fired_at timestamptz DEFAULT now(),
+  UNIQUE(workspace_id, automation_key, entity_id)
+);
+```
+
+La constraint UNIQUE evita que la misma regla se dispare dos veces para la misma entidad.
+
+#### 2. Edge Function `evaluate-automations`
+
+Funcion que:
+- Lee `automation_configs` activas del workspace
+- Para cada una, ejecuta la query de evaluacion correspondiente
+- Comprueba si ya se disparo (tabla `automation_executions`)
+- Si no, inserta en `notifications` y registra en `automation_executions`
+
+**Batch 1 - 5 automatizaciones de booking** (las mas directas con queries SQL):
+
+| Clave | Query |
+|-------|-------|
+| `booking_offer_no_response` | Bookings en phase='interes', sin update en X dias |
+| `booking_negotiation_stalled` | phase='negociacion', sin update en X dias |
+| `booking_confirmed_no_contract` | estado='confirmado', sin documento tipo 'contrato' en booking_documents |
+| `booking_invoice_missing` | estado='confirmado', fecha pasada, sin factura en booking_documents |
+| `booking_signed_no_payment` | Contrato firmado, sin transaccion de tipo 'income' con status='completed' |
+
+Cada query respeta el campo `artist_ids` de la config: si no esta vacio, filtra solo esos artistas.
+
+#### 3. Cron job (pg_cron + pg_net)
+
+Ejecutar la edge function cada 6 horas (suficiente para alertas medidas en dias).
+
+```sql
+SELECT cron.schedule(
+  'evaluate-automations-6h',
+  '0 */6 * * *',
+  $$ SELECT net.http_post(...) $$
+);
+```
+
+#### 4. Sin cambios en la UI existente
+
+- Las notificaciones generadas apareceran automaticamente en la **campana** (`NotificationBell`) porque van a la tabla `notifications`.
+- Los sistemas existentes (`useBookingReminders`, `useReleaseHealthCheck`, `AlertsBadge`, `action_center`) **no se tocan**.
+- La pagina de Automatizaciones sigue funcionando igual (toggle on/off, config por artista, etc.).
+
+#### 5. Relacion con sistemas existentes
+
+- `useBookingReminders` es un sistema client-side que seguira funcionando en paralelo. Algunas automatizaciones se solapan (ej: contrato pendiente), pero el motor de BD actua aunque el usuario no tenga la app abierta, mientras que `useBookingReminders` solo funciona en el navegador.
+- `useReleaseHealthCheck` tampoco se toca: es health-check visual de cada release, no genera notificaciones persistentes.
+- `action_center` es para solicitudes con workflow de aprobacion, no para alertas automaticas.
+
+### Archivos a crear/modificar
+
+1. **Migracion SQL**: Crear tabla `automation_executions`
+2. **`supabase/functions/evaluate-automations/index.ts`**: Edge function con las 5 queries de Batch 1
+3. **SQL insert (pg_cron)**: Programar el cron cada 6 horas
+4. **`supabase/config.toml`**: Registrar la nueva edge function con `verify_jwt = false`
+
+### Lo que NO se toca
+
+- `useBookingReminders`, `ReminderBadge` -- sin cambios
+- `useReleaseHealthCheck` -- sin cambios
+- `AlertsBadge`, `bookingValidations` -- sin cambios
+- `useActionCenter`, `action_center` -- sin cambios
+- `NotificationBell`, `useNotifications` -- sin cambios (solo recibe mas datos)
+- `AutomationCard`, pagina `Automatizaciones` -- sin cambios
 
