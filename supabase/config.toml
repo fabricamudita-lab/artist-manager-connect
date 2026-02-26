@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.extract-contact-from-document]
 verify_jwt = false
+
+[functions.evaluate-automations]
+verify_jwt = false
