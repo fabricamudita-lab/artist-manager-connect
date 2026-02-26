@@ -278,7 +278,7 @@ export function OwnerDashboard() {
           .from('booking_documents')
           .select('booking_id')
           .in('booking_id', bookingIds)
-          .eq('document_type', 'contrato');
+          .eq('document_type', 'contract');
 
         const bookingsWithContract = new Set(docsData?.map(d => d.booking_id) || []);
         confirmedBookings

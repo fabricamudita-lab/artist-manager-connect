@@ -34,7 +34,8 @@ export interface BookingOffer {
 
 export async function validateBookingOffer(
   offer: BookingOffer, 
-  isNew: boolean = false
+  isNew: boolean = false,
+  hasContract?: boolean
 ): Promise<ValidationResult> {
   console.log('Validating booking offer:', offer);
   
@@ -132,7 +133,8 @@ export async function validateBookingOffer(
         type: 'blocking'
       });
     }
-    if (!offer.contratos?.trim()) {
+    // Check contract from booking_documents (hasContract param) instead of legacy field
+    if (hasContract === false) {
       errors.push({
         field: 'contratos',
         message: 'Los contratos son obligatorios para ofertas confirmadas',
