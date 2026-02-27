@@ -4,7 +4,7 @@ import { es } from 'date-fns/locale';
 import {
   CalendarIcon, Music, Disc3, Video, Package, Sparkles,
   ChevronRight, ChevronLeft, Building2, Globe, Megaphone,
-  StickyNote, Check,
+  StickyNote, Check, Plus,
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader,
@@ -27,6 +27,8 @@ import {
 } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { type ReleaseConfig, type SingleConfig } from '@/lib/releaseTimelineTemplates';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 // ── Types ──
 
@@ -50,6 +52,8 @@ interface CronogramaSetupWizardProps {
   initialReleaseDate?: Date | null;
   initialNumSongs?: number;
   tracks?: TrackOption[];
+  releaseId?: string;
+  onTrackCreated?: (track: TrackOption) => void;
 }
 
 // ── Constants ──
@@ -101,13 +105,19 @@ function SingleRowEditor({
   row,
   onChange,
   tracks,
+  releaseId,
+  onTrackCreated,
 }: {
   index: number;
   row: SingleRow;
   onChange: (row: SingleRow) => void;
   tracks: TrackOption[];
+  releaseId?: string;
+  onTrackCreated?: (track: TrackOption) => void;
 }) {
   const [trackOpen, setTrackOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
 
   const selectedTrack = tracks.find((t) => t.id === row.trackId);
 
@@ -140,8 +150,9 @@ function SingleRowEditor({
             <Command>
               <CommandInput
                 placeholder="Buscar canción…"
-                value={row.trackId ? '' : row.name}
+                value={searchValue}
                 onValueChange={(val) => {
+                  setSearchValue(val);
                   if (!tracks.find((t) => t.title.toLowerCase() === val.toLowerCase())) {
                     onChange({ ...row, trackId: undefined, name: val });
                   }
@@ -149,8 +160,46 @@ function SingleRowEditor({
               />
               <CommandList>
                 <CommandEmpty>
-                  {row.name ? (
-                    <span className="text-xs">Se usará "{row.name}" como nombre libre</span>
+                  {searchValue && releaseId ? (
+                    <button
+                      type="button"
+                      disabled={isCreating}
+                      className="flex items-center gap-2 w-full px-2 py-1.5 text-sm text-primary hover:bg-accent rounded cursor-pointer disabled:opacity-50"
+                      onClick={async () => {
+                        if (!searchValue.trim() || !releaseId) return;
+                        setIsCreating(true);
+                        try {
+                          const { data, error } = await supabase
+                            .from('tracks')
+                            .insert({
+                              release_id: releaseId,
+                              title: searchValue.trim(),
+                              track_number: tracks.length + 1,
+                            })
+                            .select()
+                            .single();
+                          if (error) throw error;
+                          const newTrack: TrackOption = {
+                            id: data.id,
+                            title: data.title,
+                            track_number: data.track_number,
+                            isrc: data.isrc ?? null,
+                          };
+                          onTrackCreated?.(newTrack);
+                          onChange({ ...row, trackId: data.id, name: data.title });
+                          setSearchValue('');
+                          setTrackOpen(false);
+                          toast.success(`Canción "${data.title}" creada`);
+                        } catch (err: any) {
+                          toast.error('Error al crear canción: ' + (err.message || ''));
+                        } finally {
+                          setIsCreating(false);
+                        }
+                      }}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      {isCreating ? 'Creando…' : `Crear "${searchValue.trim()}"`}
+                    </button>
                   ) : (
                     'Sin resultados'
                   )}
@@ -211,6 +260,8 @@ export default function CronogramaSetupWizard({
   initialReleaseDate,
   initialNumSongs = 1,
   tracks = [],
+  releaseId,
+  onTrackCreated,
 }: CronogramaSetupWizardProps) {
   const [step, setStep] = useState(1);
   const TOTAL_STEPS = 3;
@@ -450,6 +501,8 @@ export default function CronogramaSetupWizard({
                           setSingleRows(next);
                         }}
                         tracks={tracks}
+                        releaseId={releaseId}
+                        onTrackCreated={onTrackCreated}
                       />
                     ))}
                   </div>
