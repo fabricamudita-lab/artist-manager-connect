@@ -1,46 +1,30 @@
 
-Objetivo: corregir definitivamente la visualización de subtareas en el cronograma y eliminar el espacio en blanco inicial, manteniendo el drag & drop para reordenar arriba/abajo.
 
-Resumen de hallazgos (según el estado actual):
-1) En `SortableSubtaskRow` se está renderizando un `<button>` directamente dentro de `<tr>`, lo cual es HTML inválido en tablas y puede provocar render extraño/alineaciones incorrectas.
-2) Las subtareas tienen varias sangrías acumuladas (`pl-8`, `ml-8`, `ml-6`) que generan demasiado espacio al inicio.
-3) En el mapeo de subtareas faltan `key` explícitas en `SortableSubtaskRow`, lo cual puede producir render inconsistente al reordenar.
+## Distincion visual entre tareas y subtareas en el Gantt
 
-Implementación propuesta:
+### Objetivo
+Hacer que las barras de subtareas sean visualmente mas delgadas (aprox. la mitad de altura) respecto a las tareas principales, para que se distingan claramente en el cronograma.
 
-1. Corregir estructura HTML de filas de subtareas (prioridad alta)
-- Archivo: `src/pages/release-sections/ReleaseCronograma.tsx`
-- Ajustar `SortableSubtaskRow` para que no inserte elementos inválidos en el `<tr>`.
-- Mantener el `<TableRow>` limpio y pasar los props de drag handle (`attributes`, `listeners`) a un handle que viva dentro de la primera celda válida (`<TableCell>`), no como hijo directo de `<tr>`.
+### Cambios
 
-2. Reubicar el drag handle sin crear hueco visual
-- Para cada tipo de subtarea (`note`, `comment`, `checkbox`, `full`), colocar el handle dentro del primer bloque de contenido de la primera celda.
-- El handle seguirá siendo visible en hover y usable para arrastrar, pero sin “columna fantasma” ni desplazamiento lateral artificial.
+**Archivo: `src/components/lanzamientos/GanttChart.tsx`**
 
-3. Eliminar el espacio blanco inicial en subtareas
-- Reducir/eliminar sangrías actuales:
-  - `pl-8` en contenedores de subtareas.
-  - `ml-6` en textarea/hilos y `ml-8` en “Añadir elemento”.
-- Sustituir por espaciado mínimo consistente (p. ej. `pl-1`/`pl-2` solo si hace falta para respirar visualmente).
-- Resultado esperado: el contenido empieza alineado con la columna “Tarea”, sin bloque vacío a la izquierda.
+Modificar las alturas en el componente `GanttBarRow` (linea ~878-914):
 
-4. Estabilizar render al reordenar
-- Añadir `key={subtask.id}` en cada `SortableSubtaskRow` dentro del `map`.
-- Mantener `items={subtaskList.map(s => s.id)}` como está para compatibilidad con dnd-kit.
+| Elemento | Actual (normal) | Nuevo (normal) | Actual (compact) | Nuevo (compact) |
+|---|---|---|---|---|
+| Contenedor tarea | `h-8` | `h-8` (sin cambio) | `h-5` | `h-5` |
+| Contenedor subtarea | `h-6` | `h-4` | `h-4` | `h-3` |
+| Barra tarea | `h-6` | `h-6` (sin cambio) | `h-5` | `h-5` |
+| Barra subtarea | `h-5` | `h-2.5` | `h-4` | `h-2` |
+| Ghost tarea | `h-6` | `h-6` (sin cambio) | `h-5` | `h-5` |
+| Ghost subtarea | `h-5` | `h-2.5` | `h-4` | `h-2` |
 
-5. Validación funcional y visual
-- Confirmar que:
-  - Las subtareas ya no se “corren” horizontalmente.
-  - No hay espacio en blanco grande al principio.
-  - El reordenamiento por arrastre sigue funcionando.
-  - Inputs/selectores de subtarea siguen editables sin arrastres accidentales.
-- Revisar los 4 tipos de subtarea (completa, checkbox, nota, comentario).
+Ademas, centrar verticalmente las barras de subtarea dentro de su contenedor ajustando los valores de `top-` para que queden centradas (p.ej. `top-[3px]` en modo normal).
 
-Archivos a tocar:
-- `src/pages/release-sections/ReleaseCronograma.tsx` (único archivo necesario para este fix).
+Tambien reducir ligeramente la opacidad de subtareas (ya tiene `opacity-70`, se mantiene) y aplicar un `rounded-sm` en vez de `rounded` para subtareas, reforzando la distincion visual.
 
-Criterios de aceptación:
-- Subtareas visualmente alineadas bajo “Tarea”.
-- Sin hueco inicial excesivo.
-- Drag & drop de subtareas funcionando.
-- Sin regresiones en edición (responsable, estado, fechas, borrado, comentarios/notas).
+### Resultado esperado
+- Las barras de tareas principales mantienen su grosor actual
+- Las barras de subtareas son aproximadamente la mitad de gruesas
+- La jerarquia visual queda clara de un vistazo
