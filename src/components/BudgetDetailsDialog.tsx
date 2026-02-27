@@ -3774,7 +3774,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                        min="1"
                                                        value={editingItemValues.quantity ?? item.quantity ?? 1}
                                                        onChange={(e) => setEditingItemValues(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
-                                                       className="h-8 w-12 text-sm text-center border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
+                                                       className="h-8 w-16 text-sm text-center border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
                                                      />
                                                    </>
                                                  )}
@@ -3808,7 +3808,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                            >
                                              <span>€{item.unit_price.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span>
                                              {item.quantity && item.quantity > 1 && (
-                                               <span className="text-gray-500 text-sm">× {item.quantity}</span>
+                                               <span className="text-gray-500 text-sm whitespace-nowrap">× {item.quantity}</span>
                                              )}
                                              <Button
                                                size="sm"
