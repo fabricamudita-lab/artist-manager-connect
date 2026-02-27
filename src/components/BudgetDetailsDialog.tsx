@@ -68,6 +68,7 @@ import {
   Link2,
   Eraser
 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { useInvoiceAutoLink } from '@/hooks/useInvoiceAutoLink';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -3639,17 +3640,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                               {(item as any).is_provisional && (
                                                 <Badge
                                                   variant="outline"
-                                                  className="text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-300 cursor-pointer hover:bg-amber-500/20 shrink-0"
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    supabase
-                                                      .from('budget_items')
-                                                      .update({ is_provisional: false } as any)
-                                                      .eq('id', item.id)
-                                                      .then(() => fetchBudgetItems());
-                                                  }}
+                                                  className="text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-300 shrink-0"
                                                 >
-                                                  ⏳ Provisional
+                                                  Provisional
                                                 </Badge>
                                               )}
                                             </div>
@@ -4055,21 +4048,20 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                               </>
                                             ) : (
                                                <>
-                                                <Button
-                                                  onClick={() => {
-                                                    supabase
-                                                      .from('budget_items')
-                                                      .update({ is_provisional: !(item as any).is_provisional } as any)
-                                                      .eq('id', item.id)
-                                                      .then(() => fetchBudgetItems());
-                                                  }}
-                                                  size="sm"
-                                                  variant="ghost"
-                                                  className={`h-6 w-6 p-0 ${(item as any).is_provisional ? 'text-amber-500 hover:bg-amber-100' : 'text-gray-400 hover:bg-gray-100'}`}
-                                                  title={(item as any).is_provisional ? 'Marcar como real' : 'Marcar como provisional'}
-                                                >
-                                                  <span className="text-xs">⏳</span>
-                                                </Button>
+                                                <div className="flex items-center gap-1" title={(item as any).is_provisional ? 'Marcar como real' : 'Marcar como provisional'}>
+                                                  <Switch
+                                                    checked={!!(item as any).is_provisional}
+                                                    onCheckedChange={(checked) => {
+                                                      supabase
+                                                        .from('budget_items')
+                                                        .update({ is_provisional: checked } as any)
+                                                        .eq('id', item.id)
+                                                        .then(() => fetchBudgetItems());
+                                                    }}
+                                                    className="h-4 w-7 data-[state=checked]:bg-amber-500 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-3"
+                                                  />
+                                                  {(item as any).is_provisional && <span className="text-[10px] text-amber-600 font-medium">Prov.</span>}
+                                                </div>
                                                  <Button
                                                    onClick={() => startEditingItem(item)}
                                                    size="sm"
