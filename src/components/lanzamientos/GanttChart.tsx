@@ -877,8 +877,8 @@ function GanttBarRow({
       className={cn(
         "flex-1 relative rounded",
         compact
-          ? (task.isSubtask ? "h-4 bg-muted/10" : "h-5 bg-muted/20")
-          : (task.isSubtask ? "h-6 bg-muted/10" : "h-8 bg-muted/20")
+          ? (task.isSubtask ? "h-3 bg-muted/10" : "h-5 bg-muted/20")
+          : (task.isSubtask ? "h-4 bg-muted/10" : "h-8 bg-muted/20")
       )}
     >
       {todayPosition !== null && (
@@ -895,8 +895,8 @@ function GanttBarRow({
             'absolute rounded pointer-events-none',
             'bg-muted-foreground/40',
             compact
-              ? (task.isSubtask ? 'top-0 h-4' : 'top-0 h-5')
-              : (task.isSubtask ? 'top-0.5 h-5' : 'top-1 h-6'),
+              ? (task.isSubtask ? 'top-0.5 h-2' : 'top-0 h-5')
+              : (task.isSubtask ? 'top-[3px] h-2.5' : 'top-1 h-6'),
           )}
           style={{ left: ghostLeft, width: ghostWidth, minWidth: '16px', opacity: 0.25 }}
         />
@@ -907,11 +907,12 @@ function GanttBarRow({
         <ContextMenuTrigger asChild>
           <div
             className={cn(
-              'absolute rounded transition-all group',
+              'absolute transition-all group',
+              task.isSubtask ? 'rounded-sm' : 'rounded',
               STATUS_BAR_COLORS[task.status],
               compact
-                ? (task.isSubtask ? 'top-0 h-4' : 'top-0 h-5')
-                : (task.isSubtask ? 'top-0.5 h-5' : 'top-1 h-6'),
+                ? (task.isSubtask ? 'top-0.5 h-2' : 'top-0 h-5')
+                : (task.isSubtask ? 'top-[3px] h-2.5' : 'top-1 h-6'),
               task.isSubtask && 'opacity-70',
               isDragging
                 ? 'opacity-90 ring-2 ring-primary shadow-lg'
