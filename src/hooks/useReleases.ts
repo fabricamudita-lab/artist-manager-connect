@@ -3,6 +3,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
+export interface ReleaseArtist {
+  id: string;
+  release_id: string;
+  artist_id: string;
+  role: string;
+  created_at: string;
+  artist?: {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+  } | null;
+}
+
 export interface Release {
   id: string;
   title: string;
@@ -23,6 +36,7 @@ export interface Release {
     name: string;
     avatar_url: string | null;
   } | null;
+  release_artists?: ReleaseArtist[];
 }
 
 export interface ReleaseMilestone {
@@ -141,9 +155,33 @@ export function useRelease(id: string | undefined) {
         .single();
 
       if (error) throw error;
-      return data as Release;
+
+      // Fetch release_artists
+      const { data: releaseArtists } = await supabase
+        .from('release_artists')
+        .select('*, artist:artists(id, name, avatar_url)')
+        .eq('release_id', id);
+
+      return { ...data, release_artists: releaseArtists || [] } as Release;
     },
     enabled: !!id,
+  });
+}
+
+// Fetch artists for a release
+export function useReleaseArtists(releaseId: string | undefined) {
+  return useQuery({
+    queryKey: ['release-artists', releaseId],
+    queryFn: async () => {
+      if (!releaseId) return [];
+      const { data, error } = await supabase
+        .from('release_artists')
+        .select('*, artist:artists(id, name, avatar_url)')
+        .eq('release_id', releaseId);
+      if (error) throw error;
+      return data as ReleaseArtist[];
+    },
+    enabled: !!releaseId,
   });
 }
 
@@ -153,7 +191,7 @@ export function useCreateRelease() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (release: { title: string; type?: string; release_date?: string | null; description?: string | null; artist_id?: string | null }) => {
+    mutationFn: async (release: { title: string; type?: string; release_date?: string | null; description?: string | null; artist_id?: string | null; artist_ids?: string[] }) => {
       if (!user?.id) throw new Error('Not authenticated');
       
       const { data, error } = await supabase
@@ -170,6 +208,16 @@ export function useCreateRelease() {
         .single();
 
       if (error) throw error;
+
+      // Insert into release_artists junction table
+      const artistIds = release.artist_ids || (release.artist_id ? [release.artist_id] : []);
+      if (artistIds.length > 0) {
+        const { error: raError } = await supabase
+          .from('release_artists')
+          .insert(artistIds.map(aid => ({ release_id: data.id, artist_id: aid })));
+        if (raError) console.error('Error inserting release_artists:', raError);
+      }
+
       return data;
     },
     onSuccess: () => {
@@ -188,20 +236,35 @@ export function useUpdateRelease() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<Release> & { id: string }) => {
+    mutationFn: async ({ id, artist_ids, ...updates }: Partial<Release> & { id: string; artist_ids?: string[] }) => {
+      // Remove non-DB fields before update
+      const { release_artists, artist, ...dbUpdates } = updates as any;
+
       const { data, error } = await supabase
         .from('releases')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
+
+      // Sync release_artists if provided
+      if (artist_ids !== undefined) {
+        await supabase.from('release_artists').delete().eq('release_id', id);
+        if (artist_ids.length > 0) {
+          await supabase
+            .from('release_artists')
+            .insert(artist_ids.map(aid => ({ release_id: id, artist_id: aid })));
+        }
+      }
+
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['releases'] });
       queryClient.invalidateQueries({ queryKey: ['release', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['release-artists', data.id] });
       queryClient.invalidateQueries({ queryKey: ['artist-releases'] });
       toast.success('Lanzamiento actualizado');
     },

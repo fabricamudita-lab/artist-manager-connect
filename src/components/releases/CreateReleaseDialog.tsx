@@ -30,7 +30,7 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useCreateRelease } from '@/hooks/useReleases';
-import { SingleArtistSelector } from '@/components/SingleArtistSelector';
+import { ArtistSelector } from '@/components/ArtistSelector';
 
 interface CreateReleaseDialogProps {
   open: boolean;
@@ -50,7 +50,7 @@ export default function CreateReleaseDialog({
   const [type, setType] = useState<'album' | 'ep' | 'single'>('single');
   const [releaseDate, setReleaseDate] = useState<Date | undefined>();
   const [description, setDescription] = useState('');
-  const [selectedArtistId, setSelectedArtistId] = useState<string | null>(artistId || null);
+  const [selectedArtistIds, setSelectedArtistIds] = useState<string[]>(artistId ? [artistId] : []);
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
@@ -60,7 +60,8 @@ export default function CreateReleaseDialog({
       type,
       release_date: releaseDate ? format(releaseDate, 'yyyy-MM-dd') : null,
       description: description.trim() || null,
-      artist_id: selectedArtistId || null,
+      artist_id: selectedArtistIds[0] || null,
+      artist_ids: selectedArtistIds,
     });
 
     if (result) {
@@ -69,6 +70,7 @@ export default function CreateReleaseDialog({
       setType('single');
       setReleaseDate(undefined);
       setDescription('');
+      setSelectedArtistIds([]);
       navigate(`/releases/${result.id}`);
     }
   };
@@ -109,11 +111,11 @@ export default function CreateReleaseDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Artista</Label>
-            <SingleArtistSelector
-              value={selectedArtistId}
-              onValueChange={setSelectedArtistId}
-              placeholder="Seleccionar artista..."
+            <Label>Artistas</Label>
+            <ArtistSelector
+              selectedArtists={selectedArtistIds}
+              onSelectionChange={setSelectedArtistIds}
+              placeholder="Seleccionar artistas..."
             />
           </div>
 

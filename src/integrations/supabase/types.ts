@@ -4838,6 +4838,45 @@ export type Database = {
           },
         ]
       }
+      release_artists: {
+        Row: {
+          artist_id: string
+          created_at: string | null
+          id: string
+          release_id: string
+          role: string
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string | null
+          id?: string
+          release_id: string
+          role?: string
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string | null
+          id?: string
+          release_id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "release_artists_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_artists_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       release_assets: {
         Row: {
           category: string | null
