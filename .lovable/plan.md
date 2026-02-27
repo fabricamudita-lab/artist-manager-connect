@@ -1,65 +1,71 @@
 
 
-## Mejoras en el Paso 2 del Wizard: Videoclips, Focus Track y 6+ personalizable
+## Reemplazar toggle de videoclip por selector de tipo de video
 
-### 1. Input numerico para "6+"
+### Problema actual
+El toggle de videoclip es un simple booleano (si/no). En la realidad, un single puede ir acompanado de distintos tipos de contenido audiovisual, cada uno con procesos de produccion muy diferentes:
+- **Videoclip**: Pre-produccion, rodaje, edicion (proceso largo y costoso)
+- **Visualiser**: Animacion sobre el audio, mas rapido de producir
+- **Videolyric**: Video con letras animadas, el mas sencillo
 
-Actualmente al pulsar "6+" se fija `numSongs = 6`. En su lugar, al pulsar "6+" se mostrara un campo `Input` numerico (type="number", min=6) que permite escribir el numero exacto de canciones. Los botones 1-5 siguen funcionando igual.
+### Cambios
 
-**Archivo**: `src/components/releases/CronogramaSetupWizard.tsx`
-- Anadir estado `showCustomSongs: boolean` (se activa al pulsar "6+")
-- Cuando `showCustomSongs` es true, mostrar un `Input` numerico al lado del boton "6+" activo
-- El boton "6+" queda visualmente activo mientras el input esta visible
-- Al pulsar cualquier boton 1-5, se desactiva `showCustomSongs`
+**1. `src/lib/releaseTimelineTemplates.ts`**
 
-### 2. Toggle de videoclip por single
+- Crear tipo `VideoType = 'none' | 'videoclip' | 'visualiser' | 'videolyric'`
+- Cambiar `hasVideo?: boolean` en `SingleConfig` por `videoType?: VideoType`
+- Mantener `hasVideo: boolean` en `ReleaseConfig` (el toggle global del paso 1) pero tambien aceptar el tipo por single
+- Anadir templates de tareas condicionales para visualiser y videolyric (mas cortos que videoclip):
+  - Visualiser: Briefing creativo (3d), Produccion (7d), Entrega (2d)
+  - Videolyric: Briefing + letra (2d), Produccion (5d), Entrega (1d)
 
-Cada fila de single (`SingleRowEditor`) tendra un toggle/switch adicional "Con videoclip" que indica si ese single va acompanado de un videoclip.
+**2. `src/components/releases/CronogramaSetupWizard.tsx`**
 
-**Cambios**:
-- Ampliar `SingleRow` con campo `hasVideo: boolean`
-- En `SingleRowEditor`, anadir un pequeno toggle con icono de Video junto a la fecha opcional
-- Ampliar `SingleConfig` en `releaseTimelineTemplates.ts` con `hasVideo?: boolean`
-- Pasar el valor al `handleGenerate`
+- Cambiar `hasVideo: boolean` en `SingleRow` por `videoType: VideoType`
+- Reemplazar el boton toggle actual por un mini-selector con 4 opciones (popover o dropdown):
+  - Sin video (icono tachado, estado por defecto)
+  - Videoclip (icono camara)
+  - Visualiser (icono ondas/sparkles)
+  - Videolyric (icono texto/captions)
+- El boton muestra el tipo seleccionado con color e icono correspondiente
+- Actualizar `handleGenerate` para pasar `videoType` en vez de `hasVideo` en cada single
 
-### 3. Selector de Focus Track
+### UI del selector por single
 
-Para albums y EPs (cuando `numSongs >= 3`), mostrar un selector de "Focus Track" -- la cancion principal que recibira mas atencion promocional. Se muestra como un combobox que lista los tracks del release.
+```text
+Single 1: [Vincular cancion...] [Videoclip v] [Fecha]
+                                      |
+                                  Dropdown:
+                                  - Sin video
+                                  - Videoclip
+                                  - Visualiser
+                                  - Videolyric
+```
 
-**Cambios**:
-- Anadir estado `focusTrackId: string | undefined` en el wizard principal
-- Mostrar el selector solo cuando `numSongs >= 3` (albums/EPs)
-- Usar el mismo combobox de tracks (con opcion de crear) reutilizando el patron de `SingleRowEditor`
-- Ampliar `ReleaseConfig` con `focusTrackId?: string`
-- Pasar el valor al `handleGenerate`
+Cada opcion tendra un icono y color distintos:
+- Sin video: gris, icono VideoOff
+- Videoclip: verde, icono Video (como el actual)
+- Visualiser: purpura, icono Sparkles
+- Videolyric: azul, icono Captions
+
+### Templates de tareas por tipo de video
+
+| Tipo | Tareas generadas | Dias totales |
+|---|---|---|
+| Videoclip | Pre-produccion (7d) + Rodaje (3d) + Edicion (14d) + Entrega (2d) | ~26d |
+| Visualiser | Briefing creativo (3d) + Produccion (7d) + Entrega (2d) | ~12d |
+| Videolyric | Briefing + letra (2d) + Produccion (5d) + Entrega (1d) | ~8d |
 
 ### Archivos a modificar
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/releases/CronogramaSetupWizard.tsx` | Input numerico para 6+, toggle videoclip en singles, selector focus track |
-| `src/lib/releaseTimelineTemplates.ts` | Anadir `hasVideo?: boolean` a `SingleConfig` y `focusTrackId?: string` a `ReleaseConfig` |
-
-### Detalle de UI del Paso 2 resultante
-
-```text
-[Numero de canciones]
-  [1] [2] [3] [4] [5] [6+] [___input___]
-
-[Focus Track (solo si >= 3 canciones)]
-  Combobox: "Seleccionar focus track..."
-
-[Singles a lanzar antes del album]
-  [0] [1] [2] [3] ...
-
-[Configurar Singles]
-  1. [Vincular a cancion...] [Con videoclip toggle] [Fecha opcional]
-  2. [Vincular a cancion...] [Con videoclip toggle] [Fecha opcional]
-```
+| `src/lib/releaseTimelineTemplates.ts` | Nuevo tipo `VideoType`, actualizar `SingleConfig`, anadir templates de tareas para visualiser y videolyric |
+| `src/components/releases/CronogramaSetupWizard.tsx` | Reemplazar toggle por dropdown de tipo de video en cada fila de single |
 
 ### Lo que NO cambia
-- La logica de generacion de tareas
-- Los IDs, estimatedDays, orden de workflows
-- La funcionalidad de crear tracks desde el combobox
+- El toggle global "Incluir videoclip" del paso 1 (aplica al release en general)
+- La logica de generacion de tareas base
 - Los pasos 1 y 3 del wizard
+- La vinculacion de tracks y focus track
 
