@@ -1,93 +1,91 @@
 
 
-## Mejora de "Equipo involucrado" en ProjectDetail
+## Importar Discografia desde Spotify
 
-### Problema actual
-La seccion "Equipo involucrado" muestra una lista plana de miembros sin organizacion. Cuando hay equipo asignado, no se agrupa por roles ni categorias, dificultando ver quien hace que en el proyecto.
+### Resumen
+Crear un sistema para importar la discografia de un artista desde Spotify pegando la URL de su perfil. Incluye una Edge Function segura para las credenciales de Spotify, un drawer multi-paso para seleccionar que importar, y logica de insercion masiva en las tablas existentes de releases y tracks.
 
-### Solucion
+### Prerequisito: Credenciales Spotify
+Se necesitan dos secretos nuevos en Supabase:
+- `SPOTIFY_CLIENT_ID`
+- `SPOTIFY_CLIENT_SECRET`
 
-Redisenar la seccion de equipo para:
-1. Agrupar miembros por su rol en el proyecto
-2. Mostrar avatares compactos con indicadores de tipo (perfil vs contacto)
-3. Permitir edicion de rol inline
-4. Mostrar miembros sin rol bajo "Sin rol asignado"
+Se pediran al usuario antes de implementar. Se obtienen desde https://developer.spotify.com/dashboard.
 
-### Cambios
+### Cambios en Base de Datos
 
-#### 1. Mejorar la query de datos (`ProjectDetail.tsx` - linea ~882)
+**Migracion**: Agregar campo `spotify_id` a las tablas `releases` y `tracks` para prevenir duplicados:
 
-Ampliar la query de `project_team` para traer mas datos del contacto/perfil:
-- De contactos: `name, stage_name, category, role` (el campo `role` del contacto como referencia)
-- De perfiles: `full_name, stage_name, avatar_url`
-
-Esto permite mostrar avatares reales y usar la categoria/rol del contacto como informacion complementaria.
-
-#### 2. Actualizar el estado de `team` para incluir mas campos
-
-Cambiar la interfaz del estado `team` para incluir:
-- `type`: 'profile' | 'contact' (para diferenciar visualmente)
-- `contactRole`: rol del contacto en la agenda (ej: "Tecnico de sonido")
-- `projectRole`: rol asignado en este proyecto especificamente
-- `avatarUrl`: para mostrar avatar real si existe
-- `category`: categoria del contacto (ej: "tecnico", "management")
-
-#### 3. Redisenar la seccion de equipo (lineas 1397-1486)
-
-Reemplazar la lista plana con una vista agrupada:
-
-- **Agrupacion por rol de proyecto**: los miembros se agrupan segun el campo `role` de `project_team`. Cada grupo muestra un encabezado con el nombre del rol y el numero de miembros.
-- **Miembros sin rol**: aparecen bajo la seccion "Sin rol asignado" al final.
-- **Vista compacta por defecto**: avatares en miniatura (32px) con nombre y rol del contacto como subtitulo.
-- **Acciones**: menu contextual con "Editar rol en proyecto", "Ver perfil" y "Quitar del equipo".
-- **Boton "Anadir miembro"** siempre visible al final.
-
-Layout visual:
-```text
-Equipo involucrado                    [Users icon]
---------------------------------------------
-Direccion (2)
-  [Avatar] Maria Garcia - Manager
-  [Avatar] Juan Lopez - Director artistico
-
-Produccion (1)  
-  [Avatar] Ana Martin - Tecnico de sonido
-
-Sin rol asignado (1)
-  [Avatar] Carlos Ruiz
-
-[+ Anadir miembro]
+```sql
+ALTER TABLE releases ADD COLUMN spotify_id TEXT UNIQUE;
+ALTER TABLE tracks ADD COLUMN spotify_id TEXT UNIQUE;
+ALTER TABLE tracks ADD COLUMN explicit BOOLEAN DEFAULT false;
+ALTER TABLE tracks ADD COLUMN spotify_url TEXT;
+ALTER TABLE tracks ADD COLUMN preview_url TEXT;
+ALTER TABLE tracks ADD COLUMN popularity INTEGER;
+ALTER TABLE releases ADD COLUMN spotify_url TEXT;
+ALTER TABLE releases ADD COLUMN copyright TEXT;
 ```
 
-### Detalle tecnico
+### Edge Function: `spotify-import`
 
-**Query ampliada:**
-```typescript
-supabase.from('project_team')
-  .select('id, role, profile_id, contact_id, profiles:profile_id(full_name, stage_name, avatar_url), contacts:contact_id(name, stage_name, category, role)')
-  .eq('project_id', id)
+Endpoint seguro que maneja dos operaciones:
+
+**1. `GET /spotify-import?action=fetch&artistId={spotifyArtistId}`**
+- Obtiene token via Client Credentials Flow (`POST https://accounts.spotify.com/api/token`)
+- Llama a `GET /v1/artists/{id}/albums?include_groups=album,single,appears_on,compilation&limit=50`
+- Para cada album: obtiene detalle con `GET /v1/albums/{id}` (para tracks, UPC, label, copyrights)
+- Devuelve toda la discografia parseada y organizada por tipo
+
+**2. No se necesita segundo endpoint** - la importacion (insercion en DB) se hace desde el frontend con el cliente Supabase directamente.
+
+Configuracion en `config.toml`:
+```toml
+[functions.spotify-import]
+verify_jwt = false
 ```
 
-**Agrupacion en el render:**
-```typescript
-const groupedTeam = useMemo(() => {
-  const groups = new Map<string, typeof team>();
-  team.forEach(member => {
-    const key = member.role || '__no_role__';
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(member);
-  });
-  // Sort: named roles first, "sin rol" last
-  const sorted = [...groups.entries()].sort((a, b) => {
-    if (a[0] === '__no_role__') return 1;
-    if (b[0] === '__no_role__') return -1;
-    return a[0].localeCompare(b[0]);
-  });
-  return sorted;
-}, [team]);
-```
+### Componentes Nuevos
 
-**Archivos modificados:**
-- `src/pages/ProjectDetail.tsx`: ampliar query, actualizar estado team, redisenar seccion de equipo con agrupacion por roles
+**`src/components/releases/ImportSpotifyDialog.tsx`**
+Drawer lateral con 3 pasos:
 
-No se necesitan migraciones de base de datos ni componentes nuevos.
+- **Paso 1 - URL + Artista**: Input para URL de Spotify + selector de artista MOODITA. Boton "Buscar discografia". Extrae el artist ID de la URL con regex que cubre los formatos `open.spotify.com/artist/...`, `open.spotify.com/intl-xx/artist/...` y `spotify:artist:...`.
+
+- **Paso 2 - Seleccion**: Muestra resultados agrupados por tipo (Albums, EPs, Singles, Apariciones). Cada item muestra portada, titulo, ano, numero de tracks. Items ya importados (match por `spotify_id`) aparecen deshabilitados con badge "Ya importado". Albums y EPs seleccionados por defecto, singles y apariciones deseleccionados. Singles colapsados si hay mas de 5. Contador de seleccionados en el footer.
+
+- **Paso 3 - Importacion**: Barra de progreso con estado detallado. Inserta cada release en `releases` con los datos de Spotify (titulo, tipo, fecha, portada, label, UPC, genre, spotify_id, spotify_url, copyright). Vincula al artista via `release_artists`. Inserta cada track en `tracks` (titulo, track_number, duracion en segundos, ISRC, spotify_id, explicit, spotify_url, preview_url, popularity). Al terminar muestra resumen con contadores.
+
+### Logica de Prevencion de Duplicados
+
+Antes de mostrar la seleccion, consulta la DB por `spotify_id` en `releases`. Los que ya existan se marcan como "Ya importado" y no son seleccionables.
+
+### Modificaciones a Archivos Existentes
+
+**`src/pages/Releases.tsx`**: Agregar boton "Importar desde Spotify" junto a "Nuevo Lanzamiento" y renderizar el componente `ImportSpotifyDialog`.
+
+**`src/hooks/useReleases.ts`**: Agregar interfaz `Release` actualizada con los nuevos campos (`spotify_id`, `spotify_url`, `copyright`). No se necesitan hooks nuevos - la importacion usa directamente `supabase.from('releases').insert(...)`.
+
+### Archivos Nuevos
+
+| Archivo | Descripcion |
+|---------|-------------|
+| `supabase/functions/spotify-import/index.ts` | Edge Function para comunicarse con Spotify API |
+| `src/components/releases/ImportSpotifyDialog.tsx` | Drawer completo con los 3 pasos |
+
+### Archivos Modificados
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/Releases.tsx` | Boton de importacion + estado del dialog |
+| `src/hooks/useReleases.ts` | Campos nuevos en interfaces Release y Track |
+| `supabase/config.toml` | Registrar la nueva edge function |
+
+### Notas Tecnicas
+
+- El mapeo de tipo de Spotify a MOODITA: `album` -> `album`, `single` -> `single`, `compilation` -> `album`
+- Duracion: Spotify usa milisegundos, tracks almacenan en segundos
+- La portada se guarda como URL externa de Spotify (i.scdn.co), no se descarga al storage
+- El status de releases importados sera `released` (ya estan publicados en Spotify)
+- Se anade banner visual "Importado desde Spotify - completa creditos y datos internos" detectando releases con `spotify_id` no nulo
+
