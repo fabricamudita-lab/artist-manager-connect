@@ -1,23 +1,71 @@
 
 
-## Fix: "Seleccionar artistas" radio button not working
+## Soporte multi-artista en Lanzamientos
 
-### Problem
-In `AutomationCard.tsx`, the "Aplica a" radio group derives its value from `artist_ids.length === 0 ? 'all' : 'selected'`. When you click "Seleccionar artistas", the handler does nothing (only the `'all'` case is handled). Since `artist_ids` remains empty, the computed value stays `'all'` and the radio never switches, nor does the artist selector appear.
+### Problema
+Actualmente cada lanzamiento solo permite un artista (`artist_id` en la tabla `releases`). Para discos colaborativos (ej: Rita Payes + Lucia Fumero) necesitas poder asignar varios artistas.
 
-### Solution
-Add a local state `forceSelectedMode` to track when the user explicitly picks "Seleccionar artistas" even before any artists are chosen. This decouples the radio UI from the data state.
+### Solucion
 
-### Changes
+Crear una tabla intermedia `release_artists` para la relacion muchos-a-muchos, mantener `artist_id` como "artista principal" por compatibilidad, y cambiar los selectores en los dialogos de crear/editar lanzamiento.
 
-**File: `src/components/AutomationCard.tsx`**
+### Cambios
 
-1. Add a `const [forceSelectedMode, setForceSelectedMode] = useState(false)` state variable
-2. Compute `artistMode` as: `forceSelectedMode || a.artist_ids.length > 0 ? 'selected' : 'all'`
-3. In the RadioGroup `onValueChange`:
-   - `'all'`: call `onFieldChange(a.key, 'artist_ids', [])` AND `setForceSelectedMode(false)`
-   - `'selected'`: call `setForceSelectedMode(true)`
-4. The `ArtistSelector` will now appear when the radio is set to `'selected'`, allowing the user to pick artists
+#### 1. Migracion SQL
+- Crear tabla `release_artists` con columnas: `id`, `release_id` (FK), `artist_id` (FK), `role` (text, default 'primary'), `created_at`
+- Indice unico en `(release_id, artist_id)` para evitar duplicados
+- Migrar datos existentes: insertar un registro en `release_artists` por cada release que tenga `artist_id` poblado
+- RLS habilitado con politicas similares a las de `releases`
 
-This is a one-file, ~5-line fix with no impact on other components.
+#### 2. Hook useReleases
+- Añadir nuevo hook `useReleaseArtists(releaseId)` para obtener los artistas de un lanzamiento
+- Modificar `useCreateRelease` para aceptar `artist_ids: string[]` en vez de `artist_id` y hacer el insert en `release_artists` tras crear el release
+- Modificar `useUpdateRelease` para gestionar la tabla `release_artists` (delete + insert)
+- Modificar `useRelease` para hacer join con `release_artists` y traer los artistas vinculados
+
+#### 3. CreateReleaseDialog
+- Reemplazar `SingleArtistSelector` por el componente `ArtistSelector` (multi-seleccion) que ya existe en el proyecto
+- Cambiar el estado de `selectedArtistId: string | null` a `selectedArtistIds: string[]`
+- Pasar `artist_id` como el primer artista seleccionado (para compatibilidad) y guardar todos en `release_artists`
+
+#### 4. EditReleaseDialog
+- Mismo cambio: reemplazar `SingleArtistSelector` por `ArtistSelector`
+- Cargar los artistas actuales desde `release_artists` al abrir el dialogo
+- Al guardar, sincronizar la tabla `release_artists`
+
+#### 5. ReleaseDetail (cabecera)
+- En vez de mostrar un solo artista, mostrar la lista de artistas con sus avatares como chips/badges clickeables que llevan al perfil
+
+#### 6. Compatibilidad
+- El campo `artist_id` en `releases` se mantiene como "artista principal" (primer artista seleccionado) para no romper queries existentes en royalties, cronograma, ResponsibleSelector, etc.
+- Los filtros por artista en la lista de releases consultaran tambien `release_artists`
+
+### Detalle tecnico
+
+```sql
+CREATE TABLE public.release_artists (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  release_id uuid NOT NULL REFERENCES releases(id) ON DELETE CASCADE,
+  artist_id uuid NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
+  role text NOT NULL DEFAULT 'primary',
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(release_id, artist_id)
+);
+
+-- Migrar datos existentes
+INSERT INTO release_artists (release_id, artist_id)
+SELECT id, artist_id FROM releases WHERE artist_id IS NOT NULL;
+
+ALTER TABLE release_artists ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "release_artists_all" ON release_artists FOR ALL USING (true);
+```
+
+En los dialogos, el cambio principal es:
+```typescript
+// Antes
+<SingleArtistSelector value={artistId} onValueChange={setArtistId} />
+
+// Despues
+<ArtistSelector selectedArtists={artistIds} onSelectionChange={setArtistIds} />
+```
 
