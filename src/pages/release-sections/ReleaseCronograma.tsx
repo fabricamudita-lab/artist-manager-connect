@@ -2123,6 +2123,7 @@ export default function ReleaseCronograma() {
           onGenerate={handleGenerateFromWizard}
           initialReleaseDate={release?.release_date ? new Date(release.release_date) : null}
           initialNumSongs={numSongs}
+          tracks={tracks.map(t => ({ id: t.id, title: t.title, track_number: t.track_number, isrc: t.isrc }))}
         />
       </div>
     );
@@ -2413,6 +2414,7 @@ export default function ReleaseCronograma() {
         onGenerate={handleGenerateFromWizard}
         initialReleaseDate={release?.release_date ? new Date(release.release_date) : null}
         initialNumSongs={numSongs}
+        tracks={tracks.map(t => ({ id: t.id, title: t.title, track_number: t.track_number, isrc: t.isrc }))}
       />
 
       {/* Anchor Dependency Dialog */}
