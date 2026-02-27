@@ -780,7 +780,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const calculateTotal = (item: BudgetItem) => {
     const subtotal = item.unit_price * (item.quantity || 1);
     const iva = subtotal * (item.iva_percentage / 100);
-    const irpf = subtotal * ((item.irpf_percentage || 15) / 100);
+    const irpf = subtotal * ((item.irpf_percentage ?? 15) / 100);
     return subtotal + iva - irpf;
   };
 
@@ -789,7 +789,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       (acc, item) => {
         const subtotal = item.unit_price * (item.quantity || 1);
         const iva = subtotal * (item.iva_percentage / 100);
-        const irpf = subtotal * ((item.irpf_percentage || 15) / 100);
+        const irpf = subtotal * ((item.irpf_percentage ?? 15) / 100);
         
         acc.neto += subtotal;
         acc.iva += iva;
@@ -2128,7 +2128,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           item.quantity.toString(),
           `${item.unit_price.toFixed(2)} €`,
           `${item.iva_percentage}%`,
-          `${item.irpf_percentage || 15}%`,
+          `${item.irpf_percentage ?? 15}%`,
           `${calculateTotal(item).toFixed(2)} €`,
           item.billing_status === 'factura_recibida' ? 'Facturado' : 
             item.billing_status === 'pendiente' ? 'Pendiente' : 
@@ -2263,7 +2263,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           item.quantity,
           `${item.unit_price.toFixed(2)} €`,
           item.iva_percentage,
-          item.irpf_percentage || 15,
+          item.irpf_percentage ?? 15,
           `${calculateTotal(item).toFixed(2)} €`,
           item.billing_status === 'factura_recibida' ? 'Facturado' : 
             item.billing_status === 'pendiente' ? 'Pendiente' : 
