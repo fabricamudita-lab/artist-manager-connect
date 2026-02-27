@@ -1,24 +1,37 @@
 
 
-## Eliminar las lineas horizontales entre subtareas
+## Fix: Mover subtareas al desplazar un flujo entero
 
-### Causa
-El componente `TableRow` de la UI tiene `border-b` por defecto. Cada subtarea se renderiza dentro de un `SortableSubtaskRow` que usa `TableRow`, por lo que aparecen lineas separadoras entre cada subtarea.
+### Problema
+Al arrastrar la barra de resumen de un workflow para moverlo en bloque, solo se actualizan las fechas de las tareas principales. Las subtareas mantienen sus fechas originales porque `handleShiftWorkflow` no las recorre.
 
 ### Solucion
-Agregar `border-0` al className del `TableRow` dentro de `SortableSubtaskRow` para eliminar el borde inferior por defecto.
-
-### Archivo a modificar
-- `src/pages/release-sections/ReleaseCronograma.tsx` (linea 259)
+Modificar `handleShiftWorkflow` en `src/pages/release-sections/ReleaseCronograma.tsx` (linea 1655-1658) para que, ademas de desplazar `t.startDate`, tambien desplace `startDate` de cada subtarea que tenga fecha.
 
 ### Cambio exacto
+
 ```tsx
-// Antes
-<TableRow ref={setNodeRef} style={style} className="group/subtask-drag">
+// Antes (linea 1655-1658)
+tasks: w.tasks.map(t => {
+  if (!t.startDate) return t;
+  return { ...t, startDate: addDays(t.startDate, daysDelta) };
+}),
 
 // Despues
-<TableRow ref={setNodeRef} style={style} className="group/subtask-drag border-0">
+tasks: w.tasks.map(t => {
+  const updatedSubtasks = t.subtasks?.map(st => 
+    st.startDate ? { ...st, startDate: addDays(st.startDate, daysDelta) } : st
+  );
+  if (!t.startDate) return updatedSubtasks ? { ...t, subtasks: updatedSubtasks } : t;
+  return { 
+    ...t, 
+    startDate: addDays(t.startDate, daysDelta),
+    ...(updatedSubtasks ? { subtasks: updatedSubtasks } : {}),
+  };
+}),
 ```
 
-Resultado: las subtareas se muestran sin lineas separadoras entre ellas, manteniendo un aspecto limpio y continuo.
-
+### Archivo modificado
+| Archivo | Cambio |
+|---|---|
+| `src/pages/release-sections/ReleaseCronograma.tsx` | Propagar `daysDelta` a subtareas en `handleShiftWorkflow` |
