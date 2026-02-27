@@ -54,6 +54,8 @@ import {
   Maximize2,
   Minimize2,
   FileDown,
+  Lock,
+  AlertTriangle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -96,6 +98,7 @@ import {
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import AnchorDependencyDialog from '@/components/lanzamientos/AnchorDependencyDialog';
 import AnchoredStatusDialog from '@/components/lanzamientos/AnchoredStatusDialog';
@@ -287,6 +290,7 @@ interface SortableWorkflowCardProps {
   STATUS_OPTIONS: { value: TaskStatus; label: string; color: string }[];
   selectedTaskIds: Set<string>;
   toggleTaskSelect: (taskId: string) => void;
+  isTaskBlocked: (task: ReleaseTask) => boolean;
 }
 
 function SortableWorkflowCard({
@@ -313,6 +317,7 @@ function SortableWorkflowCard({
   STATUS_OPTIONS: statusOptions,
   selectedTaskIds,
   toggleTaskSelect,
+  isTaskBlocked,
 }: SortableWorkflowCardProps) {
   const subtaskSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -428,6 +433,14 @@ function SortableWorkflowCard({
                                 onChange={e => updateTask(workflow.id, task.id, { name: e.target.value })}
                                 className="h-8 border-0 bg-transparent hover:bg-muted/50 focus:bg-muted"
                               />
+                              {isTaskBlocked(task) && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Lock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>Bloqueada: esperando tareas predecesoras</TooltipContent>
+                                </Tooltip>
+                              )}
                               {hasSubtasks && (
                                 <Badge variant="outline" className="text-xs shrink-0">
                                   {completedSubtasks}/{totalSubtasks}
@@ -1561,7 +1574,33 @@ export default function ReleaseCronograma() {
     return '';
   }, [workflows]);
 
-  // Available tasks for multi-anchor selector
+  // Check if a task is blocked by incomplete predecessors
+  const isTaskBlocked = useCallback((task: ReleaseTask) => {
+    if (!task.anchoredTo || task.anchoredTo.length === 0) return false;
+    for (const anchorId of task.anchoredTo) {
+      for (const w of workflows) {
+        const pred = w.tasks.find(t => t.id === anchorId);
+        if (pred && pred.status !== 'completado') return true;
+      }
+    }
+    return false;
+  }, [workflows]);
+
+  // Manufacturing risk alert
+  const fabRiskAlert = useMemo(() => {
+    const fabWorkflow = workflows.find(w => w.id === 'fabricacion');
+    if (!fabWorkflow) return { show: false };
+    const envioTask = fabWorkflow.tasks.find(t =>
+      t.id.includes('fab-1') || t.id.includes('fab-envio') || t.name.toLowerCase().includes('envío a fábrica') || t.name.toLowerCase().includes('envio a fabrica')
+    );
+    if (!envioTask || envioTask.startDate) return { show: false };
+    if (!release?.release_date) return { show: false };
+    const releaseDate = new Date(release.release_date);
+    const daysUntilRelease = differenceInDays(releaseDate, new Date());
+    return { show: daysUntilRelease < 70 && daysUntilRelease > 0 };
+  }, [workflows, release]);
+
+
   const availableTasksForAnchor = useMemo(() => {
     return workflows.flatMap(w => 
       w.tasks.map(t => ({
@@ -2238,6 +2277,15 @@ export default function ReleaseCronograma() {
       </div>
       )}
 
+      {fabRiskAlert.show && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            ⚠️ El proceso de fabricación física requiere mínimo 8-10 semanas. Revisa las fechas de Envío a Fábrica.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* View Content */}
       {viewMode === 'gantt' ? (
         <Card>
@@ -2302,6 +2350,7 @@ export default function ReleaseCronograma() {
                 STATUS_OPTIONS={STATUS_OPTIONS}
                 selectedTaskIds={selectedTaskIds}
                 toggleTaskSelect={toggleTaskSelect}
+                isTaskBlocked={isTaskBlocked}
               />
             ))}
             </div>
