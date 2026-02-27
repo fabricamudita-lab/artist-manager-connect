@@ -247,17 +247,14 @@ function SortableSubtaskRow({ id, children }: { id: string; children: React.Reac
 
   return (
     <TableRow ref={setNodeRef} style={style} className="group/subtask-drag">
-      {/* Inject drag handle as first visual element via absolute positioning */}
-      <td className="w-0 p-0 border-0">
-        <button
-          {...attributes}
-          {...listeners}
-          className="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/subtask-drag:opacity-100 cursor-grab active:cursor-grabbing z-10 p-0.5 rounded hover:bg-muted"
-          aria-label="Arrastrar subtarea"
-        >
-          <GripVertical className="w-3 h-3 text-muted-foreground" />
-        </button>
-      </td>
+      <button
+        {...attributes}
+        {...listeners}
+        className="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/subtask-drag:opacity-100 cursor-grab active:cursor-grabbing z-10 p-0.5 rounded hover:bg-muted"
+        aria-label="Arrastrar subtarea"
+      >
+        <GripVertical className="w-3 h-3 text-muted-foreground" />
+      </button>
       {children}
     </TableRow>
   );
