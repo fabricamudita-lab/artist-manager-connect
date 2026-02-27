@@ -1615,6 +1615,7 @@ export type Database = {
           irpf_percentage: number | null
           is_attendee: boolean | null
           is_commission_percentage: boolean | null
+          is_provisional: boolean | null
           is_reconciled: boolean | null
           iva_percentage: number | null
           name: string
@@ -1644,6 +1645,7 @@ export type Database = {
           irpf_percentage?: number | null
           is_attendee?: boolean | null
           is_commission_percentage?: boolean | null
+          is_provisional?: boolean | null
           is_reconciled?: boolean | null
           iva_percentage?: number | null
           name: string
@@ -1673,6 +1675,7 @@ export type Database = {
           irpf_percentage?: number | null
           is_attendee?: boolean | null
           is_commission_percentage?: boolean | null
+          is_provisional?: boolean | null
           is_reconciled?: boolean | null
           iva_percentage?: number | null
           name?: string

@@ -1,0 +1,1 @@
+ALTER TABLE budget_items ADD COLUMN is_provisional boolean DEFAULT false;

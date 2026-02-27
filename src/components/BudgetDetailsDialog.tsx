@@ -125,6 +125,7 @@ interface BudgetItem {
   contact_id?: string;
   is_commission_percentage?: boolean;
   commission_percentage?: number;
+  is_provisional?: boolean;
   contacts?: {
     id: string;
     name: string;
@@ -3462,32 +3463,42 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                               <span className="text-sm text-white/60">({categoryItems.length} elementos)</span>
                             </div>
                             <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex gap-4 text-sm">
-                                <div className="text-right">
-                                  <div className="text-xs text-white/50 mb-1">Neto</div>
-                                  <div className="font-semibold">
-                                    €{categoryItems.reduce((sum, item) => {
-                                      const unitPrice = Number(item.unit_price) || 0;
-                                      const quantity = Number(item.quantity) || 1;
-                                      return sum + (unitPrice * quantity);
-                                    }, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-xs text-white/50 mb-1">Total</div>
-                                  <div className="font-semibold">
-                                    €{categoryItems.reduce((sum, item) => {
-                                      const unitPrice = Number(item.unit_price) || 0;
-                                      const quantity = Number(item.quantity) || 1;
-                                      const subtotal = unitPrice * quantity;
-                                      const ivaPercent = Number(item.iva_percentage) || 0;
-                                      const irpfPercent = Number(item.irpf_percentage) || 0;
-                                      const iva = subtotal * (ivaPercent / 100);
-                                      const irpf = subtotal * (irpfPercent / 100);
-                                      return sum + (subtotal + iva - irpf);
-                                    }, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                                  </div>
-                                </div>
+                                <div className="flex gap-4 text-sm">
+                                {(() => {
+                                  const provisionalNeto = categoryItems.filter((i: any) => i.is_provisional).reduce((sum, item) => {
+                                    return sum + (Number(item.unit_price) || 0) * (Number(item.quantity) || 1);
+                                  }, 0);
+                                  const totalNeto = categoryItems.reduce((sum, item) => {
+                                    return sum + (Number(item.unit_price) || 0) * (Number(item.quantity) || 1);
+                                  }, 0);
+                                  const totalFull = categoryItems.reduce((sum, item) => {
+                                    const unitPrice = Number(item.unit_price) || 0;
+                                    const quantity = Number(item.quantity) || 1;
+                                    const subtotal = unitPrice * quantity;
+                                    const iva = subtotal * ((Number(item.iva_percentage) || 0) / 100);
+                                    const irpf = subtotal * ((Number(item.irpf_percentage) || 0) / 100);
+                                    return sum + (subtotal + iva - irpf);
+                                  }, 0);
+                                  return (
+                                    <>
+                                      <div className="text-right">
+                                        <div className="text-xs text-white/50 mb-1">Neto</div>
+                                        <div className="font-semibold">
+                                          €{totalNeto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                                        </div>
+                                        {provisionalNeto > 0 && (
+                                          <div className="text-[10px] text-amber-400">⏳ €{provisionalNeto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} prov.</div>
+                                        )}
+                                      </div>
+                                      <div className="text-right">
+                                        <div className="text-xs text-white/50 mb-1">Total</div>
+                                        <div className="font-semibold">
+                                          €{totalFull.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                                        </div>
+                                      </div>
+                                    </>
+                                  );
+                                })()}
                               </div>
                               {/* Eye button to hide category */}
                               <Button
@@ -3566,12 +3577,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                 <TableBody>
                                    {categoryItems.map((item, index) => (
                                      <TableRow 
-                                       key={item.id} 
-                                       className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors border-b border-gray-200 ${
-                                         selectedItems.has(item.id) ? 'bg-blue-100 border-blue-300' : ''
-                                       } ${draggedElement === item.id ? 'opacity-50' : ''} ${
-                                         dragOverElement === item.id ? 'border-t-2 border-t-blue-500' : ''
-                                       }`}
+                                        key={item.id} 
+                                        className={`${(item as any).is_provisional ? 'bg-amber-50/50' : (index % 2 === 0 ? 'bg-white' : 'bg-gray-50')} hover:bg-blue-50 transition-colors border-b border-gray-200 ${
+                                          selectedItems.has(item.id) ? 'bg-blue-100 border-blue-300' : ''
+                                        } ${draggedElement === item.id ? 'opacity-50' : ''} ${
+                                          dragOverElement === item.id ? 'border-t-2 border-t-blue-500' : ''
+                                        } ${(item as any).is_provisional ? 'opacity-75' : ''}`}
                                        draggable
                                        onDragStart={(e) => {
                                          setDraggedElement(item.id);
@@ -3619,14 +3630,30 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                              className="h-8 text-sm border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
                                              autoFocus
                                            />
-                                         ) : (
-                                           <div 
-                                             className="h-8 flex items-center cursor-pointer hover:bg-blue-100 px-2 rounded text-gray-900"
-                                             onClick={() => startEditingItem(item)}
-                                           >
-                                             {item.name}
-                                           </div>
-                                         )}
+                                          ) : (
+                                            <div 
+                                              className="h-8 flex items-center gap-2 cursor-pointer hover:bg-blue-100 px-2 rounded text-gray-900"
+                                              onClick={() => startEditingItem(item)}
+                                            >
+                                              {item.name}
+                                              {(item as any).is_provisional && (
+                                                <Badge
+                                                  variant="outline"
+                                                  className="text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-300 cursor-pointer hover:bg-amber-500/20 shrink-0"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    supabase
+                                                      .from('budget_items')
+                                                      .update({ is_provisional: false } as any)
+                                                      .eq('id', item.id)
+                                                      .then(() => fetchBudgetItems());
+                                                  }}
+                                                >
+                                                  ⏳ Provisional
+                                                </Badge>
+                                              )}
+                                            </div>
+                                          )}
                                        </TableCell>
                                       
                                         {/* Contacto */}
@@ -4027,28 +4054,43 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                  </Button>
                                               </>
                                             ) : (
-                                              <>
+                                               <>
                                                 <Button
-                                                  onClick={() => startEditingItem(item)}
+                                                  onClick={() => {
+                                                    supabase
+                                                      .from('budget_items')
+                                                      .update({ is_provisional: !(item as any).is_provisional } as any)
+                                                      .eq('id', item.id)
+                                                      .then(() => fetchBudgetItems());
+                                                  }}
                                                   size="sm"
                                                   variant="ghost"
-                                                  className="h-6 w-6 p-0 hover:bg-blue-100 text-blue-600"
-                                                  title="Editar elemento"
+                                                  className={`h-6 w-6 p-0 ${(item as any).is_provisional ? 'text-amber-500 hover:bg-amber-100' : 'text-gray-400 hover:bg-gray-100'}`}
+                                                  title={(item as any).is_provisional ? 'Marcar como real' : 'Marcar como provisional'}
                                                 >
-                                                  <Edit className="w-3 h-3" />
+                                                  <span className="text-xs">⏳</span>
                                                 </Button>
-                                                {selectedItems.has(item.id) && (
-                                                  <Button
-                                                    onClick={() => deleteItem(item.id)}
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="h-6 w-6 p-0 hover:bg-red-100 text-red-600"
-                                                    title="Eliminar elemento"
-                                                  >
-                                                    <Trash2 className="w-3 h-3" />
-                                                  </Button>
-                                                )}
-                                              </>
+                                                 <Button
+                                                   onClick={() => startEditingItem(item)}
+                                                   size="sm"
+                                                   variant="ghost"
+                                                   className="h-6 w-6 p-0 hover:bg-blue-100 text-blue-600"
+                                                   title="Editar elemento"
+                                                 >
+                                                   <Edit className="w-3 h-3" />
+                                                 </Button>
+                                                 {selectedItems.has(item.id) && (
+                                                   <Button
+                                                     onClick={() => deleteItem(item.id)}
+                                                     size="sm"
+                                                     variant="ghost"
+                                                     className="h-6 w-6 p-0 hover:bg-red-100 text-red-600"
+                                                     title="Eliminar elemento"
+                                                   >
+                                                     <Trash2 className="w-3 h-3" />
+                                                   </Button>
+                                                 )}
+                                               </>
                                             )}
                                           </div>
                                         </TableCell>
