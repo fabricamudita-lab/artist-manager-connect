@@ -1,71 +1,42 @@
 
 
-## Reemplazar toggle de videoclip por selector de tipo de video
+## Tres correcciones en el Wizard de Cronograma
 
-### Problema actual
-El toggle de videoclip es un simple booleano (si/no). En la realidad, un single puede ir acompanado de distintos tipos de contenido audiovisual, cada uno con procesos de produccion muy diferentes:
-- **Videoclip**: Pre-produccion, rodaje, edicion (proceso largo y costoso)
-- **Visualiser**: Animacion sobre el audio, mas rapido de producir
-- **Videolyric**: Video con letras animadas, el mas sencillo
+### 1. Cerrar dropdown de tipo de video al seleccionar
 
-### Cambios
+El Popover del selector de video (lineas 259-299) no es controlado, por lo que no se cierra al hacer clic en una opcion. Se convertira en un Popover controlado con estado `videoPopoverOpen` y se cerrara en el `onClick` de cada opcion.
 
-**1. `src/lib/releaseTimelineTemplates.ts`**
+**Archivo**: `src/components/releases/CronogramaSetupWizard.tsx`
+- Anadir estado `videoPopoverOpen` en `SingleRowEditor`
+- Pasar `open` y `onOpenChange` al Popover del video
+- En el `onClick` de cada opcion, cerrar el popover tras actualizar el valor
 
-- Crear tipo `VideoType = 'none' | 'videoclip' | 'visualiser' | 'videolyric'`
-- Cambiar `hasVideo?: boolean` en `SingleConfig` por `videoType?: VideoType`
-- Mantener `hasVideo: boolean` en `ReleaseConfig` (el toggle global del paso 1) pero tambien aceptar el tipo por single
-- Anadir templates de tareas condicionales para visualiser y videolyric (mas cortos que videoclip):
-  - Visualiser: Briefing creativo (3d), Produccion (7d), Entrega (2d)
-  - Videolyric: Briefing + letra (2d), Produccion (5d), Entrega (1d)
+### 2. Calendario abre en el mes de la fecha seleccionada
 
-**2. `src/components/releases/CronogramaSetupWizard.tsx`**
+Actualmente el calendario no recibe `defaultMonth`, por lo que siempre abre en el mes actual aunque la fecha seleccionada sea de otro mes. Se anadira la prop `defaultMonth={row.date}` al componente `Calendar` dentro de la fila de cada single (linea 249). Lo mismo aplica a los calendarios del paso 1 (release date y physical date).
 
-- Cambiar `hasVideo: boolean` en `SingleRow` por `videoType: VideoType`
-- Reemplazar el boton toggle actual por un mini-selector con 4 opciones (popover o dropdown):
-  - Sin video (icono tachado, estado por defecto)
-  - Videoclip (icono camara)
-  - Visualiser (icono ondas/sparkles)
-  - Videolyric (icono texto/captions)
-- El boton muestra el tipo seleccionado con color e icono correspondiente
-- Actualizar `handleGenerate` para pasar `videoType` en vez de `hasVideo` en cada single
+**Archivo**: `src/components/releases/CronogramaSetupWizard.tsx`
+- En el Calendar del single (linea 249): anadir `defaultMonth={row.date}`
+- En el Calendar de release date (linea 440): anadir `defaultMonth={releaseDate}`
+- En el Calendar de physical date (linea 462): anadir `defaultMonth={physicalDate}`
 
-### UI del selector por single
+### 3. Territorio Principal como selector multiple
 
-```text
-Single 1: [Vincular cancion...] [Videoclip v] [Fecha]
-                                      |
-                                  Dropdown:
-                                  - Sin video
-                                  - Videoclip
-                                  - Visualiser
-                                  - Videolyric
-```
+Cambiar de `Select` (seleccion unica) a un sistema de checkboxes/badges que permita seleccionar multiples territorios. El estado `territory` pasara de `string` a `string[]`.
 
-Cada opcion tendra un icono y color distintos:
-- Sin video: gris, icono VideoOff
-- Videoclip: verde, icono Video (como el actual)
-- Visualiser: purpura, icono Sparkles
-- Videolyric: azul, icono Captions
+**Archivo**: `src/components/releases/CronogramaSetupWizard.tsx`
+- Cambiar estado `territory` de `string` a `string[]` (inicializado como `[]`)
+- Reemplazar el componente `Select` por un Popover con checkboxes para cada territorio
+- Mostrar los territorios seleccionados como badges en el boton trigger
+- Actualizar `handleGenerate` para pasar `territory` como `string[]` (o join con coma para compatibilidad)
 
-### Templates de tareas por tipo de video
-
-| Tipo | Tareas generadas | Dias totales |
-|---|---|---|
-| Videoclip | Pre-produccion (7d) + Rodaje (3d) + Edicion (14d) + Entrega (2d) | ~26d |
-| Visualiser | Briefing creativo (3d) + Produccion (7d) + Entrega (2d) | ~12d |
-| Videolyric | Briefing + letra (2d) + Produccion (5d) + Entrega (1d) | ~8d |
+**Archivo**: `src/lib/releaseTimelineTemplates.ts`
+- Cambiar el tipo de `territory` en `ReleaseConfig` de `string` a `string[]` (si existe como tipado)
 
 ### Archivos a modificar
 
 | Archivo | Cambio |
 |---|---|
-| `src/lib/releaseTimelineTemplates.ts` | Nuevo tipo `VideoType`, actualizar `SingleConfig`, anadir templates de tareas para visualiser y videolyric |
-| `src/components/releases/CronogramaSetupWizard.tsx` | Reemplazar toggle por dropdown de tipo de video en cada fila de single |
-
-### Lo que NO cambia
-- El toggle global "Incluir videoclip" del paso 1 (aplica al release en general)
-- La logica de generacion de tareas base
-- Los pasos 1 y 3 del wizard
-- La vinculacion de tracks y focus track
+| `src/components/releases/CronogramaSetupWizard.tsx` | Popover controlado para video, defaultMonth en calendarios, territorio multiple |
+| `src/lib/releaseTimelineTemplates.ts` | Actualizar tipo de territory a `string[]` si aplica |
 
