@@ -1,42 +1,31 @@
 
 
-## Tres correcciones en el Wizard de Cronograma
+## Ampliar el campo de Precio/Comision en presupuestos
 
-### 1. Cerrar dropdown de tipo de video al seleccionar
+### Problema
+El campo "Precio / Comision" en la tabla de items del presupuesto usa un ancho de columna de 140px y los inputs internos son demasiado estrechos (`w-16`, `w-12`). Esto impide ver correctamente cantidades grandes (hasta 500.000 euros).
 
-El Popover del selector de video (lineas 259-299) no es controlado, por lo que no se cierra al hacer clic en una opcion. Se convertira en un Popover controlado con estado `videoPopoverOpen` y se cerrara en el `onClick` de cada opcion.
+### Solucion
 
-**Archivo**: `src/components/releases/CronogramaSetupWizard.tsx`
-- Anadir estado `videoPopoverOpen` en `SingleRowEditor`
-- Pasar `open` y `onOpenChange` al Popover del video
-- En el `onClick` de cada opcion, cerrar el popover tras actualizar el valor
+**Archivo**: `src/components/BudgetDetailsDialog.tsx`
 
-### 2. Calendario abre en el mes de la fecha seleccionada
+1. **Ampliar la columna de la tabla**: Cambiar el ancho del `TableHead` de `w-[140px]` a `w-[200px]` para dar mas espacio al campo de precio.
 
-Actualmente el calendario no recibe `defaultMonth`, por lo que siempre abre en el mes actual aunque la fecha seleccionada sea de otro mes. Se anadira la prop `defaultMonth={row.date}` al componente `Calendar` dentro de la fila de cada single (linea 249). Lo mismo aplica a los calendarios del paso 1 (release date y physical date).
+2. **Ampliar los inputs en modo edicion**:
+   - Input de precio fijo (linea ~3767): cambiar de `flex-1` a `w-28` minimo, asegurando que quepa "500000.00".
+   - Input de porcentaje (linea ~3754): cambiar de `w-16` a `w-20` para porcentajes con decimales.
+   - Input de cantidad (linea ~3777): mantener `w-12` ya que las cantidades son numeros pequenos.
 
-**Archivo**: `src/components/releases/CronogramaSetupWizard.tsx`
-- En el Calendar del single (linea 249): anadir `defaultMonth={row.date}`
-- En el Calendar de release date (linea 440): anadir `defaultMonth={releaseDate}`
-- En el Calendar de physical date (linea 462): anadir `defaultMonth={physicalDate}`
+3. **Mejorar la visualizacion en modo lectura**:
+   - En el modo vista de precio fijo (linea ~3809): formatear con `toLocaleString('es-ES')` para mejor legibilidad de numeros grandes (ej: "500.000,00" en vez de "500000.00").
+   - En el modo vista de comision (linea ~3801): aplicar el mismo formateo.
 
-### 3. Territorio Principal como selector multiple
+### Cambios puntuales
 
-Cambiar de `Select` (seleccion unica) a un sistema de checkboxes/badges que permita seleccionar multiples territorios. El estado `territory` pasara de `string` a `string[]`.
-
-**Archivo**: `src/components/releases/CronogramaSetupWizard.tsx`
-- Cambiar estado `territory` de `string` a `string[]` (inicializado como `[]`)
-- Reemplazar el componente `Select` por un Popover con checkboxes para cada territorio
-- Mostrar los territorios seleccionados como badges en el boton trigger
-- Actualizar `handleGenerate` para pasar `territory` como `string[]` (o join con coma para compatibilidad)
-
-**Archivo**: `src/lib/releaseTimelineTemplates.ts`
-- Cambiar el tipo de `territory` en `ReleaseConfig` de `string` a `string[]` (si existe como tipado)
-
-### Archivos a modificar
-
-| Archivo | Cambio |
+| Linea aprox. | Cambio |
 |---|---|
-| `src/components/releases/CronogramaSetupWizard.tsx` | Popover controlado para video, defaultMonth en calendarios, territorio multiple |
-| `src/lib/releaseTimelineTemplates.ts` | Actualizar tipo de territory a `string[]` si aplica |
+| 3551 | `w-[140px]` a `w-[200px]` en TableHead |
+| 3754 | `w-16` a `w-20` en input de porcentaje |
+| 3767 | Asegurar `min-w-[7rem]` en input de precio fijo |
+| 3801, 3809 | Usar `toLocaleString('es-ES', {minimumFractionDigits: 2})` en vista |
 
