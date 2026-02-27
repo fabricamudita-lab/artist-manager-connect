@@ -51,9 +51,9 @@ export const TIMELINE_TEMPLATES: TimelineTaskTemplate[] = [
   { id: 'cont-videoclip-final', workflowId: 'contenido', name: 'Videoclip Entregado', offsetDays: -14, estimatedDays: 2, condition: 'hasVideo' },
 
   // ============ MARKETING (WATERFALL) ============
-  { id: 'mkt-entrega-dist', workflowId: 'marketing', name: 'Entrega a Distribuidora', offsetDays: -28, estimatedDays: 28, condition: 'always' },
+  { id: 'mkt-entrega-dist', workflowId: 'marketing', name: 'Entrega a Distribuidora', offsetDays: -28, estimatedDays: 1, condition: 'always' },
   { id: 'mkt-presave', workflowId: 'marketing', name: 'Pre-save Activo', offsetDays: -28, estimatedDays: 1, condition: 'always' },
-  { id: 'mkt-focus', workflowId: 'marketing', name: 'Focus Track / Anuncios', offsetDays: -14, estimatedDays: 7, condition: 'always' },
+  { id: 'mkt-focus', workflowId: 'marketing', name: 'Focus Track / Pitch Editorial', offsetDays: -28, estimatedDays: 1, condition: 'always' },
   { id: 'mkt-salida', workflowId: 'marketing', name: 'Salida Digital', offsetDays: 0, estimatedDays: 1, condition: 'always' },
   
   // Singles (condicionales, espaciados dinámicamente)
@@ -62,8 +62,9 @@ export const TIMELINE_TEMPLATES: TimelineTaskTemplate[] = [
   { id: 'mkt-single3', workflowId: 'marketing', name: 'Single 3', offsetDays: -28, estimatedDays: 1, condition: 'single3' },
 
   // ============ FABRICACIÓN (CONDICIONAL) ============
-  { id: 'fab-envio', workflowId: 'fabricacion', name: 'Envío a Fábrica', offsetDays: -90, estimatedDays: 2, condition: 'hasPhysical' },
-  { id: 'fab-test', workflowId: 'fabricacion', name: 'Test Pressing', offsetDays: -75, estimatedDays: 14, condition: 'hasPhysical' },
+  // Requiere master + artwork listos → después de mastering (-40) y artwork (-35)
+  { id: 'fab-envio', workflowId: 'fabricacion', name: 'Envío a Fábrica', offsetDays: -35, estimatedDays: 2, condition: 'hasPhysical' },
+  { id: 'fab-test', workflowId: 'fabricacion', name: 'Test Pressing', offsetDays: -33, estimatedDays: 14, condition: 'hasPhysical' },
   { id: 'fab-recepcion', workflowId: 'fabricacion', name: 'Recepción Stock', offsetDays: -14, estimatedDays: 7, condition: 'hasPhysical' },
   { id: 'fab-venta', workflowId: 'marketing', name: 'Venta Física', offsetDays: 7, estimatedDays: 1, condition: 'hasPhysical' },
 ];
