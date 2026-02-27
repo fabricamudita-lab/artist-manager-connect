@@ -15,11 +15,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Music } from 'lucide-react';
+import { Loader2, Music, Users } from 'lucide-react';
 
 interface CreateArtistDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  artistType: 'roster' | 'collaborator';
   onSuccess: () => void;
 }
 
@@ -29,16 +30,31 @@ interface FormData {
   description: string;
 }
 
-export function CreateArtistDialog({ open, onOpenChange, onSuccess }: CreateArtistDialogProps) {
-  const { user, profile } = useAuth();
+const config = {
+  roster: {
+    icon: Music,
+    title: 'Nuevo Artista',
+    description: 'Añade un nuevo artista a tu roster de management',
+    successMsg: 'Artista creado correctamente',
+    submitLabel: 'Crear Artista',
+  },
+  collaborator: {
+    icon: Users,
+    title: 'Nuevo Colaborador',
+    description: 'Añade el perfil de un artista externo para colaboraciones',
+    successMsg: 'Colaborador añadido correctamente',
+    submitLabel: 'Añadir Colaborador',
+  },
+};
+
+export function CreateArtistDialog({ open, onOpenChange, artistType, onSuccess }: CreateArtistDialogProps) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const c = config[artistType];
+  const Icon = c.icon;
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
-    defaultValues: {
-      name: '',
-      stage_name: '',
-      description: '',
-    },
+    defaultValues: { name: '', stage_name: '', description: '' },
   });
 
   const onSubmit = async (data: FormData) => {
@@ -49,7 +65,6 @@ export function CreateArtistDialog({ open, onOpenChange, onSuccess }: CreateArti
 
     setLoading(true);
     try {
-      // Get workspace_id from profile
       const { data: profileData } = await supabase
         .from('profiles')
         .select('workspace_id')
@@ -67,13 +82,14 @@ export function CreateArtistDialog({ open, onOpenChange, onSuccess }: CreateArti
           name: data.name,
           stage_name: data.stage_name || null,
           description: data.description || null,
+          artist_type: artistType,
           workspace_id: profileData.workspace_id,
           created_by: user.id,
-        });
+        } as any);
 
       if (error) throw error;
 
-      toast.success('Artista creado correctamente');
+      toast.success(c.successMsg);
       reset();
       onSuccess();
     } catch (error: any) {
@@ -89,12 +105,10 @@ export function CreateArtistDialog({ open, onOpenChange, onSuccess }: CreateArti
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Music className="h-5 w-5" />
-            Nuevo Artista
+            <Icon className="h-5 w-5" />
+            {c.title}
           </DialogTitle>
-          <DialogDescription>
-            Añade un nuevo artista a tu roster de management
-          </DialogDescription>
+          <DialogDescription>{c.description}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -130,17 +144,12 @@ export function CreateArtistDialog({ open, onOpenChange, onSuccess }: CreateArti
           </div>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Crear Artista
+              {c.submitLabel}
             </Button>
           </DialogFooter>
         </form>

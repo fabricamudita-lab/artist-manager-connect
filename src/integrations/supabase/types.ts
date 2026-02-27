@@ -545,6 +545,7 @@ export type Database = {
         Row: {
           address: string | null
           allergies: string | null
+          artist_type: string
           avatar_url: string | null
           bank_name: string | null
           brand_color: string | null
@@ -579,6 +580,7 @@ export type Database = {
         Insert: {
           address?: string | null
           allergies?: string | null
+          artist_type?: string
           avatar_url?: string | null
           bank_name?: string | null
           brand_color?: string | null
@@ -613,6 +615,7 @@ export type Database = {
         Update: {
           address?: string | null
           allergies?: string | null
+          artist_type?: string
           avatar_url?: string | null
           bank_name?: string | null
           brand_color?: string | null
