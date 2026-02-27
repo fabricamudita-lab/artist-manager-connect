@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Music, Disc3, Album, Search, Check, ChevronDown, ChevronUp, Loader2, AlertCircle, ExternalLink, Sparkles } from 'lucide-react';
+import { Music, Disc3, Album, Search, Check, ChevronDown, ChevronUp, Loader2, AlertCircle, ExternalLink, Sparkles, ArrowLeft, Lock, Database, Radio } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,13 +7,43 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArtistProfileSelector } from '@/components/ArtistProfileSelector';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+
+// ── Platform definitions ──────────────────────────────────────────
+
+interface Platform {
+  id: string;
+  name: string;
+  category: 'distribucion' | 'derechos';
+  emoji: string;
+  available: boolean;
+  description: string;
+}
+
+const PLATFORMS: Platform[] = [
+  // Distribución
+  { id: 'spotify', name: 'Spotify', category: 'distribucion', emoji: '🟢', available: true, description: 'Importa discografía pública vía API' },
+  { id: 'ditto', name: 'Ditto Music', category: 'distribucion', emoji: '🎵', available: false, description: 'Conecta tu cuenta de distribución' },
+  { id: 'altafonte', name: 'Altafonte', category: 'distribucion', emoji: '🌎', available: false, description: 'Importa catálogo distribuido' },
+  { id: 'orchard', name: 'The Orchard', category: 'distribucion', emoji: '🍊', available: false, description: 'Catálogo Sony/Orchard' },
+  { id: 'sony', name: 'Sony Music', category: 'distribucion', emoji: '🎧', available: false, description: 'Catálogo Sony Music' },
+  { id: 'distrokid', name: 'DistroKid', category: 'distribucion', emoji: '🚀', available: false, description: 'Importa desde tu cuenta' },
+  { id: 'tunecore', name: 'TuneCore', category: 'distribucion', emoji: '🎹', available: false, description: 'Catálogo TuneCore' },
+  { id: 'cdbaby', name: 'CD Baby', category: 'distribucion', emoji: '💿', available: false, description: 'Catálogo CD Baby' },
+  // Bases de datos de derechos
+  { id: 'sgae', name: 'SGAE', category: 'derechos', emoji: '📜', available: false, description: 'Obras registradas en SGAE' },
+  { id: 'aie', name: 'AIE', category: 'derechos', emoji: '🎤', available: false, description: 'Derechos de intérpretes' },
+  { id: 'agedi', name: 'AGEDI', category: 'derechos', emoji: '🏭', available: false, description: 'Derechos de productores' },
+  { id: 'bmat', name: 'BMAT', category: 'derechos', emoji: '📡', available: false, description: 'Monitorización de derechos' },
+  { id: 'soundexchange', name: 'SoundExchange', category: 'derechos', emoji: '🇺🇸', available: false, description: 'Royalties digitales USA' },
+];
+
+// ── Spotify types ─────────────────────────────────────────────────
 
 interface SpotifyRelease {
   spotify_id: string;
@@ -51,22 +81,20 @@ interface SpotifyArtist {
   followers: number;
 }
 
-interface ImportSpotifyDialogProps {
+interface ImportPlatformDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 function extractSpotifyArtistId(input: string): string | null {
-  // spotify:artist:XXXXX
   const uriMatch = input.match(/spotify:artist:([a-zA-Z0-9]+)/);
   if (uriMatch) return uriMatch[1];
-  // open.spotify.com/artist/XXXXX or open.spotify.com/intl-xx/artist/XXXXX
   const urlMatch = input.match(/open\.spotify\.com\/(?:intl-[a-z]{2}\/)?artist\/([a-zA-Z0-9]+)/);
   if (urlMatch) return urlMatch[1];
   return null;
 }
 
-type Step = 'input' | 'select' | 'importing' | 'done' | 'credentials-missing';
+type Step = 'platform' | 'input' | 'select' | 'importing' | 'done' | 'credentials-missing';
 
 const TYPE_ORDER = ['album', 'ep', 'single', 'compilation', 'appears_on'];
 const TYPE_LABELS: Record<string, string> = {
@@ -84,26 +112,79 @@ const TYPE_ICONS: Record<string, typeof Album> = {
   appears_on: Sparkles,
 };
 
-export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotifyDialogProps) {
+// ── Platform Selector Step ────────────────────────────────────────
+
+function PlatformSelector({ onSelect }: { onSelect: (platformId: string) => void }) {
+  const distribucion = PLATFORMS.filter(p => p.category === 'distribucion');
+  const derechos = PLATFORMS.filter(p => p.category === 'derechos');
+
+  const renderCard = (platform: Platform) => (
+    <button
+      key={platform.id}
+      disabled={!platform.available}
+      onClick={() => platform.available && onSelect(platform.id)}
+      className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border text-center transition-all ${
+        platform.available
+          ? 'cursor-pointer hover:border-primary hover:bg-primary/5 hover:shadow-sm'
+          : 'opacity-50 cursor-not-allowed'
+      }`}
+    >
+      <span className="text-2xl">{platform.emoji}</span>
+      <span className="text-xs font-medium leading-tight">{platform.name}</span>
+      {platform.available ? (
+        <Badge variant="secondary" className="text-[9px] px-1.5 py-0">Disponible</Badge>
+      ) : (
+        <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-muted-foreground">Próximamente</Badge>
+      )}
+    </button>
+  );
+
+  return (
+    <ScrollArea className="flex-1">
+      <div className="p-4 space-y-5">
+        <div>
+          <div className="flex items-center gap-1.5 mb-3">
+            <Radio className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Plataformas de distribución</span>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {distribucion.map(renderCard)}
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center gap-1.5 mb-3">
+            <Database className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bases de datos de derechos</span>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {derechos.map(renderCard)}
+          </div>
+        </div>
+      </div>
+    </ScrollArea>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────
+
+export default function ImportPlatformDialog({ open, onOpenChange }: ImportPlatformDialogProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const [step, setStep] = useState<Step>('input');
+  const [step, setStep] = useState<Step>('platform');
   const [spotifyUrl, setSpotifyUrl] = useState('');
   const [artistId, setArtistId] = useState<string | null>(null);
   const [urlError, setUrlError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Data from Spotify
   const [spotifyArtist, setSpotifyArtist] = useState<SpotifyArtist | null>(null);
   const [releases, setReleases] = useState<SpotifyRelease[]>([]);
   const [existingSpotifyIds, setExistingSpotifyIds] = useState<Set<string>>(new Set());
 
-  // Selection
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(['single', 'appears_on', 'compilation']));
 
-  // Import progress
   const [importProgress, setImportProgress] = useState(0);
   const [importStatus, setImportStatus] = useState('');
   const [importResult, setImportResult] = useState({ releases: 0, tracks: 0 });
@@ -128,7 +209,7 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
   }, [releases, selected]);
 
   function resetState() {
-    setStep('input');
+    setStep('platform');
     setSpotifyUrl('');
     setArtistId(null);
     setUrlError('');
@@ -142,6 +223,14 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
     setImportStatus('');
     setImportResult({ releases: 0, tracks: 0 });
   }
+
+  function handlePlatformSelect(platformId: string) {
+    if (platformId === 'spotify') {
+      setStep('input');
+    }
+  }
+
+  // ── Spotify flow (unchanged logic) ──
 
   async function handleSearch() {
     const spotifyArtistId = extractSpotifyArtistId(spotifyUrl.trim());
@@ -160,7 +249,7 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
     try {
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      
+
       const res = await fetch(
         `https://${projectId}.supabase.co/functions/v1/spotify-import?action=fetch&artistId=${spotifyArtistId}`,
         {
@@ -183,7 +272,6 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
 
       const result = await res.json();
 
-      // Check for existing releases
       const spotifyIds = result.releases.map((r: SpotifyRelease) => r.spotify_id);
       const { data: existing } = await supabase
         .from('releases')
@@ -192,11 +280,9 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
 
       const existingSet = new Set((existing || []).map((e: any) => e.spotify_id));
       setExistingSpotifyIds(existingSet);
-
       setSpotifyArtist(result.artist);
       setReleases(result.releases);
 
-      // Pre-select albums and EPs that aren't already imported
       const preSelected = new Set<string>();
       result.releases.forEach((r: SpotifyRelease) => {
         if ((r.type === 'album' || r.type === 'ep') && !existingSet.has(r.spotify_id)) {
@@ -227,12 +313,10 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
       setImportProgress(Math.round(((i) / toImport.length) * 100));
 
       try {
-        // Map type
         let releaseType = release.type;
         if (releaseType === 'compilation' || releaseType === 'appears_on') releaseType = 'album';
         if (!['album', 'ep', 'single'].includes(releaseType)) releaseType = 'single';
 
-        // Parse release date
         let releaseDate: string | null = null;
         if (release.release_date) {
           if (release.release_date_precision === 'year') {
@@ -244,7 +328,6 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
           }
         }
 
-        // Insert release
         const { data: newRelease, error: releaseError } = await supabase
           .from('releases')
           .insert({
@@ -272,15 +355,13 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
 
         importedReleases++;
 
-        // Link artist
         await supabase
           .from('release_artists')
           .insert({ release_id: newRelease.id, artist_id: artistId })
           .then(() => {});
 
-        // Insert tracks
         if (release.tracks.length > 0) {
-          setImportStatus(`Importando canciones de "${release.title}"...`);
+          setImportStatus(`Importando canciones de \"${release.title}\"...`);
 
           for (const track of release.tracks) {
             const { error: trackError } = await supabase
@@ -347,21 +428,34 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
     });
   }
 
-  function formatDuration(seconds: number) {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  }
+  const sheetTitle = step === 'platform' ? 'Importar discografía' : 'Importar desde Spotify';
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) resetState(); onOpenChange(v); }}>
       <SheetContent className="w-full sm:max-w-lg overflow-hidden flex flex-col">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            Importar desde Spotify
+            {step === 'platform' ? (
+              <>
+                <Database className="w-5 h-5 text-primary" />
+                {sheetTitle}
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-5 h-5 text-primary" />
+                {sheetTitle}
+              </>
+            )}
           </SheetTitle>
+          {step === 'platform' && (
+            <p className="text-sm text-muted-foreground">Selecciona la fuente de datos</p>
+          )}
         </SheetHeader>
+
+        {/* Step: Platform Selection */}
+        {step === 'platform' && (
+          <PlatformSelector onSelect={handlePlatformSelect} />
+        )}
 
         {/* Step: Credentials Missing */}
         {step === 'credentials-missing' && (
@@ -397,8 +491,8 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
               <p className="text-muted-foreground">Una vez configurados, vuelve aquí e inténtalo de nuevo.</p>
             </div>
             <div className="flex gap-2 mt-auto">
-              <Button variant="outline" className="flex-1" onClick={() => { resetState(); }}>
-                Cerrar
+              <Button variant="outline" className="flex-1" onClick={() => setStep('platform')}>
+                <ArrowLeft className="w-4 h-4 mr-1" /> Volver
               </Button>
               <Button className="flex-1" onClick={() => setStep('input')}>
                 Reintentar
@@ -407,7 +501,7 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
           </div>
         )}
 
-        {/* Step 1: Input */}
+        {/* Step: Spotify Input */}
         {step === 'input' && (
           <div className="flex-1 flex flex-col gap-4 p-4">
             <div className="space-y-2">
@@ -438,8 +532,8 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
             )}
 
             <div className="flex gap-2 mt-auto">
-              <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
-                Cancelar
+              <Button variant="outline" className="flex-1" onClick={() => setStep('platform')}>
+                <ArrowLeft className="w-4 h-4 mr-1" /> Volver
               </Button>
               <Button className="flex-1" onClick={handleSearch} disabled={loading || !spotifyUrl.trim()}>
                 {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Search className="w-4 h-4 mr-2" />}
@@ -449,7 +543,7 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
           </div>
         )}
 
-        {/* Step 2: Select */}
+        {/* Step: Select */}
         {step === 'select' && (
           <div className="flex-1 flex flex-col overflow-hidden">
             {spotifyArtist && (
@@ -546,7 +640,9 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
             </ScrollArea>
 
             <div className="flex items-center gap-2 p-3 border-t bg-background">
-              <Button variant="outline" size="sm" onClick={() => setStep('input')}>← Volver</Button>
+              <Button variant="outline" size="sm" onClick={() => setStep('input')}>
+                <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Volver
+              </Button>
               <div className="flex-1" />
               <Button size="sm" onClick={handleImport} disabled={selectedCount === 0}>
                 <Check className="w-4 h-4 mr-1" />
@@ -556,7 +652,7 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
           </div>
         )}
 
-        {/* Step 3: Importing */}
+        {/* Step: Importing */}
         {step === 'importing' && (
           <div className="flex-1 flex flex-col items-center justify-center gap-6 p-6">
             <Loader2 className="w-10 h-10 animate-spin text-primary" />
@@ -567,7 +663,7 @@ export default function ImportSpotifyDialog({ open, onOpenChange }: ImportSpotif
           </div>
         )}
 
-        {/* Step 4: Done */}
+        {/* Step: Done */}
         {step === 'done' && (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 text-center">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
