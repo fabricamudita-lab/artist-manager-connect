@@ -43,6 +43,7 @@ interface SingleRow {
   trackId?: string;
   name: string;
   date?: Date;
+  hasVideo: boolean;
 }
 
 interface CronogramaSetupWizardProps {
@@ -58,7 +59,7 @@ interface CronogramaSetupWizardProps {
 
 // ── Constants ──
 
-const SONG_OPTIONS = [1, 2, 3, 4, 5, '6+'] as const;
+// Song count buttons are rendered inline (1-5 + 6+ with custom input)
 const TERRITORIES = [
   { value: 'worldwide', label: 'Mundial' },
   { value: 'spain', label: 'España' },
@@ -228,24 +229,41 @@ function SingleRowEditor({
           </PopoverContent>
         </Popover>
 
-        {/* Optional date */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" className={cn('h-7 text-xs', !row.date && 'text-muted-foreground')}>
-              <CalendarIcon className="w-3 h-3 mr-1" />
-              {row.date ? format(row.date, 'dd MMM yyyy', { locale: es }) : 'Fecha (opcional)'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={row.date}
-              onSelect={(d) => onChange({ ...row, date: d || undefined })}
-              initialFocus
-              className="pointer-events-auto"
-            />
-          </PopoverContent>
-        </Popover>
+        {/* Date + Video toggle row */}
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="sm" className={cn('h-7 text-xs', !row.date && 'text-muted-foreground')}>
+                <CalendarIcon className="w-3 h-3 mr-1" />
+                {row.date ? format(row.date, 'dd MMM yyyy', { locale: es }) : 'Fecha (opcional)'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={row.date}
+                onSelect={(d) => onChange({ ...row, date: d || undefined })}
+                initialFocus
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+
+          <button
+            type="button"
+            onClick={() => onChange({ ...row, hasVideo: !row.hasVideo })}
+            className={cn(
+              'flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors',
+              row.hasVideo
+                ? 'bg-primary/15 text-primary font-medium'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+            )}
+            title={row.hasVideo ? 'Con videoclip' : 'Sin videoclip'}
+          >
+            <Video className="w-3.5 h-3.5" />
+            {row.hasVideo ? 'Videoclip' : 'Sin video'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -274,8 +292,11 @@ export default function CronogramaSetupWizard({
 
   // Step 2 state
   const [numSongs, setNumSongs] = useState<number>(initialNumSongs);
+  const [showCustomSongs, setShowCustomSongs] = useState(false);
   const [numSingles, setNumSingles] = useState<number>(0);
   const [singleRows, setSingleRows] = useState<SingleRow[]>([]);
+  const [focusTrackId, setFocusTrackId] = useState<string | undefined>(undefined);
+  const [focusTrackOpen, setFocusTrackOpen] = useState(false);
 
   // Step 3 state
   const [distributor, setDistributor] = useState('');
@@ -302,7 +323,7 @@ export default function CronogramaSetupWizard({
     setSingleRows((prev) => {
       if (numSingles <= 0) return [];
       const next = [...prev];
-      while (next.length < numSingles) next.push({ name: '', trackId: undefined, date: undefined });
+      while (next.length < numSingles) next.push({ name: '', trackId: undefined, date: undefined, hasVideo: false });
       return next.slice(0, numSingles);
     });
   }, [numSingles]);
@@ -318,6 +339,7 @@ export default function CronogramaSetupWizard({
             name: r.name || undefined,
             date: r.date || releaseDate,
             trackId: r.trackId || undefined,
+            hasVideo: r.hasVideo || undefined,
           }))
         : undefined;
 
@@ -334,6 +356,7 @@ export default function CronogramaSetupWizard({
       territory: territory || undefined,
       priorityPitching: priorityPitching || undefined,
       notes: notes || undefined,
+      focusTrackId: focusTrackId || undefined,
     };
 
     onGenerate(config);
@@ -436,24 +459,100 @@ export default function CronogramaSetupWizard({
                   <Music className="w-4 h-4 text-blue-500" />
                   Número de canciones
                 </Label>
-                <div className="flex gap-2">
-                  {SONG_OPTIONS.map((option) => {
-                    const value = option === '6+' ? 6 : option;
-                    return (
-                      <Button
-                        key={option}
-                        type="button"
-                        variant={numSongs === value ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setNumSongs(value)}
-                        className="flex-1"
-                      >
-                        {option}
-                      </Button>
-                    );
-                  })}
+                <div className="flex gap-2 flex-wrap">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Button
+                      key={n}
+                      type="button"
+                      variant={numSongs === n && !showCustomSongs ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setNumSongs(n);
+                        setShowCustomSongs(false);
+                      }}
+                      className="w-12"
+                    >
+                      {n}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant={showCustomSongs || numSongs >= 6 ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setShowCustomSongs(true);
+                      if (numSongs < 6) setNumSongs(6);
+                    }}
+                    className="w-12"
+                  >
+                    6+
+                  </Button>
+                  {showCustomSongs && (
+                    <Input
+                      type="number"
+                      min={6}
+                      value={numSongs}
+                      onChange={(e) => {
+                        const val = Math.max(6, parseInt(e.target.value) || 6);
+                        setNumSongs(val);
+                      }}
+                      className="w-20 h-9"
+                      autoFocus
+                    />
+                  )}
                 </div>
               </div>
+
+              {/* Focus Track (albums/EPs with 3+ songs) */}
+              {numSongs >= 3 && tracks.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Megaphone className="w-4 h-4 text-primary" />
+                    Focus Track
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    La canción principal que recibirá más atención promocional y pitching editorial.
+                  </p>
+                  <Popover open={focusTrackOpen} onOpenChange={setFocusTrackOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full justify-start text-left font-normal h-9">
+                        {focusTrackId ? (
+                          <span className="truncate">
+                            {tracks.find(t => t.id === focusTrackId)?.title || 'Track seleccionado'}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Seleccionar focus track…</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Buscar canción…" />
+                        <CommandList>
+                          <CommandEmpty>Sin resultados</CommandEmpty>
+                          <CommandGroup heading="Canciones">
+                            {tracks.map((track) => (
+                              <CommandItem
+                                key={track.id}
+                                value={track.title}
+                                onSelect={() => {
+                                  setFocusTrackId(track.id === focusTrackId ? undefined : track.id);
+                                  setFocusTrackOpen(false);
+                                }}
+                              >
+                                <span className="truncate">
+                                  {track.track_number}. {track.title}
+                                </span>
+                                {track.id === focusTrackId && <Check className="ml-auto w-4 h-4" />}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
 
               {/* Number of Singles */}
               <div className="space-y-2">
