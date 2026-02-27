@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, Link2, Plus, ChevronDown } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -60,25 +61,37 @@ export default function MultiAnchorSelector({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={cn(
-            'h-7 px-2 justify-start text-left font-normal text-xs gap-1',
-            !hasAnchors && 'text-muted-foreground'
-          )}
-        >
-          {hasAnchors ? (
-            <>
-              <Link2 className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span className="text-primary font-medium">{value.length}</span>
-            </>
-          ) : (
-            <span>—</span>
-          )}
-        </Button>
-      </PopoverTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(
+                'h-7 px-2 justify-start text-left font-normal text-xs gap-1',
+                !hasAnchors && 'text-muted-foreground'
+              )}
+            >
+              {hasAnchors ? (
+                <>
+                  <Link2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span className="text-primary font-medium">{value.length}</span>
+                </>
+              ) : (
+                <span>—</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        {hasAnchors && (
+          <TooltipContent side="top" className="max-w-[220px]">
+            <p className="text-xs font-medium mb-0.5">Anclada a:</p>
+            {value.map(id => (
+              <p key={id} className="text-xs truncate">• {getTaskName(id) || id}</p>
+            ))}
+          </TooltipContent>
+        )}
+      </Tooltip>
       <PopoverContent className="w-72 p-0" align="start">
         <div className="p-3 space-y-3">
           <div className="flex items-center justify-between">

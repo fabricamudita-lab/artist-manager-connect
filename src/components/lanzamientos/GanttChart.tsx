@@ -137,6 +137,97 @@ interface PendingWorkflowShift {
   tasksWithWarning: { id: string; name: string }[];
 }
 
+// Dependency lines overlay using DOM measurement
+function DependencyLinesOverlay({
+  lines,
+  containerRef,
+  workflows,
+  tasksWithDates,
+  collapsedWorkflows,
+  fitToView,
+}: {
+  lines: { fromLeftPct: number; fromWidthPct: number; fromRow: number; toLeftPct: number; toRow: number; toWorkflowId: string; fromWorkflowId: string }[];
+  containerRef: React.RefObject<HTMLDivElement>;
+  workflows: WorkflowSection[];
+  tasksWithDates: any[];
+  collapsedWorkflows: Set<string>;
+  fitToView: boolean;
+}) {
+  const [svgLines, setSvgLines] = useState<{ x1: number; y1: number; x2: number; y2: number }[]>([]);
+  const [dims, setDims] = useState({ w: 0, h: 0 });
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || lines.length === 0) { setSvgLines([]); return; }
+
+    // Find all task bar rows by looking for data-task-bar attributes
+    const barEls = container.querySelectorAll<HTMLElement>('[data-task-bar-id]');
+    if (barEls.length === 0) { setSvgLines([]); return; }
+
+    const containerRect = container.getBoundingClientRect();
+    setDims({ w: containerRect.width, h: containerRect.height });
+
+    // Build map of taskId -> center Y position and bar left/right X positions
+    const taskPositions = new Map<string, { y: number; left: number; right: number }>();
+    barEls.forEach(el => {
+      const taskId = el.getAttribute('data-task-bar-id');
+      if (!taskId) return;
+      const rect = el.getBoundingClientRect();
+      taskPositions.set(taskId, {
+        y: rect.top - containerRect.top + rect.height / 2,
+        left: rect.left - containerRect.left,
+        right: rect.right - containerRect.left,
+      });
+    });
+
+    // Build lines from anchor relationships
+    const computed: { x1: number; y1: number; x2: number; y2: number }[] = [];
+    tasksWithDates.forEach(task => {
+      if (!task.anchoredTo) return;
+      const toPos = taskPositions.get(task.id);
+      if (!toPos) return;
+      task.anchoredTo.forEach((predId: string) => {
+        const fromPos = taskPositions.get(predId);
+        if (!fromPos) return;
+        computed.push({
+          x1: fromPos.right,
+          y1: fromPos.y,
+          x2: toPos.left,
+          y2: toPos.y,
+        });
+      });
+    });
+
+    setSvgLines(computed);
+  }, [lines, containerRef, tasksWithDates, collapsedWorkflows]);
+
+  if (svgLines.length === 0 || dims.w === 0) return null;
+
+  return (
+    <svg
+      className="absolute top-0 left-0 pointer-events-none z-20"
+      width={dims.w}
+      height={dims.h}
+      style={{ overflow: 'visible' }}
+    >
+      {svgLines.map((line, i) => {
+        const midX = (line.x1 + line.x2) / 2;
+        return (
+          <path
+            key={i}
+            d={`M ${line.x1} ${line.y1} C ${midX} ${line.y1}, ${midX} ${line.y2}, ${line.x2} ${line.y2}`}
+            fill="none"
+            stroke="hsl(var(--muted-foreground))"
+            strokeWidth={1.5}
+            strokeDasharray="4 3"
+            opacity={0.5}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
 export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, onUpdateTaskStatus, onOpenResponsible, onOpenAnchor, getTaskName, selectedTaskIds, onTaskSelect, onHideTask, onClearSelection, fitToView = false, onShiftWorkflow }: GanttChartProps) {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
   const [editingDateType, setEditingDateType] = useState<'start' | 'end'>('start');
@@ -161,6 +252,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
   const [wfDragDelta, setWfDragDelta] = useState<number>(0);
   const wfDragRef = useRef<WorkflowDragState | null>(null);
   const [pendingWorkflowShift, setPendingWorkflowShift] = useState<PendingWorkflowShift | null>(null);
+  const ganttContainerRef = useRef<HTMLDivElement>(null);
 
   const today = useMemo(() => startOfDay(new Date()), []);
 
@@ -255,8 +347,53 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
     const start = differenceInDays(startOfDay(startDate), timelineStart);
     const leftPercent = (start / totalDays) * 100;
     const widthPercent = (days / totalDays) * 100;
-    return { left: `${Math.max(0, leftPercent)}%`, width: `${Math.min(widthPercent, 100 - leftPercent)}%` };
+    return { left: `${Math.max(0, leftPercent)}%`, width: `${Math.min(widthPercent, 100 - leftPercent)}%`, leftNum: Math.max(0, leftPercent), widthNum: Math.min(widthPercent, 100 - leftPercent) };
   };
+
+  // Compute dependency lines between anchored tasks
+  const dependencyLines = useMemo(() => {
+    const lines: { fromLeftPct: number; fromWidthPct: number; fromRow: number; toLeftPct: number; toRow: number; toWorkflowId: string; fromWorkflowId: string }[] = [];
+    
+    // Build a flat list of visible tasks in render order with row indices
+    const visibleTasks: { id: string; workflowId: string; rowIndex: number; startDate: Date; estimatedDays: number; anchoredTo?: string[] }[] = [];
+    let rowIdx = 0;
+    workflows.forEach(w => {
+      const wTasks = tasksWithDates.filter(t => t.workflowId === w.id);
+      if (wTasks.length === 0) return;
+      rowIdx++; // workflow header row
+      if (collapsedWorkflows.has(w.id)) return;
+      wTasks.forEach(t => {
+        visibleTasks.push({ id: t.id, workflowId: w.id, rowIndex: rowIdx, startDate: t.startDate, estimatedDays: t.estimatedDays, anchoredTo: t.anchoredTo });
+        rowIdx++;
+      });
+    });
+
+    const taskMap = new Map(visibleTasks.map(t => [t.id, t]));
+
+    visibleTasks.forEach(task => {
+      if (!task.anchoredTo) return;
+      task.anchoredTo.forEach(predId => {
+        const pred = taskMap.get(predId);
+        if (!pred) return;
+        const predStart = differenceInDays(startOfDay(pred.startDate), timelineStart);
+        const predLeftPct = Math.max(0, (predStart / totalDays) * 100);
+        const predWidthPct = (pred.estimatedDays / totalDays) * 100;
+        const taskStart = differenceInDays(startOfDay(task.startDate), timelineStart);
+        const taskLeftPct = Math.max(0, (taskStart / totalDays) * 100);
+        lines.push({
+          fromLeftPct: predLeftPct,
+          fromWidthPct: predWidthPct,
+          fromRow: pred.rowIndex,
+          toLeftPct: taskLeftPct,
+          toRow: task.rowIndex,
+          toWorkflowId: task.workflowId,
+          fromWorkflowId: pred.workflowId,
+        });
+      });
+    });
+
+    return { lines, totalRows: rowIdx };
+  }, [workflows, tasksWithDates, collapsedWorkflows, timelineStart, totalDays]);
 
   const months = useMemo(() => {
     const result: { label: string; startPercent: number; widthPercent: number }[] = [];
@@ -537,7 +674,8 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
         )}
       </div>
 
-      {/* Workflows */}
+      {/* Workflows + dependency lines overlay */}
+      <div style={{ position: 'relative' }} ref={ganttContainerRef}>
       <div className="space-y-6">
         {workflows.map(workflow => {
           const workflowTasks = tasksWithDates.filter(t => t.workflowId === workflow.id);
@@ -737,6 +875,18 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
           );
         })}
       </div>
+      {/* Dependency lines SVG overlay */}
+      {dependencyLines.lines.length > 0 && (
+        <DependencyLinesOverlay
+          lines={dependencyLines.lines}
+          containerRef={ganttContainerRef}
+          workflows={workflows}
+          tasksWithDates={tasksWithDates}
+          collapsedWorkflows={collapsedWorkflows}
+          fitToView={fitToView}
+        />
+      )}
+      </div>
 
       {!fitToView && (
       <>
@@ -920,6 +1070,7 @@ function GanttBarRow({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
+            data-task-bar-id={task.id}
             className={cn(
               'absolute transition-all group',
               task.isSubtask ? 'rounded-sm' : 'rounded',
