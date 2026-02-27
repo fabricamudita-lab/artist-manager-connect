@@ -3548,7 +3548,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                       <TableHead className="font-bold text-black w-[200px]">Concepto</TableHead>
                                       <TableHead className="font-bold text-black w-[130px] text-center">Contacto</TableHead>
                                       <TableHead className="font-bold text-black w-[130px] text-center">Fecha Emisión</TableHead>
-                                      <TableHead className="font-bold text-black w-[140px] text-right">Precio / Comisión</TableHead>
+                                      <TableHead className="font-bold text-black w-[200px] text-right">Precio / Comisión</TableHead>
                                       <TableHead className="font-bold text-black w-[80px] text-center">IVA (%)</TableHead>
                                       <TableHead className="font-bold text-black w-[80px] text-center">IRPF (%)</TableHead>
                                       <TableHead className="font-bold text-black w-[120px] text-right">Total (€)</TableHead>
@@ -3751,7 +3751,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                        unit_price: calculatedPrice
                                                      }));
                                                    }}
-                                                   className="h-8 w-16 text-sm text-right border-purple-300 focus:border-purple-500 text-gray-900 bg-white"
+                                                   className="h-8 w-20 text-sm text-right border-purple-300 focus:border-purple-500 text-gray-900 bg-white"
                                                  />
                                                  <span className="text-purple-600 text-sm font-medium">%</span>
                                                  <span className="text-gray-400 text-xs">→</span>
@@ -3764,7 +3764,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                                    step="0.01"
                                                    value={editingItemValues.unit_price ?? item.unit_price}
                                                    onChange={(e) => setEditingItemValues(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
-                                                   className="h-8 text-sm text-right border-blue-300 focus:border-blue-500 text-gray-900 bg-white flex-1"
+                                                   className="h-8 text-sm text-right border-blue-300 focus:border-blue-500 text-gray-900 bg-white flex-1 min-w-[7rem]"
                                                  />
                                                  {(expandedQuantity === item.id || (item.quantity && item.quantity > 1)) && (
                                                    <>
@@ -3798,7 +3798,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                            >
                                              <span className="text-purple-600">{item.commission_percentage}%</span>
                                              <span className="text-gray-400 text-xs">→</span>
-                                             <span className="text-gray-700">€{item.unit_price.toFixed(2)}</span>
+                                             <span className="text-gray-700">€{item.unit_price.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span>
                                            </div>
                                          ) : (
                                            // Fixed price display (view mode)
@@ -3806,7 +3806,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                              className="h-8 flex items-center justify-end cursor-pointer hover:bg-blue-100 px-2 rounded text-gray-900 gap-1"
                                              onClick={() => startEditingItem(item)}
                                            >
-                                             <span>€{item.unit_price.toFixed(2)}</span>
+                                             <span>€{item.unit_price.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span>
                                              {item.quantity && item.quantity > 1 && (
                                                <span className="text-gray-500 text-sm">× {item.quantity}</span>
                                              )}
