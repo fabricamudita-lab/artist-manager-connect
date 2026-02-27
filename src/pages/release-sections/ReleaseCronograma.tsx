@@ -2124,6 +2124,8 @@ export default function ReleaseCronograma() {
           initialReleaseDate={release?.release_date ? new Date(release.release_date) : null}
           initialNumSongs={numSongs}
           tracks={tracks.map(t => ({ id: t.id, title: t.title, track_number: t.track_number, isrc: t.isrc }))}
+          releaseId={id}
+          onTrackCreated={() => queryClient.invalidateQueries({ queryKey: ['tracks', id] })}
         />
       </div>
     );
@@ -2415,6 +2417,8 @@ export default function ReleaseCronograma() {
         initialReleaseDate={release?.release_date ? new Date(release.release_date) : null}
         initialNumSongs={numSongs}
         tracks={tracks.map(t => ({ id: t.id, title: t.title, track_number: t.track_number, isrc: t.isrc }))}
+        releaseId={id}
+        onTrackCreated={() => queryClient.invalidateQueries({ queryKey: ['tracks', id] })}
       />
 
       {/* Anchor Dependency Dialog */}
