@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef, Fragment } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef, Fragment } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { format, addDays, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -226,6 +226,43 @@ const EMPTY_WORKFLOWS: WorkflowSection[] = Object.entries(WORKFLOW_METADATA).map
 
 type ViewMode = 'list' | 'gantt';
 
+// --- Sortable Subtask Row ---
+function SortableSubtaskRow({ id, children }: { id: string; children: React.ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    position: 'relative' as const,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <TableRow ref={setNodeRef} style={style} className="group/subtask-drag">
+      {/* Inject drag handle as first visual element via absolute positioning */}
+      <td className="w-0 p-0 border-0">
+        <button
+          {...attributes}
+          {...listeners}
+          className="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/subtask-drag:opacity-100 cursor-grab active:cursor-grabbing z-10 p-0.5 rounded hover:bg-muted"
+          aria-label="Arrastrar subtarea"
+        >
+          <GripVertical className="w-3 h-3 text-muted-foreground" />
+        </button>
+      </td>
+      {children}
+    </TableRow>
+  );
+}
+
 // --- Sortable Workflow Card Component ---
 interface SortableWorkflowCardProps {
   workflow: WorkflowSection;
@@ -242,6 +279,7 @@ interface SortableWorkflowCardProps {
   addComment: (workflowId: string, taskId: string) => void;
   updateSubtask: (workflowId: string, taskId: string, subtaskId: string, updates: Partial<Subtask>) => void;
   deleteSubtask: (workflowId: string, taskId: string, subtaskId: string) => void;
+  reorderSubtasks: (workflowId: string, taskId: string, oldIndex: number, newIndex: number) => void;
   handleTaskDateUpdate: (workflowId: string, taskId: string, newStartDate: Date, newEstimatedDays: number) => void;
   availableTasksForAnchor: { id: string; name: string; workflowId: string; workflowName: string }[];
   getTaskName: (taskId: string) => string;
@@ -267,6 +305,7 @@ function SortableWorkflowCard({
   addComment,
   updateSubtask,
   deleteSubtask,
+  reorderSubtasks,
   handleTaskDateUpdate,
   availableTasksForAnchor,
   getTaskName,
@@ -276,6 +315,9 @@ function SortableWorkflowCard({
   selectedTaskIds,
   toggleTaskSelect,
 }: SortableWorkflowCardProps) {
+  const subtaskSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
   const {
     attributes,
     listeners,
@@ -518,11 +560,25 @@ function SortableWorkflowCard({
                             </div>
                           </TableCell>
                         </TableRow>
-                        {/* Subtasks rows */}
-                        {task.expanded && (task.subtasks || []).map(subtask => {
+                        {/* Subtasks rows - with drag reordering */}
+                        {task.expanded && (() => {
+                          const subtaskList = task.subtasks || [];
+                          const handleSubtaskDragEnd = (event: DragEndEvent) => {
+                            const { active, over } = event;
+                            if (!over || active.id === over.id) return;
+                            const oldIndex = subtaskList.findIndex(s => s.id === active.id);
+                            const newIndex = subtaskList.findIndex(s => s.id === String(over.id));
+                            if (oldIndex !== -1 && newIndex !== -1) {
+                              reorderSubtasks(workflow.id, task.id, oldIndex, newIndex);
+                            }
+                          };
+                          return (
+                          <DndContext sensors={subtaskSensors} collisionDetection={closestCenter} onDragEnd={handleSubtaskDragEnd}>
+                            <SortableContext items={subtaskList.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                              {subtaskList.map(subtask => {
                           if (subtask.type === 'note') {
                             return (
-                              <TableRow key={subtask.id} className="bg-amber-50/50 dark:bg-amber-950/20">
+                              <SortableSubtaskRow id={subtask.id}>
                                 <TableCell colSpan={5}>
                                   <div className="flex flex-col gap-2 pl-8">
                                     <div className="flex items-center gap-2">
@@ -553,18 +609,13 @@ function SortableWorkflowCard({
                                     <Trash2 className="w-3 h-3" />
                                   </Button>
                                 </TableCell>
-                              </TableRow>
+                              </SortableSubtaskRow>
                             );
                           }
 
                           if (subtask.type === 'comment') {
                             return (
-                              <TableRow key={subtask.id} className={cn(
-                                "border-l-2",
-                                subtask.resolved
-                                  ? "bg-green-50/50 dark:bg-green-950/20 border-l-green-500"
-                                  : "bg-blue-50/50 dark:bg-blue-950/20 border-l-blue-500"
-                              )}>
+                              <SortableSubtaskRow id={subtask.id}>
                                 <TableCell colSpan={5}>
                                   <div className="flex flex-col gap-2 pl-8">
                                     <div className="flex items-center gap-2">
@@ -628,14 +679,14 @@ function SortableWorkflowCard({
                                     <Trash2 className="w-3 h-3" />
                                   </Button>
                                 </TableCell>
-                              </TableRow>
+                              </SortableSubtaskRow>
                             );
                           }
 
                           if (subtask.type === 'checkbox') {
                             const isOverdue = subtask.dueDate && !subtask.completed && new Date() > subtask.dueDate;
                             return (
-                              <TableRow key={subtask.id} className="bg-muted/30">
+                              <SortableSubtaskRow id={subtask.id}>
                                 <TableCell colSpan={4}>
                                   <div className="flex items-center gap-2 pl-8">
                                     <button
@@ -766,7 +817,7 @@ function SortableWorkflowCard({
                                     <Trash2 className="w-3 h-3" />
                                   </Button>
                                 </TableCell>
-                              </TableRow>
+                              </SortableSubtaskRow>
                             );
                           }
 
@@ -775,7 +826,7 @@ function SortableWorkflowCard({
                           const subtaskStatusOption = statusOptions.find(s => s.value === subtask.status);
 
                           return (
-                            <TableRow key={subtask.id} className="bg-muted/30">
+                            <SortableSubtaskRow id={subtask.id}>
                               <TableCell>
                                 <div className="flex items-center gap-1 pl-8">
                                   <span className="text-muted-foreground mr-1">↳</span>
@@ -880,9 +931,13 @@ function SortableWorkflowCard({
                                   <Trash2 className="w-3 h-3" />
                                 </Button>
                               </TableCell>
-                            </TableRow>
+                              </SortableSubtaskRow>
                           );
                         })}
+                            </SortableContext>
+                          </DndContext>
+                          );
+                        })()}
                         {/* Add subtask inline button when expanded */}
                         {task.expanded && (
                           <TableRow className="bg-muted/20 hover:bg-muted/30">
@@ -1890,6 +1945,25 @@ export default function ReleaseCronograma() {
     );
   };
 
+  // Reorder subtasks within a task
+  const reorderSubtasks = useCallback((workflowId: string, taskId: string, oldIndex: number, newIndex: number) => {
+    pushUndo();
+    setWorkflows(prev =>
+      prev.map(workflow =>
+        workflow.id === workflowId
+          ? {
+              ...workflow,
+              tasks: workflow.tasks.map(t =>
+                t.id === taskId
+                  ? { ...t, subtasks: arrayMove(t.subtasks || [], oldIndex, newIndex) }
+                  : t
+              ),
+            }
+          : workflow
+      )
+    );
+  }, []);
+
   const { totalTasks, completedTasks, progressPercent } = useMemo(() => {
     const allTasks = workflows.flatMap(w => w.tasks);
     const total = allTasks.length;
@@ -2183,6 +2257,7 @@ export default function ReleaseCronograma() {
                 addComment={addComment}
                 updateSubtask={updateSubtask}
                 deleteSubtask={deleteSubtask}
+                reorderSubtasks={reorderSubtasks}
                 handleTaskDateUpdate={handleTaskDateUpdate}
                 availableTasksForAnchor={availableTasksForAnchor}
                 getTaskName={getTaskName}
