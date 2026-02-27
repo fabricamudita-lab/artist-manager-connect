@@ -256,7 +256,7 @@ function SortableSubtaskRow({ id, children }: { id: string; children: (dragHandl
   );
 
   return (
-    <TableRow ref={setNodeRef} style={style} className="group/subtask-drag">
+    <TableRow ref={setNodeRef} style={style} className="group/subtask-drag border-0">
       {children(dragHandle)}
     </TableRow>
   );
