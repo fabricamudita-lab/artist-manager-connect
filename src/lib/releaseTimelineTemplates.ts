@@ -14,6 +14,7 @@ export interface TimelineTaskTemplate {
 export interface SingleConfig {
   name?: string;   // Ej: "Single 1" o el título de la canción
   date: Date;      // La fecha exacta de lanzamiento del single
+  trackId?: string; // Vínculo al track existente del release
 }
 
 export interface ReleaseConfig {
@@ -24,6 +25,12 @@ export interface ReleaseConfig {
   hasVideo: boolean;
   hasPhysical: boolean;
   singleDates?: SingleConfig[];  // Fechas reales de cada single (del presupuesto)
+  // Campos opcionales del wizard enriquecido
+  distributor?: string;
+  label?: string;
+  territory?: string;
+  priorityPitching?: boolean;
+  notes?: string;
 }
 
 // Industry-standard offsets (days relative to digital release date)
