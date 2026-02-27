@@ -1,84 +1,45 @@
 
 
-## Cambiar "Importar desde Spotify" a "Importar desde plataforma"
+## Fix: El cronograma no se guarda al generarlo desde el wizard
 
-### Concepto
+### Problema
 
-Reemplazar el boton directo de Spotify por un flujo de dos pasos: primero el usuario elige la fuente de importacion, y luego se abre el flujo correspondiente. La pantalla inicial del drawer mostrara una cuadricula de plataformas organizadas en dos categorias.
+Cuando se genera un cronograma desde el wizard, las tareas se crean con IDs legibles como `audio-grabacion`, `mkt-single1`, etc. (definidos en `releaseTimelineTemplates.ts`). Sin embargo, la tabla `release_milestones` tiene una columna `id` de tipo `uuid`, por lo que la insercion falla silenciosamente al intentar guardar IDs que no son UUIDs validos.
 
-### Pantalla inicial del drawer
+El cronograma se muestra correctamente en pantalla (porque vive en el state local), pero nunca llega a persistir en la base de datos. Al salir y volver, la query devuelve 0 milestones y se muestra la pantalla vacia.
 
-```text
-Importar discografia
-Selecciona la fuente de datos
+### Solucion
 
--- PLATAFORMAS DE DISTRIBUCION --
-[Spotify]  [Ditto]  [Altafonte]  [The Orchard]
-[Sony Music]  [DistroKid]  [TuneCore]  [CD Baby]
+Modificar la funcion `saveMilestonesToDB` en `ReleaseCronograma.tsx` para que **no envie el campo `id`** al insertar milestones. Dejar que la base de datos genere UUIDs automaticamente con `gen_random_uuid()`.
 
--- BASES DE DATOS DE DERECHOS --
-[SGAE]  [AIE]  [AGEDI]  [BMAT]
-[SoundExchange]  [ASCAP/BMI]
-
-Cada tarjeta con icono/logo, nombre, y estado:
-- "Disponible" (Spotify, que ya esta implementado)
-- "Proximamente" (el resto, deshabilitado pero visible)
-```
-
-Al seleccionar Spotify se pasa directamente al flujo actual (URL + artista + seleccion + importacion). Las demas plataformas aparecen con badge "Proximamente" y deshabilitadas.
+Ademas, actualizar el state local con los IDs reales devueltos por la base de datos despues de la insercion, para que las ediciones posteriores (auto-save) funcionen correctamente.
 
 ### Cambios tecnicos
 
-#### 1. Renombrar y reestructurar `ImportSpotifyDialog.tsx` a `ImportPlatformDialog.tsx`
+**Archivo: `src/pages/release-sections/ReleaseCronograma.tsx`**
 
-- Anadir un paso previo `'platform'` al tipo `Step`: `'platform' | 'input' | 'select' | 'importing' | 'done' | 'credentials-missing'`
-- La pantalla `'platform'` muestra la cuadricula de fuentes
-- Al elegir Spotify se pasa al paso `'input'` (el flujo actual sin cambios)
-- Definir un array de plataformas con: `id`, `name`, `category` ('distribucion' | 'derechos'), `icon` (componente lucide o emoji), `available` (boolean), `description`
-- El estado inicial del step pasa a ser `'platform'` en vez de `'input'`
-- El titulo del drawer cambia a "Importar discografia" en el paso platform, y "Importar desde Spotify" cuando se entra al flujo de Spotify
-- El boton "Volver" en el paso `'input'` regresa al paso `'platform'`
+1. En `saveMilestonesToDB` (~linea 1286): eliminar `id: task.id` del objeto de insercion. Usar `.select()` para obtener los IDs generados.
 
-#### 2. Actualizar `Releases.tsx`
+2. Despues de la insercion exitosa, mapear los IDs devueltos por Supabase de vuelta a los workflows en el state, para que el auto-save posterior use UUIDs validos.
 
-- Cambiar texto del boton de "Importar desde Spotify" a "Importar desde plataforma"
-- Cambiar el icono de `Sparkles` a `Download` o `Import`
-- Renombrar la referencia del componente
+3. Invalidar la query de milestones despues de guardar para mantener la cache sincronizada.
 
-#### 3. Plataformas incluidas
+### Detalle del cambio
 
-**Distribucion:**
-| Plataforma | Estado | Descripcion corta |
-|---|---|---|
-| Spotify | Disponible | Importa discografia publica via API |
-| Ditto Music | Proximamente | Conecta tu cuenta de distribucion |
-| Altafonte | Proximamente | Importa catalogo distribuido |
-| The Orchard | Proximamente | Catalogo Sony/Orchard |
-| DistroKid | Proximamente | Importa desde tu cuenta |
-| TuneCore | Proximamente | Catalogo TuneCore |
-| CD Baby | Proximamente | Catalogo CD Baby |
+```text
+Antes (falla):
+  insert({ id: 'audio-grabacion', release_id: ..., title: ..., ... })
+  -- ERROR: "audio-grabacion" no es un UUID valido
 
-**Bases de datos de derechos:**
-| Fuente | Estado | Descripcion corta |
-|---|---|---|
-| SGAE | Proximamente | Obras registradas en SGAE |
-| AIE | Proximamente | Derechos de interpretes |
-| AGEDI | Proximamente | Derechos de productores |
-| BMAT | Proximamente | Monitorizacion de derechos |
-| SoundExchange | Proximamente | Royalties digitales USA |
+Despues (funciona):
+  insert({ release_id: ..., title: ..., ... }).select()
+  -- La DB genera el UUID automaticamente
+  -- Se actualiza el state con los nuevos IDs
+```
 
 ### Archivos modificados
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/releases/ImportSpotifyDialog.tsx` | Renombrar a ImportPlatformDialog, anadir paso 'platform' con cuadricula de fuentes |
-| `src/pages/Releases.tsx` | Actualizar texto del boton e importacion del componente |
-
-### Diseno visual
-
-- Cada plataforma es una tarjeta clickeable con borde redondeado
-- Las disponibles tienen hover y cursor pointer
-- Las "Proximamente" tienen opacity reducida y badge gris
-- Las categorias se separan con un subtitulo en texto pequeno y gris
-- Al hacer click en una disponible, transiciona al flujo de esa plataforma
+| `src/pages/release-sections/ReleaseCronograma.tsx` | Eliminar `id: task.id` de la insercion, usar `.select()` para obtener IDs generados, actualizar state con IDs reales |
 
