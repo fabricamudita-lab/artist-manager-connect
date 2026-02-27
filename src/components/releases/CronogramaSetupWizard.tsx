@@ -124,6 +124,7 @@ function SingleRowEditor({
   onTrackCreated?: (track: TrackOption) => void;
 }) {
   const [trackOpen, setTrackOpen] = useState(false);
+  const [videoPopoverOpen, setVideoPopoverOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [searchValue, setSearchValue] = useState('');
 
@@ -249,6 +250,7 @@ function SingleRowEditor({
               <Calendar
                 mode="single"
                 selected={row.date}
+                defaultMonth={row.date}
                 onSelect={(d) => onChange({ ...row, date: d || undefined })}
                 initialFocus
                 className="pointer-events-auto"
@@ -256,7 +258,7 @@ function SingleRowEditor({
             </PopoverContent>
           </Popover>
 
-          <Popover>
+          <Popover open={videoPopoverOpen} onOpenChange={setVideoPopoverOpen}>
             <PopoverTrigger asChild>
               <button
                 type="button"
@@ -282,7 +284,10 @@ function SingleRowEditor({
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => onChange({ ...row, videoType: opt.value })}
+                    onClick={() => {
+                      onChange({ ...row, videoType: opt.value });
+                      setVideoPopoverOpen(false);
+                    }}
                     className={cn(
                       'flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-accent transition-colors',
                       row.videoType === opt.value && 'bg-accent font-medium',
@@ -335,7 +340,7 @@ export default function CronogramaSetupWizard({
   // Step 3 state
   const [distributor, setDistributor] = useState('');
   const [label, setLabel] = useState('');
-  const [territory, setTerritory] = useState('');
+  const [territory, setTerritory] = useState<string[]>([]);
   const [priorityPitching, setPriorityPitching] = useState(false);
   const [notes, setNotes] = useState('');
 
@@ -387,7 +392,7 @@ export default function CronogramaSetupWizard({
       singleDates,
       distributor: distributor || undefined,
       label: label || undefined,
-      territory: territory || undefined,
+      territory: territory.length > 0 ? territory.join(',') : undefined,
       priorityPitching: priorityPitching || undefined,
       notes: notes || undefined,
       focusTrackId: focusTrackId || undefined,
@@ -437,7 +442,7 @@ export default function CronogramaSetupWizard({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={releaseDate} onSelect={setReleaseDate} initialFocus className="pointer-events-auto" />
+                    <Calendar mode="single" selected={releaseDate} defaultMonth={releaseDate} onSelect={setReleaseDate} initialFocus className="pointer-events-auto" />
                   </PopoverContent>
                 </Popover>
               </div>
@@ -459,7 +464,7 @@ export default function CronogramaSetupWizard({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={physicalDate} onSelect={setPhysicalDate} initialFocus className="pointer-events-auto" />
+                    <Calendar mode="single" selected={physicalDate} defaultMonth={physicalDate} onSelect={setPhysicalDate} initialFocus className="pointer-events-auto" />
                   </PopoverContent>
                 </Popover>
               </div>
@@ -683,16 +688,56 @@ export default function CronogramaSetupWizard({
                   <Globe className="w-4 h-4" />
                   Territorio Principal
                 </Label>
-                <Select value={territory} onValueChange={setTerritory}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar territorio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TERRITORIES.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      {territory.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {territory.map((t) => {
+                            const ter = TERRITORIES.find((x) => x.value === t);
+                            return (
+                              <span key={t} className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                                {ter?.label || t}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">Seleccionar territorios</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-2" align="start">
+                    {TERRITORIES.map((t) => {
+                      const isSelected = territory.includes(t.value);
+                      return (
+                        <button
+                          key={t.value}
+                          type="button"
+                          onClick={() => {
+                            setTerritory((prev) =>
+                              isSelected
+                                ? prev.filter((v) => v !== t.value)
+                                : [...prev, t.value]
+                            );
+                          }}
+                          className={cn(
+                            'flex items-center gap-2 w-full px-2 py-1.5 rounded text-sm hover:bg-accent transition-colors',
+                            isSelected && 'bg-accent/50 font-medium',
+                          )}
+                        >
+                          <div className={cn(
+                            'w-4 h-4 rounded border flex items-center justify-center shrink-0',
+                            isSelected ? 'bg-primary border-primary' : 'border-input',
+                          )}>
+                            {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                          </div>
+                          {t.label}
+                        </button>
+                      );
+                    })}
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Priority pitching */}
