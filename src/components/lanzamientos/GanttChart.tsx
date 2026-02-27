@@ -151,6 +151,8 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
     days: number;
     origStartDate: Date;
     origDays: number;
+    isSubtask: boolean;
+    parentTaskId?: string;
   } | null>(null);
   const dragRef = useRef<DragState | null>(null);
 
@@ -351,6 +353,12 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
     const handleMouseUp = () => {
       const ds = dragRef.current;
       if (ds?.activated && dragPreview && onUpdateTaskDate) {
+        // Look up parentTaskId for subtasks
+        let parentTaskId: string | undefined;
+        if (ds.isSubtask) {
+          const found = tasksWithDates.find(t => t.id === ds.taskId);
+          parentTaskId = found?.parentTaskId;
+        }
         // Store pending drag instead of applying immediately
         setPendingDrag({
           workflowId: ds.workflowId,
@@ -359,6 +367,8 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
           days: dragPreview.days,
           origStartDate: ds.origStartDate,
           origDays: ds.origDays,
+          isSubtask: ds.isSubtask,
+          parentTaskId,
         });
         // Keep dragPreview visible (don't clear it)
       } else {
@@ -374,7 +384,7 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [dragState, totalDays, onUpdateTaskDate, dragPreview]);
+  }, [dragState, totalDays, onUpdateTaskDate, dragPreview, tasksWithDates]);
 
   const handleStartDateSelect = (workflowId: string, taskId: string, currentEndDate: Date, newStartDate: Date | undefined) => {
     if (newStartDate && onUpdateTaskDate) {
@@ -392,7 +402,11 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
 
   const handleConfirmDrag = () => {
     if (pendingDrag && onUpdateTaskDate) {
-      onUpdateTaskDate(pendingDrag.workflowId, pendingDrag.taskId, pendingDrag.startDate, pendingDrag.days);
+      if (pendingDrag.isSubtask && pendingDrag.parentTaskId) {
+        onUpdateTaskDate(pendingDrag.workflowId, pendingDrag.parentTaskId, pendingDrag.startDate, pendingDrag.days, pendingDrag.taskId);
+      } else {
+        onUpdateTaskDate(pendingDrag.workflowId, pendingDrag.taskId, pendingDrag.startDate, pendingDrag.days);
+      }
     }
     setPendingDrag(null);
     setDragPreview(null);
