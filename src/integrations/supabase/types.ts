@@ -5042,6 +5042,7 @@ export type Database = {
       releases: {
         Row: {
           artist_id: string | null
+          copyright: string | null
           cover_image_url: string | null
           created_at: string
           created_by: string
@@ -5050,6 +5051,8 @@ export type Database = {
           id: string
           label: string | null
           release_date: string | null
+          spotify_id: string | null
+          spotify_url: string | null
           status: string
           title: string
           type: string
@@ -5058,6 +5061,7 @@ export type Database = {
         }
         Insert: {
           artist_id?: string | null
+          copyright?: string | null
           cover_image_url?: string | null
           created_at?: string
           created_by: string
@@ -5066,6 +5070,8 @@ export type Database = {
           id?: string
           label?: string | null
           release_date?: string | null
+          spotify_id?: string | null
+          spotify_url?: string | null
           status?: string
           title: string
           type?: string
@@ -5074,6 +5080,7 @@ export type Database = {
         }
         Update: {
           artist_id?: string | null
+          copyright?: string | null
           cover_image_url?: string | null
           created_at?: string
           created_by?: string
@@ -5082,6 +5089,8 @@ export type Database = {
           id?: string
           label?: string | null
           release_date?: string | null
+          spotify_id?: string | null
+          spotify_url?: string | null
           status?: string
           title?: string
           type?: string
@@ -6489,11 +6498,16 @@ export type Database = {
         Row: {
           created_at: string
           duration: number | null
+          explicit: boolean | null
           id: string
           isrc: string | null
           lyrics: string | null
           notes: string | null
+          popularity: number | null
+          preview_url: string | null
           release_id: string
+          spotify_id: string | null
+          spotify_url: string | null
           title: string
           track_number: number
           updated_at: string
@@ -6501,11 +6515,16 @@ export type Database = {
         Insert: {
           created_at?: string
           duration?: number | null
+          explicit?: boolean | null
           id?: string
           isrc?: string | null
           lyrics?: string | null
           notes?: string | null
+          popularity?: number | null
+          preview_url?: string | null
           release_id: string
+          spotify_id?: string | null
+          spotify_url?: string | null
           title: string
           track_number?: number
           updated_at?: string
@@ -6513,11 +6532,16 @@ export type Database = {
         Update: {
           created_at?: string
           duration?: number | null
+          explicit?: boolean | null
           id?: string
           isrc?: string | null
           lyrics?: string | null
           notes?: string | null
+          popularity?: number | null
+          preview_url?: string | null
           release_id?: string
+          spotify_id?: string | null
+          spotify_url?: string | null
           title?: string
           track_number?: number
           updated_at?: string
