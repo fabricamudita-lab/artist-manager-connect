@@ -1,50 +1,46 @@
 
+Objetivo: corregir definitivamente la visualización de subtareas en el cronograma y eliminar el espacio en blanco inicial, manteniendo el drag & drop para reordenar arriba/abajo.
 
-## Fix: Subtask display misalignment
+Resumen de hallazgos (según el estado actual):
+1) En `SortableSubtaskRow` se está renderizando un `<button>` directamente dentro de `<tr>`, lo cual es HTML inválido en tablas y puede provocar render extraño/alineaciones incorrectas.
+2) Las subtareas tienen varias sangrías acumuladas (`pl-8`, `ml-8`, `ml-6`) que generan demasiado espacio al inicio.
+3) En el mapeo de subtareas faltan `key` explícitas en `SortableSubtaskRow`, lo cual puede producir render inconsistente al reordenar.
 
-### Problem
-The `SortableSubtaskRow` component (line 230) injects an extra `<td>` element for the drag handle. This creates 7 columns in subtask rows while the table header has only 6, causing all subtask content to shift right and display incorrectly.
+Implementación propuesta:
 
-### Solution
-Remove the extra `<td>` from `SortableSubtaskRow` and instead position the drag handle as an absolutely-positioned element directly inside the `<TableRow>`, without adding a new table cell.
+1. Corregir estructura HTML de filas de subtareas (prioridad alta)
+- Archivo: `src/pages/release-sections/ReleaseCronograma.tsx`
+- Ajustar `SortableSubtaskRow` para que no inserte elementos inválidos en el `<tr>`.
+- Mantener el `<TableRow>` limpio y pasar los props de drag handle (`attributes`, `listeners`) a un handle que viva dentro de la primera celda válida (`<TableCell>`), no como hijo directo de `<tr>`.
 
-### Technical Changes
+2. Reubicar el drag handle sin crear hueco visual
+- Para cada tipo de subtarea (`note`, `comment`, `checkbox`, `full`), colocar el handle dentro del primer bloque de contenido de la primera celda.
+- El handle seguirá siendo visible en hover y usable para arrastrar, pero sin “columna fantasma” ni desplazamiento lateral artificial.
 
-**File: `src/pages/release-sections/ReleaseCronograma.tsx`**
+3. Eliminar el espacio blanco inicial en subtareas
+- Reducir/eliminar sangrías actuales:
+  - `pl-8` en contenedores de subtareas.
+  - `ml-6` en textarea/hilos y `ml-8` en “Añadir elemento”.
+- Sustituir por espaciado mínimo consistente (p. ej. `pl-1`/`pl-2` solo si hace falta para respirar visualmente).
+- Resultado esperado: el contenido empieza alineado con la columna “Tarea”, sin bloque vacío a la izquierda.
 
-1. **Fix `SortableSubtaskRow` (lines 230-263)**: Remove the `<td>` wrapper for the drag handle. Instead, render the drag handle button as a direct child of `<TableRow>` with absolute positioning. The `<TableRow>` already has `position: relative` from the inline style, so the handle can be positioned with `absolute left-1 top-1/2 -translate-y-1/2`.
+4. Estabilizar render al reordenar
+- Añadir `key={subtask.id}` en cada `SortableSubtaskRow` dentro del `map`.
+- Mantener `items={subtaskList.map(s => s.id)}` como está para compatibilidad con dnd-kit.
 
-Updated component:
-```tsx
-function SortableSubtaskRow({ id, children }: { id: string; children: React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    position: 'relative' as const,
-    zIndex: isDragging ? 10 : undefined,
-  };
-  return (
-    <TableRow ref={setNodeRef} style={style} className="group/subtask-drag">
-      <button
-        {...attributes}
-        {...listeners}
-        className="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/subtask-drag:opacity-100 cursor-grab active:cursor-grabbing z-10 p-0.5 rounded hover:bg-muted"
-        aria-label="Arrastrar subtarea"
-      >
-        <GripVertical className="w-3 h-3 text-muted-foreground" />
-      </button>
-      {children}
-    </TableRow>
-  );
-}
-```
+5. Validación funcional y visual
+- Confirmar que:
+  - Las subtareas ya no se “corren” horizontalmente.
+  - No hay espacio en blanco grande al principio.
+  - El reordenamiento por arrastre sigue funcionando.
+  - Inputs/selectores de subtarea siguen editables sin arrastres accidentales.
+- Revisar los 4 tipos de subtarea (completa, checkbox, nota, comentario).
 
-This removes the rogue `<td>` so subtask rows have the correct 6 columns matching the table header.
+Archivos a tocar:
+- `src/pages/release-sections/ReleaseCronograma.tsx` (único archivo necesario para este fix).
 
-### Files modified
-| File | Change |
-|---|---|
-| `src/pages/release-sections/ReleaseCronograma.tsx` | Remove extra `<td>` from `SortableSubtaskRow`, keep drag handle as absolutely positioned button inside `<TableRow>` |
-
+Criterios de aceptación:
+- Subtareas visualmente alineadas bajo “Tarea”.
+- Sin hueco inicial excesivo.
+- Drag & drop de subtareas funcionando.
+- Sin regresiones en edición (responsable, estado, fechas, borrado, comentarios/notas).
