@@ -1,91 +1,84 @@
 
 
-## Importar Discografia desde Spotify
+## Cambiar "Importar desde Spotify" a "Importar desde plataforma"
 
-### Resumen
-Crear un sistema para importar la discografia de un artista desde Spotify pegando la URL de su perfil. Incluye una Edge Function segura para las credenciales de Spotify, un drawer multi-paso para seleccionar que importar, y logica de insercion masiva en las tablas existentes de releases y tracks.
+### Concepto
 
-### Prerequisito: Credenciales Spotify
-Se necesitan dos secretos nuevos en Supabase:
-- `SPOTIFY_CLIENT_ID`
-- `SPOTIFY_CLIENT_SECRET`
+Reemplazar el boton directo de Spotify por un flujo de dos pasos: primero el usuario elige la fuente de importacion, y luego se abre el flujo correspondiente. La pantalla inicial del drawer mostrara una cuadricula de plataformas organizadas en dos categorias.
 
-Se pediran al usuario antes de implementar. Se obtienen desde https://developer.spotify.com/dashboard.
+### Pantalla inicial del drawer
 
-### Cambios en Base de Datos
+```text
+Importar discografia
+Selecciona la fuente de datos
 
-**Migracion**: Agregar campo `spotify_id` a las tablas `releases` y `tracks` para prevenir duplicados:
+-- PLATAFORMAS DE DISTRIBUCION --
+[Spotify]  [Ditto]  [Altafonte]  [The Orchard]
+[Sony Music]  [DistroKid]  [TuneCore]  [CD Baby]
 
-```sql
-ALTER TABLE releases ADD COLUMN spotify_id TEXT UNIQUE;
-ALTER TABLE tracks ADD COLUMN spotify_id TEXT UNIQUE;
-ALTER TABLE tracks ADD COLUMN explicit BOOLEAN DEFAULT false;
-ALTER TABLE tracks ADD COLUMN spotify_url TEXT;
-ALTER TABLE tracks ADD COLUMN preview_url TEXT;
-ALTER TABLE tracks ADD COLUMN popularity INTEGER;
-ALTER TABLE releases ADD COLUMN spotify_url TEXT;
-ALTER TABLE releases ADD COLUMN copyright TEXT;
+-- BASES DE DATOS DE DERECHOS --
+[SGAE]  [AIE]  [AGEDI]  [BMAT]
+[SoundExchange]  [ASCAP/BMI]
+
+Cada tarjeta con icono/logo, nombre, y estado:
+- "Disponible" (Spotify, que ya esta implementado)
+- "Proximamente" (el resto, deshabilitado pero visible)
 ```
 
-### Edge Function: `spotify-import`
+Al seleccionar Spotify se pasa directamente al flujo actual (URL + artista + seleccion + importacion). Las demas plataformas aparecen con badge "Proximamente" y deshabilitadas.
 
-Endpoint seguro que maneja dos operaciones:
+### Cambios tecnicos
 
-**1. `GET /spotify-import?action=fetch&artistId={spotifyArtistId}`**
-- Obtiene token via Client Credentials Flow (`POST https://accounts.spotify.com/api/token`)
-- Llama a `GET /v1/artists/{id}/albums?include_groups=album,single,appears_on,compilation&limit=50`
-- Para cada album: obtiene detalle con `GET /v1/albums/{id}` (para tracks, UPC, label, copyrights)
-- Devuelve toda la discografia parseada y organizada por tipo
+#### 1. Renombrar y reestructurar `ImportSpotifyDialog.tsx` a `ImportPlatformDialog.tsx`
 
-**2. No se necesita segundo endpoint** - la importacion (insercion en DB) se hace desde el frontend con el cliente Supabase directamente.
+- Anadir un paso previo `'platform'` al tipo `Step`: `'platform' | 'input' | 'select' | 'importing' | 'done' | 'credentials-missing'`
+- La pantalla `'platform'` muestra la cuadricula de fuentes
+- Al elegir Spotify se pasa al paso `'input'` (el flujo actual sin cambios)
+- Definir un array de plataformas con: `id`, `name`, `category` ('distribucion' | 'derechos'), `icon` (componente lucide o emoji), `available` (boolean), `description`
+- El estado inicial del step pasa a ser `'platform'` en vez de `'input'`
+- El titulo del drawer cambia a "Importar discografia" en el paso platform, y "Importar desde Spotify" cuando se entra al flujo de Spotify
+- El boton "Volver" en el paso `'input'` regresa al paso `'platform'`
 
-Configuracion en `config.toml`:
-```toml
-[functions.spotify-import]
-verify_jwt = false
-```
+#### 2. Actualizar `Releases.tsx`
 
-### Componentes Nuevos
+- Cambiar texto del boton de "Importar desde Spotify" a "Importar desde plataforma"
+- Cambiar el icono de `Sparkles` a `Download` o `Import`
+- Renombrar la referencia del componente
 
-**`src/components/releases/ImportSpotifyDialog.tsx`**
-Drawer lateral con 3 pasos:
+#### 3. Plataformas incluidas
 
-- **Paso 1 - URL + Artista**: Input para URL de Spotify + selector de artista MOODITA. Boton "Buscar discografia". Extrae el artist ID de la URL con regex que cubre los formatos `open.spotify.com/artist/...`, `open.spotify.com/intl-xx/artist/...` y `spotify:artist:...`.
+**Distribucion:**
+| Plataforma | Estado | Descripcion corta |
+|---|---|---|
+| Spotify | Disponible | Importa discografia publica via API |
+| Ditto Music | Proximamente | Conecta tu cuenta de distribucion |
+| Altafonte | Proximamente | Importa catalogo distribuido |
+| The Orchard | Proximamente | Catalogo Sony/Orchard |
+| DistroKid | Proximamente | Importa desde tu cuenta |
+| TuneCore | Proximamente | Catalogo TuneCore |
+| CD Baby | Proximamente | Catalogo CD Baby |
 
-- **Paso 2 - Seleccion**: Muestra resultados agrupados por tipo (Albums, EPs, Singles, Apariciones). Cada item muestra portada, titulo, ano, numero de tracks. Items ya importados (match por `spotify_id`) aparecen deshabilitados con badge "Ya importado". Albums y EPs seleccionados por defecto, singles y apariciones deseleccionados. Singles colapsados si hay mas de 5. Contador de seleccionados en el footer.
+**Bases de datos de derechos:**
+| Fuente | Estado | Descripcion corta |
+|---|---|---|
+| SGAE | Proximamente | Obras registradas en SGAE |
+| AIE | Proximamente | Derechos de interpretes |
+| AGEDI | Proximamente | Derechos de productores |
+| BMAT | Proximamente | Monitorizacion de derechos |
+| SoundExchange | Proximamente | Royalties digitales USA |
 
-- **Paso 3 - Importacion**: Barra de progreso con estado detallado. Inserta cada release en `releases` con los datos de Spotify (titulo, tipo, fecha, portada, label, UPC, genre, spotify_id, spotify_url, copyright). Vincula al artista via `release_artists`. Inserta cada track en `tracks` (titulo, track_number, duracion en segundos, ISRC, spotify_id, explicit, spotify_url, preview_url, popularity). Al terminar muestra resumen con contadores.
-
-### Logica de Prevencion de Duplicados
-
-Antes de mostrar la seleccion, consulta la DB por `spotify_id` en `releases`. Los que ya existan se marcan como "Ya importado" y no son seleccionables.
-
-### Modificaciones a Archivos Existentes
-
-**`src/pages/Releases.tsx`**: Agregar boton "Importar desde Spotify" junto a "Nuevo Lanzamiento" y renderizar el componente `ImportSpotifyDialog`.
-
-**`src/hooks/useReleases.ts`**: Agregar interfaz `Release` actualizada con los nuevos campos (`spotify_id`, `spotify_url`, `copyright`). No se necesitan hooks nuevos - la importacion usa directamente `supabase.from('releases').insert(...)`.
-
-### Archivos Nuevos
-
-| Archivo | Descripcion |
-|---------|-------------|
-| `supabase/functions/spotify-import/index.ts` | Edge Function para comunicarse con Spotify API |
-| `src/components/releases/ImportSpotifyDialog.tsx` | Drawer completo con los 3 pasos |
-
-### Archivos Modificados
+### Archivos modificados
 
 | Archivo | Cambio |
-|---------|--------|
-| `src/pages/Releases.tsx` | Boton de importacion + estado del dialog |
-| `src/hooks/useReleases.ts` | Campos nuevos en interfaces Release y Track |
-| `supabase/config.toml` | Registrar la nueva edge function |
+|---|---|
+| `src/components/releases/ImportSpotifyDialog.tsx` | Renombrar a ImportPlatformDialog, anadir paso 'platform' con cuadricula de fuentes |
+| `src/pages/Releases.tsx` | Actualizar texto del boton e importacion del componente |
 
-### Notas Tecnicas
+### Diseno visual
 
-- El mapeo de tipo de Spotify a MOODITA: `album` -> `album`, `single` -> `single`, `compilation` -> `album`
-- Duracion: Spotify usa milisegundos, tracks almacenan en segundos
-- La portada se guarda como URL externa de Spotify (i.scdn.co), no se descarga al storage
-- El status de releases importados sera `released` (ya estan publicados en Spotify)
-- Se anade banner visual "Importado desde Spotify - completa creditos y datos internos" detectando releases con `spotify_id` no nulo
+- Cada plataforma es una tarjeta clickeable con borde redondeado
+- Las disponibles tienen hover y cursor pointer
+- Las "Proximamente" tienen opacity reducida y badge gris
+- Las categorias se separan con un subtitulo en texto pequeno y gris
+- Al hacer click en una disponible, transiciona al flujo de esa plataforma
 
