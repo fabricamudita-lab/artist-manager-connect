@@ -1,61 +1,65 @@
 
 
-## Crear canciones nuevas desde el Wizard de Cronograma
+## Mejoras en el Paso 2 del Wizard: Videoclips, Focus Track y 6+ personalizable
 
-### Problema
-Actualmente el combobox de "Vincular a cancion" solo muestra tracks existentes. Si el usuario escribe un nombre libre, no se crea nada en la base de datos -- el nombre queda como texto suelto sin vinculacion real con autoria, presupuestos ni creditos.
+### 1. Input numerico para "6+"
 
-### Solucion
-Anadir una opcion "+ Crear cancion" en el combobox que inserte el track en la tabla `tracks` de la base de datos y actualice la lista local en tiempo real. Asi la cancion queda disponible inmediatamente en autoria, presupuestos y creditos.
+Actualmente al pulsar "6+" se fija `numSongs = 6`. En su lugar, al pulsar "6+" se mostrara un campo `Input` numerico (type="number", min=6) que permite escribir el numero exacto de canciones. Los botones 1-5 siguen funcionando igual.
 
-### Cambios
+**Archivo**: `src/components/releases/CronogramaSetupWizard.tsx`
+- Anadir estado `showCustomSongs: boolean` (se activa al pulsar "6+")
+- Cuando `showCustomSongs` es true, mostrar un `Input` numerico al lado del boton "6+" activo
+- El boton "6+" queda visualmente activo mientras el input esta visible
+- Al pulsar cualquier boton 1-5, se desactiva `showCustomSongs`
 
-**1. `src/components/releases/CronogramaSetupWizard.tsx`**
+### 2. Toggle de videoclip por single
 
-- Anadir nueva prop `releaseId: string` al componente
-- En `SingleRowEditor`, anadir un estado `isCreating` y un campo inline para crear un track nuevo
-- En el `CommandEmpty` (cuando no hay resultados), mostrar un boton "+ Crear [nombre escrito]" que:
-  1. Inserte el track en la tabla `tracks` con `release_id`, `title` y el siguiente `track_number`
-  2. Al completar, llame a un callback `onTrackCreated` que actualice la lista de tracks del wizard
-  3. Seleccione automaticamente el track recien creado en la fila del single
-- El boton de crear mostrara un spinner mientras inserta
+Cada fila de single (`SingleRowEditor`) tendra un toggle/switch adicional "Con videoclip" que indica si ese single va acompanado de un videoclip.
 
-**2. Props y callbacks**
+**Cambios**:
+- Ampliar `SingleRow` con campo `hasVideo: boolean`
+- En `SingleRowEditor`, anadir un pequeno toggle con icono de Video junto a la fecha opcional
+- Ampliar `SingleConfig` en `releaseTimelineTemplates.ts` con `hasVideo?: boolean`
+- Pasar el valor al `handleGenerate`
 
-- Anadir prop `onTrackCreated?: (track: TrackOption) => void` para notificar al padre que se creo un track nuevo
-- El padre (`ReleaseCronograma.tsx`) invalidara la query de tracks para que se actualice globalmente
+### 3. Selector de Focus Track
 
-**3. `src/pages/release-sections/ReleaseCronograma.tsx`**
+Para albums y EPs (cuando `numSongs >= 3`), mostrar un selector de "Focus Track" -- la cancion principal que recibira mas atencion promocional. Se muestra como un combobox que lista los tracks del release.
 
-- Pasar `releaseId` (el `id` del release) como nueva prop al wizard
-- Anadir callback `onTrackCreated` que invalide `queryClient.invalidateQueries({ queryKey: ['tracks', id] })` para sincronizar con autoria, creditos y presupuestos
-- Actualizar ambas instancias del wizard (lineas ~2120 y ~2411)
+**Cambios**:
+- Anadir estado `focusTrackId: string | undefined` en el wizard principal
+- Mostrar el selector solo cuando `numSongs >= 3` (albums/EPs)
+- Usar el mismo combobox de tracks (con opcion de crear) reutilizando el patron de `SingleRowEditor`
+- Ampliar `ReleaseConfig` con `focusTrackId?: string`
+- Pasar el valor al `handleGenerate`
 
-### Flujo del usuario
+### Archivos a modificar
 
-1. El usuario abre el wizard de cronograma, paso 2
-2. Selecciona que quiere 2 singles
-3. En la fila del single 1, abre el combobox y escribe "Mi Nueva Cancion"
-4. Como no existe, aparece: `+ Crear "Mi Nueva Cancion"`
-5. Hace clic -> se inserta en `tracks` con el siguiente `track_number`
-6. El track aparece seleccionado automaticamente en la fila
-7. La cancion ya esta disponible en Creditos, Autoria y Presupuestos del release
+| Archivo | Cambio |
+|---|---|
+| `src/components/releases/CronogramaSetupWizard.tsx` | Input numerico para 6+, toggle videoclip en singles, selector focus track |
+| `src/lib/releaseTimelineTemplates.ts` | Anadir `hasVideo?: boolean` a `SingleConfig` y `focusTrackId?: string` a `ReleaseConfig` |
 
-### Detalle tecnico de la insercion
+### Detalle de UI del Paso 2 resultante
 
 ```text
-supabase.from('tracks').insert({
-  release_id: releaseId,
-  title: nombre,
-  track_number: tracks.length + 1
-}).select().single()
+[Numero de canciones]
+  [1] [2] [3] [4] [5] [6+] [___input___]
+
+[Focus Track (solo si >= 3 canciones)]
+  Combobox: "Seleccionar focus track..."
+
+[Singles a lanzar antes del album]
+  [0] [1] [2] [3] ...
+
+[Configurar Singles]
+  1. [Vincular a cancion...] [Con videoclip toggle] [Fecha opcional]
+  2. [Vincular a cancion...] [Con videoclip toggle] [Fecha opcional]
 ```
 
-Se usa `supabase` directamente dentro del componente (patron ya usado en `ReleaseCreditos.tsx` con `createTrack`). Se importa el cliente desde `@/integrations/supabase/client`.
-
 ### Lo que NO cambia
-- La logica de generacion de cronograma
-- Los campos existentes del wizard
-- La estructura de la tabla `tracks`
-- Los IDs ni el orden de tareas
+- La logica de generacion de tareas
+- Los IDs, estimatedDays, orden de workflows
+- La funcionalidad de crear tracks desde el combobox
+- Los pasos 1 y 3 del wizard
 
