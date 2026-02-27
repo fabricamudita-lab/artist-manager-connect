@@ -85,6 +85,12 @@ export function BudgetContactSelector({
     void fetchData();
   }, []);
 
+  useEffect(() => {
+    if (open) {
+      void fetchData();
+    }
+  }, [open]);
+
   const selected: SelectedOption = useMemo(() => {
     if (!value) return undefined;
     const selectedContact = contacts.find((c) => c.id === value);
