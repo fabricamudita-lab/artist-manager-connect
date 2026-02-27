@@ -1,90 +1,61 @@
 
 
-## Wizard de Cronograma Enriquecido con Vinculacion de Singles a Tracks
+## Crear canciones nuevas desde el Wizard de Cronograma
 
-### Objetivo
-Transformar el wizard actual (que solo tiene 6 campos basicos) en un formulario multi-paso mas completo que permita configurar informacion adicional opcional y, crucialmente, vincular cada single a una cancion existente del release (tabla `tracks`).
+### Problema
+Actualmente el combobox de "Vincular a cancion" solo muestra tracks existentes. Si el usuario escribe un nombre libre, no se crea nada en la base de datos -- el nombre queda como texto suelto sin vinculacion real con autoria, presupuestos ni creditos.
 
-### Arquitectura: Wizard Multi-Paso
+### Solucion
+Anadir una opcion "+ Crear cancion" en el combobox que inserte el track en la tabla `tracks` de la base de datos y actualice la lista local en tiempo real. Asi la cancion queda disponible inmediatamente en autoria, presupuestos y creditos.
 
-El dialog pasara de un formulario plano a un wizard con **3 pasos** navegables con botones Anterior/Siguiente:
+### Cambios
 
-**Paso 1 - Fechas y Formato** (lo que ya existe)
-- Fecha de Lanzamiento Digital (obligatorio)
-- Fecha de Venta Fisica (opcional)
-- Fabricacion fisica toggle
-- Incluir videoclip toggle
+**1. `src/components/releases/CronogramaSetupWizard.tsx`**
 
-**Paso 2 - Canciones y Singles**
-- Numero de canciones (selector actual)
-- Numero de singles (selector actual)
-- **Nuevo**: Por cada single seleccionado, mostrar una fila donde el usuario puede:
-  - Vincular el single a una cancion existente del release (combobox con los tracks cargados via `useTracks`)
-  - O escribir un nombre libre si la cancion aun no existe en el tracklist
-  - Opcionalmente asignar una fecha especifica para ese single (date picker inline)
-- Se pre-populan los nombres de los tracks existentes en el combobox
+- Anadir nueva prop `releaseId: string` al componente
+- En `SingleRowEditor`, anadir un estado `isCreating` y un campo inline para crear un track nuevo
+- En el `CommandEmpty` (cuando no hay resultados), mostrar un boton "+ Crear [nombre escrito]" que:
+  1. Inserte el track en la tabla `tracks` con `release_id`, `title` y el siguiente `track_number`
+  2. Al completar, llame a un callback `onTrackCreated` que actualice la lista de tracks del wizard
+  3. Seleccione automaticamente el track recien creado en la fila del single
+- El boton de crear mostrara un spinner mientras inserta
 
-**Paso 3 - Opciones Adicionales** (todo opcional)
-- Distribuidor (input texto, ej: "DistroKid", "TuneCore", "The Orchard")
-- Sello discografico (input texto)
-- Territorio principal (select: Mundial, Espana, LATAM, USA, Europa)
-- Prioridad de pitching editorial (toggle: si/no, genera una tarea extra de pitching con mas margen)
-- Notas adicionales para el cronograma (textarea)
+**2. Props y callbacks**
 
-### Cambios en la interfaz `ReleaseConfig`
+- Anadir prop `onTrackCreated?: (track: TrackOption) => void` para notificar al padre que se creo un track nuevo
+- El padre (`ReleaseCronograma.tsx`) invalidara la query de tracks para que se actualice globalmente
 
-Ampliar el tipo en `releaseTimelineTemplates.ts`:
+**3. `src/pages/release-sections/ReleaseCronograma.tsx`**
+
+- Pasar `releaseId` (el `id` del release) como nueva prop al wizard
+- Anadir callback `onTrackCreated` que invalide `queryClient.invalidateQueries({ queryKey: ['tracks', id] })` para sincronizar con autoria, creditos y presupuestos
+- Actualizar ambas instancias del wizard (lineas ~2120 y ~2411)
+
+### Flujo del usuario
+
+1. El usuario abre el wizard de cronograma, paso 2
+2. Selecciona que quiere 2 singles
+3. En la fila del single 1, abre el combobox y escribe "Mi Nueva Cancion"
+4. Como no existe, aparece: `+ Crear "Mi Nueva Cancion"`
+5. Hace clic -> se inserta en `tracks` con el siguiente `track_number`
+6. El track aparece seleccionado automaticamente en la fila
+7. La cancion ya esta disponible en Creditos, Autoria y Presupuestos del release
+
+### Detalle tecnico de la insercion
 
 ```text
-interface ReleaseConfig {
-  releaseDate: Date;
-  physicalDate?: Date | null;
-  numSongs: number;
-  numSingles: number;
-  hasVideo: boolean;
-  hasPhysical: boolean;
-  singleDates?: SingleConfig[];    // ya existe
-  // Nuevos campos opcionales:
-  distributor?: string;
-  label?: string;
-  territory?: string;
-  priorityPitching?: boolean;
-  notes?: string;
-}
-
-interface SingleConfig {
-  name?: string;
-  date: Date;
-  trackId?: string;   // NUEVO: vinculo al track existente
-}
+supabase.from('tracks').insert({
+  release_id: releaseId,
+  title: nombre,
+  track_number: tracks.length + 1
+}).select().single()
 ```
 
-### Vinculacion Singles a Tracks
-
-- El wizard recibira una nueva prop `tracks` con los tracks del release (ya se cargan con `useTracks` en ReleaseCronograma)
-- En el paso 2, al seleccionar N singles, aparecen N filas con un combobox que lista los tracks disponibles
-- Al seleccionar un track, se usa su titulo como nombre del single y se guarda el `trackId`
-- Si el track tiene ISRC, se muestra como referencia visual
-- La vinculacion fluye hasta `generateTimelineFromConfig` que ya soporta `singleDates[].name`
-
-### Archivos a modificar
-
-| Archivo | Cambio |
-|---|---|
-| `src/components/releases/CronogramaSetupWizard.tsx` | Refactorizar en wizard de 3 pasos con estado por paso, anadir combobox de tracks para singles, campos opcionales |
-| `src/lib/releaseTimelineTemplates.ts` | Ampliar `ReleaseConfig` y `SingleConfig` con campos opcionales (`distributor`, `label`, `territory`, `trackId`) |
-| `src/pages/release-sections/ReleaseCronograma.tsx` | Pasar `tracks` como prop al wizard (2 instancias) |
-
-### Detalles de UI
-
-- El dialog crece a `sm:max-w-2xl` para acomodar el contenido adicional
-- Indicador de pasos en la parte superior (3 circulos con lineas, paso activo resaltado)
-- Boton "Anterior" aparece desde el paso 2
-- Boton "Generar Cronograma" solo aparece en el paso 3
-- Cada paso tiene scroll independiente con `max-h-[60vh] overflow-y-auto`
-- Los campos opcionales del paso 3 usan un estilo mas sutil (labels en `text-muted-foreground`) para que quede claro que son opcionales
+Se usa `supabase` directamente dentro del componente (patron ya usado en `ReleaseCreditos.tsx` con `createTrack`). Se importa el cliente desde `@/integrations/supabase/client`.
 
 ### Lo que NO cambia
-- La logica de generacion de tareas (`generateTimelineFromConfig`, `taskApplies`, etc.) no se modifica en su nucleo
-- Los IDs de tareas, `estimatedDays`, y el orden de workflows se mantienen
-- `handleGenerateFromWizard` sigue funcionando igual, solo recibe un `ReleaseConfig` con mas campos opcionales
+- La logica de generacion de cronograma
+- Los campos existentes del wizard
+- La estructura de la tabla `tracks`
+- Los IDs ni el orden de tareas
+
