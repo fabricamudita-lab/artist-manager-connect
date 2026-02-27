@@ -23,8 +23,9 @@ interface AutomationCardProps {
 
 export function AutomationCard({ automation: a, artists, onToggle, onFieldChange }: AutomationCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [forceSelectedMode, setForceSelectedMode] = useState(false);
 
-  const artistMode = a.artist_ids.length === 0 ? 'all' : 'selected';
+  const artistMode = forceSelectedMode || a.artist_ids.length > 0 ? 'selected' : 'all';
 
   const getArtistLabel = () => {
     if (a.artist_ids.length === 0) return 'Todos';
@@ -169,11 +170,13 @@ export function AutomationCard({ automation: a, artists, onToggle, onFieldChange
               <label className="text-xs font-medium text-muted-foreground">Aplica a</label>
               <RadioGroup
                 value={artistMode}
-                onValueChange={(v) => {
+              onValueChange={(v) => {
                   if (v === 'all') {
                     onFieldChange(a.key, 'artist_ids', []);
+                    setForceSelectedMode(false);
+                  } else {
+                    setForceSelectedMode(true);
                   }
-                  // If switching to 'selected', keep current (empty will show selector)
                 }}
                 className="flex gap-4"
               >
