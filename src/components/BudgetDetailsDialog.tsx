@@ -1622,6 +1622,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const addNewItem = async (categoryId: string) => {
     try {
+      // Categorías exentas de IRPF por defecto (gastos suplidos)
+      const category = budgetCategories.find(c => c.id === categoryId);
+      const categoryName = (category?.name || '').toLowerCase().trim();
+      const zeroIrpfCategories = ['transporte', 'hospedaje', 'dietas'];
+      const defaultIrpf = zeroIrpfCategories.includes(categoryName) ? 0 : 15;
+
       const { data, error } = await supabase
         .from('budget_items')
         .insert({
@@ -1633,7 +1639,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           quantity: 1,
           unit_price: 0,
           iva_percentage: 21,
-          irpf_percentage: 15,
+          irpf_percentage: defaultIrpf,
           is_attendee: false,
           billing_status: 'pendiente',
           invoice_link: '',
