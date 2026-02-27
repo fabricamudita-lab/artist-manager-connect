@@ -29,7 +29,7 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useUpdateRelease, Release } from '@/hooks/useReleases';
-import { SingleArtistSelector } from '@/components/SingleArtistSelector';
+import { ArtistSelector } from '@/components/ArtistSelector';
 
 interface EditReleaseDialogProps {
   open: boolean;
@@ -49,7 +49,7 @@ export default function EditReleaseDialog({
   const [status, setStatus] = useState<'planning' | 'in_progress' | 'released' | 'archived'>('planning');
   const [releaseDate, setReleaseDate] = useState<Date | undefined>();
   const [description, setDescription] = useState('');
-  const [artistId, setArtistId] = useState<string | null>(null);
+  const [artistIds, setArtistIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (release) {
@@ -58,7 +58,9 @@ export default function EditReleaseDialog({
       setStatus(release.status);
       setReleaseDate(release.release_date ? new Date(release.release_date) : undefined);
       setDescription(release.description || '');
-      setArtistId(release.artist_id);
+      // Load artists from release_artists if available, fallback to artist_id
+      const raIds = release.release_artists?.map(ra => ra.artist_id) || [];
+      setArtistIds(raIds.length > 0 ? raIds : (release.artist_id ? [release.artist_id] : []));
     }
   }, [release]);
 
@@ -72,7 +74,8 @@ export default function EditReleaseDialog({
       status,
       release_date: releaseDate ? format(releaseDate, 'yyyy-MM-dd') : null,
       description: description.trim() || null,
-      artist_id: artistId,
+      artist_id: artistIds[0] || null,
+      artist_ids: artistIds,
     });
 
     onOpenChange(false);
@@ -131,11 +134,11 @@ export default function EditReleaseDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Artista</Label>
-            <SingleArtistSelector
-              value={artistId}
-              onValueChange={setArtistId}
-              placeholder="Seleccionar artista"
+            <Label>Artistas</Label>
+            <ArtistSelector
+              selectedArtists={artistIds}
+              onSelectionChange={setArtistIds}
+              placeholder="Seleccionar artistas..."
             />
           </div>
 
