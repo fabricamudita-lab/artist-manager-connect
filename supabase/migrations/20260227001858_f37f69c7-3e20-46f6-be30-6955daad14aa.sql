@@ -1,0 +1,1 @@
+ALTER TABLE public.artists ADD COLUMN artist_type text NOT NULL DEFAULT 'roster';
