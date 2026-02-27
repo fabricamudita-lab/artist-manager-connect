@@ -227,7 +227,7 @@ const EMPTY_WORKFLOWS: WorkflowSection[] = Object.entries(WORKFLOW_METADATA).map
 type ViewMode = 'list' | 'gantt';
 
 // --- Sortable Subtask Row ---
-function SortableSubtaskRow({ id, children }: { id: string; children: React.ReactNode }) {
+function SortableSubtaskRow({ id, children }: { id: string; children: (dragHandle: React.ReactNode) => React.ReactNode }) {
   const {
     attributes,
     listeners,
@@ -241,21 +241,23 @@ function SortableSubtaskRow({ id, children }: { id: string; children: React.Reac
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    position: 'relative' as const,
     zIndex: isDragging ? 10 : undefined,
   };
 
+  const dragHandle = (
+    <button
+      {...attributes}
+      {...listeners}
+      className="opacity-0 group-hover/subtask-drag:opacity-100 cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-muted shrink-0"
+      aria-label="Arrastrar subtarea"
+    >
+      <GripVertical className="w-3 h-3 text-muted-foreground" />
+    </button>
+  );
+
   return (
     <TableRow ref={setNodeRef} style={style} className="group/subtask-drag">
-      <button
-        {...attributes}
-        {...listeners}
-        className="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/subtask-drag:opacity-100 cursor-grab active:cursor-grabbing z-10 p-0.5 rounded hover:bg-muted"
-        aria-label="Arrastrar subtarea"
-      >
-        <GripVertical className="w-3 h-3 text-muted-foreground" />
-      </button>
-      {children}
+      {children(dragHandle)}
     </TableRow>
   );
 }
@@ -575,10 +577,12 @@ function SortableWorkflowCard({
                               {subtaskList.map(subtask => {
                           if (subtask.type === 'note') {
                             return (
-                              <SortableSubtaskRow id={subtask.id}>
+                              <SortableSubtaskRow key={subtask.id} id={subtask.id}>
+                                {(dragHandle) => <>
                                 <TableCell colSpan={5}>
-                                  <div className="flex flex-col gap-2 pl-8">
+                                  <div className="flex flex-col gap-2 pl-2">
                                     <div className="flex items-center gap-2">
+                                      {dragHandle}
                                       <StickyNote className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                                       <span className="text-xs text-muted-foreground">Nota para:</span>
                                       <ResponsibleSelector
@@ -592,7 +596,7 @@ function SortableWorkflowCard({
                                       value={subtask.content || ''}
                                       onChange={e => updateSubtask(workflow.id, task.id, subtask.id, { content: e.target.value })}
                                       placeholder="Escribe una nota para este miembro del equipo..."
-                                      className="min-h-[50px] border-0 bg-transparent hover:bg-muted/50 focus:bg-muted text-sm flex-1 resize-none ml-6"
+                                      className="min-h-[50px] border-0 bg-transparent hover:bg-muted/50 focus:bg-muted text-sm flex-1 resize-none ml-1"
                                     />
                                   </div>
                                 </TableCell>
@@ -606,16 +610,19 @@ function SortableWorkflowCard({
                                     <Trash2 className="w-3 h-3" />
                                   </Button>
                                 </TableCell>
+                                </>}
                               </SortableSubtaskRow>
                             );
                           }
 
                           if (subtask.type === 'comment') {
                             return (
-                              <SortableSubtaskRow id={subtask.id}>
+                              <SortableSubtaskRow key={subtask.id} id={subtask.id}>
+                                {(dragHandle) => <>
                                 <TableCell colSpan={5}>
-                                  <div className="flex flex-col gap-2 pl-8">
+                                  <div className="flex flex-col gap-2 pl-2">
                                     <div className="flex items-center gap-2">
+                                      {dragHandle}
                                       <MessageCircle className="w-4 h-4 text-blue-500 shrink-0" />
                                       <span className="text-xs font-medium">
                                         {subtask.resolved ? 'Hilo resuelto' : 'Hilo de comentarios'}
@@ -634,7 +641,7 @@ function SortableWorkflowCard({
                                       </Button>
                                     </div>
                                     {(subtask.thread || []).map((msg, idx) => (
-                                      <div key={msg.id || idx} className="flex items-start gap-2 ml-6">
+                                      <div key={msg.id || idx} className="flex items-start gap-2 ml-1">
                                         <AtSign className="w-3 h-3 mt-1 text-muted-foreground shrink-0" />
                                         <div className="flex-1 text-sm">
                                           <span className="font-medium text-xs">{msg.authorName}</span>
@@ -642,7 +649,7 @@ function SortableWorkflowCard({
                                         </div>
                                       </div>
                                     ))}
-                                    <div className="flex items-center gap-2 ml-6">
+                                    <div className="flex items-center gap-2 ml-1">
                                       <Input
                                         placeholder="Escribe un comentario..."
                                         className="h-7 text-sm"
@@ -676,6 +683,7 @@ function SortableWorkflowCard({
                                     <Trash2 className="w-3 h-3" />
                                   </Button>
                                 </TableCell>
+                                </>}
                               </SortableSubtaskRow>
                             );
                           }
@@ -683,9 +691,11 @@ function SortableWorkflowCard({
                           if (subtask.type === 'checkbox') {
                             const isOverdue = subtask.dueDate && !subtask.completed && new Date() > subtask.dueDate;
                             return (
-                              <SortableSubtaskRow id={subtask.id}>
+                              <SortableSubtaskRow key={subtask.id} id={subtask.id}>
+                                {(dragHandle) => <>
                                 <TableCell colSpan={4}>
-                                  <div className="flex items-center gap-2 pl-8">
+                                  <div className="flex items-center gap-2 pl-2">
+                                    {dragHandle}
                                     <button
                                       onClick={() => updateSubtask(workflow.id, task.id, subtask.id, {
                                         completed: !subtask.completed
@@ -812,8 +822,9 @@ function SortableWorkflowCard({
                                     onClick={() => deleteSubtask(workflow.id, task.id, subtask.id)}
                                   >
                                     <Trash2 className="w-3 h-3" />
-                                  </Button>
+                                   </Button>
                                 </TableCell>
+                                </>}
                               </SortableSubtaskRow>
                             );
                           }
@@ -823,9 +834,11 @@ function SortableWorkflowCard({
                           const subtaskStatusOption = statusOptions.find(s => s.value === subtask.status);
 
                           return (
-                            <SortableSubtaskRow id={subtask.id}>
+                            <SortableSubtaskRow key={subtask.id} id={subtask.id}>
+                              {(dragHandle) => <>
                               <TableCell>
-                                <div className="flex items-center gap-1 pl-8">
+                                <div className="flex items-center gap-1 pl-2">
+                                  {dragHandle}
                                   <span className="text-muted-foreground mr-1">↳</span>
                                   <Input
                                     value={subtask.name}
@@ -928,6 +941,7 @@ function SortableWorkflowCard({
                                   <Trash2 className="w-3 h-3" />
                                 </Button>
                               </TableCell>
+                              </>}
                               </SortableSubtaskRow>
                           );
                         })}
@@ -944,7 +958,7 @@ function SortableWorkflowCard({
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 text-xs text-muted-foreground ml-8"
+                                    className="h-7 text-xs text-muted-foreground ml-2"
                                   >
                                     <Plus className="w-3 h-3 mr-1" />
                                     Añadir elemento
