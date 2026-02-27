@@ -1207,6 +1207,7 @@ export default function ReleaseCronograma() {
 
   // Track whether initial load has completed (to avoid auto-saving on mount)
   const hasInitializedRef = useRef(false);
+  const skipNextAutoSaveRef = useRef(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   // Load saved milestones into workflows on mount
@@ -1285,7 +1286,6 @@ export default function ReleaseCronograma() {
       // Prepare milestones with metadata and sort_order, preserving task IDs
       const milestones = workflowsToSave.flatMap(workflow =>
         workflow.tasks.map((task, index) => ({
-          id: task.id,
           release_id: id,
           title: task.name,
           due_date: task.startDate ? format(task.startDate, 'yyyy-MM-dd') : null,
@@ -1310,11 +1310,29 @@ export default function ReleaseCronograma() {
       );
 
       if (milestones.length > 0) {
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from('release_milestones')
-          .insert(milestones as any);
+          .insert(milestones as any)
+          .select();
 
         if (error) throw error;
+
+        // Update local state with DB-generated UUIDs
+        if (inserted && inserted.length > 0) {
+          skipNextAutoSaveRef.current = true;
+          setWorkflows(prev => {
+            const updated = prev.map(wf => ({
+              ...wf,
+              tasks: wf.tasks.map(t => {
+                const match = inserted.find(
+                  (m: any) => m.title === t.name && m.category === wf.id
+                );
+                return match ? { ...t, id: match.id } : t;
+              }),
+            }));
+            return updated;
+          });
+        }
       }
 
       // Don't invalidate queries to avoid re-triggering load
@@ -1337,6 +1355,10 @@ export default function ReleaseCronograma() {
   useEffect(() => {
     if (!hasInitializedRef.current) return;
     if (!id) return;
+    if (skipNextAutoSaveRef.current) {
+      skipNextAutoSaveRef.current = false;
+      return;
+    }
 
     const timer = setTimeout(() => {
       saveMilestonesToDB(workflows);
