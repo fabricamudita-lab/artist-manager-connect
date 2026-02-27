@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { format, addDays, differenceInDays, startOfDay, startOfMonth, subMonths, min, max, eachDayOfInterval, isAfter, isSameDay } from 'date-fns';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { format, addDays, differenceInDays, startOfDay, startOfMonth, subMonths, min, max, eachDayOfInterval, isAfter, isBefore, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon, EyeOff, CircleDot, User, Link2 } from 'lucide-react';
 import {
@@ -28,6 +28,8 @@ import {
 } from '@/components/ui/context-menu';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type TaskStatus = 'pendiente' | 'en_proceso' | 'completado' | 'retrasado';
@@ -75,6 +77,7 @@ interface GanttChartProps {
   onHideTask?: (taskId: string) => void;
   onClearSelection?: () => void;
   fitToView?: boolean;
+  onShiftWorkflow?: (workflowId: string, daysDelta: number) => void;
 }
 
 const STATUS_BAR_COLORS: Record<TaskStatus, string> = {
@@ -120,7 +123,21 @@ interface DragPreview {
   days: number;
 }
 
-export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, onUpdateTaskStatus, onOpenResponsible, onOpenAnchor, getTaskName, selectedTaskIds, onTaskSelect, onHideTask, onClearSelection, fitToView = false }: GanttChartProps) {
+interface WorkflowDragState {
+  workflowId: string;
+  startX: number;
+  containerWidth: number;
+  activated: boolean;
+}
+
+interface PendingWorkflowShift {
+  workflowId: string;
+  workflowName: string;
+  daysDelta: number;
+  tasksWithWarning: { id: string; name: string }[];
+}
+
+export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, onUpdateTaskStatus, onOpenResponsible, onOpenAnchor, getTaskName, selectedTaskIds, onTaskSelect, onHideTask, onClearSelection, fitToView = false, onShiftWorkflow }: GanttChartProps) {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
   const [editingDateType, setEditingDateType] = useState<'start' | 'end'>('start');
   const [collapsedWorkflows, setCollapsedWorkflows] = useState<Set<string>>(new Set());
@@ -136,6 +153,12 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
     origDays: number;
   } | null>(null);
   const dragRef = useRef<DragState | null>(null);
+
+  // Workflow drag state
+  const [wfDragState, setWfDragState] = useState<WorkflowDragState | null>(null);
+  const [wfDragDelta, setWfDragDelta] = useState<number>(0);
+  const wfDragRef = useRef<WorkflowDragState | null>(null);
+  const [pendingWorkflowShift, setPendingWorkflowShift] = useState<PendingWorkflowShift | null>(null);
 
   const today = useMemo(() => startOfDay(new Date()), []);
 
@@ -380,6 +403,93 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
     setDragPreview(null);
   };
 
+  // --- Workflow bar drag logic ---
+  const handleWorkflowBarMouseDown = useCallback((
+    e: React.MouseEvent<HTMLDivElement>,
+    workflowId: string,
+    containerEl: HTMLElement | null,
+  ) => {
+    if (e.button !== 0 || !containerEl) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const state: WorkflowDragState = {
+      workflowId,
+      startX: e.clientX,
+      containerWidth: containerEl.getBoundingClientRect().width,
+      activated: false,
+    };
+    wfDragRef.current = state;
+    setWfDragState(state);
+    setWfDragDelta(0);
+  }, []);
+
+  useEffect(() => {
+    if (!wfDragState) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const ds = wfDragRef.current;
+      if (!ds) return;
+
+      const deltaX = e.clientX - ds.startX;
+
+      if (!ds.activated) {
+        if (Math.abs(deltaX) < 3) return;
+        ds.activated = true;
+        wfDragRef.current = { ...ds, activated: true };
+        setWfDragState(prev => prev ? { ...prev, activated: true } : null);
+      }
+
+      const deltaDays = Math.round((deltaX / ds.containerWidth) * totalDays);
+      setWfDragDelta(deltaDays);
+    };
+
+    const handleMouseUp = () => {
+      const ds = wfDragRef.current;
+      if (ds?.activated && wfDragDelta !== 0) {
+        const workflow = workflows.find(w => w.id === ds.workflowId);
+        if (workflow) {
+          const today = startOfDay(new Date());
+          const tasksWithWarning = workflow.tasks
+            .filter(t => {
+              if (!t.startDate || t.status === 'completado') return false;
+              const newEnd = addDays(addDays(t.startDate, wfDragDelta), t.estimatedDays);
+              return isBefore(newEnd, today) || isSameDay(newEnd, today);
+            })
+            .map(t => ({ id: t.id, name: t.name }));
+
+          setPendingWorkflowShift({
+            workflowId: ds.workflowId,
+            workflowName: workflow.name,
+            daysDelta: wfDragDelta,
+            tasksWithWarning,
+          });
+        }
+      }
+      wfDragRef.current = null;
+      setWfDragState(null);
+      setWfDragDelta(0);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [wfDragState, totalDays, wfDragDelta, workflows]);
+
+  const handleConfirmWorkflowShift = () => {
+    if (pendingWorkflowShift && onShiftWorkflow) {
+      onShiftWorkflow(pendingWorkflowShift.workflowId, pendingWorkflowShift.daysDelta);
+    }
+    setPendingWorkflowShift(null);
+  };
+
+  const handleCancelWorkflowShift = () => {
+    setPendingWorkflowShift(null);
+  };
+
   if (tasksWithDates.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
@@ -429,12 +539,18 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                 const wfStart = new Date(Math.min(...dates));
                 const wfEnd = new Date(Math.max(...endDates));
                 const wfDays = Math.max(1, differenceInDays(wfEnd, wfStart));
-                const { left, width } = getBarPosition(wfStart, wfDays);
+                
+                // Apply drag offset for preview
+                const isWfDragging = wfDragState?.activated && wfDragState.workflowId === workflow.id;
+                const previewStart = isWfDragging ? addDays(wfStart, wfDragDelta) : wfStart;
+                const previewEnd = isWfDragging ? addDays(wfEnd, wfDragDelta) : wfEnd;
+                const { left, width } = getBarPosition(previewStart, wfDays);
+                const origBarPos = isWfDragging ? getBarPosition(wfStart, wfDays) : null;
+                
                 const completed = workflowTasks.filter(t => t.status === 'completado').length;
                 const retrasadas = workflowTasks.filter(t => t.status === 'retrasado').length;
                 const enProceso = workflowTasks.filter(t => t.status === 'en_proceso').length;
                 const total = workflowTasks.length;
-                const isWorkflowComplete = completed === total && total > 0;
 
                 const pctRetrasado = total > 0 ? (retrasadas / total) * 100 : 0;
                 const pctEnProceso = total > 0 ? (enProceso / total) * 100 : 0;
@@ -443,17 +559,21 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                 const pendientes = total - retrasadas - enProceso - completed;
                 const pctPendiente = total > 0 ? (pendientes / total) * 100 : 0;
 
+                const wfBarContainerRef = React.createRef<HTMLDivElement>();
+
                 return (
                   <div
-                    className={cn("flex items-center cursor-pointer select-none", fitToView ? "mb-0.5" : "mb-2")}
-                    onClick={() => setCollapsedWorkflows(prev => {
-                      const next = new Set(prev);
-                      if (next.has(workflow.id)) next.delete(workflow.id);
-                      else next.add(workflow.id);
-                      return next;
-                    })}
+                    className={cn("flex items-center select-none", fitToView ? "mb-0.5" : "mb-2")}
                   >
-                    <div className="w-48 shrink-0 flex items-center gap-2 sticky left-0 z-10 bg-background">
+                    <div 
+                      className="w-48 shrink-0 flex items-center gap-2 sticky left-0 z-10 bg-background cursor-pointer"
+                      onClick={() => setCollapsedWorkflows(prev => {
+                        const next = new Set(prev);
+                        if (next.has(workflow.id)) next.delete(workflow.id);
+                        else next.add(workflow.id);
+                        return next;
+                      })}
+                    >
                       <span className="text-xs text-muted-foreground shrink-0">{isCollapsed ? '▶' : '▼'}</span>
                       <workflow.icon className="w-4 h-4 shrink-0" />
                       <span className="font-semibold text-sm truncate">{workflow.name}</span>
@@ -461,10 +581,28 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                         {completed}/{total}
                       </span>
                     </div>
-                    <div className={cn("flex-1 relative", fitToView ? "h-4" : "h-6")}>
+                    <div ref={wfBarContainerRef} className={cn("flex-1 relative", fitToView ? "h-4" : "h-6")}>
+                      {/* Ghost bar at original position during workflow drag */}
+                      {isWfDragging && origBarPos && (
+                        <div
+                          className={cn('absolute rounded-full overflow-hidden', fitToView ? 'top-0 h-4' : 'top-0.5 h-5')}
+                          style={{ left: origBarPos.left, width: origBarPos.width, opacity: 0.25 }}
+                        >
+                          <div className="w-full h-full bg-muted-foreground/40" />
+                        </div>
+                      )}
                       <div
-                        className={cn('absolute rounded-full overflow-hidden group/wf bg-transparent', fitToView ? 'top-0 h-4' : 'top-0.5 h-5')}
+                        className={cn(
+                          'absolute rounded-full overflow-hidden group/wf bg-transparent',
+                          fitToView ? 'top-0 h-4' : 'top-0.5 h-5',
+                          onShiftWorkflow && 'cursor-ew-resize',
+                          isWfDragging && 'ring-2 ring-primary shadow-lg',
+                        )}
                         style={{ left, width }}
+                        onMouseDown={(e) => {
+                          if (!onShiftWorkflow) return;
+                          handleWorkflowBarMouseDown(e, workflow.id, wfBarContainerRef.current);
+                        }}
                       >
                         {/* Segmento completado */}
                         {completed > 0 && (
@@ -495,11 +633,16 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
                           />
                         )}
                         <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground whitespace-nowrap opacity-0 group-hover/wf:opacity-100 transition-opacity pointer-events-none">
-                          {format(wfStart, 'dd MMM', { locale: es })} – {format(wfEnd, 'dd MMM', { locale: es })}
-                          {retrasadas > 0 && ` · ${retrasadas} retrasada${retrasadas > 1 ? 's' : ''}`}
-                          {enProceso > 0 && ` · ${enProceso} en proceso`}
-                          {completed > 0 && ` · ${completed} completada${completed > 1 ? 's' : ''}`}
-                          {pendientes > 0 && ` · ${pendientes} pendiente${pendientes > 1 ? 's' : ''}`}
+                          {isWfDragging
+                            ? `${wfDragDelta > 0 ? '+' : ''}${wfDragDelta} días`
+                            : <>
+                                {format(wfStart, 'dd MMM', { locale: es })} – {format(wfEnd, 'dd MMM', { locale: es })}
+                                {retrasadas > 0 && ` · ${retrasadas} retrasada${retrasadas > 1 ? 's' : ''}`}
+                                {enProceso > 0 && ` · ${enProceso} en proceso`}
+                                {completed > 0 && ` · ${completed} completada${completed > 1 ? 's' : ''}`}
+                                {pendientes > 0 && ` · ${pendientes} pendiente${pendientes > 1 ? 's' : ''}`}
+                              </>
+                          }
                         </span>
                       </div>
                     </div>
@@ -631,6 +774,36 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleCancelDrag}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDrag}>Sobreescribir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Workflow shift confirmation dialog */}
+      <AlertDialog open={!!pendingWorkflowShift} onOpenChange={(open) => { if (!open) handleCancelWorkflowShift(); }}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base">
+              Mover {pendingWorkflowShift?.workflowName} {Math.abs(pendingWorkflowShift?.daysDelta || 0)} días hacia {(pendingWorkflowShift?.daysDelta || 0) > 0 ? 'adelante' : 'atrás'}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Se desplazarán todas las tareas del flujo manteniendo sus intervalos relativos.
+                </p>
+                {pendingWorkflowShift?.tasksWithWarning && pendingWorkflowShift.tasksWithWarning.length > 0 && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Atención:</strong> {pendingWorkflowShift.tasksWithWarning.length} tarea{pendingWorkflowShift.tasksWithWarning.length > 1 ? 's' : ''} no completada{pendingWorkflowShift.tasksWithWarning.length > 1 ? 's' : ''} tendr{pendingWorkflowShift.tasksWithWarning.length > 1 ? 'án' : 'á'} fecha vencida ({pendingWorkflowShift.tasksWithWarning.map(t => t.name).join(', ')})
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelWorkflowShift}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmWorkflowShift}>Confirmar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

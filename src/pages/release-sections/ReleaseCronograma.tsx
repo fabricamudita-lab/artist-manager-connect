@@ -1560,6 +1560,22 @@ export default function ReleaseCronograma() {
     }
   }, [workflows, getFullDependencyChain]);
 
+  // Handle workflow shift (move all tasks in a workflow by daysDelta)
+  const handleShiftWorkflow = useCallback((workflowId: string, daysDelta: number) => {
+    if (daysDelta === 0) return;
+    pushUndo();
+    setWorkflows(prev => prev.map(w => {
+      if (w.id !== workflowId) return w;
+      return {
+        ...w,
+        tasks: w.tasks.map(t => {
+          if (!t.startDate) return t;
+          return { ...t, startDate: addDays(t.startDate, daysDelta) };
+        }),
+      };
+    }));
+  }, []);
+
   // Handle anchor dialog confirmation (apply to full chain)
   const handleAnchorConfirm = useCallback((selectedTaskIds: string[]) => {
     if (!pendingDateChange) return;
@@ -2141,6 +2157,7 @@ export default function ReleaseCronograma() {
               }}
               onClearSelection={() => setSelectedTaskIds(new Set())}
               fitToView={fitToView}
+              onShiftWorkflow={handleShiftWorkflow}
             />
           </CardContent>
         </Card>
