@@ -1,27 +1,35 @@
 
 
-## Corregir: contactos creados no aparecen en otros selectores del mismo presupuesto
+## Deduplicar contactos en el selector de presupuestos
 
 ### Problema
-Cada instancia de `BudgetContactSelector` en la tabla del presupuesto carga los contactos una sola vez al montarse (`useEffect` con array vacio `[]`). Cuando creas un contacto nuevo (ej: "La Turbina") desde el formulario inline de un selector, ese contacto se anade al estado local de ESA instancia, pero las demas instancias del mismo presupuesto siguen con la lista antigua. Por eso al abrir otro selector y buscar "La Turbina", no aparece.
+Al crear "La Turbina" dos veces desde el formulario inline, ahora aparecen dos entradas identicas en la lista de contactos del selector. No hay control de duplicados ni al crear ni al mostrar.
 
 ### Solucion
-Re-cargar la lista de contactos cada vez que el usuario abre el desplegable del selector. Esto garantiza que cualquier contacto creado recientemente (ya sea desde otro selector o desde otra parte de la app) aparezca inmediatamente.
-
-### Cambio tecnico
 
 **Archivo**: `src/components/BudgetContactSelector.tsx`
 
-Agregar un `useEffect` que dispare `fetchData()` cuando `open` cambia a `true`:
+1. **Prevenir duplicados al crear**: Antes de insertar un nuevo contacto, buscar en la tabla `contacts` si ya existe uno con el mismo nombre (case-insensitive). Si existe, seleccionarlo directamente en vez de crear otro.
 
+2. **Deduplicar la lista mostrada**: Como medida defensiva, filtrar contactos duplicados por nombre en la lista visible, manteniendo solo el primero de cada nombre. Esto cubre datos historicos que ya estan duplicados.
+
+### Detalle tecnico
+
+En `handleCreateContact`, antes del `insert`:
 ```typescript
-useEffect(() => {
-  if (open) {
-    void fetchData();
-  }
-}, [open]);
+const { data: existing } = await supabase
+  .from("contacts")
+  .select("id")
+  .ilike("name", newName.trim())
+  .limit(1)
+  .maybeSingle();
+
+if (existing) {
+  onValueChange(existing.id);
+  // cerrar sin crear
+  return;
+}
 ```
 
-Esto reemplaza o complementa el `useEffect` actual de montaje (linea 84-86). Al abrir el popover, se re-consulta la tabla `contacts` y `artists`, asegurando que la lista este siempre actualizada.
+Para la lista visible, deduplicar por nombre al renderizar usando un `Set` de nombres ya mostrados, o mejor, deduplicar en el `useMemo` / despues del fetch con un filtro por nombre unico.
 
-El fetch existente en montaje se puede mantener para que el nombre del contacto seleccionado se muestre correctamente sin necesidad de abrir el desplegable.
