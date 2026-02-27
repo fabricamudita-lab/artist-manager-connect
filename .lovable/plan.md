@@ -1,31 +1,34 @@
 
-
-## Ampliar el campo de Precio/Comision en presupuestos
+## Crear contacto nuevo desde el selector de presupuestos
 
 ### Problema
-El campo "Precio / Comision" en la tabla de items del presupuesto usa un ancho de columna de 140px y los inputs internos son demasiado estrechos (`w-16`, `w-12`). Esto impide ver correctamente cantidades grandes (hasta 500.000 euros).
+Cuando buscas un contacto en el presupuesto y no existe, solo ves "No se encontraron contactos" sin opcion de crearlo. Tienes que salir, ir a Contactos, crearlo y volver.
 
 ### Solucion
+Agregar un boton "+ Crear contacto" dentro del propio desplegable del `BudgetContactSelector`. Al pulsarlo, se abre un mini-formulario inline (dentro del mismo popover) con los campos esenciales: nombre, email y rol. Al guardar, se crea el contacto en la base de datos, se selecciona automaticamente y se cierra el popover.
 
-**Archivo**: `src/components/BudgetDetailsDialog.tsx`
+### Cambios
 
-1. **Ampliar la columna de la tabla**: Cambiar el ancho del `TableHead` de `w-[140px]` a `w-[200px]` para dar mas espacio al campo de precio.
+**Archivo**: `src/components/BudgetContactSelector.tsx`
 
-2. **Ampliar los inputs en modo edicion**:
-   - Input de precio fijo (linea ~3767): cambiar de `flex-1` a `w-28` minimo, asegurando que quepa "500000.00".
-   - Input de porcentaje (linea ~3754): cambiar de `w-16` a `w-20` para porcentajes con decimales.
-   - Input de cantidad (linea ~3777): mantener `w-12` ya que las cantidades son numeros pequenos.
+1. **Agregar estado para modo creacion**: `creatingNew` (boolean), mas campos `newName`, `newEmail`, `newRole`.
 
-3. **Mejorar la visualizacion en modo lectura**:
-   - En el modo vista de precio fijo (linea ~3809): formatear con `toLocaleString('es-ES')` para mejor legibilidad de numeros grandes (ej: "500.000,00" en vez de "500000.00").
-   - En el modo vista de comision (linea ~3801): aplicar el mismo formateo.
+2. **Boton "+ Crear contacto"**: Aparece al final del grupo "Contactos" en ambas variantes (compact y normal). Tambien aparece como accion en el `CommandEmpty` cuando no hay resultados, para que sea aun mas visible.
 
-### Cambios puntuales
+3. **Vista de formulario inline**: Cuando `creatingNew` es true, el contenido del Command se reemplaza por un mini-formulario con:
+   - Input de nombre (obligatorio, pre-rellenado con el texto de busqueda actual)
+   - Input de email (opcional)
+   - Input de rol (opcional)
+   - Botones Cancelar / Crear
 
-| Linea aprox. | Cambio |
-|---|---|
-| 3551 | `w-[140px]` a `w-[200px]` en TableHead |
-| 3754 | `w-16` a `w-20` en input de porcentaje |
-| 3767 | Asegurar `min-w-[7rem]` en input de precio fijo |
-| 3801, 3809 | Usar `toLocaleString('es-ES', {minimumFractionDigits: 2})` en vista |
+4. **Logica de guardado**: Al pulsar "Crear":
+   - Inserta el contacto en la tabla `contacts` con `created_by` del usuario actual
+   - Actualiza el estado local de contactos
+   - Llama a `onValueChange` con el nuevo ID para asignarlo automaticamente
+   - Cierra el popover
 
+5. **Pre-rellenar nombre**: El texto que el usuario escribio en la busqueda se usa como valor inicial del campo nombre, para no tener que escribirlo dos veces.
+
+### Detalle tecnico
+
+Se reutiliza el mismo patron de insercion que ya existe en `ensureMirrorContactForArtist` (obtener `auth.getUser()`, insertar con `created_by`). No se necesita ningun cambio de esquema en base de datos ni componentes adicionales.
