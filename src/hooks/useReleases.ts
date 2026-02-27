@@ -63,6 +63,9 @@ export interface Track {
   isrc: string | null;
   lyrics: string | null;
   notes: string | null;
+  is_single: boolean;
+  is_focus_track: boolean;
+  video_type: string | null;
   created_at: string;
   updated_at: string;
 }
