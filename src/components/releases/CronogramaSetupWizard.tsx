@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
-  CalendarIcon, Music, Disc3, Video, Package, Sparkles,
+  CalendarIcon, Music, Disc3, Video, VideoOff, Package, Sparkles,
   ChevronRight, ChevronLeft, Building2, Globe, Megaphone,
-  StickyNote, Check, Plus,
+  StickyNote, Check, Plus, Captions, ChevronDown,
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader,
@@ -26,7 +26,7 @@ import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
-import { type ReleaseConfig, type SingleConfig } from '@/lib/releaseTimelineTemplates';
+import { type ReleaseConfig, type SingleConfig, type VideoType } from '@/lib/releaseTimelineTemplates';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -43,8 +43,15 @@ interface SingleRow {
   trackId?: string;
   name: string;
   date?: Date;
-  hasVideo: boolean;
+  videoType: VideoType;
 }
+
+const VIDEO_TYPE_OPTIONS: { value: VideoType; label: string; icon: typeof Video; className: string }[] = [
+  { value: 'none', label: 'Sin video', icon: VideoOff, className: 'text-muted-foreground' },
+  { value: 'videoclip', label: 'Videoclip', icon: Video, className: 'text-green-600' },
+  { value: 'visualiser', label: 'Visualiser', icon: Sparkles, className: 'text-purple-500' },
+  { value: 'videolyric', label: 'Videolyric', icon: Captions, className: 'text-blue-500' },
+];
 
 interface CronogramaSetupWizardProps {
   open: boolean;
@@ -249,20 +256,47 @@ function SingleRowEditor({
             </PopoverContent>
           </Popover>
 
-          <button
-            type="button"
-            onClick={() => onChange({ ...row, hasVideo: !row.hasVideo })}
-            className={cn(
-              'flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors',
-              row.hasVideo
-                ? 'bg-primary/15 text-primary font-medium'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-            )}
-            title={row.hasVideo ? 'Con videoclip' : 'Sin videoclip'}
-          >
-            <Video className="w-3.5 h-3.5" />
-            {row.hasVideo ? 'Videoclip' : 'Sin video'}
-          </button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  'flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors',
+                  row.videoType !== 'none'
+                    ? 'bg-primary/15 font-medium'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                  VIDEO_TYPE_OPTIONS.find(o => o.value === row.videoType)?.className,
+                )}
+              >
+                {(() => {
+                  const opt = VIDEO_TYPE_OPTIONS.find(o => o.value === row.videoType) || VIDEO_TYPE_OPTIONS[0];
+                  const Icon = opt.icon;
+                  return <><Icon className="w-3.5 h-3.5" />{opt.label}<ChevronDown className="w-3 h-3 opacity-50" /></>;
+                })()}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-40 p-1" align="start">
+              {VIDEO_TYPE_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => onChange({ ...row, videoType: opt.value })}
+                    className={cn(
+                      'flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-accent transition-colors',
+                      row.videoType === opt.value && 'bg-accent font-medium',
+                      opt.className,
+                    )}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {opt.label}
+                    {row.videoType === opt.value && <Check className="w-3 h-3 ml-auto" />}
+                  </button>
+                );
+              })}
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
     </div>
@@ -323,7 +357,7 @@ export default function CronogramaSetupWizard({
     setSingleRows((prev) => {
       if (numSingles <= 0) return [];
       const next = [...prev];
-      while (next.length < numSingles) next.push({ name: '', trackId: undefined, date: undefined, hasVideo: false });
+      while (next.length < numSingles) next.push({ name: '', trackId: undefined, date: undefined, videoType: 'none' });
       return next.slice(0, numSingles);
     });
   }, [numSingles]);
@@ -339,7 +373,7 @@ export default function CronogramaSetupWizard({
             name: r.name || undefined,
             date: r.date || releaseDate,
             trackId: r.trackId || undefined,
-            hasVideo: r.hasVideo || undefined,
+            videoType: r.videoType !== 'none' ? r.videoType : undefined,
           }))
         : undefined;
 
