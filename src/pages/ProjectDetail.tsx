@@ -121,7 +121,7 @@ export default function ProjectDetail() {
   const [project, setProject] = useState<Project | null>(null);
   const [artist, setArtist] = useState<Artist | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
-  const [team, setTeam] = useState<{ id: string; full_name: string; role: string | null }[]>([]);
+  const [team, setTeam] = useState<{ id: string; full_name: string; role: string | null; type: 'profile' | 'contact'; contactRole?: string; avatarUrl?: string; category?: string; profileId?: string; contactId?: string }[]>([]);
   const [budgets, setBudgets] = useState<any[]>([]);
   const [contracts, setContracts] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
@@ -879,7 +879,7 @@ export default function ProjectDetail() {
           supabase.from('contracts').select('id, title, status, file_path').eq('project_id', id).order('created_at', { ascending: false }),
           supabase.from('documents').select('id, title, file_url, category').eq('project_id', id).order('created_at', { ascending: false }),
           supabase.from('solicitudes').select('id, nombre_solicitante, estado, fecha_creacion').eq('project_id', id).order('fecha_creacion', { ascending: false }),
-          supabase.from('project_team').select('id, role, profile_id, contact_id, profiles:profile_id(full_name), contacts:contact_id(name)').eq('project_id', id),
+          supabase.from('project_team').select('id, role, profile_id, contact_id, profiles:profile_id(full_name, stage_name, avatar_url), contacts:contact_id(name, stage_name, category, role)').eq('project_id', id),
         ]);
         if (bRes.error) throw bRes.error;
         if (cRes.error) throw cRes.error;
@@ -890,11 +890,17 @@ export default function ProjectDetail() {
         setContracts(cRes.data || []);
         setDocuments(dRes.data || []);
         setSolicitudes(sRes.data || []);
-        // Map team members from profiles or contacts
+        // Map team members from profiles or contacts with extended data
         const teamData = (tRes.data || []).map((t: any) => ({
           id: t.id,
-          full_name: t.profiles?.full_name || t.contacts?.name || 'Sin nombre',
-          role: t.role
+          full_name: t.profiles?.stage_name || t.profiles?.full_name || t.contacts?.stage_name || t.contacts?.name || 'Sin nombre',
+          role: t.role,
+          type: (t.profile_id ? 'profile' : 'contact') as 'profile' | 'contact',
+          contactRole: t.contacts?.role || undefined,
+          avatarUrl: t.profiles?.avatar_url || undefined,
+          category: t.contacts?.category || undefined,
+          profileId: t.profile_id || undefined,
+          contactId: t.contact_id || undefined,
         }));
         setTeam(teamData);
       } catch (e) {
@@ -1411,71 +1417,118 @@ export default function ProjectDetail() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-3">
-                {team.map((member) => (
-                  <div key={member.id} className="flex items-center gap-3 group">
-                    <Avatar className="w-8 h-8">
-                      <AvatarFallback className="text-xs">
-                        {member.full_name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{member.full_name}</p>
-                      {editingTeamMemberId === member.id ? (
-                        <div className="flex items-center gap-1 mt-1">
-                          <Input
-                            value={editingTeamMemberRole}
-                            onChange={(e) => setEditingTeamMemberRole(e.target.value)}
-                            className="h-6 text-xs py-0 px-2"
-                            placeholder="Rol en este proyecto..."
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleUpdateTeamMemberRole(member.id);
-                              if (e.key === 'Escape') setEditingTeamMemberId(null);
-                            }}
-                          />
-                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleUpdateTeamMemberRole(member.id)}>
-                            <Check className="h-3 w-3" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditingTeamMemberId(null)}>
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <p 
-                          className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
-                          onClick={() => {
-                            setEditingTeamMemberId(member.id);
-                            setEditingTeamMemberRole(member.role || '');
-                          }}
-                        >
-                          {member.role || 'Sin rol asignado (clic para editar)'}
-                        </p>
-                      )}
+              <div className="space-y-4">
+                {(() => {
+                  // Group team by role
+                  const groups = new Map<string, typeof team>();
+                  team.forEach(member => {
+                    const key = member.role || '__no_role__';
+                    if (!groups.has(key)) groups.set(key, []);
+                    groups.get(key)!.push(member);
+                  });
+                  const sorted = [...groups.entries()].sort((a, b) => {
+                    if (a[0] === '__no_role__') return 1;
+                    if (b[0] === '__no_role__') return -1;
+                    return a[0].localeCompare(b[0]);
+                  });
+                  return sorted.map(([role, members]) => (
+                    <div key={role} className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          {role === '__no_role__' ? 'Sin rol asignado' : role}
+                        </span>
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                          {members.length}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        {members.map((member) => (
+                          <div key={member.id} className="flex items-center gap-2.5 group rounded-md px-2 py-1.5 hover:bg-muted/50 transition-colors">
+                            <div className="relative">
+                              <Avatar className={cn("w-8 h-8", member.type === 'profile' ? 'ring-2 ring-primary/30' : 'ring-1 ring-border')}>
+                                {member.avatarUrl && <AvatarImage src={member.avatarUrl} alt={member.full_name} />}
+                                <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                                  {member.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="absolute -bottom-0.5 -right-0.5 bg-background rounded-full p-px">
+                                {member.type === 'profile' ? (
+                                  <CheckCircle2 className="h-3 w-3 text-primary" />
+                                ) : (
+                                  <User className="h-3 w-3 text-muted-foreground" />
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{member.full_name}</p>
+                              {(member.contactRole || member.category) && (
+                                <p className="text-[11px] text-muted-foreground truncate">
+                                  {member.contactRole || member.category}
+                                </p>
+                              )}
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => {
+                                  setEditingTeamMemberId(member.id);
+                                  setEditingTeamMemberRole(member.role || '');
+                                }}>
+                                  Editar rol en proyecto
+                                </DropdownMenuItem>
+                                {(member.profileId || member.contactId) && (
+                                  <DropdownMenuItem onClick={() => {
+                                    setSelectedMember({
+                                      id: (member.profileId || member.contactId)!,
+                                      type: member.type
+                                    });
+                                  }}>
+                                    Ver perfil
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem 
+                                  className="text-destructive"
+                                  onClick={() => handleRemoveTeamMember(member.id)}
+                                >
+                                  Quitar del equipo
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Inline role editing */}
+                      {members.some(m => editingTeamMemberId === m.id) && (() => {
+                        const member = members.find(m => editingTeamMemberId === m.id)!;
+                        return (
+                          <div className="flex items-center gap-1 pl-10">
+                            <Input
+                              value={editingTeamMemberRole}
+                              onChange={(e) => setEditingTeamMemberRole(e.target.value)}
+                              className="h-7 text-xs py-0 px-2"
+                              placeholder="Rol en este proyecto..."
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleUpdateTeamMemberRole(member.id);
+                                if (e.key === 'Escape') setEditingTeamMemberId(null);
+                              }}
+                            />
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleUpdateTeamMemberRole(member.id)}>
+                              <Check className="h-3 w-3" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingTeamMemberId(null)}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        );
+                      })()}
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => {
-                          setEditingTeamMemberId(member.id);
-                          setEditingTeamMemberRole(member.role || '');
-                        }}>
-                          Editar rol
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="text-destructive"
-                          onClick={() => handleRemoveTeamMember(member.id)}
-                        >
-                          Quitar del equipo
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                ))}
+                  ));
+                })()}
                 <Button variant="outline" size="sm" className="w-full" onClick={() => setOpenAddMember(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Añadir miembro
