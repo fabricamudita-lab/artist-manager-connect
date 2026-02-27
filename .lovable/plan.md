@@ -1,170 +1,93 @@
 
 
-## Analytics Module - Complete Redesign (Phase 1)
+## Mejora de "Equipo involucrado" en ProjectDetail
 
-This plan covers the first implementation phase following the priority hierarchy: global filters, KPIs with variations, main revenue chart, booking pipeline, and artist/source breakdown. The remaining sections (geographic, contracts, royalties, forecasting, export) will be implemented in subsequent phases.
+### Problema actual
+La seccion "Equipo involucrado" muestra una lista plana de miembros sin organizacion. Cuando hay equipo asignado, no se agrupa por roles ni categorias, dificultando ver quien hace que en el proyecto.
 
-### Scope - Phase 1
+### Solucion
 
-1. **Global filter system** (period, artist, source)
-2. **8 KPI cards** with period-over-period variation
-3. **Revenue over time chart** (stacked bars + trend line)
-4. **Artist breakdown + Source distribution** (horizontal bars + donut)
-5. **Booking pipeline funnel**
-6. **Event profitability table**
-7. **Alert banners** (overdue payments, low conversion, inactivity)
+Redisenar la seccion de equipo para:
+1. Agrupar miembros por su rol en el proyecto
+2. Mostrar avatares compactos con indicadores de tipo (perfil vs contacto)
+3. Permitir edicion de rol inline
+4. Mostrar miembros sin rol bajo "Sin rol asignado"
 
----
+### Cambios
 
-### Architecture
+#### 1. Mejorar la query de datos (`ProjectDetail.tsx` - linea ~882)
 
-The current analytics is a single page (`Analytics.tsx`) with one hook (`useAnalytics.ts`) and one chart component file (`AnalyticsCharts.tsx`). This will be replaced with:
+Ampliar la query de `project_team` para traer mas datos del contacto/perfil:
+- De contactos: `name, stage_name, category, role` (el campo `role` del contacto como referencia)
+- De perfiles: `full_name, stage_name, avatar_url`
 
+Esto permite mostrar avatares reales y usar la categoria/rol del contacto como informacion complementaria.
+
+#### 2. Actualizar el estado de `team` para incluir mas campos
+
+Cambiar la interfaz del estado `team` para incluir:
+- `type`: 'profile' | 'contact' (para diferenciar visualmente)
+- `contactRole`: rol del contacto en la agenda (ej: "Tecnico de sonido")
+- `projectRole`: rol asignado en este proyecto especificamente
+- `avatarUrl`: para mostrar avatar real si existe
+- `category`: categoria del contacto (ej: "tecnico", "management")
+
+#### 3. Redisenar la seccion de equipo (lineas 1397-1486)
+
+Reemplazar la lista plana con una vista agrupada:
+
+- **Agrupacion por rol de proyecto**: los miembros se agrupan segun el campo `role` de `project_team`. Cada grupo muestra un encabezado con el nombre del rol y el numero de miembros.
+- **Miembros sin rol**: aparecen bajo la seccion "Sin rol asignado" al final.
+- **Vista compacta por defecto**: avatares en miniatura (32px) con nombre y rol del contacto como subtitulo.
+- **Acciones**: menu contextual con "Editar rol en proyecto", "Ver perfil" y "Quitar del equipo".
+- **Boton "Anadir miembro"** siempre visible al final.
+
+Layout visual:
 ```text
-src/
-  pages/Analytics.tsx              -- Page with filters + section layout
-  hooks/useAnalyticsFilters.ts     -- Filter state (period, artist, source, etc.)
-  hooks/useAnalyticsData.ts        -- Main data hook, replaces useAnalytics.ts
-  components/analytics/
-    AnalyticsFilters.tsx            -- Sticky filter bar
-    AnalyticsAlerts.tsx             -- Warning banners
-    KPICards.tsx                    -- 8 KPI cards with variation
-    RevenueTimeChart.tsx            -- Stacked bar + line chart
-    ArtistBreakdownChart.tsx        -- Horizontal bars by artist
-    SourceDistributionChart.tsx     -- Donut chart by source
-    BookingPipelineFunnel.tsx       -- Funnel visualization
-    EventProfitabilityTable.tsx     -- Sortable table with margin colors
-    AnalyticsEmptyState.tsx         -- Empty state component
-    analyticsUtils.ts              -- Formatting, color helpers
+Equipo involucrado                    [Users icon]
+--------------------------------------------
+Direccion (2)
+  [Avatar] Maria Garcia - Manager
+  [Avatar] Juan Lopez - Director artistico
+
+Produccion (1)  
+  [Avatar] Ana Martin - Tecnico de sonido
+
+Sin rol asignado (1)
+  [Avatar] Carlos Ruiz
+
+[+ Anadir miembro]
 ```
 
-### Data Sources (all existing tables, no migrations needed)
+### Detalle tecnico
 
-| Section | Tables queried |
-|---------|---------------|
-| KPIs - Revenue | `booking_offers` (fee, estado, phase), `transactions` (income/expense), `sync_offers` (sync_fee, master_fee), `platform_earnings` (amount) |
-| KPIs - Activity | `booking_offers` (count, fee avg, phase conversion) |
-| KPIs - Pending | `booking_offers` (estado_facturacion) |
-| Revenue chart | Same as KPIs, grouped by month/quarter |
-| Artist breakdown | `booking_offers` joined with `artists` |
-| Source distribution | Aggregated from booking + sync + royalties |
-| Pipeline | `booking_offers` grouped by `phase` |
-| Profitability | `booking_offers` + `booking_expenses` |
+**Query ampliada:**
+```typescript
+supabase.from('project_team')
+  .select('id, role, profile_id, contact_id, profiles:profile_id(full_name, stage_name, avatar_url), contacts:contact_id(name, stage_name, category, role)')
+  .eq('project_id', id)
+```
 
-### Technical Details
+**Agrupacion en el render:**
+```typescript
+const groupedTeam = useMemo(() => {
+  const groups = new Map<string, typeof team>();
+  team.forEach(member => {
+    const key = member.role || '__no_role__';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(member);
+  });
+  // Sort: named roles first, "sin rol" last
+  const sorted = [...groups.entries()].sort((a, b) => {
+    if (a[0] === '__no_role__') return 1;
+    if (b[0] === '__no_role__') return -1;
+    return a[0].localeCompare(b[0]);
+  });
+  return sorted;
+}, [team]);
+```
 
-#### 1. Filter System (`useAnalyticsFilters.ts`)
+**Archivos modificados:**
+- `src/pages/ProjectDetail.tsx`: ampliar query, actualizar estado team, redisenar seccion de equipo con agrupacion por roles
 
-A React context/hook managing filter state with URL sync:
-
-- **Period**: enum presets + custom date range. Default: last 12 months. Computes `startDate`, `endDate`, and the equivalent "previous period" dates for variation calculation.
-- **Artist**: `string[]` from `artists` table. Empty = all.
-- **Source**: `'all' | 'booking' | 'sync' | 'royalties'`
-- **Status**: `'all' | 'confirmed' | 'negotiation' | 'cancelled'`
-
-Territory filter deferred to Phase 2 (requires geocoding data enrichment).
-
-#### 2. Main Data Hook (`useAnalyticsData.ts`)
-
-Single hook that accepts filters and returns all computed metrics. Uses `Promise.all` for parallel Supabase queries. Computes:
-
-- Current period totals and previous period totals (for variation %)
-- Monthly/quarterly bucketing
-- Pipeline phase counts with values
-- Per-event profitability (join booking_offers + booking_expenses)
-
-Key formulas:
-- **Gross revenue**: SUM of `fee` from confirmed/facturado bookings + `sync_fee + master_fee` from closed syncs + `amount` from platform_earnings
-- **Net revenue**: Gross - SUM of booking_expenses - commissions (comision_euros)
-- **Conversion rate**: COUNT(phase IN confirmado,facturado) / COUNT(all phases except cancelled)
-- **Average fee**: SUM(fee) / COUNT(confirmed bookings)
-- **Variation %**: `((current - previous) / previous) * 100`
-
-#### 3. KPI Cards (`KPICards.tsx`)
-
-8 cards in 2 rows of 4. Each card shows:
-- Icon + label
-- Large formatted number (e.g., "15.000 EUR")
-- Variation badge: green up arrow or red down arrow with %
-- Optional subtitle (e.g., "32 conciertos" under concert revenue)
-
-Number formatting: `new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' })` for money, `new Intl.NumberFormat('es-ES')` for counts.
-
-#### 4. Revenue Over Time (`RevenueTimeChart.tsx`)
-
-Using Recharts (already installed):
-- `ComposedChart` with stacked `Bar` components (booking, sync, royalties) + `Line` for total trend
-- Toggle: month / quarter / year granularity
-- Optional "compare with previous period" toggle showing lighter bars
-- Custom tooltip with full breakdown
-
-#### 5. Artist Breakdown (`ArtistBreakdownChart.tsx`)
-
-Horizontal `BarChart` from Recharts:
-- Data: artist name + total revenue + % of grand total
-- Sorted descending
-- Top 5 shown, expandable "Ver todos"
-- Colors from `artist.brand_color` or a default palette
-
-#### 6. Source Distribution (`SourceDistributionChart.tsx`)
-
-`PieChart` with inner radius (donut):
-- Segments: Conciertos, Sincronizaciones, Royalties, Otros
-- Legend with EUR amounts and %
-- Click on segment sets the source filter
-
-#### 7. Booking Pipeline (`BookingPipelineFunnel.tsx`)
-
-Custom funnel visualization using stacked horizontal bars (no extra dependency):
-- Phases: interes -> oferta -> negociacion -> confirmado -> facturado
-- Each bar shows: phase name, count, total EUR value
-- Between bars: conversion rate percentage
-- Color gradient from light to dark green
-
-#### 8. Event Profitability (`EventProfitabilityTable.tsx`)
-
-Sortable table using existing `Table` components:
-- Columns: Evento | Fee bruto | Gastos | Comisiones | Fee neto | Margen %
-- Margin color coding: green (>40%), yellow (20-40%), red (<20%)
-- Data from `booking_offers` LEFT JOIN `booking_expenses` (aggregated)
-- Default sort by margin descending
-
-#### 9. Alert Banners (`AnalyticsAlerts.tsx`)
-
-Computed from the data:
-- Overdue payments: bookings with `estado_facturacion = 'pendiente'` and `fecha < today - 7 days`
-- Low conversion: if current conversion rate dropped >20% vs previous period
-- Inactivity: no confirmed bookings in next 60 days
-
-#### 10. Empty States and Loading
-
-- Skeleton loading for all sections (already have `Skeleton` component)
-- Empty state with illustration + CTA when no data exists
-
-### Files Modified
-
-| File | Action |
-|------|--------|
-| `src/pages/Analytics.tsx` | **Rewrite** - new layout with filters + sections |
-| `src/hooks/useAnalytics.ts` | **Rewrite** -> `useAnalyticsData.ts` (keep old for backward compat) |
-| `src/components/AnalyticsCharts.tsx` | **Delete** - replaced by individual components |
-| `src/hooks/useAnalyticsFilters.ts` | **New** |
-| `src/components/analytics/*.tsx` | **New** - 9 new component files |
-
-### No Database Changes Required
-
-All data needed already exists in `booking_offers`, `booking_expenses`, `transactions`, `sync_offers`, `platform_earnings`, `artists`, and `contacts`. No migrations needed for Phase 1.
-
-### Phase 2 (future)
-
-- Geographic distribution (requires `pais`/`ciudad` data from booking_offers - already exists)
-- Contract status analysis (from `booking_documents`)
-- Payment timing analysis
-- Royalties deep dive (per-song, per-platform)
-- Sync analysis by type/territory
-- Cost analysis by category
-- Team metrics
-- Revenue forecasting (3 scenarios)
-- PDF export
-- Comparison mode
-- Monthly auto-report
+No se necesitan migraciones de base de datos ni componentes nuevos.
