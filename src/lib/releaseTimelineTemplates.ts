@@ -1,5 +1,7 @@
 import { addDays } from 'date-fns';
 
+export type VideoType = 'none' | 'videoclip' | 'visualiser' | 'videolyric';
+
 export type TaskCondition = 'always' | 'hasVideo' | 'hasPhysical' | 'hasSingles' | 'single1' | 'single2' | 'single3';
 
 export interface TimelineTaskTemplate {
@@ -15,7 +17,7 @@ export interface SingleConfig {
   name?: string;   // Ej: "Single 1" o el título de la canción
   date: Date;      // La fecha exacta de lanzamiento del single
   trackId?: string; // Vínculo al track existente del release
-  hasVideo?: boolean; // Si el single va acompañado de videoclip
+  videoType?: VideoType; // Tipo de contenido audiovisual del single
 }
 
 export interface ReleaseConfig {
