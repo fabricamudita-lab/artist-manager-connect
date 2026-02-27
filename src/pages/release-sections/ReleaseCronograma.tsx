@@ -1653,8 +1653,15 @@ export default function ReleaseCronograma() {
       return {
         ...w,
         tasks: w.tasks.map(t => {
-          if (!t.startDate) return t;
-          return { ...t, startDate: addDays(t.startDate, daysDelta) };
+          const updatedSubtasks = t.subtasks?.map(st => 
+            st.startDate ? { ...st, startDate: addDays(st.startDate, daysDelta) } : st
+          );
+          if (!t.startDate) return updatedSubtasks ? { ...t, subtasks: updatedSubtasks } : t;
+          return { 
+            ...t, 
+            startDate: addDays(t.startDate, daysDelta),
+            ...(updatedSubtasks ? { subtasks: updatedSubtasks } : {}),
+          };
         }),
       };
     }));
