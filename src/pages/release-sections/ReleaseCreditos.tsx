@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, Link2, FileDown, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, Link2, FileDown, Loader2, ChevronUp, ChevronDown, Star, Disc3, Video, Sparkles, Captions } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -191,6 +191,24 @@ export default function ReleaseCreditos() {
 
   const nextTrackNumber = tracks ? Math.max(0, ...tracks.map((t) => t.track_number)) + 1 : 1;
 
+  const handleMoveTrack = async (track: Track, index: number, direction: 'up' | 'down') => {
+    if (!tracks) return;
+    const swapIndex = direction === 'up' ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= tracks.length) return;
+    const other = tracks[swapIndex];
+    // Swap track_numbers
+    const [numA, numB] = [track.track_number, other.track_number];
+    try {
+      await Promise.all([
+        supabase.from('tracks').update({ track_number: numB } as any).eq('id', track.id),
+        supabase.from('tracks').update({ track_number: numA } as any).eq('id', other.id),
+      ]);
+      queryClient.invalidateQueries({ queryKey: ['tracks', id] });
+    } catch {
+      toast.error('Error al reordenar');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -252,11 +270,16 @@ export default function ReleaseCreditos() {
             <Skeleton className="h-32 w-full" />
           ) : tracks && tracks.length > 0 ? (
             <Accordion type="multiple" className="w-full">
-              {tracks.map((track) => (
+              {tracks.map((track, index) => (
                 <TrackCreditsItem
                   key={track.id}
                   track={track}
                   releaseArtistId={release?.artist_id}
+                  releaseStatus={release?.status}
+                  isFirst={index === 0}
+                  isLast={index === tracks.length - 1}
+                  onMoveUp={() => handleMoveTrack(track, index, 'up')}
+                  onMoveDown={() => handleMoveTrack(track, index, 'down')}
                   onEdit={() => {
                     setSelectedTrack(track);
                     setIsEditTrackOpen(true);
@@ -325,11 +348,21 @@ export default function ReleaseCreditos() {
 function TrackCreditsItem({
   track,
   releaseArtistId,
+  releaseStatus,
+  isFirst,
+  isLast,
+  onMoveUp,
+  onMoveDown,
   onEdit,
   onDelete,
 }: {
   track: Track;
   releaseArtistId?: string | null;
+  releaseStatus?: string;
+  isFirst: boolean;
+  isLast: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -382,28 +415,76 @@ function TrackCreditsItem({
     },
   });
 
+  const isPublished = releaseStatus === 'released';
+
+  const videoIcon = track.video_type === 'videoclip' ? Video
+    : track.video_type === 'visualiser' ? Sparkles
+    : track.video_type === 'videolyric' ? Captions
+    : null;
+
   return (
     <AccordionItem value={track.id} data-no-credits={credits.length === 0 ? 'true' : undefined}>
-      <AccordionTrigger className="hover:no-underline">
-        <div className="flex items-center gap-3 flex-1">
-          <span className="text-muted-foreground w-6">{track.track_number}.</span>
-          <span className="font-medium">{track.title}</span>
-          <div className="flex gap-1 ml-auto mr-4">
-            {track.lyrics && (
-              <Badge variant="outline" className="text-xs">
-                <FileText className="w-3 h-3 mr-1" />
-                Letra
-              </Badge>
-            )}
-            {credits.length > 0 && (
-              <Badge variant="secondary" className="text-xs">
-                <Users className="w-3 h-3 mr-1" />
-                {credits.length}
-              </Badge>
-            )}
+      <div className="flex items-center">
+        {/* Reorder arrows */}
+        {!isPublished && (
+          <div className="flex flex-col mr-1">
+            <button
+              type="button"
+              disabled={isFirst}
+              onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
+              className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronUp className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              disabled={isLast}
+              onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
+              className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronDown className="w-4 h-4" />
+            </button>
           </div>
-        </div>
-      </AccordionTrigger>
+        )}
+        <AccordionTrigger className="hover:no-underline flex-1">
+          <div className="flex items-center gap-3 flex-1">
+            <span className="text-muted-foreground w-6">{track.track_number}.</span>
+            <span className="font-medium">{track.title}</span>
+            <div className="flex gap-1 ml-auto mr-4">
+              {track.is_focus_track && (
+                <Badge variant="default" className="text-xs bg-primary/80">
+                  <Star className="w-3 h-3 mr-1" />
+                  Focus
+                </Badge>
+              )}
+              {track.is_single && (
+                <Badge variant="accent" className="text-xs">
+                  <Disc3 className="w-3 h-3 mr-1" />
+                  Single
+                </Badge>
+              )}
+              {videoIcon && (
+                <Badge variant="outline" className="text-xs">
+                  {React.createElement(videoIcon, { className: 'w-3 h-3 mr-1' })}
+                  {track.video_type === 'videoclip' ? 'Videoclip' : track.video_type === 'visualiser' ? 'Visualiser' : 'Videolyric'}
+                </Badge>
+              )}
+              {track.lyrics && (
+                <Badge variant="outline" className="text-xs">
+                  <FileText className="w-3 h-3 mr-1" />
+                  Letra
+                </Badge>
+              )}
+              {credits.length > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  <Users className="w-3 h-3 mr-1" />
+                  {credits.length}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </AccordionTrigger>
+      </div>
       <AccordionContent>
         <div className="pl-9 space-y-4">
           {/* Track Actions */}

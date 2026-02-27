@@ -6500,6 +6500,8 @@ export type Database = {
           duration: number | null
           explicit: boolean | null
           id: string
+          is_focus_track: boolean
+          is_single: boolean
           isrc: string | null
           lyrics: string | null
           notes: string | null
@@ -6511,12 +6513,15 @@ export type Database = {
           title: string
           track_number: number
           updated_at: string
+          video_type: string | null
         }
         Insert: {
           created_at?: string
           duration?: number | null
           explicit?: boolean | null
           id?: string
+          is_focus_track?: boolean
+          is_single?: boolean
           isrc?: string | null
           lyrics?: string | null
           notes?: string | null
@@ -6528,12 +6533,15 @@ export type Database = {
           title: string
           track_number?: number
           updated_at?: string
+          video_type?: string | null
         }
         Update: {
           created_at?: string
           duration?: number | null
           explicit?: boolean | null
           id?: string
+          is_focus_track?: boolean
+          is_single?: boolean
           isrc?: string | null
           lyrics?: string | null
           notes?: string | null
@@ -6545,6 +6553,7 @@ export type Database = {
           title?: string
           track_number?: number
           updated_at?: string
+          video_type?: string | null
         }
         Relationships: [
           {
