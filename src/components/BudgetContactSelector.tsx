@@ -128,10 +128,18 @@ export function BudgetContactSelector({
         .order("name");
 
       if (contactsError) throw contactsError;
-      const mappedContacts: Contact[] = (contactsData || []).map((c) => ({
+      const allContacts: Contact[] = (contactsData || []).map((c) => ({
         ...c,
         type: "contact" as const,
       }));
+      // Deduplicate by name (case-insensitive), keep first occurrence
+      const seenNames = new Set<string>();
+      const mappedContacts = allContacts.filter((c) => {
+        const key = (c.name || "").toLowerCase().trim();
+        if (seenNames.has(key)) return false;
+        seenNames.add(key);
+        return true;
+      });
       setContacts(mappedContacts);
 
       const artistContactMap = new Map<string, string>();
@@ -253,6 +261,22 @@ export function BudgetContactSelector({
     if (!newName.trim()) return;
     setSaving(true);
     try {
+      // Check for existing contact with same name (case-insensitive)
+      const { data: existing } = await supabase
+        .from("contacts")
+        .select("id")
+        .ilike("name", newName.trim())
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        onValueChange(existing.id);
+        setCreatingNew(false);
+        setOpen(false);
+        toast.success(`Contacto "${newName.trim()}" ya existía, asignado`);
+        return;
+      }
+
       const { data: auth } = await supabase.auth.getUser();
       const userId = auth.user?.id;
       if (!userId) throw new Error("No authenticated user");
