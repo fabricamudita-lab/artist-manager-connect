@@ -1578,8 +1578,26 @@ export default function ReleaseCronograma() {
     workflowId: string,
     taskId: string,
     newStartDate: Date,
-    newEstimatedDays: number
+    newEstimatedDays: number,
+    subtaskId?: string
   ) => {
+    // If updating a subtask, find it inside the parent task
+    if (subtaskId) {
+      pushUndo();
+      setWorkflows(prev => prev.map(w => 
+        w.id === workflowId 
+          ? { ...w, tasks: w.tasks.map(t => 
+              t.id === taskId && t.subtasks
+                ? { ...t, subtasks: t.subtasks.map(st => 
+                    st.id === subtaskId ? { ...st, startDate: newStartDate, estimatedDays: newEstimatedDays } : st
+                  )}
+                : t
+            )}
+          : w
+      ));
+      return;
+    }
+
     const workflow = workflows.find(w => w.id === workflowId);
     const task = workflow?.tasks.find(t => t.id === taskId);
     
