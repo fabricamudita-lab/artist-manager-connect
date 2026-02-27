@@ -1,35 +1,26 @@
 
 
-## Deduplicar contactos en el selector de presupuestos
+## IRPF 0% por defecto en Transporte, Hospedaje y Dietas
 
 ### Problema
-Al crear "La Turbina" dos veces desde el formulario inline, ahora aparecen dos entradas identicas en la lista de contactos del selector. No hay control de duplicados ni al crear ni al mostrar.
+Al agregar un nuevo elemento en las categorias Transporte, Hospedaje o Dietas, el IRPF se establece en 15% por defecto. Estas categorias corresponden a gastos suplidos que no llevan retencion, por lo que el valor correcto por defecto deberia ser 0%.
 
 ### Solucion
 
-**Archivo**: `src/components/BudgetContactSelector.tsx`
+**Archivo**: `src/components/BudgetDetailsDialog.tsx`
 
-1. **Prevenir duplicados al crear**: Antes de insertar un nuevo contacto, buscar en la tabla `contacts` si ya existe uno con el mismo nombre (case-insensitive). Si existe, seleccionarlo directamente en vez de crear otro.
+En la funcion `addNewItem` (linea 1623), antes de insertar el nuevo item, consultar el nombre de la categoria usando `budgetCategories` y determinar si el IRPF debe ser 0% o 15%:
 
-2. **Deduplicar la lista mostrada**: Como medida defensiva, filtrar contactos duplicados por nombre en la lista visible, manteniendo solo el primero de cada nombre. Esto cubre datos historicos que ya estan duplicados.
-
-### Detalle tecnico
-
-En `handleCreateContact`, antes del `insert`:
 ```typescript
-const { data: existing } = await supabase
-  .from("contacts")
-  .select("id")
-  .ilike("name", newName.trim())
-  .limit(1)
-  .maybeSingle();
+const addNewItem = async (categoryId: string) => {
+  // Categorias exentas de IRPF por defecto
+  const category = budgetCategories.find(c => c.id === categoryId);
+  const categoryName = (category?.name || '').toLowerCase().trim();
+  const zeroIrpfCategories = ['transporte', 'hospedaje', 'dietas'];
+  const defaultIrpf = zeroIrpfCategories.includes(categoryName) ? 0 : 15;
 
-if (existing) {
-  onValueChange(existing.id);
-  // cerrar sin crear
-  return;
-}
+  // ... insert con irpf_percentage: defaultIrpf en vez de 15
+};
 ```
 
-Para la lista visible, deduplicar por nombre al renderizar usando un `Set` de nombres ya mostrados, o mejor, deduplicar en el `useMemo` / despues del fetch con un filtro por nombre unico.
-
+Cambio minimo: 4 lineas nuevas y 1 linea editada en la funcion `addNewItem`. El usuario siempre puede modificar el IRPF manualmente despues.
