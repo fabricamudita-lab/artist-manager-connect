@@ -1,71 +1,90 @@
 
 
-## Mejoras UI para anclas, bloqueo y dependencias en el Cronograma
+## Wizard de Cronograma Enriquecido con Vinculacion de Singles a Tracks
 
-### 1. Tooltip explicativo en "Anclada a" (ya resuelto)
+### Objetivo
+Transformar el wizard actual (que solo tiene 6 campos basicos) en un formulario multi-paso mas completo que permita configurar informacion adicional opcional y, crucialmente, vincular cada single a una cancion existente del release (tabla `tracks`).
 
-El componente `MultiAnchorSelector` ya soporta multiples anclas con un badge que muestra el conteo y un popover interactivo para anadir/quitar. No se requieren cambios en esta funcionalidad -- ya funciona como multi-select.
+### Arquitectura: Wizard Multi-Paso
 
-**Mejora adicional**: Anadir un tooltip al badge del trigger que muestre los nombres de las tareas ancladas al hacer hover, sin necesidad de abrir el popover.
+El dialog pasara de un formulario plano a un wizard con **3 pasos** navegables con botones Anterior/Siguiente:
 
-**Archivo**: `src/components/lanzamientos/MultiAnchorSelector.tsx`
-- Envolver el `PopoverTrigger` en un `Tooltip` que muestre los nombres de las tareas ancladas (usando `getTaskName`) cuando `value.length >= 1`.
+**Paso 1 - Fechas y Formato** (lo que ya existe)
+- Fecha de Lanzamiento Digital (obligatorio)
+- Fecha de Venta Fisica (opcional)
+- Fabricacion fisica toggle
+- Incluir videoclip toggle
 
-### 2. Indicador visual de "bloqueada" (icono candado)
+**Paso 2 - Canciones y Singles**
+- Numero de canciones (selector actual)
+- Numero de singles (selector actual)
+- **Nuevo**: Por cada single seleccionado, mostrar una fila donde el usuario puede:
+  - Vincular el single a una cancion existente del release (combobox con los tracks cargados via `useTracks`)
+  - O escribir un nombre libre si la cancion aun no existe en el tracklist
+  - Opcionalmente asignar una fecha especifica para ese single (date picker inline)
+- Se pre-populan los nombres de los tracks existentes en el combobox
 
-Cuando una tarea tiene `anchoredTo` configurado y al menos una de sus tareas predecesoras tiene estado `pendiente` o `en_proceso`, mostrar un icono de candado gris junto al nombre de la tarea en la vista Lista.
+**Paso 3 - Opciones Adicionales** (todo opcional)
+- Distribuidor (input texto, ej: "DistroKid", "TuneCore", "The Orchard")
+- Sello discografico (input texto)
+- Territorio principal (select: Mundial, Espana, LATAM, USA, Europa)
+- Prioridad de pitching editorial (toggle: si/no, genera una tarea extra de pitching con mas margen)
+- Notas adicionales para el cronograma (textarea)
 
-**Archivo**: `src/pages/release-sections/ReleaseCronograma.tsx`
-- Crear una funcion helper `isTaskBlocked(task, allTasks)` que recorra `task.anchoredTo`, busque cada tarea predecesora en todos los workflows, y devuelva `true` si alguna tiene status distinto de `completado`.
-- En la celda del nombre de la tarea (linea ~413), anadir condicionalmente un icono `Lock` de lucide-react en gris despues del nombre cuando `isTaskBlocked` sea verdadero.
-- Envolver el icono en un `Tooltip` con texto "Bloqueada: esperando tareas predecesoras".
+### Cambios en la interfaz `ReleaseConfig`
 
-### 3. Lineas de dependencia en el Gantt
+Ampliar el tipo en `releaseTimelineTemplates.ts`:
 
-Dibujar lineas punteadas SVG entre barras ancladas en la vista Gantt para visualizar las dependencias.
+```text
+interface ReleaseConfig {
+  releaseDate: Date;
+  physicalDate?: Date | null;
+  numSongs: number;
+  numSingles: number;
+  hasVideo: boolean;
+  hasPhysical: boolean;
+  singleDates?: SingleConfig[];    // ya existe
+  // Nuevos campos opcionales:
+  distributor?: string;
+  label?: string;
+  territory?: string;
+  priorityPitching?: boolean;
+  notes?: string;
+}
 
-**Archivo**: `src/components/lanzamientos/GanttChart.tsx`
-- Despues de renderizar todas las barras de tareas dentro de cada workflow (linea ~735), anadir un contenedor SVG overlay con `position: absolute` que cubra todo el area del Gantt.
-- Para cada tarea con `anchoredTo`, calcular:
-  - La posicion X del final de la barra predecesora (usando `getBarPosition`)
-  - La posicion X del inicio de la barra dependiente
-  - La posicion Y de ambas barras (basada en el indice de la tarea en la lista)
-- Dibujar una linea SVG `<path>` punteada gris (`stroke-dasharray`) desde el punto final de la predecesora hasta el punto inicial de la dependiente.
-- Usar un enfoque simplificado: un `<svg>` overlay absoluto sobre el area de barras, con lineas calculadas a partir de porcentajes.
-
-**Implementacion tecnica**:
-- Recopilar las posiciones de las barras durante el renderizado usando un Map de `taskId -> { left%, top (row index) }`
-- Renderizar las lineas como `<line>` o `<path>` SVG con `stroke: gray`, `stroke-dasharray: 4 4`, `stroke-width: 1`
-- Las lineas solo se renderizan entre tareas visibles del mismo workflow expandido (para simplificar, se pueden dibujar tambien entre workflows usando coordenadas globales)
-
-### 4. Alerta de riesgo de fabricacion
-
-Detectar cuando el workflow de fabricacion tiene la tarea "Envio a Fabrica" sin fecha asignada y la fecha de salida digital (`release_date`) esta a menos de 10 semanas.
-
-**Archivo**: `src/pages/release-sections/ReleaseCronograma.tsx`
-- Crear un `useMemo` que:
-  1. Busque el workflow `fabricacion`
-  2. Busque una tarea cuyo nombre contenga "Envio a Fabrica" o cuyo id contenga "fab-envio" o "fab-1"
-  3. Verifique si `startDate` es null
-  4. Verifique si `release?.release_date` existe y esta a menos de 70 dias (10 semanas)
-  5. Devuelva un objeto `{ show: boolean }` cuando ambas condiciones se cumplan
-- Renderizar un `Alert` con variante `destructive` justo despues del progress bar (linea ~2239), antes del contenido de vista:
+interface SingleConfig {
+  name?: string;
+  date: Date;
+  trackId?: string;   // NUEVO: vinculo al track existente
+}
 ```
-El proceso de fabricacion fisica requiere minimo 8-10 semanas.
-Revisa las fechas de Envio a Fabrica.
-```
-- Usar el componente `Alert` + `AlertDescription` existente con un icono `AlertTriangle`.
 
-### Resumen de archivos a modificar
+### Vinculacion Singles a Tracks
+
+- El wizard recibira una nueva prop `tracks` con los tracks del release (ya se cargan con `useTracks` en ReleaseCronograma)
+- En el paso 2, al seleccionar N singles, aparecen N filas con un combobox que lista los tracks disponibles
+- Al seleccionar un track, se usa su titulo como nombre del single y se guarda el `trackId`
+- Si el track tiene ISRC, se muestra como referencia visual
+- La vinculacion fluye hasta `generateTimelineFromConfig` que ya soporta `singleDates[].name`
+
+### Archivos a modificar
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/lanzamientos/MultiAnchorSelector.tsx` | Anadir tooltip con nombres de anclas al trigger |
-| `src/pages/release-sections/ReleaseCronograma.tsx` | Icono candado en tareas bloqueadas + alerta fabricacion |
-| `src/components/lanzamientos/GanttChart.tsx` | Lineas de dependencia SVG entre barras ancladas |
+| `src/components/releases/CronogramaSetupWizard.tsx` | Refactorizar en wizard de 3 pasos con estado por paso, anadir combobox de tracks para singles, campos opcionales |
+| `src/lib/releaseTimelineTemplates.ts` | Ampliar `ReleaseConfig` y `SingleConfig` con campos opcionales (`distributor`, `label`, `territory`, `trackId`) |
+| `src/pages/release-sections/ReleaseCronograma.tsx` | Pasar `tracks` como prop al wizard (2 instancias) |
 
-### Lo que NO se toca
-- `handleTaskDateUpdate`, `getFullDependencyChain`, `AnchorDependencyDialog`
-- IDs, `estimatedDays`, orden de tareas
-- Solo se anaden elementos UI informativos
+### Detalles de UI
 
+- El dialog crece a `sm:max-w-2xl` para acomodar el contenido adicional
+- Indicador de pasos en la parte superior (3 circulos con lineas, paso activo resaltado)
+- Boton "Anterior" aparece desde el paso 2
+- Boton "Generar Cronograma" solo aparece en el paso 3
+- Cada paso tiene scroll independiente con `max-h-[60vh] overflow-y-auto`
+- Los campos opcionales del paso 3 usan un estilo mas sutil (labels en `text-muted-foreground`) para que quede claro que son opcionales
+
+### Lo que NO cambia
+- La logica de generacion de tareas (`generateTimelineFromConfig`, `taskApplies`, etc.) no se modifica en su nucleo
+- Los IDs de tareas, `estimatedDays`, y el orden de workflows se mantienen
+- `handleGenerateFromWizard` sigue funcionando igual, solo recibe un `ReleaseConfig` con mas campos opcionales
