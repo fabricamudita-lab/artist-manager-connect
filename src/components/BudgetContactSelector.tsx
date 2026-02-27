@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronsUpDown, Mail, Music, Phone, User } from "lucide-react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { Check, ChevronsUpDown, Loader2, Mail, Music, Phone, Plus, User } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Command,
   CommandEmpty,
@@ -38,7 +39,7 @@ interface ArtistOption {
   name: string;
   legal_name?: string | null;
   iban?: string | null;
-  contactId?: string | null; // mirror contact id
+  contactId?: string | null;
   type: "artist";
 }
 
@@ -71,6 +72,14 @@ export function BudgetContactSelector({
   const [artists, setArtists] = useState<ArtistOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingArtistId, setSavingArtistId] = useState<string | null>(null);
+
+  // Inline create state
+  const [creatingNew, setCreatingNew] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newRole, setNewRole] = useState("");
+  const [saving, setSaving] = useState(false);
+  const searchRef = useRef("");
 
   useEffect(() => {
     void fetchData();
@@ -107,7 +116,6 @@ export function BudgetContactSelector({
     try {
       setLoading(true);
 
-      // Fetch contacts (including mirror contacts for artists)
       const { data: contactsData, error: contactsError } = await supabase
         .from("contacts")
         .select("id, name, email, phone, company, role, iban, artist_id, field_config")
@@ -120,7 +128,6 @@ export function BudgetContactSelector({
       }));
       setContacts(mappedContacts);
 
-      // Map roster artist -> mirror contact (we store roster artist id in field_config.roster_artist_id)
       const artistContactMap = new Map<string, string>();
       for (const c of mappedContacts) {
         const rosterArtistId =
@@ -130,7 +137,6 @@ export function BudgetContactSelector({
         if (rosterArtistId) artistContactMap.set(rosterArtistId, c.id);
       }
 
-      // Fetch artists from roster
       const { data: artistsData, error: artistsError } = await supabase
         .from("artists")
         .select("id, name, stage_name, legal_name, iban")
@@ -157,11 +163,8 @@ export function BudgetContactSelector({
   };
 
   const ensureMirrorContactForArtist = async (artist: ArtistOption) => {
-    // Fast path if we already have it in state
     if (artist.contactId) return artist.contactId;
 
-    // Check DB (in case it was created elsewhere)
-    // NOTE: contacts.artist_id points to profiles in this project; for roster artists we store the link in field_config
     const { data: existingContact, error: existingErr } = await supabase
       .from("contacts")
       .select("id")
@@ -171,7 +174,6 @@ export function BudgetContactSelector({
     if (existingErr) throw existingErr;
     if (existingContact?.id) return existingContact.id;
 
-    // Create mirror contact
     const { data: auth } = await supabase.auth.getUser();
     const userId = auth.user?.id;
     if (!userId) throw new Error("No authenticated user");
@@ -195,7 +197,6 @@ export function BudgetContactSelector({
 
     if (insertErr) throw insertErr;
 
-    // Update local state so checks/selected label work immediately
     setArtists((prev) =>
       prev.map((a) =>
         a.artistId === artist.artistId ? { ...a, contactId: newContact.id } : a
@@ -228,12 +229,122 @@ export function BudgetContactSelector({
     }
   };
 
+  const handleStartCreate = () => {
+    setNewName(searchRef.current || "");
+    setNewEmail("");
+    setNewRole("");
+    setCreatingNew(true);
+  };
+
+  const handleCancelCreate = () => {
+    setCreatingNew(false);
+    setNewName("");
+    setNewEmail("");
+    setNewRole("");
+  };
+
+  const handleCreateContact = async () => {
+    if (!newName.trim()) return;
+    setSaving(true);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = auth.user?.id;
+      if (!userId) throw new Error("No authenticated user");
+
+      const { data: newContact, error } = await supabase
+        .from("contacts")
+        .insert({
+          name: newName.trim(),
+          email: newEmail.trim() || null,
+          role: newRole.trim() || null,
+          created_by: userId,
+        })
+        .select("id, name, email, phone, company, role, iban, artist_id, field_config")
+        .single();
+
+      if (error) throw error;
+
+      setContacts((prev) =>
+        [...prev, { ...(newContact as any), type: "contact" as const }].sort((a, b) =>
+          (a.name || "").localeCompare(b.name || "")
+        )
+      );
+      onValueChange(newContact.id);
+      setCreatingNew(false);
+      setOpen(false);
+      toast.success(`Contacto "${newName.trim()}" creado y asignado`);
+    } catch (e) {
+      console.error(e);
+      toast.error("Error al crear contacto");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const createButton = (
+    <CommandItem
+      value="__create_new__"
+      onSelect={handleStartCreate}
+      className="text-primary"
+    >
+      <Plus className="mr-2 h-4 w-4" />
+      <span className="text-sm font-medium">Crear contacto nuevo</span>
+    </CommandItem>
+  );
+
+  const inlineCreateForm = (
+    <div className="p-3 space-y-2 border-t">
+      <p className="text-xs font-medium text-muted-foreground">Nuevo contacto</p>
+      <Input
+        placeholder="Nombre *"
+        value={newName}
+        onChange={(e) => setNewName(e.target.value)}
+        className="h-8 text-sm"
+        autoFocus
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateContact(); } }}
+      />
+      <Input
+        placeholder="Email (opcional)"
+        value={newEmail}
+        onChange={(e) => setNewEmail(e.target.value)}
+        className="h-8 text-sm"
+        type="email"
+      />
+      <Input
+        placeholder="Rol (opcional)"
+        value={newRole}
+        onChange={(e) => setNewRole(e.target.value)}
+        className="h-8 text-sm"
+      />
+      <div className="flex gap-2 pt-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 text-xs flex-1"
+          onClick={handleCancelCreate}
+          disabled={saving}
+        >
+          Cancelar
+        </Button>
+        <Button
+          size="sm"
+          className="h-7 text-xs flex-1"
+          onClick={handleCreateContact}
+          disabled={!newName.trim() || saving}
+        >
+          {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+          Crear
+        </Button>
+      </div>
+    </div>
+  );
+
   const popoverContentClass =
     "z-50 w-[250px] p-0 bg-popover text-popover-foreground border border-border shadow-md";
 
   if (compact) {
     return (
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) handleCancelCreate(); }}>
         <PopoverTrigger asChild>
           <Button
             variant="ghost"
@@ -281,90 +392,106 @@ export function BudgetContactSelector({
         </PopoverTrigger>
 
         <PopoverContent className={popoverContentClass} align="start">
-          <Command>
-            <CommandInput placeholder="Buscar contacto..." />
-            <CommandList>
-              <CommandEmpty>
-                {loading ? "Cargando..." : "No se encontraron contactos"}
-              </CommandEmpty>
+          {creatingNew ? (
+            inlineCreateForm
+          ) : (
+            <Command>
+              <CommandInput
+                placeholder="Buscar contacto..."
+                onValueChange={(v) => { searchRef.current = v; }}
+              />
+              <CommandList>
+                <CommandEmpty>
+                  {loading ? "Cargando..." : (
+                    <div className="space-y-2 py-2">
+                      <p className="text-sm text-muted-foreground">No se encontraron contactos</p>
+                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleStartCreate}>
+                        <Plus className="h-3 w-3 mr-1" /> Crear contacto
+                      </Button>
+                    </div>
+                  )}
+                </CommandEmpty>
 
-              {artists.length > 0 && (
-                <CommandGroup heading="Artistas del roster">
-                  {artists.map((artist) => (
+                {artists.length > 0 && (
+                  <CommandGroup heading="Artistas del roster">
+                    {artists.map((artist) => (
+                      <CommandItem
+                        key={`artist-${artist.artistId}`}
+                        value={`${artist.name} artista`}
+                        disabled={savingArtistId === artist.artistId}
+                        onSelect={() => {
+                          void handleSelectArtist(artist);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            value && artist.contactId && value === artist.contactId
+                              ? "opacity-100"
+                              : "opacity-0"
+                          )}
+                        />
+                        <div className="flex items-center gap-2">
+                          <Music className="w-3 h-3 text-primary" />
+                          <span className="text-sm font-medium">{artist.name}</span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+
+                <CommandGroup heading="Contactos">
+                  <CommandItem
+                    value="__clear__"
+                    onSelect={() => {
+                      onValueChange(null);
+                      setOpen(false);
+                    }}
+                    className="text-muted-foreground"
+                  >
+                    <span className="text-sm">Sin asignar</span>
+                  </CommandItem>
+
+                  {contacts.map((contact) => (
                     <CommandItem
-                      key={`artist-${artist.artistId}`}
-                      value={`${artist.name} artista`}
-                      disabled={savingArtistId === artist.artistId}
+                      key={`contact-${contact.id}`}
+                      value={contact.name}
                       onSelect={() => {
-                        void handleSelectArtist(artist);
+                        onValueChange(contact.id);
+                        setOpen(false);
                       }}
                     >
                       <Check
                         className={cn(
                           "mr-2 h-4 w-4",
-                          value && artist.contactId && value === artist.contactId
-                            ? "opacity-100"
-                            : "opacity-0"
+                          value === contact.id ? "opacity-100" : "opacity-0"
                         )}
                       />
-                      <div className="flex items-center gap-2">
-                        <Music className="w-3 h-3 text-primary" />
-                        <span className="text-sm font-medium">{artist.name}</span>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{contact.name}</span>
+                        {(contact.role || contact.company) && (
+                          <span className="text-xs text-muted-foreground">
+                            {contact.role}
+                            {contact.role && contact.company && " • "}
+                            {contact.company}
+                          </span>
+                        )}
                       </div>
                     </CommandItem>
                   ))}
+
+                  {createButton}
                 </CommandGroup>
-              )}
-
-              <CommandGroup heading="Contactos">
-                <CommandItem
-                  value="__clear__"
-                  onSelect={() => {
-                    onValueChange(null);
-                    setOpen(false);
-                  }}
-                  className="text-muted-foreground"
-                >
-                  <span className="text-sm">Sin asignar</span>
-                </CommandItem>
-
-                {contacts.map((contact) => (
-                  <CommandItem
-                    key={`contact-${contact.id}`}
-                    value={contact.name}
-                    onSelect={() => {
-                      onValueChange(contact.id);
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        value === contact.id ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium">{contact.name}</span>
-                      {(contact.role || contact.company) && (
-                        <span className="text-xs text-muted-foreground">
-                          {contact.role}
-                          {contact.role && contact.company && " • "}
-                          {contact.company}
-                        </span>
-                      )}
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
+              </CommandList>
+            </Command>
+          )}
         </PopoverContent>
       </Popover>
     );
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) handleCancelCreate(); }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -391,80 +518,96 @@ export function BudgetContactSelector({
         )}
         align="start"
       >
-        <Command>
-          <CommandInput placeholder="Buscar contacto..." />
-          <CommandList>
-            <CommandEmpty>
-              {loading ? "Cargando..." : "No se encontraron contactos"}
-            </CommandEmpty>
+        {creatingNew ? (
+          inlineCreateForm
+        ) : (
+          <Command>
+            <CommandInput
+              placeholder="Buscar contacto..."
+              onValueChange={(v) => { searchRef.current = v; }}
+            />
+            <CommandList>
+              <CommandEmpty>
+                {loading ? "Cargando..." : (
+                  <div className="space-y-2 py-2">
+                    <p className="text-sm text-muted-foreground">No se encontraron contactos</p>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleStartCreate}>
+                      <Plus className="h-3 w-3 mr-1" /> Crear contacto
+                    </Button>
+                  </div>
+                )}
+              </CommandEmpty>
 
-            {artists.length > 0 && (
-              <CommandGroup heading="Artistas del roster">
-                {artists.map((artist) => (
+              {artists.length > 0 && (
+                <CommandGroup heading="Artistas del roster">
+                  {artists.map((artist) => (
+                    <CommandItem
+                      key={`artist-${artist.artistId}`}
+                      value={`${artist.name} artista`}
+                      disabled={savingArtistId === artist.artistId}
+                      onSelect={() => {
+                        void handleSelectArtist(artist);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          value && artist.contactId && value === artist.contactId
+                            ? "opacity-100"
+                            : "opacity-0"
+                        )}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Music className="w-4 h-4 text-primary" />
+                        <span className="font-medium">{artist.name}</span>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
+              <CommandGroup heading="Contactos">
+                <CommandItem
+                  value="__clear__"
+                  onSelect={() => {
+                    onValueChange(null);
+                    setOpen(false);
+                  }}
+                  className="text-muted-foreground"
+                >
+                  <span>Sin asignar</span>
+                </CommandItem>
+
+                {contacts.map((contact) => (
                   <CommandItem
-                    key={`artist-${artist.artistId}`}
-                    value={`${artist.name} artista`}
-                    disabled={savingArtistId === artist.artistId}
+                    key={`contact-${contact.id}`}
+                    value={contact.name}
                     onSelect={() => {
-                      void handleSelectArtist(artist);
+                      onValueChange(contact.id);
+                      setOpen(false);
                     }}
                   >
                     <Check
                       className={cn(
                         "mr-2 h-4 w-4",
-                        value && artist.contactId && value === artist.contactId
-                          ? "opacity-100"
-                          : "opacity-0"
+                        value === contact.id ? "opacity-100" : "opacity-0"
                       )}
                     />
-                    <div className="flex items-center gap-2">
-                      <Music className="w-4 h-4 text-primary" />
-                      <span className="font-medium">{artist.name}</span>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{contact.name}</span>
+                      <div className="text-xs text-muted-foreground">
+                        {contact.email && <span>{contact.email}</span>}
+                        {contact.role && <span className="ml-2">• {contact.role}</span>}
+                      </div>
                     </div>
                   </CommandItem>
                 ))}
+
+                {createButton}
               </CommandGroup>
-            )}
-
-            <CommandGroup heading="Contactos">
-              <CommandItem
-                value="__clear__"
-                onSelect={() => {
-                  onValueChange(null);
-                  setOpen(false);
-                }}
-                className="text-muted-foreground"
-              >
-                <span>Sin asignar</span>
-              </CommandItem>
-
-              {contacts.map((contact) => (
-                <CommandItem
-                  key={`contact-${contact.id}`}
-                  value={contact.name}
-                  onSelect={() => {
-                    onValueChange(contact.id);
-                    setOpen(false);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === contact.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  <div className="flex flex-col">
-                    <span className="font-medium">{contact.name}</span>
-                    <div className="text-xs text-muted-foreground">
-                      {contact.email && <span>{contact.email}</span>}
-                      {contact.role && <span className="ml-2">• {contact.role}</span>}
-                    </div>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
+            </CommandList>
+          </Command>
+        )}
       </PopoverContent>
     </Popover>
   );
