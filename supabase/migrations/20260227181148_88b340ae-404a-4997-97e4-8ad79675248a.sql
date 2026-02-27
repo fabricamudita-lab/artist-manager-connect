@@ -1,0 +1,12 @@
+
+-- Add Spotify fields to releases
+ALTER TABLE releases ADD COLUMN IF NOT EXISTS spotify_id TEXT UNIQUE;
+ALTER TABLE releases ADD COLUMN IF NOT EXISTS spotify_url TEXT;
+ALTER TABLE releases ADD COLUMN IF NOT EXISTS copyright TEXT;
+
+-- Add Spotify fields to tracks
+ALTER TABLE tracks ADD COLUMN IF NOT EXISTS spotify_id TEXT UNIQUE;
+ALTER TABLE tracks ADD COLUMN IF NOT EXISTS spotify_url TEXT;
+ALTER TABLE tracks ADD COLUMN IF NOT EXISTS preview_url TEXT;
+ALTER TABLE tracks ADD COLUMN IF NOT EXISTS explicit BOOLEAN DEFAULT false;
+ALTER TABLE tracks ADD COLUMN IF NOT EXISTS popularity INTEGER;

@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.evaluate-automations]
 verify_jwt = false
+
+[functions.spotify-import]
+verify_jwt = false

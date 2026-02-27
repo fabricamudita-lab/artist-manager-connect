@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Plus, Disc3, Music, Album, LayoutGrid, GanttChart } from 'lucide-react';
+import { Plus, Disc3, Music, Album, LayoutGrid, GanttChart, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CreateReleaseDialog from '@/components/releases/CreateReleaseDialog';
+import ImportSpotifyDialog from '@/components/releases/ImportSpotifyDialog';
 import AllCronogramasView from '@/components/releases/AllCronogramasView';
 import { ReleasesFiltersToolbar, ReleasesFiltersState } from '@/components/releases/ReleasesFiltersToolbar';
 import { useReleasesWithSearch } from '@/hooks/useReleasesSearch';
@@ -38,6 +39,7 @@ export default function Releases() {
   const [searchParams] = useSearchParams();
   const artistIdFromUrl = searchParams.get('artistId');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'cards' | 'cronogramas'>('cards');
   const [filters, setFilters] = useState<ReleasesFiltersState>({
     search: '',
@@ -77,6 +79,10 @@ export default function Releases() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
+          <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+            <Sparkles className="mr-2 h-4 w-4" />
+            Importar desde Spotify
+          </Button>
           <Button onClick={() => setCreateDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Nuevo Lanzamiento
@@ -183,6 +189,10 @@ export default function Releases() {
       <CreateReleaseDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
+      />
+      <ImportSpotifyDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
       />
     </div>
   );
