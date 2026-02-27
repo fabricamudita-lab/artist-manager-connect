@@ -15,6 +15,7 @@ export interface SingleConfig {
   name?: string;   // Ej: "Single 1" o el título de la canción
   date: Date;      // La fecha exacta de lanzamiento del single
   trackId?: string; // Vínculo al track existente del release
+  hasVideo?: boolean; // Si el single va acompañado de videoclip
 }
 
 export interface ReleaseConfig {
@@ -31,6 +32,7 @@ export interface ReleaseConfig {
   territory?: string;
   priorityPitching?: boolean;
   notes?: string;
+  focusTrackId?: string; // Track principal para pitching editorial (albums/EPs)
 }
 
 // Industry-standard offsets (days relative to digital release date)
