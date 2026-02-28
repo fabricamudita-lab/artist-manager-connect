@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Search, Calculator, Trash2, FileText, Eye, Pencil, Check, X, AlertTriangle, GitMerge } from 'lucide-react';
+import { BudgetSummaryCards } from '@/components/finanzas/BudgetSummaryCards';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import CreateBudgetDialog from '@/components/CreateBudgetDialog';
@@ -796,42 +797,7 @@ export default function Budgets() {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card className="card-moodita">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Total</p>
-              <p className="text-2xl font-bold">{filteredBudgets.length}</p>
-              <p className="text-xs text-muted-foreground">presupuestos</p>
-            </CardContent>
-          </Card>
-          <Card className="card-moodita">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Capital</p>
-              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                €{totalCapital.toLocaleString('es-ES')}
-              </p>
-              <p className="text-xs text-muted-foreground">ingresos estimados</p>
-            </CardContent>
-          </Card>
-          <Card className="card-moodita">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Gastos</p>
-              <p className="text-2xl font-bold text-destructive">
-                €{totalGastos.toLocaleString('es-ES')}
-              </p>
-              <p className="text-xs text-muted-foreground">costes estimados</p>
-            </CardContent>
-          </Card>
-          <Card className="card-moodita">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Balance</p>
-              <p className={`text-2xl font-bold ${balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
-                {balance >= 0 ? '+' : ''}€{balance.toLocaleString('es-ES')}
-              </p>
-              <p className="text-xs text-muted-foreground">capital − gastos</p>
-            </CardContent>
-          </Card>
-        </div>
+        <BudgetSummaryCards budgets={filteredBudgets} />
 
         {/* Filters */}
         <div className="card-moodita hover-lift">
