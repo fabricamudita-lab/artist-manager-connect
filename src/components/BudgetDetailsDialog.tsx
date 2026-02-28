@@ -775,7 +775,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           contacts(id, name, email, phone, iban, role)
         `)
         .eq('budget_id', budget.id)
-        .order('name');
+        .order('sort_order', { ascending: true });
 
       if (error) throw error;
       const itemsWithDefaults = (data || []).map(item => ({
@@ -859,7 +859,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     });
     
     console.log('📋 Filtered items for category', categoryId, ':', filteredItems.length);
-    return filteredItems;
+    // Always return sorted by sort_order so drag reorder is visible
+    return filteredItems.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   };
 
   const getFilteredAndSortedItems = (categoryId: string) => {
@@ -1721,6 +1722,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       const zeroIrpfCategories = ['transporte', 'hospedaje', 'dietas'];
       const defaultIrpf = zeroIrpfCategories.includes(categoryName) ? 0 : 15;
 
+      // Assign sort_order at the end of this category
+      const categoryItems = getCategoryItems(categoryId);
+      const maxSortOrder = categoryItems.reduce((max, item) => Math.max(max, item.sort_order ?? 0), -1);
+
       const { data, error } = await supabase
         .from('budget_items')
         .insert({
@@ -1737,7 +1742,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           billing_status: 'pendiente',
           invoice_link: '',
           observations: '',
-          fecha_emision: null
+          fecha_emision: null,
+          sort_order: maxSortOrder + 1
         })
         .select()
         .single();
