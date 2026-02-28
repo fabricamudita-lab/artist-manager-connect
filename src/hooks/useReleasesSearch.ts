@@ -15,8 +15,10 @@ export function useReleasesWithSearch(filters: ReleasesFiltersState) {
       // First, fetch all releases with basic filters
       let query = supabase.from('releases').select('*');
 
-      // Apply status filter
-      if (filters.status && filters.status !== 'all') {
+      // Apply status filter — hide archived by default
+      if (filters.status === 'all') {
+        query = query.neq('status', 'archived');
+      } else if (filters.status) {
         query = query.eq('status', filters.status);
       }
 
