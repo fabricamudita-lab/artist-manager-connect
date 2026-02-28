@@ -130,6 +130,7 @@ interface BudgetItem {
   is_commission_percentage?: boolean;
   commission_percentage?: number;
   is_provisional?: boolean;
+  sort_order?: number;
   contacts?: {
     id: string;
     name: string;
@@ -900,7 +901,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           bValue = b.billing_status;
           break;
         default:
-          return 0;
+          // Default: sort by sort_order
+          return (a.sort_order ?? 0) - (b.sort_order ?? 0);
       }
       
       if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
@@ -2018,6 +2020,51 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       toast({
         title: "Error",
         description: "No se pudo reordenar las categorías",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const reorderElements = async (draggedId: string, targetId: string, categoryId: string) => {
+    try {
+      // Get items for this category sorted by sort_order
+      const categoryItems = getCategoryItems(categoryId).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      
+      const draggedIndex = categoryItems.findIndex(item => item.id === draggedId);
+      const targetIndex = categoryItems.findIndex(item => item.id === targetId);
+      
+      if (draggedIndex === -1 || targetIndex === -1) return;
+
+      const newItems = [...categoryItems];
+      const [removed] = newItems.splice(draggedIndex, 1);
+      newItems.splice(targetIndex, 0, removed);
+
+      // Build updates
+      const updates = newItems.map((item, index) => ({
+        id: item.id,
+        sort_order: index
+      }));
+
+      // Update local state immediately
+      setItems(prev => prev.map(item => {
+        const update = updates.find(u => u.id === item.id);
+        return update ? { ...item, sort_order: update.sort_order } : item;
+      }));
+
+      // Persist to database
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('budget_items')
+          .update({ sort_order: update.sort_order } as any)
+          .eq('id', update.id);
+        
+        if (error) throw error;
+      }
+    } catch (error) {
+      console.error('Error reordering elements:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo reordenar los elementos",
         variant: "destructive"
       });
     }
@@ -3743,6 +3790,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                        }}
                                        onDrop={(e) => {
                                          e.preventDefault();
+                                         if (draggedElement && draggedElement !== item.id) {
+                                           reorderElements(draggedElement, item.id, category.id);
+                                         }
                                          setDragOverElement(null);
                                          setDraggedElement(null);
                                        }}
