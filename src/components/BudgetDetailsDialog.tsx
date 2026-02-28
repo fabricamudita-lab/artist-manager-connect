@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip as RechartsTooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts';
 import { 
   Plus, 
   Trash2, 
@@ -50,6 +50,8 @@ import {
   Pencil,
   GripVertical,
   PieChart as PieChartIcon,
+  BarChart2,
+  TrendingDown,
   CalendarIcon,
   Search,
   Filter,
@@ -302,6 +304,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [showEmptyCategories, setShowEmptyCategories] = useState(false);
   const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
   const [showWithIva, setShowWithIva] = useState(false);
+  const [chartViewMode, setChartViewMode] = useState<'bars' | 'donut' | 'waterfall'>('bars');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingCategoryCap, setEditingCategoryCap] = useState<string>('');
@@ -983,7 +986,34 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     return major;
   };
 
-  const createTestData = async () => {
+  const getCategoryBarData = () => {
+    const sortedCategories = sortCategoriesWithPriority(budgetCategories);
+    return sortedCategories.map(category => {
+      const categoryItems = getCategoryItems(category.id);
+      const paid = categoryItems
+        .filter(i => i.billing_status === 'pagada' && !i.is_provisional)
+        .reduce((sum, item) => sum + (item.unit_price * (item.quantity || 1)), 0);
+      const confirmed = categoryItems
+        .filter(i => i.billing_status !== 'pagada' && !i.is_provisional)
+        .reduce((sum, item) => sum + (item.unit_price * (item.quantity || 1)), 0);
+      const provisional = categoryItems
+        .filter(i => i.is_provisional)
+        .reduce((sum, item) => sum + (item.unit_price * (item.quantity || 1)), 0);
+      const total = paid + confirmed + provisional;
+      return {
+        id: category.id,
+        name: category.name,
+        icon: category.icon_name,
+        paid,
+        confirmed,
+        provisional,
+        total,
+        budgetCap: category.budget_cap
+      };
+    }).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
+  };
+
+
     try {
       console.log('🧪 Creating test data for budget:', budget.id);
       
@@ -4212,96 +4242,251 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       {/* Gráfico circular de categorías */}
                       <Card>
-                        <CardHeader>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                           <CardTitle className="flex items-center gap-2">
                             <PieChartIcon className="h-5 w-5" />
                             Desglose por Categoría
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center gap-4 h-64">
-                          <div className="flex-1 h-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <PieChart>
-                                <Pie
-                                  data={getGroupedChartData()}
-                                  cx="50%"
-                                  cy="50%"
-                                  outerRadius={85}
-                                  paddingAngle={2}
-                                  dataKey="value"
-                                >
-                                  {getGroupedChartData().map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                  ))}
-                                </Pie>
-                                <RechartsTooltip 
-                                  formatter={(value: number, name: string, props: any) => {
-                                    const total = getGroupedChartData().reduce((sum, item) => sum + item.value, 0);
-                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
-                                    const details = (props.payload as any)?._details as { name: string; value: number }[] | undefined;
-                                    if (details) {
-                                      const breakdown = details.map(d => `${d.name}: €${d.value.toLocaleString('es-ES', { minimumFractionDigits: 0 })}`).join(', ');
-                                      return [
-                                        `€${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })} (${breakdown})`,
-                                        `Otros (${percentage}%)`
-                                      ];
-                                    }
-                                    return [
-                                      `€${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`,
-                                      `${props.payload.name} (${percentage}%)`
-                                    ];
-                                  }}
-                                  labelFormatter={() => ''}
-                                  contentStyle={{
-                                    backgroundColor: 'hsl(var(--card))',
-                                    border: '1px solid hsl(var(--border))',
-                                    borderRadius: '8px',
-                                    color: 'hsl(var(--foreground))',
-                                    fontSize: '14px'
-                                  }}
-                                />
-                              </PieChart>
-                            </ResponsiveContainer>
+                          </CardTitle>
+                          <div className="flex items-center gap-1">
+                            <TooltipProvider>
+                              <Tooltip><TooltipTrigger asChild>
+                                <Button variant={chartViewMode === 'bars' ? 'secondary' : 'ghost'} size="icon" className="h-7 w-7" onClick={() => setChartViewMode('bars')}>
+                                  <BarChart2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger><TooltipContent>Barras</TooltipContent></Tooltip>
+                              <Tooltip><TooltipTrigger asChild>
+                                <Button variant={chartViewMode === 'donut' ? 'secondary' : 'ghost'} size="icon" className="h-7 w-7" onClick={() => setChartViewMode('donut')}>
+                                  <PieChartIcon className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger><TooltipContent>Donut</TooltipContent></Tooltip>
+                              <Tooltip><TooltipTrigger asChild>
+                                <Button variant={chartViewMode === 'waterfall' ? 'secondary' : 'ghost'} size="icon" className="h-7 w-7" onClick={() => setChartViewMode('waterfall')}>
+                                  <TrendingDown className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger><TooltipContent>Cascada</TooltipContent></Tooltip>
+                            </TooltipProvider>
                           </div>
-                          <div className="space-y-2 min-w-[140px] max-h-full overflow-y-auto">
-                            {(() => {
-                              const chartData = getGroupedChartData();
-                              const total = chartData.reduce((s, d) => s + d.value, 0);
-                              return chartData.map(d => {
-                                const details = (d as any)?._details as { name: string; value: number }[] | undefined;
-                                return (
-                                  <Popover key={d.name}>
-                                    <PopoverTrigger asChild disabled={!details}>
-                                      <div className={`flex items-center gap-2 ${details ? 'cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1' : ''}`}>
-                                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
-                                        <div className="min-w-0">
-                                          <p className="text-sm font-medium truncate text-foreground">{d.name}</p>
-                                          <p className="text-xs text-muted-foreground">
-                                            €{d.value.toLocaleString('es-ES', { minimumFractionDigits: 0 })} · {total > 0 ? ((d.value / total) * 100).toFixed(0) : 0}%
-                                          </p>
-                                        </div>
+                        </CardHeader>
+                        <CardContent>
+                          {/* VISTA 1: BARRAS HORIZONTALES */}
+                          {chartViewMode === 'bars' && (() => {
+                            const barData = getCategoryBarData();
+                            const maxTotal = Math.max(...barData.map(c => c.total), 1);
+                            return (
+                              <div className="space-y-2">
+                                {barData.map(cat => {
+                                  const IconComponent = iconMap[cat.icon as keyof typeof iconMap] || DollarSign;
+                                  const totalPct = items.reduce((s, i) => s + (i.unit_price * (i.quantity || 1)), 0);
+                                  const pct = totalPct > 0 ? ((cat.total / totalPct) * 100).toFixed(1) : '0';
+                                  const exceeded = cat.budgetCap != null && cat.total > cat.budgetCap;
+                                  return (
+                                    <div key={cat.id} className="flex items-center gap-3 py-1.5 px-1 rounded hover:bg-muted/40 cursor-pointer group">
+                                      <div className="flex items-center gap-1.5 w-[160px] shrink-0">
+                                        <IconComponent className="h-4 w-4 text-primary shrink-0" />
+                                        <span className="text-sm truncate">{cat.name}</span>
                                       </div>
-                                    </PopoverTrigger>
-                                    {details && (
-                                      <PopoverContent side="left" className="w-52 p-3 text-xs space-y-1">
-                                        <p className="font-semibold mb-1.5">Incluye:</p>
-                                        {details.map(dd => (
-                                          <div key={dd.name} className="flex justify-between">
-                                            <span className="text-muted-foreground truncate mr-2">{dd.name}</span>
-                                            <span>€{dd.value.toLocaleString('es-ES', { minimumFractionDigits: 0 })}</span>
+                                      <div className="flex-1 relative">
+                                        <div className={`h-5 rounded-full overflow-hidden ${exceeded ? 'bg-red-100 ring-1 ring-red-300' : 'bg-muted'}`}>
+                                          <div className="h-full flex" style={{ width: `${(cat.total / maxTotal) * 100}%` }}>
+                                            {cat.paid > 0 && (
+                                              <div className="h-full bg-green-500" style={{ width: `${(cat.paid / cat.total) * 100}%` }} />
+                                            )}
+                                            {cat.confirmed > 0 && (
+                                              <div className="h-full bg-gray-400" style={{ width: `${(cat.confirmed / cat.total) * 100}%` }} />
+                                            )}
+                                            {cat.provisional > 0 && (
+                                              <div className="h-full bg-amber-400" style={{ width: `${(cat.provisional / cat.total) * 100}%` }} />
+                                            )}
                                           </div>
-                                        ))}
-                                      </PopoverContent>
-                                    )}
-                                  </Popover>
-                                );
-                              });
-                            })()}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                                        </div>
+                                        {cat.budgetCap != null && (
+                                          <TooltipProvider>
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <div
+                                                  className="absolute top-0 h-full w-[2px] bg-red-600/70"
+                                                  style={{ left: `${Math.min((cat.budgetCap / maxTotal) * 100, 100)}%` }}
+                                                />
+                                              </TooltipTrigger>
+                                              <TooltipContent>Techo: €{cat.budgetCap.toLocaleString('es-ES')}</TooltipContent>
+                                            </Tooltip>
+                                          </TooltipProvider>
+                                        )}
+                                      </div>
+                                      <span className="text-xs text-muted-foreground whitespace-nowrap w-[90px] text-right">
+                                        €{cat.total.toLocaleString('es-ES', { minimumFractionDigits: 0 })} · {pct}%
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                                {barData.length > 0 && (
+                                  <div className="flex items-center gap-3 pt-2 text-xs text-muted-foreground border-t">
+                                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-green-500" /> Pagado</div>
+                                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-gray-400" /> Comprometido</div>
+                                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Provisional</div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
+
+                          {/* VISTA 2: DONUT */}
+                          {chartViewMode === 'donut' && (() => {
+                            const chartData = getGroupedChartData();
+                            const grandTotal = chartData.reduce((s, d) => s + d.value, 0);
+                            const barData = getCategoryBarData();
+                            const totalPaid = barData.reduce((s, c) => s + c.paid, 0);
+                            const totalConfirmed = barData.reduce((s, c) => s + c.confirmed, 0);
+                            const totalProvisional = barData.reduce((s, c) => s + c.provisional, 0);
+                            const statusTotal = totalPaid + totalConfirmed + totalProvisional || 1;
+                            return (
+                              <div>
+                                <div className="flex items-center gap-4 h-64">
+                                  <div className="flex-1 h-full relative">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                      <PieChart>
+                                        <Pie
+                                          data={chartData}
+                                          cx="50%"
+                                          cy="50%"
+                                          innerRadius={55}
+                                          outerRadius={85}
+                                          paddingAngle={2}
+                                          dataKey="value"
+                                        >
+                                          {chartData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                          ))}
+                                        </Pie>
+                                        <RechartsTooltip
+                                          formatter={(value: number, _name: string, props: any) => {
+                                            const percentage = grandTotal > 0 ? ((value / grandTotal) * 100).toFixed(1) : '0.0';
+                                            const details = (props.payload as any)?._details as { name: string; value: number }[] | undefined;
+                                            if (details) {
+                                              const breakdown = details.map(d => `${d.name}: €${d.value.toLocaleString('es-ES', { minimumFractionDigits: 0 })}`).join(', ');
+                                              return [`€${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })} (${breakdown})`, `Otros (${percentage}%)`];
+                                            }
+                                            return [`€${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`, `${props.payload.name} (${percentage}%)`];
+                                          }}
+                                          labelFormatter={() => ''}
+                                          contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))', fontSize: '14px' }}
+                                        />
+                                      </PieChart>
+                                    </ResponsiveContainer>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                      <span className="text-lg font-bold">€{grandTotal.toLocaleString('es-ES', { minimumFractionDigits: 0 })}</span>
+                                      <span className="text-xs text-muted-foreground">total gastado</span>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2 min-w-[140px] max-h-full overflow-y-auto">
+                                    {chartData.map(d => {
+                                      const details = (d as any)?._details as { name: string; value: number }[] | undefined;
+                                      return (
+                                        <Popover key={d.name}>
+                                          <PopoverTrigger asChild disabled={!details}>
+                                            <div className={`flex items-center gap-2 ${details ? 'cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1' : ''}`}>
+                                              <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                                              <div className="min-w-0">
+                                                <p className="text-sm font-medium truncate text-foreground">{d.name}</p>
+                                                <p className="text-xs text-muted-foreground">€{d.value.toLocaleString('es-ES', { minimumFractionDigits: 0 })} · {grandTotal > 0 ? ((d.value / grandTotal) * 100).toFixed(0) : 0}%</p>
+                                              </div>
+                                            </div>
+                                          </PopoverTrigger>
+                                          {details && (
+                                            <PopoverContent side="left" className="w-52 p-3 text-xs space-y-1">
+                                              <p className="font-semibold mb-1.5">Incluye:</p>
+                                              {details.map(dd => (
+                                                <div key={dd.name} className="flex justify-between">
+                                                  <span className="text-muted-foreground truncate mr-2">{dd.name}</span>
+                                                  <span>€{dd.value.toLocaleString('es-ES', { minimumFractionDigits: 0 })}</span>
+                                                </div>
+                                              ))}
+                                            </PopoverContent>
+                                          )}
+                                        </Popover>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                                {/* Status distribution bar */}
+                                <div className="mt-4 space-y-2">
+                                  <div className="h-2 w-full rounded-full overflow-hidden flex bg-muted">
+                                    {totalPaid > 0 && <div className="h-full bg-green-500" style={{ width: `${(totalPaid / statusTotal) * 100}%` }} />}
+                                    {totalConfirmed > 0 && <div className="h-full bg-gray-400" style={{ width: `${(totalConfirmed / statusTotal) * 100}%` }} />}
+                                    {totalProvisional > 0 && <div className="h-full bg-amber-400" style={{ width: `${(totalProvisional / statusTotal) * 100}%` }} />}
+                                  </div>
+                                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Pagado €{totalPaid.toLocaleString('es-ES')}</span>
+                                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400 inline-block" /> Comprometido €{totalConfirmed.toLocaleString('es-ES')}</span>
+                                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Provisional €{totalProvisional.toLocaleString('es-ES')}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* VISTA 3: CASCADA (WATERFALL) */}
+                          {chartViewMode === 'waterfall' && (() => {
+                            const barData = getCategoryBarData();
+                            const capital = budgetAmount;
+                            let running = capital;
+                            const waterfallData: { name: string; base: number; value: number; fill: string; label: string }[] = [];
+                            waterfallData.push({ name: 'Capital', base: 0, value: capital, fill: '#22c55e', label: `€${capital.toLocaleString('es-ES')}` });
+                            barData.forEach(cat => {
+                              running -= cat.total;
+                              waterfallData.push({ name: cat.name, base: Math.max(running, 0), value: cat.total, fill: '#ef4444', label: `€${cat.total.toLocaleString('es-ES')}` });
+                            });
+                            const available = capital - barData.reduce((s, c) => s + c.total, 0);
+                            waterfallData.push({
+                              name: 'Disponible',
+                              base: available >= 0 ? 0 : available,
+                              value: Math.abs(available),
+                              fill: available >= 0 ? '#22c55e' : '#ef4444',
+                              label: `€${Math.abs(available).toLocaleString('es-ES')}`
+                            });
+                            const maxVal = Math.max(capital, ...waterfallData.map(d => d.base + d.value));
+                            return (
+                              <div className="h-72">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <BarChart data={waterfallData} margin={{ top: 20, right: 10, bottom: 40, left: 10 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                                    <XAxis
+                                      dataKey="name"
+                                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                                      angle={-35}
+                                      textAnchor="end"
+                                      height={50}
+                                      interval={0}
+                                    />
+                                    <YAxis hide domain={[Math.min(0, available), maxVal * 1.1]} />
+                                    <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" />
+                                    {/* Invisible base bar */}
+                                    <Bar dataKey="base" stackId="a" fill="transparent" isAnimationActive={false} />
+                                    {/* Visible value bar */}
+                                    <Bar dataKey="value" stackId="a" radius={[3, 3, 0, 0]} isAnimationActive={true}>
+                                      {waterfallData.map((entry, index) => (
+                                        <Cell key={`wf-${index}`} fill={entry.fill} />
+                                      ))}
+                                    </Bar>
+                                    <RechartsTooltip
+                                      formatter={(value: number, name: string) => {
+                                        if (name === 'base') return [null, null];
+                                        return [`€${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`, ''];
+                                      }}
+                                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))', fontSize: '12px' }}
+                                    />
+                                  </BarChart>
+                                </ResponsiveContainer>
+                                {available < 0 && (
+                                  <div className="text-center -mt-2">
+                                    <Badge variant="destructive" className="text-[10px]">EXCEDIDO</Badge>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </CardContent>
+                      </Card>
 
                     {/* Tabla resumen por categorías */}
                     <Card>
