@@ -143,16 +143,29 @@ export default function LiquidarFacturasDialog({
     }
   };
 
-  const calculateTotal = (item: BudgetItem) => {
+  const calculateLiquidoBreakdown = (item: BudgetItem) => {
     const subtotal = item.quantity * item.unit_price;
     const iva = subtotal * (item.iva_percentage / 100);
-    return subtotal + iva;
+    const irpf = subtotal * ((item as any).irpf_percentage ?? 15) / 100;
+    const aProveedor = subtotal + iva - irpf;
+    const totalSalida = subtotal + iva; // aProveedor + irpf
+    return { subtotal, iva, irpf, aProveedor, totalSalida };
+  };
+
+  const calculateTotal = (item: BudgetItem) => {
+    return calculateLiquidoBreakdown(item).aProveedor;
   };
 
   const getSelectedTotal = () => {
     return pendingItems
       .filter(item => selectedItems.has(item.id))
-      .reduce((sum, item) => sum + calculateTotal(item), 0);
+      .reduce((sum, item) => sum + calculateLiquidoBreakdown(item).aProveedor, 0);
+  };
+
+  const getSelectedRetention = () => {
+    return pendingItems
+      .filter(item => selectedItems.has(item.id))
+      .reduce((sum, item) => sum + calculateLiquidoBreakdown(item).irpf, 0);
   };
 
   return (
@@ -187,7 +200,8 @@ export default function LiquidarFacturasDialog({
                       <TableHead>Categoría</TableHead>
                       <TableHead className="text-right">Cantidad</TableHead>
                       <TableHead className="text-right">Precio Unit.</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-right">A proveedor</TableHead>
+                      <TableHead className="text-right">Retención</TableHead>
                       <TableHead>Estado</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -207,7 +221,10 @@ export default function LiquidarFacturasDialog({
                           €{item.unit_price.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          €{calculateTotal(item).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                          €{calculateLiquidoBreakdown(item).aProveedor.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground text-sm">
+                          €{calculateLiquidoBreakdown(item).irpf.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell>
                           <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
@@ -221,12 +238,21 @@ export default function LiquidarFacturasDialog({
               </div>
 
               {selectedItems.size > 0 && (
-                <div className="bg-muted p-4 rounded-lg">
+                <div className="bg-muted p-4 rounded-lg space-y-2">
                   <div className="text-sm font-medium">
                     Facturas seleccionadas: {selectedItems.size}
                   </div>
-                  <div className="text-lg font-bold mt-1">
-                    Total: €{getSelectedTotal().toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                  <div className="flex justify-between text-sm">
+                    <span>A proveedor (transferir):</span>
+                    <span className="font-bold">€{getSelectedTotal().toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Retención IRPF (Hacienda):</span>
+                    <span>€{getSelectedRetention().toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-bold border-t pt-2">
+                    <span>Total salida:</span>
+                    <span>€{(getSelectedTotal() + getSelectedRetention()).toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span>
                   </div>
                 </div>
               )}

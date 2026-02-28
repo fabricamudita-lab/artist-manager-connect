@@ -72,6 +72,7 @@ import {
   Info
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useInvoiceAutoLink } from '@/hooks/useInvoiceAutoLink';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -304,7 +305,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showEmptyCategories, setShowEmptyCategories] = useState(false);
   const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
-  const [showWithIva, setShowWithIva] = useState(false);
+  const [displayMode, setDisplayMode] = useState<'neto' | 'con_iva' | 'liquido'>('neto');
   const [chartViewMode, setChartViewMode] = useState<'bars' | 'donut' | 'waterfall'>('bars');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -804,14 +805,25 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     return subtotal + iva - irpf;
   };
 
-  /** Returns net or net+IVA depending on toggle */
+  /** Returns display total based on mode: neto, con_iva, or liquido (a proveedor) */
   const calculateDisplayTotal = (item: BudgetItem) => {
     const subtotal = item.unit_price * (item.quantity || 1);
-    if (showWithIva) {
+    if (displayMode === 'con_iva') {
       const iva = subtotal * (item.iva_percentage / 100);
       return subtotal + iva;
     }
+    if (displayMode === 'liquido') {
+      const iva = subtotal * (item.iva_percentage / 100);
+      const irpf = subtotal * ((item.irpf_percentage ?? 15) / 100);
+      return subtotal + iva - irpf; // "A proveedor"
+    }
     return subtotal;
+  };
+
+  /** Returns the IRPF retention amount for líquido mode */
+  const calculateIrpfRetention = (item: BudgetItem) => {
+    const subtotal = item.unit_price * (item.quantity || 1);
+    return subtotal * ((item.irpf_percentage ?? 15) / 100);
   };
 
   const calculateGrandTotals = () => {
@@ -3216,14 +3228,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <h2 className="text-base font-bold">Gestión de Elementos y Categorías</h2>
-                        <div className="flex items-center gap-2 bg-white/10 rounded-md px-2.5 py-1">
-                          <span className={`text-xs font-medium cursor-pointer transition-colors ${!showWithIva ? 'text-white' : 'text-white/40'}`} onClick={() => setShowWithIva(false)}>Neto</span>
-                          <Switch
-                            checked={showWithIva}
-                            onCheckedChange={setShowWithIva}
-                            className="h-4 w-7 data-[state=checked]:bg-blue-500 data-[state=unchecked]:bg-white/30"
-                          />
-                          <span className={`text-xs font-medium cursor-pointer transition-colors ${showWithIva ? 'text-white' : 'text-white/40'}`} onClick={() => setShowWithIva(true)}>Con IVA</span>
+                        <div className="flex items-center gap-2 bg-white/10 rounded-md px-1 py-0.5">
+                          <ToggleGroup type="single" value={displayMode} onValueChange={(v) => { if (v) setDisplayMode(v as any); }} className="gap-0">
+                            <ToggleGroupItem value="neto" className="h-6 px-2.5 text-[11px] font-medium rounded-sm data-[state=on]:bg-white data-[state=on]:text-black text-white/60 hover:text-white">Neto</ToggleGroupItem>
+                            <ToggleGroupItem value="con_iva" className="h-6 px-2.5 text-[11px] font-medium rounded-sm data-[state=on]:bg-white data-[state=on]:text-black text-white/60 hover:text-white">Con IVA</ToggleGroupItem>
+                            <ToggleGroupItem value="liquido" className="h-6 px-2.5 text-[11px] font-medium rounded-sm data-[state=on]:bg-white data-[state=on]:text-black text-white/60 hover:text-white">Líquido</ToggleGroupItem>
+                          </ToggleGroup>
                         </div>
                       </div>
                          <div className="flex gap-2">
@@ -3681,14 +3691,30 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                     const iva = subtotal * ((Number(item.iva_percentage) || 0) / 100);
                                     return sum + subtotal + iva;
                                   }, 0);
-                                  const displayTotal = showWithIva ? totalWithIva : totalNeto;
+                                  const totalLiquido = categoryItems.reduce((sum, item) => {
+                                    const unitPrice = Number(item.unit_price) || 0;
+                                    const quantity = Number(item.quantity) || 1;
+                                    const subtotal = unitPrice * quantity;
+                                    const iva = subtotal * ((Number(item.iva_percentage) || 0) / 100);
+                                    const irpf = subtotal * ((Number(item.irpf_percentage) ?? 15) / 100);
+                                    return sum + subtotal + iva - irpf;
+                                  }, 0);
+                                  const totalRetention = categoryItems.reduce((sum, item) => {
+                                    const subtotal = (Number(item.unit_price) || 0) * (Number(item.quantity) || 1);
+                                    return sum + subtotal * ((Number(item.irpf_percentage) ?? 15) / 100);
+                                  }, 0);
+                                  const displayTotal = displayMode === 'con_iva' ? totalWithIva : displayMode === 'liquido' ? totalLiquido : totalNeto;
+                                  const modeLabel = displayMode === 'con_iva' ? 'Con IVA' : displayMode === 'liquido' ? 'Líquido' : 'Neto';
                                   return (
                                     <>
                                       <div className="text-right">
-                                        <div className="text-xs text-white/50 mb-1">{showWithIva ? 'Con IVA' : 'Neto'}</div>
+                                        <div className="text-xs text-white/50 mb-1">{modeLabel}</div>
                                         <div className="font-semibold">
                                           €{displayTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                                         </div>
+                                        {displayMode === 'liquido' && totalRetention > 0 && (
+                                          <div className="text-[10px] text-white/40">+ €{totalRetention.toLocaleString('es-ES', { minimumFractionDigits: 2 })} ret.</div>
+                                        )}
                                         {provisionalNeto > 0 && (
                                           <div className="text-[10px] text-amber-400">⏳ €{provisionalNeto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} prov.</div>
                                         )}
@@ -4096,8 +4122,19 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                       
                                        {/* Total */}
                                         <TableCell className="p-2 text-right">
-                                          <div className="h-8 flex items-center justify-end px-2 font-medium text-green-700">
-                                            €{calculateDisplayTotal(editingItem === item.id ? { ...item, ...editingItemValues } : item).toFixed(2)}
+                                          <div className="px-2 font-medium text-green-700">
+                                            <div className="h-6 flex items-center justify-end">
+                                              €{calculateDisplayTotal(editingItem === item.id ? { ...item, ...editingItemValues } : item).toFixed(2)}
+                                            </div>
+                                            {displayMode === 'liquido' && (() => {
+                                              const currentItem = editingItem === item.id ? { ...item, ...editingItemValues } : item;
+                                              const retention = calculateIrpfRetention(currentItem);
+                                              return retention > 0 ? (
+                                                <div className="text-[10px] text-muted-foreground leading-tight">
+                                                  + €{retention.toFixed(2)} retención
+                                                </div>
+                                              ) : null;
+                                            })()}
                                           </div>
                                         </TableCell>
 
