@@ -4116,44 +4116,61 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="h-80">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={getCategoryChartData()}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                outerRadius={100}
-                                fill="#8884d8"
-                                dataKey="value"
-                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
-                              >
-                                {getCategoryChartData().map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                              </Pie>
-                              <RechartsTooltip 
-                                formatter={(value: number, name: string, props: any) => {
-                                  const total = getCategoryChartData().reduce((sum, item) => sum + item.value, 0);
-                                  const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
-                                  return [
-                                    `€${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`,
-                                    `${props.payload.name} (${percentage}%)`
-                                  ];
-                                }}
-                                labelFormatter={(label) => ''}
-                                contentStyle={{
-                                  backgroundColor: 'hsl(var(--card))',
-                                  border: '1px solid hsl(var(--border))',
-                                  borderRadius: '8px',
-                                  color: 'hsl(var(--foreground))',
-                                  fontSize: '14px'
-                                }}
-                              />
-                              <Legend />
-                            </PieChart>
-                          </ResponsiveContainer>
+                        <div className="flex items-center gap-4 h-64">
+                          <div className="flex-1 h-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie
+                                  data={getCategoryChartData()}
+                                  cx="50%"
+                                  cy="50%"
+                                  innerRadius={50}
+                                  outerRadius={85}
+                                  paddingAngle={2}
+                                  dataKey="value"
+                                >
+                                  {getCategoryChartData().map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                  ))}
+                                </Pie>
+                                <RechartsTooltip 
+                                  formatter={(value: number, name: string, props: any) => {
+                                    const total = getCategoryChartData().reduce((sum, item) => sum + item.value, 0);
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                    return [
+                                      `€${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`,
+                                      `${props.payload.name} (${percentage}%)`
+                                    ];
+                                  }}
+                                  labelFormatter={() => ''}
+                                  contentStyle={{
+                                    backgroundColor: 'hsl(var(--card))',
+                                    border: '1px solid hsl(var(--border))',
+                                    borderRadius: '8px',
+                                    color: 'hsl(var(--foreground))',
+                                    fontSize: '14px'
+                                  }}
+                                />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </div>
+                          <div className="space-y-2 min-w-[140px] max-h-full overflow-y-auto">
+                            {(() => {
+                              const chartData = getCategoryChartData();
+                              const total = chartData.reduce((s, d) => s + d.value, 0);
+                              return chartData.map(d => (
+                                <div key={d.name} className="flex items-center gap-2">
+                                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium truncate text-foreground">{d.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      €{d.value.toLocaleString('es-ES', { minimumFractionDigits: 0 })} · {total > 0 ? ((d.value / total) * 100).toFixed(0) : 0}%
+                                    </p>
+                                  </div>
+                                </div>
+                              ));
+                            })()}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
