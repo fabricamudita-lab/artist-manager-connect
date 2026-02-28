@@ -5022,48 +5022,125 @@ export type Database = {
           },
         ]
       }
+      release_asset_comments: {
+        Row: {
+          asset_id: string
+          author_id: string
+          created_at: string | null
+          id: string
+          message: string
+        }
+        Insert: {
+          asset_id: string
+          author_id: string
+          created_at?: string | null
+          id?: string
+          message: string
+        }
+        Update: {
+          asset_id?: string
+          author_id?: string
+          created_at?: string | null
+          id?: string
+          message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "release_asset_comments_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "release_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       release_assets: {
         Row: {
+          assigned_to: string | null
           category: string | null
           created_at: string
+          delivery_date: string | null
           description: string | null
+          external_url: string | null
           file_bucket: string | null
           file_url: string
+          format_spec: string | null
           id: string
+          is_watermarked: boolean | null
+          platform_tags: string[] | null
           release_id: string
+          resolution: string | null
+          section: string | null
+          session_id: string | null
+          sort_order: number | null
+          stage: string | null
+          status: string | null
+          sub_type: string | null
+          supplier_contact_id: string | null
           tags: string[] | null
           thumbnail_url: string | null
           title: string
           type: string
           uploaded_by: string | null
+          version_group: string | null
         }
         Insert: {
+          assigned_to?: string | null
           category?: string | null
           created_at?: string
+          delivery_date?: string | null
           description?: string | null
+          external_url?: string | null
           file_bucket?: string | null
           file_url: string
+          format_spec?: string | null
           id?: string
+          is_watermarked?: boolean | null
+          platform_tags?: string[] | null
           release_id: string
+          resolution?: string | null
+          section?: string | null
+          session_id?: string | null
+          sort_order?: number | null
+          stage?: string | null
+          status?: string | null
+          sub_type?: string | null
+          supplier_contact_id?: string | null
           tags?: string[] | null
           thumbnail_url?: string | null
           title: string
           type: string
           uploaded_by?: string | null
+          version_group?: string | null
         }
         Update: {
+          assigned_to?: string | null
           category?: string | null
           created_at?: string
+          delivery_date?: string | null
           description?: string | null
+          external_url?: string | null
           file_bucket?: string | null
           file_url?: string
+          format_spec?: string | null
           id?: string
+          is_watermarked?: boolean | null
+          platform_tags?: string[] | null
           release_id?: string
+          resolution?: string | null
+          section?: string | null
+          session_id?: string | null
+          sort_order?: number | null
+          stage?: string | null
+          status?: string | null
+          sub_type?: string | null
+          supplier_contact_id?: string | null
           tags?: string[] | null
           thumbnail_url?: string | null
           title?: string
           type?: string
           uploaded_by?: string | null
+          version_group?: string | null
         }
         Relationships: [
           {
@@ -5071,6 +5148,20 @@ export type Database = {
             columns: ["release_id"]
             isOneToOne: false
             referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_assets_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "release_photo_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_assets_supplier_contact_id_fkey"
+            columns: ["supplier_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]
@@ -5177,6 +5268,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "release_milestones_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      release_photo_sessions: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          description: string | null
+          id: string
+          name: string
+          photographer: string | null
+          release_id: string
+          session_date: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          id?: string
+          name: string
+          photographer?: string | null
+          release_id: string
+          session_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          id?: string
+          name?: string
+          photographer?: string | null
+          release_id?: string
+          session_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "release_photo_sessions_release_id_fkey"
             columns: ["release_id"]
             isOneToOne: false
             referencedRelation: "releases"

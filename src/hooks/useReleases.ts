@@ -123,6 +123,22 @@ export interface ReleaseAsset {
   description: string | null;
   uploaded_by: string | null;
   created_at: string;
+  // DAM fields
+  section?: string | null;
+  sub_type?: string | null;
+  status?: string | null;
+  platform_tags?: string[] | null;
+  assigned_to?: string | null;
+  delivery_date?: string | null;
+  external_url?: string | null;
+  format_spec?: string | null;
+  resolution?: string | null;
+  is_watermarked?: boolean | null;
+  session_id?: string | null;
+  stage?: string | null;
+  supplier_contact_id?: string | null;
+  version_group?: string | null;
+  sort_order?: number | null;
 }
 
 // Fetch all releases
