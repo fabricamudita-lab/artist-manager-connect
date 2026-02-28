@@ -10,7 +10,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useRelease } from '@/hooks/useReleases';
 import { toast } from '@/hooks/use-toast';
 
-import { DAM_SECTIONS, SECTION_LABELS, ASSET_STATUSES, STATUS_LABELS } from '@/components/dam/DAMConstants';
+import { DAM_SECTIONS, SECTION_LABELS, ASSET_STATUSES, STATUS_LABELS, STAGE_LABELS } from '@/components/dam/DAMConstants';
 import type { DAMAsset, PhotoSession } from '@/components/dam/DAMTypes';
 import DAMSectionComponent from '@/components/dam/DAMSection';
 import PhotoSessionPipeline from '@/components/dam/PhotoSessionPipeline';
@@ -135,8 +135,22 @@ export default function ReleaseImagenVideo() {
   const handleUploadToStage = (sessionId: string, stage: string) => {
     setAddDialogSection('fotografia');
     setAddDialogSessionId(sessionId);
-    setAddDialogStage(stage);
+    setAddDialogStage('backup'); // Always upload to backup
     setAddDialogOpen(true);
+  };
+
+  const handlePromoteAsset = async (asset: DAMAsset, newStage: string) => {
+    try {
+      const { error } = await supabase
+        .from('release_assets')
+        .update({ stage: newStage })
+        .eq('id', asset.id);
+      if (error) throw error;
+      toast({ title: `Movido a ${STAGE_LABELS[newStage] || newStage}` });
+      refreshData();
+    } catch {
+      toast({ title: 'Error al cambiar etapa', variant: 'destructive' });
+    }
   };
 
   if (loadingRelease) {
@@ -236,6 +250,7 @@ export default function ReleaseImagenVideo() {
                           onDeleteAsset={handleDeleteAsset}
                           onUploadToStage={handleUploadToStage}
                           onDeleteSession={handleDeleteSession}
+                          onPromoteAsset={handlePromoteAsset}
                         />
                       ))}
                     </div>

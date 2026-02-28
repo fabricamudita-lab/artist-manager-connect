@@ -1,12 +1,26 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, Plus, Camera, Trash2 } from 'lucide-react';
+import { ChevronRight, Plus, Camera, Trash2, ArrowUpRight, ArrowDownLeft, Link2 } from 'lucide-react';
 import { STAGE_LABELS, PHOTO_STAGES } from './DAMConstants';
 import type { DAMAsset, PhotoSession } from './DAMTypes';
 import DAMAssetCard from './DAMAssetCard';
 import { cn } from '@/lib/utils';
+
+const STAGE_LEVEL: Record<string, number> = {
+  backup: 0,
+  seleccionadas: 1,
+  editadas: 2,
+  compartir: 3,
+};
+
+const STAGE_BADGE_COLORS: Record<string, string> = {
+  backup: 'bg-muted text-muted-foreground',
+  seleccionadas: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20',
+  editadas: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+  compartir: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20',
+};
 
 interface PhotoSessionPipelineProps {
   session: PhotoSession;
@@ -16,6 +30,7 @@ interface PhotoSessionPipelineProps {
   onDeleteAsset: (asset: DAMAsset) => void;
   onUploadToStage: (sessionId: string, stage: string) => void;
   onDeleteSession: (session: PhotoSession) => void;
+  onPromoteAsset?: (asset: DAMAsset, newStage: string) => void;
 }
 
 export default function PhotoSessionPipeline({
@@ -26,13 +41,25 @@ export default function PhotoSessionPipeline({
   onDeleteAsset,
   onUploadToStage,
   onDeleteSession,
+  onPromoteAsset,
 }: PhotoSessionPipelineProps) {
   const [expanded, setExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('backup');
 
-  const assetsByStage = PHOTO_STAGES.reduce((acc, stage) => {
-    acc[stage] = assets.filter(a => a.stage === stage);
-    return acc;
-  }, {} as Record<string, DAMAsset[]>);
+  // Cumulative counts
+  const counts = useMemo(() => ({
+    backup: assets.length,
+    seleccionadas: assets.filter(a => STAGE_LEVEL[a.stage || 'backup'] >= 1).length,
+    editadas: assets.filter(a => STAGE_LEVEL[a.stage || 'backup'] >= 2).length,
+    compartir: assets.filter(a => STAGE_LEVEL[a.stage || 'backup'] >= 3).length,
+  }), [assets]);
+
+  // Filter assets based on active tab (cumulative)
+  const filteredAssets = useMemo(() => {
+    const minLevel = STAGE_LEVEL[activeTab] || 0;
+    if (minLevel === 0) return assets; // backup = show all
+    return assets.filter(a => STAGE_LEVEL[a.stage || 'backup'] >= minLevel);
+  }, [assets, activeTab]);
 
   return (
     <Card className="border-dashed">
@@ -55,63 +82,135 @@ export default function PhotoSessionPipeline({
 
       {expanded && (
         <CardContent className="pt-0 pb-4">
-          {/* Pipeline visualization */}
+          {/* Pipeline tabs */}
           <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-2">
             {PHOTO_STAGES.map((stage, idx) => (
               <div key={stage} className="flex items-center">
-                <div
+                <button
+                  type="button"
                   className={cn(
-                    'px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-colors border',
-                    assetsByStage[stage].length > 0
-                      ? 'bg-primary/10 border-primary/30 text-primary'
-                      : 'bg-muted border-border text-muted-foreground'
+                    'px-3 py-1.5 rounded-md text-xs font-medium transition-colors border',
+                    activeTab === stage
+                      ? 'bg-primary/10 border-primary/30 text-primary ring-1 ring-primary/20'
+                      : counts[stage] > 0
+                        ? 'bg-muted/80 border-border text-foreground hover:bg-muted'
+                        : 'bg-muted border-border text-muted-foreground hover:bg-muted/80'
                   )}
-                  onClick={() => onUploadToStage(session.id, stage)}
+                  onClick={() => setActiveTab(stage)}
                 >
                   {STAGE_LABELS[stage]}
-                  <Badge variant="secondary" className="ml-1.5 text-[10px] h-4">{assetsByStage[stage].length}</Badge>
-                </div>
+                  <Badge variant="secondary" className="ml-1.5 text-[10px] h-4">{counts[stage]}</Badge>
+                </button>
                 {idx < PHOTO_STAGES.length - 1 && <ChevronRight className="h-4 w-4 text-muted-foreground mx-1 flex-shrink-0" />}
               </div>
             ))}
           </div>
 
-          {/* Assets for each stage */}
-          {PHOTO_STAGES.map(stage => {
-            const stageAssets = assetsByStage[stage];
-            if (stageAssets.length === 0) return null;
-            return (
-              <div key={stage} className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{STAGE_LABELS[stage]}</h5>
-                  <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => onUploadToStage(session.id, stage)}>
-                    <Plus className="h-3 w-3 mr-1" /> Añadir
-                  </Button>
-                </div>
-                {viewMode === 'grid' ? (
-                  <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                    {stageAssets.map(a => (
-                      <DAMAssetCard key={a.id} asset={a} onSelect={onSelectAsset} onDelete={onDeleteAsset} viewMode="grid" />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {stageAssets.map(a => (
-                      <DAMAssetCard key={a.id} asset={a} onSelect={onSelectAsset} onDelete={onDeleteAsset} viewMode="list" />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {/* Upload button — always adds to backup */}
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[11px] text-muted-foreground italic">Las imágenes se añaden siempre a Backup.</p>
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onUploadToStage(session.id, 'backup')}>
+              <Plus className="h-3 w-3 mr-1" /> Añadir
+            </Button>
+          </div>
 
-          {assets.length === 0 && (
+          {/* Filtered assets */}
+          {filteredAssets.length > 0 ? (
+            viewMode === 'grid' ? (
+              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                {filteredAssets.map(a => (
+                  <div key={a.id} className="space-y-1">
+                    <DAMAssetCard asset={a} onSelect={onSelectAsset} onDelete={onDeleteAsset} viewMode="grid" />
+                    {/* Stage badge */}
+                    <Badge className={cn('text-[10px] w-full justify-center', STAGE_BADGE_COLORS[a.stage || 'backup'])}>
+                      {STAGE_LABELS[a.stage || 'backup']}
+                    </Badge>
+                    {/* Stage action button */}
+                    <StageActionButton asset={a} onPromote={onPromoteAsset} onUploadEdited={() => onUploadToStage(session.id, 'editadas')} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {filteredAssets.map(a => (
+                  <div key={a.id} className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <DAMAssetCard asset={a} onSelect={onSelectAsset} onDelete={onDeleteAsset} viewMode="list" />
+                    </div>
+                    <Badge className={cn('text-[10px] flex-shrink-0', STAGE_BADGE_COLORS[a.stage || 'backup'])}>
+                      {STAGE_LABELS[a.stage || 'backup']}
+                    </Badge>
+                    <StageActionButton asset={a} onPromote={onPromoteAsset} onUploadEdited={() => onUploadToStage(session.id, 'editadas')} />
+                  </div>
+                ))}
+              </div>
+            )
+          ) : (
             <p className="text-sm text-muted-foreground text-center py-4">
-              Sin fotos. Haz clic en una etapa del pipeline para subir archivos.
+              {assets.length === 0
+                ? 'Sin fotos. Haz clic en "+ Añadir" para subir archivos.'
+                : 'No hay imágenes en esta etapa.'}
             </p>
           )}
         </CardContent>
       )}
     </Card>
   );
+}
+
+function StageActionButton({
+  asset,
+  onPromote,
+  onUploadEdited,
+}: {
+  asset: DAMAsset;
+  onPromote?: (asset: DAMAsset, newStage: string) => void;
+  onUploadEdited?: () => void;
+}) {
+  const stage = asset.stage || 'backup';
+  if (!onPromote) return null;
+
+  switch (stage) {
+    case 'backup':
+      return (
+        <Button size="sm" variant="ghost" className="h-6 text-[10px] w-full" onClick={e => { e.stopPropagation(); onPromote(asset, 'seleccionadas'); }}>
+          <ArrowUpRight className="h-3 w-3 mr-1" /> Marcar seleccionada
+        </Button>
+      );
+    case 'seleccionadas':
+      return (
+        <div className="flex gap-0.5 w-full">
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] flex-1" onClick={e => { e.stopPropagation(); onPromote(asset, 'backup'); }}>
+            <ArrowDownLeft className="h-3 w-3 mr-0.5" /> Backup
+          </Button>
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] flex-1" onClick={e => { e.stopPropagation(); onUploadEdited?.(); }}>
+            <ArrowUpRight className="h-3 w-3 mr-0.5" /> Subir editada
+          </Button>
+        </div>
+      );
+    case 'editadas':
+      return (
+        <div className="flex gap-0.5 w-full">
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] flex-1" onClick={e => { e.stopPropagation(); onPromote(asset, 'seleccionadas'); }}>
+            <ArrowDownLeft className="h-3 w-3 mr-0.5" /> Selec.
+          </Button>
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] flex-1" onClick={e => { e.stopPropagation(); onPromote(asset, 'compartir'); }}>
+            <ArrowUpRight className="h-3 w-3 mr-0.5" /> Compartir
+          </Button>
+        </div>
+      );
+    case 'compartir':
+      return (
+        <div className="flex gap-0.5 w-full">
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] flex-1" onClick={e => { e.stopPropagation(); onPromote(asset, 'editadas'); }}>
+            <ArrowDownLeft className="h-3 w-3 mr-0.5" /> Quitar
+          </Button>
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] flex-1" onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(asset.file_url); }}>
+            <Link2 className="h-3 w-3 mr-0.5" /> Enlace
+          </Button>
+        </div>
+      );
+    default:
+      return null;
+  }
 }
