@@ -38,6 +38,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { undoableDelete } from '@/utils/undoableDelete';
 import { 
   ALL_CREDIT_ROLES, 
   getRoleLabel, 
@@ -173,16 +174,17 @@ export default function ReleaseCreditos() {
   // Delete track mutation
   const deleteTrack = useMutation({
     mutationFn: async (trackId: string) => {
-      const { error } = await supabase.from('tracks').delete().eq('id', trackId);
-      if (error) throw error;
+      await undoableDelete({
+        table: 'tracks',
+        id: trackId,
+        successMessage: 'Canción eliminada',
+        onComplete: () => {
+          queryClient.invalidateQueries({ queryKey: ['tracks', id] });
+        },
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tracks', id] });
-      toast.success('Canción eliminada');
       setDeleteTrackId(null);
-    },
-    onError: () => {
-      toast.error('Error al eliminar');
     },
   });
 
@@ -439,12 +441,14 @@ function TrackCreditsItem({
 
   const deleteCredit = useMutation({
     mutationFn: async (creditId: string) => {
-      const { error } = await supabase.from('track_credits').delete().eq('id', creditId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
-      toast.success('Crédito eliminado');
+      await undoableDelete({
+        table: 'track_credits',
+        id: creditId,
+        successMessage: 'Crédito eliminado',
+        onComplete: () => {
+          queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
+        },
+      });
     },
   });
 

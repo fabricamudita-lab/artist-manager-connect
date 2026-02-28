@@ -19,6 +19,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { logAvailabilityEvent } from '@/hooks/useAvailabilityAudit';
 import { toast } from 'sonner';
+import { undoableDelete } from '@/utils/undoableDelete';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
@@ -379,42 +380,30 @@ export function AvailabilityStatusCard({
   };
 
   const handleRemoveContact = async (responseId: string) => {
-    // Get the response data before deleting for audit
     const responseToRemove = responses.find(r => r.id === responseId);
     
-    try {
-      const { error } = await supabase
-        .from('booking_availability_responses')
-        .delete()
-        .eq('id', responseId);
-      
-      if (error) {
-        console.error('Delete error:', error);
-        toast.error('Error al eliminar: ' + error.message);
-        return;
-      }
-      
-      // Log audit for removed contact
-      if (request) {
-        await logAvailabilityEvent({
-          requestId: request.id,
-          responseId,
-          bookingId,
-          eventType: 'response_removed',
-          previousValue: responseToRemove ? {
-            responder_name: responseToRemove.responder_name,
-            status: responseToRemove.status,
-            contact_id: responseToRemove.contact_id
-          } : undefined
-        });
-      }
-      
-      toast.success('Contacto eliminado');
-      fetchAvailability();
-    } catch (error) {
-      console.error('Error removing contact:', error);
-      toast.error('Error al eliminar');
-    }
+    await undoableDelete({
+      table: 'booking_availability_responses',
+      id: responseId,
+      successMessage: 'Contacto eliminado',
+      onComplete: async () => {
+        // Log audit for removed contact
+        if (request) {
+          await logAvailabilityEvent({
+            requestId: request.id,
+            responseId,
+            bookingId,
+            eventType: 'response_removed',
+            previousValue: responseToRemove ? {
+              responder_name: responseToRemove.responder_name,
+              status: responseToRemove.status,
+              contact_id: responseToRemove.contact_id
+            } : undefined
+          });
+        }
+        fetchAvailability();
+      },
+    });
   };
 
   const handleUpdateStatus = async (responseId: string, newStatus: 'available' | 'unavailable' | 'tentative') => {

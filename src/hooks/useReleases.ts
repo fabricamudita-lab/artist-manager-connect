@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { undoableDelete, undoableDeleteCustom } from '@/utils/undoableDelete';
 
 export interface ReleaseArtist {
   id: string;
@@ -299,15 +300,14 @@ export function useDeleteRelease() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('releases').delete().eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['releases'] });
-      toast.success('Lanzamiento eliminado');
-    },
-    onError: () => {
-      toast.error('Error al eliminar');
+      await undoableDelete({
+        table: 'releases',
+        id,
+        successMessage: 'Lanzamiento eliminado',
+        onComplete: () => {
+          queryClient.invalidateQueries({ queryKey: ['releases'] });
+        },
+      });
     },
   });
 }
@@ -479,28 +479,38 @@ export function useDeleteReleaseAsset() {
 
   return useMutation({
     mutationFn: async (asset: ReleaseAsset) => {
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from('release-assets')
-        .remove([asset.file_bucket]);
+      // Snapshot for undo
+      const snapshot = { ...asset };
 
-      if (storageError) throw storageError;
+      await undoableDeleteCustom({
+        deleteAction: async () => {
+          // Delete from storage
+          const { error: storageError } = await supabase.storage
+            .from('release-assets')
+            .remove([asset.file_bucket]);
+          if (storageError) throw storageError;
 
-      // Delete from DB
-      const { error } = await supabase
-        .from('release_assets')
-        .delete()
-        .eq('id', asset.id);
+          // Delete from DB
+          const { error } = await supabase
+            .from('release_assets')
+            .delete()
+            .eq('id', asset.id);
+          if (error) throw error;
+        },
+        undoAction: async () => {
+          // Re-insert DB record (storage file is gone, but record is restored)
+          const { error } = await (supabase as any)
+            .from('release_assets')
+            .insert(snapshot);
+          if (error) throw error;
+        },
+        successMessage: 'Archivo eliminado',
+        onComplete: () => {
+          queryClient.invalidateQueries({ queryKey: ['release-assets', asset.release_id] });
+        },
+      });
 
-      if (error) throw error;
       return asset;
-    },
-    onSuccess: (asset) => {
-      queryClient.invalidateQueries({ queryKey: ['release-assets', asset.release_id] });
-      toast.success('Archivo eliminado');
-    },
-    onError: () => {
-      toast.error('Error al eliminar');
     },
   });
 }

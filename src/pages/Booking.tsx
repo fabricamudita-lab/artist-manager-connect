@@ -357,6 +357,13 @@ export default function Booking() {
 
   const handleDeleteOffer = async (id: string) => {
     try {
+      // Snapshot for undo
+      const { data: snapshot } = await supabase
+        .from('booking_offers')
+        .select('*')
+        .eq('id', id)
+        .single();
+
       const { error } = await supabase
         .from('booking_offers')
         .delete()
@@ -364,12 +371,28 @@ export default function Booking() {
 
       if (error) throw error;
 
-      toast({
-        title: "Oferta eliminada",
-        description: "La oferta se ha eliminado correctamente.",
-      });
-
       fetchOffers();
+
+      if (snapshot) {
+        const { toast: sonnerToast } = await import('sonner');
+        sonnerToast.success('Oferta eliminada', {
+          duration: 5000,
+          action: {
+            label: 'Deshacer',
+            onClick: async () => {
+              const { error: insertError } = await (supabase as any)
+                .from('booking_offers')
+                .insert(snapshot);
+              if (insertError) {
+                sonnerToast.error('Error al deshacer');
+              } else {
+                sonnerToast.success('Acción revertida');
+                fetchOffers();
+              }
+            },
+          },
+        });
+      }
     } catch (error) {
       console.error('Error deleting offer:', error);
       toast({

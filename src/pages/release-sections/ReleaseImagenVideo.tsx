@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useRelease } from '@/hooks/useReleases';
 import { toast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
 
 import { DAM_SECTIONS, SECTION_LABELS, ASSET_STATUSES, STATUS_LABELS, STAGE_LABELS } from '@/components/dam/DAMConstants';
 import type { DAMAsset, PhotoSession } from '@/components/dam/DAMTypes';
@@ -97,14 +98,34 @@ export default function ReleaseImagenVideo() {
 
   const handleDeleteAsset = async (asset: DAMAsset) => {
     try {
+      // Snapshot for undo
+      const snapshot = { ...asset };
+
       if (asset.file_bucket) {
         await supabase.storage.from('release-assets').remove([asset.file_bucket]);
       }
       const { error } = await supabase.from('release_assets').delete().eq('id', asset.id);
       if (error) throw error;
-      toast({ title: 'Archivo eliminado' });
       if (selectedAsset?.id === asset.id) setSelectedAsset(null);
       refreshData();
+
+      sonnerToast.success('Archivo eliminado', {
+        duration: 5000,
+        action: {
+          label: 'Deshacer',
+          onClick: async () => {
+            const { error: insertError } = await (supabase as any)
+              .from('release_assets')
+              .insert(snapshot);
+            if (insertError) {
+              sonnerToast.error('Error al deshacer');
+            } else {
+              sonnerToast.success('Acción revertida');
+              refreshData();
+            }
+          },
+        },
+      });
     } catch (e) {
       toast({ title: 'Error al eliminar', variant: 'destructive' });
     }
@@ -112,10 +133,28 @@ export default function ReleaseImagenVideo() {
 
   const handleDeleteSession = async (session: PhotoSession) => {
     try {
+      const snapshot = { ...session };
       const { error } = await supabase.from('release_photo_sessions').delete().eq('id', session.id);
       if (error) throw error;
-      toast({ title: 'Sesión eliminada' });
       refreshData();
+
+      sonnerToast.success('Sesión eliminada', {
+        duration: 5000,
+        action: {
+          label: 'Deshacer',
+          onClick: async () => {
+            const { error: insertError } = await (supabase as any)
+              .from('release_photo_sessions')
+              .insert(snapshot);
+            if (insertError) {
+              sonnerToast.error('Error al deshacer');
+            } else {
+              sonnerToast.success('Acción revertida');
+              refreshData();
+            }
+          },
+        },
+      });
     } catch (e) {
       toast({ title: 'Error al eliminar sesión', variant: 'destructive' });
     }

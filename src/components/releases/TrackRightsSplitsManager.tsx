@@ -19,6 +19,7 @@ import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { undoableDelete } from '@/utils/undoableDelete';
 import { useTrackCredits, TrackCredit, Track } from '@/hooks/useReleases';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import {
@@ -91,15 +92,14 @@ export function TrackRightsSplitsManager({ track, type }: TrackRightsSplitsManag
   // Delete credit mutation
   const deleteCredit = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('track_credits').delete().eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
-      toast.success('Crédito eliminado');
-    },
-    onError: () => {
-      toast.error('Error al eliminar');
+      await undoableDelete({
+        table: 'track_credits',
+        id,
+        successMessage: 'Crédito eliminado',
+        onComplete: () => {
+          queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
+        },
+      });
     },
   });
 

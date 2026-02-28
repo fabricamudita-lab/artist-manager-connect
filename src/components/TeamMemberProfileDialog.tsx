@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { undoableDeleteCustom } from "@/utils/undoableDelete";
 
 interface TeamMemberProfileDialogProps {
   open: boolean;
@@ -118,23 +119,52 @@ export function TeamMemberProfileDialog({
   const removeMemberFromTeam = async () => {
     setRemoving(true);
     try {
-      let query = supabase
+      const memberName = memberType === 'profile' ? profileData?.full_name : contactData?.name;
+
+      // Build the query to find the record
+      let selectQuery = supabase
         .from('project_team')
-        .delete()
+        .select('*')
         .eq('project_id', projectId);
       
       if (memberType === 'profile') {
-        query = query.eq('profile_id', memberId);
+        selectQuery = selectQuery.eq('profile_id', memberId);
       } else {
-        query = query.eq('contact_id', memberId);
+        selectQuery = selectQuery.eq('contact_id', memberId);
       }
       
-      const { error } = await query;
-      if (error) throw error;
-      
-      const memberName = memberType === 'profile' ? profileData?.full_name : contactData?.name;
-      toast.success(`${memberName} eliminado del equipo`);
-      onMemberRemoved();
+      const { data: snapshot } = await selectQuery.single();
+
+      await undoableDeleteCustom({
+        deleteAction: async () => {
+          let query = supabase
+            .from('project_team')
+            .delete()
+            .eq('project_id', projectId);
+          
+          if (memberType === 'profile') {
+            query = query.eq('profile_id', memberId);
+          } else {
+            query = query.eq('contact_id', memberId);
+          }
+          
+          const { error } = await query;
+          if (error) throw error;
+        },
+        undoAction: async () => {
+          if (snapshot) {
+            const { error } = await (supabase as any)
+              .from('project_team')
+              .insert(snapshot);
+            if (error) throw error;
+          }
+        },
+        successMessage: `${memberName} eliminado del equipo`,
+        onComplete: () => {
+          onMemberRemoved();
+        },
+      });
+
       onOpenChange(false);
     } catch (error) {
       console.error('Error removing member:', error);

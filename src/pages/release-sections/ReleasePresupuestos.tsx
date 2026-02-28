@@ -27,8 +27,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { undoableDelete } from '@/utils/undoableDelete';
 import { format, subDays, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -293,15 +293,15 @@ export default function ReleasePresupuestos() {
 
   const handleDeleteBudget = async () => {
     if (!deleteBudgetId) return;
-    try {
-      const { error } = await supabase.from('budgets').delete().eq('id', deleteBudgetId);
-      if (error) throw error;
-      toast.success('Presupuesto eliminado');
-      setDeleteBudgetId(null);
-      fetchLinkedBudgets();
-    } catch {
-      toast.error('Error al eliminar presupuesto');
-    }
+    await undoableDelete({
+      table: 'budgets',
+      id: deleteBudgetId,
+      successMessage: 'Presupuesto eliminado',
+      onComplete: () => {
+        fetchLinkedBudgets();
+      },
+    });
+    setDeleteBudgetId(null);
   };
 
   // ─── Conflict resolution ─────────────────────────────────────────

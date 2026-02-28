@@ -791,21 +791,45 @@ const confirmStatusChange = async (comment: string) => {
   };
 
   const handleDelete = async () => {
+    const id = deleteDialog.solicitudId;
     try {
+      // Snapshot for undo
+      const { data: snapshot } = await supabase
+        .from('solicitudes')
+        .select('*')
+        .eq('id', id)
+        .single();
+
       const { error } = await supabase
         .from('solicitudes')
         .delete()
-        .eq('id', deleteDialog.solicitudId);
+        .eq('id', id);
 
       if (error) throw error;
 
-      toast({
-        title: "Solicitud eliminada",
-        description: "La solicitud se ha eliminado correctamente.",
-      });
-
       setDeleteDialog({ open: false, solicitudId: '', nombre: '' });
       fetchSolicitudes();
+
+      if (snapshot) {
+        const { toast: sonnerToast } = await import('sonner');
+        sonnerToast.success('Solicitud eliminada', {
+          duration: 5000,
+          action: {
+            label: 'Deshacer',
+            onClick: async () => {
+              const { error: insertError } = await (supabase as any)
+                .from('solicitudes')
+                .insert(snapshot);
+              if (insertError) {
+                sonnerToast.error('Error al deshacer');
+              } else {
+                sonnerToast.success('Acción revertida');
+                fetchSolicitudes();
+              }
+            },
+          },
+        });
+      }
     } catch (error) {
       console.error('Error deleting solicitud:', error);
       toast({

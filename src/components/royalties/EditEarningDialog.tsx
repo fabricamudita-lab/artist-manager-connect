@@ -9,17 +9,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { PlatformEarning, useSongs } from '@/hooks/useRoyalties';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import { undoableDelete } from '@/utils/undoableDelete';
 
 const PLATFORMS = [
   { value: 'spotify', label: 'Spotify' },
@@ -65,22 +55,16 @@ export function EditEarningDialog({ earning }: EditEarningDialogProps) {
     },
   });
 
-  const deleteEarning = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from('platform_earnings')
-        .delete()
-        .eq('id', earning.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['platform_earnings'] });
-      toast.success('Ganancia eliminada');
-    },
-    onError: (error) => {
-      toast.error('Error al eliminar: ' + error.message);
-    },
-  });
+  const handleDeleteEarning = async () => {
+    await undoableDelete({
+      table: 'platform_earnings',
+      id: earning.id,
+      successMessage: 'Ganancia eliminada',
+      onComplete: () => {
+        queryClient.invalidateQueries({ queryKey: ['platform_earnings'] });
+      },
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,30 +169,14 @@ export function EditEarningDialog({ earning }: EditEarningDialogProps) {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar ganancia?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteEarning.mutate()}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 text-destructive hover:text-destructive"
+        onClick={handleDeleteEarning}
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
     </div>
   );
 }

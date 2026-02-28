@@ -585,10 +585,37 @@ export default function Budgets() {
 
   const handleDeleteBudget = async (budgetId: string) => {
     try {
+      // Snapshot for undo
+      const { data: snapshot } = await (supabase as any)
+        .from('budgets')
+        .select('*')
+        .eq('id', budgetId)
+        .single();
+
       const { error } = await supabase.from('budgets').delete().eq('id', budgetId);
       if (error) throw error;
-      toast({ title: 'Éxito', description: 'Presupuesto eliminado correctamente' });
       fetchBudgets();
+
+      if (snapshot) {
+        const { toast: sonnerToast } = await import('sonner');
+        sonnerToast.success('Presupuesto eliminado', {
+          duration: 5000,
+          action: {
+            label: 'Deshacer',
+            onClick: async () => {
+              const { error: insertError } = await (supabase as any)
+                .from('budgets')
+                .insert(snapshot);
+              if (insertError) {
+                sonnerToast.error('Error al deshacer');
+              } else {
+                sonnerToast.success('Acción revertida');
+                fetchBudgets();
+              }
+            },
+          },
+        });
+      }
     } catch (error) {
       console.error('Error deleting budget:', error);
       toast({ title: 'Error', description: 'No se pudo eliminar el presupuesto', variant: 'destructive' });

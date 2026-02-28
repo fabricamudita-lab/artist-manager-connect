@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { undoableDelete } from '@/utils/undoableDelete';
 
 // Publishing splits (Derechos de Autor - composition/lyrics)
 export interface PublishingSplit {
@@ -125,16 +126,15 @@ export function useDeletePublishingSplit() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, trackId }: { id: string; trackId: string }) => {
-      const { error } = await supabase.from('track_publishing_splits').delete().eq('id', id);
-      if (error) throw error;
+      await undoableDelete({
+        table: 'track_publishing_splits',
+        id,
+        successMessage: 'Derecho de autor eliminado',
+        onComplete: () => {
+          queryClient.invalidateQueries({ queryKey: ['track-publishing-splits', trackId] });
+        },
+      });
       return { trackId };
-    },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['track-publishing-splits', result.trackId] });
-      toast.success('Derecho de autor eliminado');
-    },
-    onError: () => {
-      toast.error('Error al eliminar');
     },
   });
 }
@@ -200,16 +200,15 @@ export function useDeleteMasterSplit() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, trackId }: { id: string; trackId: string }) => {
-      const { error } = await supabase.from('track_master_splits').delete().eq('id', id);
-      if (error) throw error;
+      await undoableDelete({
+        table: 'track_master_splits',
+        id,
+        successMessage: 'Royalty eliminado',
+        onComplete: () => {
+          queryClient.invalidateQueries({ queryKey: ['track-master-splits', trackId] });
+        },
+      });
       return { trackId };
-    },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['track-master-splits', result.trackId] });
-      toast.success('Royalty eliminado');
-    },
-    onError: () => {
-      toast.error('Error al eliminar');
     },
   });
 }

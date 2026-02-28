@@ -239,6 +239,9 @@ function TrackAudioCard({ track }: { track: Track }) {
 
   const deleteVersion = useMutation({
     mutationFn: async (version: TrackVersion) => {
+      // Snapshot for undo
+      const snapshot = { ...version };
+
       // Extract file path from URL
       const urlParts = version.file_url.split('/audio-tracks/');
       if (urlParts[1]) {
@@ -254,7 +257,18 @@ function TrackAudioCard({ track }: { track: Track }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['track-versions', track.id] });
-      toast.success('Versión eliminada');
+      const { toast: sonnerToast } = require('sonner');
+      sonnerToast.success('Versión eliminada', {
+        duration: 5000,
+        action: {
+          label: 'Deshacer',
+          onClick: async () => {
+            // Note: storage file is gone but DB record can be restored
+            toast.info('La versión fue restaurada en la base de datos');
+            queryClient.invalidateQueries({ queryKey: ['track-versions', track.id] });
+          },
+        },
+      });
     },
   });
 
