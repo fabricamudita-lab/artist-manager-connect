@@ -1013,7 +1013,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
   };
 
-
+  const createTestData = async () => {
     try {
       console.log('🧪 Creating test data for budget:', budget.id);
       
