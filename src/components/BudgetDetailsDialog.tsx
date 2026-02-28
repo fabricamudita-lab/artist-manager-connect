@@ -4124,8 +4124,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   data={getCategoryChartData()}
                                   cx="50%"
                                   cy="50%"
-                                  innerRadius={50}
-                                  outerRadius={85}
+                                   outerRadius={85}
                                   paddingAngle={2}
                                   dataKey="value"
                                 >
