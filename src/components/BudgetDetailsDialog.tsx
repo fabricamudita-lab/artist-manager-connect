@@ -301,6 +301,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showEmptyCategories, setShowEmptyCategories] = useState(false);
   const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
+  const [showWithIva, setShowWithIva] = useState(false);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingCategoryCap, setEditingCategoryCap] = useState<string>('');
@@ -787,6 +788,16 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     const iva = subtotal * (item.iva_percentage / 100);
     const irpf = subtotal * ((item.irpf_percentage ?? 15) / 100);
     return subtotal + iva - irpf;
+  };
+
+  /** Returns net or net+IVA depending on toggle */
+  const calculateDisplayTotal = (item: BudgetItem) => {
+    const subtotal = item.unit_price * (item.quantity || 1);
+    if (showWithIva) {
+      const iva = subtotal * (item.iva_percentage / 100);
+      return subtotal + iva;
+    }
+    return subtotal;
   };
 
   const calculateGrandTotals = () => {
@@ -3108,7 +3119,18 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                    {/* Category Management Header - Compact */}
                   <div className="bg-black text-white p-3 border-b border-gray-700">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-base font-bold">Gestión de Elementos y Categorías</h2>
+                      <div className="flex items-center gap-4">
+                        <h2 className="text-base font-bold">Gestión de Elementos y Categorías</h2>
+                        <div className="flex items-center gap-2 bg-white/10 rounded-md px-2.5 py-1">
+                          <span className={`text-xs font-medium cursor-pointer transition-colors ${!showWithIva ? 'text-white' : 'text-white/40'}`} onClick={() => setShowWithIva(false)}>Neto</span>
+                          <Switch
+                            checked={showWithIva}
+                            onCheckedChange={setShowWithIva}
+                            className="h-4 w-7 data-[state=checked]:bg-blue-500 data-[state=unchecked]:bg-white/30"
+                          />
+                          <span className={`text-xs font-medium cursor-pointer transition-colors ${showWithIva ? 'text-white' : 'text-white/40'}`} onClick={() => setShowWithIva(true)}>Con IVA</span>
+                        </div>
+                      </div>
                          <div className="flex gap-2">
                            <Button
                              onClick={hideEmptyCategories}
@@ -3557,30 +3579,24 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   const totalNeto = categoryItems.reduce((sum, item) => {
                                     return sum + (Number(item.unit_price) || 0) * (Number(item.quantity) || 1);
                                   }, 0);
-                                  const totalFull = categoryItems.reduce((sum, item) => {
+                                  const totalWithIva = categoryItems.reduce((sum, item) => {
                                     const unitPrice = Number(item.unit_price) || 0;
                                     const quantity = Number(item.quantity) || 1;
                                     const subtotal = unitPrice * quantity;
                                     const iva = subtotal * ((Number(item.iva_percentage) || 0) / 100);
-                                    const irpf = subtotal * ((Number(item.irpf_percentage) || 0) / 100);
-                                    return sum + (subtotal + iva - irpf);
+                                    return sum + subtotal + iva;
                                   }, 0);
+                                  const displayTotal = showWithIva ? totalWithIva : totalNeto;
                                   return (
                                     <>
                                       <div className="text-right">
-                                        <div className="text-xs text-white/50 mb-1">Neto</div>
+                                        <div className="text-xs text-white/50 mb-1">{showWithIva ? 'Con IVA' : 'Neto'}</div>
                                         <div className="font-semibold">
-                                          €{totalNeto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                                          €{displayTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                                         </div>
                                         {provisionalNeto > 0 && (
                                           <div className="text-[10px] text-amber-400">⏳ €{provisionalNeto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} prov.</div>
                                         )}
-                                      </div>
-                                      <div className="text-right">
-                                        <div className="text-xs text-white/50 mb-1">Total</div>
-                                        <div className="font-semibold">
-                                          €{totalFull.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                                        </div>
                                       </div>
                                     </>
                                   );
@@ -3981,11 +3997,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                        </TableCell>
                                       
                                        {/* Total */}
-                                       <TableCell className="p-2 text-right">
-                                         <div className="h-8 flex items-center justify-end px-2 font-medium text-green-700">
-                                           €{calculateTotal(editingItem === item.id ? { ...item, ...editingItemValues } : item).toFixed(2)}
-                                         </div>
-                                       </TableCell>
+                                        <TableCell className="p-2 text-right">
+                                          <div className="h-8 flex items-center justify-end px-2 font-medium text-green-700">
+                                            €{calculateDisplayTotal(editingItem === item.id ? { ...item, ...editingItemValues } : item).toFixed(2)}
+                                          </div>
+                                        </TableCell>
 
                                        {/* Estado de facturación */}
                                        <TableCell className="p-2 text-center">
@@ -4447,10 +4463,55 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                   </div>
                   </div>
                   
-                  {/* Enhanced Budget Items View - MOVED BELOW CHARTS */}
+                   {/* Enhanced Budget Items View - MOVED BELOW CHARTS */}
                   <div className="mb-8">
                     <EnhancedBudgetItemsView budgetId={budget.id} />
                   </div>
+
+                  {/* Resumen fiscal - colapsado por defecto */}
+                  {(() => {
+                    const totals = calculateGrandTotals();
+                    return (
+                      <Collapsible className="mb-8">
+                        <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors px-1 py-2 w-full group">
+                          <ChevronDown className="w-4 h-4 transition-transform group-data-[state=open]:rotate-180" />
+                          <Calculator className="w-4 h-4" />
+                          <span className="font-medium">Resumen fiscal</span>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <Card className="mt-2">
+                            <CardContent className="p-4">
+                              <Table>
+                                <TableBody>
+                                  <TableRow>
+                                    <TableCell className="font-medium text-muted-foreground">Total IVA soportado</TableCell>
+                                    <TableCell className="text-right font-semibold text-green-600">
+                                      +€{totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                                    </TableCell>
+                                  </TableRow>
+                                  <TableRow>
+                                    <TableCell className="font-medium text-muted-foreground">Total IRPF retenido</TableCell>
+                                    <TableCell className="text-right font-semibold text-red-500">
+                                      −€{totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                                    </TableCell>
+                                  </TableRow>
+                                  <TableRow className="border-t-2">
+                                    <TableCell className="font-bold">Total a transferir a proveedores</TableCell>
+                                    <TableCell className="text-right font-bold text-primary">
+                                      €{totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                                    </TableCell>
+                                  </TableRow>
+                                </TableBody>
+                              </Table>
+                              <p className="text-[11px] text-muted-foreground mt-3">
+                                Neto + IVA − IRPF = importe que sale de la cuenta bancaria. El IVA soportado es recuperable si la empresa está dada de alta.
+                              </p>
+                            </CardContent>
+                          </Card>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    );
+                  })()}
                 </div>
                </TabsContent>
 
