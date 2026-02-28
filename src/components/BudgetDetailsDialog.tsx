@@ -944,6 +944,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       const provisional = categoryItems
         .filter(i => i.is_provisional)
         .reduce((sum, item) => sum + (item.unit_price * (item.quantity || 1)), 0);
+      const allPaid = categoryItems.length > 0 && categoryItems.every(i => i.billing_status === 'pagada');
       
       return {
         id: category.id,
@@ -953,6 +954,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         total: total,
         confirmed,
         provisional,
+        allPaid,
         budgetCap: category.budget_cap
       };
     }); // Show all categories, even empty ones
@@ -4369,18 +4371,37 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                           </Badge>
                                         </TableCell>
                                         <TableCell className="text-center">
-                                          {category.count > 0 ? (
-                                            <div className="text-xs leading-tight">
-                                              <span className="text-foreground">€{category.confirmed.toLocaleString('es-ES', { minimumFractionDigits: 0 })} conf.</span>
+                                          {category.count === 0 ? (
+                                            <span className="text-muted-foreground text-xs">—</span>
+                                          ) : category.allPaid ? (
+                                            <span className="inline-flex items-center rounded-full bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 text-xs">
+                                              €{category.total.toLocaleString('es-ES', { minimumFractionDigits: 0 })} pagado
+                                            </span>
+                                          ) : (
+                                            <div className="space-y-1">
+                                              <div className="inline-flex items-center gap-1.5 flex-wrap justify-center">
+                                                <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-700 px-2 py-0.5 text-xs">
+                                                  €{category.confirmed.toLocaleString('es-ES', { minimumFractionDigits: 0 })} conf.
+                                                </span>
+                                                {category.provisional > 0 && (
+                                                  <span className="inline-flex items-center rounded-full bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 text-xs">
+                                                    €{category.provisional.toLocaleString('es-ES', { minimumFractionDigits: 0 })} prov.
+                                                  </span>
+                                                )}
+                                              </div>
                                               {category.provisional > 0 && (
-                                                <>
-                                                  <span className="text-muted-foreground mx-1">·</span>
-                                                  <span className="text-amber-500 font-medium">€{category.provisional.toLocaleString('es-ES', { minimumFractionDigits: 0 })} prov.</span>
-                                                </>
+                                                <div className="h-[3px] w-full rounded-full overflow-hidden bg-gray-300">
+                                                  <div
+                                                    className="h-full bg-gray-300 float-left"
+                                                    style={{ width: `${(category.confirmed / (category.confirmed + category.provisional)) * 100}%` }}
+                                                  />
+                                                  <div
+                                                    className="h-full bg-amber-300 float-left"
+                                                    style={{ width: `${(category.provisional / (category.confirmed + category.provisional)) * 100}%` }}
+                                                  />
+                                                </div>
                                               )}
                                             </div>
-                                          ) : (
-                                            <span className="text-muted-foreground text-xs">—</span>
                                           )}
                                         </TableCell>
                                         <TableCell className="text-right font-medium">
