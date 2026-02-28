@@ -1,22 +1,19 @@
 
 
-## Fix: permitir IRPF a 0% en la tabla de presupuesto
+## Arreglar grafico de "Desglose por Categoria"
 
 ### Problema
-El campo de IRPF en la tabla de items usa el operador `||` en tres sitios, lo que interpreta `0` como "falso" y lo reemplaza por `15`. Esto impide poner 0% de IRPF (necesario para Dietas, Hospedaje, Transporte, etc.).
+El grafico circular (pie chart) muestra las etiquetas directamente sobre los segmentos con `label={({ name, percent }) => ...}`, lo que causa que se superpongan cuando hay muchas categorias pequenas (Transporte, Dietas, Hospedaje, Promocion, Grabacion). El resultado es ilegible.
 
-### Cambios en `src/components/BudgetDetailsDialog.tsx`
+### Solucion
+Cambiar el layout del grafico para usar un estilo similar al de `SourceDistributionChart` (que ya funciona bien en el proyecto): un **donut chart** sin etiquetas sobre los segmentos, con la leyenda como lista lateral con nombre, importe y porcentaje.
 
-Reemplazar `||` por `??` (nullish coalescing) en estos puntos:
+**Cambios en `src/components/BudgetDetailsDialog.tsx` (lineas ~4119-4157):**
 
-1. **Linea ~3884** (valor del input en modo edicion):
-   - `editingItemValues.irpf_percentage || item.irpf_percentage || 15` cambia a `editingItemValues.irpf_percentage ?? item.irpf_percentage ?? 15`
+1. **Eliminar las etiquetas del Pie**: quitar la prop `label` y `labelLine` para que no se rendericen textos sobre el grafico
+2. **Convertir a donut**: anadir `innerRadius={50}` y `paddingAngle={2}` para separar visualmente los segmentos
+3. **Reemplazar `<Legend />`** por una lista custom al lado del grafico (flex horizontal), mostrando cada categoria con: punto de color, nombre, importe formateado y porcentaje
+4. **Ajustar layout**: cambiar el contenedor de `h-80` a un flex con el grafico a la izquierda y la leyenda a la derecha, similar al patron ya usado en `SourceDistributionChart`
 
-2. **Linea ~3885** (onChange del input):
-   - `parseFloat(e.target.value) || 15` cambia a usar una logica que acepte 0: `const v = parseFloat(e.target.value); setEditingItemValues(prev => ({ ...prev, irpf_percentage: isNaN(v) ? 15 : v }))`
-
-3. **Linea ~3893** (display en modo lectura):
-   - `item.irpf_percentage || 15` cambia a `item.irpf_percentage ?? 15`
-
-Son 3 cambios puntuales en el mismo archivo. Tras esto, el IRPF se podra poner a 0% sin problemas.
-
+### Resultado
+Grafico limpio tipo donut sin etiquetas superpuestas. La informacion detallada (nombre, importe, %) se muestra en una leyenda lateral ordenada, completamente legible independientemente del numero de categorias.
