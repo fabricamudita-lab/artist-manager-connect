@@ -34,7 +34,7 @@ const ScrollArea = React.forwardRef<
       if (!(target instanceof Element)) return false;
       return Boolean(
         target.closest(
-          "button,a,input,textarea,select,summary,[role='button'],[data-no-drag-scroll]"
+          "button,a,input,textarea,select,summary,[role='button'],[role='option'],[role='listbox'],[data-radix-select-viewport],[data-no-drag-scroll]"
         )
       );
     };
