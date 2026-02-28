@@ -547,7 +547,29 @@ export default function Budgets() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setBudgets((data as any) || []);
+
+      // Enrich budgets with real expenses from budget_items
+      const budgetIds = (data || []).map(b => b.id);
+      let enrichedData = data || [];
+      if (budgetIds.length > 0) {
+        const { data: items } = await supabase
+          .from('budget_items')
+          .select('budget_id, unit_price, quantity')
+          .in('budget_id', budgetIds);
+
+        const expenseMap = new Map<string, number>();
+        (items || []).forEach(item => {
+          const amount = (item.unit_price ?? 0) * (item.quantity || 1);
+          expenseMap.set(item.budget_id, (expenseMap.get(item.budget_id) ?? 0) + amount);
+        });
+
+        enrichedData = (data || []).map(b => ({
+          ...b,
+          expense_budget: expenseMap.get(b.id) ?? b.expense_budget ?? 0
+        }));
+      }
+
+      setBudgets((enrichedData as any) || []);
     } catch (error) {
       console.error('Error fetching budgets:', error);
       toast({ title: 'Error', description: 'No se pudieron cargar los presupuestos', variant: 'destructive' });
