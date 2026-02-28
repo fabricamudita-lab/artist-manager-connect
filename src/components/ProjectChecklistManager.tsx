@@ -1287,6 +1287,11 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
                     <Button variant="outline" size="sm" className="gap-1.5 font-semibold">
                       <ListChecks className="w-4 h-4" />
                       {activeChecklist?.name || 'Checklist'}
+                      {checklists.length > 1 && (
+                        <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 px-1 text-[10px]">
+                          {checklists.length}
+                        </Badge>
+                      )}
                       <ChevronDown className="w-3.5 h-3.5 opacity-60" />
                     </Button>
                   </DropdownMenuTrigger>
