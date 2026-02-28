@@ -3881,8 +3881,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                              step="0.1"
                                              min="0"
                                              max="100"
-                                             value={editingItemValues.irpf_percentage || item.irpf_percentage || 15}
-                                             onChange={(e) => setEditingItemValues(prev => ({ ...prev, irpf_percentage: parseFloat(e.target.value) || 15 }))}
+                                              value={editingItemValues.irpf_percentage ?? item.irpf_percentage ?? 15}
+                                              onChange={(e) => { const v = parseFloat(e.target.value); setEditingItemValues(prev => ({ ...prev, irpf_percentage: isNaN(v) ? 15 : v })); }}
                                              className="h-8 text-sm text-center border-blue-300 focus:border-blue-500 text-gray-900 bg-white"
                                            />
                                          ) : (
@@ -3890,7 +3890,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                              className="h-8 flex items-center justify-center cursor-pointer hover:bg-blue-100 px-2 rounded text-gray-900"
                                              onClick={() => startEditingItem(item)}
                                            >
-                                             {item.irpf_percentage || 15}%
+                                             {item.irpf_percentage ?? 15}%
                                            </div>
                                          )}
                                        </TableCell>
