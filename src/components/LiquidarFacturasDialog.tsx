@@ -25,6 +25,7 @@ interface LiquidarFacturasDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   budgetId: string;
+  budgetArtistId?: string;
   onSuccess?: () => void;
 }
 
@@ -32,6 +33,7 @@ export default function LiquidarFacturasDialog({
   open,
   onOpenChange,
   budgetId,
+  budgetArtistId,
   onSuccess
 }: LiquidarFacturasDialogProps) {
   const [pendingItems, setPendingItems] = useState<BudgetItem[]>([]);
@@ -93,6 +95,14 @@ export default function LiquidarFacturasDialog({
     }
   };
 
+  const getQuarterFromDate = (date: Date): string => {
+    const month = date.getMonth();
+    if (month < 3) return 'Q1';
+    if (month < 6) return 'Q2';
+    if (month < 9) return 'Q3';
+    return 'Q4';
+  };
+
   const handleLiquidar = async () => {
     if (selectedItems.size === 0) {
       toast({
@@ -123,6 +133,58 @@ export default function LiquidarFacturasDialog({
         .in('id', Array.from(selectedItems));
 
       if (error) throw error;
+
+      // Auto-create IRPF retention records for items with IRPF > 0
+      const itemsWithIrpf = pendingItems.filter(
+        item => selectedItems.has(item.id) && ((item as any).irpf_percentage ?? 15) > 0
+      );
+
+      if (itemsWithIrpf.length > 0) {
+        // Get workspace_id from the user's profile
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (currentUser) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('workspace_id')
+            .eq('user_id', currentUser.id)
+            .single();
+
+          if (profile?.workspace_id) {
+            const now = new Date();
+            const trimestre = getQuarterFromDate(now);
+            const ejercicio = now.getFullYear();
+
+            const retentionRecords = itemsWithIrpf.map(item => {
+              const subtotal = item.quantity * item.unit_price;
+              const irpfPct = (item as any).irpf_percentage ?? 15;
+              const importe = subtotal * (irpfPct / 100);
+              // Try to get contact name if available
+              const providerName = (item as any).contacts?.name || item.name;
+              const providerNif = (item as any).contacts?.nif || null;
+
+              return {
+                workspace_id: profile.workspace_id,
+                artist_id: budgetArtistId || null,
+                budget_id: budgetId,
+                budget_item_id: item.id,
+                provider_name: providerName,
+                provider_nif: providerNif,
+                concepto: concepto || item.name,
+                base_imponible: subtotal,
+                irpf_percentage: irpfPct,
+                importe_retenido: importe,
+                fecha_pago: now.toISOString().split('T')[0],
+                trimestre,
+                ejercicio,
+                is_manual: false,
+                created_by: currentUser.id,
+              };
+            });
+
+            await supabase.from('irpf_retentions').insert(retentionRecords as any);
+          }
+        }
+      }
 
       toast({
         title: "Facturas liquidadas",

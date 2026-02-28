@@ -3620,6 +3620,142 @@ export type Database = {
           },
         ]
       }
+      irpf_quarter_status: {
+        Row: {
+          created_at: string
+          ejercicio: number
+          fecha_presentacion: string | null
+          id: string
+          presentado: boolean
+          presentado_por: string | null
+          trimestre: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          ejercicio: number
+          fecha_presentacion?: string | null
+          id?: string
+          presentado?: boolean
+          presentado_por?: string | null
+          trimestre: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          ejercicio?: number
+          fecha_presentacion?: string | null
+          id?: string
+          presentado?: boolean
+          presentado_por?: string | null
+          trimestre?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "irpf_quarter_status_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      irpf_retentions: {
+        Row: {
+          artist_id: string | null
+          base_imponible: number
+          budget_id: string | null
+          budget_item_id: string | null
+          concepto: string
+          created_at: string
+          created_by: string
+          ejercicio: number
+          fecha_pago: string | null
+          id: string
+          importe_retenido: number
+          irpf_percentage: number
+          is_manual: boolean
+          provider_name: string
+          provider_nif: string | null
+          trimestre: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          artist_id?: string | null
+          base_imponible?: number
+          budget_id?: string | null
+          budget_item_id?: string | null
+          concepto: string
+          created_at?: string
+          created_by: string
+          ejercicio: number
+          fecha_pago?: string | null
+          id?: string
+          importe_retenido?: number
+          irpf_percentage?: number
+          is_manual?: boolean
+          provider_name: string
+          provider_nif?: string | null
+          trimestre: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          artist_id?: string | null
+          base_imponible?: number
+          budget_id?: string | null
+          budget_item_id?: string | null
+          concepto?: string
+          created_at?: string
+          created_by?: string
+          ejercicio?: number
+          fecha_pago?: string | null
+          id?: string
+          importe_retenido?: number
+          irpf_percentage?: number
+          is_manual?: boolean
+          provider_name?: string
+          provider_nif?: string | null
+          trimestre?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "irpf_retentions_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "irpf_retentions_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "irpf_retentions_budget_item_id_fkey"
+            columns: ["budget_item_id"]
+            isOneToOne: false
+            referencedRelation: "budget_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "irpf_retentions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       legal_documents: {
         Row: {
           artist_id: string

@@ -4834,6 +4834,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         open={showLiquidarDialog}
         onOpenChange={setShowLiquidarDialog}
         budgetId={budget.id}
+        budgetArtistId={budget.artist_id}
         onSuccess={() => {
           fetchBudgetItems();
           toast({
