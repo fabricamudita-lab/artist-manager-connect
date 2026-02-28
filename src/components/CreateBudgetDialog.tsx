@@ -19,6 +19,7 @@ import { ContactGroupSelector } from './ContactGroupSelector';
 import { Music, Mic, Megaphone, Video, Package, CalendarIcon, FolderPlus, Users, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ProjectLinkSelector } from '@/components/releases/ProjectLinkSelector';
 
 interface CreateBudgetDialogProps {
   open: boolean;
@@ -76,6 +77,12 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
   const [showFromTemplate, setShowFromTemplate] = useState(false);
   const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Project linking state (only used when not already linked via prop)
+  const [projectOption, setProjectOption] = useState<'none' | 'existing' | 'new'>('none');
+  const [selectedProjectIdLocal, setSelectedProjectIdLocal] = useState<string | null>(null);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDescription, setNewProjectDescription] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
   const [artistFormats, setArtistFormats] = useState<BookingProduct[]>([]);
   const [loadingFormats, setLoadingFormats] = useState(false);
@@ -346,6 +353,31 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
 
     setLoading(true);
     try {
+      // Handle project linking if no projectId prop
+      let resolvedProjectId = projectId || null;
+      if (!projectId) {
+        if (projectOption === 'existing' && selectedProjectIdLocal) {
+          resolvedProjectId = selectedProjectIdLocal;
+        } else if (projectOption === 'new' && newProjectName.trim()) {
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (currentUser) {
+            const { data: newProject, error: projError } = await supabase
+              .from('projects')
+              .insert({
+                name: newProjectName.trim(),
+                description: newProjectDescription.trim() || null,
+                artist_id: formData.artist_id || null,
+                created_by: currentUser.id,
+                status: 'en_curso',
+              } as any)
+              .select('id')
+              .single();
+            if (projError) throw projError;
+            resolvedProjectId = newProject.id;
+          }
+        }
+      }
+
       const insertData: any = {
           type: selectedType as 'concierto' | 'produccion_musical' | 'campana_promocional' | 'videoclip' | 'otros',
           name: formData.name,
@@ -361,7 +393,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
           event_time: formData.event_time || null,
           fee: formData.fee,
           created_by: profile?.user_id,
-          project_id: projectId || null,
+          project_id: resolvedProjectId,
           release_id: releaseId || null,
           // Campos específicos para conciertos
           ...(selectedType === 'concierto' && {
@@ -877,6 +909,23 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
                     />
                   </div>
                 </>
+              )}
+
+              {/* Project selector — only shown when not already linked via prop */}
+              {!projectId && !releaseId && (
+                <div className="md:col-span-2">
+                  <ProjectLinkSelector
+                    selectedOption={projectOption}
+                    onOptionChange={setProjectOption}
+                    selectedProjectId={selectedProjectIdLocal}
+                    onProjectIdChange={setSelectedProjectIdLocal}
+                    newProjectName={newProjectName}
+                    onNewProjectNameChange={setNewProjectName}
+                    newProjectDescription={newProjectDescription}
+                    onNewProjectDescriptionChange={setNewProjectDescription}
+                    artistId={formData.artist_id || null}
+                  />
+                </div>
               )}
 
               <div className="md:col-span-2">

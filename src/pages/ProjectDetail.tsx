@@ -83,7 +83,8 @@ import { ProjectWorkflowsTab } from "@/components/project-detail/ProjectWorkflow
 import { ProjectIncidentsTab } from "@/components/project-detail/ProjectIncidentsTab";
 import { ProjectQuestionsTab } from "@/components/project-detail/ProjectQuestionsTab";
 import { ProjectLinkedReleases } from "@/components/project-detail/ProjectLinkedReleases";
-
+import { ProjectLinkedBudgets } from "@/components/project-detail/ProjectLinkedBudgets";
+import { ProjectLinkedBookings } from "@/components/project-detail/ProjectLinkedBookings";
 interface Project {
   id: string;
   name: string;
@@ -1541,8 +1542,10 @@ export default function ProjectDetail() {
         </Card>
       </div>
 
-      {/* Linked Releases */}
+      {/* Linked Releases, Budgets, Bookings */}
       {id && <ProjectLinkedReleases projectId={id} />}
+      {id && <ProjectLinkedBudgets projectId={id} />}
+      {id && <ProjectLinkedBookings projectId={id} />}
 
       {/* Checklist moved inside tabs */}
       {/* Content Tabs */}

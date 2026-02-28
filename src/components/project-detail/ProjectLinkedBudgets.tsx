@@ -1,0 +1,89 @@
+import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { DollarSign, ArrowRight } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+
+const TYPE_LABELS: Record<string, string> = {
+  concierto: 'Concierto',
+  produccion_musical: 'Producción',
+  campana_promocional: 'Campaña',
+  videoclip: 'Videoclip',
+  otros: 'Otros',
+};
+
+interface Props {
+  projectId: string;
+}
+
+export function ProjectLinkedBudgets({ projectId }: Props) {
+  const navigate = useNavigate();
+
+  const { data: budgets } = useQuery({
+    queryKey: ['project-budgets-linked', projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('budgets')
+        .select('id, name, type, fee, show_status, budget_status')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!projectId,
+  });
+
+  if (!budgets || budgets.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <DollarSign className="w-4 h-4 text-green-500" />
+        <h3 className="text-sm font-semibold">Presupuestos vinculados</h3>
+        <Badge variant="secondary" className="text-[10px]">{budgets.length}</Badge>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {budgets.map((budget) => (
+          <Card
+            key={budget.id}
+            className="group cursor-pointer p-3 hover:ring-2 hover:ring-primary/50 transition-all"
+            onClick={() => {
+              // Budget detail is opened via dialog, not a route — for now just scroll/signal
+              // Navigate to finanzas with budget context
+              navigate(`/finanzas`);
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-md bg-gradient-to-br from-green-500/20 to-green-500/5 flex items-center justify-center shrink-0">
+                <DollarSign className="w-5 h-5 text-green-500/70" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                  {budget.name}
+                </p>
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  <Badge variant="outline" className="text-[10px]">
+                    {TYPE_LABELS[budget.type] || budget.type}
+                  </Badge>
+                  {budget.show_status && (
+                    <Badge variant="outline" className="text-[10px]">
+                      {budget.show_status}
+                    </Badge>
+                  )}
+                </div>
+                {budget.fee != null && budget.fee > 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    €{budget.fee.toLocaleString()}
+                  </p>
+                )}
+              </div>
+              <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
