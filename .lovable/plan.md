@@ -1,36 +1,26 @@
 
+## Ocultar releases archivados por defecto
 
-## ZIP descargable del modulo de detalle de proyecto
+Cambio simple: cuando el filtro de estado es "all" (por defecto), se excluyen los releases con status `archived`. Solo se muestran si el usuario selecciona explicitamente "Archivado" en el filtro de estado.
 
-Se creara una pagina temporal o utilidad que, al pulsar un boton, genera un archivo ZIP con los 10 archivos del modulo de detalle de proyecto y lo descarga automaticamente en el navegador.
+### Cambio tecnico
 
-### Archivos incluidos en el ZIP
+**Archivo**: `src/hooks/useReleasesSearch.ts`
 
-1. `src/pages/ProjectDetail.tsx`
-2. `src/components/project-detail/ProjectPulseTab.tsx`
-3. `src/components/project-detail/ProjectWorkflowsTab.tsx`
-4. `src/components/project-detail/ProjectIncidentsTab.tsx`
-5. `src/components/project-detail/ProjectQuestionsTab.tsx`
-6. `src/components/project-detail/ProjectTaskSubtasks.tsx`
-7. `src/components/project-detail/ProjectTaskTypes.ts`
-8. `src/components/project-detail/WorkflowToast.tsx`
-9. `src/components/project-detail/LinkedResourcesSection.tsx`
-10. `src/components/ProjectChecklistManager.tsx`
+En la query de Supabase (~linea 21), cuando `filters.status` es `'all'`, se anadira un filtro `.neq('status', 'archived')` para excluir archivados. Si el status es `'archived'`, se filtra normalmente con `.eq('status', 'archived')`. Cualquier otro valor sigue igual.
 
-### Implementacion
+```
+// Antes:
+if (filters.status && filters.status !== 'all') {
+  query = query.eq('status', filters.status);
+}
 
-**Archivo nuevo**: `src/utils/downloadProjectDetailZip.ts`
+// Despues:
+if (filters.status === 'all') {
+  query = query.neq('status', 'archived');
+} else if (filters.status) {
+  query = query.eq('status', filters.status);
+}
+```
 
-Una funcion que usa la libreria `JSZip` (ya instalada) para:
-- Importar el contenido de cada archivo como texto usando `import.meta.glob` con `{ query: '?raw', eager: true }`
-- Agregar cada archivo al ZIP manteniendo la estructura de carpetas
-- Generar el blob y disparar la descarga automatica como `proyecto-detalle-modulo.zip`
-
-**Archivo modificado**: `src/pages/ProjectDetail.tsx`
-
-Se anadira un boton discreto (icono de descarga) en la cabecera del detalle de proyecto que llame a la funcion de descarga del ZIP.
-
-### Nota tecnica
-
-Se usara `?raw` en los imports para obtener el codigo fuente como string en lugar de ejecutarlo. Esto es una funcionalidad nativa de Vite.
-
+Un solo archivo, 3 lineas cambiadas.
