@@ -1,45 +1,53 @@
 
-## Navegacion desde "Resumen por Categoria" a la categoria en "Elementos"
+## Reordenar elementos del presupuesto arrastrando
 
 ### Problema
-Al hacer clic en una categoria en la tabla "Resumen por Categoria" (Vista General), no pasa nada. El usuario quiere que al pinchar se navegue automaticamente a la pestana "Elementos", se abra esa categoria y se haga scroll hasta ella.
+Los elementos dentro de cada categoria tienen drag handlers visuales (GripVertical, estados de drag) pero el `onDrop` no ejecuta ninguna logica de reordenamiento -- solo limpia el estado. Ademas, la tabla `budget_items` no tiene columna `sort_order`.
 
-### Cambios (solo en `src/components/BudgetDetailsDialog.tsx`)
+### Cambios necesarios
 
-**1. Convertir las pestanas principales a controladas**
+**1. Añadir columna `sort_order` a `budget_items` (migracion SQL)**
 
-Actualmente el `<Tabs>` principal usa `defaultValue="items"` (no controlado). Se necesita convertirlo a controlado con un estado:
-- Anadir estado: `const [mainTab, setMainTab] = useState('items')`
-- Cambiar `<Tabs defaultValue="items">` a `<Tabs value={mainTab} onValueChange={setMainTab}>`
+Crear una migracion que:
+- Añada `sort_order INTEGER DEFAULT 0` a `budget_items`
+- Inicialice los valores existentes basandose en `created_at` (para que el orden actual se preserve)
 
-**2. Crear funcion `navigateToCategory`**
+**2. Actualizar la interfaz `BudgetItem` en `BudgetDetailsDialog.tsx`**
 
-Una funcion que:
-1. Cambia la pestana activa a `"items"` (`setMainTab('items')`)
-2. Abre la categoria objetivo (`setOpenCategories` anadiendo el ID)
-3. Tras un breve `setTimeout` (para que el DOM se actualice), hace scroll al elemento de esa categoria
+Añadir `sort_order?: number` al interface.
 
-**3. Anadir `data-category-id` a cada seccion de categoria en "Elementos"**
+**3. Implementar funcion `reorderElements`**
 
-En el `div` que envuelve cada categoria (linea ~3581), anadir un atributo `data-category-id={category.id}` para poder localizarlo con `querySelector`.
+Similar a la existente `reorderCategories`:
+- Recibe `draggedId`, `targetId` y `categoryId`
+- Calcula el nuevo orden dentro de la categoria
+- Actualiza cada elemento con su nuevo `sort_order` en la base de datos
+- Actualiza el estado local `items` para reflejar el cambio inmediatamente
 
-**4. Hacer clickable las filas de la tabla "Resumen por Categoria"**
+**4. Conectar el `onDrop` handler**
 
-En cada `<TableRow>` de la tabla de resumen (linea ~4518), anadir:
-- `onClick={() => navigateToCategory(category.id)}`
-- `className="cursor-pointer hover:bg-muted/50 transition-colors"`
-- Solo para categorias con elementos (count > 0)
+En el `onDrop` del `TableRow` de cada elemento (linea ~3744), llamar a `reorderElements` en lugar de solo limpiar estado.
 
-### Detalle tecnico
+**5. Actualizar `getFilteredAndSortedItems` para respetar `sort_order`**
+
+Cuando no hay un `sortBy` activo (o como ordenamiento por defecto), ordenar por `sort_order` en lugar del orden natural del array.
+
+### Seccion tecnica
 
 ```text
-Click en fila de categoria (Vista General)
-  --> setMainTab('items')
-  --> setOpenCategories(prev => new Set([...prev, categoryId]))
-  --> setTimeout(() => {
-        document.querySelector(`[data-category-id="${categoryId}"]`)
-          ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 150)
+budget_items:
+  + sort_order INTEGER DEFAULT 0
+
+reorderElements(draggedId, targetId, categoryId):
+  1. Obtener items de la categoria, ordenados por sort_order
+  2. Splice: mover draggedId a la posicion de targetId
+  3. Asignar sort_order = index a cada item
+  4. Batch update en Supabase (un update por item cambiado)
+  5. Actualizar estado local
+
+onDrop handler:
+  if (draggedElement && dragOverElement && draggedElement !== dragOverElement)
+    reorderElements(draggedElement, dragOverElement, currentCategoryId)
 ```
 
 No se modifica ninguna otra seccion, columna ni logica existente.
