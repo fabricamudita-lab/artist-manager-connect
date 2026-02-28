@@ -83,6 +83,7 @@ const getNavigationGroups = (isManagement: boolean): NavGroup[] => {
       items: [
         { title: "Finanzas", url: "/finanzas", icon: Wallet },
         { title: "Presupuestos", url: "/budgets", icon: Calculator },
+        { title: "Modelo 111", url: "/modelo-111", icon: FileText },
       ],
       managementExtra: [
         { title: "Analytics", url: "/analytics", icon: BarChart3 },

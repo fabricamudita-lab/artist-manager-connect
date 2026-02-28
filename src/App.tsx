@@ -62,6 +62,7 @@ import MyManagement from "./pages/MyManagement";
 import ArtistProfile from "./pages/ArtistProfile";
 import Correo from "./pages/Correo";
 import Automatizaciones from "./pages/Automatizaciones";
+import Modelo111 from "./pages/Modelo111";
 const queryClient = new QueryClient();
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
@@ -152,6 +153,13 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Analytics />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/modelo-111" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Modelo111 />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
