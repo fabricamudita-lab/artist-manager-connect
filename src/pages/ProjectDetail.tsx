@@ -74,6 +74,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ProjectChecklistManager } from "@/components/ProjectChecklistManager";
 import { ProjectFilesManager } from "@/components/ProjectFilesManager";
 import { ProjectShareDialog } from "@/components/ProjectShareDialog";
+import { downloadProjectDetailZip } from "@/utils/downloadProjectDetailZip";
 import { LinkEntityToProjectDialog } from "@/components/LinkEntityToProjectDialog";
 import { Progress } from "@/components/ui/progress";
 import { DollarSign, Wallet, BarChart3 } from "lucide-react";
@@ -1628,10 +1629,20 @@ export default function ProjectDetail() {
                   <TabsTrigger value="notas" className="text-xs sm:text-sm">Notas</TabsTrigger>
                 </TabsList>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setShowShareDialog(true)} className="ml-4 flex-shrink-0">
-                <Share2 className="w-4 h-4 mr-2" />
-                Compartir
-              </Button>
+              <div className="ml-4 flex-shrink-0 flex items-center gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => downloadProjectDetailZip()}>
+                      <Download className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Descargar módulo como ZIP</TooltipContent>
+                </Tooltip>
+                <Button variant="outline" size="sm" onClick={() => setShowShareDialog(true)}>
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Compartir
+                </Button>
+              </div>
             </div>
           </CardHeader>
 
