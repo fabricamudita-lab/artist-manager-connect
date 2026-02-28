@@ -109,7 +109,7 @@ export function CashflowPanel({ open, onOpenChange, budgets }: CashflowPanelProp
         transferAmount: base + iva - irpf,
         dueDate: budget?.event_date || null,
       };
-    });
+    }).filter(item => item.transferAmount !== 0);
 
     cashflowItems.sort((a, b) => {
       if (a.isProvisional !== b.isProvisional) return a.isProvisional ? 1 : -1;
