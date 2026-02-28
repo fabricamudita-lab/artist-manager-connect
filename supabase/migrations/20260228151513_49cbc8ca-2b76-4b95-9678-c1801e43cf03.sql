@@ -1,0 +1,1 @@
+ALTER TABLE public.budget_categories ADD COLUMN IF NOT EXISTS budget_cap numeric DEFAULT NULL;
