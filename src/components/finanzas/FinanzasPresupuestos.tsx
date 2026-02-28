@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Search, Trash2, FileText, Eye } from 'lucide-react';
-import { BudgetSummaryCards } from './BudgetSummaryCards';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import CreateBudgetDialog from '@/components/CreateBudgetDialog';
@@ -163,9 +163,6 @@ export function FinanzasPresupuestos({ artistId }: FinanzasPresupuestosProps = {
           </div>
         </CardContent>
       </Card>
-
-      {/* Summary Cards */}
-      <BudgetSummaryCards budgets={filteredBudgets} />
 
       {/* Table */}
       <Card className="card-moodita">
