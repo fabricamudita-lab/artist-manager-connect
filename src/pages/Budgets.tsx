@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Search, Calculator, Trash2, FileText, Eye, Pencil, Check, X, AlertTriangle, GitMerge } from 'lucide-react';
 import { BudgetSummaryCards } from '@/components/finanzas/BudgetSummaryCards';
+import { CapitalByArtistPanel } from '@/components/finanzas/CapitalByArtistPanel';
+import { CashflowPanel } from '@/components/finanzas/CashflowPanel';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import CreateBudgetDialog from '@/components/CreateBudgetDialog';
@@ -39,6 +41,7 @@ interface Budget {
   show_status?: string;
   fee?: number;
   expense_budget?: number;
+  computed_disponible?: number;
   metadata?: Record<string, any>;
   created_at: string;
   updated_at?: string;
@@ -510,6 +513,10 @@ export default function Budgets() {
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [currentGroupIndex, setCurrentGroupIndex] = useState(0);
 
+  const [cardFilter, setCardFilter] = useState<'activos' | 'disponible' | 'excedidos' | null>(null);
+  const [showCapitalPanel, setShowCapitalPanel] = useState(false);
+  const [showCashflowPanel, setShowCashflowPanel] = useState(false);
+
   const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
 
   useEffect(() => {
@@ -554,18 +561,30 @@ export default function Budgets() {
       if (budgetIds.length > 0) {
         const { data: items } = await supabase
           .from('budget_items')
-          .select('budget_id, unit_price, quantity')
+          .select('budget_id, unit_price, quantity, is_provisional, billing_status')
           .in('budget_id', budgetIds);
 
         const expenseMap = new Map<string, number>();
+        const disponibleMap = new Map<string, number>();
+
         (items || []).forEach(item => {
           const amount = (item.unit_price ?? 0) * (item.quantity || 1);
           expenseMap.set(item.budget_id, (expenseMap.get(item.budget_id) ?? 0) + amount);
         });
 
+        (data || []).forEach(b => {
+          const capital = b.fee || 0;
+          const budgetItems = (items || []).filter(i => i.budget_id === b.id);
+          const paid = budgetItems.filter(i => i.billing_status === 'pagado').reduce((s, i) => s + (i.unit_price ?? 0) * (i.quantity || 1), 0);
+          const confirmed = budgetItems.filter(i => !i.is_provisional && i.billing_status !== 'pagado').reduce((s, i) => s + (i.unit_price ?? 0) * (i.quantity || 1), 0);
+          const provisional = budgetItems.filter(i => i.is_provisional && i.billing_status !== 'pagado').reduce((s, i) => s + (i.unit_price ?? 0) * (i.quantity || 1), 0);
+          disponibleMap.set(b.id, capital - paid - confirmed - provisional);
+        });
+
         enrichedData = (data || []).map(b => ({
           ...b,
-          expense_budget: expenseMap.get(b.id) ?? b.expense_budget ?? 0
+          expense_budget: expenseMap.get(b.id) ?? b.expense_budget ?? 0,
+          computed_disponible: disponibleMap.get(b.id) ?? (b.fee || 0),
         }));
       }
 
@@ -756,22 +775,65 @@ export default function Budgets() {
     }
   };
 
-  const filteredBudgets = budgets.filter((budget) => {
-    const q = searchTerm.toLowerCase().trim();
-    const matchesSearch =
-      !q ||
-      budget.name.toLowerCase().includes(q) ||
-      (budget.artists?.stage_name?.toLowerCase().includes(q) ?? false) ||
-      (budget.artists?.name?.toLowerCase().includes(q) ?? false) ||
-      (budget.releases?.title?.toLowerCase().includes(q) ?? false) ||
-      (budget.projects?.name?.toLowerCase().includes(q) ?? false) ||
-      (budget.city?.toLowerCase().includes(q) ?? false);
+  const handleCardClick = (type: 'activos' | 'capital' | 'comprometido' | 'disponible' | 'excedidos') => {
+    if (type === 'capital') {
+      setShowCapitalPanel(true);
+      return;
+    }
+    if (type === 'comprometido') {
+      setShowCashflowPanel(true);
+      return;
+    }
+    if (type === 'excedidos') {
+      const closedStatuses = ['cerrado', 'archivado', 'rechazado', 'cancelado'];
+      const exceeded = budgets.filter(b => {
+        const isClosed = closedStatuses.includes(getEstadoReal(b));
+        return !isClosed && (b.computed_disponible ?? 0) < 0;
+      });
+      if (exceeded.length === 1) {
+        handleViewBudget(exceeded[0]);
+        return;
+      }
+    }
+    setCardFilter(prev => prev === type ? null : type);
+  };
 
-    const matchesType = filterType === 'all' || budget.type === filterType;
-    const matchesArtist = filterArtist === 'all' || budget.artist_id === filterArtist;
+  const filteredBudgets = (() => {
+    const closedStatuses = ['cerrado', 'archivado', 'rechazado', 'cancelado'];
+    let result = budgets.filter((budget) => {
+      const q = searchTerm.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        budget.name.toLowerCase().includes(q) ||
+        (budget.artists?.stage_name?.toLowerCase().includes(q) ?? false) ||
+        (budget.artists?.name?.toLowerCase().includes(q) ?? false) ||
+        (budget.releases?.title?.toLowerCase().includes(q) ?? false) ||
+        (budget.projects?.name?.toLowerCase().includes(q) ?? false) ||
+        (budget.city?.toLowerCase().includes(q) ?? false);
 
-    return matchesSearch && matchesType && matchesArtist;
-  });
+      const matchesType = filterType === 'all' || budget.type === filterType;
+      const matchesArtist = filterArtist === 'all' || budget.artist_id === filterArtist;
+
+      let matchesCard = true;
+      if (cardFilter === 'activos') {
+        matchesCard = !closedStatuses.includes(getEstadoReal(budget));
+      } else if (cardFilter === 'disponible') {
+        matchesCard = !closedStatuses.includes(getEstadoReal(budget)) && (budget.computed_disponible ?? 0) > 0;
+      } else if (cardFilter === 'excedidos') {
+        matchesCard = !closedStatuses.includes(getEstadoReal(budget)) && (budget.computed_disponible ?? 0) < 0;
+      }
+
+      return matchesSearch && matchesType && matchesArtist && matchesCard;
+    });
+
+    if (cardFilter === 'disponible') {
+      result.sort((a, b) => (b.computed_disponible ?? 0) - (a.computed_disponible ?? 0));
+    } else if (cardFilter === 'excedidos') {
+      result.sort((a, b) => (a.computed_disponible ?? 0) - (b.computed_disponible ?? 0));
+    }
+
+    return result;
+  })();
 
   // Precompute duplicate IDs for row indicators
   const duplicateIds = new Set(duplicateGroups.flat().map((b) => b.id));
@@ -819,7 +881,7 @@ export default function Budgets() {
         </div>
 
         {/* KPI Cards */}
-        <BudgetSummaryCards budgets={filteredBudgets} />
+        <BudgetSummaryCards budgets={filteredBudgets} onCardClick={handleCardClick} activeCard={cardFilter} />
 
         {/* Filters */}
         <div className="card-moodita hover-lift">
@@ -868,6 +930,23 @@ export default function Budgets() {
             </div>
           </CardContent>
         </div>
+
+        {/* Active card filter chip */}
+        {cardFilter && (
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border cursor-pointer transition-colors ${
+                cardFilter === 'excedidos'
+                  ? 'bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20'
+                  : 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20'
+              }`}
+              onClick={() => setCardFilter(null)}
+            >
+              Filtrando: {cardFilter === 'activos' ? 'Activos' : cardFilter === 'disponible' ? 'Con margen disponible' : 'Excedidos'}
+              <X className="h-3 w-3" />
+            </span>
+          </div>
+        )}
 
         {/* Duplicate warning banner */}
         {duplicateGroups.length > 0 && (
@@ -1191,6 +1270,18 @@ export default function Budgets() {
             )}
           </CardContent>
         </Card>
+
+        {/* Side Panels */}
+        <CapitalByArtistPanel
+          open={showCapitalPanel}
+          onOpenChange={setShowCapitalPanel}
+          budgets={budgets}
+        />
+        <CashflowPanel
+          open={showCashflowPanel}
+          onOpenChange={setShowCashflowPanel}
+          budgets={budgets}
+        />
 
         {/* Dialogs */}
         <CreateBudgetDialog

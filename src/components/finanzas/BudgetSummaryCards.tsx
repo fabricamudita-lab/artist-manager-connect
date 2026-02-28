@@ -20,12 +20,14 @@ interface BudgetSummaryCardsProps {
     budget_status?: string;
     fee?: number;
   }>;
+  onCardClick?: (type: 'activos' | 'capital' | 'comprometido' | 'disponible' | 'excedidos') => void;
+  activeCard?: string | null;
 }
 
 const formatCurrency = (value: number) =>
   `€${Math.abs(value).toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
-export function BudgetSummaryCards({ budgets }: BudgetSummaryCardsProps) {
+export function BudgetSummaryCards({ budgets, onCardClick, activeCard }: BudgetSummaryCardsProps) {
   const [aggregates, setAggregates] = useState<BudgetAggregates>({
     activeCount: 0,
     inProductionCount: 0,
@@ -158,7 +160,7 @@ export function BudgetSummaryCards({ budgets }: BudgetSummaryCardsProps) {
   return (
     <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
       {/* 1. PRESUPUESTOS ACTIVOS */}
-      <Card className="card-moodita">
+      <Card className={`card-moodita cursor-pointer transition-all hover:shadow-md ${activeCard === 'activos' ? 'ring-2 ring-primary border-primary/50' : ''}`} onClick={() => onCardClick?.('activos')}>
         <CardContent className="p-4 flex flex-col justify-between h-full">
           <div className="flex items-center gap-2 mb-2">
             <Briefcase className="h-4 w-4 text-muted-foreground" />
@@ -177,7 +179,7 @@ export function BudgetSummaryCards({ budgets }: BudgetSummaryCardsProps) {
       </Card>
 
       {/* 2. CAPITAL GESTIONADO */}
-      <Card className="card-moodita">
+      <Card className="card-moodita cursor-pointer transition-all hover:shadow-md" onClick={() => onCardClick?.('capital')}>
         <CardContent className="p-4 flex flex-col justify-between h-full">
           <div className="flex items-center gap-2 mb-2">
             <Wallet className="h-4 w-4 text-blue-500" />
@@ -191,7 +193,7 @@ export function BudgetSummaryCards({ budgets }: BudgetSummaryCardsProps) {
       </Card>
 
       {/* 3. COMPROMETIDO */}
-      <Card className="card-moodita">
+      <Card className="card-moodita cursor-pointer transition-all hover:shadow-md" onClick={() => onCardClick?.('comprometido')}>
         <CardContent className="p-4 flex flex-col justify-between h-full">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -215,7 +217,7 @@ export function BudgetSummaryCards({ budgets }: BudgetSummaryCardsProps) {
       </Card>
 
       {/* 4. DISPONIBLE AGREGADO */}
-      <Card className="card-moodita">
+      <Card className={`card-moodita cursor-pointer transition-all hover:shadow-md ${activeCard === 'disponible' ? 'ring-2 ring-primary border-primary/50' : ''}`} onClick={() => onCardClick?.('disponible')}>
         <CardContent className="p-4 flex flex-col justify-between h-full">
           <div className="flex items-center gap-2 mb-2">
             {isExceeded ? (
@@ -237,7 +239,7 @@ export function BudgetSummaryCards({ budgets }: BudgetSummaryCardsProps) {
       </Card>
 
       {/* 5. EXCEDIDOS */}
-      <Card className={`card-moodita ${hasExceededBudgets ? 'border-destructive/40 animate-pulse-subtle' : ''}`}>
+      <Card className={`card-moodita cursor-pointer transition-all hover:shadow-md ${hasExceededBudgets ? 'border-destructive/40 animate-pulse-subtle' : ''} ${activeCard === 'excedidos' ? 'ring-2 ring-destructive border-destructive/50' : ''}`} onClick={() => onCardClick?.('excedidos')}>
         <CardContent className="p-4 flex flex-col justify-between h-full">
           <div className="flex items-center gap-2 mb-2">
             {hasExceededBudgets ? (
