@@ -66,7 +66,8 @@ import {
   Upload,
   Sparkles,
   Link2,
-  Eraser
+  Eraser,
+  Info
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useInvoiceAutoLink } from '@/hooks/useInvoiceAutoLink';
@@ -2782,6 +2783,19 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 const saldoPendiente = budgetAmount - avancePagado;
                 const pctEjecutado = budgetAmount > 0 ? (totals.neto / budgetAmount) * 100 : 0;
                 const campo2 = isProduccion ? avancePagado : expenseBudget;
+                // New KPIs for non-concert header
+                const pagado = items
+                  .filter(i => i.billing_status === 'pagada')
+                  .reduce((sum, i) => sum + (i.unit_price ?? 0) * (i.quantity || 1), 0);
+                const comprometido = items
+                  .filter(i => i.billing_status !== 'pagada' && !i.is_provisional)
+                  .reduce((sum, i) => sum + (i.unit_price ?? 0) * (i.quantity || 1), 0);
+                const provisionalTotal = items
+                  .filter(i => i.billing_status !== 'pagada' && i.is_provisional)
+                  .reduce((sum, i) => sum + (i.unit_price ?? 0) * (i.quantity || 1), 0);
+                const facturasCobradas = items.filter(i => i.billing_status === 'pagada').length;
+                const disponible = budgetAmount - pagado - comprometido - provisionalTotal;
+                const disponiblePct = budgetAmount > 0 ? (disponible / budgetAmount) * 100 : 0;
                 // Subtotal de ítems en categorías ocultas (con IVA)
                 const hiddenTotal = items
                   .filter(item => hiddenCategories.has(item.category_id ?? ''))
@@ -2792,7 +2806,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 
                 return (
                   <>
-                  <div className="grid grid-cols-6 gap-2">
+                  <div className={`grid ${isConcert ? 'grid-cols-6' : 'grid-cols-4'} gap-2`}>
                     {isConcert ? (
                       <>
                         {/* CONCIERTO: CACHÉ | PRESUPUESTO | GASTOS REALES | TOTAL A FACTURAR | BENEFICIO | MARGEN */}
@@ -2841,86 +2855,78 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       </>
                     ) : (
                       <>
-                        {/* PRODUCCIÓN / CAMPAÑA / VIDEOCLIP */}
+                        {/* PRODUCCIÓN / CAMPAÑA / VIDEOCLIP — 4 métricas */}
+                        {/* 1. CAPITAL */}
                         <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                          <div className="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1">
-                            {isProduccion ? 'CAPITAL APORTADO' : 'CAPITAL'}
-                          </div>
+                          <div className="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1">CAPITAL</div>
                           <div className="text-xl font-bold text-blue-400">€{budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
                           <div className="flex items-center gap-0.5 text-[9px] text-blue-400/70 mt-0.5">
-                            <span>{isProduccion ? 'Inversión total' : 'Presupuesto total'}</span>
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="cursor-help text-blue-400/70 hover:text-blue-400 ml-0.5">ℹ</span>
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom" className="max-w-[220px] text-xs">
-                                  {isProduccion
-                                    ? 'Capital aportado por el artista, sello o distribuidora. Parte puede ser a devolver y parte a fondo perdido (ej. marketing).'
-                                    : 'Capital total asignado a este proyecto.'}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            <span>Presupuesto total</span>
                           </div>
                         </div>
 
+                        {/* 2. PAGADO */}
+                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                          <div className="text-xs font-semibold text-green-500 uppercase tracking-wide mb-1">PAGADO</div>
+                          <div className="text-xl font-bold text-green-500">€{pagado.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-[9px] text-green-500/70 mt-0.5">{facturasCobradas} factura{facturasCobradas !== 1 ? 's' : ''} cobrada{facturasCobradas !== 1 ? 's' : ''}</div>
+                        </div>
+
+                        {/* 3. COMPROMETIDO + popover fiscal */}
                         <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
-                          <div className="flex items-center gap-0.5">
-                            <div className="text-xs font-semibold text-amber-400 uppercase tracking-wide mb-1">
-                              {isProduccion ? 'AVANCE PAGADO' : 'PRESUPUESTO PLANIF.'}
-                            </div>
-                            {isProduccion && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="cursor-help text-amber-400/70 hover:text-amber-400 text-[9px] mb-1 ml-0.5">ℹ</span>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom" className="max-w-[240px] text-xs">
-                                    Pago inicial que recibe el artista/productor al comenzar el proyecto, antes de que existan facturas reales. Se descuenta del capital aportado cuando llegan las liquidaciones.
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                          <div className="flex items-center gap-1 mb-1">
+                            <span className="text-xs font-semibold text-amber-400 uppercase tracking-wide">COMPROMETIDO</span>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button className="text-amber-400/60 hover:text-amber-400 transition-colors">
+                                  <Info className="w-3 h-3" />
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent side="bottom" className="w-56 p-3 text-xs space-y-1.5">
+                                <p className="font-semibold text-foreground mb-2">Desglose fiscal</p>
+                                <div className="flex justify-between"><span className="text-muted-foreground">IVA soportado</span><span className="text-green-600">+€{totals.iva.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">IRPF retenido</span><span className="text-red-500">−€{totals.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span></div>
+                                <div className="border-t pt-1.5 flex justify-between font-semibold"><span>Total a pagar</span><span>€{totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span></div>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                          <div className="text-xl font-bold text-amber-400">€{(comprometido + provisionalTotal).toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-[9px] mt-0.5 flex items-center gap-1">
+                            <span className="text-amber-400/70">€{comprometido.toLocaleString('es-ES', { minimumFractionDigits: 0 })} confirmado</span>
+                            {provisionalTotal > 0 && (
+                              <>
+                                <span className="text-amber-400/40">·</span>
+                                <span className="text-amber-500 font-medium">€{provisionalTotal.toLocaleString('es-ES', { minimumFractionDigits: 0 })} provisional</span>
+                              </>
                             )}
                           </div>
-                          <div className="text-xl font-bold text-amber-400">€{campo2.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
-                          <div className="text-[9px] text-amber-400/70 mt-0.5">
-                            {isProduccion ? 'Anticipo al artista/productor' : 'Gastos planificados'}
-                          </div>
                         </div>
 
-                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${budgetAmount > 0 && totals.neto > budgetAmount ? 'bg-destructive/10 border-destructive/20' : 'bg-card/50 border-border'}`}>
-                          <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${budgetAmount > 0 && totals.neto > budgetAmount ? 'text-destructive' : 'text-foreground/70'}`}>EJECUTADO</div>
-                          <div className={`text-xl font-bold ${budgetAmount > 0 && totals.neto > budgetAmount ? 'text-destructive' : 'text-foreground'}`}>
-                            €{totals.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                        {/* 4. DISPONIBLE — semáforo */}
+                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${
+                          disponiblePct < 0 ? 'bg-destructive/10 border-destructive/20' :
+                          disponiblePct <= 15 ? 'bg-amber-500/10 border-amber-500/20' :
+                          'bg-green-500/10 border-green-500/20'
+                        }`}>
+                          <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${
+                            disponiblePct < 0 ? 'text-destructive' :
+                            disponiblePct <= 15 ? 'text-amber-400' :
+                            'text-green-500'
+                          }`}>DISPONIBLE</div>
+                          <div className={`text-xl font-bold ${
+                            disponiblePct < 0 ? 'text-destructive' :
+                            disponiblePct <= 15 ? 'text-amber-400' :
+                            'text-green-500'
+                          }`}>
+                            {disponible < 0 ? '-' : ''}€{Math.abs(disponible).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                           </div>
-                          <div className={`text-[9px] mt-0.5 ${totals.neto > budgetAmount ? 'text-destructive' : 'text-foreground/50'}`}>Gasto real neto</div>
-                        </div>
-
-                        <div className="flex flex-col justify-center items-center h-[80px] p-3 bg-primary/10 rounded-lg border border-primary/20">
-                          <div className="text-[10px] font-semibold text-primary uppercase tracking-wide mb-1">TOTAL A FACTURAR</div>
-                          <div className="text-xl font-bold text-primary">€{totals.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
-                          <div className="flex items-center gap-2 text-[9px] mt-0.5">
-                            <span className="text-green-600">+€{totals.iva.toFixed(0)} IVA</span>
-                            <span className="text-red-600">-€{totals.irpf.toFixed(0)} IRPF</span>
+                          <div className={`text-[9px] mt-0.5 font-medium ${
+                            disponiblePct < 0 ? 'text-destructive/70' :
+                            disponiblePct <= 15 ? 'text-amber-400/70' :
+                            'text-green-500/70'
+                          }`}>
+                            {disponible < 0 ? 'EXCEDIDO' : 'Por consumir'}
                           </div>
-                        </div>
-
-                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${saldoPendiente < 0 ? 'bg-destructive/10 border-destructive/20' : 'bg-orange-500/10 border-orange-500/20'}`}>
-                          <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${saldoPendiente < 0 ? 'text-destructive' : 'text-orange-400'}`}>SALDO PENDIENTE</div>
-                          <div className={`text-xl font-bold ${saldoPendiente < 0 ? 'text-destructive' : 'text-orange-400'}`}>
-                            {budgetAmount === 0 ? '—' : `${saldoPendiente < 0 ? '-' : ''}€${Math.abs(saldoPendiente).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`}
-                          </div>
-                          <div className={`text-[9px] mt-0.5 ${saldoPendiente < 0 ? 'text-destructive/70' : 'text-orange-400/70'}`}>
-                            {isProduccion ? 'Capital − Avance' : 'Por consumir'}
-                          </div>
-                        </div>
-
-                        <div className={`flex flex-col justify-center items-center h-[80px] p-3 rounded-lg border ${budgetAmount === 0 ? 'bg-muted/30 border-border' : pctEjecutado > 100 ? 'bg-destructive/10 border-destructive/20' : 'bg-green-500/10 border-green-500/20'}`}>
-                          <div className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${budgetAmount === 0 ? 'text-muted-foreground' : pctEjecutado > 100 ? 'text-destructive' : 'text-green-600'}`}>% EJECUTADO</div>
-                          <div className={`text-xl font-bold ${budgetAmount === 0 ? 'text-muted-foreground' : pctEjecutado > 100 ? 'text-destructive' : 'text-green-600'}`}>
-                            {budgetAmount === 0 ? '—' : `${pctEjecutado.toFixed(1)}%`}
-                          </div>
-                          <div className={`text-[9px] mt-0.5 ${pctEjecutado > 100 ? 'text-destructive/70' : 'text-green-600/70'}`}>Ejecutado / Capital</div>
                         </div>
                       </>
                     )}
