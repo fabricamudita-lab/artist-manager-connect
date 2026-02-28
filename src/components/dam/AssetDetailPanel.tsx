@@ -18,6 +18,7 @@ import {
 } from './DAMConstants';
 import type { DAMAsset, AssetComment } from './DAMTypes';
 import { cn } from '@/lib/utils';
+import { detectImageDimensionsFromUrl } from './utils/detectImageDimensions';
 
 interface AssetDetailPanelProps {
   asset: DAMAsset;
@@ -42,10 +43,28 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
   const [comments, setComments] = useState<AssetComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [saving, setSaving] = useState(false);
+  const [detectedDims, setDetectedDims] = useState<{ resolution: string; formatSpec: string } | null>(null);
 
   useEffect(() => {
     fetchComments();
   }, [asset.id]);
+
+  // Auto-detect dimensions for images missing resolution
+  useEffect(() => {
+    if (asset.type === 'image' && !asset.resolution && asset.file_url) {
+      detectImageDimensionsFromUrl(asset.file_url)
+        .then(dims => {
+          setDetectedDims({ resolution: dims.resolution, formatSpec: dims.formatSpec });
+          // Pre-fill form with detected values
+          setForm(f => ({
+            ...f,
+            resolution: f.resolution || dims.resolution,
+            format_spec: f.format_spec || dims.formatSpec,
+          }));
+        })
+        .catch(() => { /* ignore */ });
+    }
+  }, [asset.id, asset.type, asset.resolution, asset.file_url]);
 
   const fetchComments = async () => {
     const { data } = await supabase
@@ -247,8 +266,8 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground">Estado</span><Badge className={cn('text-[10px]', statusColor)}>{STATUS_LABELS[asset.status || 'en_produccion']}</Badge></div>
                 {asset.sub_type && <div className="flex justify-between"><span className="text-muted-foreground">Tipo</span><span>{asset.sub_type}</span></div>}
-                {asset.format_spec && <div className="flex justify-between"><span className="text-muted-foreground">Formato</span><span>{asset.format_spec}</span></div>}
-                {asset.resolution && <div className="flex justify-between"><span className="text-muted-foreground">Resolución</span><span>{asset.resolution}</span></div>}
+                {(asset.format_spec || detectedDims?.formatSpec) && <div className="flex justify-between"><span className="text-muted-foreground">Formato</span><span className={!asset.format_spec ? 'text-muted-foreground italic' : ''}>{asset.format_spec || detectedDims?.formatSpec}{!asset.format_spec && ' (auto)'}</span></div>}
+                {(asset.resolution || detectedDims?.resolution) && <div className="flex justify-between"><span className="text-muted-foreground">Resolución</span><span className={!asset.resolution ? 'text-muted-foreground italic' : ''}>{asset.resolution || detectedDims?.resolution}{!asset.resolution && ' (auto)'}</span></div>}
                 {asset.delivery_date && <div className="flex justify-between"><span className="text-muted-foreground">Entrega</span><span>{asset.delivery_date}</span></div>}
                 {asset.platform_tags && asset.platform_tags.length > 0 && (
                   <div className="flex justify-between items-start"><span className="text-muted-foreground">Plataformas</span><div className="flex flex-wrap gap-1 justify-end">{asset.platform_tags.map(p => <Badge key={p} variant="outline" className="text-[10px]">{p}</Badge>)}</div></div>
