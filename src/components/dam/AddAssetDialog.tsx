@@ -14,6 +14,7 @@ import {
   ARTWORK_TYPES, VIDEO_TYPES, DIGITAL_ASSET_TYPES, PHYSICAL_TYPES,
   ASSET_STATUSES, STATUS_LABELS,
 } from './DAMConstants';
+import { detectImageDimensionsFromFile } from './utils/detectImageDimensions';
 
 interface AddAssetDialogProps {
   open: boolean;
@@ -58,6 +59,7 @@ export default function AddAssetDialog({
     try {
       for (const file of Array.from(files)) {
         const isVideo = file.type.startsWith('video/');
+        const isImage = file.type.startsWith('image/');
         const ext = file.name.split('.').pop();
         const fileName = `${releaseId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
@@ -69,6 +71,17 @@ export default function AddAssetDialog({
         const { data: urlData } = supabase.storage.from('release-assets').getPublicUrl(fileName);
 
         const title = form.title || file.name.replace(/\.[^/.]+$/, '');
+
+        // Auto-detect dimensions for images
+        let resolution: string | null = null;
+        let format_spec: string | null = null;
+        if (isImage) {
+          try {
+            const dims = await detectImageDimensionsFromFile(file);
+            resolution = dims.resolution;
+            format_spec = dims.formatSpec || null;
+          } catch { /* ignore detection errors */ }
+        }
 
         await supabase.from('release_assets').insert({
           release_id: releaseId,
@@ -82,6 +95,8 @@ export default function AddAssetDialog({
           status: form.status,
           session_id: sessionId || null,
           stage: stage || null,
+          resolution,
+          format_spec,
         } as any);
       }
 
