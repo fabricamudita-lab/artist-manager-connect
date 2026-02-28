@@ -1,185 +1,297 @@
+import { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Image, Video, Trash2, Loader2 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { ArrowLeft, Plus, LayoutGrid, List, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useRelease, useReleaseAssets, useUploadReleaseAsset, useDeleteReleaseAsset } from '@/hooks/useReleases';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
-import { useState, useEffect, useRef } from 'react';
-import { useAlertHighlight } from '@/hooks/useAlertHighlight';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useRelease } from '@/hooks/useReleases';
+import { toast } from '@/hooks/use-toast';
+
+import { DAM_SECTIONS, SECTION_LABELS, ASSET_STATUSES, STATUS_LABELS } from '@/components/dam/DAMConstants';
+import type { DAMAsset, PhotoSession } from '@/components/dam/DAMTypes';
+import DAMSectionComponent from '@/components/dam/DAMSection';
+import PhotoSessionPipeline from '@/components/dam/PhotoSessionPipeline';
+import AssetDetailPanel from '@/components/dam/AssetDetailPanel';
+import AddAssetDialog from '@/components/dam/AddAssetDialog';
+import CreateSessionDialog from '@/components/dam/CreateSessionDialog';
 
 export default function ReleaseImagenVideo() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: release, isLoading: loadingRelease } = useRelease(id);
-  const { data: assets, isLoading: loadingAssets } = useReleaseAssets(id);
-  const uploadMutation = useUploadReleaseAsset();
-  const deleteMutation = useDeleteReleaseAsset();
-  const [filter, setFilter] = useState<'all' | 'image' | 'video'>('all');
-  const { alertId, highlightElement } = useAlertHighlight();
-  const uploadBtnRef = useRef<HTMLButtonElement>(null);
-  const uploadBtnEmptyRef = useRef<HTMLButtonElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
 
-  useEffect(() => {
-    if (alertId === 'media-empty') {
-      setTimeout(() => {
-        if (uploadBtnRef.current) highlightElement(uploadBtnRef.current);
-        if (uploadBtnEmptyRef.current) highlightElement(uploadBtnEmptyRef.current);
-      }, 400);
+  // Filters
+  const [sectionFilter, setSectionFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Panels & dialogs
+  const [selectedAsset, setSelectedAsset] = useState<DAMAsset | null>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addDialogSection, setAddDialogSection] = useState('artwork');
+  const [addDialogSessionId, setAddDialogSessionId] = useState<string | undefined>();
+  const [addDialogStage, setAddDialogStage] = useState<string | undefined>();
+  const [createSessionOpen, setCreateSessionOpen] = useState(false);
+
+  // Fetch assets
+  const { data: allAssets = [], isLoading: loadingAssets } = useQuery({
+    queryKey: ['dam-assets', id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from('release_assets')
+        .select('*')
+        .eq('release_id', id)
+        .order('sort_order', { ascending: true });
+      if (error) throw error;
+      return (data || []) as DAMAsset[];
+    },
+    enabled: !!id,
+  });
+
+  // Fetch photo sessions
+  const { data: sessions = [], isLoading: loadingSessions } = useQuery({
+    queryKey: ['dam-sessions', id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from('release_photo_sessions')
+        .select('*')
+        .eq('release_id', id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as PhotoSession[];
+    },
+    enabled: !!id,
+  });
+
+  // Filter assets
+  const filteredAssets = useMemo(() => {
+    let filtered = allAssets;
+    if (sectionFilter !== 'all') {
+      filtered = filtered.filter(a => a.section === sectionFilter);
     }
-  }, [alertId, highlightElement]);
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(a => a.status === statusFilter);
+    }
+    return filtered;
+  }, [allAssets, sectionFilter, statusFilter]);
 
-  const filteredAssets = assets?.filter((a) => filter === 'all' || a.type === filter) || [];
+  const getAssetsForSection = useCallback((section: string) => {
+    return filteredAssets.filter(a => a.section === section && !a.session_id);
+  }, [filteredAssets]);
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
+  const getAssetsForSession = useCallback((sessionId: string) => {
+    return filteredAssets.filter(a => a.session_id === sessionId);
+  }, [filteredAssets]);
+
+  const refreshData = () => {
+    queryClient.invalidateQueries({ queryKey: ['dam-assets', id] });
+    queryClient.invalidateQueries({ queryKey: ['dam-sessions', id] });
+    queryClient.invalidateQueries({ queryKey: ['release-assets', id] });
   };
 
-  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0 || !id) return;
-
-    setUploading(true);
-    setUploadProgress(0);
-    const total = files.length;
-    let completed = 0;
-
-    for (const file of Array.from(files)) {
-      const isVideo = file.type.startsWith('video/');
-      const type = isVideo ? 'video' : 'image';
-      const title = file.name.replace(/\.[^/.]+$/, '');
-
-      try {
-        await uploadMutation.mutateAsync({ file, releaseId: id, type: type as 'image' | 'video', title });
-      } catch {
-        // error handled by mutation
+  const handleDeleteAsset = async (asset: DAMAsset) => {
+    try {
+      if (asset.file_bucket) {
+        await supabase.storage.from('release-assets').remove([asset.file_bucket]);
       }
-      completed++;
-      setUploadProgress(Math.round((completed / total) * 100));
+      const { error } = await supabase.from('release_assets').delete().eq('id', asset.id);
+      if (error) throw error;
+      toast({ title: 'Archivo eliminado' });
+      if (selectedAsset?.id === asset.id) setSelectedAsset(null);
+      refreshData();
+    } catch (e) {
+      toast({ title: 'Error al eliminar', variant: 'destructive' });
     }
+  };
 
-    setUploading(false);
-    setUploadProgress(0);
-    // Reset input so same file can be re-selected
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  const handleDeleteSession = async (session: PhotoSession) => {
+    try {
+      const { error } = await supabase.from('release_photo_sessions').delete().eq('id', session.id);
+      if (error) throw error;
+      toast({ title: 'Sesión eliminada' });
+      refreshData();
+    } catch (e) {
+      toast({ title: 'Error al eliminar sesión', variant: 'destructive' });
+    }
+  };
+
+  const handleAddAsset = (section: string) => {
+    if (section === 'fotografia') {
+      setCreateSessionOpen(true);
+    } else {
+      setAddDialogSection(section);
+      setAddDialogSessionId(undefined);
+      setAddDialogStage(undefined);
+      setAddDialogOpen(true);
+    }
+  };
+
+  const handleUploadToStage = (sessionId: string, stage: string) => {
+    setAddDialogSection('fotografia');
+    setAddDialogSessionId(sessionId);
+    setAddDialogStage(stage);
+    setAddDialogOpen(true);
   };
 
   if (loadingRelease) {
     return <Skeleton className="h-64 w-full" />;
   }
 
+  const sectionsToShow = sectionFilter === 'all' ? [...DAM_SECTIONS] : [sectionFilter as typeof DAM_SECTIONS[number]];
+
   return (
-    <div className="space-y-6">
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,video/*"
-        multiple
-        className="hidden"
-        onChange={handleFilesSelected}
+    <div className="flex h-full">
+      <div className="flex-1 space-y-6 overflow-auto p-0">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate(`/releases/${id}`)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <p className="text-sm text-muted-foreground">{release?.title}</p>
+            <h1 className="text-2xl font-bold">Imagen & Video</h1>
+          </div>
+        </div>
+
+        {/* Filter bar */}
+        <div className="flex flex-wrap items-center gap-3 justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Section filter */}
+            <ToggleGroup type="single" value={sectionFilter} onValueChange={v => setSectionFilter(v || 'all')} className="bg-muted rounded-lg p-0.5">
+              <ToggleGroupItem value="all" className="text-xs h-7 px-3 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">Todo</ToggleGroupItem>
+              {DAM_SECTIONS.map(s => (
+                <ToggleGroupItem key={s} value={s} className="text-xs h-7 px-3 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
+                  {SECTION_LABELS[s]}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+
+            {/* Status filter */}
+            <ToggleGroup type="single" value={statusFilter} onValueChange={v => setStatusFilter(v || 'all')} className="bg-muted rounded-lg p-0.5">
+              <ToggleGroupItem value="all" className="text-xs h-7 px-2.5 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">Todos</ToggleGroupItem>
+              {ASSET_STATUSES.map(s => (
+                <ToggleGroupItem key={s} value={s} className="text-xs h-7 px-2.5 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
+                  {STATUS_LABELS[s]}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* View toggle */}
+            <ToggleGroup type="single" value={viewMode} onValueChange={v => v && setViewMode(v as 'grid' | 'list')} className="bg-muted rounded-lg p-0.5">
+              <ToggleGroupItem value="grid" className="h-7 w-7 p-0 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="list" className="h-7 w-7 p-0 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
+                <List className="h-3.5 w-3.5" />
+              </ToggleGroupItem>
+            </ToggleGroup>
+
+            <Button size="sm" onClick={() => { setAddDialogSection('artwork'); setAddDialogOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" /> Subir
+            </Button>
+          </div>
+        </div>
+
+        {/* Loading */}
+        {(loadingAssets || loadingSessions) && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Cargando assets...
+          </div>
+        )}
+
+        {/* Sections */}
+        <div className="space-y-4">
+          {sectionsToShow.map(section => {
+            const sectionAssets = getAssetsForSection(section);
+
+            if (section === 'fotografia') {
+              const photoSessions = sessions;
+              return (
+                <DAMSectionComponent
+                  key={section}
+                  sectionKey={section}
+                  assets={sectionAssets}
+                  viewMode={viewMode}
+                  onSelectAsset={setSelectedAsset}
+                  onDeleteAsset={handleDeleteAsset}
+                  onAddAsset={handleAddAsset}
+                >
+                  {photoSessions.length > 0 && (
+                    <div className="space-y-3 mb-4">
+                      {photoSessions.map(session => (
+                        <PhotoSessionPipeline
+                          key={session.id}
+                          session={session}
+                          assets={getAssetsForSession(session.id)}
+                          viewMode={viewMode}
+                          onSelectAsset={setSelectedAsset}
+                          onDeleteAsset={handleDeleteAsset}
+                          onUploadToStage={handleUploadToStage}
+                          onDeleteSession={handleDeleteSession}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </DAMSectionComponent>
+              );
+            }
+
+            return (
+              <DAMSectionComponent
+                key={section}
+                sectionKey={section}
+                assets={sectionAssets}
+                viewMode={viewMode}
+                onSelectAsset={setSelectedAsset}
+                onDeleteAsset={handleDeleteAsset}
+                onAddAsset={handleAddAsset}
+                defaultOpen={section !== 'formatos_fisicos'}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Detail panel */}
+      {selectedAsset && (
+        <AssetDetailPanel
+          asset={selectedAsset}
+          onClose={() => setSelectedAsset(null)}
+          onUpdate={() => {
+            refreshData();
+            // Refresh the selected asset
+            supabase.from('release_assets').select('*').eq('id', selectedAsset.id).single()
+              .then(({ data }) => { if (data) setSelectedAsset(data as DAMAsset); });
+          }}
+        />
+      )}
+
+      {/* Add asset dialog */}
+      <AddAssetDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        releaseId={id || ''}
+        defaultSection={addDialogSection}
+        sessionId={addDialogSessionId}
+        stage={addDialogStage}
+        onSuccess={refreshData}
       />
 
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(`/releases/${id}`)}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <p className="text-sm text-muted-foreground">{release?.title}</p>
-          <h1 className="text-2xl font-bold">Imagen & Video</h1>
-        </div>
-      </div>
-
-      {/* Upload progress */}
-      {uploading && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Subiendo archivos... {uploadProgress}%
-          </div>
-          <Progress value={uploadProgress} className="h-2" />
-        </div>
-      )}
-
-      <div className="flex items-center justify-between">
-        <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
-          <TabsList>
-            <TabsTrigger value="all">Todo</TabsTrigger>
-            <TabsTrigger value="image">
-              <Image className="w-4 h-4 mr-1" />
-              Fotos
-            </TabsTrigger>
-            <TabsTrigger value="video">
-              <Video className="w-4 h-4 mr-1" />
-              Videos
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <Button size="sm" ref={uploadBtnRef} onClick={handleUploadClick} disabled={uploading}>
-          <Plus className="mr-2 h-4 w-4" />
-          Subir
-        </Button>
-      </div>
-
-      {loadingAssets ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="aspect-square" />
-          ))}
-        </div>
-      ) : filteredAssets.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filteredAssets.map((asset) => (
-            <Card key={asset.id} className="overflow-hidden group cursor-pointer relative">
-              <div className="aspect-square relative bg-muted">
-                {asset.type === 'image' ? (
-                  <img
-                    src={asset.file_url}
-                    alt={asset.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Video className="w-12 h-12 text-muted-foreground" />
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <p className="text-white text-sm font-medium">{asset.title}</p>
-                </div>
-                {/* Delete button */}
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteMutation.mutate(asset);
-                  }}
-                  disabled={deleteMutation.isPending}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card className="p-12 text-center">
-          <Image className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Sin contenido visual</h3>
-          <p className="text-muted-foreground mb-4">
-            Sube fotos de sesiones y videoclips
-          </p>
-          <Button ref={uploadBtnEmptyRef} onClick={handleUploadClick} disabled={uploading}>
-            <Plus className="mr-2 h-4 w-4" />
-            Subir Archivos
-          </Button>
-        </Card>
-      )}
+      {/* Create session dialog */}
+      <CreateSessionDialog
+        open={createSessionOpen}
+        onOpenChange={setCreateSessionOpen}
+        releaseId={id || ''}
+        onSuccess={refreshData}
+      />
     </div>
   );
 }
