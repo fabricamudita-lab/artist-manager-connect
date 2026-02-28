@@ -1,34 +1,36 @@
 
 
-## Indicador de checklists multiples
+## ZIP descargable del modulo de detalle de proyecto
 
-Cuando haya mas de una checklist en el proyecto, se mostrara un badge numerico junto al nombre de la checklist activa en el boton selector. Esto sirve como recordatorio visual de que existen otras listas ademas de la que se esta viendo.
+Se creara una pagina temporal o utilidad que, al pulsar un boton, genera un archivo ZIP con los 10 archivos del modulo de detalle de proyecto y lo descarga automaticamente en el navegador.
 
-### Que se vera
+### Archivos incluidos en el ZIP
 
-El boton selector actual muestra: `[icono] General [v]`
+1. `src/pages/ProjectDetail.tsx`
+2. `src/components/project-detail/ProjectPulseTab.tsx`
+3. `src/components/project-detail/ProjectWorkflowsTab.tsx`
+4. `src/components/project-detail/ProjectIncidentsTab.tsx`
+5. `src/components/project-detail/ProjectQuestionsTab.tsx`
+6. `src/components/project-detail/ProjectTaskSubtasks.tsx`
+7. `src/components/project-detail/ProjectTaskTypes.ts`
+8. `src/components/project-detail/WorkflowToast.tsx`
+9. `src/components/project-detail/LinkedResourcesSection.tsx`
+10. `src/components/ProjectChecklistManager.tsx`
 
-Con el cambio, cuando haya 2+ listas mostrara: `[icono] General [2] [v]`
+### Implementacion
 
-El badge sera un circulo pequeno con el numero total de checklists, usando el estilo de badge secundario existente (similar al que ya se usa en el Centro de Tareas).
+**Archivo nuevo**: `src/utils/downloadProjectDetailZip.ts`
 
-### Cambio tecnico
+Una funcion que usa la libreria `JSZip` (ya instalada) para:
+- Importar el contenido de cada archivo como texto usando `import.meta.glob` con `{ query: '?raw', eager: true }`
+- Agregar cada archivo al ZIP manteniendo la estructura de carpetas
+- Generar el blob y disparar la descarga automatica como `proyecto-detalle-modulo.zip`
 
-**Archivo**: `src/components/ProjectChecklistManager.tsx`
+**Archivo modificado**: `src/pages/ProjectDetail.tsx`
 
-En el boton `DropdownMenuTrigger` (~linea 1287-1291), se anadira un `Badge` condicional que solo aparece cuando `checklists.length > 1`, mostrando el total de listas. Algo como:
+Se anadira un boton discreto (icono de descarga) en la cabecera del detalle de proyecto que llame a la funcion de descarga del ZIP.
 
-```
-<Button variant="outline" size="sm" className="gap-1.5 font-semibold">
-  <ListChecks className="w-4 h-4" />
-  {activeChecklist?.name || 'Checklist'}
-  {checklists.length > 1 && (
-    <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 px-1 text-[10px]">
-      {checklists.length}
-    </Badge>
-  )}
-  <ChevronDown className="w-3.5 h-3.5 opacity-60" />
-</Button>
-```
+### Nota tecnica
 
-Un solo archivo, una linea de cambio. Rapido y limpio.
+Se usara `?raw` en los imports para obtener el codigo fuente como string en lugar de ejecutarlo. Esto es una funcionalidad nativa de Vite.
+
