@@ -16,6 +16,7 @@ import Sincronizaciones from "./pages/Sincronizaciones";
 import BookingDetail from "./pages/BookingDetail";
 import Royalties from "./pages/Royalties";
 import Finanzas from "./pages/Finanzas";
+import FinanzasHub from "./pages/FinanzasHub";
 import Analytics from "./pages/Analytics";
 import Documents from "./pages/Documents";
 import Chat from "./pages/Chat";
@@ -145,7 +146,35 @@ const App = () => (
               <Route path="/finanzas" element={
                 <ProtectedRoute>
                   <DashboardLayout>
-                    <Finanzas />
+                    <FinanzasHub />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/finanzas/cobros" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <FinanzasHub />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/finanzas/pagos" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <FinanzasHub />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/finanzas/liquidaciones" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <FinanzasHub />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/finanzas/fiscal" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <FinanzasHub />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
