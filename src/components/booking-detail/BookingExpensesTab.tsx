@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { EmptyState } from '@/components/ui/empty-state';
 import { GenerateInvoiceDialog } from './GenerateInvoiceDialog';
@@ -151,6 +152,13 @@ export function BookingExpensesTab({ bookingId, booking }: BookingExpensesTabPro
 
   const handleDeleteExpense = async (expenseId: string) => {
     try {
+      // Snapshot for undo
+      const { data: snapshot } = await (supabase as any)
+        .from('booking_expenses')
+        .select('*')
+        .eq('id', expenseId)
+        .single();
+
       const { error } = await (supabase as any)
         .from('booking_expenses')
         .delete()
@@ -158,12 +166,27 @@ export function BookingExpensesTab({ bookingId, booking }: BookingExpensesTabPro
 
       if (error) throw error;
 
-      toast({
-        title: "Gasto eliminado",
-        description: "El gasto se ha eliminado correctamente.",
-      });
-
       fetchExpenses();
+
+      if (snapshot) {
+        sonnerToast.success('Gasto eliminado', {
+          duration: 5000,
+          action: {
+            label: 'Deshacer',
+            onClick: async () => {
+              const { error: insertError } = await (supabase as any)
+                .from('booking_expenses')
+                .insert(snapshot);
+              if (insertError) {
+                sonnerToast.error('Error al deshacer');
+              } else {
+                sonnerToast.success('Acción revertida');
+                fetchExpenses();
+              }
+            },
+          },
+        });
+      }
     } catch (error) {
       console.error('Error deleting expense:', error);
       toast({

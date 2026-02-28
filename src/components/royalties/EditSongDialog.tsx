@@ -8,17 +8,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Song } from '@/hooks/useRoyalties';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import { undoableDelete } from '@/utils/undoableDelete';
 
 interface EditSongDialogProps {
   song: Song;
@@ -49,22 +39,16 @@ export function EditSongDialog({ song }: EditSongDialogProps) {
     },
   });
 
-  const deleteSong = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from('songs')
-        .delete()
-        .eq('id', song.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['songs'] });
-      toast.success('Canción eliminada');
-    },
-    onError: (error) => {
-      toast.error('Error al eliminar: ' + error.message);
-    },
-  });
+  const handleDeleteSong = async () => {
+    await undoableDelete({
+      table: 'songs',
+      id: song.id,
+      successMessage: `Canción "${song.title}" eliminada`,
+      onComplete: () => {
+        queryClient.invalidateQueries({ queryKey: ['songs'] });
+      },
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,30 +111,14 @@ export function EditSongDialog({ song }: EditSongDialogProps) {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar canción?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción eliminará la canción "{song.title}" y todos sus splits y ganancias asociadas.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteSong.mutate()}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="text-destructive hover:text-destructive"
+        onClick={handleDeleteSong}
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
     </div>
   );
 }

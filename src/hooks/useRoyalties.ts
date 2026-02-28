@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { undoableDelete } from '@/utils/undoableDelete';
 
 export interface Song {
   id: string;
@@ -279,19 +280,14 @@ export function useDeleteSongSplit() {
 
   return useMutation({
     mutationFn: async (splitId: string) => {
-      const { error } = await supabase
-        .from('song_splits')
-        .delete()
-        .eq('id', splitId);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['song_splits'] });
-      toast.success('Split eliminado');
-    },
-    onError: (error) => {
-      toast.error('Error al eliminar: ' + error.message);
+      await undoableDelete({
+        table: 'song_splits',
+        id: splitId,
+        successMessage: 'Split eliminado',
+        onComplete: () => {
+          queryClient.invalidateQueries({ queryKey: ['song_splits'] });
+        },
+      });
     },
   });
 }

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { undoableDelete } from '@/utils/undoableDelete';
 
 export interface PaymentSchedule {
   id: string;
@@ -104,19 +105,14 @@ export function usePaymentSchedules(bookingId?: string, budgetId?: string) {
 
   const deleteSchedule = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('payment_schedules')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payment-schedules'] });
-      toast.success('Pago eliminado');
-    },
-    onError: (error) => {
-      toast.error('Error al eliminar pago');
-      console.error(error);
+      await undoableDelete({
+        table: 'payment_schedules',
+        id,
+        successMessage: 'Pago eliminado',
+        onComplete: () => {
+          queryClient.invalidateQueries({ queryKey: ['payment-schedules'] });
+        },
+      });
     },
   });
 

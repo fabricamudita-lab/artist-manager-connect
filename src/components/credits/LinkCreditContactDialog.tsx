@@ -6,6 +6,7 @@ import { Link2, Check, User, Users, Star, Plus } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { undoableDeleteCustom } from '@/utils/undoableDelete';
 import { Badge } from '@/components/ui/badge';
 import {
   Command,
@@ -90,20 +91,31 @@ export function LinkCreditContactDialog({ credit, onLinked }: LinkCreditContactD
 
   const unlinkContact = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from('track_credits')
-        .update({ contact_id: null })
-        .eq('id', credit.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['track-credits'] });
-      toast.success('Vínculo eliminado');
+      const previousContactId = credit.contact_id;
+      
+      await undoableDeleteCustom({
+        deleteAction: async () => {
+          const { error } = await supabase
+            .from('track_credits')
+            .update({ contact_id: null })
+            .eq('id', credit.id);
+          if (error) throw error;
+        },
+        undoAction: async () => {
+          const { error } = await supabase
+            .from('track_credits')
+            .update({ contact_id: previousContactId })
+            .eq('id', credit.id);
+          if (error) throw error;
+        },
+        successMessage: 'Vínculo eliminado',
+        onComplete: () => {
+          queryClient.invalidateQueries({ queryKey: ['track-credits'] });
+        },
+      });
+      
       setOpen(false);
       onLinked?.();
-    },
-    onError: (error) => {
-      toast.error('Error al desvincular: ' + error.message);
     },
   });
 
