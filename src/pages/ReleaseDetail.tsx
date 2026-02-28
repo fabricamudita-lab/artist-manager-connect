@@ -15,6 +15,8 @@ import {
   MoreHorizontal,
   Trash2,
   Edit,
+  FolderOpen,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,9 +29,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useRelease, useDeleteRelease } from '@/hooks/useReleases';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useRelease, useDeleteRelease, useUpdateRelease } from '@/hooks/useReleases';
 import EditReleaseDialog from '@/components/releases/EditReleaseDialog';
 import ReleaseTaskCenter from '@/components/releases/ReleaseTaskCenter';
+import { ProjectLinkSelector } from '@/components/releases/ProjectLinkSelector';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 const TYPE_ICONS = {
   album: Album,
@@ -107,7 +120,17 @@ export default function ReleaseDetail() {
   const navigate = useNavigate();
   const { data: release, isLoading } = useRelease(id);
   const deleteRelease = useDeleteRelease();
+  const updateRelease = useUpdateRelease();
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showLinkProjectDialog, setShowLinkProjectDialog] = useState(false);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Project link state
+  const [projectOption, setProjectOption] = useState<'none' | 'existing' | 'new'>('none');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDescription, setNewProjectDescription] = useState('');
 
   const handleDelete = async () => {
     if (!id || !confirm('¿Estás seguro de eliminar este lanzamiento?')) return;
@@ -118,6 +141,55 @@ export default function ReleaseDetail() {
   const handleSectionClick = (sectionId: string, alertId?: string) => {
     const url = `/releases/${id}/${sectionId}${alertId ? `?alert=${alertId}` : ''}`;
     navigate(url);
+  };
+
+  const handleLinkProject = async () => {
+    if (!id || !user?.id) return;
+
+    let projectId: string | null = null;
+
+    if (projectOption === 'existing' && selectedProjectId) {
+      projectId = selectedProjectId;
+    } else if (projectOption === 'new' && newProjectName.trim()) {
+      try {
+        const { data: newProject, error } = await supabase
+          .from('projects')
+          .insert({
+            name: newProjectName.trim(),
+            description: newProjectDescription.trim() || null,
+            artist_id: release?.artist_id || null,
+            created_by: user.id,
+            status: 'en_curso',
+          } as any)
+          .select('id')
+          .single();
+
+        if (error) throw error;
+        projectId = newProject.id;
+        toast.success('Proyecto creado');
+      } catch {
+        toast.error('Error al crear el proyecto');
+        return;
+      }
+    }
+
+    // Update release with project_id
+    try {
+      await supabase
+        .from('releases')
+        .update({ project_id: projectId })
+        .eq('id', id);
+
+      queryClient.invalidateQueries({ queryKey: ['release', id] });
+      toast.success(projectId ? 'Proyecto vinculado' : 'Proyecto desvinculado');
+      setShowLinkProjectDialog(false);
+      setProjectOption('none');
+      setSelectedProjectId(null);
+      setNewProjectName('');
+      setNewProjectDescription('');
+    } catch {
+      toast.error('Error al vincular proyecto');
+    }
   };
 
   if (isLoading) {
@@ -228,6 +300,29 @@ export default function ReleaseDetail() {
                   </>
                 ) : null}
               </div>
+
+              {/* Project badge */}
+              <div className="mt-2">
+                {release.project_id && release.project ? (
+                  <Link
+                    to={`/projects/${release.project.id}`}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-medium hover:bg-amber-500/20 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    Proyecto: {release.project.name}
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => setShowLinkProjectDialog(true)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-muted-foreground hover:bg-muted/50 transition-colors border border-dashed border-muted-foreground/30"
+                  >
+                    <LinkIcon className="w-3.5 h-3.5" />
+                    Vincular a proyecto
+                  </button>
+                )}
+              </div>
+
               {release.description && (
                 <p className="text-sm text-muted-foreground mt-2 max-w-xl">
                   {release.description}
@@ -293,6 +388,40 @@ export default function ReleaseDetail() {
         onOpenChange={setShowEditDialog}
         release={release}
       />
+
+      {/* Link Project Dialog */}
+      <Dialog open={showLinkProjectDialog} onOpenChange={setShowLinkProjectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Vincular a proyecto</DialogTitle>
+          </DialogHeader>
+          <ProjectLinkSelector
+            selectedOption={projectOption}
+            onOptionChange={setProjectOption}
+            selectedProjectId={selectedProjectId}
+            onProjectIdChange={setSelectedProjectId}
+            newProjectName={newProjectName}
+            onNewProjectNameChange={setNewProjectName}
+            newProjectDescription={newProjectDescription}
+            onNewProjectDescriptionChange={setNewProjectDescription}
+            artistId={release?.artist_id}
+          />
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setShowLinkProjectDialog(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleLinkProject}
+              disabled={
+                (projectOption === 'existing' && !selectedProjectId) ||
+                (projectOption === 'new' && !newProjectName.trim())
+              }
+            >
+              Vincular
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -31,6 +31,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useCreateRelease } from '@/hooks/useReleases';
 import { ArtistSelector } from '@/components/ArtistSelector';
+import { ProjectLinkSelector } from '@/components/releases/ProjectLinkSelector';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 interface CreateReleaseDialogProps {
   open: boolean;
@@ -45,6 +49,7 @@ export default function CreateReleaseDialog({
 }: CreateReleaseDialogProps) {
   const navigate = useNavigate();
   const createRelease = useCreateRelease();
+  const { user } = useAuth();
 
   const [title, setTitle] = useState('');
   const [type, setType] = useState<'album' | 'ep' | 'single'>('single');
@@ -52,8 +57,43 @@ export default function CreateReleaseDialog({
   const [description, setDescription] = useState('');
   const [selectedArtistIds, setSelectedArtistIds] = useState<string[]>(artistId ? [artistId] : []);
 
+  // Project linking state
+  const [projectOption, setProjectOption] = useState<'none' | 'existing' | 'new'>('none');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDescription, setNewProjectDescription] = useState('');
+
   const handleSubmit = async () => {
     if (!title.trim()) return;
+    if (!user?.id) return;
+
+    let projectId: string | null = null;
+
+    // Handle project creation if needed
+    if (projectOption === 'existing' && selectedProjectId) {
+      projectId = selectedProjectId;
+    } else if (projectOption === 'new' && newProjectName.trim()) {
+      try {
+        const { data: newProject, error } = await supabase
+          .from('projects')
+          .insert({
+            name: newProjectName.trim(),
+            description: newProjectDescription.trim() || null,
+            artist_id: selectedArtistIds[0] || null,
+            created_by: user.id,
+            status: 'en_curso',
+          } as any)
+          .select('id')
+          .single();
+
+        if (error) throw error;
+        projectId = newProject.id;
+        toast.success('Proyecto creado');
+      } catch (e) {
+        toast.error('Error al crear el proyecto');
+        return;
+      }
+    }
 
     const result = await createRelease.mutateAsync({
       title: title.trim(),
@@ -62,6 +102,7 @@ export default function CreateReleaseDialog({
       description: description.trim() || null,
       artist_id: selectedArtistIds[0] || null,
       artist_ids: selectedArtistIds,
+      project_id: projectId,
     });
 
     if (result) {
@@ -71,13 +112,17 @@ export default function CreateReleaseDialog({
       setReleaseDate(undefined);
       setDescription('');
       setSelectedArtistIds([]);
+      setProjectOption('none');
+      setSelectedProjectId(null);
+      setNewProjectName('');
+      setNewProjectDescription('');
       navigate(`/releases/${result.id}`);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nuevo Lanzamiento</DialogTitle>
           <DialogDescription>
@@ -147,6 +192,18 @@ export default function CreateReleaseDialog({
               </PopoverContent>
             </Popover>
           </div>
+
+          <ProjectLinkSelector
+            selectedOption={projectOption}
+            onOptionChange={setProjectOption}
+            selectedProjectId={selectedProjectId}
+            onProjectIdChange={setSelectedProjectId}
+            newProjectName={newProjectName}
+            onNewProjectNameChange={setNewProjectName}
+            newProjectDescription={newProjectDescription}
+            onNewProjectDescriptionChange={setNewProjectDescription}
+            artistId={selectedArtistIds[0] || null}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="description">Descripción</Label>

@@ -25,6 +25,7 @@ export interface Release {
   cover_image_url: string | null;
   status: 'planning' | 'in_progress' | 'released' | 'archived';
   artist_id: string | null;
+  project_id: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -36,6 +37,11 @@ export interface Release {
     id: string;
     name: string;
     avatar_url: string | null;
+  } | null;
+  project?: {
+    id: string;
+    name: string;
+    status: string;
   } | null;
   release_artists?: ReleaseArtist[];
 }
@@ -169,7 +175,8 @@ export function useRelease(id: string | undefined) {
         .from('releases')
         .select(`
           *,
-          artist:artists!releases_artist_id_fkey(id, name, avatar_url)
+          artist:artists!releases_artist_id_fkey(id, name, avatar_url),
+          project:projects!releases_project_id_fkey(id, name, status)
         `)
         .eq('id', id)
         .single();
@@ -211,7 +218,7 @@ export function useCreateRelease() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (release: { title: string; type?: string; release_date?: string | null; description?: string | null; artist_id?: string | null; artist_ids?: string[] }) => {
+    mutationFn: async (release: { title: string; type?: string; release_date?: string | null; description?: string | null; artist_id?: string | null; artist_ids?: string[]; project_id?: string | null }) => {
       if (!user?.id) throw new Error('Not authenticated');
       
       const { data, error } = await supabase
@@ -222,6 +229,7 @@ export function useCreateRelease() {
           release_date: release.release_date,
           description: release.description,
           artist_id: release.artist_id,
+          project_id: release.project_id || null,
           created_by: user.id,
         })
         .select()

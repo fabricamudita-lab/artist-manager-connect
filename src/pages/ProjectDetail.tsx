@@ -82,6 +82,7 @@ import { ProjectPulseTab } from "@/components/project-detail/ProjectPulseTab";
 import { ProjectWorkflowsTab } from "@/components/project-detail/ProjectWorkflowsTab";
 import { ProjectIncidentsTab } from "@/components/project-detail/ProjectIncidentsTab";
 import { ProjectQuestionsTab } from "@/components/project-detail/ProjectQuestionsTab";
+import { ProjectLinkedReleases } from "@/components/project-detail/ProjectLinkedReleases";
 
 interface Project {
   id: string;
@@ -1540,8 +1541,10 @@ export default function ProjectDetail() {
         </Card>
       </div>
 
-      {/* Checklist moved inside tabs */}
+      {/* Linked Releases */}
+      {id && <ProjectLinkedReleases projectId={id} />}
 
+      {/* Checklist moved inside tabs */}
       {/* Content Tabs */}
       <Card>
         <Tabs defaultValue="pulso" className="w-full">
