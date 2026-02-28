@@ -298,6 +298,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetData, setBudgetData] = useState(budget);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showEmptyCategories, setShowEmptyCategories] = useState(false);
   const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -924,15 +925,46 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     return sortedCategories.map(category => {
       const categoryItems = getCategoryItems(category.id);
       const total = categoryItems.reduce((sum, item) => sum + calculateTotal(item), 0);
+      const confirmed = categoryItems
+        .filter(i => !i.is_provisional)
+        .reduce((sum, item) => sum + (item.unit_price * (item.quantity || 1)), 0);
+      const provisional = categoryItems
+        .filter(i => i.is_provisional)
+        .reduce((sum, item) => sum + (item.unit_price * (item.quantity || 1)), 0);
       
       return {
         id: category.id,
         name: category.name,
         icon: category.icon_name,
         count: categoryItems.length,
-        total: total
+        total: total,
+        confirmed,
+        provisional
       };
     }); // Show all categories, even empty ones
+  };
+
+  const getGroupedChartData = () => {
+    const raw = getCategoryChartData();
+    const total = raw.reduce((s, d) => s + d.value, 0);
+    if (total === 0) return raw;
+    const threshold = 0.03;
+    const major: typeof raw = [];
+    const minor: typeof raw = [];
+    raw.forEach(d => {
+      if (d.value / total >= threshold) major.push(d);
+      else minor.push(d);
+    });
+    if (minor.length > 0) {
+      major.push({
+        name: 'Otros',
+        value: minor.reduce((s, d) => s + d.value, 0),
+        color: '#9ca3af',
+        count: minor.reduce((s, d) => s + d.count, 0),
+        _details: minor.map(d => ({ name: d.name, value: d.value }))
+      } as any);
+    }
+    return major;
   };
 
   const createTestData = async () => {
@@ -4127,21 +4159,29 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                             <ResponsiveContainer width="100%" height="100%">
                               <PieChart>
                                 <Pie
-                                  data={getCategoryChartData()}
+                                  data={getGroupedChartData()}
                                   cx="50%"
                                   cy="50%"
-                                   outerRadius={85}
+                                  outerRadius={85}
                                   paddingAngle={2}
                                   dataKey="value"
                                 >
-                                  {getCategoryChartData().map((entry, index) => (
+                                  {getGroupedChartData().map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={entry.color} />
                                   ))}
                                 </Pie>
                                 <RechartsTooltip 
                                   formatter={(value: number, name: string, props: any) => {
-                                    const total = getCategoryChartData().reduce((sum, item) => sum + item.value, 0);
+                                    const total = getGroupedChartData().reduce((sum, item) => sum + item.value, 0);
                                     const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                    const details = (props.payload as any)?._details as { name: string; value: number }[] | undefined;
+                                    if (details) {
+                                      const breakdown = details.map(d => `${d.name}: €${d.value.toLocaleString('es-ES', { minimumFractionDigits: 0 })}`).join(', ');
+                                      return [
+                                        `€${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })} (${breakdown})`,
+                                        `Otros (${percentage}%)`
+                                      ];
+                                    }
                                     return [
                                       `€${value.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`,
                                       `${props.payload.name} (${percentage}%)`
@@ -4161,19 +4201,37 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                           </div>
                           <div className="space-y-2 min-w-[140px] max-h-full overflow-y-auto">
                             {(() => {
-                              const chartData = getCategoryChartData();
+                              const chartData = getGroupedChartData();
                               const total = chartData.reduce((s, d) => s + d.value, 0);
-                              return chartData.map(d => (
-                                <div key={d.name} className="flex items-center gap-2">
-                                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-medium truncate text-foreground">{d.name}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      €{d.value.toLocaleString('es-ES', { minimumFractionDigits: 0 })} · {total > 0 ? ((d.value / total) * 100).toFixed(0) : 0}%
-                                    </p>
-                                  </div>
-                                </div>
-                              ));
+                              return chartData.map(d => {
+                                const details = (d as any)?._details as { name: string; value: number }[] | undefined;
+                                return (
+                                  <Popover key={d.name}>
+                                    <PopoverTrigger asChild disabled={!details}>
+                                      <div className={`flex items-center gap-2 ${details ? 'cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1' : ''}`}>
+                                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                                        <div className="min-w-0">
+                                          <p className="text-sm font-medium truncate text-foreground">{d.name}</p>
+                                          <p className="text-xs text-muted-foreground">
+                                            €{d.value.toLocaleString('es-ES', { minimumFractionDigits: 0 })} · {total > 0 ? ((d.value / total) * 100).toFixed(0) : 0}%
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </PopoverTrigger>
+                                    {details && (
+                                      <PopoverContent side="left" className="w-52 p-3 text-xs space-y-1">
+                                        <p className="font-semibold mb-1.5">Incluye:</p>
+                                        {details.map(dd => (
+                                          <div key={dd.name} className="flex justify-between">
+                                            <span className="text-muted-foreground truncate mr-2">{dd.name}</span>
+                                            <span>€{dd.value.toLocaleString('es-ES', { minimumFractionDigits: 0 })}</span>
+                                          </div>
+                                        ))}
+                                      </PopoverContent>
+                                    )}
+                                  </Popover>
+                                );
+                              });
                             })()}
                           </div>
                         </div>
@@ -4191,38 +4249,91 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                             <TableRow>
                               <TableHead>Categoría</TableHead>
                               <TableHead className="text-center">Nº Elementos</TableHead>
+                              <TableHead className="text-center">Confirmado / Provisional</TableHead>
                               <TableHead className="text-right">Total (€)</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {getCategorySummaryData().map((category) => {
-                              const IconComponent = iconMap[category.icon as keyof typeof iconMap] || DollarSign;
+                            {(() => {
+                              const allData = getCategorySummaryData();
+                              const nonEmpty = allData.filter(c => c.count > 0 || c.total > 0);
+                              const empty = allData.filter(c => c.count === 0 && c.total === 0);
+                              const visible = showEmptyCategories ? allData : nonEmpty;
+
                               return (
-                                <TableRow key={category.id}>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <IconComponent className="h-4 w-4 text-primary" />
-                                      {category.name}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <Badge variant="outline" className="text-sm">
-                                      {category.count}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell className="text-right font-medium">
-                                    <span className={category.total > 0 ? 'text-foreground' : 'text-muted-foreground'}>
-                                      €{category.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                                    </span>
-                                  </TableCell>
-                                </TableRow>
+                                <>
+                                  {visible.map((category) => {
+                                    const IconComponent = iconMap[category.icon as keyof typeof iconMap] || DollarSign;
+                                    return (
+                                      <TableRow key={category.id}>
+                                        <TableCell>
+                                          <div className="flex items-center gap-2">
+                                            <IconComponent className="h-4 w-4 text-primary" />
+                                            {category.name}
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                          <Badge variant="outline" className="text-sm">
+                                            {category.count}
+                                          </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                          {category.count > 0 ? (
+                                            <div className="text-xs leading-tight">
+                                              <span className="text-foreground">€{category.confirmed.toLocaleString('es-ES', { minimumFractionDigits: 0 })} conf.</span>
+                                              {category.provisional > 0 && (
+                                                <>
+                                                  <span className="text-muted-foreground mx-1">·</span>
+                                                  <span className="text-amber-500 font-medium">€{category.provisional.toLocaleString('es-ES', { minimumFractionDigits: 0 })} prov.</span>
+                                                </>
+                                              )}
+                                            </div>
+                                          ) : (
+                                            <span className="text-muted-foreground text-xs">—</span>
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="text-right font-medium">
+                                          <span className={category.total > 0 ? 'text-foreground' : 'text-muted-foreground'}>
+                                            €{category.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                                          </span>
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
+                                  {!showEmptyCategories && empty.length > 0 && (
+                                    <TableRow>
+                                      <TableCell colSpan={4} className="text-center py-1">
+                                        <button
+                                          onClick={() => setShowEmptyCategories(true)}
+                                          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                        >
+                                          Mostrar {empty.length} categoría{empty.length !== 1 ? 's' : ''} vacía{empty.length !== 1 ? 's' : ''} ↓
+                                        </button>
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                  {showEmptyCategories && empty.length > 0 && (
+                                    <TableRow>
+                                      <TableCell colSpan={4} className="text-center py-1">
+                                        <button
+                                          onClick={() => setShowEmptyCategories(false)}
+                                          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                        >
+                                          Ocultar categorías vacías ↑
+                                        </button>
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </>
                               );
-                            })}
+                            })()}
                             {/* Total row */}
                             {(() => {
                               const summaryData = getCategorySummaryData();
                               const totalElements = summaryData.reduce((sum, cat) => sum + cat.count, 0);
                               const totalAmount = summaryData.reduce((sum, cat) => sum + cat.total, 0);
+                              const totalConfirmed = summaryData.reduce((sum, cat) => sum + cat.confirmed, 0);
+                              const totalProvisional = summaryData.reduce((sum, cat) => sum + cat.provisional, 0);
                               
                               return (
                                 <TableRow className="border-t-2 border-primary/20 bg-muted/30 font-semibold">
@@ -4236,6 +4347,17 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                     <Badge className="bg-primary text-primary-foreground">
                                       {totalElements}
                                     </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <div className="text-xs leading-tight font-semibold">
+                                      <span>€{totalConfirmed.toLocaleString('es-ES', { minimumFractionDigits: 0 })} conf.</span>
+                                      {totalProvisional > 0 && (
+                                        <>
+                                          <span className="text-muted-foreground mx-1">·</span>
+                                          <span className="text-amber-500">€{totalProvisional.toLocaleString('es-ES', { minimumFractionDigits: 0 })} prov.</span>
+                                        </>
+                                      )}
+                                    </div>
                                   </TableCell>
                                   <TableCell className="text-right font-bold text-primary">
                                     €{totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
