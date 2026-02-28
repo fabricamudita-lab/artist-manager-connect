@@ -1572,6 +1572,7 @@ export type Database = {
       }
       budget_categories: {
         Row: {
+          budget_cap: number | null
           created_at: string
           created_by: string
           icon_name: string
@@ -1581,6 +1582,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          budget_cap?: number | null
           created_at?: string
           created_by: string
           icon_name?: string
@@ -1590,6 +1592,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          budget_cap?: number | null
           created_at?: string
           created_by?: string
           icon_name?: string

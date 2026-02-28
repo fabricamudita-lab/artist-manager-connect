@@ -151,6 +151,7 @@ interface BudgetCategory {
   created_at: string;
   updated_at: string;
   sort_order: number;
+  budget_cap: number | null;
 }
 
 interface BudgetDetailsDialogProps {
@@ -302,6 +303,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [editingCategoryCap, setEditingCategoryCap] = useState<string>('');
   const [showCategoryManagement, setShowCategoryManagement] = useState(false);
   const [draggedCategory, setDraggedCategory] = useState<string | null>(null);
   const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
@@ -939,7 +941,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         count: categoryItems.length,
         total: total,
         confirmed,
-        provisional
+        provisional,
+        budgetCap: category.budget_cap
       };
     }); // Show all categories, even empty ones
   };
@@ -1827,9 +1830,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         return;
       }
       
+      const capValue = editingCategoryCap.trim() === '' ? null : parseFloat(editingCategoryCap);
       const { error } = await supabase
         .from('budget_categories')
-        .update({ name: trimmedName })
+        .update({ name: trimmedName, budget_cap: capValue })
         .eq('id', categoryId);
 
       if (error) throw error;
@@ -2964,7 +2968,25 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                     )}
                   </div>
 
-                  {/* Chip ámbar: categorías ocultas incluidas en totales */}
+                  {/* Presupuesto Planif. - only shown when at least one category has a budget cap */}
+                  {!isConcert && (() => {
+                    const totalCaps = budgetCategories
+                      .filter(c => c.budget_cap != null)
+                      .reduce((sum, c) => sum + (c.budget_cap ?? 0), 0);
+                    if (totalCaps === 0) return null;
+                    return (
+                      <div className="flex items-center gap-2 mt-2 px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20 w-fit">
+                        <Calculator className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                        <span className="text-xs text-primary font-medium">
+                          Presupuesto planif.: €{totalCaps.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-[10px] text-primary/60">
+                          (suma de techos por categoría)
+                        </span>
+                      </div>
+                    );
+                  })()}
+
                   {hiddenTotal > 0 && (
                     <div className="flex items-center gap-1.5 mt-2 px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 w-fit">
                       <EyeOff className="w-3 h-3 text-amber-400 flex-shrink-0" />
@@ -3225,32 +3247,56 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                  })
                                }
                                {editingCategory === category.id ? (
-                                 <Input
-                                   value={newCategoryName}
-                                   onChange={(e) => setNewCategoryName(e.target.value)}
-                                   onKeyDown={(e) => {
-                                     if (e.key === 'Enter') {
-                                       // Save category name
-                                       updateCategoryName(category.id, newCategoryName);
-                                     } else if (e.key === 'Escape') {
-                                       setEditingCategory(null);
-                                       setNewCategoryName('');
-                                     }
-                                   }}
-                                   className="bg-gray-600 border-gray-500 text-white"
-                                   autoFocus
-                                 />
+                                 <div className="flex flex-col gap-1.5 flex-1">
+                                   <Input
+                                     value={newCategoryName}
+                                     onChange={(e) => setNewCategoryName(e.target.value)}
+                                     onKeyDown={(e) => {
+                                       if (e.key === 'Enter') {
+                                         updateCategoryName(category.id, newCategoryName);
+                                       } else if (e.key === 'Escape') {
+                                         setEditingCategory(null);
+                                         setNewCategoryName('');
+                                       }
+                                     }}
+                                     className="bg-gray-600 border-gray-500 text-white h-7 text-sm"
+                                     autoFocus
+                                     placeholder="Nombre de categoría"
+                                   />
+                                   <Input
+                                     type="number"
+                                     value={editingCategoryCap}
+                                     onChange={(e) => setEditingCategoryCap(e.target.value)}
+                                     onKeyDown={(e) => {
+                                       if (e.key === 'Enter') {
+                                         updateCategoryName(category.id, newCategoryName);
+                                       } else if (e.key === 'Escape') {
+                                         setEditingCategory(null);
+                                       }
+                                     }}
+                                     className="bg-gray-600 border-gray-500 text-white h-7 text-sm"
+                                     placeholder="Presupuesto máximo (€) — Sin límite"
+                                     min={0}
+                                     step={100}
+                                   />
+                                 </div>
                                ) : (
-                                 <span 
-                                   className="cursor-pointer hover:text-blue-300"
-                                   onClick={() => {
-                                     setEditingCategory(category.id);
-                                     setNewCategoryName(category.name);
-                                   }}
-                                 >
-                                   {category.name}
-                                 </span>
-                               )}
+                                  <span 
+                                    className="cursor-pointer hover:text-blue-300"
+                                    onClick={() => {
+                                      setEditingCategory(category.id);
+                                      setNewCategoryName(category.name);
+                                      setEditingCategoryCap(category.budget_cap != null ? String(category.budget_cap) : '');
+                                    }}
+                                  >
+                                    {category.name}
+                                    {category.budget_cap != null && (
+                                      <span className="text-xs text-gray-400 ml-1.5">
+                                        (máx. €{category.budget_cap.toLocaleString('es-ES')})
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
                              </div>
                           <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-300">
@@ -3289,11 +3335,12 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                  </div>
                                 ) : (
                                   <div className="flex gap-1">
-                                    <Button
-                                      onClick={() => {
-                                        setEditingCategory(category.id);
-                                        setNewCategoryName(category.name);
-                                      }}
+                                     <Button
+                                       onClick={() => {
+                                         setEditingCategory(category.id);
+                                         setNewCategoryName(category.name);
+                                         setEditingCategoryCap(category.budget_cap != null ? String(category.budget_cap) : '');
+                                       }}
                                       size="sm"
                                       variant="ghost"
                                       className="h-6 w-6 p-0 hover:bg-gray-600"
@@ -4267,9 +4314,37 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                     return (
                                       <TableRow key={category.id}>
                                         <TableCell>
-                                          <div className="flex items-center gap-2">
-                                            <IconComponent className="h-4 w-4 text-primary" />
-                                            {category.name}
+                                          <div className="space-y-1">
+                                            <div className="flex items-center gap-2">
+                                              <IconComponent className="h-4 w-4 text-primary" />
+                                              {category.name}
+                                              {category.budgetCap != null && category.total > category.budgetCap && (
+                                                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">⚠ Excedido</Badge>
+                                              )}
+                                            </div>
+                                            {category.budgetCap != null && (
+                                              <TooltipProvider>
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <div className="w-full max-w-[160px] ml-6">
+                                                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                                                        <div
+                                                          className={`h-full rounded-full transition-all ${
+                                                            category.total / category.budgetCap > 1 ? 'bg-destructive' :
+                                                            category.total / category.budgetCap >= 0.75 ? 'bg-amber-500' :
+                                                            'bg-green-500'
+                                                          }`}
+                                                          style={{ width: `${Math.min((category.total / category.budgetCap) * 100, 100)}%` }}
+                                                        />
+                                                      </div>
+                                                    </div>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent>
+                                                    €{category.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })} de €{category.budgetCap.toLocaleString('es-ES', { minimumFractionDigits: 2 })} máximo ({category.budgetCap > 0 ? ((category.total / category.budgetCap) * 100).toFixed(0) : 0}%)
+                                                  </TooltipContent>
+                                                </Tooltip>
+                                              </TooltipProvider>
+                                            )}
                                           </div>
                                         </TableCell>
                                         <TableCell className="text-center">
