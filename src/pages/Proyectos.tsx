@@ -93,37 +93,45 @@ export default function Proyectos() {
   const { data: projectStats } = useQuery({
     queryKey: ['project-stats'],
     queryFn: async () => {
-      const stats: Record<string, { budgets: number; documents: number; solicitudes: number; epks: number }> = {};
+      const stats: Record<string, { budgets: number; documents: number; solicitudes: number; epks: number; releases: number }> = {};
 
-      const [{ data: budgets }, { data: documents }, { data: solicitudes }, { data: epks }] = await Promise.all([
+      const [{ data: budgets }, { data: documents }, { data: solicitudes }, { data: epks }, { data: releases }] = await Promise.all([
         supabase.from('budgets').select('project_id'),
         supabase.from('project_files').select('project_id'),
         supabase.from('solicitudes').select('project_id'),
         supabase.from('epks').select('proyecto_id'),
+        supabase.from('releases').select('project_id'),
       ]);
 
       budgets?.forEach(b => {
         if (b.project_id) {
-          if (!stats[b.project_id]) stats[b.project_id] = { budgets: 0, documents: 0, solicitudes: 0, epks: 0 };
+          if (!stats[b.project_id]) stats[b.project_id] = { budgets: 0, documents: 0, solicitudes: 0, epks: 0, releases: 0 };
           stats[b.project_id].budgets++;
         }
       });
       documents?.forEach(d => {
         if (d.project_id) {
-          if (!stats[d.project_id]) stats[d.project_id] = { budgets: 0, documents: 0, solicitudes: 0, epks: 0 };
+          if (!stats[d.project_id]) stats[d.project_id] = { budgets: 0, documents: 0, solicitudes: 0, epks: 0, releases: 0 };
           stats[d.project_id].documents++;
         }
       });
       solicitudes?.forEach(s => {
         if (s.project_id) {
-          if (!stats[s.project_id]) stats[s.project_id] = { budgets: 0, documents: 0, solicitudes: 0, epks: 0 };
+          if (!stats[s.project_id]) stats[s.project_id] = { budgets: 0, documents: 0, solicitudes: 0, epks: 0, releases: 0 };
           stats[s.project_id].solicitudes++;
         }
       });
       epks?.forEach(e => {
         if (e.proyecto_id) {
-          if (!stats[e.proyecto_id]) stats[e.proyecto_id] = { budgets: 0, documents: 0, solicitudes: 0, epks: 0 };
+          if (!stats[e.proyecto_id]) stats[e.proyecto_id] = { budgets: 0, documents: 0, solicitudes: 0, epks: 0, releases: 0 };
           stats[e.proyecto_id].epks++;
+        }
+      });
+      releases?.forEach(r => {
+        if ((r as any).project_id) {
+          const pid = (r as any).project_id;
+          if (!stats[pid]) stats[pid] = { budgets: 0, documents: 0, solicitudes: 0, epks: 0, releases: 0 };
+          stats[pid].releases++;
         }
       });
 
@@ -245,7 +253,7 @@ export default function Proyectos() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProjects?.map(project => {
-              const stats = projectStats?.[project.id] || { budgets: 0, documents: 0, solicitudes: 0, epks: 0 };
+              const stats = projectStats?.[project.id] || { budgets: 0, documents: 0, solicitudes: 0, epks: 0, releases: 0 };
               const artistName = project.artist?.stage_name || project.artist?.name;
               const statusKey = project.status || 'en_curso';
 
@@ -310,16 +318,16 @@ export default function Proyectos() {
                       <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
                         <Disc3 className="h-4 w-4 text-orange-500" />
                         <div>
-                          <p className="text-xs text-muted-foreground">EPKs</p>
-                          <p className="font-semibold">{stats.epks}</p>
+                          <p className="text-xs text-muted-foreground">Lanzamientos</p>
+                          <p className="font-semibold">{stats.releases}</p>
                         </div>
                       </div>
                     </div>
 
                     {/* Total items */}
                     <div className="pt-2 border-t">
-                      <Badge variant="secondary" className="text-xs">
-                        {stats.budgets + stats.documents + stats.solicitudes + stats.epks} elementos
+                     <Badge variant="secondary" className="text-xs">
+                        {stats.budgets + stats.documents + stats.solicitudes + stats.releases} elementos
                       </Badge>
                     </div>
                   </CardContent>

@@ -5333,6 +5333,7 @@ export type Database = {
           genre: string | null
           id: string
           label: string | null
+          project_id: string | null
           release_date: string | null
           spotify_id: string | null
           spotify_url: string | null
@@ -5352,6 +5353,7 @@ export type Database = {
           genre?: string | null
           id?: string
           label?: string | null
+          project_id?: string | null
           release_date?: string | null
           spotify_id?: string | null
           spotify_url?: string | null
@@ -5371,6 +5373,7 @@ export type Database = {
           genre?: string | null
           id?: string
           label?: string | null
+          project_id?: string | null
           release_date?: string | null
           spotify_id?: string | null
           spotify_url?: string | null
@@ -5386,6 +5389,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "releases_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
