@@ -187,8 +187,12 @@ export default {
 						transform: 'scale(1) translateY(0)',
 						opacity: '1'
 					}
-				}
 			},
+			'pulse-subtle': {
+				'0%, 100%': { borderColor: 'hsl(0 72% 51% / 0.4)' },
+				'50%': { borderColor: 'hsl(0 72% 51% / 0.15)' }
+			}
+		},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
@@ -205,6 +209,7 @@ export default {
 				'glow-pulse': 'glow-pulse 2s ease-in-out infinite alternate',
 				'shake': 'shake 0.5s ease-in-out',
 				'level-up': 'level-up 0.8s ease-out',
+				'pulse-subtle': 'pulse-subtle 2s ease-in-out infinite',
 			}
 		}
 	},
