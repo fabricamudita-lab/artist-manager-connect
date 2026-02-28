@@ -1,0 +1,1 @@
+DELETE FROM budget_items WHERE id = '12f4c455-ca8b-4ff9-bf6c-603998ec9774';
