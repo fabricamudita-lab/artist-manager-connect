@@ -1,53 +1,65 @@
 
-## Reordenar elementos del presupuesto arrastrando
+Objetivo inmediato: que el reordenamiento por arrastre en “Elementos” funcione de forma visible al instante y que se mantenga al recargar.
 
-### Problema
-Los elementos dentro de cada categoria tienen drag handlers visuales (GripVertical, estados de drag) pero el `onDrop` no ejecuta ninguna logica de reordenamiento -- solo limpia el estado. Ademas, la tabla `budget_items` no tiene columna `sort_order`.
+Diagnóstico (confirmado)
+1) El drag sí está funcionando en backend:
+- En la sesión se ven múltiples `PATCH /rest/v1/budget_items?id=eq...` con `{"sort_order": ...}`.
+- En base de datos, `budget_items.sort_order` se actualiza correctamente.
 
-### Cambios necesarios
+2) La UI no refleja ese orden por dos causas de lectura/render:
+- `fetchBudgetItems()` carga con `.order('name')`, así que al refrescar siempre vuelve a orden alfabético.
+- En render, cada categoría usa `getCategoryItems(category.id)` (sin ordenar por `sort_order`), por lo que aunque cambie `sort_order`, el array en memoria mantiene su orden previo.
 
-**1. Añadir columna `sort_order` a `budget_items` (migracion SQL)**
+3) Además hay una función `getFilteredAndSortedItems()` con lógica de sort que ahora mismo no se usa en el render de la tabla.
 
-Crear una migracion que:
-- Añada `sort_order INTEGER DEFAULT 0` a `budget_items`
-- Inicialice los valores existentes basandose en `created_at` (para que el orden actual se preserve)
+Implementación propuesta (sin cambiar comportamiento no relacionado)
+1) Corregir fuente de orden al cargar items
+- En `fetchBudgetItems()` cambiar orden principal a `sort_order` (ascendente), con fallback estable (por ejemplo `created_at`) para evitar saltos visuales.
+- Eliminar dependencia de `.order('name')` para el orden base.
 
-**2. Actualizar la interfaz `BudgetItem` en `BudgetDetailsDialog.tsx`**
+2) Hacer que el render de filas respete `sort_order`
+- En el bloque de categorías (sección Elementos), reemplazar:
+  - `const categoryItems = getCategoryItems(category.id);`
+  por una variante ordenada por `sort_order` (preferible reutilizando `getFilteredAndSortedItems(category.id)` o ajustando `getCategoryItems` para devolver ordenado).
+- Regla de orden recomendada:
+  - Primero `sort_order` asc
+  - Si empate o valores inválidos, fallback por `created_at` asc
 
-Añadir `sort_order?: number` al interface.
+3) Asegurar refresco visual inmediato tras soltar
+- Mantener `reorderElements(...)` actual de persistencia.
+- Ajustar su actualización local para que el estado refleje el nuevo orden de inmediato de forma determinista:
+  - O bien reordenar también el array local en `setItems`.
+  - O bien, si el render ya ordena por `sort_order`, basta con actualizar `sort_order` en estado (pero garantizando que el selector de render use ese campo).
+- Añadir `await` en `onDrop` para evitar carreras visuales (limpiar estados de drag después del reorder).
 
-**3. Implementar funcion `reorderElements`**
+4) Evitar regresiones con nuevos elementos
+- En `addNewItem(categoryId)`, asignar `sort_order` al final de su categoría (`max(sort_order)+1`) en vez de depender del default.
+- Así “Agregar” siempre pone el ítem al final y no rompe el orden manual existente.
 
-Similar a la existente `reorderCategories`:
-- Recibe `draggedId`, `targetId` y `categoryId`
-- Calcula el nuevo orden dentro de la categoria
-- Actualiza cada elemento con su nuevo `sort_order` en la base de datos
-- Actualiza el estado local `items` para reflejar el cambio inmediatamente
+5) Limpiar coherencia de orden/sort en código
+- Si se reutiliza `getFilteredAndSortedItems`, revisar estado `sortBy`:
+  - ahora arranca en `'name'` aunque el objetivo de drag es “orden manual”.
+  - introducir modo explícito “manual” o dejar por defecto `sort_order`.
+- Mantener drag habilitado solo en modo manual (si existe selector de orden) para evitar expectativas confusas.
 
-**4. Conectar el `onDrop` handler**
+Validación funcional (E2E manual)
+1) Abrir una categoría con varios elementos.
+2) Arrastrar elemento A debajo de B.
+3) Verificar cambio visual inmediato sin recargar.
+4) Recargar página y comprobar que se conserva el mismo orden.
+5) Crear nuevo elemento en esa categoría y confirmar que aparece al final.
+6) Repetir en otra categoría para comprobar aislamiento por categoría.
 
-En el `onDrop` del `TableRow` de cada elemento (linea ~3744), llamar a `reorderElements` en lugar de solo limpiar estado.
+Archivos a tocar
+- `src/components/BudgetDetailsDialog.tsx`:
+  - `fetchBudgetItems`
+  - `getCategoryItems` / `getFilteredAndSortedItems`
+  - bloque de render de `categoryItems`
+  - `onDrop` de filas
+  - `addNewItem`
+- No hace falta nueva migración: `sort_order` ya existe y está operativo.
 
-**5. Actualizar `getFilteredAndSortedItems` para respetar `sort_order`**
-
-Cuando no hay un `sortBy` activo (o como ordenamiento por defecto), ordenar por `sort_order` en lugar del orden natural del array.
-
-### Seccion tecnica
-
-```text
-budget_items:
-  + sort_order INTEGER DEFAULT 0
-
-reorderElements(draggedId, targetId, categoryId):
-  1. Obtener items de la categoria, ordenados por sort_order
-  2. Splice: mover draggedId a la posicion de targetId
-  3. Asignar sort_order = index a cada item
-  4. Batch update en Supabase (un update por item cambiado)
-  5. Actualizar estado local
-
-onDrop handler:
-  if (draggedElement && dragOverElement && draggedElement !== dragOverElement)
-    reorderElements(draggedElement, dragOverElement, currentCategoryId)
-```
-
-No se modifica ninguna otra seccion, columna ni logica existente.
+Resultado esperado
+- El usuario podrá cambiar el orden “arrastrando entre sí” y verlo al instante.
+- El orden quedará persistido y será consistente tras recarga.
+- Se elimina el conflicto actual entre “orden guardado” y “orden mostrado”.
