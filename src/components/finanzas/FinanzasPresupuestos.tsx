@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Search, Trash2, FileText, Eye } from 'lucide-react';
+import { BudgetSummaryCards } from './BudgetSummaryCards';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import CreateBudgetDialog from '@/components/CreateBudgetDialog';
@@ -110,7 +111,7 @@ export function FinanzasPresupuestos({ artistId }: FinanzasPresupuestosProps = {
     );
   });
 
-  const totalAmount = filteredBudgets.reduce((sum, b) => sum + (b.fee || 0), 0);
+  // totalAmount no longer needed — replaced by BudgetSummaryCards
 
   if (loading) {
     return (
@@ -163,29 +164,8 @@ export function FinanzasPresupuestos({ artistId }: FinanzasPresupuestosProps = {
         </CardContent>
       </Card>
 
-      {/* Summary */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="card-moodita">
-          <CardContent className="p-4">
-            <div className="text-sm text-muted-foreground">Total Presupuestos</div>
-            <div className="text-2xl font-bold">{filteredBudgets.length}</div>
-          </CardContent>
-        </Card>
-        <Card className="card-moodita">
-          <CardContent className="p-4">
-            <div className="text-sm text-muted-foreground">Importe Total</div>
-            <div className="text-2xl font-bold">€{totalAmount.toLocaleString()}</div>
-          </CardContent>
-        </Card>
-        <Card className="card-moodita">
-          <CardContent className="p-4">
-            <div className="text-sm text-muted-foreground">Aprobados</div>
-            <div className="text-2xl font-bold text-green-500">
-              {filteredBudgets.filter(b => b.budget_status === 'aprobado').length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Summary Cards */}
+      <BudgetSummaryCards budgets={filteredBudgets} />
 
       {/* Table */}
       <Card className="card-moodita">
