@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, FileText, Plane, Receipt, Edit, ExternalLink, Copy, Share2, Copy as Duplicate, FolderOpen, AlertTriangle, ShieldCheck, Plus } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, FileText, Plane, Receipt, Edit, ExternalLink, Copy, Share2, Copy as Duplicate, FolderOpen, AlertTriangle, ShieldCheck, Plus, Link as LinkIcon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -25,6 +25,11 @@ import { AvailabilityStatusCard } from '@/components/booking-detail/Availability
 import { RequestAvailabilityDialog } from '@/components/booking-detail/RequestAvailabilityDialog';
 import { BookingHistorySection } from '@/components/booking-detail/BookingHistorySection';
 import { LinkedSolicitudesCard } from '@/components/booking-detail/LinkedSolicitudesCard';
+import { ProjectLinkSelector } from '@/components/releases/ProjectLinkSelector';
+import { useAuth } from '@/hooks/useAuth';
+import { Link } from 'react-router-dom';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useQueryClient } from '@tanstack/react-query';
 interface Artist {
   id: string;
   name: string;
@@ -92,6 +97,8 @@ export default function BookingDetail() {
   }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const scrollToSection = searchParams.get('scrollTo');
   const availabilityRef = useRef<HTMLDivElement>(null);
   const viabilityRef = useRef<HTMLDivElement>(null);
@@ -102,6 +109,15 @@ export default function BookingDetail() {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showAvailabilityDialog, setShowAvailabilityDialog] = useState(false);
   const [availabilityBlocked, setAvailabilityBlocked] = useState(false);
+  
+  // Project linking state
+  const [showLinkProjectDialog, setShowLinkProjectDialog] = useState(false);
+  const [projectOption, setProjectOption] = useState<'none' | 'existing' | 'new'>('none');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDescription, setNewProjectDescription] = useState('');
+  const [projectName, setProjectName] = useState<string | null>(null);
+
   usePageTitle(booking?.festival_ciclo || booking?.venue || 'Detalle Evento');
 
   // Scroll to section if requested via URL param
@@ -134,6 +150,14 @@ export default function BookingDetail() {
         artist: Array.isArray(data.artist) ? data.artist[0] : data.artist
       } : null;
       setBooking(normalizedData);
+      
+      // Fetch linked project name
+      if (normalizedData?.project_id) {
+        const { data: proj } = await supabase.from('projects').select('name').eq('id', normalizedData.project_id).single();
+        setProjectName(proj?.name || null);
+      } else {
+        setProjectName(null);
+      }
     } catch (error) {
       console.error('Error fetching booking:', error);
       toast({
@@ -293,6 +317,28 @@ export default function BookingDetail() {
                   ))}
                 </div>
               )}
+
+              {/* Project badge */}
+              <div className="mt-2">
+                {booking.project_id && projectName ? (
+                  <Link
+                    to={`/projects/${booking.project_id}`}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-medium hover:bg-amber-500/20 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    Proyecto: {projectName}
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => setShowLinkProjectDialog(true)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-muted-foreground hover:bg-muted/50 transition-colors border border-dashed border-muted-foreground/30"
+                  >
+                    <LinkIcon className="w-3.5 h-3.5" />
+                    Vincular a proyecto
+                  </button>
+                )}
+              </div>
 
               {/* Alertas de incongruencia */}
               {(() => {
@@ -672,6 +718,79 @@ export default function BookingDetail() {
           eventName={booking.festival_ciclo || booking.venue}
           onRequestCreated={handleBookingUpdate}
         />
+
+        {/* Link Project Dialog */}
+        <Dialog open={showLinkProjectDialog} onOpenChange={setShowLinkProjectDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Vincular a proyecto</DialogTitle>
+            </DialogHeader>
+            <ProjectLinkSelector
+              selectedOption={projectOption}
+              onOptionChange={setProjectOption}
+              selectedProjectId={selectedProjectId}
+              onProjectIdChange={setSelectedProjectId}
+              newProjectName={newProjectName}
+              onNewProjectNameChange={setNewProjectName}
+              newProjectDescription={newProjectDescription}
+              onNewProjectDescriptionChange={setNewProjectDescription}
+              artistId={booking.artist_id}
+            />
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setShowLinkProjectDialog(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!id || !user?.id) return;
+                  let projId: string | null = null;
+
+                  if (projectOption === 'existing' && selectedProjectId) {
+                    projId = selectedProjectId;
+                  } else if (projectOption === 'new' && newProjectName.trim()) {
+                    try {
+                      const { data: newProject, error } = await supabase
+                        .from('projects')
+                        .insert({
+                          name: newProjectName.trim(),
+                          description: newProjectDescription.trim() || null,
+                          artist_id: booking.artist_id || null,
+                          created_by: user.id,
+                          status: 'en_curso',
+                        } as any)
+                        .select('id')
+                        .single();
+                      if (error) throw error;
+                      projId = newProject.id;
+                    } catch {
+                      toast({ title: 'Error', description: 'No se pudo crear el proyecto', variant: 'destructive' });
+                      return;
+                    }
+                  }
+
+                  try {
+                    await supabase.from('booking_offers').update({ project_id: projId }).eq('id', id);
+                    toast({ title: projId ? 'Proyecto vinculado' : 'Proyecto desvinculado' });
+                    setShowLinkProjectDialog(false);
+                    setProjectOption('none');
+                    setSelectedProjectId(null);
+                    setNewProjectName('');
+                    setNewProjectDescription('');
+                    fetchBooking();
+                  } catch {
+                    toast({ title: 'Error', description: 'No se pudo vincular', variant: 'destructive' });
+                  }
+                }}
+                disabled={
+                  (projectOption === 'existing' && !selectedProjectId) ||
+                  (projectOption === 'new' && !newProjectName.trim())
+                }
+              >
+                Vincular
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
