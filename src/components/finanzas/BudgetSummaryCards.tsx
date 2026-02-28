@@ -158,7 +158,7 @@ export function BudgetSummaryCards({ budgets }: BudgetSummaryCardsProps) {
   return (
     <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
       {/* 1. PRESUPUESTOS ACTIVOS */}
-      <Card className="bg-[hsl(220,15%,13%)] border-border/30">
+      <Card className="card-moodita">
         <CardContent className="p-4 flex flex-col justify-between h-full">
           <div className="flex items-center gap-2 mb-2">
             <Briefcase className="h-4 w-4 text-muted-foreground" />
@@ -177,37 +177,37 @@ export function BudgetSummaryCards({ budgets }: BudgetSummaryCardsProps) {
       </Card>
 
       {/* 2. CAPITAL GESTIONADO */}
-      <Card className="bg-[hsl(220,15%,13%)] border-blue-500/20">
+      <Card className="card-moodita">
         <CardContent className="p-4 flex flex-col justify-between h-full">
           <div className="flex items-center gap-2 mb-2">
-            <Wallet className="h-4 w-4 text-blue-400" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">
+            <Wallet className="h-4 w-4 text-blue-500" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Capital Gestionado
             </span>
           </div>
-          <div className="text-2xl font-bold text-blue-400">{formatCurrency(totalCapital)}</div>
-          <div className="text-[11px] text-blue-400/60 mt-1">Capital total comprometido</div>
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatCurrency(totalCapital)}</div>
+          <div className="text-[11px] text-muted-foreground mt-1">Capital total comprometido</div>
         </CardContent>
       </Card>
 
       {/* 3. COMPROMETIDO */}
-      <Card className="bg-[hsl(220,15%,13%)] border-amber-500/20">
+      <Card className="card-moodita">
         <CardContent className="p-4 flex flex-col justify-between h-full">
           <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="h-4 w-4 text-amber-400" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Comprometido
             </span>
           </div>
-          <div className="text-2xl font-bold text-amber-400">
+          <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
             {formatCurrency(totalConfirmed + totalProvisional)}
           </div>
           <div className="text-[11px] mt-1 flex items-center gap-1 flex-wrap">
-            <span className="text-foreground/70">{formatCurrency(totalConfirmed)} confirmado</span>
+            <span className="text-muted-foreground">{formatCurrency(totalConfirmed)} confirmado</span>
             {totalProvisional > 0 && (
               <>
                 <span className="text-muted-foreground">·</span>
-                <span className="text-amber-400/70">{formatCurrency(totalProvisional)} provisional</span>
+                <span className="text-amber-500">{formatCurrency(totalProvisional)} provisional</span>
               </>
             )}
           </div>
@@ -215,44 +215,44 @@ export function BudgetSummaryCards({ budgets }: BudgetSummaryCardsProps) {
       </Card>
 
       {/* 4. DISPONIBLE AGREGADO */}
-      <Card className={`bg-[hsl(220,15%,13%)] ${isExceeded ? 'border-red-500/30' : 'border-green-500/20'}`}>
+      <Card className="card-moodita">
         <CardContent className="p-4 flex flex-col justify-between h-full">
           <div className="flex items-center gap-2 mb-2">
             {isExceeded ? (
-              <TrendingDown className="h-4 w-4 text-red-400" />
+              <TrendingDown className="h-4 w-4 text-destructive" />
             ) : (
-              <CheckCircle className="h-4 w-4 text-green-400" />
+              <CheckCircle className="h-4 w-4 text-emerald-500" />
             )}
-            <span className={`text-[10px] font-semibold uppercase tracking-wider ${isExceeded ? 'text-red-400' : 'text-green-400'}`}>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Disponible Agregado
             </span>
           </div>
-          <div className={`text-2xl font-bold ${isExceeded ? 'text-red-400' : 'text-green-400'}`}>
+          <div className={`text-2xl font-bold ${isExceeded ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
             {isExceeded ? '-' : ''}{formatCurrency(totalDisponible)}
           </div>
-          <div className={`text-[11px] mt-1 ${isExceeded ? 'text-red-400/60' : 'text-green-400/60'}`}>
+          <div className={`text-[11px] mt-1 ${isExceeded ? 'text-destructive/70' : 'text-muted-foreground'}`}>
             {isExceeded ? 'Excedido' : 'Margen disponible'}
           </div>
         </CardContent>
       </Card>
 
       {/* 5. EXCEDIDOS */}
-      <Card className={`bg-[hsl(220,15%,13%)] ${hasExceededBudgets ? 'border-red-500/40 animate-pulse-subtle' : 'border-green-500/20'}`}>
+      <Card className={`card-moodita ${hasExceededBudgets ? 'border-destructive/40 animate-pulse-subtle' : ''}`}>
         <CardContent className="p-4 flex flex-col justify-between h-full">
           <div className="flex items-center gap-2 mb-2">
             {hasExceededBudgets ? (
-              <AlertTriangle className="h-4 w-4 text-red-400" />
+              <AlertTriangle className="h-4 w-4 text-destructive" />
             ) : (
-              <ShieldCheck className="h-4 w-4 text-green-400" />
+              <ShieldCheck className="h-4 w-4 text-emerald-500" />
             )}
-            <span className={`text-[10px] font-semibold uppercase tracking-wider ${hasExceededBudgets ? 'text-red-400' : 'text-green-400'}`}>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Excedidos
             </span>
           </div>
-          <div className={`text-3xl font-bold ${hasExceededBudgets ? 'text-red-400' : 'text-green-400'}`}>
+          <div className={`text-3xl font-bold ${hasExceededBudgets ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
             {hasExceededBudgets ? exceededCount : '✓'}
           </div>
-          <div className={`text-[11px] mt-1 ${hasExceededBudgets ? 'text-red-400/60' : 'text-green-400/60'}`}>
+          <div className={`text-[11px] mt-1 ${hasExceededBudgets ? 'text-destructive/70' : 'text-muted-foreground'}`}>
             {hasExceededBudgets ? 'presupuestos en rojo' : 'Todo en orden'}
           </div>
         </CardContent>
