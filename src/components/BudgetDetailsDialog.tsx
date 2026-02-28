@@ -315,6 +315,16 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   // Element movement states
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
+  const [mainTab, setMainTab] = useState('items');
+
+  const navigateToCategory = (categoryId: string) => {
+    setMainTab('items');
+    setOpenCategories(prev => new Set([...prev, categoryId]));
+    setTimeout(() => {
+      document.querySelector(`[data-category-id="${categoryId}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
+  };
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(new Set());
   const [hiddenCategoryAlert, setHiddenCategoryAlert] = useState<{
     categoryId: string;
@@ -3089,7 +3099,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
           {/* Content */}
           <div className="flex-1">
-            <Tabs defaultValue="items" className="flex flex-col">
+            <Tabs value={mainTab} onValueChange={setMainTab} className="flex flex-col">
               <div className="border-b bg-background px-4 py-2">
                 <TabsList className="grid w-full max-w-md grid-cols-2">
                   <TabsTrigger value="items" className="flex items-center gap-2 text-sm">
@@ -3578,7 +3588,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                       const IconComponent = iconMap[category.icon_name as keyof typeof iconMap] || DollarSign;
                       
                       return (
-                        <div key={category.id} className="mb-6">
+                        <div key={category.id} data-category-id={category.id} className="mb-6">
                           {/* Category Header */}
                           <div 
                             className="bg-black text-white p-4 flex items-center justify-between border-b border-gray-700 cursor-pointer hover:bg-gray-900 transition-colors"
@@ -4515,7 +4525,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                                   {visible.map((category) => {
                                     const IconComponent = iconMap[category.icon as keyof typeof iconMap] || DollarSign;
                                     return (
-                                      <TableRow key={category.id}>
+                                      <TableRow key={category.id} onClick={() => category.count > 0 && navigateToCategory(category.id)} className={category.count > 0 ? "cursor-pointer hover:bg-muted/50 transition-colors" : ""}>
                                         <TableCell>
                                           <div className="space-y-1">
                                             <div className="flex items-center gap-2">
