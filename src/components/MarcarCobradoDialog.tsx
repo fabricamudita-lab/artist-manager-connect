@@ -111,7 +111,7 @@ export function MarcarCobradoDialog({ open, onOpenChange, booking, onSuccess }: 
           concept: `Cobro concierto: ${eventName}`,
           amount_gross: importeRecibido,
           irpf_pct: irpfPct,
-          amount_net: netoRecibido,
+          
           received_date: cobroFecha,
           status: 'cobrado',
           artist_id: booking.artist_id || null,
