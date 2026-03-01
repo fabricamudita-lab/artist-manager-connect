@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
 
         const { error: updateError } = await supabase
           .from("booking_offers")
-          .update({ phase: "realizado" })
+          .update({ phase: "realizado", estado: "realizado" })
           .in("id", ids);
 
         if (updateError) {
