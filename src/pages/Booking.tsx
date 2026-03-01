@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText, FolderOpen, AlertTriangle, ExternalLink, Eye, ArrowRight, CheckCircle2, AlertCircle, Filter } from 'lucide-react';
+import { Plus, Settings, Edit, Trash2, Folder, FolderPlus, Calendar, Kanban, List, Download, FileText, FolderOpen, AlertTriangle, ExternalLink, Eye, ArrowRight, CheckCircle2, AlertCircle, Filter, RefreshCw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -127,6 +127,42 @@ export default function Booking() {
     showCityzen: 'all',
   });
   const [filteredOffers, setFilteredOffers] = useState<BookingOffer[]>([]);
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncEstados = async () => {
+    try {
+      setSyncing(true);
+      const today = new Date().toISOString().split('T')[0];
+      const { data: pastEvents, error: fetchError } = await supabase
+        .from('booking_offers')
+        .select('id')
+        .eq('phase', 'confirmado')
+        .lt('fecha', today);
+
+      if (fetchError) throw fetchError;
+
+      if (!pastEvents || pastEvents.length === 0) {
+        toast({ title: 'Todo al día', description: 'Sin cambios pendientes' });
+        return;
+      }
+
+      const ids = pastEvents.map(e => e.id);
+      const { error: updateError } = await supabase
+        .from('booking_offers')
+        .update({ phase: 'realizado', estado: 'realizado' })
+        .in('id', ids);
+
+      if (updateError) throw updateError;
+
+      toast({ title: 'Eventos actualizados', description: `${ids.length} evento(s) movido(s) a Realizado` });
+      fetchOffers();
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast({ title: 'Error', description: 'No se pudieron sincronizar los estados', variant: 'destructive' });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   // Update filter when URL changes
   useEffect(() => {
@@ -606,6 +642,15 @@ export default function Booking() {
           <div className="flex items-center gap-3">
             <PermissionChip />
             <div className="flex gap-3">
+              <Button
+                onClick={handleSyncEstados}
+                disabled={syncing}
+                variant="outline"
+                size="sm"
+              >
+                {syncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                Sincronizar
+              </Button>
               <Button
                 onClick={() => handleExportCSV()}
                 className="btn-secondary bg-white/20 hover:bg-white/30 text-white border-white/20"

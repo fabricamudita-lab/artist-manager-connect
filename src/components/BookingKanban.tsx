@@ -28,6 +28,28 @@ import { useBookingBuddy } from '@/hooks/useBookingBuddy';
 import { BuddyPanel } from './booking-detail/BuddyPanel';
 import { BookingAlertBanners } from './booking-detail/BookingAlertBanners';
 
+/*
+  BOOKING PHASE STATE MACHINE
+  ════════════════════════════
+
+  MANUAL transitions (drag & drop or button):
+  Interés → Oferta → Negociación → Confirmado*
+  Any phase → Cerrado
+  Any phase → Cancelado
+  Realizado → Facturado (via MarcarCobradoDialog)
+
+  * Confirmado requires viability guard:
+    viability_manager + tour_manager + production = true
+    (can be bypassed with explicit confirmation)
+
+  AUTOMATIC transitions (cron + client fallback):
+  Confirmado → Realizado: when fecha < CURRENT_DATE
+
+  AUTOMATIC alerts (not transitions):
+  Realizado + 7 days: cobro_pendiente_7d notification
+  Realizado + 30 days: cobro_vencido_30d notification
+  Oferta/Negociación + 30 days no activity: stale alert
+*/
 export interface BookingOffer {
   id: string;
   phase: string;
@@ -433,7 +455,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
 
   const updateOfferPhase = async (offerId: string, newPhase: string) => {
     try {
-      const updateData: Record<string, any> = { phase: newPhase };
+      const updateData: Record<string, any> = { phase: newPhase, estado: newPhase };
       if (newPhase === 'confirmado') {
         updateData.viability_manager_approved = true;
         updateData.viability_tour_manager_approved = true;
