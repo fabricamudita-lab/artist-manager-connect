@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
@@ -22,6 +22,7 @@ import {
   Receipt
 } from 'lucide-react';
 import { BookingNotes } from './BookingNotes';
+import { PaymentStatusCard } from './PaymentStatusCard';
 
 interface Contact {
   id: string;
@@ -52,11 +53,36 @@ interface BookingOverviewTabProps {
     publico?: string;
     capacidad?: number;
     estado_facturacion?: string;
+    // Payment fields
+    festival_ciclo?: string;
+    venue?: string;
+    ciudad?: string;
+    artist_id?: string;
+    project_id?: string;
+    comision_porcentaje?: number;
+    fecha?: string;
+    anticipo_porcentaje?: number;
+    anticipo_importe?: number;
+    anticipo_estado?: string;
+    anticipo_fecha_esperada?: string;
+    anticipo_fecha_cobro?: string;
+    anticipo_referencia?: string;
+    liquidacion_importe?: number;
+    liquidacion_estado?: string;
+    liquidacion_fecha_esperada?: string;
+    liquidacion_fecha_cobro?: string;
+    liquidacion_referencia?: string;
+    cobro_estado?: string;
+    cobro_fecha?: string;
+    cobro_importe?: number;
+    cobro_referencia?: string;
   };
+  paymentRef?: React.Ref<HTMLDivElement>;
+  paymentHighlighted?: boolean;
   onUpdate: () => void;
 }
 
-export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProps) {
+export function BookingOverviewTab({ booking, onUpdate, paymentRef, paymentHighlighted }: BookingOverviewTabProps) {
   const [artistNotes, setArtistNotes] = useState(booking.info_comentarios || '');
   const [saving, setSaving] = useState(false);
   const [hasChanged, setHasChanged] = useState(false);
@@ -361,6 +387,14 @@ export function BookingOverviewTab({ booking, onUpdate }: BookingOverviewTabProp
           </CardContent>
         </Card>
       </div>
+
+      {/* Payment Status */}
+      <PaymentStatusCard
+        ref={paymentRef}
+        booking={booking}
+        highlighted={paymentHighlighted}
+        onUpdate={onUpdate}
+      />
 
       {/* Unified Notes Section */}
       <Card>
