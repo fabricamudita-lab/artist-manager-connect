@@ -1,54 +1,73 @@
 
 
-## Fix: Solicitud approval not updating status despite all approvals collected
+## Fix: Budget auto-population with smart crew categorization
 
 ### Problem
-When approving a solicitud with 1 required approver, the toast shows "1/1 aprobaciones completadas. Faltan 0 aprobador(es)" but the status stays "Pendiente". The approval is recorded but the status never transitions to "aprobada".
+When creating a budget from the booking detail (via "Crear Carpeta"), the budget appears empty or with all members dumped into the "Musicos" category. The sophisticated logic that properly categorizes crew members (Artista Principal, Management/Comisiones, Musicos, Equipo tecnico) only exists in `CreateBudgetDialog.tsx` but was never ported to the two other places where budgets are created from bookings.
 
 ### Root Cause
-In `SolicitudDetailsDialog.tsx`, the approval logic has two issues:
+There are **3 places** that create budgets from booking data:
+1. `CreateBudgetDialog.tsx` -- has the full `loadCrewFromFormat()` with smart categorization (works correctly)
+2. `BookingDriveTab.tsx` -- simplified logic, puts everything in "Musicos" category, no artist detection, no commission handling
+3. `FileExplorer.tsx` -- same simplified logic as above
 
-1. **ID mismatch**: The `required_approvers` array stores member IDs from the `TeamMemberSelector` component. For workspace members, this uses `user_id` (auth UUID). However, the approval check at line 172 uses `.every()` to verify exact ID matches between `requiredApprovers` and `newApprovals`. If the IDs don't match exactly (e.g., a contact ID was stored instead of a user_id), `allApproved` evaluates to `false` even though 1 approval exists for 1 required approver.
-
-2. **Misleading toast message**: The toast shows `newApprovals.length` vs `requiredApprovers.length` (simple array lengths), making it appear as though all approvals are collected. But the actual `allApproved` check fails because it verifies **specific ID overlap**, not just counts. The code returns early (line 196) without updating `estado`.
+The simplified logic in #2 and #3 is missing:
+- Artist detection (member_id === artist_id -> "Artista Principal" category)
+- Commission detection (is_percentage -> "Management" category)  
+- Workspace member role detection (manager/booker roles -> "Management")
+- Contact category detection (tecnico -> "Equipo tecnico")
+- `budget_categories` table integration (category_id assignment)
+- Mirror contact creation for artist and workspace members
+- `is_commission_percentage` and `commission_percentage` fields
+- `billing_status` field
 
 ### Solution
 
-#### File: `src/components/SolicitudDetailsDialog.tsx`
+#### 1. Extract shared utility: `src/utils/budgetCrewLoader.ts`
 
-1. **Fix the approved count in the toast** to show the actual intersection count (how many required approvers have actually approved), not just the total `newApprovals` length.
+Extract the `loadCrewFromFormat` logic from `CreateBudgetDialog.tsx` into a standalone async function that can be reused. It will:
+- Accept `budgetId`, `formatName`, `artistId`, `bookingFee`, `isInternational`, and `userId`
+- Look up the booking_product by artist + format name
+- Fetch crew members with full categorization logic
+- Detect artist principal, management/commissions, and technicians
+- Create/find mirror contacts
+- Create budget_categories as needed
+- Insert budget_items with proper `category_id`, `category`, `is_commission_percentage`, `commission_percentage`, `contact_id`, `billing_status`
 
-2. **Add a fallback**: When `requiredApprovers.length > 0` and `newApprovals.length >= requiredApprovers.length`, treat it as fully approved. This handles the edge case where IDs stored in `required_approvers` don't perfectly match the auth `user_id` format.
+#### 2. Update `BookingDriveTab.tsx`
 
-3. **Improve the `allApproved` check**: Use both the strict `.every()` check AND a count-based fallback (`newApprovals.length >= requiredApprovers.length`) to determine if all approvals are collected.
-
+Replace the simplified crew-loading block (lines 240-308) with a single call to the shared utility:
 ```
-// Current (broken):
-const allApproved = requiredApprovers.every(
-  approverId => newApprovals.includes(approverId)
-);
-
-// Fixed:
-const strictMatch = requiredApprovers.every(
-  approverId => newApprovals.includes(approverId)
-);
-const allApproved = strictMatch || 
-  newApprovals.length >= requiredApprovers.length;
-```
-
-4. **Fix the toast approved count** to use intersection instead of raw length:
-```
-// Current (misleading):
-const approvedCount = newApprovals.length;
-
-// Fixed:
-const approvedCount = requiredApprovers.filter(
-  id => newApprovals.includes(id)
-).length;
+await loadCrewFromFormat({
+  budgetId: newBudget.id,
+  formatName: bookingData.formato,
+  artistId,
+  bookingFee: bookingData.fee || 0,
+  isInternational,
+  userId: user.id,
+});
 ```
 
-### Files to modify
+#### 3. Update `FileExplorer.tsx`
+
+Replace the simplified crew-loading block (lines 699-764) with the same shared utility call.
+
+#### 4. Update `CreateBudgetDialog.tsx`
+
+Replace the inline `loadCrewFromFormat` method with a call to the shared utility, removing ~240 lines of duplicated code.
+
+### Files to create/modify
 | File | Change |
 |------|--------|
-| `src/components/SolicitudDetailsDialog.tsx` | Fix `allApproved` logic and toast count calculation (~lines 170-196) |
+| `src/utils/budgetCrewLoader.ts` | **New** -- shared crew loading + categorization logic |
+| `src/components/booking-detail/BookingDriveTab.tsx` | Replace simplified crew block with shared utility call |
+| `src/components/drive/FileExplorer.tsx` | Replace simplified crew block with shared utility call |
+| `src/components/CreateBudgetDialog.tsx` | Replace inline method with shared utility call |
+
+### What this fixes
+- Budget created from booking detail will show crew properly categorized: Artista Principal, Musicos, Management (comisiones), Equipo tecnico
+- Commissions (booker %, manager %) appear in their own "Management" category with percentage labels
+- Artist fee appears in "Artista Principal" category
+- Tour manager and crew appear in correct categories based on their contact/profile roles
+- All three budget creation paths produce identical, rich results
 
