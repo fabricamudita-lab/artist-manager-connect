@@ -1150,6 +1150,41 @@ export type Database = {
           },
         ]
       }
+      booking_notifications: {
+        Row: {
+          booking_offer_id: string
+          created_at: string
+          id: string
+          message: string
+          read: boolean
+          type: string
+        }
+        Insert: {
+          booking_offer_id: string
+          created_at?: string
+          id?: string
+          message: string
+          read?: boolean
+          type: string
+        }
+        Update: {
+          booking_offer_id?: string
+          created_at?: string
+          id?: string
+          message?: string
+          read?: boolean
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_notifications_booking_offer_id_fkey"
+            columns: ["booking_offer_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_offers: {
         Row: {
           adjuntos: Json | null
