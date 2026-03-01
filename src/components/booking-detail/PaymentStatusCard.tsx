@@ -1,12 +1,15 @@
-import { useState, forwardRef } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PagoDialog } from '@/components/PagoDialog';
-import { Check, Clock, AlertTriangle, Banknote } from 'lucide-react';
+import { Check, Clock, AlertTriangle, Banknote, Lock, Music } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
+import { getIrpfForArtist, type ArtistFiscalProfile } from '@/utils/irpf';
 
 interface PaymentStatusCardProps {
   booking: {
@@ -51,7 +54,14 @@ const fmtDate = (d?: string) => {
   }
 };
 
-function StatusBadge({ estado, fechaEsperada }: { estado?: string; fechaEsperada?: string }) {
+function StatusBadge({ estado, fechaEsperada, locked }: { estado?: string; fechaEsperada?: string; locked?: boolean }) {
+  if (locked) {
+    return (
+      <Badge variant="secondary" className="text-xs bg-muted/50 text-muted-foreground border-muted/30">
+        <Lock className="h-3 w-3 mr-1" /> En espera
+      </Badge>
+    );
+  }
   if (estado === 'cobrado' || estado === 'no_aplica') {
     return (
       <Badge className="bg-primary/10 text-primary border-primary/20 text-xs">
@@ -77,14 +87,37 @@ function StatusBadge({ estado, fechaEsperada }: { estado?: string; fechaEsperada
 export const PaymentStatusCard = forwardRef<HTMLDivElement, PaymentStatusCardProps>(
   ({ booking, highlighted, onUpdate }, ref) => {
     const [showPago, setShowPago] = useState(false);
+    const [artistFiscal, setArtistFiscal] = useState<ArtistFiscalProfile | null>(null);
     const fee = booking.fee || 0;
     const cobroEstado = booking.cobro_estado;
+
+    // Fetch artist fiscal profile for IRPF
+    useEffect(() => {
+      if (booking.artist_id) {
+        supabase
+          .from('artists')
+          .select('irpf_type, irpf_porcentaje, actividad_inicio')
+          .eq('id', booking.artist_id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) setArtistFiscal(data as ArtistFiscalProfile);
+          });
+      }
+    }, [booking.artist_id]);
+
+    const irpfResult = getIrpfForArtist(artistFiscal);
+    const irpfPct = irpfResult.percentage;
+    const irpfTotal = fee * irpfPct / 100;
+    const feeNeto = fee - irpfTotal;
 
     // Determine what state we're in
     const hasPayments = cobroEstado && cobroEstado !== 'pendiente';
     const isCobradoCompleto = cobroEstado === 'cobrado_completo';
-    const isAnticipoCobrado = cobroEstado === 'anticipo_cobrado';
-    const hasFraccionado = booking.anticipo_importe || booking.anticipo_estado === 'cobrado' || isAnticipoCobrado;
+    const hasFraccionado = booking.anticipo_importe || booking.anticipo_estado === 'cobrado' || cobroEstado === 'anticipo_cobrado';
+
+    // Dependent state: liquidación locked until anticipo is paid
+    const anticipoPending = !booking.anticipo_estado || booking.anticipo_estado === 'pendiente';
+    const liquidacionLocked = hasFraccionado && anticipoPending;
 
     return (
       <>
@@ -136,97 +169,175 @@ export const PaymentStatusCard = forwardRef<HTMLDivElement, PaymentStatusCardPro
               </div>
             )}
 
-            {/* FRACCIONADO (anticipo + liquidación) */}
+            {/* FRACCIONADO — VERTICAL TIMELINE */}
             {hasFraccionado && (
-              <div className="space-y-4">
-                {/* ANTICIPO */}
-                <div className="rounded-lg border border-border p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold">
-                      Anticipo ({booking.anticipo_porcentaje || 50}%)
-                    </span>
-                    <StatusBadge
-                      estado={booking.anticipo_estado}
-                      fechaEsperada={booking.anticipo_fecha_esperada}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Importe</p>
-                      <p className="font-semibold">{fmt(booking.anticipo_importe || 0)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        {booking.anticipo_estado === 'cobrado' ? 'Cobrado el' : 'Fecha esperada'}
-                      </p>
-                      <p className="font-medium">
-                        {fmtDate(
-                          booking.anticipo_estado === 'cobrado'
-                            ? booking.anticipo_fecha_cobro
-                            : booking.anticipo_fecha_esperada
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  {booking.anticipo_estado !== 'cobrado' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full text-xs mt-1"
-                      onClick={() => setShowPago(true)}
-                    >
-                      Registrar anticipo
-                    </Button>
-                  )}
-                </div>
+              <div className="space-y-0">
+                {/* Timeline container */}
+                <div className="relative pl-6">
+                  {/* Vertical line */}
+                  <div className="absolute left-[9px] top-2 bottom-2 w-px bg-border" />
 
-                {/* LIQUIDACIÓN */}
-                <div className="rounded-lg border border-border p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold">Liquidación</span>
-                    <StatusBadge
-                      estado={booking.liquidacion_estado}
-                      fechaEsperada={booking.liquidacion_fecha_esperada}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Importe</p>
-                      <p className="font-semibold">{fmt(booking.liquidacion_importe || 0)}</p>
+                  {/* ANTICIPO NODE */}
+                  <div className="relative pb-5">
+                    <div className={`absolute left-[-24px] top-1 h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                      booking.anticipo_estado === 'cobrado' 
+                        ? 'bg-primary border-primary' 
+                        : 'bg-background border-muted-foreground/40'
+                    }`}>
+                      {booking.anticipo_estado === 'cobrado' && <Check className="h-2.5 w-2.5 text-primary-foreground" />}
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        {booking.liquidacion_estado === 'cobrado' ? 'Cobrado el' : 'Fecha esperada'}
-                      </p>
-                      <p className="font-medium">
-                        {fmtDate(
-                          booking.liquidacion_estado === 'cobrado'
-                            ? booking.liquidacion_fecha_cobro
-                            : booking.liquidacion_fecha_esperada
-                        )}
-                      </p>
+                    <div className="rounded-lg border border-border p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold">
+                          Anticipo ({booking.anticipo_porcentaje || 50}%) — Antes del evento
+                        </span>
+                        <StatusBadge
+                          estado={booking.anticipo_estado}
+                          fechaEsperada={booking.anticipo_fecha_esperada}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Importe</p>
+                          <p className="font-semibold">{fmt(booking.anticipo_importe || 0)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            {booking.anticipo_estado === 'cobrado' ? 'Cobrado el' : 'Fecha esperada'}
+                          </p>
+                          <p className="font-medium">
+                            {fmtDate(
+                              booking.anticipo_estado === 'cobrado'
+                                ? booking.anticipo_fecha_cobro
+                                : booking.anticipo_fecha_esperada
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      {booking.anticipo_estado !== 'cobrado' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-xs mt-1"
+                          onClick={() => setShowPago(true)}
+                        >
+                          Registrar anticipo
+                        </Button>
+                      )}
+                      {booking.anticipo_estado === 'cobrado' && booking.anticipo_referencia && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Referencia</p>
+                          <p className="text-xs">{booking.anticipo_referencia}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  {booking.liquidacion_estado !== 'cobrado' && booking.anticipo_estado === 'cobrado' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full text-xs mt-1"
-                      onClick={() => setShowPago(true)}
-                    >
-                      Registrar liquidación
-                    </Button>
-                  )}
+
+                  {/* EVENT NODE */}
+                  <div className="relative pb-5">
+                    <div className="absolute left-[-24px] top-1 h-4 w-4 rounded-full border-2 bg-background border-primary/60 flex items-center justify-center">
+                      <Music className="h-2.5 w-2.5 text-primary" />
+                    </div>
+                    <div className="flex items-center gap-2 py-1">
+                      <span className="text-xs font-medium text-muted-foreground">🎤 EVENTO</span>
+                      <span className="text-xs text-muted-foreground">— {fmtDate(booking.fecha)}</span>
+                    </div>
+                  </div>
+
+                  {/* LIQUIDACIÓN NODE */}
+                  <div className="relative">
+                    <div className={`absolute left-[-24px] top-1 h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                      booking.liquidacion_estado === 'cobrado' 
+                        ? 'bg-primary border-primary' 
+                        : liquidacionLocked
+                        ? 'bg-muted border-muted-foreground/20'
+                        : 'bg-background border-muted-foreground/40'
+                    }`}>
+                      {booking.liquidacion_estado === 'cobrado' && <Check className="h-2.5 w-2.5 text-primary-foreground" />}
+                      {liquidacionLocked && <Lock className="h-2.5 w-2.5 text-muted-foreground/50" />}
+                    </div>
+                    <div className={`rounded-lg border p-3 space-y-2 ${
+                      liquidacionLocked ? 'border-muted/50 bg-muted/20 opacity-70' : 'border-border'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold">
+                          Liquidación — Tras el evento
+                        </span>
+                        <StatusBadge
+                          estado={booking.liquidacion_estado}
+                          fechaEsperada={booking.liquidacion_fecha_esperada}
+                          locked={liquidacionLocked}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Importe</p>
+                          <p className="font-semibold">{fmt(booking.liquidacion_importe || 0)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            {booking.liquidacion_estado === 'cobrado' ? 'Cobrado el' : 'Fecha esperada'}
+                          </p>
+                          <p className="font-medium">
+                            {fmtDate(
+                              booking.liquidacion_estado === 'cobrado'
+                                ? booking.liquidacion_fecha_cobro
+                                : booking.liquidacion_fecha_esperada
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      {liquidacionLocked && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1.5">
+                                <Lock className="h-3 w-3" />
+                                En espera — registra el anticipo primero
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Disponible tras registrar el anticipo</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      {!liquidacionLocked && booking.liquidacion_estado !== 'cobrado' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-xs mt-1"
+                          onClick={() => setShowPago(true)}
+                        >
+                          Registrar liquidación
+                        </Button>
+                      )}
+                      {booking.liquidacion_estado === 'cobrado' && booking.liquidacion_referencia && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Referencia</p>
+                          <p className="text-xs">{booking.liquidacion_referencia}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* SUMMARY BAR */}
-                <Separator />
-                <div className="grid grid-cols-2 gap-2 text-xs">
+                <Separator className="mt-4" />
+                <div className="grid grid-cols-2 gap-3 text-xs pt-3">
                   <div>
                     <p className="text-muted-foreground">Fee bruto</p>
                     <p className="font-bold text-sm">{fmt(fee)}</p>
                   </div>
                   <div>
+                    <p className="text-muted-foreground">IRPF estimado ({irpfPct}%)</p>
+                    <p className="font-bold text-sm text-destructive">-{fmt(irpfTotal)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Fee neto</p>
+                    <p className="font-bold text-sm">{fmt(feeNeto)}</p>
+                  </div>
+                  <div className="border-l pl-3 border-border">
                     <p className="text-muted-foreground">Cobrado</p>
                     <p className="font-bold text-sm text-primary">
                       {fmt(
@@ -235,14 +346,17 @@ export const PaymentStatusCard = forwardRef<HTMLDivElement, PaymentStatusCardPro
                       )}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Pendiente</p>
-                    <p className="font-bold text-sm text-destructive">
-                      {fmt(
-                        (booking.anticipo_estado !== 'cobrado' ? (booking.anticipo_importe || 0) : 0) +
-                        (booking.liquidacion_estado !== 'cobrado' ? (booking.liquidacion_importe || 0) : 0)
-                      )}
-                    </p>
+                  <div className="col-span-2 border-t pt-2 border-border">
+                    <div className="flex justify-between">
+                      <p className="text-muted-foreground">Pendiente neto</p>
+                      <p className="font-bold text-sm text-destructive">
+                        {fmt(
+                          feeNeto -
+                          ((booking.anticipo_estado === 'cobrado' ? (booking.anticipo_importe || 0) : 0) +
+                          (booking.liquidacion_estado === 'cobrado' ? (booking.liquidacion_importe || 0) : 0))
+                        )}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

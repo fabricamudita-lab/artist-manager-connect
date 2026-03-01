@@ -67,7 +67,23 @@ export function PagoDialog({ open, onOpenChange, booking, onSuccess }: PagoDialo
   // === Fraccionado state ===
   const [anticipoPct, setAnticipoPct] = useState(booking.anticipo_porcentaje ?? 50);
   const [anticipoImporte, setAnticipoImporte] = useState(booking.anticipo_importe ?? totalFee * 0.5);
-  const [anticipoFechaEsperada, setAnticipoFechaEsperada] = useState(booking.anticipo_fecha_esperada || '');
+  // Calculate default dates: anticipo = event - 30d, liquidacion = event + 7d
+  const defaultAnticipoFecha = (() => {
+    if (booking.anticipo_fecha_esperada) return booking.anticipo_fecha_esperada;
+    if (!booking.fecha) return '';
+    const d = new Date(booking.fecha);
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split('T')[0];
+  })();
+  const defaultLiquidacionFecha = (() => {
+    if (booking.liquidacion_fecha_esperada) return booking.liquidacion_fecha_esperada;
+    if (!booking.fecha) return '';
+    const d = new Date(booking.fecha);
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split('T')[0];
+  })();
+
+  const [anticipoFechaEsperada, setAnticipoFechaEsperada] = useState(defaultAnticipoFecha);
   const [anticipoEstado, setAnticipoEstado] = useState<'pendiente' | 'cobrado'>(
     booking.anticipo_estado === 'cobrado' ? 'cobrado' : 'pendiente'
   );
@@ -75,7 +91,7 @@ export function PagoDialog({ open, onOpenChange, booking, onSuccess }: PagoDialo
   const [anticipoReferencia, setAnticipoReferencia] = useState(booking.anticipo_referencia || '');
 
   const liquidacionImporte = totalFee - anticipoImporte;
-  const [liquidacionFechaEsperada, setLiquidacionFechaEsperada] = useState(booking.liquidacion_fecha_esperada || booking.fecha || '');
+  const [liquidacionFechaEsperada, setLiquidacionFechaEsperada] = useState(defaultLiquidacionFecha);
   const [liquidacionEstado, setLiquidacionEstado] = useState<'pendiente' | 'cobrado'>(
     booking.liquidacion_estado === 'cobrado' ? 'cobrado' : 'pendiente'
   );
