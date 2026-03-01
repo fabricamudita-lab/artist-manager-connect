@@ -75,10 +75,28 @@ export function BookingPresupuestoTab({
         projectBudgets = pBudgets || [];
       }
 
+      // 3. Fuzzy match: same artist + (name contains event name OR event_date matches)
+      let fuzzyBudgets: typeof directBudgets = [];
+      if (artistId) {
+        const orConditions = [
+          eventName ? `name.ilike.%${eventName}%` : null,
+          eventDate ? `event_date.eq.${eventDate}` : null,
+        ].filter(Boolean).join(',');
+
+        if (orConditions) {
+          const { data: fBudgets } = await supabase
+            .from('budgets')
+            .select('id, name, fee, expense_budget, budget_status, booking_offer_id, project_id')
+            .eq('artist_id', artistId)
+            .or(orConditions);
+          fuzzyBudgets = fBudgets || [];
+        }
+      }
+
       // Deduplicate
       const allIds = new Set<string>();
       const combined: typeof directBudgets = [];
-      for (const b of [...(directBudgets || []), ...(projectBudgets || [])]) {
+      for (const b of [...(directBudgets || []), ...(projectBudgets || []), ...(fuzzyBudgets || [])]) {
         if (!allIds.has(b.id)) {
           allIds.add(b.id);
           combined.push(b);
