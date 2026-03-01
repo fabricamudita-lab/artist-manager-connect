@@ -1,0 +1,2 @@
+ALTER TABLE booking_offers DROP CONSTRAINT booking_offers_phase_check;
+ALTER TABLE booking_offers ADD CONSTRAINT booking_offers_phase_check CHECK (phase = ANY (ARRAY['interes','oferta','negociacion','confirmado','realizado','facturado','cerrado','cancelado','lead','oferta_enviada','contratado','cerrado_perdido']));
