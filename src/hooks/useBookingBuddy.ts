@@ -36,8 +36,9 @@ export function useBookingBuddy(offers: any[]) {
   const { user } = useAuth();
   const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(new Set());
   const [checkpoints, setCheckpoints] = useState<any[]>([]);
+  const [bookingsWithContracts, setBookingsWithContracts] = useState<Set<string>>(new Set());
 
-  // Fetch checkpoints
+  // Fetch checkpoints, dismissals, and contract data
   useEffect(() => {
     const fetchCheckpoints = async () => {
       const { data } = await supabase
@@ -60,8 +61,30 @@ export function useBookingBuddy(offers: any[]) {
       setDismissedKeys(new Set((data || []).map(d => d.alert_key)));
     };
 
+    // Fetch which bookings have contracts in booking_documents
+    const fetchContractStatus = async () => {
+      const offerIds = offers.map(o => o.id).filter(Boolean);
+      if (offerIds.length === 0) {
+        setBookingsWithContracts(new Set());
+        return;
+      }
+      const { data } = await supabase
+        .from('booking_documents')
+        .select('booking_id')
+        .in('booking_id', offerIds);
+      
+      const ids = new Set((data || []).map(d => d.booking_id));
+      console.log('[BookingBuddy] Contract detection via booking_documents table:', {
+        totalOffers: offerIds.length,
+        bookingsWithContracts: ids.size,
+        ids: Array.from(ids),
+      });
+      setBookingsWithContracts(ids);
+    };
+
     fetchCheckpoints();
     fetchDismissals();
+    fetchContractStatus();
   }, [user?.id, offers]);
 
   const now = new Date();
@@ -110,11 +133,14 @@ export function useBookingBuddy(offers: any[]) {
       // Confirmado without contract > 5 days
       if (o.phase === 'confirmado') {
         const daysSinceConfirm = daysSince(o.updated_at || o.created_at);
-        const hasContract = o.adjuntos && (
+        // Check booking_documents table first (primary), fallback to adjuntos
+        const hasContractInDb = bookingsWithContracts.has(o.id);
+        const hasContractInAdjuntos = o.adjuntos && (
           (typeof o.adjuntos === 'string' && o.adjuntos.length > 2) ||
           (Array.isArray(o.adjuntos) && o.adjuntos.length > 0) ||
           (typeof o.adjuntos === 'object' && Object.keys(o.adjuntos).length > 0)
         );
+        const hasContract = hasContractInDb || hasContractInAdjuntos;
         if (daysSinceConfirm > 5 && !hasContract) {
           const key = `contrato_pendiente_${o.id}`;
           if (!dismissedKeys.has(key)) {
@@ -191,7 +217,7 @@ export function useBookingBuddy(offers: any[]) {
 
     // Sort urgent first
     return alerts.sort((a, b) => (a.type === 'urgent' ? -1 : 1) - (b.type === 'urgent' ? -1 : 1));
-  }, [offers, dismissedKeys]);
+  }, [offers, dismissedKeys, bookingsWithContracts]);
 
   // SECTION B: Upcoming actions (from checkpoints + computed)
   const upcomingActions = useMemo((): BuddyAction[] => {
@@ -303,11 +329,13 @@ export function useBookingBuddy(offers: any[]) {
       if (o.phase !== 'confirmado') return false;
       const days = daysSince(o.updated_at || o.created_at);
       if (days < 5) return false;
-      const hasContract = o.adjuntos && (
+      // Check booking_documents table first, then adjuntos
+      const hasContractInDb = bookingsWithContracts.has(o.id);
+      const hasContractInAdjuntos = o.adjuntos && (
         (Array.isArray(o.adjuntos) && o.adjuntos.length > 0) ||
         (typeof o.adjuntos === 'object' && Object.keys(o.adjuntos).length > 0)
       );
-      return !hasContract;
+      return !(hasContractInDb || hasContractInAdjuntos);
     });
     if (sinContrato.length > 0) {
       banners.push({
@@ -319,7 +347,7 @@ export function useBookingBuddy(offers: any[]) {
     }
 
     return banners;
-  }, [offers]);
+  }, [offers, bookingsWithContracts]);
 
   const dismissAlert = async (key: string) => {
     if (!user?.id) return;
