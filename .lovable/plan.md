@@ -1,48 +1,46 @@
 
 
-## Fix: Presupuesto tab not finding existing budgets
+## Pre-fill Contract Generator from Booking Data
 
 ### Problem
-The existing budget "2026.06.06 Primavera Sound" (with 8 items and real expense data) has no `booking_offer_id` and no `project_id`. The Presupuesto tab only searches by those two fields, so it never finds the real budget. Instead it shows two empty duplicates that were created from the tab.
-
-### Root Cause
-Budgets created via the Drive/folder flow (before the `booking_offer_id` column was added) are "orphan" -- they match by artist + event name/date but lack a direct foreign key link.
+When opening the "Generador de Contratos" from a booking event, the "Artista" field and other available fields (formato, contacto/promotor) are left empty, even though the booking already has all this information.
 
 ### Solution
 
-**File: `src/components/booking-detail/BookingPresupuestoTab.tsx`**
+**1. Expand `BookingDocumentsTab` props to include artist info**
 
-Add a third search path to the query -- find budgets by artist_id that match the event name or date pattern:
+Update the `BookingDocumentsTabProps` interface to accept the artist name and additional booking fields:
+- Add `artist_name?: string` (the stage_name or name from the joined artist)
+- Add `artist_id?: string`  
+- Add `formato?: string`
+- Add `contacto?: string` (for promoter pre-fill)
 
-```
-// 3. Fuzzy match: same artist + (name contains event name OR event_date matches)
-if (artistId) {
-  const conditions = [];
-  if (eventName) conditions.push(`name.ilike.%${eventName}%`);
-  
-  const { data: fuzzyBudgets } = await supabase
-    .from('budgets')
-    .select('id, name, fee, expense_budget, budget_status, booking_offer_id, project_id')
-    .eq('artist_id', artistId)
-    .or(
-      [
-        eventName ? `name.ilike.%${eventName}%` : null,
-        eventDate ? `event_date.eq.${eventDate}` : null,
-      ].filter(Boolean).join(',')
-    );
-  // Add to combined, deduplicated
-}
-```
+**2. Update `getBookingDataForContract()` in `BookingDocumentsTab.tsx`**
 
-These fuzzy-matched budgets will appear in the "unlinked" section with a "Vincular" button, allowing the user to link them with one click. Once linked, they move to the main "linked" section showing KPIs and category breakdown.
+Change `artista: ''` to use the artist name passed via props. Map all available fields:
+- `artista` -> artist stage_name or name
+- `formato` -> booking.formato
+- `promotor` -> booking.promotor or booking.contacto
 
-This also handles the two empty duplicate budgets -- since they ARE linked (booking_offer_id matches), they show as "linked". The real budget with items will appear below as linkable.
+**3. Update `BookingFilesDocsTab` to pass the new props through**
 
-### Additional cleanup
-- Also add a note about the 2 empty duplicate budgets in the unlinked section -- the user can delete them from the full budget view. (No code change needed for this, it's just data.)
+Add the new fields to the `BookingFilesDocsTabProps` interface and forward them to `BookingDocumentsTab`.
+
+**4. Update `BookingDetail.tsx` to pass artist info**
+
+When rendering `BookingFilesDocsTab`, pass the artist name from `booking.artist?.stage_name || booking.artist?.name`.
 
 ### Files to modify
+
 | File | Change |
 |------|--------|
-| `src/components/booking-detail/BookingPresupuestoTab.tsx` | Add fuzzy artist+name/date search as third lookup path |
+| `src/components/booking-detail/BookingDocumentsTab.tsx` | Add artist_name/formato/contacto to props, fill `artista` field |
+| `src/components/booking-detail/BookingFilesDocsTab.tsx` | Pass new fields through to BookingDocumentsTab |
+| `src/pages/BookingDetail.tsx` | Pass artist name and extra fields to BookingFilesDocsTab |
+
+### What this fixes
+- "Artista" field auto-fills with the booking's artist name
+- "Ciudad", "Venue", "Evento/Festival", "Fee", "Hora", "Duracion" already work (confirmed in code)
+- "Formato" will now also pre-fill if available
+- Promotor/Contacto data will pre-fill from booking
 
