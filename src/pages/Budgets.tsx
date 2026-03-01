@@ -484,8 +484,8 @@ function DuplicateResolverDialog({
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function Budgets() {
-  usePageTitle('Presupuestos');
+export default function Budgets({ embedded = false }: { embedded?: boolean }) {
+  usePageTitle(embedded ? '' : 'Presupuestos');
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -855,30 +855,44 @@ export default function Budgets() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
-      <div className="container-moodita section-spacing space-y-8">
+    <div className={embedded ? '' : 'min-h-screen bg-gradient-to-br from-background via-muted/10 to-background'}>
+      <div className={embedded ? 'space-y-8' : 'container-moodita section-spacing space-y-8'}>
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-primary rounded-xl">
-              <Calculator className="h-6 w-6 text-primary-foreground" />
+        {/* Header — hidden when embedded */}
+        {!embedded && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-primary rounded-xl">
+                <Calculator className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gradient-primary tracking-tight">Presupuestos</h1>
+                <p className="text-muted-foreground">Gestiona todos los presupuestos de la empresa</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gradient-primary tracking-tight">Presupuestos</h1>
-              <p className="text-muted-foreground">Gestiona todos los presupuestos de la empresa</p>
+            <div className="flex items-center gap-3">
+              <PermissionChip />
+              <PermissionWrapper requiredPermission="createBudget">
+                <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nuevo Presupuesto
+                </Button>
+              </PermissionWrapper>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <PermissionChip />
+        )}
+
+        {/* New budget button when embedded */}
+        {embedded && (
+          <div className="flex justify-end">
             <PermissionWrapper requiredPermission="createBudget">
-              <Button onClick={() => setShowCreateDialog(true)} className="btn-primary">
-                <Plus className="w-4 h-4 mr-2" />
+              <Button onClick={() => setShowCreateDialog(true)} className="btn-primary" size="sm">
+                <Plus className="w-4 h-4 mr-1" />
                 Nuevo Presupuesto
               </Button>
             </PermissionWrapper>
           </div>
-        </div>
+        )}
 
         {/* KPI Cards */}
         <BudgetSummaryCards budgets={filteredBudgets} onCardClick={handleCardClick} activeCard={cardFilter} />
