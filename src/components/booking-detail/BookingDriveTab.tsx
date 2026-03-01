@@ -8,6 +8,7 @@ import { FolderOpen, ExternalLink, FolderPlus, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { getIrpfForArtist } from '@/utils/irpf';
 
 interface BookingDriveTabProps {
   bookingId: string;
@@ -238,6 +239,15 @@ export function BookingDriveTab({ bookingId, artistId, folderUrl, eventName, eve
         
         // Insert crew members from booking product (formato)
         if (bookingData?.formato && artistId) {
+          // Fetch artist fiscal profile for dynamic IRPF
+          const { data: artistFiscal } = await supabase
+            .from('artists')
+            .select('irpf_type, irpf_porcentaje, actividad_inicio')
+            .eq('id', artistId)
+            .maybeSingle();
+          
+          const artistIrpf = getIrpfForArtist(artistFiscal);
+
           const { data: bookingProduct } = await supabase
             .from('booking_products')
             .select('id')
@@ -285,7 +295,7 @@ export function BookingDriveTab({ bookingId, artistId, folderUrl, eventName, eve
                   quantity: 1,
                   unit_price: unitPrice,
                   iva_percentage: 0,
-                  irpf_percentage: 15,
+                  irpf_percentage: artistIrpf.percentage,
                   is_attendee: true,
                   observations: `Formato: ${bookingData.formato} (${isInternational ? 'Internacional' : 'Nacional'})`,
                   contact_id: crew.member_type === 'contact' ? crew.member_id : null

@@ -88,6 +88,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ChevronDown } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getIrpfForArtist, type ArtistFiscalProfile } from '@/utils/irpf';
 
 interface Budget {
   id: string;
@@ -374,6 +375,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   // Booking context for invoice folder saving
   const [bookingContext, setBookingContext] = useState<{ artistId: string; bookingId: string } | null>(null);
   
+  // Artist fiscal profile for dynamic IRPF
+  const [artistIrpfDefault, setArtistIrpfDefault] = useState<number>(15);
+  
   // Invoice auto-link hook
   const invoiceInputRef = useRef<HTMLInputElement>(null);
   const {
@@ -432,6 +436,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       fetchBookingContext();
     }
   }, [open, budget.id, budget.name]);
+
+  // Fetch artist fiscal profile for dynamic IRPF defaults
+  useEffect(() => {
+    if (open && budget?.artist_id) {
+      supabase
+        .from('artists')
+        .select('irpf_type, irpf_porcentaje, actividad_inicio')
+        .eq('id', budget.artist_id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            const result = getIrpfForArtist(data as ArtistFiscalProfile);
+            setArtistIrpfDefault(result.percentage);
+          }
+        });
+    }
+  }, [open, budget?.artist_id]);
 
   useEffect(() => {
     if (open && budget) {
@@ -1073,7 +1094,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           quantity: 1,
           unit_price: 2000,
           iva_percentage: 21,
-          irpf_percentage: 15,
+          irpf_percentage: artistIrpfDefault,
           is_attendee: false,
           billing_status: 'pendiente' as const,
           category: '',
@@ -1087,7 +1108,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           quantity: 1,
           unit_price: 500,
           iva_percentage: 21,
-          irpf_percentage: 15,
+          irpf_percentage: artistIrpfDefault,
           is_attendee: false,
           billing_status: 'pendiente' as const,
           category: '',
@@ -1323,7 +1344,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           quantity: 1,
           unit_price: 0,
           iva_percentage: 21,
-          irpf_percentage: 15,
+          irpf_percentage: artistIrpfDefault,
           is_attendee: true,
           billing_status: 'pendiente',
         });
@@ -1641,7 +1662,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             quantity: 1,
             unit_price: unitPrice,
             iva_percentage: 0,
-            irpf_percentage: 15,
+            irpf_percentage: artistIrpfDefault,
             is_attendee: true,
             billing_status: 'pendiente' as const,
             is_commission_percentage: crew.is_percentage || false,
@@ -1732,7 +1753,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       const category = budgetCategories.find(c => c.id === categoryId);
       const categoryName = (category?.name || '').toLowerCase().trim();
       const zeroIrpfCategories = ['transporte', 'hospedaje', 'dietas'];
-      const defaultIrpf = zeroIrpfCategories.includes(categoryName) ? 0 : 15;
+      const defaultIrpf = zeroIrpfCategories.includes(categoryName) ? 0 : artistIrpfDefault;
 
       // Assign sort_order at the end of this category
       const categoryItems = getCategoryItems(categoryId);
