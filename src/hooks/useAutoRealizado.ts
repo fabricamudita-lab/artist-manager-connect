@@ -3,8 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 /**
- * Auto-transitions booking_offers from 'confirmado' to 'realizado'
+ * Client-side fallback: transitions booking_offers from 'confirmado' to 'realizado'
  * when the event date has passed (fecha < today).
+ * The primary mechanism is the server-side Edge Function (auto-booking-transitions)
+ * scheduled via pg_cron. This hook is a safety net for mid-day edge cases.
  * Runs once per page load.
  */
 export function useAutoRealizado() {
@@ -15,9 +17,6 @@ export function useAutoRealizado() {
 
     const run = async () => {
       try {
-        // Wait for network to be ready (avoid preview startup race)
-        await new Promise(r => setTimeout(r, 2000));
-
         const today = new Date().toISOString().split('T')[0];
 
         const { data: pastEvents, error: fetchError } = await supabase
@@ -27,10 +26,10 @@ export function useAutoRealizado() {
           .lt('fecha', today);
 
         if (fetchError) throw fetchError;
-        if (!pastEvents || pastEvents.length === 0) {
-          hasRun.current = true;
-          return;
-        }
+
+        hasRun.current = true;
+
+        if (!pastEvents || pastEvents.length === 0) return;
 
         const ids = pastEvents.map(e => e.id);
 
@@ -41,14 +40,13 @@ export function useAutoRealizado() {
 
         if (updateError) throw updateError;
 
-        hasRun.current = true;
-
         toast({
           title: 'Eventos actualizados',
-          description: `${ids.length} evento(s) movido(s) a Realizado — el evento ya ha ocurrido`,
+          description: `${ids.length} evento(s) movido(s) a Realizado`,
         });
       } catch (error) {
-        console.error('Auto-realizado error, will retry on next render:', error);
+        console.error('Auto-realizado fallback error:', error);
+        hasRun.current = true; // prevent infinite retry
       }
     };
 
