@@ -956,6 +956,50 @@ export type Database = {
           },
         ]
       }
+      booking_checkpoints: {
+        Row: {
+          booking_offer_id: string
+          completed_at: string | null
+          created_at: string
+          dismissed_at: string | null
+          due_date: string | null
+          id: string
+          label: string
+          status: string
+          type: string
+        }
+        Insert: {
+          booking_offer_id: string
+          completed_at?: string | null
+          created_at?: string
+          dismissed_at?: string | null
+          due_date?: string | null
+          id?: string
+          label: string
+          status?: string
+          type: string
+        }
+        Update: {
+          booking_offer_id?: string
+          completed_at?: string | null
+          created_at?: string
+          dismissed_at?: string | null
+          due_date?: string | null
+          id?: string
+          label?: string
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_checkpoints_booking_offer_id_fkey"
+            columns: ["booking_offer_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_documents: {
         Row: {
           booking_id: string
@@ -1630,6 +1674,27 @@ export type Database = {
           is_active?: boolean | null
           is_required?: boolean | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      buddy_dismissals: {
+        Row: {
+          alert_key: string
+          dismissed_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          alert_key: string
+          dismissed_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          alert_key?: string
+          dismissed_at?: string
+          id?: string
+          user_id?: string
         }
         Relationships: []
       }

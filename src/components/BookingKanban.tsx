@@ -23,7 +23,10 @@ import { BookingFiltersToolbar, BookingFiltersState } from './BookingFiltersTool
 import { useAutoRealizado } from '@/hooks/useAutoRealizado';
 import { PagoDialog } from './PagoDialog';
 import { Progress } from '@/components/ui/progress';
-import { Check, Clock } from 'lucide-react';
+import { Check, Clock, Handshake } from 'lucide-react';
+import { useBookingBuddy } from '@/hooks/useBookingBuddy';
+import { BuddyPanel } from './booking-detail/BuddyPanel';
+import { BookingAlertBanners } from './booking-detail/BookingAlertBanners';
 
 export interface BookingOffer {
   id: string;
@@ -140,6 +143,20 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
   const [selectionMode, setSelectionMode] = useState(false);
   const [pendingConfirmOffer, setPendingConfirmOffer] = useState<string | null>(null);
   const [cobradoBooking, setCobradoBooking] = useState<BookingOffer | null>(null);
+  const [buddyOpen, setBuddyOpen] = useState(() => {
+    try { return localStorage.getItem('buddy-panel-open') === 'true'; } catch { return false; }
+  });
+
+  // Buddy system
+  const { urgentAlerts, upcomingActions, pipelineSummary, alertBanners, dismissAlert, markCheckpointDone } = useBookingBuddy(offers);
+
+  const toggleBuddy = () => {
+    setBuddyOpen(prev => {
+      const next = !prev;
+      try { localStorage.setItem('buddy-panel-open', String(next)); } catch {}
+      return next;
+    });
+  };
   
   // Auto-transition confirmado → realizado on page load
   useAutoRealizado();
@@ -704,6 +721,34 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
 
   return (
     <div className="space-y-6">
+      {/* Buddy toggle + Alert banners */}
+      <div className="flex items-center justify-between">
+        <div className="flex-1" />
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={toggleBuddy}
+        >
+          <Handshake className="h-4 w-4" />
+          Buddy
+          {urgentAlerts.length > 0 && (
+            <Badge variant="destructive" className="text-xs px-1.5 py-0 h-5 ml-1">{urgentAlerts.length}</Badge>
+          )}
+        </Button>
+      </div>
+
+      <BookingAlertBanners
+        banners={alertBanners}
+        onAction={(action) => {
+          if (action === 'cobros') {
+            // Scroll to realizado column
+            const el = document.querySelector('[data-phase="realizado"]');
+            el?.scrollIntoView({ behavior: 'smooth' });
+          }
+        }}
+      />
+
       {/* Filters Toolbar */}
       <BookingFiltersToolbar
         filters={filters}
@@ -781,7 +826,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
               : 0;
             
             return (
-              <Card key={phase.id} className={`${phase.color} border-2 transition-all duration-200 hover:shadow-sm`}>
+              <Card key={phase.id} data-phase={phase.id} className={`${phase.color} border-2 transition-all duration-200 hover:shadow-sm`}>
                 <CardHeader className="pb-2 px-3 pt-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-xs font-bold text-foreground">
@@ -1043,6 +1088,21 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
           onSuccess={fetchOffers}
         />
       )}
+
+      {/* Buddy Panel */}
+      <BuddyPanel
+        open={buddyOpen}
+        onClose={toggleBuddy}
+        urgentAlerts={urgentAlerts}
+        upcomingActions={upcomingActions}
+        pipelineSummary={pipelineSummary}
+        onDismissAlert={dismissAlert}
+        onMarkDone={markCheckpointDone}
+        onOpenPago={(bookingId) => {
+          const offer = offers.find(o => o.id === bookingId);
+          if (offer) setCobradoBooking(offer);
+        }}
+      />
     </div>
   );
 }
