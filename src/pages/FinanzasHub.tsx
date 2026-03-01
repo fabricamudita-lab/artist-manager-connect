@@ -6,6 +6,7 @@ import { Calculator, Receipt, CreditCard, FileSpreadsheet, Landmark } from 'luci
 import { useState } from 'react';
 import { FinanzasPanelTab } from '@/components/finanzas/FinanzasPanelTab';
 import { CobrosTab } from '@/components/finanzas/CobrosTab';
+import { PagosTab } from '@/components/finanzas/PagosTab';
 
 const TABS = [
   { value: 'panel', label: 'Panel', icon: Calculator, path: '/finanzas' },
@@ -71,6 +72,8 @@ export default function FinanzasHub() {
           <FinanzasPanelTab artistId={selectedArtist} />
         ) : activeTab === 'cobros' ? (
           <CobrosTab artistId={selectedArtist} />
+        ) : activeTab === 'pagos' ? (
+          <PagosTab artistId={selectedArtist} />
         ) : (
           <div className="rounded-lg border border-border bg-card p-12 text-center">
             <p className="text-muted-foreground text-sm">
