@@ -1157,6 +1157,11 @@ export type Database = {
           artist_id: string | null
           capacidad: number | null
           ciudad: string | null
+          cobro_fecha: string | null
+          cobro_importe: number | null
+          cobro_metodo: string | null
+          cobro_notas: string | null
+          cobro_referencia: string | null
           comision_euros: number | null
           comision_porcentaje: number | null
           condiciones: string | null
@@ -1217,6 +1222,11 @@ export type Database = {
           artist_id?: string | null
           capacidad?: number | null
           ciudad?: string | null
+          cobro_fecha?: string | null
+          cobro_importe?: number | null
+          cobro_metodo?: string | null
+          cobro_notas?: string | null
+          cobro_referencia?: string | null
           comision_euros?: number | null
           comision_porcentaje?: number | null
           condiciones?: string | null
@@ -1277,6 +1287,11 @@ export type Database = {
           artist_id?: string | null
           capacidad?: number | null
           ciudad?: string | null
+          cobro_fecha?: string | null
+          cobro_importe?: number | null
+          cobro_metodo?: string | null
+          cobro_notas?: string | null
+          cobro_referencia?: string | null
           comision_euros?: number | null
           comision_porcentaje?: number | null
           condiciones?: string | null

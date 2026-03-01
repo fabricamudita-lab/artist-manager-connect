@@ -28,7 +28,7 @@ export function useFinanzasPanel(artistId: string, period: PeriodFilter) {
   const bookingsQuery = useQuery({
     queryKey: ['finanzas-panel-bookings', artistId, range.start, range.end],
     queryFn: async () => {
-      let q = supabase.from('booking_offers').select('id, fee, estado, estado_facturacion, fecha, artist_id, festival_ciclo, ciudad, venue, artists!booking_offers_artist_id_fkey(name, stage_name)');
+      let q = supabase.from('booking_offers').select('id, fee, estado, estado_facturacion, fecha, phase, artist_id, festival_ciclo, ciudad, venue, artists!booking_offers_artist_id_fkey(name, stage_name)');
       if (artistId !== 'all') q = q.eq('artist_id', artistId);
       const { data } = await q;
       return data || [];
@@ -96,8 +96,12 @@ export function useFinanzasPanel(artistId: string, period: PeriodFilter) {
   const beneficioNeto = ingresosBrutos - gastosComprometidos;
   const margenPct = ingresosBrutos > 0 ? Math.round((beneficioNeto / ingresosBrutos) * 100) : 0;
 
-  // KPI 4: Cobros pendientes
-  const pendienteBookings = allBookings.filter(b => b.estado_facturacion === 'pendiente' || (!b.estado_facturacion && b.estado === 'confirmado'));
+  // KPI 4: Cobros pendientes (include realizado events)
+  const pendienteBookings = allBookings.filter(b => 
+    b.estado_facturacion === 'pendiente' || 
+    (!b.estado_facturacion && (b.estado === 'confirmado' || b.estado === 'realizado')) ||
+    b.phase === 'realizado'
+  );
   const cobrosPendientes = pendienteBookings.reduce((s, b) => s + (b.fee || 0), 0);
   const eventosSinCobrar = pendienteBookings.length;
 
@@ -125,7 +129,7 @@ export function useFinanzasPanel(artistId: string, period: PeriodFilter) {
   const now = new Date();
   const sevenDaysAgo = subDays(now, 7);
   const cobrosVencidos = allBookings.filter(b =>
-    (b.estado_facturacion === 'pendiente' || (!b.estado_facturacion && b.estado === 'confirmado')) &&
+    (b.estado_facturacion === 'pendiente' || (!b.estado_facturacion && (b.estado === 'confirmado' || b.estado === 'realizado')) || b.phase === 'realizado') &&
     b.fecha && new Date(b.fecha) < sevenDaysAgo
   ).length;
 

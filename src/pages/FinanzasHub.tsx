@@ -9,6 +9,7 @@ import { CobrosTab } from '@/components/finanzas/CobrosTab';
 import { PagosTab } from '@/components/finanzas/PagosTab';
 import { LiquidacionesTab } from '@/components/finanzas/LiquidacionesTab';
 import { FiscalTab } from '@/components/finanzas/FiscalTab';
+import { useAutoRealizado } from '@/hooks/useAutoRealizado';
 
 const TABS = [
   { value: 'panel', label: 'Panel', icon: Calculator, path: '/finanzas' },
@@ -25,6 +26,7 @@ function getTabFromPath(pathname: string): string {
 
 export default function FinanzasHub() {
   usePageTitle('Finanzas');
+  useAutoRealizado();
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedArtist, setSelectedArtist] = useState('all');
