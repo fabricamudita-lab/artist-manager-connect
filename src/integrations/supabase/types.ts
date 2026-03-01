@@ -2036,6 +2036,7 @@ export type Database = {
           accountant_verified_at: string | null
           accountant_verified_by: string | null
           artist_id: string | null
+          booking_offer_id: string | null
           budget_status: Database["public"]["Enums"]["budget_status"] | null
           capacidad: number | null
           city: string | null
@@ -2072,6 +2073,7 @@ export type Database = {
           accountant_verified_at?: string | null
           accountant_verified_by?: string | null
           artist_id?: string | null
+          booking_offer_id?: string | null
           budget_status?: Database["public"]["Enums"]["budget_status"] | null
           capacidad?: number | null
           city?: string | null
@@ -2108,6 +2110,7 @@ export type Database = {
           accountant_verified_at?: string | null
           accountant_verified_by?: string | null
           artist_id?: string | null
+          booking_offer_id?: string | null
           budget_status?: Database["public"]["Enums"]["budget_status"] | null
           capacidad?: number | null
           city?: string | null
@@ -2146,6 +2149,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_booking_offer_id_fkey"
+            columns: ["booking_offer_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
             referencedColumns: ["id"]
           },
           {

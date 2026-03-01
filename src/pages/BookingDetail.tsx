@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { BookingOverviewTab } from '@/components/booking-detail/BookingOverviewTab';
 import { BookingRoadmapTab } from '@/components/booking-detail/BookingRoadmapTab';
+import { BookingPresupuestoTab } from '@/components/booking-detail/BookingPresupuestoTab';
 import { BookingExpensesTab } from '@/components/booking-detail/BookingExpensesTab';
 import { BookingFilesWidget } from '@/components/booking-detail/BookingFilesWidget';
 import { BookingFilesDocsTab } from '@/components/booking-detail/BookingFilesDocsTab';
@@ -654,7 +655,7 @@ export default function BookingDetail() {
           {/* Main Tabs - Takes 2 columns */}
           <div className="lg:col-span-2">
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid w-full grid-cols-5 mb-6">
+              <TabsList className="grid w-full grid-cols-6 mb-6">
                 <TabsTrigger value="overview" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   Overview
@@ -662,6 +663,10 @@ export default function BookingDetail() {
                 <TabsTrigger value="roadmap" className="flex items-center gap-2">
                   <Plane className="h-4 w-4" />
                   Hoja de Ruta
+                </TabsTrigger>
+                <TabsTrigger value="presupuesto" className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Presupuesto
                 </TabsTrigger>
                 <TabsTrigger value="expenses" className="flex items-center gap-2">
                   <Receipt className="h-4 w-4" />
@@ -694,6 +699,20 @@ export default function BookingDetail() {
                   eventDate={booking.fecha}
                   eventVenue={booking.lugar || booking.venue}
                   eventCity={booking.ciudad}
+                />
+              </TabsContent>
+
+              <TabsContent value="presupuesto">
+                <BookingPresupuestoTab
+                  bookingId={booking.id}
+                  artistId={booking.artist_id}
+                  projectId={booking.project_id}
+                  eventName={booking.festival_ciclo || booking.venue}
+                  eventDate={booking.fecha}
+                  eventCity={booking.ciudad}
+                  eventVenue={booking.lugar || booking.venue}
+                  fee={booking.fee}
+                  formato={booking.formato}
                 />
               </TabsContent>
 
