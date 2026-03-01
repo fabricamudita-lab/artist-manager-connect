@@ -73,7 +73,9 @@ interface BookingDocumentsTabProps {
     capacidad?: number;
     duracion?: string;
     contacto?: string;
+    formato?: string;
   };
+  artistName?: string;
   onUpdate: () => void;
 }
 
@@ -92,7 +94,7 @@ const STATUS_CONFIG = {
   signed: { label: 'Firmado', color: 'bg-green-500', icon: CheckCircle },
 };
 
-export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabProps) {
+export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDocumentsTabProps) {
   const { profile } = useAuth();
   const [documents, setDocuments] = useState<BookingDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -587,7 +589,7 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
 
   // Pre-fill contract data from booking
   const getBookingDataForContract = () => ({
-    artista: '', // Will be filled by the contract generator or user
+    artista: artistName || '',
     ciudad: booking.ciudad || '',
     venue: booking.venue || '',
     fecha: booking.fecha || '',
@@ -595,8 +597,9 @@ export function BookingDocumentsTab({ booking, onUpdate }: BookingDocumentsTabPr
     fee: booking.fee || undefined,
     aforo: booking.capacidad || undefined,
     duracion: booking.duracion || '',
-    promotor: booking.promotor || '',
+    promotor: booking.promotor || booking.contacto || '',
     festival_ciclo: booking.festival_ciclo || '',
+    formato: booking.formato || '',
   });
 
   if (loading) {

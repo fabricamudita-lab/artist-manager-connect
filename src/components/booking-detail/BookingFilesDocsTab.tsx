@@ -19,11 +19,16 @@ interface BookingFilesDocsTabProps {
     condiciones?: string;
     es_internacional?: boolean;
     fecha?: string;
+    promotor?: string;
+    contacto?: string;
+    capacidad?: number;
+    duracion?: string;
   };
+  artistName?: string;
   onUpdate: () => void;
 }
 
-export function BookingFilesDocsTab({ booking, onUpdate }: BookingFilesDocsTabProps) {
+export function BookingFilesDocsTab({ booking, artistName, onUpdate }: BookingFilesDocsTabProps) {
   return (
     <Tabs defaultValue="docs" className="w-full">
       <TabsList className="grid w-full grid-cols-2 mb-4">
@@ -38,7 +43,7 @@ export function BookingFilesDocsTab({ booking, onUpdate }: BookingFilesDocsTabPr
       </TabsList>
 
       <TabsContent value="docs">
-        <BookingDocumentsTab booking={booking} onUpdate={onUpdate} />
+        <BookingDocumentsTab booking={booking} artistName={artistName} onUpdate={onUpdate} />
       </TabsContent>
 
       <TabsContent value="explorer">
