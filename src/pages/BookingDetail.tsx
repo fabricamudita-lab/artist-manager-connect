@@ -89,6 +89,22 @@ interface BookingOffer {
   viability_production_approved?: boolean;
   viability_production_at?: string;
   viability_notes?: string;
+  // Payment fields
+  anticipo_porcentaje?: number;
+  anticipo_importe?: number;
+  anticipo_estado?: string;
+  anticipo_fecha_esperada?: string;
+  anticipo_fecha_cobro?: string;
+  anticipo_referencia?: string;
+  liquidacion_importe?: number;
+  liquidacion_estado?: string;
+  liquidacion_fecha_esperada?: string;
+  liquidacion_fecha_cobro?: string;
+  liquidacion_referencia?: string;
+  cobro_estado?: string;
+  cobro_fecha?: string;
+  cobro_importe?: number;
+  cobro_referencia?: string;
 }
 export default function BookingDetail() {
   const {
@@ -101,8 +117,11 @@ export default function BookingDetail() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const scrollToSection = searchParams.get('scrollTo');
+  const sectionParam = searchParams.get('section');
   const availabilityRef = useRef<HTMLDivElement>(null);
   const viabilityRef = useRef<HTMLDivElement>(null);
+  const paymentRef = useRef<HTMLDivElement>(null);
+  const [paymentHighlighted, setPaymentHighlighted] = useState(false);
   const [booking, setBooking] = useState<BookingOffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -131,7 +150,15 @@ export default function BookingDetail() {
         }, 100);
       }
     }
-  }, [scrollToSection, loading]);
+    // Handle ?section=pagos
+    if (!loading && sectionParam === 'pagos' && paymentRef.current) {
+      setTimeout(() => {
+        paymentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setPaymentHighlighted(true);
+        setTimeout(() => setPaymentHighlighted(false), 3000);
+      }, 200);
+    }
+  }, [scrollToSection, sectionParam, loading]);
   useEffect(() => {
     if (id) {
       fetchBooking();
@@ -651,7 +678,12 @@ export default function BookingDetail() {
               </TabsList>
 
               <TabsContent value="overview">
-                <BookingOverviewTab booking={booking} onUpdate={handleBookingUpdate} />
+                <BookingOverviewTab
+                  booking={booking}
+                  onUpdate={handleBookingUpdate}
+                  paymentRef={paymentRef}
+                  paymentHighlighted={paymentHighlighted}
+                />
               </TabsContent>
 
               <TabsContent value="roadmap">
