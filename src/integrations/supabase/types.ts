@@ -7515,6 +7515,10 @@ export type Database = {
         Returns: undefined
       }
       safe_get_profile_id: { Args: { _user_id: string }; Returns: string }
+      sync_booking_document_to_drive: {
+        Args: { p_document_id: string }
+        Returns: undefined
+      }
       user_has_workspace_permission: {
         Args: {
           _required_role: Database["public"]["Enums"]["workspace_role"]

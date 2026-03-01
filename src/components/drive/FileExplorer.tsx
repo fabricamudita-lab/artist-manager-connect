@@ -3,6 +3,7 @@ import { useStorageNodes, StorageNode } from '@/hooks/useStorageNodes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import jsPDF from 'jspdf';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -416,31 +417,114 @@ export function FileExplorer({
     setNodeToDelete(null);
   };
 
+  // Helper: generate PDF blob from booking_documents content
+  const generatePdfFromContent = async (bookingDocumentId: string, fileName: string): Promise<Blob | null> => {
+    try {
+      const { data: doc } = await supabase
+        .from('booking_documents')
+        .select('content, file_name')
+        .eq('id', bookingDocumentId)
+        .single();
+      
+      if (!doc?.content) {
+        toast({ title: 'Sin contenido', description: 'Este contrato no tiene contenido generado.', variant: 'destructive' });
+        return null;
+      }
+
+      const pdf = new jsPDF();
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const maxWidth = pageWidth - margin * 2;
+      const lineHeight = 5;
+
+      let y = margin;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+
+      const cleanContent = doc.content
+        .replace(/[""]/g, '"')
+        .replace(/['']/g, "'")
+        .replace(/–/g, '-')
+        .replace(/—/g, '-')
+        .replace(/…/g, '...')
+        .replace(/\u00A0/g, ' ');
+
+      const lines = pdf.splitTextToSize(cleanContent, maxWidth);
+      lines.forEach((line: string) => {
+        if (y + lineHeight > pageHeight - 20) {
+          pdf.addPage();
+          y = margin;
+        }
+        const isSectionHeader = /^\d+\./.test(line.trim()) ||
+          (line.length < 70 && line === line.toUpperCase() && line.trim().length > 0 && !line.includes('-'));
+        pdf.setFont('helvetica', isSectionHeader ? 'bold' : 'normal');
+        pdf.text(line, margin, y);
+        y += lineHeight;
+      });
+
+      return pdf.output('blob');
+    } catch (err) {
+      console.error('Error generating PDF from content:', err);
+      return null;
+    }
+  };
+
+  const isGeneratedContract = (node: StorageNode): boolean => {
+    const meta = node.metadata as any;
+    return !!(meta?.booking_document_id && (!node.file_url || node.file_url === 'generated'));
+  };
+
   const handleDownload = async (node: StorageNode) => {
+    // Handle generated contracts without real file URL
+    if (isGeneratedContract(node)) {
+      const meta = node.metadata as any;
+      const blob = await generatePdfFromContent(meta.booking_document_id, node.name);
+      if (blob) {
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = node.name.endsWith('.pdf') ? node.name : node.name + '.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+      }
+      return;
+    }
+
     if (!node.file_url) return;
     
     try {
-      // Fetch the file as a blob to force download
       const response = await fetch(node.file_url);
       const blob = await response.blob();
       
-      // Create a temporary download link
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = node.name; // Use the node name (our generated name)
+      link.download = node.name;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
       console.error('Error downloading file:', error);
-      // Fallback to opening in new tab
       window.open(node.file_url, '_blank');
     }
   };
 
-  const handleView = (node: StorageNode) => {
+  const handleView = async (node: StorageNode) => {
+    // Handle generated contracts without real file URL
+    if (isGeneratedContract(node)) {
+      const meta = node.metadata as any;
+      const blob = await generatePdfFromContent(meta.booking_document_id, node.name);
+      if (blob) {
+        const viewUrl = window.URL.createObjectURL(blob);
+        window.open(viewUrl, '_blank');
+      }
+      return;
+    }
+
     if (node.file_url) {
       window.open(node.file_url, '_blank');
     }
