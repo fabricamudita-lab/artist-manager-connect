@@ -8,7 +8,7 @@ import { FolderOpen, ExternalLink, FolderPlus, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-import { getIrpfForArtist } from '@/utils/irpf';
+import { loadCrewFromFormat } from '@/utils/budgetCrewLoader';
 
 interface BookingDriveTabProps {
   bookingId: string;
@@ -239,72 +239,14 @@ export function BookingDriveTab({ bookingId, artistId, folderUrl, eventName, eve
         
         // Insert crew members from booking product (formato)
         if (bookingData?.formato && artistId) {
-          // Fetch artist fiscal profile for dynamic IRPF
-          const { data: artistFiscal } = await supabase
-            .from('artists')
-            .select('irpf_type, irpf_porcentaje, actividad_inicio')
-            .eq('id', artistId)
-            .maybeSingle();
-          
-          const artistIrpf = getIrpfForArtist(artistFiscal);
-
-          const { data: bookingProduct } = await supabase
-            .from('booking_products')
-            .select('id')
-            .eq('artist_id', artistId)
-            .ilike('name', bookingData.formato)
-            .eq('is_active', true)
-            .limit(1)
-            .single();
-          
-          if (bookingProduct) {
-            const { data: crewMembers } = await supabase
-              .from('booking_product_crew')
-              .select(`
-                *,
-                contact:contacts!booking_product_crew_member_id_fkey(id, name, stage_name)
-              `)
-              .eq('booking_product_id', bookingProduct.id);
-            
-            if (crewMembers && crewMembers.length > 0) {
-              const bookingFee = bookingData?.fee || 0;
-              const crewItems = crewMembers.map(crew => {
-                const memberName = crew.role_label || 
-                  (crew.contact as any)?.stage_name || 
-                  (crew.contact as any)?.name || 
-                  'Miembro';
-                
-                let unitPrice = 0;
-                if (crew.is_percentage) {
-                  const percentage = isInternational 
-                    ? (crew.percentage_international || crew.percentage_national || 0)
-                    : (crew.percentage_national || crew.percentage_international || 0);
-                  unitPrice = bookingFee * percentage / 100;
-                } else {
-                  unitPrice = isInternational 
-                    ? (crew.fee_international || crew.fee_national || 0)
-                    : (crew.fee_national || crew.fee_international || 0);
-                }
-                
-                return {
-                  budget_id: newBudget.id,
-                  category: 'Músicos',
-                  name: crew.is_percentage 
-                    ? `${memberName} (${isInternational ? crew.percentage_international : crew.percentage_national}%)`
-                    : memberName,
-                  quantity: 1,
-                  unit_price: unitPrice,
-                  iva_percentage: 0,
-                  irpf_percentage: artistIrpf.percentage,
-                  is_attendee: true,
-                  observations: `Formato: ${bookingData.formato} (${isInternational ? 'Internacional' : 'Nacional'})`,
-                  contact_id: crew.member_type === 'contact' ? crew.member_id : null
-                };
-              });
-              
-              await supabase.from('budget_items').insert(crewItems);
-            }
-          }
+          await loadCrewFromFormat({
+            budgetId: newBudget.id,
+            formatName: bookingData.formato,
+            artistId,
+            bookingFee: bookingData.fee || 0,
+            isInternational: isInternational || false,
+            userId: user.id,
+          });
         }
         
         toast.success('Carpeta y presupuesto creados correctamente');
