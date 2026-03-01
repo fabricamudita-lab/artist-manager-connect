@@ -44,7 +44,7 @@ import { ContractSignersManager } from './ContractSignersManager';
 import { ContractSignersSummary } from './ContractSignersSummary';
 import { ContractSignaturesFooter, getDocumentSigners } from './ContractSignaturesFooter';
 import jsPDF from 'jspdf';
-import cityzenLogo from "@/assets/cityzen-logo.png";
+import mooditaLogo from "@/assets/moodita-logo.png";
 interface BookingDocument {
   id: string;
   booking_id: string;
@@ -351,7 +351,7 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
         const logoWidth = 40;
         const logoHeight = 15;
         const logoX = (pageWidth - logoWidth) / 2;
-        pdf.addImage(cityzenLogo, 'PNG', logoX, 10, logoWidth, logoHeight);
+        pdf.addImage(mooditaLogo, 'PNG', logoX, 10, logoWidth, logoHeight);
         return 30; // Return starting Y position after logo
       } catch {
         return margin;
