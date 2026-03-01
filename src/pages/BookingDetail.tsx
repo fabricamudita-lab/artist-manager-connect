@@ -26,6 +26,8 @@ import { AvailabilityStatusCard } from '@/components/booking-detail/Availability
 import { RequestAvailabilityDialog } from '@/components/booking-detail/RequestAvailabilityDialog';
 import { BookingHistorySection } from '@/components/booking-detail/BookingHistorySection';
 import { BookingTimeline } from '@/components/booking-detail/BookingTimeline';
+import { EventAssistantCard } from '@/components/booking-detail/EventAssistantCard';
+import { useEventAssistant } from '@/hooks/useEventAssistant';
 import { LinkedSolicitudesCard } from '@/components/booking-detail/LinkedSolicitudesCard';
 import { ProjectLinkSelector } from '@/components/releases/ProjectLinkSelector';
 import { useAuth } from '@/hooks/useAuth';
@@ -138,6 +140,8 @@ export default function BookingDetail() {
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [projectName, setProjectName] = useState<string | null>(null);
+
+  const eventAssistant = useEventAssistant(booking);
 
   usePageTitle(booking?.festival_ciclo || booking?.venue || 'Detalle Evento');
 
@@ -741,7 +745,7 @@ export default function BookingDetail() {
               onBlockStatusChange={setAvailabilityBlocked}
               onPhaseChange={handleBookingUpdate}
             />
-            <div ref={viabilityRef}>
+            <div ref={viabilityRef} data-viability-card>
               <ViabilityChecksCard
                 bookingId={booking.id}
                 phase={booking.phase || 'interes'}
@@ -759,6 +763,18 @@ export default function BookingDetail() {
               bookingId={booking.id}
               bookingPhase={booking.phase}
               eventDate={booking.fecha}
+            />
+            <EventAssistantCard
+              data={eventAssistant}
+              bookingId={booking.id}
+              onEdit={() => setShowEditDialog(true)}
+              onOpenPago={() => {
+                if (paymentRef.current) {
+                  paymentRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  setPaymentHighlighted(true);
+                  setTimeout(() => setPaymentHighlighted(false), 3000);
+                }
+              }}
             />
             <BookingFilesWidget bookingId={booking.id} artistId={booking.artist_id} />
             <BookingHistorySection bookingId={booking.id} />
