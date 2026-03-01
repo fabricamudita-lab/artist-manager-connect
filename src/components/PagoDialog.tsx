@@ -217,7 +217,7 @@ export function PagoDialog({ open, onOpenChange, booking, onSuccess }: PagoDialo
           concept: `Cobro concierto: ${eventName}`,
           amount_gross: importeRecibido,
           irpf_pct: irpfPct,
-          amount_net: unicoNeto,
+          
           received_date: cobroFecha,
           status: 'cobrado',
           artist_id: booking.artist_id || null,
@@ -292,7 +292,7 @@ export function PagoDialog({ open, onOpenChange, booking, onSuccess }: PagoDialo
           concept: `Anticipo ${anticipoPct}% — ${eventName}`,
           amount_gross: anticipoImporte,
           irpf_pct: irpfPct,
-          amount_net: anticipoNeto,
+          
           received_date: anticipoFechaCobro,
           status: 'cobrado',
           artist_id: booking.artist_id || null,
@@ -309,7 +309,7 @@ export function PagoDialog({ open, onOpenChange, booking, onSuccess }: PagoDialo
           concept: `Liquidación ${100 - anticipoPct}% — ${eventName}`,
           amount_gross: liquidacionImporte,
           irpf_pct: irpfPct,
-          amount_net: liquidacionNeto,
+          
           received_date: liquidacionFechaCobro,
           status: 'cobrado',
           artist_id: booking.artist_id || null,
