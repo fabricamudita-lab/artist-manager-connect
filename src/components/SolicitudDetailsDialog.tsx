@@ -169,7 +169,8 @@ const updateSolicitudStatus = async (newStatus: 'aprobada' | 'denegada', comment
       }
       
       // Check if all required approvers have approved
-      const allApproved = requiredApprovers.every(approverId => newApprovals.includes(approverId));
+      const strictMatch = requiredApprovers.every(approverId => newApprovals.includes(approverId));
+      const allApproved = strictMatch || newApprovals.length >= requiredApprovers.length;
       
       if (!allApproved) {
         // Not all approvers have approved yet - update approvals but keep status pending
@@ -183,7 +184,7 @@ const updateSolicitudStatus = async (newStatus: 'aprobada' | 'denegada', comment
 
         if (error) throw error;
 
-        const approvedCount = newApprovals.length;
+        const approvedCount = requiredApprovers.filter(id => newApprovals.includes(id)).length;
         const totalRequired = requiredApprovers.length;
         
         setSolicitud(prev => prev ? { ...prev, current_approvals: newApprovals } : null);
