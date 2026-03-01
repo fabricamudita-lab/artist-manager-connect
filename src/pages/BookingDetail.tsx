@@ -721,7 +721,7 @@ export default function BookingDetail() {
               </TabsContent>
 
               <TabsContent value="files">
-                <BookingFilesDocsTab booking={booking} onUpdate={handleBookingUpdate} />
+                <BookingFilesDocsTab booking={booking} artistName={booking.artist?.stage_name || booking.artist?.name} onUpdate={handleBookingUpdate} />
               </TabsContent>
 
               <TabsContent value="solicitudes">
