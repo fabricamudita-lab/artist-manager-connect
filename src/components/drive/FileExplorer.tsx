@@ -67,11 +67,14 @@ import {
   User,
   Plus,
   Loader2,
+  Map,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
+import { Badge } from '@/components/ui/badge';
 import {
   DndContext,
   DragEndEvent,
@@ -154,6 +157,7 @@ export function FileExplorer({
   compact = false,
 }: FileExplorerProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(initialFolderId);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -255,6 +259,92 @@ export function FileExplorer({
   
   const linkedBudget = budgetContext?.linkedBudget;
   const isPresupuestoFolder = budgetContext?.isPresupuestoFolder;
+
+  // Check if current folder is "Hojas de Ruta" and fetch linked roadmaps
+  const { data: roadmapContext } = useQuery({
+    queryKey: ['linked-roadmaps', currentFolderId],
+    queryFn: async () => {
+      if (!currentFolderId) return null;
+      
+      const { data: currentFolder } = await supabase
+        .from('storage_nodes')
+        .select('name, parent_id, metadata')
+        .eq('id', currentFolderId)
+        .single();
+      
+      if (!currentFolder || currentFolder.name !== 'Hojas de Ruta') return null;
+      
+      // Get parent folder (event folder) to find booking_id
+      const { data: parentFolder } = await supabase
+        .from('storage_nodes')
+        .select('name, metadata')
+        .eq('id', currentFolder.parent_id)
+        .single();
+      
+      if (!parentFolder?.metadata || !(parentFolder.metadata as any).booking_id) {
+        return { isHojasDeRutaFolder: true, roadmaps: [], bookingId: null };
+      }
+      
+      const bId = (parentFolder.metadata as any).booking_id;
+      
+      // Find roadmaps via junction table
+      const { data: junctionRoadmaps } = await supabase
+        .from('tour_roadmap_bookings')
+        .select('roadmap_id')
+        .eq('booking_id', bId);
+      
+      const junctionIds = (junctionRoadmaps || []).map(r => r.roadmap_id);
+      
+      // Find roadmaps via legacy booking_id
+      const { data: legacyRoadmaps } = await supabase
+        .from('tour_roadmaps')
+        .select('id')
+        .eq('booking_id', bId);
+      
+      const legacyIds = (legacyRoadmaps || []).map(r => r.id);
+      
+      // Combine unique IDs
+      const allIds = [...new Set([...junctionIds, ...legacyIds])];
+      
+      if (allIds.length === 0) {
+        return { isHojasDeRutaFolder: true, roadmaps: [], bookingId: bId };
+      }
+      
+      // Fetch full roadmap data
+      const { data: roadmaps } = await supabase
+        .from('tour_roadmaps')
+        .select('id, name, status, created_at')
+        .in('id', allIds)
+        .order('created_at', { ascending: false });
+      
+      // Fetch block counts for summary
+      const { data: blocks } = await supabase
+        .from('tour_roadmap_blocks')
+        .select('roadmap_id, block_type')
+        .in('roadmap_id', allIds);
+      
+      const blockSummary: Record<string, { travel: number; hospitality: number; schedule: number }> = {};
+      (blocks || []).forEach(b => {
+        if (!blockSummary[b.roadmap_id]) blockSummary[b.roadmap_id] = { travel: 0, hospitality: 0, schedule: 0 };
+        if (b.block_type === 'travel') blockSummary[b.roadmap_id].travel++;
+        if (b.block_type === 'hospitality') blockSummary[b.roadmap_id].hospitality++;
+        if (b.block_type === 'schedule') blockSummary[b.roadmap_id].schedule++;
+      });
+      
+      return {
+        isHojasDeRutaFolder: true,
+        roadmaps: (roadmaps || []).map(r => ({
+          ...r,
+          blocks: blockSummary[r.id] || { travel: 0, hospitality: 0, schedule: 0 },
+        })),
+        bookingId: bId,
+      };
+    },
+    enabled: !!currentFolderId,
+  });
+
+  const isHojasDeRutaFolder = roadmapContext?.isHojasDeRutaFolder;
+  const linkedRoadmaps = roadmapContext?.roadmaps || [];
 
   const {
     nodes,
@@ -1126,11 +1216,69 @@ export function FileExplorer({
                   </CardContent>
                 </Card>
               )}
+
+              {/* Linked Roadmap Cards */}
+              {isHojasDeRutaFolder && linkedRoadmaps.length > 0 && linkedRoadmaps.map((rm: any) => (
+                <Card 
+                  key={rm.id}
+                  className="w-full max-w-md cursor-pointer hover:border-primary/50 hover:shadow-lg transition-all bg-gradient-to-br from-accent/5 to-accent/10"
+                  onClick={() => navigate(`/roadmaps/${rm.id}`)}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-xl bg-accent/20 flex items-center justify-center">
+                        <Map className="w-7 h-7 text-accent-foreground" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-lg">{rm.name}</h3>
+                          <Badge variant={rm.status === 'confirmed' ? 'success' : 'muted'}>
+                            {rm.status === 'draft' ? 'Borrador' : rm.status === 'confirmed' ? 'Confirmada' : rm.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {[
+                            rm.blocks.travel > 0 && `${rm.blocks.travel} viaje${rm.blocks.travel > 1 ? 's' : ''}`,
+                            rm.blocks.hospitality > 0 && `${rm.blocks.hospitality} hotel${rm.blocks.hospitality > 1 ? 'es' : ''}`,
+                            rm.blocks.schedule > 0 && `${rm.blocks.schedule} día${rm.blocks.schedule > 1 ? 's' : ''}`,
+                          ].filter(Boolean).join(' • ') || 'Sin bloques'}
+                        </p>
+                      </div>
+                      <ExternalLink className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {/* Create Roadmap Button when in Hojas de Ruta folder but no roadmaps exist */}
+              {isHojasDeRutaFolder && linkedRoadmaps.length === 0 && (
+                <Card className="w-full max-w-md border-dashed">
+                  <CardContent className="p-6">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center">
+                        <Map className="w-7 h-7 text-muted-foreground" />
+                      </div>
+                      <div className="text-center">
+                        <h3 className="font-semibold text-lg">Sin hoja de ruta vinculada</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Crea una hoja de ruta desde el detalle del evento
+                        </p>
+                      </div>
+                      {roadmapContext?.bookingId && (
+                        <Button onClick={() => navigate(`/booking/${roadmapContext.bookingId}`)}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Crear Hoja de Ruta
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
               
               <div className="flex flex-col items-center">
                 <Folder className="w-12 h-12 text-muted-foreground/50 mb-4" />
                 <p className="text-muted-foreground">
-                  {searchQuery ? 'No se encontraron resultados' : linkedBudget ? 'También puedes subir archivos relacionados' : 'Esta carpeta está vacía'}
+                  {searchQuery ? 'No se encontraron resultados' : (linkedBudget || linkedRoadmaps.length > 0) ? 'También puedes subir archivos relacionados' : 'Esta carpeta está vacía'}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
                   Arrastra archivos aquí o usa el botón "Subir"
@@ -1161,6 +1309,38 @@ export function FileExplorer({
                   </CardContent>
                 </Card>
               )}
+              {/* Show linked roadmap cards in grid view */}
+              {isHojasDeRutaFolder && linkedRoadmaps.map((rm: any) => (
+                <Card 
+                  key={rm.id}
+                  className="cursor-pointer hover:border-primary/50 hover:shadow-lg transition-all bg-gradient-to-br from-accent/5 to-accent/10"
+                  onClick={() => navigate(`/roadmaps/${rm.id}`)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center">
+                        <Map className="w-6 h-6 text-accent-foreground" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold">{rm.name}</h3>
+                          <Badge variant={rm.status === 'confirmed' ? 'success' : 'muted'} className="text-xs">
+                            {rm.status === 'draft' ? 'Borrador' : rm.status === 'confirmed' ? 'Confirmada' : rm.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {[
+                            rm.blocks.travel > 0 && `${rm.blocks.travel} viaje${rm.blocks.travel > 1 ? 's' : ''}`,
+                            rm.blocks.hospitality > 0 && `${rm.blocks.hospitality} hotel${rm.blocks.hospitality > 1 ? 'es' : ''}`,
+                            rm.blocks.schedule > 0 && `${rm.blocks.schedule} día${rm.blocks.schedule > 1 ? 's' : ''}`,
+                          ].filter(Boolean).join(' • ') || 'Ver hoja de ruta'}
+                        </p>
+                      </div>
+                      <ExternalLink className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {folders.map(renderGridItem)}
                 {files.map(renderGridItem)}
@@ -1184,6 +1364,32 @@ export function FileExplorer({
                   <ExternalLink className="w-4 h-4 text-muted-foreground" />
                 </div>
               )}
+              {/* Show linked roadmaps in list view */}
+              {isHojasDeRutaFolder && linkedRoadmaps.map((rm: any) => (
+                <div 
+                  key={rm.id}
+                  className="flex items-center gap-4 p-3 hover:bg-accent/5 rounded-lg cursor-pointer border border-accent/20 bg-gradient-to-r from-accent/5 to-transparent"
+                  onClick={() => navigate(`/roadmaps/${rm.id}`)}
+                >
+                  <Map className="w-5 h-5 text-accent-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium truncate">{rm.name}</p>
+                      <Badge variant={rm.status === 'confirmed' ? 'success' : 'muted'} className="text-xs">
+                        {rm.status === 'draft' ? 'Borrador' : rm.status === 'confirmed' ? 'Confirmada' : rm.status}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Hoja de ruta • {[
+                        rm.blocks.travel > 0 && `${rm.blocks.travel} viaje${rm.blocks.travel > 1 ? 's' : ''}`,
+                        rm.blocks.hospitality > 0 && `${rm.blocks.hospitality} hotel${rm.blocks.hospitality > 1 ? 'es' : ''}`,
+                        rm.blocks.schedule > 0 && `${rm.blocks.schedule} día${rm.blocks.schedule > 1 ? 's' : ''}`,
+                      ].filter(Boolean).join(', ') || 'Ver detalles'}
+                    </p>
+                  </div>
+                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                </div>
+              ))}
               {folders.map(renderListItem)}
               {files.map(renderListItem)}
             </div>
