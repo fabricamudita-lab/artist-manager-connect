@@ -20,6 +20,7 @@ import { Music, Mic, Megaphone, Video, Package, CalendarIcon, FolderPlus, Users,
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ProjectLinkSelector } from '@/components/releases/ProjectLinkSelector';
+import { getIrpfForArtist } from '@/utils/irpf';
 
 interface CreateBudgetDialogProps {
   open: boolean;
@@ -120,6 +121,16 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
 
       const artistId = formatData?.artist_id;
       const artistInfo = formatData?.artists as { id: string; name: string; legal_name: string | null } | null;
+
+      // Dynamic IRPF default for this artist
+      const { data: artistFiscal } = artistId
+        ? await supabase
+            .from('artists')
+            .select('irpf_type, irpf_porcentaje, actividad_inicio')
+            .eq('id', artistId)
+            .maybeSingle()
+        : { data: null as any };
+      const irpfDefault = getIrpfForArtist(artistFiscal as any).percentage;
 
       // Get the booking fee for percentage calculations
       const bookingFee = formData.fee || 0;
@@ -299,7 +310,7 @@ export default function CreateBudgetDialog({ open, onOpenChange, onSuccess, proj
             quantity: 1,
             unit_price: unitPrice,
             iva_percentage: 0,
-            irpf_percentage: 15,
+            irpf_percentage: irpfDefault,
             is_attendee: true,
             billing_status: 'pendiente' as const,
             is_commission_percentage: crew.is_percentage || false,

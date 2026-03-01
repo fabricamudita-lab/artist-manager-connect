@@ -82,6 +82,7 @@ import {
 } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
+import { getIrpfForArtist } from '@/utils/irpf';
 
 interface FileExplorerProps {
   artistId: string | null;
@@ -523,6 +524,13 @@ export function FileExplorer({
         
         // Insert crew members from booking product (formato)
         if (booking.formato && booking.artist_id) {
+          const { data: artistFiscal } = await supabase
+            .from('artists')
+            .select('irpf_type, irpf_porcentaje, actividad_inicio')
+            .eq('id', booking.artist_id)
+            .maybeSingle();
+          const irpfDefault = getIrpfForArtist(artistFiscal as any).percentage;
+
           const { data: bookingProduct } = await supabase
             .from('booking_products')
             .select('id')
@@ -570,7 +578,7 @@ export function FileExplorer({
                   quantity: 1,
                   unit_price: unitPrice,
                   iva_percentage: 0,
-                  irpf_percentage: 15,
+                  irpf_percentage: irpfDefault,
                   is_attendee: true,
                   observations: `Formato: ${booking.formato} (${isInternational ? 'Internacional' : 'Nacional'})`,
                   contact_id: crew.member_type === 'contact' ? crew.member_id : null

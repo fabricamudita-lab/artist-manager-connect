@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -205,14 +204,14 @@ export function MarcarCobradoDialog({ open, onOpenChange, booking, onSuccess }: 
 
               {/* Warning for graduated inicio_actividad */}
               {irpfResult.warning && irpfOverride === null && (
-                <div className="flex items-start gap-1.5 text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded px-2 py-1.5">
-                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <div className="flex items-start gap-1.5 rounded-md border border-border bg-muted/50 px-2 py-1.5 text-foreground">
+                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
                   <span>{irpfResult.warning}</span>
                 </div>
               )}
 
               <p className="text-muted-foreground">
-                Importe neto recibido: <span className="text-emerald-600 font-bold">{fmt(netoRecibido)}</span>
+                Importe neto recibido: <span className="text-primary font-bold">{fmt(netoRecibido)}</span>
               </p>
             </div>
           </div>
