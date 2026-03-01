@@ -7,14 +7,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
-import { User, Music, Globe, Edit, Save, X, Share2, Instagram, Loader2, Camera, Phone, MapPin, Mail, Shirt, Heart, Landmark, StickyNote } from 'lucide-react';
+import { User, Music, Globe, Edit, Save, X, Share2, Instagram, Loader2, Camera, Phone, MapPin, Mail, Shirt, Heart, Landmark, StickyNote, Receipt, ChevronDown, AlertTriangle } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ImageCropperDialog } from '@/components/ui/image-cropper-dialog';
 import { GenreCombobox } from '@/components/GenreCombobox';
 import { cn } from '@/lib/utils';
+import { IRPF_TYPE_OPTIONS, getIrpfForArtist } from '@/utils/irpf';
 
 interface ArtistData {
   id: string;
@@ -58,6 +61,8 @@ const FORM_FIELDS = [
   'company_name', 'legal_name', 'tax_id',
   'bank_name', 'iban', 'swift_code',
   'notes',
+  // Fiscal profile fields
+  'irpf_type', 'irpf_porcentaje', 'actividad_inicio', 'nif', 'tipo_entidad',
 ] as const;
 
 type FormData = Record<typeof FORM_FIELDS[number], string>;
@@ -426,6 +431,138 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
                 </div>
                 <Field label="CIF / NIF" field="tax_id" placeholder="CIF o NIF" />
               </CardContent>
+            </Card>
+          )}
+
+          {/* Perfil Fiscal — IRPF dinámico */}
+          {canEdit && (
+            <Card>
+              <Collapsible defaultOpen={false}>
+                <CardHeader className="pb-2">
+                  <CollapsibleTrigger asChild>
+                    <button className="flex items-center justify-between w-full text-left">
+                      <CardTitle className="flex items-center gap-2">
+                        <Receipt className="h-5 w-5" />
+                        Perfil Fiscal
+                      </CardTitle>
+                      <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                    </button>
+                  </CollapsibleTrigger>
+                  <p className="text-xs text-muted-foreground mt-1">Información fiscal — usada en presupuestos y liquidaciones</p>
+                </CardHeader>
+                <CollapsibleContent>
+                  <CardContent className="space-y-4 pt-2">
+                    {/* Tipo de IRPF */}
+                    <div className="space-y-2">
+                      <Label>Tipo de IRPF</Label>
+                      {editing ? (
+                        <Select
+                          value={formData.irpf_type || 'profesional_establecido'}
+                          onValueChange={(v) => setFormData(prev => ({ ...prev, irpf_type: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {IRPF_TYPE_OPTIONS.map(opt => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                <div>
+                                  <span>{opt.label}</span>
+                                  <span className="text-muted-foreground ml-2 text-xs">— {opt.description}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          value={IRPF_TYPE_OPTIONS.find(o => o.value === (artistData as any)?.irpf_type)?.label || 'Profesional establecido'}
+                          disabled
+                        />
+                      )}
+                    </div>
+
+                    {/* % personalizado — solo visible si tipo = personalizado */}
+                    {(editing ? formData.irpf_type : (artistData as any)?.irpf_type) === 'personalizado' && (
+                      <div className="space-y-2">
+                        <Label>Porcentaje IRPF personalizado (%)</Label>
+                        {editing ? (
+                          <Input
+                            type="number"
+                            value={formData.irpf_porcentaje || '15'}
+                            onChange={(e) => setFormData(prev => ({ ...prev, irpf_porcentaje: e.target.value }))}
+                            min={0}
+                            max={100}
+                          />
+                        ) : (
+                          <Input value={`${(artistData as any)?.irpf_porcentaje ?? 15}%`} disabled />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Fecha inicio actividad */}
+                    <div className="space-y-2">
+                      <Label>Fecha inicio actividad</Label>
+                      {editing ? (
+                        <Input
+                          type="date"
+                          value={formData.actividad_inicio || ''}
+                          onChange={(e) => setFormData(prev => ({ ...prev, actividad_inicio: e.target.value }))}
+                        />
+                      ) : (
+                        <Input value={(artistData as any)?.actividad_inicio || 'No especificada'} disabled />
+                      )}
+                    </div>
+
+                    {/* Graduated warning */}
+                    {(() => {
+                      const result = getIrpfForArtist(artistData as any);
+                      return result.warning ? (
+                        <div className="flex items-start gap-2 text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded-md px-3 py-2">
+                          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                          <span>{result.warning}</span>
+                        </div>
+                      ) : null;
+                    })()}
+
+                    {/* NIF */}
+                    <Field label="NIF / NIE" field="nif" placeholder="12345678A" />
+
+                    {/* Tipo de entidad */}
+                    <div className="space-y-2">
+                      <Label>Tipo de entidad</Label>
+                      {editing ? (
+                        <Select
+                          value={formData.tipo_entidad || 'persona_fisica'}
+                          onValueChange={(v) => setFormData(prev => ({ ...prev, tipo_entidad: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="persona_fisica">Persona física</SelectItem>
+                            <SelectItem value="sociedad">Sociedad</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          value={(artistData as any)?.tipo_entidad === 'sociedad' ? 'Sociedad' : 'Persona física'}
+                          disabled
+                        />
+                      )}
+                    </div>
+
+                    {/* IRPF calculation preview */}
+                    {!editing && (
+                      <div className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+                        IRPF aplicable: <span className="font-medium text-foreground">{getIrpfForArtist(artistData as any).percentage}%</span>
+                        {' — '}
+                        {getIrpfForArtist(artistData as any).label}
+                      </div>
+                    )}
+                  </CardContent>
+                </CollapsibleContent>
+              </Collapsible>
             </Card>
           )}
 

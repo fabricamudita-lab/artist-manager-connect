@@ -543,6 +543,7 @@ export type Database = {
       }
       artists: {
         Row: {
+          actividad_inicio: string | null
           address: string | null
           allergies: string | null
           artist_type: string
@@ -561,9 +562,12 @@ export type Database = {
           iban: string | null
           id: string
           instagram_url: string | null
+          irpf_porcentaje: number | null
+          irpf_type: string | null
           legal_name: string | null
           metadata: Json | null
           name: string
+          nif: string | null
           notes: string | null
           phone: string | null
           profile_id: string | null
@@ -574,10 +578,12 @@ export type Database = {
           swift_code: string | null
           tax_id: string | null
           tiktok_url: string | null
+          tipo_entidad: string | null
           updated_at: string
           workspace_id: string
         }
         Insert: {
+          actividad_inicio?: string | null
           address?: string | null
           allergies?: string | null
           artist_type?: string
@@ -596,9 +602,12 @@ export type Database = {
           iban?: string | null
           id?: string
           instagram_url?: string | null
+          irpf_porcentaje?: number | null
+          irpf_type?: string | null
           legal_name?: string | null
           metadata?: Json | null
           name: string
+          nif?: string | null
           notes?: string | null
           phone?: string | null
           profile_id?: string | null
@@ -609,10 +618,12 @@ export type Database = {
           swift_code?: string | null
           tax_id?: string | null
           tiktok_url?: string | null
+          tipo_entidad?: string | null
           updated_at?: string
           workspace_id: string
         }
         Update: {
+          actividad_inicio?: string | null
           address?: string | null
           allergies?: string | null
           artist_type?: string
@@ -631,9 +642,12 @@ export type Database = {
           iban?: string | null
           id?: string
           instagram_url?: string | null
+          irpf_porcentaje?: number | null
+          irpf_type?: string | null
           legal_name?: string | null
           metadata?: Json | null
           name?: string
+          nif?: string | null
           notes?: string | null
           phone?: string | null
           profile_id?: string | null
@@ -644,6 +658,7 @@ export type Database = {
           swift_code?: string | null
           tax_id?: string | null
           tiktok_url?: string | null
+          tipo_entidad?: string | null
           updated_at?: string
           workspace_id?: string
         }
