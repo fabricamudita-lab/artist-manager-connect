@@ -20,6 +20,8 @@ import { GlobalSearchDialog } from '@/components/GlobalSearchDialog';
 import { UpcomingEventsWidget } from './booking-detail/UpcomingEventsWidget';
 import { BulkActionsBar } from './booking-detail/BulkActionsBar';
 import { BookingFiltersToolbar, BookingFiltersState } from './BookingFiltersToolbar';
+import { useAutoRealizado } from '@/hooks/useAutoRealizado';
+import { MarcarCobradoDialog } from './MarcarCobradoDialog';
 
 export interface BookingOffer {
   id: string;
@@ -86,6 +88,7 @@ const MAIN_PHASES = [
   { id: 'oferta', label: 'Oferta', color: 'bg-blue-50 border-blue-200' },
   { id: 'negociacion', label: 'Negociación', color: 'bg-amber-50 border-amber-200' },
   { id: 'confirmado', label: 'Confirmado', color: 'bg-green-50 border-green-200' },
+  { id: 'realizado', label: 'Realizado', color: 'bg-purple-50 border-purple-200' },
   { id: 'facturado', label: 'Facturado', color: 'bg-emerald-50 border-emerald-200' },
 ];
 
@@ -121,6 +124,10 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectionMode, setSelectionMode] = useState(false);
   const [pendingConfirmOffer, setPendingConfirmOffer] = useState<string | null>(null);
+  const [cobradoBooking, setCobradoBooking] = useState<BookingOffer | null>(null);
+  
+  // Auto-transition confirmado → realizado on page load
+  useAutoRealizado();
   
   const [filters, setFilters] = useState<BookingFiltersState>({
     searchTerm: '',
@@ -750,9 +757,13 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-5 gap-3 min-h-[500px]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-6 gap-3 min-h-[500px]">
           {MAIN_PHASES.map(phase => {
             const phaseOffers = getOffersByPhase(phase.id);
+            const isRealizado = phase.id === 'realizado';
+            const pendingTotal = isRealizado
+              ? phaseOffers.reduce((s, o) => s + (o.fee || 0), 0)
+              : 0;
             
             return (
               <Card key={phase.id} className={`${phase.color} border-2 transition-all duration-200 hover:shadow-sm`}>
@@ -765,38 +776,83 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
                       <Badge variant="secondary" className="text-xs px-1.5 py-0.5 font-medium">
                         {phaseOffers.length}
                       </Badge>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 w-6 p-0 hover:bg-primary/10"
-                        onClick={() => setShowCreateWizard(true)}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
+                      {!isRealizado && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0 hover:bg-primary/10"
+                          onClick={() => setShowCreateWizard(true)}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   </div>
+                  {isRealizado && pendingTotal > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      €{pendingTotal.toLocaleString('es-ES')} pendiente de cobro
+                    </p>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-2 px-3 pb-3">
                   <SortableContext items={phaseOffers.map(offer => offer.id)}>
-                    {phaseOffers.map(offer => (
-                      <CompactBookingCard
-                        key={offer.id}
-                        offer={offer}
-                        onDuplicate={duplicateOffer}
-                        onDelete={deleteOffer}
-                        onChangePhase={(id, newPhase) => {
-                          if (newPhase === 'confirmado' && offer.phase !== 'confirmado' && needsConfirmGuard(offer)) {
-                            setPendingConfirmOffer(id);
-                          } else {
-                            updateOfferPhase(id, newPhase);
-                          }
-                        }}
-                        isDragging={draggedItem === offer.id}
-                        selectionMode={selectionMode}
-                        isSelected={selectedIds.includes(offer.id)}
-                        onToggleSelect={toggleSelection}
-                      />
-                    ))}
+                    {phaseOffers.map(offer => {
+                      // Days counter for Realizado cards
+                      const daysSinceEvent = isRealizado && offer.fecha
+                        ? Math.floor((Date.now() - new Date(offer.fecha).getTime()) / 86400000)
+                        : null;
+
+                      return (
+                        <div key={offer.id} className="relative">
+                          {/* Days counter badge for Realizado */}
+                          {daysSinceEvent !== null && (
+                            <div className="absolute -top-1 -right-1 z-10">
+                              <Badge className={`text-xs px-1.5 py-0.5 ${
+                                daysSinceEvent >= 30
+                                  ? 'bg-destructive text-destructive-foreground animate-pulse'
+                                  : daysSinceEvent >= 7
+                                  ? 'bg-amber-500 text-white'
+                                  : 'bg-emerald-500 text-white'
+                              }`}>
+                                {daysSinceEvent}d{daysSinceEvent >= 7 ? (daysSinceEvent >= 30 ? ' 🔴' : ' ⚠') : ''}
+                              </Badge>
+                            </div>
+                          )}
+                          <CompactBookingCard
+                            offer={offer}
+                            onDuplicate={duplicateOffer}
+                            onDelete={deleteOffer}
+                            onChangePhase={(id, newPhase) => {
+                              if (newPhase === 'confirmado' && offer.phase !== 'confirmado' && needsConfirmGuard(offer)) {
+                                setPendingConfirmOffer(id);
+                              } else {
+                                updateOfferPhase(id, newPhase);
+                              }
+                            }}
+                            isDragging={draggedItem === offer.id}
+                            selectionMode={selectionMode}
+                            isSelected={selectedIds.includes(offer.id)}
+                            onToggleSelect={toggleSelection}
+                          />
+                          {/* Realizado action buttons */}
+                          {isRealizado && (
+                            <div className="flex gap-1 mt-1.5">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 h-7 text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCobradoBooking(offer);
+                                }}
+                              >
+                                Marcar cobrado
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </SortableContext>
                   
                   {phaseOffers.length === 0 && (
@@ -935,6 +991,16 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Marcar Cobrado Dialog */}
+      {cobradoBooking && (
+        <MarcarCobradoDialog
+          open={!!cobradoBooking}
+          onOpenChange={(open) => !open && setCobradoBooking(null)}
+          booking={cobradoBooking}
+          onSuccess={fetchOffers}
+        />
+      )}
     </div>
   );
 }

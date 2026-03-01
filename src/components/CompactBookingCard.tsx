@@ -16,6 +16,7 @@ const ALL_PHASES = [
   { id: 'oferta', label: 'Oferta' },
   { id: 'negociacion', label: 'Negociación' },
   { id: 'confirmado', label: 'Confirmado' },
+  { id: 'realizado', label: 'Realizado' },
   { id: 'facturado', label: 'Facturado' },
   { id: 'cerrado', label: 'Cerrado' },
   { id: 'cancelado', label: 'Cancelado' },

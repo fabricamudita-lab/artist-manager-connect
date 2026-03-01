@@ -14,6 +14,8 @@ export function getPhaseLabel(phase?: string): string {
     case 'confirmado':
     case 'confirmada':
       return 'Confirmado';
+    case 'realizado':
+      return 'Realizado';
     case 'facturado':
       return 'Facturado';
     case 'cerrado':
@@ -33,6 +35,8 @@ export function getStatusBadgeVariant(estado?: string): "success" | "warning" | 
     case 'confirmado': 
     case 'confirmada':
       return 'success';
+    case 'realizado':
+      return 'accent';
     case 'facturado':
       return 'secondary';
     case 'negociacion':
@@ -61,6 +65,8 @@ export function getStatusBadgeColor(estado?: string) {
     case 'confirmado': 
     case 'confirmada':
       return 'bg-success/10 text-success border-success/20 font-medium';
+    case 'realizado':
+      return 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20 font-medium';
     case 'facturado':
       return 'bg-secondary/10 text-secondary-foreground border-secondary/20 font-medium';
     case 'negociacion':

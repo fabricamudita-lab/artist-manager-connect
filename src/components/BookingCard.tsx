@@ -266,7 +266,7 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
               <div className="bg-amber-50 border border-amber-200 rounded p-2 flex items-center gap-2">
                 <AlertTriangle className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
                 <p className="text-xs text-amber-800">
-                  Evento pasado — debería estar en Confirmado o Facturado
+                  Evento pasado — debería estar en Realizado, Confirmado o Facturado
                 </p>
               </div>
             );

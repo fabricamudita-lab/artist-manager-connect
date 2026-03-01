@@ -34,6 +34,7 @@ import { useBookingReminders } from '@/hooks/useBookingReminders';
 import { useBookingFolders } from '@/hooks/useBookingFolders';
 import { getStatusBadgeVariant, getPhaseLabel } from '@/lib/statusColors';
 import { BookingTableColumns, useBookingColumns, ColumnConfig } from '@/components/BookingTableColumns';
+import { useAutoRealizado } from '@/hooks/useAutoRealizado';
 
 interface BookingOffer {
   id: string;
@@ -90,6 +91,7 @@ interface TemplateField {
 
 export default function Booking() {
   usePageTitle('Booking');
+  useAutoRealizado();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const artistIdFromUrl = searchParams.get('artistId');
@@ -644,6 +646,32 @@ export default function Booking() {
           </Alert>
         )}
 
+        {/* Realizado Alert Banner */}
+        {(() => {
+          const realizadoEvents = offers.filter(o => o.phase === 'realizado');
+          if (realizadoEvents.length === 0) return null;
+          const now = new Date();
+          const vencidos = realizadoEvents.filter(o => o.fecha && (now.getTime() - new Date(o.fecha).getTime()) / 86400000 >= 30).length;
+          const urgentes = realizadoEvents.filter(o => {
+            if (!o.fecha) return false;
+            const days = (now.getTime() - new Date(o.fecha).getTime()) / 86400000;
+            return days >= 7 && days < 30;
+          }).length;
+          const recientes = realizadoEvents.length - vencidos - urgentes;
+          return (
+            <Alert className="border-purple-500/20 bg-purple-500/10">
+              <AlertTriangle className="h-4 w-4 text-purple-600" />
+              <AlertDescription className="text-purple-800 dark:text-purple-300">
+                <strong>⚠ {realizadoEvents.length} evento(s) pendientes de facturar</strong>
+                {' · '}
+                {vencidos > 0 && <Badge variant="destructive" className="text-xs mr-1">{vencidos} vencidos +30d</Badge>}
+                {urgentes > 0 && <Badge className="bg-amber-500 text-white text-xs mr-1">{urgentes} urgentes 7-30d</Badge>}
+                {recientes > 0 && <Badge variant="outline" className="text-xs">{recientes} recientes &lt;7d</Badge>}
+              </AlertDescription>
+            </Alert>
+          );
+        })()}
+
         {/* Main Content Tabs */}
         <Tabs defaultValue="kanban" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -672,6 +700,7 @@ export default function Booking() {
                 { id: 'oferta', label: 'Oferta' },
                 { id: 'negociacion', label: 'Negociación' },
                 { id: 'confirmado', label: 'Confirmado' },
+                { id: 'realizado', label: 'Realizado' },
                 { id: 'facturado', label: 'Facturado' },
                 { id: 'cerrado', label: 'Cerrado' },
                 { id: 'cancelado', label: 'Cancelado' },
