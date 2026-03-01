@@ -5,6 +5,7 @@ import { ArtistFilter } from '@/components/royalties/ArtistFilter';
 import { Calculator, Receipt, CreditCard, FileSpreadsheet, Landmark } from 'lucide-react';
 import { useState } from 'react';
 import { FinanzasPanelTab } from '@/components/finanzas/FinanzasPanelTab';
+import { CobrosTab } from '@/components/finanzas/CobrosTab';
 
 const TABS = [
   { value: 'panel', label: 'Panel', icon: Calculator, path: '/finanzas' },
@@ -68,6 +69,8 @@ export default function FinanzasHub() {
         {/* Tab content */}
         {activeTab === 'panel' ? (
           <FinanzasPanelTab artistId={selectedArtist} />
+        ) : activeTab === 'cobros' ? (
+          <CobrosTab artistId={selectedArtist} />
         ) : (
           <div className="rounded-lg border border-border bg-card p-12 text-center">
             <p className="text-muted-foreground text-sm">
