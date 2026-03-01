@@ -3894,6 +3894,95 @@ export type Database = {
           },
         ]
       }
+      liquidaciones: {
+        Row: {
+          artist_id: string | null
+          booking_id: string | null
+          cache_bruto: number
+          concepto: string
+          created_at: string
+          created_by: string
+          fecha_pago: string | null
+          id: string
+          irpf_amount: number | null
+          irpf_pct: number
+          metodo_pago: string | null
+          neto_a_transferir: number | null
+          notes: string | null
+          project_id: string | null
+          status: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          artist_id?: string | null
+          booking_id?: string | null
+          cache_bruto?: number
+          concepto: string
+          created_at?: string
+          created_by: string
+          fecha_pago?: string | null
+          id?: string
+          irpf_amount?: number | null
+          irpf_pct?: number
+          metodo_pago?: string | null
+          neto_a_transferir?: number | null
+          notes?: string | null
+          project_id?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          artist_id?: string | null
+          booking_id?: string | null
+          cache_bruto?: number
+          concepto?: string
+          created_at?: string
+          created_by?: string
+          fecha_pago?: string | null
+          id?: string
+          irpf_amount?: number | null
+          irpf_pct?: number
+          metodo_pago?: string | null
+          neto_a_transferir?: number | null
+          notes?: string | null
+          project_id?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liquidaciones_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       media_library: {
         Row: {
           category: string | null

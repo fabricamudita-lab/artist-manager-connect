@@ -7,6 +7,8 @@ import { useState } from 'react';
 import { FinanzasPanelTab } from '@/components/finanzas/FinanzasPanelTab';
 import { CobrosTab } from '@/components/finanzas/CobrosTab';
 import { PagosTab } from '@/components/finanzas/PagosTab';
+import { LiquidacionesTab } from '@/components/finanzas/LiquidacionesTab';
+import { FiscalTab } from '@/components/finanzas/FiscalTab';
 
 const TABS = [
   { value: 'panel', label: 'Panel', icon: Calculator, path: '/finanzas' },
@@ -74,13 +76,11 @@ export default function FinanzasHub() {
           <CobrosTab artistId={selectedArtist} />
         ) : activeTab === 'pagos' ? (
           <PagosTab artistId={selectedArtist} />
-        ) : (
-          <div className="rounded-lg border border-border bg-card p-12 text-center">
-            <p className="text-muted-foreground text-sm">
-              Vista {TABS.find(t => t.value === activeTab)?.label} — próximamente
-            </p>
-          </div>
-        )}
+        ) : activeTab === 'liquidaciones' ? (
+          <LiquidacionesTab artistId={selectedArtist} />
+        ) : activeTab === 'fiscal' ? (
+          <FiscalTab artistId={selectedArtist} />
+        ) : null}
       </div>
     </div>
   );
