@@ -1,37 +1,26 @@
 
+## Mostrar Hojas de Ruta vinculadas en la carpeta "Hojas de Ruta" del Drive
 
-## Fix: Auto-transition "Confirmado → Realizado" not executing
+### Problema
+Cuando navegas al explorador de archivos del evento y entras en la carpeta "Hojas de Ruta", solo ves una carpeta vacia. Deberia mostrar las hojas de ruta vinculadas al booking, igual que la carpeta "Presupuesto" muestra el presupuesto vinculado.
 
-### Problem
-The `useAutoRealizado` hook has a race condition. It sets `hasRun.current = true` before the async Supabase call, so if the network request fails (which happens during preview startup -- confirmed in console logs), it never retries. This leaves past-date events like "PLAYGRXVND 19/02" stuck in "Confirmado".
+### Solucion
+Replicar el patron existente de `budgetContext` / `isPresupuestoFolder` para crear un `roadmapContext` / `isHojasDeRutaFolder` en `FileExplorer.tsx`.
 
-**Evidence:** The DB shows `PLAYGRXVND` (fecha: 2026-02-19) still in `confirmado`. Console logs show a `Failed to fetch` error during page load.
+### Cambios en `src/components/drive/FileExplorer.tsx`
 
-### Fix (1 file)
+1. **Nueva query `roadmapContext`**: Detectar cuando el usuario esta en una carpeta llamada "Hojas de Ruta". Si lo esta, obtener el `booking_id` del metadata de la carpeta padre (la carpeta del evento), y buscar roadmaps vinculados via `tour_roadmap_bookings` y `tour_roadmaps` (legacy `booking_id`).
 
-**`src/hooks/useAutoRealizado.ts`**
+2. **Importar icono `MapIcon`** de lucide-react (o `Map`) y `useNavigate` de react-router-dom.
 
-1. Move `hasRun.current = true` to *after* the successful update (inside the try block, after the update call).
-2. Add a short delay (~2 seconds) before executing the query to avoid the preview startup race condition.
-3. If the fetch fails, keep `hasRun.current = false` so the next re-render retries.
+3. **Renderizar tarjetas de roadmaps vinculados** en las 3 vistas (empty, grid, list) siguiendo el mismo patron que el presupuesto:
+   - Si hay roadmaps: mostrar una tarjeta por cada uno con nombre, estado (badge), resumen de bloques (viajes, hoteles, dias) y click para navegar a `/roadmaps/{id}`.
+   - Si no hay roadmaps: mostrar tarjeta con boton "Crear Hoja de Ruta" que navega al detalle del booking (pestana Hoja de Ruta) donde ya existe esa funcionalidad.
 
-```text
-Before:
-  hasRun.current = true;   // <-- set immediately
-  const run = async () => {
-    try { ... }
-    catch { ... }            // fails silently, never retries
-  };
+### Detalles tecnicos
 
-After:
-  const run = async () => {
-    try {
-      await new Promise(r => setTimeout(r, 2000));  // wait for network
-      ...fetch and update...
-      hasRun.current = true; // <-- only set on success
-    } catch { ... }          // keeps hasRun false, will retry
-  };
-```
-
-This is the only change needed. No database or routing changes required.
-
+- La query buscara roadmaps combinando `tour_roadmap_bookings` (junction table) y `tour_roadmaps.booking_id` (legacy), igual que hace `BookingRoadmapTab`.
+- Cada tarjeta mostrara: nombre, badge de estado (`borrador`/`publicado`), y resumen de bloques (X viajes, X hoteles, X dias).
+- Click en la tarjeta navega a `/roadmaps/{roadmap.id}`.
+- El boton de crear cuando no hay roadmaps redirigira al booking detail.
+- No se necesitan cambios en base de datos.
