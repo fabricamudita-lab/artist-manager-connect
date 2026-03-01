@@ -2264,6 +2264,85 @@ export type Database = {
         }
         Relationships: []
       }
+      cobros: {
+        Row: {
+          amount_gross: number
+          amount_net: number | null
+          artist_id: string | null
+          booking_id: string | null
+          concept: string
+          created_at: string
+          created_by: string
+          expected_date: string | null
+          id: string
+          irpf_pct: number
+          notes: string | null
+          project_id: string | null
+          received_date: string | null
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount_gross?: number
+          amount_net?: number | null
+          artist_id?: string | null
+          booking_id?: string | null
+          concept: string
+          created_at?: string
+          created_by: string
+          expected_date?: string | null
+          id?: string
+          irpf_pct?: number
+          notes?: string | null
+          project_id?: string | null
+          received_date?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_gross?: number
+          amount_net?: number | null
+          artist_id?: string | null
+          booking_id?: string | null
+          concept?: string
+          created_at?: string
+          created_by?: string
+          expected_date?: string | null
+          id?: string
+          irpf_pct?: number
+          notes?: string | null
+          project_id?: string | null
+          received_date?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cobros_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobros_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobros_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_artist_assignments: {
         Row: {
           artist_id: string
