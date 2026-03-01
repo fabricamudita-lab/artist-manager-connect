@@ -21,7 +21,9 @@ import { UpcomingEventsWidget } from './booking-detail/UpcomingEventsWidget';
 import { BulkActionsBar } from './booking-detail/BulkActionsBar';
 import { BookingFiltersToolbar, BookingFiltersState } from './BookingFiltersToolbar';
 import { useAutoRealizado } from '@/hooks/useAutoRealizado';
-import { MarcarCobradoDialog } from './MarcarCobradoDialog';
+import { PagoDialog } from './PagoDialog';
+import { Progress } from '@/components/ui/progress';
+import { Check, Clock } from 'lucide-react';
 
 export interface BookingOffer {
   id: string;
@@ -62,6 +64,19 @@ export interface BookingOffer {
   created_at: string;
   updated_at: string;
   created_by?: string;
+  // Payment fields
+  anticipo_porcentaje?: number;
+  anticipo_importe?: number;
+  anticipo_fecha_esperada?: string;
+  anticipo_fecha_cobro?: string;
+  anticipo_estado?: string;
+  anticipo_referencia?: string;
+  liquidacion_importe?: number;
+  liquidacion_fecha_esperada?: string;
+  liquidacion_fecha_cobro?: string;
+  liquidacion_estado?: string;
+  liquidacion_referencia?: string;
+  cobro_estado?: string;
   // Joined fields
   artist?: {
     id: string;
@@ -834,20 +849,47 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
                             isSelected={selectedIds.includes(offer.id)}
                             onToggleSelect={toggleSelection}
                           />
-                          {/* Realizado action buttons */}
+                          {/* Realizado payment status */}
                           {isRealizado && (
-                            <div className="flex gap-1 mt-1.5">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="flex-1 h-7 text-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setCobradoBooking(offer);
-                                }}
-                              >
-                                Marcar cobrado
-                              </Button>
+                            <div className="mt-1.5">
+                              {offer.cobro_estado === 'cobrado_completo' ? (
+                                <div className="flex items-center gap-1 text-xs text-primary font-medium">
+                                  <Check className="h-3 w-3" />
+                                  Cobrado completo
+                                </div>
+                              ) : offer.cobro_estado === 'anticipo_cobrado' ? (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <span className="text-primary">Anticipo ✓</span>
+                                    <span>·</span>
+                                    <span>Liquidación <Clock className="h-3 w-3 inline" /></span>
+                                  </div>
+                                  <Progress value={50} className="h-1.5" />
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full h-7 text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setCobradoBooking(offer);
+                                    }}
+                                  >
+                                    + Registrar liquidación
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full h-7 text-xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCobradoBooking(offer);
+                                  }}
+                                >
+                                  💰 Registrar cobro
+                                </Button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -992,9 +1034,9 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Marcar Cobrado Dialog */}
+      {/* Pago Dialog */}
       {cobradoBooking && (
-        <MarcarCobradoDialog
+        <PagoDialog
           open={!!cobradoBooking}
           onOpenChange={(open) => !open && setCobradoBooking(null)}
           booking={cobradoBooking}

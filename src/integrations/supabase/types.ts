@@ -1203,10 +1203,17 @@ export type Database = {
       booking_offers: {
         Row: {
           adjuntos: Json | null
+          anticipo_estado: string | null
+          anticipo_fecha_cobro: string | null
+          anticipo_fecha_esperada: string | null
+          anticipo_importe: number | null
+          anticipo_porcentaje: number | null
+          anticipo_referencia: string | null
           anunciado: boolean | null
           artist_id: string | null
           capacidad: number | null
           ciudad: string | null
+          cobro_estado: string | null
           cobro_fecha: string | null
           cobro_importe: number | null
           cobro_metodo: string | null
@@ -1239,6 +1246,11 @@ export type Database = {
           invitaciones: number | null
           is_sold_out: boolean | null
           link_venta: string | null
+          liquidacion_estado: string | null
+          liquidacion_fecha_cobro: string | null
+          liquidacion_fecha_esperada: string | null
+          liquidacion_importe: number | null
+          liquidacion_referencia: string | null
           logistica: string | null
           lugar: string | null
           notas: string | null
@@ -1268,10 +1280,17 @@ export type Database = {
         }
         Insert: {
           adjuntos?: Json | null
+          anticipo_estado?: string | null
+          anticipo_fecha_cobro?: string | null
+          anticipo_fecha_esperada?: string | null
+          anticipo_importe?: number | null
+          anticipo_porcentaje?: number | null
+          anticipo_referencia?: string | null
           anunciado?: boolean | null
           artist_id?: string | null
           capacidad?: number | null
           ciudad?: string | null
+          cobro_estado?: string | null
           cobro_fecha?: string | null
           cobro_importe?: number | null
           cobro_metodo?: string | null
@@ -1304,6 +1323,11 @@ export type Database = {
           invitaciones?: number | null
           is_sold_out?: boolean | null
           link_venta?: string | null
+          liquidacion_estado?: string | null
+          liquidacion_fecha_cobro?: string | null
+          liquidacion_fecha_esperada?: string | null
+          liquidacion_importe?: number | null
+          liquidacion_referencia?: string | null
           logistica?: string | null
           lugar?: string | null
           notas?: string | null
@@ -1333,10 +1357,17 @@ export type Database = {
         }
         Update: {
           adjuntos?: Json | null
+          anticipo_estado?: string | null
+          anticipo_fecha_cobro?: string | null
+          anticipo_fecha_esperada?: string | null
+          anticipo_importe?: number | null
+          anticipo_porcentaje?: number | null
+          anticipo_referencia?: string | null
           anunciado?: boolean | null
           artist_id?: string | null
           capacidad?: number | null
           ciudad?: string | null
+          cobro_estado?: string | null
           cobro_fecha?: string | null
           cobro_importe?: number | null
           cobro_metodo?: string | null
@@ -1369,6 +1400,11 @@ export type Database = {
           invitaciones?: number | null
           is_sold_out?: boolean | null
           link_venta?: string | null
+          liquidacion_estado?: string | null
+          liquidacion_fecha_cobro?: string | null
+          liquidacion_fecha_esperada?: string | null
+          liquidacion_importe?: number | null
+          liquidacion_referencia?: string | null
           logistica?: string | null
           lugar?: string | null
           notas?: string | null
