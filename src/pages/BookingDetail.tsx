@@ -24,6 +24,7 @@ import { ViabilityChecksCard } from '@/components/booking-detail/ViabilityChecks
 import { AvailabilityStatusCard } from '@/components/booking-detail/AvailabilityStatusCard';
 import { RequestAvailabilityDialog } from '@/components/booking-detail/RequestAvailabilityDialog';
 import { BookingHistorySection } from '@/components/booking-detail/BookingHistorySection';
+import { BookingTimeline } from '@/components/booking-detail/BookingTimeline';
 import { LinkedSolicitudesCard } from '@/components/booking-detail/LinkedSolicitudesCard';
 import { ProjectLinkSelector } from '@/components/releases/ProjectLinkSelector';
 import { useAuth } from '@/hooks/useAuth';
@@ -703,6 +704,11 @@ export default function BookingDetail() {
                 onUpdate={handleBookingUpdate}
               />
             </div>
+            <BookingTimeline
+              bookingId={booking.id}
+              bookingPhase={booking.phase}
+              eventDate={booking.fecha}
+            />
             <BookingFilesWidget bookingId={booking.id} artistId={booking.artist_id} />
             <BookingHistorySection bookingId={booking.id} />
           </div>
