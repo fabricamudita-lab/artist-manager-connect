@@ -1,21 +1,19 @@
 
 
-## Add "Eliminar cronograma" option
+## Replace CityZen logo with MOODITA logo in contract PDFs
 
-### Approach
-Add a discreet "Eliminar cronograma" option inside a dropdown menu (three-dot `MoreHorizontal` icon) placed near the existing action buttons in the header toolbar. This keeps it accessible but not prominent, since it's rarely used.
+### Problem
+The `BookingDocumentsTab` component imports and uses `cityzen-logo.png` when generating contract PDFs. This should use the MOODITA logo instead, matching the brand identity.
 
 ### Changes
 
-**File: `src/pages/release-sections/ReleaseCronograma.tsx`**
+**File: `src/components/booking-detail/BookingDocumentsTab.tsx`**
+- Replace `import cityzenLogo from "@/assets/cityzen-logo.png"` with `import mooditaLogo from "@/assets/moodita-logo.png"`
+- Update the `pdf.addImage(cityzenLogo, ...)` call to use `mooditaLogo` instead
+- Update the comment referencing "Cityzen logo"
 
-1. Import `MoreHorizontal` from lucide-react and `DropdownMenu` components
-2. Add a `DropdownMenu` after the existing toolbar buttons (or after the Undo button) with a single item: "Eliminar cronograma" (red/destructive styling)
-3. On click, show a `ConfirmationDialog` (already exists in the project) with variant `destructive`, warning that all milestones will be permanently deleted
-4. On confirm: delete all `release_milestones` where `release_id = id`, reset local `workflows` state to empty arrays, show success toast, and invalidate the query cache
+**File: `src/assets/cityzen-logo.png`**
+- Delete this file since it will no longer be referenced anywhere
 
-### UX details
-- The three-dot menu sits at the end of the toolbar row — unobtrusive
-- Confirmation dialog: title "Eliminar cronograma", description "Se eliminarán todas las tareas y flujos del cronograma. Esta acción no se puede deshacer."
-- After deletion, the empty state / wizard prompt will naturally appear (existing behavior when no milestones exist)
-
+### Scope
+This is the only place `cityzen-logo.png` is used. The `ContractGenerator` and `PublicArtistForm` already use `moodita-logo.png` correctly.

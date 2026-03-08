@@ -56,6 +56,7 @@ import {
   FileDown,
   Lock,
   AlertTriangle,
+  MoreHorizontal,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -1183,6 +1184,7 @@ export default function ReleaseCronograma() {
   // Regenerate confirmation state
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [regenerateMode, setRegenerateMode] = useState<'keep' | 'overwrite' | null>(null);
+  const [showDeleteCronograma, setShowDeleteCronograma] = useState(false);
 
   // Selection & hiding state
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
@@ -2204,7 +2206,23 @@ export default function ReleaseCronograma() {
           }}>
             <FileDown className="w-4 h-4 mr-2" />
             Exportar PDF
-          </Button>
+           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setShowDeleteCronograma(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Eliminar cronograma
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {hiddenTasksInfo.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setShowHiddenDialog(true)}>
               <EyeOff className="w-4 h-4 mr-2" />
@@ -2413,7 +2431,46 @@ export default function ReleaseCronograma() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Wizard Dialog */}
+      {/* Delete Cronograma Confirmation Dialog */}
+      <AlertDialog open={showDeleteCronograma} onOpenChange={setShowDeleteCronograma}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-destructive" />
+              Eliminar cronograma
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminarán todas las tareas y flujos del cronograma. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                try {
+                  const milestoneIds = workflows.flatMap(w => w.tasks.map(t => t.id));
+                  if (milestoneIds.length > 0) {
+                    const { error } = await supabase
+                      .from('release_milestones')
+                      .delete()
+                      .eq('release_id', id!);
+                    if (error) throw error;
+                  }
+                  setWorkflows([]);
+                  queryClient.invalidateQueries({ queryKey: ['release-milestones', id] });
+                  toast.success('Cronograma eliminado');
+                } catch (err: any) {
+                  toast.error('Error al eliminar: ' + (err?.message || 'Error desconocido'));
+                }
+              }}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <CronogramaSetupWizard
         open={showWizard}
         onOpenChange={setShowWizard}
