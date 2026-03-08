@@ -2206,7 +2206,23 @@ export default function ReleaseCronograma() {
           }}>
             <FileDown className="w-4 h-4 mr-2" />
             Exportar PDF
-          </Button>
+           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setShowDeleteCronograma(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Eliminar cronograma
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {hiddenTasksInfo.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setShowHiddenDialog(true)}>
               <EyeOff className="w-4 h-4 mr-2" />
