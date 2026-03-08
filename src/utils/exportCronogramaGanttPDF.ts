@@ -261,8 +261,7 @@ export function exportCronogramaGanttPDF(
 
       // Subtle background
       doc.setFillColor(r, g, b);
-      doc.setGlobalAlpha?.(0.08);
-      // jsPDF doesn't have setGlobalAlpha, use lighter color
+      // Use lighter color to simulate opacity
       doc.setFillColor(
         Math.min(255, r + Math.round((255 - r) * 0.88)),
         Math.min(255, g + Math.round((255 - g) * 0.88)),
