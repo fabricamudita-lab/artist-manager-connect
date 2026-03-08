@@ -2182,22 +2182,25 @@ export default function ReleaseCronograma() {
             Regenerar fechas
           </Button>
           <Button variant="outline" size="sm" onClick={() => {
-            exportCronogramaPDF(
-              workflows.map(w => ({
-                id: w.id,
-                name: w.name,
-                tasks: w.tasks.map(t => ({
-                  name: t.name,
-                  responsible: t.responsible,
-                  startDate: t.startDate,
-                  estimatedDays: t.estimatedDays,
-                  status: t.status,
-                })),
+            const exportData = workflows.map(w => ({
+              id: w.id,
+              name: w.name,
+              tasks: w.tasks.map(t => ({
+                name: t.name,
+                responsible: t.responsible,
+                startDate: t.startDate,
+                estimatedDays: t.estimatedDays,
+                status: t.status,
               })),
-              release?.title || 'Sin título',
-              undefined,
-              release?.release_date ? format(new Date(release.release_date), "d 'de' MMMM yyyy", { locale: es }) : undefined,
-            );
+            }));
+            const title = release?.title || 'Sin título';
+            const dateStr = release?.release_date ? format(new Date(release.release_date), "d 'de' MMMM yyyy", { locale: es }) : undefined;
+
+            if (viewMode === 'gantt') {
+              exportCronogramaGanttPDF(exportData, title, undefined, dateStr);
+            } else {
+              exportCronogramaPDF(exportData, title, undefined, dateStr);
+            }
           }}>
             <FileDown className="w-4 h-4 mr-2" />
             Exportar PDF
