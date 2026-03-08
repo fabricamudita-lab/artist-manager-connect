@@ -1184,6 +1184,7 @@ export default function ReleaseCronograma() {
   // Regenerate confirmation state
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [regenerateMode, setRegenerateMode] = useState<'keep' | 'overwrite' | null>(null);
+  const [showDeleteCronograma, setShowDeleteCronograma] = useState(false);
 
   // Selection & hiding state
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
