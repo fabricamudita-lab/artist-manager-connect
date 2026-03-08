@@ -2431,7 +2431,46 @@ export default function ReleaseCronograma() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Wizard Dialog */}
+      {/* Delete Cronograma Confirmation Dialog */}
+      <AlertDialog open={showDeleteCronograma} onOpenChange={setShowDeleteCronograma}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-destructive" />
+              Eliminar cronograma
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminarán todas las tareas y flujos del cronograma. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                try {
+                  const milestoneIds = workflows.flatMap(w => w.tasks.map(t => t.id));
+                  if (milestoneIds.length > 0) {
+                    const { error } = await supabase
+                      .from('release_milestones')
+                      .delete()
+                      .eq('release_id', id!);
+                    if (error) throw error;
+                  }
+                  setWorkflows([]);
+                  queryClient.invalidateQueries({ queryKey: ['release-milestones', id] });
+                  toast.success('Cronograma eliminado');
+                } catch (err: any) {
+                  toast.error('Error al eliminar: ' + (err?.message || 'Error desconocido'));
+                }
+              }}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <CronogramaSetupWizard
         open={showWizard}
         onOpenChange={setShowWizard}
