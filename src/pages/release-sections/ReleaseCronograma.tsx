@@ -135,6 +135,7 @@ import {
 import GanttChart from '@/components/lanzamientos/GanttChart';
 import { useRelease, useTracks, useReleaseMilestones, type ReleaseMilestone } from '@/hooks/useReleases';
 import { exportCronogramaPDF } from '@/utils/exportCronogramaPDF';
+import { exportCronogramaGanttPDF } from '@/utils/exportCronogramaGanttPDF';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
