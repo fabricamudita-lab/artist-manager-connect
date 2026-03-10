@@ -62,6 +62,7 @@ interface CronogramaSetupWizardProps {
   tracks?: TrackOption[];
   releaseId?: string;
   onTrackCreated?: (track: TrackOption) => void;
+  releaseType?: 'single' | 'ep' | 'album';
 }
 
 // ── Constants ──
