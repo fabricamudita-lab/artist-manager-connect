@@ -523,8 +523,8 @@ export default function CronogramaSetupWizard({
             </div>
           )}
 
-          {/* ═══════ STEP 2 ═══════ */}
-          {step === 2 && (
+          {/* ═══════ STEP 2 (skipped for singles — goes straight to metadata) ═══════ */}
+          {step === 2 && !isSingle && (
             <div className="space-y-6 py-2">
               {/* Number of Songs */}
               <div className="space-y-2">
