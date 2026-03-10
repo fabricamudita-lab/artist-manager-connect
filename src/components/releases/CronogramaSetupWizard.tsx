@@ -475,13 +475,42 @@ export default function CronogramaSetupWizard({
 
               {/* Toggles */}
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2 cursor-pointer">
-                    <Video className="w-4 h-4 text-pink-500" />
-                    ¿Incluir videoclip?
-                  </Label>
-                  <Switch checked={hasVideo} onCheckedChange={setHasVideo} />
-                </div>
+                {isSingle ? (
+                  /* Single: direct video type picker instead of boolean toggle */
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Video className="w-4 h-4 text-pink-500" />
+                      Tipo de vídeo
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {VIDEO_TYPE_OPTIONS.map((opt) => {
+                        const Icon = opt.icon;
+                        const isSelected = singleVideoType === opt.value;
+                        return (
+                          <Button
+                            key={opt.value}
+                            type="button"
+                            variant={isSelected ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setSingleVideoType(opt.value)}
+                            className="gap-1.5"
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                            {opt.label}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2 cursor-pointer">
+                      <Video className="w-4 h-4 text-pink-500" />
+                      ¿Incluir videoclip?
+                    </Label>
+                    <Switch checked={hasVideo} onCheckedChange={setHasVideo} />
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-2 cursor-pointer">
                     <Package className="w-4 h-4 text-yellow-500" />
