@@ -519,6 +519,11 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
 
   const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
 
+  // Sync external artistId prop
+  useEffect(() => {
+    setFilterArtist(artistId || 'all');
+  }, [artistId]);
+
   useEffect(() => {
     fetchBudgets();
     fetchArtists();
