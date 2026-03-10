@@ -80,6 +80,8 @@ export default function FinanzasHub() {
           <CobrosTab artistId={selectedArtist} />
         ) : activeTab === 'pagos' ? (
           <PagosTab artistId={selectedArtist} />
+        ) : activeTab === 'presupuestos' ? (
+          <Budgets embedded artistId={selectedArtist !== 'all' ? selectedArtist : undefined} />
         ) : activeTab === 'liquidaciones' ? (
           <LiquidacionesTab artistId={selectedArtist} />
         ) : activeTab === 'fiscal' ? (
