@@ -320,6 +320,7 @@ export default function CronogramaSetupWizard({
   tracks = [],
   releaseId,
   onTrackCreated,
+  releaseType,
 }: CronogramaSetupWizardProps) {
   const [step, setStep] = useState(1);
   const TOTAL_STEPS = 3;
