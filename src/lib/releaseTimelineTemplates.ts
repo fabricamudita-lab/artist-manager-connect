@@ -35,6 +35,7 @@ export interface ReleaseConfig {
   priorityPitching?: boolean;
   notes?: string;
   focusTrackId?: string; // Track principal para pitching editorial (albums/EPs)
+  singleVideoType?: VideoType; // For single releases: the video type chosen in step 1
 }
 
 // Industry-standard offsets (days relative to digital release date)
