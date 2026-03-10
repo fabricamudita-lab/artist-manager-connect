@@ -685,8 +685,8 @@ export default function CronogramaSetupWizard({
             </div>
           )}
 
-          {/* ═══════ STEP 3 ═══════ */}
-          {step === 3 && (
+          {/* ═══════ STEP 3 (or STEP 2 for singles) ═══════ */}
+          {((step === 3 && !isSingle) || (step === 2 && isSingle)) && (
             <div className="space-y-5 py-2">
               <p className="text-xs text-muted-foreground">
                 Todos los campos de este paso son opcionales.
