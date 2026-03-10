@@ -158,6 +158,13 @@ const App = () => (
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
+              <Route path="/finanzas/presupuestos" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <FinanzasHub />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
               <Route path="/finanzas/liquidaciones" element={
                 <ProtectedRoute>
                   <DashboardLayout>

@@ -2,19 +2,21 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/useCommon';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArtistFilter } from '@/components/royalties/ArtistFilter';
-import { Calculator, Receipt, CreditCard, FileSpreadsheet, Landmark } from 'lucide-react';
+import { Calculator, Receipt, CreditCard, FileSpreadsheet, Landmark, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import { FinanzasPanelTab } from '@/components/finanzas/FinanzasPanelTab';
 import { CobrosTab } from '@/components/finanzas/CobrosTab';
 import { PagosTab } from '@/components/finanzas/PagosTab';
 import { LiquidacionesTab } from '@/components/finanzas/LiquidacionesTab';
 import { FiscalTab } from '@/components/finanzas/FiscalTab';
+import Budgets from '@/pages/Budgets';
 import { useAutoRealizado } from '@/hooks/useAutoRealizado';
 
 const TABS = [
   { value: 'panel', label: 'Panel', icon: Calculator, path: '/finanzas' },
   { value: 'cobros', label: 'Cobros', icon: Receipt, path: '/finanzas/cobros' },
   { value: 'pagos', label: 'Pagos', icon: CreditCard, path: '/finanzas/pagos' },
+  { value: 'presupuestos', label: 'Presupuestos', icon: Wallet, path: '/finanzas/presupuestos' },
   { value: 'liquidaciones', label: 'Liquidaciones', icon: FileSpreadsheet, path: '/finanzas/liquidaciones' },
   { value: 'fiscal', label: 'Fiscal', icon: Landmark, path: '/finanzas/fiscal' },
 ] as const;
@@ -78,6 +80,8 @@ export default function FinanzasHub() {
           <CobrosTab artistId={selectedArtist} />
         ) : activeTab === 'pagos' ? (
           <PagosTab artistId={selectedArtist} />
+        ) : activeTab === 'presupuestos' ? (
+          <Budgets embedded artistId={selectedArtist !== 'all' ? selectedArtist : undefined} />
         ) : activeTab === 'liquidaciones' ? (
           <LiquidacionesTab artistId={selectedArtist} />
         ) : activeTab === 'fiscal' ? (
