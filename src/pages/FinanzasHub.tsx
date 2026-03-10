@@ -9,6 +9,7 @@ import { CobrosTab } from '@/components/finanzas/CobrosTab';
 import { PagosTab } from '@/components/finanzas/PagosTab';
 import { LiquidacionesTab } from '@/components/finanzas/LiquidacionesTab';
 import { FiscalTab } from '@/components/finanzas/FiscalTab';
+import Budgets from '@/pages/Budgets';
 import { useAutoRealizado } from '@/hooks/useAutoRealizado';
 
 const TABS = [
