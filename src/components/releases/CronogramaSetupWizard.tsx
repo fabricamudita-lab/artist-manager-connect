@@ -330,6 +330,8 @@ export default function CronogramaSetupWizard({
   const [physicalDate, setPhysicalDate] = useState<Date | undefined>(undefined);
   const [hasVideo, setHasVideo] = useState(false);
   const [hasPhysical, setHasPhysical] = useState(false);
+  const [singleVideoType, setSingleVideoType] = useState<VideoType>('none');
+  const [hasPhysical, setHasPhysical] = useState(false);
 
   // Step 2 state
   const [numSongs, setNumSongs] = useState<number>(initialNumSongs);
