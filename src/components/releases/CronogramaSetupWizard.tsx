@@ -322,6 +322,7 @@ export default function CronogramaSetupWizard({
   onTrackCreated,
   releaseType,
 }: CronogramaSetupWizardProps) {
+  const [step, setStep] = useState(1);
   const isSingle = releaseType === 'single';
   const TOTAL_STEPS = isSingle ? 2 : 3;
 
@@ -331,7 +332,6 @@ export default function CronogramaSetupWizard({
   const [hasVideo, setHasVideo] = useState(false);
   const [hasPhysical, setHasPhysical] = useState(false);
   const [singleVideoType, setSingleVideoType] = useState<VideoType>('none');
-  const [hasPhysical, setHasPhysical] = useState(false);
 
   // Step 2 state
   const [numSongs, setNumSongs] = useState<number>(initialNumSongs);
