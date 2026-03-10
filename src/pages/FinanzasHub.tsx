@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/useCommon';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArtistFilter } from '@/components/royalties/ArtistFilter';
-import { Calculator, Receipt, CreditCard, FileSpreadsheet, Landmark } from 'lucide-react';
+import { Calculator, Receipt, CreditCard, FileSpreadsheet, Landmark, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import { FinanzasPanelTab } from '@/components/finanzas/FinanzasPanelTab';
 import { CobrosTab } from '@/components/finanzas/CobrosTab';
