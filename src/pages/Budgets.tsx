@@ -484,7 +484,7 @@ function DuplicateResolverDialog({
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function Budgets({ embedded = false }: { embedded?: boolean }) {
+export default function Budgets({ embedded = false, artistId }: { embedded?: boolean; artistId?: string }) {
   usePageTitle(embedded ? '' : 'Presupuestos');
   const { id } = useParams();
   const navigate = useNavigate();
@@ -493,7 +493,7 @@ export default function Budgets({ embedded = false }: { embedded?: boolean }) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
-  const [filterArtist, setFilterArtist] = useState('all');
+  const [filterArtist, setFilterArtist] = useState(artistId || 'all');
   const [artists, setArtists] = useState<{ id: string; name: string; stage_name?: string }[]>([]);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
 

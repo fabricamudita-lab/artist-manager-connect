@@ -12,7 +12,7 @@ import { EarningsDistribution } from '@/components/royalties/EarningsDistributio
 import { PaymentTracker } from '@/components/royalties/PaymentTracker';
 import { EarningsTrends } from '@/components/royalties/EarningsTrends';
 import { ArtistFilter } from '@/components/royalties/ArtistFilter';
-import { FinanzasPresupuestos } from '@/components/finanzas/FinanzasPresupuestos';
+import Budgets from '@/pages/Budgets';
 import { LiquidacionCalculator } from '@/components/finanzas/LiquidacionCalculator';
 import { FinanzasOverview } from '@/components/finanzas/FinanzasOverview';
 import { FinanzasPanelTab } from '@/components/finanzas/FinanzasPanelTab';
