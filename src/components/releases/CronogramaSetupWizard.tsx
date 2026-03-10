@@ -418,9 +418,11 @@ export default function CronogramaSetupWizard({
             Configurar Cronograma
           </DialogTitle>
           <DialogDescription>
-            {step === 1 && 'Define las fechas clave y el formato de tu lanzamiento.'}
-            {step === 2 && 'Configura las canciones y vincula los singles a tu tracklist.'}
-            {step === 3 && 'Información adicional opcional para personalizar el cronograma.'}
+            {step === 1 && (isSingle
+              ? 'Define las fechas clave y el formato de tu single.'
+              : 'Define las fechas clave y el formato de tu lanzamiento.')}
+            {step === 2 && !isSingle && 'Configura las canciones y vincula los singles a tu tracklist.'}
+            {((step === 2 && isSingle) || step === 3) && 'Información adicional opcional para personalizar el cronograma.'}
           </DialogDescription>
         </DialogHeader>
 
