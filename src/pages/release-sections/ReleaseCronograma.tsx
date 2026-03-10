@@ -2129,6 +2129,7 @@ export default function ReleaseCronograma() {
           tracks={tracks.map(t => ({ id: t.id, title: t.title, track_number: t.track_number, isrc: t.isrc }))}
           releaseId={id}
           onTrackCreated={() => queryClient.invalidateQueries({ queryKey: ['tracks', id] })}
+          releaseType={release?.type as 'single' | 'ep' | 'album' | undefined}
         />
       </div>
     );
