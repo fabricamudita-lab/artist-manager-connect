@@ -107,7 +107,7 @@ export default function Finanzas() {
 
             {/* Presupuestos tab */}
             <TabsContent value="presupuestos" className="space-y-4">
-              <FinanzasPresupuestos />
+              <Budgets embedded artistId={selectedArtist !== 'all' ? selectedArtist : undefined} />
             </TabsContent>
 
             {/* Pagos a Artistas tab */}
