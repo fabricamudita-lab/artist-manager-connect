@@ -322,8 +322,8 @@ export default function CronogramaSetupWizard({
   onTrackCreated,
   releaseType,
 }: CronogramaSetupWizardProps) {
-  const [step, setStep] = useState(1);
-  const TOTAL_STEPS = 3;
+  const isSingle = releaseType === 'single';
+  const TOTAL_STEPS = isSingle ? 2 : 3;
 
   // Step 1 state
   const [releaseDate, setReleaseDate] = useState<Date | undefined>(initialReleaseDate || undefined);
