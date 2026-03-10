@@ -62,6 +62,7 @@ interface CronogramaSetupWizardProps {
   tracks?: TrackOption[];
   releaseId?: string;
   onTrackCreated?: (track: TrackOption) => void;
+  releaseType?: 'single' | 'ep' | 'album';
 }
 
 // ── Constants ──
@@ -319,15 +320,18 @@ export default function CronogramaSetupWizard({
   tracks = [],
   releaseId,
   onTrackCreated,
+  releaseType,
 }: CronogramaSetupWizardProps) {
   const [step, setStep] = useState(1);
-  const TOTAL_STEPS = 3;
+  const isSingle = releaseType === 'single';
+  const TOTAL_STEPS = isSingle ? 2 : 3;
 
   // Step 1 state
   const [releaseDate, setReleaseDate] = useState<Date | undefined>(initialReleaseDate || undefined);
   const [physicalDate, setPhysicalDate] = useState<Date | undefined>(undefined);
   const [hasVideo, setHasVideo] = useState(false);
   const [hasPhysical, setHasPhysical] = useState(false);
+  const [singleVideoType, setSingleVideoType] = useState<VideoType>('none');
 
   // Step 2 state
   const [numSongs, setNumSongs] = useState<number>(initialNumSongs);
@@ -385,17 +389,18 @@ export default function CronogramaSetupWizard({
     const config: ReleaseConfig = {
       releaseDate,
       physicalDate: physicalDate || null,
-      numSongs,
-      numSingles,
-      hasVideo,
+      numSongs: isSingle ? 1 : numSongs,
+      numSingles: isSingle ? 0 : numSingles,
+      hasVideo: isSingle ? singleVideoType !== 'none' : hasVideo,
       hasPhysical,
-      singleDates,
+      singleDates: isSingle ? undefined : singleDates,
       distributor: distributor || undefined,
       label: label || undefined,
       territory: territory.length > 0 ? territory.join(',') : undefined,
       priorityPitching: priorityPitching || undefined,
       notes: notes || undefined,
-      focusTrackId: focusTrackId || undefined,
+      focusTrackId: isSingle ? undefined : (focusTrackId || undefined),
+      singleVideoType: isSingle && singleVideoType !== 'none' ? singleVideoType : undefined,
     };
 
     onGenerate(config);
@@ -413,9 +418,11 @@ export default function CronogramaSetupWizard({
             Configurar Cronograma
           </DialogTitle>
           <DialogDescription>
-            {step === 1 && 'Define las fechas clave y el formato de tu lanzamiento.'}
-            {step === 2 && 'Configura las canciones y vincula los singles a tu tracklist.'}
-            {step === 3 && 'Información adicional opcional para personalizar el cronograma.'}
+            {step === 1 && (isSingle
+              ? 'Define las fechas clave y el formato de tu single.'
+              : 'Define las fechas clave y el formato de tu lanzamiento.')}
+            {step === 2 && !isSingle && 'Configura las canciones y vincula los singles a tu tracklist.'}
+            {((step === 2 && isSingle) || step === 3) && 'Información adicional opcional para personalizar el cronograma.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -471,13 +478,42 @@ export default function CronogramaSetupWizard({
 
               {/* Toggles */}
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2 cursor-pointer">
-                    <Video className="w-4 h-4 text-pink-500" />
-                    ¿Incluir videoclip?
-                  </Label>
-                  <Switch checked={hasVideo} onCheckedChange={setHasVideo} />
-                </div>
+                {isSingle ? (
+                  /* Single: direct video type picker instead of boolean toggle */
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Video className="w-4 h-4 text-pink-500" />
+                      Tipo de vídeo
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {VIDEO_TYPE_OPTIONS.map((opt) => {
+                        const Icon = opt.icon;
+                        const isSelected = singleVideoType === opt.value;
+                        return (
+                          <Button
+                            key={opt.value}
+                            type="button"
+                            variant={isSelected ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setSingleVideoType(opt.value)}
+                            className="gap-1.5"
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                            {opt.label}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2 cursor-pointer">
+                      <Video className="w-4 h-4 text-pink-500" />
+                      ¿Incluir videoclip?
+                    </Label>
+                    <Switch checked={hasVideo} onCheckedChange={setHasVideo} />
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-2 cursor-pointer">
                     <Package className="w-4 h-4 text-yellow-500" />
@@ -489,8 +525,8 @@ export default function CronogramaSetupWizard({
             </div>
           )}
 
-          {/* ═══════ STEP 2 ═══════ */}
-          {step === 2 && (
+          {/* ═══════ STEP 2 (skipped for singles — goes straight to metadata) ═══════ */}
+          {step === 2 && !isSingle && (
             <div className="space-y-6 py-2">
               {/* Number of Songs */}
               <div className="space-y-2">
@@ -649,8 +685,8 @@ export default function CronogramaSetupWizard({
             </div>
           )}
 
-          {/* ═══════ STEP 3 ═══════ */}
-          {step === 3 && (
+          {/* ═══════ STEP 3 (or STEP 2 for singles) ═══════ */}
+          {((step === 3 && !isSingle) || (step === 2 && isSingle)) && (
             <div className="space-y-5 py-2">
               <p className="text-xs text-muted-foreground">
                 Todos los campos de este paso son opcionales.
