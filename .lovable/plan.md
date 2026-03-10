@@ -1,19 +1,28 @@
 
 
-## Replace CityZen logo with MOODITA logo in contract PDFs
+## Adapt Cronograma Wizard for Singles
 
 ### Problem
-The `BookingDocumentsTab` component imports and uses `cityzen-logo.png` when generating contract PDFs. This should use the MOODITA logo instead, matching the brand identity.
+When the release type is `single`, the wizard still asks irrelevant questions:
+- **Step 1**: "¿Incluir videoclip?" toggle (should ask which video type directly, not a boolean)
+- **Step 2**: "Número de canciones" selector (a single is always 1 song), "Singles a lanzar antes del álbum" (irrelevant), Focus Track selector (irrelevant for 1 song)
 
 ### Changes
 
-**File: `src/components/booking-detail/BookingDocumentsTab.tsx`**
-- Replace `import cityzenLogo from "@/assets/cityzen-logo.png"` with `import mooditaLogo from "@/assets/moodita-logo.png"`
-- Update the `pdf.addImage(cityzenLogo, ...)` call to use `mooditaLogo` instead
-- Update the comment referencing "Cityzen logo"
+**File: `src/components/releases/CronogramaSetupWizard.tsx`**
 
-**File: `src/assets/cityzen-logo.png`**
-- Delete this file since it will no longer be referenced anywhere
+1. Add a new prop `releaseType?: 'single' | 'ep' | 'album'`
+2. When `releaseType === 'single'`:
+   - **Step 1**: Replace the boolean "¿Incluir videoclip?" toggle with a direct video type selector (none / videoclip / visualiser / videolyric) using the existing `VIDEO_TYPE_OPTIONS` — store choice in a new `singleVideoType` state
+   - **Step 2**: Hide "Número de canciones" (force `numSongs = 1`), hide "Singles a lanzar antes del álbum", hide "Focus Track"
+   - Step 2 becomes effectively just the track creation/linking UI if tracks exist, or can be skipped entirely
+3. In `handleGenerate`, when single: set `numSongs: 1`, `numSingles: 0`, and pass the video type from step 1 into `hasVideo` + config
 
-### Scope
-This is the only place `cityzen-logo.png` is used. The `ContractGenerator` and `PublicArtistForm` already use `moodita-logo.png` correctly.
+**File: `src/pages/release-sections/ReleaseCronograma.tsx`**
+
+4. Pass `releaseType={release?.type}` to both `<CronogramaSetupWizard>` instances (lines ~2123 and ~2474)
+
+### UX result
+- For singles: Step 1 shows dates + physical toggle + video type picker (not a boolean). Step 2 is simplified or auto-skipped. Step 3 unchanged.
+- For albums/EPs: No change — everything works as before.
+
