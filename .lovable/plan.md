@@ -1,19 +1,23 @@
 
 
-## Replace CityZen logo with MOODITA logo in contract PDFs
+## Restore Full Budget List in Finanzas → Presupuestos Tab
 
 ### Problem
-The `BookingDocumentsTab` component imports and uses `cityzen-logo.png` when generating contract PDFs. This should use the MOODITA logo instead, matching the brand identity.
+The "Presupuestos" tab in Finanzas currently renders `FinanzasPresupuestos` — a simplified budget list with basic search and status filter. The original `Budgets` page has much richer functionality: KPI summary cards, type/artist filtering, inline editing, duplicate detection, capital/cashflow panels, etc.
+
+### Solution
+Replace `<FinanzasPresupuestos />` with `<Budgets embedded />` in the Presupuestos tab. The `Budgets` component already supports an `embedded` prop (skips page title/header), and this pattern is already used in `PagosTab`.
+
+Additionally, pass the selected artist filter down so it respects the global artist filter in Finanzas.
 
 ### Changes
 
-**File: `src/components/booking-detail/BookingDocumentsTab.tsx`**
-- Replace `import cityzenLogo from "@/assets/cityzen-logo.png"` with `import mooditaLogo from "@/assets/moodita-logo.png"`
-- Update the `pdf.addImage(cityzenLogo, ...)` call to use `mooditaLogo` instead
-- Update the comment referencing "Cityzen logo"
+**File: `src/pages/Finanzas.tsx`**
+1. Replace import of `FinanzasPresupuestos` with import of `Budgets` from `@/pages/Budgets`
+2. Replace `<FinanzasPresupuestos />` with `<Budgets embedded />`
 
-**File: `src/assets/cityzen-logo.png`**
-- Delete this file since it will no longer be referenced anywhere
+**File: `src/pages/Budgets.tsx`** (minor)
+1. Accept an optional `artistId` prop alongside `embedded` so the global Finanzas artist filter pre-selects the artist in the budget list
 
-### Scope
-This is the only place `cityzen-logo.png` is used. The `ContractGenerator` and `PublicArtistForm` already use `moodita-logo.png` correctly.
+This is a ~10-line change total and immediately restores the full budget management experience (KPIs, type filters, duplicate detection, inline editing) inside the Finanzas hub.
+
