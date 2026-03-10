@@ -389,17 +389,18 @@ export default function CronogramaSetupWizard({
     const config: ReleaseConfig = {
       releaseDate,
       physicalDate: physicalDate || null,
-      numSongs,
-      numSingles,
-      hasVideo,
+      numSongs: isSingle ? 1 : numSongs,
+      numSingles: isSingle ? 0 : numSingles,
+      hasVideo: isSingle ? singleVideoType !== 'none' : hasVideo,
       hasPhysical,
-      singleDates,
+      singleDates: isSingle ? undefined : singleDates,
       distributor: distributor || undefined,
       label: label || undefined,
       territory: territory.length > 0 ? territory.join(',') : undefined,
       priorityPitching: priorityPitching || undefined,
       notes: notes || undefined,
-      focusTrackId: focusTrackId || undefined,
+      focusTrackId: isSingle ? undefined : (focusTrackId || undefined),
+      singleVideoType: isSingle && singleVideoType !== 'none' ? singleVideoType : undefined,
     };
 
     onGenerate(config);
