@@ -16,7 +16,7 @@ const TABS = [
   { value: 'panel', label: 'Panel', icon: Calculator, path: '/finanzas' },
   { value: 'cobros', label: 'Cobros', icon: Receipt, path: '/finanzas/cobros' },
   { value: 'pagos', label: 'Pagos', icon: CreditCard, path: '/finanzas/pagos' },
-  { value: 'presupuestos', label: 'Presupuestos', icon: FileSpreadsheet, path: '/finanzas/presupuestos' },
+  { value: 'presupuestos', label: 'Presupuestos', icon: Wallet, path: '/finanzas/presupuestos' },
   { value: 'liquidaciones', label: 'Liquidaciones', icon: FileSpreadsheet, path: '/finanzas/liquidaciones' },
   { value: 'fiscal', label: 'Fiscal', icon: Landmark, path: '/finanzas/fiscal' },
 ] as const;
