@@ -75,9 +75,9 @@ export const TIMELINE_TEMPLATES: TimelineTaskTemplate[] = [
 
   // ============ FABRICACIÓN (CONDICIONAL) ============
   // Requiere master + artwork listos → después de mastering (-40) y artwork (-35)
-  { id: 'fab-envio', workflowId: 'fabricacion', name: 'Envío a Fábrica', offsetDays: -35, estimatedDays: 2, condition: 'hasPhysical' },
-  { id: 'fab-test', workflowId: 'fabricacion', name: 'Test Pressing', offsetDays: -33, estimatedDays: 14, condition: 'hasPhysical' },
-  { id: 'fab-recepcion', workflowId: 'fabricacion', name: 'Recepción Stock', offsetDays: -14, estimatedDays: 7, condition: 'hasPhysical' },
+  { id: 'fab-envio', workflowId: 'fabricacion', name: 'Envío a Fábrica', offsetDays: -140, estimatedDays: 2, condition: 'hasPhysical' },
+  { id: 'fab-test', workflowId: 'fabricacion', name: 'Test Pressing', offsetDays: -100, estimatedDays: 14, condition: 'hasPhysical' },
+  { id: 'fab-recepcion', workflowId: 'fabricacion', name: 'Recepción Stock', offsetDays: -21, estimatedDays: 10, condition: 'hasPhysical' },
   { id: 'fab-venta', workflowId: 'marketing', name: 'Venta Física', offsetDays: 7, estimatedDays: 1, condition: 'hasPhysical' },
 ];
 
