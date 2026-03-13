@@ -52,20 +52,20 @@ export const TIMELINE_TEMPLATES: TimelineTaskTemplate[] = [
   { id: 'visual-artwork', workflowId: 'visual', name: 'Artwork Final', offsetDays: -42, estimatedDays: 7, condition: 'always' },
   
   // ============ CONTENIDO PROMOCIONAL ============
-  { id: 'cont-making', workflowId: 'contenido', name: 'Making Of', offsetDays: -21, estimatedDays: 7, condition: 'always' },
-  { id: 'cont-clips', workflowId: 'contenido', name: 'Clips para Redes', offsetDays: -14, estimatedDays: 5, condition: 'always' },
-  { id: 'cont-visualizers', workflowId: 'contenido', name: 'Visualizers', offsetDays: -7, estimatedDays: 5, condition: 'always' },
+  { id: 'cont-making', workflowId: 'contenido', name: 'Making Of', offsetDays: -65, estimatedDays: 7, condition: 'always' },
+  { id: 'cont-clips', workflowId: 'contenido', name: 'Clips para Redes', offsetDays: -57, estimatedDays: 7, condition: 'always' },
+  { id: 'cont-visualizers', workflowId: 'contenido', name: 'Visualizers', offsetDays: -47, estimatedDays: 13, condition: 'always' },
   
   // Videoclip (condicional)
-  { id: 'cont-videoclip-pre', workflowId: 'contenido', name: 'Pre-producción Videoclip', offsetDays: -60, estimatedDays: 7, condition: 'hasVideo' },
-  { id: 'cont-videoclip-rodaje', workflowId: 'contenido', name: 'Rodaje Videoclip', offsetDays: -45, estimatedDays: 3, condition: 'hasVideo' },
-  { id: 'cont-videoclip-edicion', workflowId: 'contenido', name: 'Edición Videoclip', offsetDays: -30, estimatedDays: 14, condition: 'hasVideo' },
-  { id: 'cont-videoclip-final', workflowId: 'contenido', name: 'Videoclip Entregado', offsetDays: -14, estimatedDays: 2, condition: 'hasVideo' },
+  { id: 'cont-videoclip-pre', workflowId: 'contenido', name: 'Pre-producción Videoclip', offsetDays: -118, estimatedDays: 11, condition: 'hasVideo' },
+  { id: 'cont-videoclip-rodaje', workflowId: 'contenido', name: 'Rodaje Videoclip', offsetDays: -108, estimatedDays: 3, condition: 'hasVideo' },
+  { id: 'cont-videoclip-edicion', workflowId: 'contenido', name: 'Edición Videoclip', offsetDays: -84, estimatedDays: 24, condition: 'hasVideo' },
+  { id: 'cont-videoclip-final', workflowId: 'contenido', name: 'Videoclip Entregado', offsetDays: -50, estimatedDays: 2, condition: 'hasVideo' },
 
   // ============ MARKETING (WATERFALL) ============
-  { id: 'mkt-entrega-dist', workflowId: 'marketing', name: 'Entrega a Distribuidora', offsetDays: -28, estimatedDays: 1, condition: 'always' },
-  { id: 'mkt-presave', workflowId: 'marketing', name: 'Pre-save Activo', offsetDays: -28, estimatedDays: 1, condition: 'always' },
-  { id: 'mkt-focus', workflowId: 'marketing', name: 'Focus Track / Pitch Editorial', offsetDays: -28, estimatedDays: 1, condition: 'always' },
+  { id: 'mkt-entrega-dist', workflowId: 'marketing', name: 'Entrega a Distribuidora', offsetDays: -57, estimatedDays: 2, condition: 'always' },
+  { id: 'mkt-presave', workflowId: 'marketing', name: 'Pre-save Activo', offsetDays: -50, estimatedDays: 2, condition: 'always' },
+  { id: 'mkt-focus', workflowId: 'marketing', name: 'Focus Track / Pitch Editorial', offsetDays: -55, estimatedDays: 2, condition: 'always' },
   { id: 'mkt-salida', workflowId: 'marketing', name: 'Salida Digital', offsetDays: 0, estimatedDays: 1, condition: 'always' },
   
   // Singles (condicionales, espaciados dinámicamente)
@@ -75,9 +75,9 @@ export const TIMELINE_TEMPLATES: TimelineTaskTemplate[] = [
 
   // ============ FABRICACIÓN (CONDICIONAL) ============
   // Requiere master + artwork listos → después de mastering (-40) y artwork (-35)
-  { id: 'fab-envio', workflowId: 'fabricacion', name: 'Envío a Fábrica', offsetDays: -35, estimatedDays: 2, condition: 'hasPhysical' },
-  { id: 'fab-test', workflowId: 'fabricacion', name: 'Test Pressing', offsetDays: -33, estimatedDays: 14, condition: 'hasPhysical' },
-  { id: 'fab-recepcion', workflowId: 'fabricacion', name: 'Recepción Stock', offsetDays: -14, estimatedDays: 7, condition: 'hasPhysical' },
+  { id: 'fab-envio', workflowId: 'fabricacion', name: 'Envío a Fábrica', offsetDays: -140, estimatedDays: 2, condition: 'hasPhysical' },
+  { id: 'fab-test', workflowId: 'fabricacion', name: 'Test Pressing', offsetDays: -100, estimatedDays: 14, condition: 'hasPhysical' },
+  { id: 'fab-recepcion', workflowId: 'fabricacion', name: 'Recepción Stock', offsetDays: -21, estimatedDays: 10, condition: 'hasPhysical' },
   { id: 'fab-venta', workflowId: 'marketing', name: 'Venta Física', offsetDays: 7, estimatedDays: 1, condition: 'hasPhysical' },
 ];
 
