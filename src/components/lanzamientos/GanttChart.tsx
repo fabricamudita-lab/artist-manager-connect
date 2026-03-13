@@ -697,12 +697,6 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
             />
           ) : null
         ))}
-        {todayPosition !== null && (
-          <div
-            className="absolute top-0 h-full w-0.5 bg-red-500/30 z-0"
-            style={{ left: `${todayPosition}%` }}
-          />
-        )}
       </div>
       <div className="space-y-6 relative z-[1]">
         {workflows.map(workflow => {
