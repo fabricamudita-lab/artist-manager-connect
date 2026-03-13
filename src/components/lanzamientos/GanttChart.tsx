@@ -686,7 +686,25 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
 
       {/* Workflows + dependency lines overlay */}
       <div style={{ position: 'relative' }} ref={ganttContainerRef}>
-      <div className="space-y-6">
+      {/* Vertical month grid lines */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        {months.map((month, idx) => (
+          idx > 0 ? (
+            <div
+              key={`grid-${idx}`}
+              className="absolute top-0 h-full border-l border-border/20"
+              style={{ left: `${month.startPercent}%` }}
+            />
+          ) : null
+        ))}
+        {todayPosition !== null && (
+          <div
+            className="absolute top-0 h-full w-0.5 bg-red-500/30 z-0"
+            style={{ left: `${todayPosition}%` }}
+          />
+        )}
+      </div>
+      <div className="space-y-6 relative z-[1]">
         {workflows.map(workflow => {
           const workflowTasks = tasksWithDates.filter(t => t.workflowId === workflow.id);
           if (workflowTasks.length === 0) return null;
