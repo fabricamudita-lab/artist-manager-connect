@@ -63,9 +63,9 @@ export const TIMELINE_TEMPLATES: TimelineTaskTemplate[] = [
   { id: 'cont-videoclip-final', workflowId: 'contenido', name: 'Videoclip Entregado', offsetDays: -50, estimatedDays: 2, condition: 'hasVideo' },
 
   // ============ MARKETING (WATERFALL) ============
-  { id: 'mkt-entrega-dist', workflowId: 'marketing', name: 'Entrega a Distribuidora', offsetDays: -28, estimatedDays: 1, condition: 'always' },
-  { id: 'mkt-presave', workflowId: 'marketing', name: 'Pre-save Activo', offsetDays: -28, estimatedDays: 1, condition: 'always' },
-  { id: 'mkt-focus', workflowId: 'marketing', name: 'Focus Track / Pitch Editorial', offsetDays: -28, estimatedDays: 1, condition: 'always' },
+  { id: 'mkt-entrega-dist', workflowId: 'marketing', name: 'Entrega a Distribuidora', offsetDays: -57, estimatedDays: 2, condition: 'always' },
+  { id: 'mkt-presave', workflowId: 'marketing', name: 'Pre-save Activo', offsetDays: -50, estimatedDays: 2, condition: 'always' },
+  { id: 'mkt-focus', workflowId: 'marketing', name: 'Focus Track / Pitch Editorial', offsetDays: -55, estimatedDays: 2, condition: 'always' },
   { id: 'mkt-salida', workflowId: 'marketing', name: 'Salida Digital', offsetDays: 0, estimatedDays: 1, condition: 'always' },
   
   // Singles (condicionales, espaciados dinámicamente)
