@@ -656,21 +656,31 @@ export default function GanttChart({ workflows, onUpdateTaskDate, onSetAnchor, o
       <div className={cn(!fitToView && 'overflow-x-auto')}>
       <div style={{ minWidth: ganttMinWidth ? `${ganttMinWidth}px` : undefined }}>
       {/* Timeline Header */}
-      <div className={cn("relative bg-muted/30 rounded-lg overflow-hidden", fitToView ? "h-7" : "h-10")}>
+      <div className={cn("relative rounded-lg overflow-hidden border-b border-border", fitToView ? "h-7" : "h-10")}>
         {months.map((month, idx) => (
           <div
             key={idx}
-            className="absolute top-0 h-full flex items-center justify-center border-r border-border/50 text-xs font-medium text-muted-foreground capitalize"
+            className={cn(
+              "absolute top-0 h-full flex items-center justify-center border-r border-border text-xs font-semibold text-muted-foreground uppercase tracking-wide",
+              idx % 2 === 0 ? "bg-muted/20" : "bg-muted/40"
+            )}
             style={{ left: `${month.startPercent}%`, width: `${month.widthPercent}%` }}
           >
-            {month.widthPercent > 8 && month.label}
+            {month.widthPercent > 5 ? (
+              <span className="truncate px-1">
+                {month.widthPercent > 10 ? month.label : month.label.substring(0, 3)}
+              </span>
+            ) : null}
           </div>
         ))}
         {todayPosition !== null && (
           <div 
-            className="absolute top-0 h-full w-0.5 bg-red-500 z-10"
+            className="absolute top-0 h-full z-10 flex flex-col items-center"
             style={{ left: `${todayPosition}%` }}
-          />
+          >
+            <span className="text-[9px] font-semibold text-red-500 -translate-x-1/2 leading-none mt-0.5">Hoy</span>
+            <div className="w-0.5 flex-1 bg-red-500" />
+          </div>
         )}
       </div>
 
