@@ -659,9 +659,20 @@ export default function ArtistProfile() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{release.title}</p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Badge variant="outline" className="text-xs">
                             {release.type === 'album' ? 'Álbum' : release.type === 'ep' ? 'EP' : 'Single'}
+                          </Badge>
+                          <Badge className={`text-xs ${
+                            release.status === 'released' ? 'bg-green-500/20 text-green-600' :
+                            release.status === 'in_progress' ? 'bg-blue-500/20 text-blue-600' :
+                            release.status === 'archived' ? 'bg-gray-500/20 text-gray-500' :
+                            'bg-muted text-muted-foreground'
+                          }`}>
+                            {release.status === 'planning' ? 'Planificando' :
+                             release.status === 'in_progress' ? 'En Progreso' :
+                             release.status === 'released' ? 'Publicado' :
+                             release.status === 'archived' ? 'Archivado' : release.status}
                           </Badge>
                           {release.release_date && (
                             <span className="text-xs text-muted-foreground">
