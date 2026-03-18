@@ -44,6 +44,7 @@ export default function Releases() {
   const [filters, setFilters] = useState<ReleasesFiltersState>({
     search: '',
     status: 'all',
+    type: 'all',
     artistId: artistIdFromUrl || 'all',
     startDate: undefined,
     endDate: undefined,

@@ -89,6 +89,7 @@ export function ReleasesFiltersToolbar({ filters, onFiltersChange }: ReleasesFil
     onFiltersChange({
       search: '',
       status: 'all',
+      type: 'all',
       artistId: 'all',
       startDate: undefined,
       endDate: undefined,
