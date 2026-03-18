@@ -50,6 +50,13 @@ const STATUS_OPTIONS = [
   { value: 'archived', label: 'Archivado' },
 ];
 
+const TYPE_OPTIONS = [
+  { value: 'all', label: 'Todos los tipos' },
+  { value: 'album', label: 'Álbum' },
+  { value: 'ep', label: 'EP' },
+  { value: 'single', label: 'Single' },
+];
+
 const BUDGET_OPTIONS = [
   { value: 'all', label: 'Todos' },
   { value: 'with', label: 'Con presupuesto' },
