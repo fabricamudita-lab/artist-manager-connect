@@ -24,6 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface ReleasesFiltersState {
   search: string;
   status: string;
+  type: string;
   artistId: string;
   startDate: Date | undefined;
   endDate: Date | undefined;
