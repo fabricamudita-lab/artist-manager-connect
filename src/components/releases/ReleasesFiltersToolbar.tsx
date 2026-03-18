@@ -100,6 +100,7 @@ export function ReleasesFiltersToolbar({ filters, onFiltersChange }: ReleasesFil
   const activeFilterCount = [
     filters.search,
     filters.status !== 'all' ? filters.status : null,
+    filters.type !== 'all' ? filters.type : null,
     filters.artistId !== 'all' ? filters.artistId : null,
     filters.startDate,
     filters.endDate,
