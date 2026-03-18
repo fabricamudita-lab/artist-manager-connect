@@ -24,6 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface ReleasesFiltersState {
   search: string;
   status: string;
+  type: string;
   artistId: string;
   startDate: Date | undefined;
   endDate: Date | undefined;
@@ -47,6 +48,13 @@ const STATUS_OPTIONS = [
   { value: 'in_progress', label: 'En Progreso' },
   { value: 'released', label: 'Publicado' },
   { value: 'archived', label: 'Archivado' },
+];
+
+const TYPE_OPTIONS = [
+  { value: 'all', label: 'Todos los tipos' },
+  { value: 'album', label: 'Álbum' },
+  { value: 'ep', label: 'EP' },
+  { value: 'single', label: 'Single' },
 ];
 
 const BUDGET_OPTIONS = [
@@ -81,6 +89,7 @@ export function ReleasesFiltersToolbar({ filters, onFiltersChange }: ReleasesFil
     onFiltersChange({
       search: '',
       status: 'all',
+      type: 'all',
       artistId: 'all',
       startDate: undefined,
       endDate: undefined,
@@ -91,6 +100,7 @@ export function ReleasesFiltersToolbar({ filters, onFiltersChange }: ReleasesFil
   const activeFilterCount = [
     filters.search,
     filters.status !== 'all' ? filters.status : null,
+    filters.type !== 'all' ? filters.type : null,
     filters.artistId !== 'all' ? filters.artistId : null,
     filters.startDate,
     filters.endDate,
@@ -128,7 +138,23 @@ export function ReleasesFiltersToolbar({ filters, onFiltersChange }: ReleasesFil
           </SelectContent>
         </Select>
 
-        {/* Artist */}
+        {/* Type */}
+        <Select
+          value={filters.type}
+          onValueChange={(value) => updateFilter('type', value)}
+        >
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            {TYPE_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Select
           value={filters.artistId}
           onValueChange={(value) => updateFilter('artistId', value)}
@@ -259,6 +285,12 @@ export function ReleasesFiltersToolbar({ filters, onFiltersChange }: ReleasesFil
             <Badge variant="secondary" className="gap-1">
               Estado: {STATUS_OPTIONS.find(s => s.value === filters.status)?.label}
               <X className="h-3 w-3 cursor-pointer" onClick={() => updateFilter('status', 'all')} />
+            </Badge>
+          )}
+          {filters.type !== 'all' && (
+            <Badge variant="secondary" className="gap-1">
+              Tipo: {TYPE_OPTIONS.find(t => t.value === filters.type)?.label}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => updateFilter('type', 'all')} />
             </Badge>
           )}
           {filters.artistId !== 'all' && (

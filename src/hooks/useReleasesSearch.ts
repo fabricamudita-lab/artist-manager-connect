@@ -27,6 +27,11 @@ export function useReleasesWithSearch(filters: ReleasesFiltersState) {
         query = query.eq('artist_id', filters.artistId);
       }
 
+      // Apply type filter
+      if (filters.type && filters.type !== 'all') {
+        query = query.eq('type', filters.type);
+      }
+
       // Apply date range
       if (filters.startDate) {
         query = query.gte('release_date', filters.startDate.toISOString().split('T')[0]);
