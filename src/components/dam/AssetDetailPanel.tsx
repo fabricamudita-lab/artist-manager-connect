@@ -45,7 +45,21 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
   const [saving, setSaving] = useState(false);
   const [detectedDims, setDetectedDims] = useState<{ resolution: string; formatSpec: string } | null>(null);
 
+  // Reset form when switching assets
   useEffect(() => {
+    setForm({
+      title: asset.title,
+      description: asset.description || '',
+      sub_type: asset.sub_type || '',
+      status: asset.status || 'en_produccion',
+      format_spec: asset.format_spec || '',
+      resolution: asset.resolution || '',
+      platform_tags: asset.platform_tags || [],
+      delivery_date: asset.delivery_date || '',
+      external_url: asset.external_url || '',
+    });
+    setEditing(false);
+    setDetectedDims(null);
     fetchComments();
   }, [asset.id]);
 
