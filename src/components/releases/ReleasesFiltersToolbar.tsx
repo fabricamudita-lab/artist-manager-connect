@@ -138,7 +138,23 @@ export function ReleasesFiltersToolbar({ filters, onFiltersChange }: ReleasesFil
           </SelectContent>
         </Select>
 
-        {/* Artist */}
+        {/* Type */}
+        <Select
+          value={filters.type}
+          onValueChange={(value) => updateFilter('type', value)}
+        >
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            {TYPE_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Select
           value={filters.artistId}
           onValueChange={(value) => updateFilter('artistId', value)}
