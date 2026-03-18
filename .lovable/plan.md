@@ -1,19 +1,35 @@
 
 
-## Replace CityZen logo with MOODITA logo in contract PDFs
+## Fix: Asset Detail Panel Not Updating When Selecting Different Assets
 
 ### Problem
-The `BookingDocumentsTab` component imports and uses `cityzen-logo.png` when generating contract PDFs. This should use the MOODITA logo instead, matching the brand identity.
+When clicking different assets in the DAM view, the preview image changes but metadata fields (title, description, type, status) remain from the previously selected asset. This happens because `useState` only uses its initial value — it doesn't re-run when the `asset` prop changes.
 
-### Changes
+### Fix
 
-**File: `src/components/booking-detail/BookingDocumentsTab.tsx`**
-- Replace `import cityzenLogo from "@/assets/cityzen-logo.png"` with `import mooditaLogo from "@/assets/moodita-logo.png"`
-- Update the `pdf.addImage(cityzenLogo, ...)` call to use `mooditaLogo` instead
-- Update the comment referencing "Cityzen logo"
+**File: `src/components/dam/AssetDetailPanel.tsx`**
 
-**File: `src/assets/cityzen-logo.png`**
-- Delete this file since it will no longer be referenced anywhere
+Add a `useEffect` that resets the form state whenever `asset.id` changes:
 
-### Scope
-This is the only place `cityzen-logo.png` is used. The `ContractGenerator` and `PublicArtistForm` already use `moodita-logo.png` correctly.
+```typescript
+useEffect(() => {
+  setForm({
+    title: asset.title,
+    description: asset.description || '',
+    sub_type: asset.sub_type || '',
+    status: asset.status || 'en_produccion',
+    format_spec: asset.format_spec || '',
+    resolution: asset.resolution || '',
+    platform_tags: asset.platform_tags || [],
+    delivery_date: asset.delivery_date || '',
+    external_url: asset.external_url || '',
+  });
+  setEditing(false);
+  setDetectedDims(null);
+}, [asset.id]);
+```
+
+This ensures that every time the user clicks a different asset, all metadata fields refresh to match the newly selected asset. It also exits edit mode and clears stale auto-detected dimensions.
+
+Single file change, ~8 lines added.
+
