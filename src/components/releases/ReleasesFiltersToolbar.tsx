@@ -287,6 +287,12 @@ export function ReleasesFiltersToolbar({ filters, onFiltersChange }: ReleasesFil
               <X className="h-3 w-3 cursor-pointer" onClick={() => updateFilter('status', 'all')} />
             </Badge>
           )}
+          {filters.type !== 'all' && (
+            <Badge variant="secondary" className="gap-1">
+              Tipo: {TYPE_OPTIONS.find(t => t.value === filters.type)?.label}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => updateFilter('type', 'all')} />
+            </Badge>
+          )}
           {filters.artistId !== 'all' && (
             <Badge variant="secondary" className="gap-1">
               Artista: {artists.find(a => a.id === filters.artistId)?.name}
