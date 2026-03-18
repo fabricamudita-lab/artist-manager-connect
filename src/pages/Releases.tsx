@@ -169,16 +169,16 @@ export default function Releases() {
         <Card className="p-12 text-center">
           <Disc3 className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
           <h3 className="text-lg font-semibold mb-2">
-            {filters.search || filters.status !== 'all' || filters.artistId !== 'all' 
+            {filters.search || filters.status !== 'all' || filters.type !== 'all' || filters.artistId !== 'all' 
               ? 'Sin resultados' 
               : 'Sin lanzamientos'}
           </h3>
           <p className="text-muted-foreground mb-4">
-            {filters.search || filters.status !== 'all' || filters.artistId !== 'all'
+            {filters.search || filters.status !== 'all' || filters.type !== 'all' || filters.artistId !== 'all'
               ? 'No se encontraron lanzamientos con los filtros aplicados'
               : 'Crea tu primer álbum, EP o single'}
           </p>
-          {!(filters.search || filters.status !== 'all' || filters.artistId !== 'all') && (
+          {!(filters.search || filters.status !== 'all' || filters.type !== 'all' || filters.artistId !== 'all') && (
             <Button onClick={() => setCreateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Nuevo Lanzamiento
