@@ -1,19 +1,27 @@
 
 
-## Replace CityZen logo with MOODITA logo in contract PDFs
+## Show Track Name in Publishing/Master Splits (Presupuestos)
 
 ### Problem
-The `BookingDocumentsTab` component imports and uses `cityzen-logo.png` when generating contract PDFs. This should use the MOODITA logo instead, matching the brand identity.
+In the Presupuestos tab, the "Derechos de Autor" and "Royalties Master" collapsible sections all show the same generic label regardless of which track they belong to. Since each track renders its own `TrackRightsSplitsManager`, the track name should be visible.
 
-### Changes
+### Fix
 
-**File: `src/components/booking-detail/BookingDocumentsTab.tsx`**
-- Replace `import cityzenLogo from "@/assets/cityzen-logo.png"` with `import mooditaLogo from "@/assets/moodita-logo.png"`
-- Update the `pdf.addImage(cityzenLogo, ...)` call to use `mooditaLogo` instead
-- Update the comment referencing "Cityzen logo"
+**File: `src/components/releases/TrackRightsSplitsManager.tsx`** (1 line change)
 
-**File: `src/assets/cityzen-logo.png`**
-- Delete this file since it will no longer be referenced anywhere
+Update line 129 to include `track.title`:
 
-### Scope
-This is the only place `cityzen-logo.png` is used. The `ContractGenerator` and `PublicArtistForm` already use `moodita-logo.png` correctly.
+```
+// Before
+{type === 'publishing' ? 'Derechos de Autor' : 'Royalties Master'}
+
+// After  
+{track.title} — {type === 'publishing' ? 'Derechos de Autor' : 'Royalties Master'}
+```
+
+This will display e.g. "Amor Constante — Derechos de Autor" and "Capullito — Royalties Master" instead of the current repeated generic labels.
+
+### Impact
+- Single line change, no new dependencies
+- Affects all views that use this component (Presupuestos tab, Audio tab credits panel)
+
