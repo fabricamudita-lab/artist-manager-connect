@@ -17,7 +17,6 @@ import {
   CommandSeparator,
 } from '@/components/ui/command';
 import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import type { CreditCategory } from '@/lib/creditRoles';
 
 interface AddCreditWithProfileFormProps {
@@ -171,8 +170,7 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
           ) : (
             <Command className="rounded-lg border">
               <CommandInput placeholder="Buscar artistas, equipo o contactos..." />
-              <CommandList>
-                <ScrollArea className="h-[200px]" onWheel={(e) => e.stopPropagation()}>
+              <CommandList className="max-h-[250px]">
                   <CommandEmpty>No se encontraron perfiles.</CommandEmpty>
                   
                   {/* Artistas del Roster */}
@@ -186,6 +184,7 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
                       {artists.map((artist) => (
                         <CommandItem
                           key={`artist-${artist.id}`}
+                          value={`artist-${artist.id}-${getDisplayName(artist)}`}
                           onSelect={() => handleSelectProfile(artist.id, getDisplayName(artist), 'artist')}
                           className="cursor-pointer"
                         >
@@ -218,6 +217,7 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
                         {artistTeam.map((contact) => (
                           <CommandItem
                             key={`team-${contact.id}`}
+                            value={`team-${contact.id}-${getDisplayName(contact)}`}
                             onSelect={() => handleSelectProfile(contact.id, getDisplayName(contact), 'contact')}
                             className="cursor-pointer"
                           >
@@ -249,6 +249,7 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
                       {teamContacts.slice(0, 10).map((contact) => (
                         <CommandItem
                           key={`teamgeneral-${contact.id}`}
+                          value={`teamgeneral-${contact.id}-${getDisplayName(contact)}`}
                           onSelect={() => handleSelectProfile(contact.id, getDisplayName(contact), 'contact')}
                           className="cursor-pointer"
                         >
@@ -277,6 +278,7 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
                       {otherContacts.slice(0, 10).map((contact) => (
                         <CommandItem
                           key={`agenda-${contact.id}`}
+                          value={`agenda-${contact.id}-${getDisplayName(contact)}`}
                           onSelect={() => handleSelectProfile(contact.id, getDisplayName(contact), 'contact')}
                           className="cursor-pointer"
                         >
@@ -291,7 +293,6 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
                       ))}
                     </CommandGroup>
                   )}
-                </ScrollArea>
               </CommandList>
             </Command>
           )}
