@@ -293,7 +293,6 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
                       ))}
                     </CommandGroup>
                   )}
-                </ScrollArea>
               </CommandList>
             </Command>
           )}
