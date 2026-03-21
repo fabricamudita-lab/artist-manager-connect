@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, Link2, FileDown, Loader2, Star, Disc3, Video, Sparkles, Captions, ArrowUpDown } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -511,20 +512,33 @@ function TrackCreditsItem({
             <span className="text-muted-foreground w-6">{track.track_number}.</span>
             <span className="font-medium">{track.title}</span>
             {track.isrc && (
-              <span className="text-xs text-muted-foreground ml-2 inline-flex items-center gap-1">
-                ISRC:
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigator.clipboard.writeText(track.isrc!).then(() => {
-                      toast.success('ISRC copiado al portapapeles');
-                    });
-                  }}
-                  className="hover:text-foreground cursor-pointer transition-colors underline-offset-2 hover:underline"
-                >
-                  {track.isrc}
-                </button>
-              </span>
+              <Popover>
+                <span className="text-xs text-muted-foreground ml-2 inline-flex items-center gap-1">
+                  ISRC:
+                  <PopoverTrigger asChild>
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      className="hover:text-foreground cursor-pointer transition-colors underline-offset-2 hover:underline"
+                    >
+                      {track.isrc}
+                    </button>
+                  </PopoverTrigger>
+                </span>
+                <PopoverContent className="w-auto p-1" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(track.isrc!).then(() => {
+                        toast.success('ISRC copiado al portapapeles');
+                      });
+                    }}
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copiar ISRC
+                  </Button>
+                </PopoverContent>
+              </Popover>
             )}
             <div className="flex gap-1 ml-auto mr-4">
               {track.is_focus_track && (
