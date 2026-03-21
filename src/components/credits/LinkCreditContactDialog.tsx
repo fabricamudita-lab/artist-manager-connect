@@ -233,7 +233,7 @@ export function LinkCreditContactDialog({ credit, onLinked }: LinkCreditContactD
                   {teamContacts.map((contact) => (
                     <CommandItem
                       key={`team-${contact.id}`}
-                      onSelect={() => linkContact.mutate({ 
+                      onSelect={() => linkToContact.mutate({ 
                         contactId: contact.id, 
                         contactName: getDisplayName(contact)
                       })}
