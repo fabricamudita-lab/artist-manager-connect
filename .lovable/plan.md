@@ -1,32 +1,41 @@
 
 
-## Add "ISRC" Label and Copy-on-Click
+## Show "Copy ISRC" Option on Click (Instead of Auto-Copy)
 
-### Changes
+### Change
 
-**File: `src/pages/release-sections/ReleaseCreditos.tsx`** — Line 513
+**File: `src/pages/release-sections/ReleaseCreditos.tsx`** — Lines 513-528
 
-1. Add "ISRC:" label before the code
-2. Wrap the ISRC value in a clickable element that copies to clipboard using `copyToClipboard` from `exportUtils` and shows a toast
+Replace the current button (which copies immediately on click) with a Popover that shows a "Copiar ISRC" option when clicking the ISRC code. The copy only happens when the user clicks that option.
 
-Current:
-```tsx
-{track.isrc && <span className="text-xs text-muted-foreground ml-2">{track.isrc}</span>}
-```
+**Implementation:**
+- Import `Popover`, `PopoverTrigger`, `PopoverContent` from shadcn
+- Import `Copy` icon from lucide-react
+- Wrap the ISRC display in a Popover:
+  - **Trigger**: clicking the ISRC code opens the popover
+  - **Content**: a small button showing `Copy` icon + "Copiar ISRC" text
+  - Clicking "Copiar ISRC" copies to clipboard, shows toast, and closes popover
 
-New:
 ```tsx
 {track.isrc && (
-  <span className="text-xs text-muted-foreground ml-2 flex items-center gap-1">
-    ISRC:
-    <button onClick={(e) => { e.stopPropagation(); copyAndToast(track.isrc); }}
-      className="hover:text-foreground cursor-pointer transition-colors">
-      {track.isrc}
-    </button>
-  </span>
+  <Popover>
+    <span className="text-xs text-muted-foreground ml-2 inline-flex items-center gap-1">
+      ISRC:
+      <PopoverTrigger asChild>
+        <button onClick={(e) => e.stopPropagation()}
+          className="hover:text-foreground cursor-pointer transition-colors">
+          {track.isrc}
+        </button>
+      </PopoverTrigger>
+    </span>
+    <PopoverContent className="w-auto p-2" onClick={(e) => e.stopPropagation()}>
+      <Button variant="ghost" size="sm" onClick={() => { copy & toast }}>
+        <Copy className="h-3 w-3 mr-1" /> Copiar ISRC
+      </Button>
+    </PopoverContent>
+  </Popover>
 )}
 ```
 
-- Import `copyToClipboard` and `toast`, add a small helper `copyAndToast` that copies + shows "ISRC copiado"
-- `e.stopPropagation()` prevents the accordion from toggling when clicking the ISRC
+- 1 file modified, ~15 lines changed
 
