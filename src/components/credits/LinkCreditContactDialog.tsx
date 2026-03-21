@@ -67,12 +67,13 @@ export function LinkCreditContactDialog({ credit, onLinked }: LinkCreditContactD
     },
   });
 
-  const linkContact = useMutation({
+  const linkToContact = useMutation({
     mutationFn: async ({ contactId, contactName }: { contactId: string; contactName: string }) => {
       const { error } = await supabase
         .from('track_credits')
         .update({ 
           contact_id: contactId,
+          artist_id: null,
           name: contactName
         })
         .eq('id', credit.id);
@@ -80,7 +81,30 @@ export function LinkCreditContactDialog({ credit, onLinked }: LinkCreditContactD
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['track-credits'] });
-      toast.success('Crédito vinculado al perfil');
+      toast.success('Crédito vinculado al contacto');
+      setOpen(false);
+      onLinked?.();
+    },
+    onError: (error) => {
+      toast.error('Error al vincular: ' + error.message);
+    },
+  });
+
+  const linkToArtist = useMutation({
+    mutationFn: async ({ artistId, artistName }: { artistId: string; artistName: string }) => {
+      const { error } = await supabase
+        .from('track_credits')
+        .update({ 
+          artist_id: artistId,
+          contact_id: null,
+          name: artistName
+        })
+        .eq('id', credit.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['track-credits'] });
+      toast.success('Crédito vinculado al artista');
       setOpen(false);
       onLinked?.();
     },
