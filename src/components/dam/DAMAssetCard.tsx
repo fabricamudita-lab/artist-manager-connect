@@ -36,7 +36,14 @@ export default function DAMAssetCard({ asset, onSelect, onDelete, viewMode }: DA
           {isImage && asset.file_url ? (
             <img src={asset.file_url} alt={asset.title} className="w-full h-full object-cover" />
           ) : isVideo ? (
-            <div className="w-full h-full flex items-center justify-center"><Video className="h-5 w-5 text-muted-foreground" /></div>
+            videoThumb ? (
+              <div className="w-full h-full relative">
+                <img src={videoThumb} alt={asset.title} className="w-full h-full object-cover" />
+                <Play className="absolute inset-0 m-auto h-4 w-4 text-white drop-shadow" />
+              </div>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center"><Video className="h-5 w-5 text-muted-foreground" /></div>
+            )
           ) : (
             <div className="w-full h-full flex items-center justify-center"><FileText className="h-5 w-5 text-muted-foreground" /></div>
           )}
