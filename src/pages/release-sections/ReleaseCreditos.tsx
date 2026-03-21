@@ -510,6 +510,7 @@ function TrackCreditsItem({
           <div className="flex items-center gap-3 flex-1">
             <span className="text-muted-foreground w-6">{track.track_number}.</span>
             <span className="font-medium">{track.title}</span>
+            {track.isrc && <span className="text-xs text-muted-foreground ml-2">{track.isrc}</span>}
             <div className="flex gap-1 ml-auto mr-4">
               {track.is_focus_track && (
                 <Badge variant="default" className="text-xs bg-primary/80">
@@ -548,13 +549,11 @@ function TrackCreditsItem({
         <div className="pl-9 space-y-4">
           {/* Track Actions */}
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onEdit}>
-              <Pencil className="w-3 h-3 mr-1" />
-              Editar Canción
+            <Button variant="ghost" size="icon" onClick={onEdit} className="h-8 w-8">
+              <Pencil className="w-4 h-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={onDelete}>
-              <Trash2 className="w-3 h-3 mr-1" />
-              Eliminar
+            <Button variant="ghost" size="icon" onClick={onDelete} className="h-8 w-8 text-destructive">
+              <Trash2 className="w-4 h-4" />
             </Button>
           </div>
 
