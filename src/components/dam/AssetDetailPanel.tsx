@@ -188,16 +188,28 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
             {isImage ? (
               <img src={asset.file_url} alt={asset.title} className="w-full max-h-64 object-contain" />
             ) : isVideo ? (
-              asset.external_url ? (
-                <div className="flex flex-col items-center justify-center py-8 gap-2">
-                  <Video className="h-10 w-10 text-muted-foreground" />
-                  <a href={asset.external_url} target="_blank" rel="noreferrer" className="text-xs text-primary flex items-center gap-1">
-                    <ExternalLink className="h-3 w-3" /> Ver enlace externo
-                  </a>
-                </div>
-              ) : (
-                <video src={asset.file_url} controls className="w-full max-h-64" />
-              )
+              (() => {
+                const thumb = getVideoThumbnail(asset.external_url);
+                return thumb ? (
+                  <div className="relative">
+                    <img src={thumb} alt={asset.title} className="w-full max-h-64 object-contain" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <a href={asset.external_url || '#'} target="_blank" rel="noreferrer" className="bg-black/50 rounded-full p-3 hover:bg-black/70 transition-colors">
+                        <Play className="h-8 w-8 text-white" />
+                      </a>
+                    </div>
+                  </div>
+                ) : asset.external_url ? (
+                  <div className="flex flex-col items-center justify-center py-8 gap-2">
+                    <Video className="h-10 w-10 text-muted-foreground" />
+                    <a href={asset.external_url} target="_blank" rel="noreferrer" className="text-xs text-primary flex items-center gap-1">
+                      <ExternalLink className="h-3 w-3" /> Ver enlace externo
+                    </a>
+                  </div>
+                ) : (
+                  <video src={asset.file_url} controls className="w-full max-h-64" />
+                );
+              })()
             ) : (
               <div className="flex items-center justify-center py-8">
                 <Image className="h-10 w-10 text-muted-foreground" />

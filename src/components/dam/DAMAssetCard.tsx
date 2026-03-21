@@ -90,16 +90,27 @@ export default function DAMAssetCard({ asset, onSelect, onDelete, viewMode }: DA
       <div className="aspect-square relative bg-muted">
         {isImage && asset.file_url ? (
           <img src={asset.file_url} alt={asset.title} className="w-full h-full object-cover" />
-        ) : isVideo ? (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-            <Video className="w-10 h-10 text-muted-foreground" />
-            {asset.external_url && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <ExternalLink className="h-3 w-3" />
-                URL
+          ) : isVideo ? (
+            videoThumb ? (
+              <div className="w-full h-full relative">
+                <img src={videoThumb} alt={asset.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="bg-black/50 rounded-full p-2">
+                    <Play className="h-6 w-6 text-white" />
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                <Video className="w-10 h-10 text-muted-foreground" />
+                {asset.external_url && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <ExternalLink className="h-3 w-3" />
+                    URL
+                  </div>
+                )}
+              </div>
+            )
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <FileText className="w-10 h-10 text-muted-foreground" />
