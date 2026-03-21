@@ -510,6 +510,7 @@ function TrackCreditsItem({
           <div className="flex items-center gap-3 flex-1">
             <span className="text-muted-foreground w-6">{track.track_number}.</span>
             <span className="font-medium">{track.title}</span>
+            {track.isrc && <span className="text-xs text-muted-foreground ml-2">{track.isrc}</span>}
             <div className="flex gap-1 ml-auto mr-4">
               {track.is_focus_track && (
                 <Badge variant="default" className="text-xs bg-primary/80">
