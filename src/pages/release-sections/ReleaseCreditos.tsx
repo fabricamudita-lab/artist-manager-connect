@@ -454,8 +454,6 @@ function TrackCreditsItem({
           .then(({ error }) => {
             if (error) console.error('Error linking contact to artist:', error);
           });
-          }
-        }
       }
 
       const { error } = await supabase.from('track_credits').insert({
