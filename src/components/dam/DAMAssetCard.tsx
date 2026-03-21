@@ -19,6 +19,7 @@ interface DAMAssetCardProps {
 export default function DAMAssetCard({ asset, onSelect, onDelete, viewMode }: DAMAssetCardProps) {
   const isImage = asset.type === 'image';
   const isVideo = asset.type === 'video';
+  const videoThumb = isVideo ? getVideoThumbnail(asset.external_url) : null;
   const statusLabel = STATUS_LABELS[asset.status || 'en_produccion'] || asset.status;
   const statusColor = STATUS_COLORS[asset.status || 'en_produccion'] || STATUS_COLORS.en_produccion;
 
