@@ -30,6 +30,8 @@ interface AddCreditWithProfileFormProps {
   }) => void;
   isLoading: boolean;
   releaseArtistId?: string | null;
+  /** Pre-filter roles to a specific category */
+  filterCategory?: CreditCategory;
 }
 
 interface Contact {
