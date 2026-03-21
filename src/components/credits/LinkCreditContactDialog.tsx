@@ -199,9 +199,9 @@ export function LinkCreditContactDialog({ credit, onLinked }: LinkCreditContactD
                   {artists.map((artist) => (
                     <CommandItem
                       key={`artist-${artist.id}`}
-                      onSelect={() => linkContact.mutate({ 
-                        contactId: artist.id, 
-                        contactName: getDisplayName(artist)
+                      onSelect={() => linkToArtist.mutate({ 
+                        artistId: artist.id, 
+                        artistName: getDisplayName(artist)
                       })}
                       className="cursor-pointer"
                     >
