@@ -124,7 +124,7 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
     onSubmit({
       name: finalName,
       role,
-      contact_id: selectedProfile?.id,
+      contact_id: selectedProfile?.type === 'contact' ? selectedProfile.id : undefined,
       publishing_percentage: publishingPct ? parseFloat(publishingPct) : undefined,
       master_percentage: masterPct ? parseFloat(masterPct) : undefined,
     });
