@@ -67,12 +67,13 @@ export function LinkCreditContactDialog({ credit, onLinked }: LinkCreditContactD
     },
   });
 
-  const linkContact = useMutation({
+  const linkToContact = useMutation({
     mutationFn: async ({ contactId, contactName }: { contactId: string; contactName: string }) => {
       const { error } = await supabase
         .from('track_credits')
         .update({ 
           contact_id: contactId,
+          artist_id: null,
           name: contactName
         })
         .eq('id', credit.id);
@@ -80,7 +81,30 @@ export function LinkCreditContactDialog({ credit, onLinked }: LinkCreditContactD
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['track-credits'] });
-      toast.success('Crédito vinculado al perfil');
+      toast.success('Crédito vinculado al contacto');
+      setOpen(false);
+      onLinked?.();
+    },
+    onError: (error) => {
+      toast.error('Error al vincular: ' + error.message);
+    },
+  });
+
+  const linkToArtist = useMutation({
+    mutationFn: async ({ artistId, artistName }: { artistId: string; artistName: string }) => {
+      const { error } = await supabase
+        .from('track_credits')
+        .update({ 
+          artist_id: artistId,
+          contact_id: null,
+          name: artistName
+        })
+        .eq('id', credit.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['track-credits'] });
+      toast.success('Crédito vinculado al artista');
       setOpen(false);
       onLinked?.();
     },
@@ -92,19 +116,20 @@ export function LinkCreditContactDialog({ credit, onLinked }: LinkCreditContactD
   const unlinkContact = useMutation({
     mutationFn: async () => {
       const previousContactId = credit.contact_id;
+      const previousArtistId = credit.artist_id;
       
       await undoableDeleteCustom({
         deleteAction: async () => {
           const { error } = await supabase
             .from('track_credits')
-            .update({ contact_id: null })
+            .update({ contact_id: null, artist_id: null })
             .eq('id', credit.id);
           if (error) throw error;
         },
         undoAction: async () => {
           const { error } = await supabase
             .from('track_credits')
-            .update({ contact_id: previousContactId })
+            .update({ contact_id: previousContactId, artist_id: previousArtistId })
             .eq('id', credit.id);
           if (error) throw error;
         },
@@ -123,7 +148,7 @@ export function LinkCreditContactDialog({ credit, onLinked }: LinkCreditContactD
     return item.stage_name || item.name;
   };
 
-  const isLinked = !!credit.contact_id;
+  const isLinked = !!credit.contact_id || !!credit.artist_id;
 
   // Group contacts by team categories
   const teamContacts = contacts.filter(c => 
@@ -174,9 +199,9 @@ export function LinkCreditContactDialog({ credit, onLinked }: LinkCreditContactD
                   {artists.map((artist) => (
                     <CommandItem
                       key={`artist-${artist.id}`}
-                      onSelect={() => linkContact.mutate({ 
-                        contactId: artist.id, 
-                        contactName: getDisplayName(artist)
+                      onSelect={() => linkToArtist.mutate({ 
+                        artistId: artist.id, 
+                        artistName: getDisplayName(artist)
                       })}
                       className="cursor-pointer"
                     >
@@ -208,7 +233,7 @@ export function LinkCreditContactDialog({ credit, onLinked }: LinkCreditContactD
                   {teamContacts.map((contact) => (
                     <CommandItem
                       key={`team-${contact.id}`}
-                      onSelect={() => linkContact.mutate({ 
+                      onSelect={() => linkToContact.mutate({ 
                         contactId: contact.id, 
                         contactName: getDisplayName(contact)
                       })}
@@ -239,7 +264,7 @@ export function LinkCreditContactDialog({ credit, onLinked }: LinkCreditContactD
                   {otherContacts.map((contact) => (
                     <CommandItem
                       key={`contact-${contact.id}`}
-                      onSelect={() => linkContact.mutate({ 
+                      onSelect={() => linkToContact.mutate({ 
                         contactId: contact.id, 
                         contactName: getDisplayName(contact)
                       })}

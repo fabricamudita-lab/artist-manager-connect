@@ -6921,6 +6921,7 @@ export type Database = {
       }
       track_credits: {
         Row: {
+          artist_id: string | null
           contact_id: string | null
           created_at: string
           id: string
@@ -6934,6 +6935,7 @@ export type Database = {
           track_id: string
         }
         Insert: {
+          artist_id?: string | null
           contact_id?: string | null
           created_at?: string
           id?: string
@@ -6947,6 +6949,7 @@ export type Database = {
           track_id: string
         }
         Update: {
+          artist_id?: string | null
           contact_id?: string | null
           created_at?: string
           id?: string
@@ -6960,6 +6963,13 @@ export type Database = {
           track_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "track_credits_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "track_credits_contact_id_fkey"
             columns: ["contact_id"]
