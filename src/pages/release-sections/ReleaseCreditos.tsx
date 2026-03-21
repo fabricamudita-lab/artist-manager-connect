@@ -410,14 +410,56 @@ function TrackCreditsItem({
 
   const createCredit = useMutation({
     mutationFn: async (data: { name: string; role: string; contact_id?: string; publishing_percentage?: number; master_percentage?: number }) => {
+      let contactId = data.contact_id;
+
+      // Auto-create contact if no existing profile was selected
+      if (!contactId && data.name) {
+        const cat5 = getRoleCategory5(data.role);
+        const categoryMap: Record<string, string> = {
+          compositor: 'compositor',
+          autoria: 'letrista',
+          produccion: 'tecnico',
+          interprete: 'banda',
+          contribuidor: 'artistico',
+        };
+        const contactCategory = categoryMap[cat5 || ''] || 'otro';
+
+        const { data: newContact, error: contactError } = await supabase
+          .from('contacts')
+          .insert({ name: data.name, category: contactCategory })
+          .select('id')
+          .single();
+
+        if (contactError) {
+          console.error('Error creating contact:', contactError);
+        } else if (newContact) {
+          contactId = newContact.id;
+
+          // Link contact to the release's artist
+          if (releaseArtistId) {
+            await supabase
+              .from('contact_artist_assignments')
+              .insert({ contact_id: newContact.id, artist_id: releaseArtistId })
+              .then(({ error }) => {
+                if (error) console.error('Error linking contact to artist:', error);
+              });
+          }
+        }
+      }
+
       const { error } = await supabase.from('track_credits').insert({
         track_id: track.id,
-        ...data,
+        name: data.name,
+        role: data.role,
+        contact_id: contactId || undefined,
+        publishing_percentage: data.publishing_percentage,
+        master_percentage: data.master_percentage,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['track-credits', track.id] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
       toast.success('Crédito añadido');
       setIsAddCreditOpen(false);
     },
