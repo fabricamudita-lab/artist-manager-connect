@@ -184,6 +184,7 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
                       {artists.map((artist) => (
                         <CommandItem
                           key={`artist-${artist.id}`}
+                          value={`artist-${artist.id}-${getDisplayName(artist)}`}
                           onSelect={() => handleSelectProfile(artist.id, getDisplayName(artist), 'artist')}
                           className="cursor-pointer"
                         >
