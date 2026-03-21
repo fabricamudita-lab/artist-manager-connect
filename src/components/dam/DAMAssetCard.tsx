@@ -6,6 +6,8 @@ import { MoreVertical, Download, Share2, Trash2, Video, Image, FileText, Externa
 import { STATUS_LABELS, STATUS_COLORS } from './DAMConstants';
 import type { DAMAsset } from './DAMTypes';
 import { cn } from '@/lib/utils';
+import { getVideoThumbnail } from '@/lib/video-thumbnails';
+import { Play } from 'lucide-react';
 
 interface DAMAssetCardProps {
   asset: DAMAsset;
