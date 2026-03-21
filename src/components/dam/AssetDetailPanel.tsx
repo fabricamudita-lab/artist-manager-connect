@@ -15,7 +15,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   STATUS_LABELS, STATUS_COLORS, ASSET_STATUSES,
   ARTWORK_TYPES, VIDEO_TYPES, DIGITAL_ASSET_TYPES, PHYSICAL_TYPES,
-  PLATFORM_OPTIONS, FORMAT_SPECS,
+  PLATFORM_OPTIONS, FORMAT_SPECS, RESOLUTION_OPTIONS,
 } from './DAMConstants';
 import type { DAMAsset, AssetComment } from './DAMTypes';
 import { cn } from '@/lib/utils';
