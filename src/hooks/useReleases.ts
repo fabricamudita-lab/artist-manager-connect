@@ -93,6 +93,7 @@ export interface TrackCredit {
   id: string;
   track_id: string;
   contact_id: string | null;
+  artist_id: string | null;
   name: string;
   role: string;
   percentage: number | null; // Deprecated - use publishing_percentage or master_percentage

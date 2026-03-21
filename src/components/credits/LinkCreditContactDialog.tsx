@@ -148,7 +148,7 @@ export function LinkCreditContactDialog({ credit, onLinked }: LinkCreditContactD
     return item.stage_name || item.name;
   };
 
-  const isLinked = !!credit.contact_id;
+  const isLinked = !!credit.contact_id || !!credit.artist_id;
 
   // Group contacts by team categories
   const teamContacts = contacts.filter(c => 
