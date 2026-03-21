@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/command';
 import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import type { CreditCategory } from '@/lib/creditRoles';
 
 interface AddCreditWithProfileFormProps {
   onSubmit: (data: { 
