@@ -1,34 +1,33 @@
 
 
-## Fix: Allow Linking Credits to Roster Artists
+## Show Video Thumbnail from External URL
 
-### Problem
-The "Vincular con Perfil" dialog shows roster artists, but selecting one fails because it sets `contact_id` to the artist's UUID — which violates the foreign key constraint (`track_credits_contact_id_fkey` references `contacts`, not `artists`). Per the project's own architecture notes, roster artist credits should have `contact_id = null`.
+### What changes
 
-### Solution
+When a video asset has an `external_url` (YouTube, Vimeo, etc.), extract the video ID and display the platform's thumbnail image instead of the generic video icon.
 
-**1. Database migration — Add `artist_id` column to `track_credits`**
+### How
 
-```sql
-ALTER TABLE public.track_credits 
-  ADD COLUMN artist_id UUID REFERENCES public.artists(id) ON DELETE SET NULL;
-```
+**1. New utility: `src/lib/video-thumbnails.ts`**
 
-This allows credits to be linked to either a contact OR a roster artist, using the appropriate column.
+A helper function that parses YouTube and Vimeo URLs and returns their thumbnail URL:
 
-**2. Update `LinkCreditContactDialog.tsx`**
+- **YouTube** (`youtube.com/watch?v=ID`, `youtu.be/ID`, `youtube.com/shorts/ID`): returns `https://img.youtube.com/vi/{ID}/hqdefault.jpg`
+- **Vimeo** (`vimeo.com/ID`): returns `https://vumbnail.com/{ID}.jpg` (free, no API key needed)
+- Returns `null` for unrecognized URLs (falls back to current icon)
 
-- When a **roster artist** is selected: set `artist_id = artist.id` and `contact_id = null`
-- When a **contact** is selected: set `contact_id = contact.id` and `artist_id = null`
-- Update `isLinked` check to: `!!credit.contact_id || !!credit.artist_id`
-- Update `unlinkContact` to clear both fields
+**2. Update `src/components/dam/DAMAssetCard.tsx`**
 
-**3. Update `useReleases.ts` (TrackCredit type)**
+In both grid and list views, where `isVideo` currently shows the `<Video />` icon, check if `getVideoThumbnail(asset.external_url)` returns a URL. If so, render an `<img>` with that thumbnail (with a small play icon overlay). Otherwise keep the current icon fallback.
 
-- Add `artist_id` to the `TrackCredit` interface and the query that fetches credits, so the linked state is correctly detected.
+**3. Update `src/components/dam/AssetDetailPanel.tsx`**
 
-### Key Behavior
-- Any profile can be linked regardless of name match — the manual link takes priority
-- No confirmation dialog needed (the user explicitly chose the profile)
-- Names don't need to match; the link is the source of truth
+Same logic for the detail panel preview area — show the thumbnail image instead of the generic video icon when available.
+
+### Technical details
+
+- No database changes
+- No API keys needed (YouTube thumbnails are public, Vumbnail is a free Vimeo proxy)
+- 1 new file, 2 files modified
+- Play icon overlay on thumbnails to indicate it's a video
 
