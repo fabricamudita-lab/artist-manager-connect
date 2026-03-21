@@ -116,19 +116,20 @@ export function LinkCreditContactDialog({ credit, onLinked }: LinkCreditContactD
   const unlinkContact = useMutation({
     mutationFn: async () => {
       const previousContactId = credit.contact_id;
+      const previousArtistId = credit.artist_id;
       
       await undoableDeleteCustom({
         deleteAction: async () => {
           const { error } = await supabase
             .from('track_credits')
-            .update({ contact_id: null })
+            .update({ contact_id: null, artist_id: null })
             .eq('id', credit.id);
           if (error) throw error;
         },
         undoAction: async () => {
           const { error } = await supabase
             .from('track_credits')
-            .update({ contact_id: previousContactId })
+            .update({ contact_id: previousContactId, artist_id: previousArtistId })
             .eq('id', credit.id);
           if (error) throw error;
         },
