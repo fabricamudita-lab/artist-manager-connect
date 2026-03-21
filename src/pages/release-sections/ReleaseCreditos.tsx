@@ -439,16 +439,21 @@ function TrackCreditsItem({
           } else if (newContact) {
             contactId = newContact.id;
 
-            if (releaseArtistId) {
-              await supabase
-                .from('contact_artist_assignments')
-                .insert({ contact_id: newContact.id, artist_id: releaseArtistId })
-                .then(({ error }) => {
-                  if (error) console.error('Error linking contact to artist:', error);
-                });
-            }
           }
         }
+      }
+
+      // Always link contact to artist (idempotent upsert)
+      if (contactId && releaseArtistId) {
+        await supabase
+          .from('contact_artist_assignments')
+          .upsert(
+            { contact_id: contactId, artist_id: releaseArtistId },
+            { onConflict: 'contact_id,artist_id' }
+          )
+          .then(({ error }) => {
+            if (error) console.error('Error linking contact to artist:', error);
+          });
       }
 
       const { error } = await supabase.from('track_credits').insert({
