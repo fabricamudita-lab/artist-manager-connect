@@ -173,15 +173,14 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
 
   return (
     <div className="w-[420px] border-l bg-background flex flex-col h-screen overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background p-4">
         <h3 className="font-semibold text-sm truncate flex-1">{asset.title}</h3>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
       </div>
 
-      <ScrollArea className="flex-1" enableDragScroll={false}>
+      <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y" style={{ WebkitOverflowScrolling: 'touch' }}>
         <div className="p-4 space-y-4">
           {/* Preview */}
           <div className="rounded-lg bg-muted overflow-hidden">
@@ -328,7 +327,7 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
           <Separator />
 
           {/* Comments */}
-          <div className="space-y-3">
+          <div className="space-y-3 pb-4">
             <span className="text-xs font-medium text-muted-foreground uppercase">Comentarios</span>
             {comments.length === 0 && <p className="text-xs text-muted-foreground">Sin comentarios</p>}
             {comments.map(c => (
@@ -351,7 +350,7 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
             </div>
           </div>
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
