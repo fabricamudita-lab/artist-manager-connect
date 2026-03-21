@@ -107,6 +107,20 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
         } as any)
         .eq('id', asset.id);
       if (error) throw error;
+      // Auto-sync cover to release
+      if (
+        asset.section === 'artwork' &&
+        ['Cover Álbum', 'Cover Single'].includes(form.sub_type) &&
+        ['listo', 'publicado'].includes(form.status) &&
+        asset.file_url &&
+        (asset as any).release_id
+      ) {
+        await supabase
+          .from('releases')
+          .update({ cover_image_url: asset.file_url } as any)
+          .eq('id', (asset as any).release_id);
+      }
+
       toast({ title: 'Asset actualizado' });
       setEditing(false);
       onUpdate();

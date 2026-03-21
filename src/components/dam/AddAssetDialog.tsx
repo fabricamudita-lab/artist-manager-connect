@@ -98,6 +98,19 @@ export default function AddAssetDialog({
           resolution,
           format_spec,
         } as any);
+
+        // Auto-sync cover to release
+        if (
+          form.section === 'artwork' &&
+          ['Cover Álbum', 'Cover Single'].includes(form.sub_type) &&
+          ['listo', 'publicado'].includes(form.status) &&
+          urlData.publicUrl
+        ) {
+          await supabase
+            .from('releases')
+            .update({ cover_image_url: urlData.publicUrl } as any)
+            .eq('id', releaseId);
+        }
       }
 
       toast({ title: `${files.length} archivo(s) subidos` });
