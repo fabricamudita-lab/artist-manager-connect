@@ -510,7 +510,22 @@ function TrackCreditsItem({
           <div className="flex items-center gap-3 flex-1">
             <span className="text-muted-foreground w-6">{track.track_number}.</span>
             <span className="font-medium">{track.title}</span>
-            {track.isrc && <span className="text-xs text-muted-foreground ml-2">{track.isrc}</span>}
+            {track.isrc && (
+              <span className="text-xs text-muted-foreground ml-2 inline-flex items-center gap-1">
+                ISRC:
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(track.isrc!).then(() => {
+                      toast.success('ISRC copiado al portapapeles');
+                    });
+                  }}
+                  className="hover:text-foreground cursor-pointer transition-colors underline-offset-2 hover:underline"
+                >
+                  {track.isrc}
+                </button>
+              </span>
+            )}
             <div className="flex gap-1 ml-auto mr-4">
               {track.is_focus_track && (
                 <Badge variant="default" className="text-xs bg-primary/80">
