@@ -278,6 +278,7 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
                       {otherContacts.slice(0, 10).map((contact) => (
                         <CommandItem
                           key={`agenda-${contact.id}`}
+                          value={`agenda-${contact.id}-${getDisplayName(contact)}`}
                           onSelect={() => handleSelectProfile(contact.id, getDisplayName(contact), 'contact')}
                           className="cursor-pointer"
                         >
