@@ -277,7 +277,12 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
                 </div>
                 <div>
                   <Label className="text-xs">Resolución</Label>
-                  <Input value={form.resolution} onChange={e => setForm(f => ({ ...f, resolution: e.target.value }))} className="h-8 text-sm" placeholder="ej. 3000×3000" />
+                  <Select value={form.resolution} onValueChange={v => setForm(f => ({ ...f, resolution: v }))}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                    <SelectContent>
+                      {RESOLUTION_OPTIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label className="text-xs">Fecha entrega</Label>
