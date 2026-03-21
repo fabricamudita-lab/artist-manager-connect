@@ -1,33 +1,24 @@
 
 
-## Show Video Thumbnail from External URL
+## Fix: Separate Format and Resolution Options
 
-### What changes
+### Problem
+The "Formato" dropdown contains both aspect ratios AND pixel resolutions mixed together, while "Resolución" is a free text input with no suggestions. They should be separated.
 
-When a video asset has an `external_url` (YouTube, Vimeo, etc.), extract the video ID and display the platform's thumbnail image instead of the generic video icon.
+### Changes
 
-### How
+**File: `src/components/dam/DAMConstants.ts`**
 
-**1. New utility: `src/lib/video-thumbnails.ts`**
+Split `FORMAT_SPECS` into two arrays:
 
-A helper function that parses YouTube and Vimeo URLs and returns their thumbnail URL:
+```ts
+export const FORMAT_SPECS = ['1:1', '9:16', '16:9', '4:3', '3:4'];
+export const RESOLUTION_OPTIONS = ['3000×3000', '1920×1080', '1080×1080', '1080×1350', '1080×1920'];
+```
 
-- **YouTube** (`youtube.com/watch?v=ID`, `youtu.be/ID`, `youtube.com/shorts/ID`): returns `https://img.youtube.com/vi/{ID}/hqdefault.jpg`
-- **Vimeo** (`vimeo.com/ID`): returns `https://vumbnail.com/{ID}.jpg` (free, no API key needed)
-- Returns `null` for unrecognized URLs (falls back to current icon)
+**File: `src/components/dam/AssetDetailPanel.tsx`**
 
-**2. Update `src/components/dam/DAMAssetCard.tsx`**
+Change the "Resolución" field from a free `<Input>` to a `<Select>` dropdown using `RESOLUTION_OPTIONS`, keeping a custom input option for non-standard values. Or better: use a combobox-style approach where the user can type freely OR pick from suggestions.
 
-In both grid and list views, where `isVideo` currently shows the `<Video />` icon, check if `getVideoThumbnail(asset.external_url)` returns a URL. If so, render an `<img>` with that thumbnail (with a small play icon overlay). Otherwise keep the current icon fallback.
-
-**3. Update `src/components/dam/AssetDetailPanel.tsx`**
-
-Same logic for the detail panel preview area — show the thumbnail image instead of the generic video icon when available.
-
-### Technical details
-
-- No database changes
-- No API keys needed (YouTube thumbnails are public, Vumbnail is a free Vimeo proxy)
-- 1 new file, 2 files modified
-- Play icon overlay on thumbnails to indicate it's a video
+Simplest approach: change it to a `<Select>` with the resolution options, matching the Formato field pattern.
 
