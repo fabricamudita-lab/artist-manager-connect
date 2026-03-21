@@ -181,7 +181,7 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
         </Button>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1" enableDragScroll={false}>
         <div className="p-4 space-y-4">
           {/* Preview */}
           <div className="rounded-lg bg-muted overflow-hidden">
