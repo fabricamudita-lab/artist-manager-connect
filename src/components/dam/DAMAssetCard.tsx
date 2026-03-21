@@ -6,6 +6,8 @@ import { MoreVertical, Download, Share2, Trash2, Video, Image, FileText, Externa
 import { STATUS_LABELS, STATUS_COLORS } from './DAMConstants';
 import type { DAMAsset } from './DAMTypes';
 import { cn } from '@/lib/utils';
+import { getVideoThumbnail } from '@/lib/video-thumbnails';
+import { Play } from 'lucide-react';
 
 interface DAMAssetCardProps {
   asset: DAMAsset;
@@ -17,6 +19,7 @@ interface DAMAssetCardProps {
 export default function DAMAssetCard({ asset, onSelect, onDelete, viewMode }: DAMAssetCardProps) {
   const isImage = asset.type === 'image';
   const isVideo = asset.type === 'video';
+  const videoThumb = isVideo ? getVideoThumbnail(asset.external_url) : null;
   const statusLabel = STATUS_LABELS[asset.status || 'en_produccion'] || asset.status;
   const statusColor = STATUS_COLORS[asset.status || 'en_produccion'] || STATUS_COLORS.en_produccion;
 
@@ -33,7 +36,14 @@ export default function DAMAssetCard({ asset, onSelect, onDelete, viewMode }: DA
           {isImage && asset.file_url ? (
             <img src={asset.file_url} alt={asset.title} className="w-full h-full object-cover" />
           ) : isVideo ? (
-            <div className="w-full h-full flex items-center justify-center"><Video className="h-5 w-5 text-muted-foreground" /></div>
+            videoThumb ? (
+              <div className="w-full h-full relative">
+                <img src={videoThumb} alt={asset.title} className="w-full h-full object-cover" />
+                <Play className="absolute inset-0 m-auto h-4 w-4 text-white drop-shadow" />
+              </div>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center"><Video className="h-5 w-5 text-muted-foreground" /></div>
+            )
           ) : (
             <div className="w-full h-full flex items-center justify-center"><FileText className="h-5 w-5 text-muted-foreground" /></div>
           )}
@@ -80,16 +90,27 @@ export default function DAMAssetCard({ asset, onSelect, onDelete, viewMode }: DA
       <div className="aspect-square relative bg-muted">
         {isImage && asset.file_url ? (
           <img src={asset.file_url} alt={asset.title} className="w-full h-full object-cover" />
-        ) : isVideo ? (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-            <Video className="w-10 h-10 text-muted-foreground" />
-            {asset.external_url && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <ExternalLink className="h-3 w-3" />
-                URL
+          ) : isVideo ? (
+            videoThumb ? (
+              <div className="w-full h-full relative">
+                <img src={videoThumb} alt={asset.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="bg-black/50 rounded-full p-2">
+                    <Play className="h-6 w-6 text-white" />
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                <Video className="w-10 h-10 text-muted-foreground" />
+                {asset.external_url && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <ExternalLink className="h-3 w-3" />
+                    URL
+                  </div>
+                )}
+              </div>
+            )
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <FileText className="w-10 h-10 text-muted-foreground" />
