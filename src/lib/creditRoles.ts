@@ -284,9 +284,13 @@ export function sortByRoleOrder<T extends { role: string }>(items: T[]): T[] {
 /**
  * Filter ROLES_BY_CATEGORY for publishing-only or master-only selectors
  */
-export function getRolesByType(type: 'publishing' | 'master') {
+export function getRolesByType(type: 'publishing' | 'master' | CreditCategory) {
   if (type === 'publishing') {
     return ROLES_BY_CATEGORY.filter(g => g.category.id === 'compositor' || g.category.id === 'autoria');
   }
-  return ROLES_BY_CATEGORY.filter(g => g.category.id === 'produccion' || g.category.id === 'interprete' || g.category.id === 'contribuidor');
+  if (type === 'master') {
+    return ROLES_BY_CATEGORY.filter(g => g.category.id === 'produccion' || g.category.id === 'interprete' || g.category.id === 'contribuidor');
+  }
+  // Single category filter
+  return ROLES_BY_CATEGORY.filter(g => g.category.id === type);
 }

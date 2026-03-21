@@ -316,7 +316,7 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
 
       <div>
         <Label htmlFor="credit_role">Rol *</Label>
-        <GroupedRoleSelect value={role} onValueChange={setRole} />
+        <GroupedRoleSelect value={role} onValueChange={setRole} filterType={filterCategory} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
