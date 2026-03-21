@@ -54,5 +54,8 @@ export const PHYSICAL_STATUSES = ['Borrador', 'Enviado a imprenta', 'Aprobado po
 // Platform tags
 export const PLATFORM_OPTIONS = ['YouTube', 'Instagram', 'TikTok', 'Spotify', 'Apple Music', 'Facebook', 'Prensa', 'Distribución'];
 
-// Format specs
-export const FORMAT_SPECS = ['3000×3000', '1:1', '9:16', '16:9', '1920×1080', '1080×1080', '1080×1350', '1080×1920'];
+// Format specs (aspect ratios only)
+export const FORMAT_SPECS = ['1:1', '9:16', '16:9', '4:3', '3:4', '4:5', '5:4'];
+
+// Resolution options (pixel dimensions)
+export const RESOLUTION_OPTIONS = ['3000×3000', '1920×1080', '1080×1080', '1080×1350', '1080×1920'];

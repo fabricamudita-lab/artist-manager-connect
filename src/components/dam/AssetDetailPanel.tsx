@@ -15,7 +15,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   STATUS_LABELS, STATUS_COLORS, ASSET_STATUSES,
   ARTWORK_TYPES, VIDEO_TYPES, DIGITAL_ASSET_TYPES, PHYSICAL_TYPES,
-  PLATFORM_OPTIONS, FORMAT_SPECS,
+  PLATFORM_OPTIONS, FORMAT_SPECS, RESOLUTION_OPTIONS,
 } from './DAMConstants';
 import type { DAMAsset, AssetComment } from './DAMTypes';
 import { cn } from '@/lib/utils';
@@ -277,7 +277,12 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
                 </div>
                 <div>
                   <Label className="text-xs">Resolución</Label>
-                  <Input value={form.resolution} onChange={e => setForm(f => ({ ...f, resolution: e.target.value }))} className="h-8 text-sm" placeholder="ej. 3000×3000" />
+                  <Select value={form.resolution} onValueChange={v => setForm(f => ({ ...f, resolution: v }))}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                    <SelectContent>
+                      {RESOLUTION_OPTIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label className="text-xs">Fecha entrega</Label>
