@@ -1,24 +1,19 @@
 
 
-## Fix: Separate Format and Resolution Options
+## Fix: Side Panel Scroll Not Working
 
 ### Problem
-The "Formato" dropdown contains both aspect ratios AND pixel resolutions mixed together, while "Resolución" is a free text input with no suggestions. They should be separated.
+The `ScrollArea` component has drag-scroll enabled by default, which captures pointer events and interferes with normal scrolling in the detail panel. The panel contains interactive elements (selects, inputs, buttons) that conflict with the drag behavior.
 
-### Changes
+### Fix
 
-**File: `src/components/dam/DAMConstants.ts`**
+**File: `src/components/dam/AssetDetailPanel.tsx` (line 184)**
 
-Split `FORMAT_SPECS` into two arrays:
+Disable drag-scroll on the ScrollArea:
 
-```ts
-export const FORMAT_SPECS = ['1:1', '9:16', '16:9', '4:3', '3:4'];
-export const RESOLUTION_OPTIONS = ['3000×3000', '1920×1080', '1080×1080', '1080×1350', '1080×1920'];
+```tsx
+<ScrollArea className="flex-1" enableDragScroll={false}>
 ```
 
-**File: `src/components/dam/AssetDetailPanel.tsx`**
-
-Change the "Resolución" field from a free `<Input>` to a `<Select>` dropdown using `RESOLUTION_OPTIONS`, keeping a custom input option for non-standard values. Or better: use a combobox-style approach where the user can type freely OR pick from suggestions.
-
-Simplest approach: change it to a `<Select>` with the resolution options, matching the Formato field pattern.
+This single prop change will restore normal scroll behavior (mouse wheel, trackpad, touch) without the grab-scroll interference.
 
