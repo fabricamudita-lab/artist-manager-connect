@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { X, Download, Share2, Video, Image, ExternalLink, Send, Copy } from 'lucide-react';
+import { X, Download, Share2, Video, Image, ExternalLink, Send, Copy, Play } from 'lucide-react';
+import { getVideoThumbnail } from '@/lib/video-thumbnails';
 import { toast } from '@/hooks/use-toast';
 import {
   STATUS_LABELS, STATUS_COLORS, ASSET_STATUSES,
