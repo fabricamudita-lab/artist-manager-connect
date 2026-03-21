@@ -172,7 +172,7 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
   const statusColor = STATUS_COLORS[asset.status || 'en_produccion'] || '';
 
   return (
-    <div className="w-[420px] border-l bg-background flex flex-col h-full">
+    <div className="w-[420px] border-l bg-background flex flex-col h-screen overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
         <h3 className="font-semibold text-sm truncate flex-1">{asset.title}</h3>
