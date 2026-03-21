@@ -1,17 +1,32 @@
 
 
-## Show ISRC Always & Minimize Edit/Delete Buttons
+## Add "ISRC" Label and Copy-on-Click
 
 ### Changes
 
-**File: `src/pages/release-sections/ReleaseCreditos.tsx`**
+**File: `src/pages/release-sections/ReleaseCreditos.tsx`** — Line 513
 
-1. **Show ISRC in accordion trigger** (always visible, next to track title): Add `track.isrc` as a muted text span after the title, e.g. `<span className="text-xs text-muted-foreground">{track.isrc}</span>`.
+1. Add "ISRC:" label before the code
+2. Wrap the ISRC value in a clickable element that copies to clipboard using `copyToClipboard` from `exportUtils` and shows a toast
 
-2. **Minimize edit/delete buttons**: Replace the two `Button variant="outline" size="sm"` with text labels → icon-only `Button variant="ghost" size="icon"` (just `<Pencil>` and `<Trash2>` icons, no text). This makes the action row more compact and minimal.
+Current:
+```tsx
+{track.isrc && <span className="text-xs text-muted-foreground ml-2">{track.isrc}</span>}
+```
 
-### Technical Details
+New:
+```tsx
+{track.isrc && (
+  <span className="text-xs text-muted-foreground ml-2 flex items-center gap-1">
+    ISRC:
+    <button onClick={(e) => { e.stopPropagation(); copyAndToast(track.isrc); }}
+      className="hover:text-foreground cursor-pointer transition-colors">
+      {track.isrc}
+    </button>
+  </span>
+)}
+```
 
-- Lines ~511-512: Add ISRC display after track title
-- Lines ~550-558: Change buttons from labeled to icon-only ghost buttons
+- Import `copyToClipboard` and `toast`, add a small helper `copyAndToast` that copies + shows "ISRC copiado"
+- `e.stopPropagation()` prevents the accordion from toggling when clicking the ISRC
 
