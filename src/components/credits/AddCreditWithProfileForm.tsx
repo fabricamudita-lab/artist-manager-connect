@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/command';
 import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import type { CreditCategory } from '@/lib/creditRoles';
 
 interface AddCreditWithProfileFormProps {
   onSubmit: (data: { 
@@ -29,6 +30,8 @@ interface AddCreditWithProfileFormProps {
   }) => void;
   isLoading: boolean;
   releaseArtistId?: string | null;
+  /** Pre-filter roles to a specific category */
+  filterCategory?: CreditCategory;
 }
 
 interface Contact {
@@ -45,7 +48,7 @@ interface Artist {
   stage_name?: string | null;
 }
 
-export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId }: AddCreditWithProfileFormProps) {
+export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId, filterCategory }: AddCreditWithProfileFormProps) {
   const [mode, setMode] = useState<'search' | 'new'>('search');
   const [selectedProfile, setSelectedProfile] = useState<{ id: string; name: string; type: 'artist' | 'contact' } | null>(null);
   
@@ -313,7 +316,7 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId 
 
       <div>
         <Label htmlFor="credit_role">Rol *</Label>
-        <GroupedRoleSelect value={role} onValueChange={setRole} />
+        <GroupedRoleSelect value={role} onValueChange={setRole} filterType={filterCategory} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
