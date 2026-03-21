@@ -199,7 +199,7 @@ export default function ReleaseImagenVideo() {
   const sectionsToShow = sectionFilter === 'all' ? [...DAM_SECTIONS] : [sectionFilter as typeof DAM_SECTIONS[number]];
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full overflow-hidden">
       <div className="flex-1 space-y-6 overflow-auto p-0">
         {/* Header */}
         <div className="flex items-center gap-4">
