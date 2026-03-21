@@ -414,35 +414,38 @@ function TrackCreditsItem({
 
       // Auto-create contact if no existing profile was selected
       if (!contactId && data.name) {
-        const cat5 = getRoleCategory5(data.role);
-        const categoryMap: Record<string, string> = {
-          compositor: 'compositor',
-          autoria: 'letrista',
-          produccion: 'tecnico',
-          interprete: 'banda',
-          contribuidor: 'artistico',
-        };
-        const contactCategory = categoryMap[cat5 || ''] || 'otro';
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const cat5 = getRoleCategory5(data.role);
+          const categoryMap: Record<string, string> = {
+            compositor: 'compositor',
+            autoria: 'letrista',
+            produccion: 'tecnico',
+            interprete: 'banda',
+            contribuidor: 'artistico',
+          };
+          const contactCategory = categoryMap[cat5 || ''] || 'otro';
+          const roleLabel = getRoleLabel(data.role);
 
-        const { data: newContact, error: contactError } = await supabase
-          .from('contacts')
-          .insert({ name: data.name, category: contactCategory })
-          .select('id')
-          .single();
+          const { data: newContact, error: contactError } = await supabase
+            .from('contacts')
+            .insert({ name: data.name, category: contactCategory, role: roleLabel, created_by: user.id })
+            .select('id')
+            .single();
 
-        if (contactError) {
-          console.error('Error creating contact:', contactError);
-        } else if (newContact) {
-          contactId = newContact.id;
+          if (contactError) {
+            console.error('Error creating contact:', contactError);
+          } else if (newContact) {
+            contactId = newContact.id;
 
-          // Link contact to the release's artist
-          if (releaseArtistId) {
-            await supabase
-              .from('contact_artist_assignments')
-              .insert({ contact_id: newContact.id, artist_id: releaseArtistId })
-              .then(({ error }) => {
-                if (error) console.error('Error linking contact to artist:', error);
-              });
+            if (releaseArtistId) {
+              await supabase
+                .from('contact_artist_assignments')
+                .insert({ contact_id: newContact.id, artist_id: releaseArtistId })
+                .then(({ error }) => {
+                  if (error) console.error('Error linking contact to artist:', error);
+                });
+            }
           }
         }
       }
