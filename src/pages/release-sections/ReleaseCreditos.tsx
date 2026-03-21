@@ -538,7 +538,7 @@ function TrackCreditsItem({
   );
 }
 
-// Credits Section Component with copy button, percentage validation and drag-and-drop
+// Credits Section Component — grouped by category (distributor-style)
 function CreditsSection({
   credits,
   isLoading,
@@ -565,6 +565,7 @@ function CreditsSection({
   releaseArtistId?: string | null;
 }) {
   const [copiedCredits, setCopiedCredits] = useState(false);
+  const [addCategoryFilter, setAddCategoryFilter] = useState<CreditCategory | undefined>(undefined);
   const queryClient = useQueryClient();
 
   const sensors = useSensors(
@@ -576,6 +577,21 @@ function CreditsSection({
 
   const sortedCredits = useMemo(() => sortCreditsBySortOrder(credits), [credits]);
 
+  // Group credits by 5-category
+  const creditsByCategory = useMemo(() => {
+    const grouped: Record<string, TrackCredit[]> = {};
+    CREDIT_CATEGORIES.forEach(cat => { grouped[cat.id] = []; });
+    sortedCredits.forEach(credit => {
+      const cat = getRoleCategory5(credit.role);
+      if (cat) {
+        grouped[cat].push(credit);
+      } else {
+        grouped['contribuidor'].push(credit);
+      }
+    });
+    return grouped;
+  }, [sortedCredits]);
+
   // Calculate total percentages for publishing and master separately
   const publishingTotal = credits.reduce((sum, c) => sum + (c.publishing_percentage ?? 0), 0);
   const masterTotal = credits.reduce((sum, c) => sum + (c.master_percentage ?? 0), 0);
@@ -586,22 +602,15 @@ function CreditsSection({
 
   const handleCopyCredits = () => {
     if (credits.length === 0) return;
-    
-    // Group credits by role
     const groupedByRole: Record<string, string[]> = {};
     sortedCredits.forEach((credit) => {
       const role = credit.role || 'Otro';
-      if (!groupedByRole[role]) {
-        groupedByRole[role] = [];
-      }
+      if (!groupedByRole[role]) groupedByRole[role] = [];
       groupedByRole[role].push(credit.name);
     });
-    
-    // Format: "Rol: Name1 & Name2"
     const formattedCredits = Object.entries(groupedByRole)
       .map(([role, names]) => `${getRoleLabel(role)}: ${names.join(' & ')}`)
       .join('\n');
-    
     navigator.clipboard.writeText(formattedCredits);
     setCopiedCredits(true);
     toast.success('Créditos copiados');
@@ -611,43 +620,50 @@ function CreditsSection({
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-
     const oldIndex = sortedCredits.findIndex(c => c.id === active.id);
     const newIndex = sortedCredits.findIndex(c => c.id === over.id);
-    
     if (oldIndex === -1 || newIndex === -1) return;
-
     const reorderedCredits = arrayMove(sortedCredits, oldIndex, newIndex).map((credit, index) => ({
       ...credit,
       sort_order: index + 1,
     }));
-    
-    // Optimistically update the UI with new sort_order values
     queryClient.setQueryData(['track-credits', trackId], reorderedCredits);
-
     try {
-      // Update sort_order in database for all items
       for (const credit of reorderedCredits) {
         const { error } = await supabase
           .from('track_credits')
           .update({ sort_order: credit.sort_order })
           .eq('id', credit.id);
-        
         if (error) throw error;
       }
-      
-      // Refetch to ensure consistency
       queryClient.invalidateQueries({ queryKey: ['track-credits', trackId] });
     } catch (error) {
       console.error('Error updating credit order:', error);
       toast.error('Error al reordenar los créditos');
-      // Revert on error
       queryClient.invalidateQueries({ queryKey: ['track-credits', trackId] });
     }
   };
 
+  const handleOpenAddForCategory = (category: CreditCategory) => {
+    setAddCategoryFilter(category);
+    setIsAddCreditOpen(true);
+  };
+
+  const handleOpenAddGlobal = () => {
+    setAddCategoryFilter(undefined);
+    setIsAddCreditOpen(true);
+  };
+
+  const emptyLabels: Record<CreditCategory, string> = {
+    compositor: 'Sin compositor registrado',
+    autoria: 'Sin autoría registrada',
+    produccion: 'Sin producción registrada',
+    interprete: 'Sin intérprete registrado',
+    contribuidor: 'Sin contribuidores',
+  };
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Label className="text-sm font-medium">Créditos y Autoría</Label>
@@ -667,47 +683,29 @@ function CreditsSection({
             </Button>
           )}
         </div>
-        <Dialog open={isAddCreditOpen} onOpenChange={setIsAddCreditOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
-              <UserPlus className="w-3 h-3 mr-1" />
-              Añadir Crédito
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Añadir Crédito</DialogTitle>
-            </DialogHeader>
-            <AddCreditWithProfileForm
-              onSubmit={(data) => createCredit.mutate(data)}
-              isLoading={createCredit.isPending}
-              releaseArtistId={releaseArtistId}
-            />
-          </DialogContent>
-        </Dialog>
+        <Button variant="outline" size="sm" onClick={handleOpenAddGlobal}>
+          <UserPlus className="w-3 h-3 mr-1" />
+          Añadir Crédito
+        </Button>
       </div>
 
       {/* Percentage validation warnings */}
       {hasPublishingError && (
         <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 text-sm">
           <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-          <span>
-            Autoría suma {publishingTotal.toFixed(1)}% — debe sumar 100%
-          </span>
+          <span>Autoría suma {publishingTotal.toFixed(1)}% — debe sumar 100%</span>
         </div>
       )}
       {hasMasterError && (
         <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 text-sm">
           <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-          <span>
-            Master suma {masterTotal.toFixed(1)}% — debe sumar 100%
-          </span>
+          <span>Master suma {masterTotal.toFixed(1)}% — debe sumar 100%</span>
         </div>
       )}
 
       {isLoading ? (
         <Skeleton className="h-16 w-full" />
-      ) : credits.length > 0 ? (
+      ) : (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -717,31 +715,78 @@ function CreditsSection({
             items={sortedCredits.map(c => c.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-2">
-              {sortedCredits.map((credit) => (
-                <SortableCreditRow
-                  key={credit.id}
-                  credit={credit}
-                  isEditing={editingCreditId === credit.id}
-                  onStartEdit={() => setEditingCreditId(credit.id)}
-                  onCancelEdit={() => setEditingCreditId(null)}
-                  onSave={(data) => updateCredit.mutate({ creditId: credit.id, data })}
-                  onDelete={() => deleteCredit.mutate(credit.id)}
-                  isSaving={updateCredit.isPending}
-                />
-              ))}
+            <div className="space-y-3">
+              {CREDIT_CATEGORIES.map((cat) => {
+                const catCredits = creditsByCategory[cat.id] || [];
+                return (
+                  <div key={cat.id} className={`rounded-lg border ${cat.borderClass} overflow-hidden`}>
+                    {/* Category header */}
+                    <div className={`flex items-center justify-between px-3 py-1.5 ${cat.bgClass}`}>
+                      <span className={`text-xs font-semibold ${cat.textClass}`}>{cat.label}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-6 w-6 ${cat.textClass} hover:bg-background/50`}
+                        onClick={() => handleOpenAddForCategory(cat.id)}
+                        title={`Añadir ${cat.label}`}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    {/* Credits in this category */}
+                    <div className="divide-y divide-border">
+                      {catCredits.length > 0 ? (
+                        catCredits.map((credit) => (
+                          <SortableCreditRow
+                            key={credit.id}
+                            credit={credit}
+                            isEditing={editingCreditId === credit.id}
+                            onStartEdit={() => setEditingCreditId(credit.id)}
+                            onCancelEdit={() => setEditingCreditId(null)}
+                            onSave={(data) => updateCredit.mutate({ creditId: credit.id, data })}
+                            onDelete={() => deleteCredit.mutate(credit.id)}
+                            isSaving={updateCredit.isPending}
+                          />
+                        ))
+                      ) : (
+                        <p className="text-xs text-muted-foreground px-3 py-2 italic">
+                          {emptyLabels[cat.id]}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </SortableContext>
         </DndContext>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          Sin créditos ni autorías registrados para esta canción.
-        </p>
       )}
+
+      {/* Add Credit Dialog */}
+      <Dialog open={isAddCreditOpen} onOpenChange={(open) => {
+        setIsAddCreditOpen(open);
+        if (!open) setAddCategoryFilter(undefined);
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {addCategoryFilter 
+                ? `Añadir ${CREDIT_CATEGORIES.find(c => c.id === addCategoryFilter)?.label || 'Crédito'}`
+                : 'Añadir Crédito'
+              }
+            </DialogTitle>
+          </DialogHeader>
+          <AddCreditWithProfileForm
+            onSubmit={(data) => createCredit.mutate(data)}
+            isLoading={createCredit.isPending}
+            releaseArtistId={releaseArtistId}
+            filterCategory={addCategoryFilter}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
 // Sortable Credit Row wrapper for drag-and-drop
 function SortableCreditRow({
   credit,
