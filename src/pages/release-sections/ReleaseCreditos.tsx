@@ -47,7 +47,9 @@ import {
   getCategoryMeta,
   sortByRoleOrder,
   isPublishingRole,
-  isMasterRole 
+  isMasterRole,
+  CREDIT_CATEGORIES,
+  type CreditCategory,
 } from '@/lib/creditRoles';
 import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
 import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
