@@ -381,7 +381,7 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
       <div className="flex justify-end gap-2">
         <Button 
           type="submit" 
-          disabled={isLoading || (!selectedProfile && !name.trim()) || !role}
+          disabled={isLoading || (!selectedProfile && !name.trim()) || !role || (role === 'otro_instrumento' && !customInstrument.trim())}
         >
           {isLoading ? 'Guardando...' : 'Añadir Crédito'}
         </Button>
