@@ -52,10 +52,12 @@ interface Artist {
 export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId, filterCategory }: AddCreditWithProfileFormProps) {
   const [mode, setMode] = useState<'search' | 'new'>('search');
   const [selectedProfile, setSelectedProfile] = useState<{ id: string; name: string; type: 'artist' | 'contact' } | null>(null);
+  const { user } = useAuth();
   
   // Form fields
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
+  const [customInstrument, setCustomInstrument] = useState('');
   const [publishingPct, setPublishingPct] = useState('');
   const [masterPct, setMasterPct] = useState('');
 
