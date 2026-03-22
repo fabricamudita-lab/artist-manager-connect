@@ -330,8 +330,24 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
 
       <div>
         <Label htmlFor="credit_role">Rol *</Label>
-        <GroupedRoleSelect value={role} onValueChange={setRole} filterType={filterCategory} />
+        <GroupedRoleSelect value={role} onValueChange={(v) => { setRole(v); if (v !== 'otro_instrumento') setCustomInstrument(''); }} filterType={filterCategory} />
       </div>
+
+      {role === 'otro_instrumento' && (
+        <div>
+          <Label htmlFor="custom_instrument">Nombre del instrumento *</Label>
+          <Input
+            id="custom_instrument"
+            value={customInstrument}
+            onChange={(e) => setCustomInstrument(e.target.value)}
+            placeholder="Ej: Theremin, Kalimba, Didgeridoo..."
+            required
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Se guardará para futuros créditos
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <div>
