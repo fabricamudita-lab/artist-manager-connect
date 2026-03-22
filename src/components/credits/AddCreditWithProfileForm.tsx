@@ -120,17 +120,26 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
     setName(displayName);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalName = selectedProfile?.name || name.trim();
     if (!finalName || !role) return;
+    if (role === 'otro_instrumento' && !customInstrument.trim()) return;
+
+    // Save custom instrument to DB for future use
+    if (role === 'otro_instrumento' && customInstrument.trim()) {
+      await supabase
+        .from('custom_instruments')
+        .upsert({ name: customInstrument.trim(), created_by: user?.id }, { onConflict: 'name' });
+    }
     
     onSubmit({
       name: finalName,
-      role,
+      role: role === 'otro_instrumento' ? customInstrument.trim() : role,
       contact_id: selectedProfile?.type === 'contact' ? selectedProfile.id : undefined,
       publishing_percentage: publishingPct ? parseFloat(publishingPct) : undefined,
       master_percentage: masterPct ? parseFloat(masterPct) : undefined,
+      custom_instrument: role === 'otro_instrumento' ? customInstrument.trim() : undefined,
     });
   };
 
