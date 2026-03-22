@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/command';
 import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
 import type { CreditCategory } from '@/lib/creditRoles';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AddCreditWithProfileFormProps {
   onSubmit: (data: { 
@@ -26,6 +27,7 @@ interface AddCreditWithProfileFormProps {
     contact_id?: string;
     publishing_percentage?: number; 
     master_percentage?: number;
+    custom_instrument?: string;
   }) => void;
   isLoading: boolean;
   releaseArtistId?: string | null;
