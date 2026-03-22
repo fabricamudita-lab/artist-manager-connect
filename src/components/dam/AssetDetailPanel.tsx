@@ -87,7 +87,19 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
       .select('*')
       .eq('asset_id', asset.id)
       .order('created_at', { ascending: true });
-    setComments((data as AssetComment[]) || []);
+
+    // Resolve author names from profiles
+    const comments = (data as AssetComment[]) || [];
+    if (comments.length > 0) {
+      const authorIds = [...new Set(comments.map(c => c.author_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .in('user_id', authorIds);
+      const nameMap = new Map((profiles || []).map(p => [p.user_id, p.full_name]));
+      comments.forEach(c => { c.author_name = nameMap.get(c.author_id) || undefined; });
+    }
+    setComments(comments);
   };
 
   const handleSave = async () => {
