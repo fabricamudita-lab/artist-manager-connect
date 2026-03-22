@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/command';
 import { GroupedRoleSelect } from '@/components/credits/GroupedRoleSelect';
 import type { CreditCategory } from '@/lib/creditRoles';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AddCreditWithProfileFormProps {
   onSubmit: (data: { 
@@ -26,6 +27,7 @@ interface AddCreditWithProfileFormProps {
     contact_id?: string;
     publishing_percentage?: number; 
     master_percentage?: number;
+    custom_instrument?: string;
   }) => void;
   isLoading: boolean;
   releaseArtistId?: string | null;
@@ -50,10 +52,12 @@ interface Artist {
 export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId, filterCategory }: AddCreditWithProfileFormProps) {
   const [mode, setMode] = useState<'search' | 'new'>('search');
   const [selectedProfile, setSelectedProfile] = useState<{ id: string; name: string; type: 'artist' | 'contact' } | null>(null);
+  const { user } = useAuth();
   
   // Form fields
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
+  const [customInstrument, setCustomInstrument] = useState('');
   const [publishingPct, setPublishingPct] = useState('');
   const [masterPct, setMasterPct] = useState('');
 
@@ -116,17 +120,26 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
     setName(displayName);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalName = selectedProfile?.name || name.trim();
     if (!finalName || !role) return;
+    if (role === 'otro_instrumento' && !customInstrument.trim()) return;
+
+    // Save custom instrument to DB for future use
+    if (role === 'otro_instrumento' && customInstrument.trim()) {
+      await supabase
+        .from('custom_instruments')
+        .upsert({ name: customInstrument.trim(), created_by: user?.id }, { onConflict: 'name' });
+    }
     
     onSubmit({
       name: finalName,
-      role,
+      role: role === 'otro_instrumento' ? customInstrument.trim() : role,
       contact_id: selectedProfile?.type === 'contact' ? selectedProfile.id : undefined,
       publishing_percentage: publishingPct ? parseFloat(publishingPct) : undefined,
       master_percentage: masterPct ? parseFloat(masterPct) : undefined,
+      custom_instrument: role === 'otro_instrumento' ? customInstrument.trim() : undefined,
     });
   };
 
@@ -317,8 +330,24 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
 
       <div>
         <Label htmlFor="credit_role">Rol *</Label>
-        <GroupedRoleSelect value={role} onValueChange={setRole} filterType={filterCategory} />
+        <GroupedRoleSelect value={role} onValueChange={(v) => { setRole(v); if (v !== 'otro_instrumento') setCustomInstrument(''); }} filterType={filterCategory} />
       </div>
+
+      {role === 'otro_instrumento' && (
+        <div>
+          <Label htmlFor="custom_instrument">Nombre del instrumento *</Label>
+          <Input
+            id="custom_instrument"
+            value={customInstrument}
+            onChange={(e) => setCustomInstrument(e.target.value)}
+            placeholder="Ej: Theremin, Kalimba, Didgeridoo..."
+            required
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Se guardará para futuros créditos
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -352,7 +381,7 @@ export function AddCreditWithProfileForm({ onSubmit, isLoading, releaseArtistId,
       <div className="flex justify-end gap-2">
         <Button 
           type="submit" 
-          disabled={isLoading || (!selectedProfile && !name.trim()) || !role}
+          disabled={isLoading || (!selectedProfile && !name.trim()) || !role || (role === 'otro_instrumento' && !customInstrument.trim())}
         >
           {isLoading ? 'Guardando...' : 'Añadir Crédito'}
         </Button>
