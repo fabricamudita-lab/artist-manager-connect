@@ -47,4 +47,5 @@ export interface AssetComment {
   author_id: string;
   message: string;
   created_at: string;
+  author_name?: string;
 }
