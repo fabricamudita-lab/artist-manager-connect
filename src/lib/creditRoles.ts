@@ -157,6 +157,7 @@ export const CONTRIBUIDOR_ROLES: CreditRole[] = [
   { value: 'director_arte', label: 'Director de Arte', category: 'contribuidor' },
   { value: 'fotografo', label: 'Fotógrafo', category: 'contribuidor' },
   { value: 'disenador', label: 'Diseñador', category: 'contribuidor' },
+  { value: 'estudio_grabacion', label: 'Estudio de Grabación', category: 'contribuidor' },
   { value: 'otro', label: 'Otro', category: 'contribuidor' },
 ];
 
