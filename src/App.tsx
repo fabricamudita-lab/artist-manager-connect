@@ -42,6 +42,7 @@ import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import SharedProject from "./pages/SharedProject";
 import SignContractMulti from "./pages/SignContractMulti";
 import SharedFile from "./pages/SharedFile";
+import SharedRelease from "./pages/SharedRelease";
 import PublicSyncRequestForm from "./pages/PublicSyncRequestForm";
 import PublicArtistForm from "./pages/PublicArtistForm";
 
@@ -407,6 +408,8 @@ const App = () => (
               <Route path="/epk/:slug/password" element={<EPKPasswordProtectionPage />} />
               {/* Public Shared Project Route */}
               <Route path="/shared/project/:token" element={<SharedProject />} />
+              {/* Public Shared Release Playback */}
+              <Route path="/shared/release/:token" element={<SharedRelease />} />
               {/* Public Shared File Route */}
               <Route path="/shared/:token" element={<SharedFile />} />
               {/* Public Contract Signature Route */}

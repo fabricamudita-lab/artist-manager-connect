@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import * as tus from 'tus-js-client';
-import { ArrowLeft, Music, Play, Pause, Upload, Trash2, ChevronDown, FileAudio, FileText, Copy, Check, User, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Music, Play, Pause, Upload, Trash2, ChevronDown, FileAudio, FileText, Copy, Check, User, AlertTriangle, Share2, Link2, Link2Off } from 'lucide-react';
 import { compressAudioToMp3, needsConversion, formatFileSize } from '@/utils/audioConverter';
 import { AudioWaveformPlayer } from '@/components/releases/AudioWaveformPlayer';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,90 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAlertHighlight } from '@/hooks/useAlertHighlight';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle as AlertTriangleIcon } from 'lucide-react';
+
+function ShareLinkButton({ releaseId, release }: { releaseId: string; release: any }) {
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (release?.share_enabled && release?.share_token) {
+      setShareUrl(`${window.location.origin}/shared/release/${release.share_token}`);
+    }
+  }, [release]);
+
+  const generateLink = async () => {
+    setLoading(true);
+    try {
+      const token = crypto.randomUUID();
+      const { error } = await supabase
+        .from('releases')
+        .update({ share_token: token, share_enabled: true } as any)
+        .eq('id', releaseId);
+      
+      if (error) throw error;
+      const url = `${window.location.origin}/shared/release/${token}`;
+      setShareUrl(url);
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      toast.success('Enlace generado y copiado al portapapeles');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Error al generar el enlace');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const revokeLink = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('releases')
+        .update({ share_token: null, share_enabled: false } as any)
+        .eq('id', releaseId);
+      if (error) throw error;
+      setShareUrl(null);
+      toast.success('Enlace revocado');
+    } catch {
+      toast.error('Error al revocar el enlace');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyLink = async () => {
+    if (!shareUrl) return;
+    await navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    toast.success('Enlace copiado al portapapeles');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (shareUrl) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 bg-muted rounded-lg px-3 py-1.5 max-w-xs">
+          <Link2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className="text-xs text-muted-foreground truncate">{shareUrl.split('/').pop()}</span>
+        </div>
+        <Button variant="outline" size="sm" onClick={copyLink} disabled={loading}>
+          {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={revokeLink} disabled={loading} className="text-destructive hover:text-destructive">
+          <Link2Off className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <Button variant="outline" size="sm" onClick={generateLink} disabled={loading} className="gap-2">
+      <Share2 className="h-4 w-4" />
+      Compartir audio
+    </Button>
+  );
+}
 
 export default function ReleaseAudio() {
   const { id } = useParams<{ id: string }>();
@@ -59,14 +143,17 @@ export default function ReleaseAudio() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(`/releases/${id}`)}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <p className="text-sm text-muted-foreground">{release?.title}</p>
-          <h1 className="text-2xl font-bold">Audio</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate(`/releases/${id}`)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <p className="text-sm text-muted-foreground">{release?.title}</p>
+            <h1 className="text-2xl font-bold">Audio</h1>
+          </div>
         </div>
+        <ShareLinkButton releaseId={id!} release={release} />
       </div>
 
       <Card>
