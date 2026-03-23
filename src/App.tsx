@@ -42,6 +42,7 @@ import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import SharedProject from "./pages/SharedProject";
 import SignContractMulti from "./pages/SignContractMulti";
 import SharedFile from "./pages/SharedFile";
+import SharedRelease from "./pages/SharedRelease";
 import PublicSyncRequestForm from "./pages/PublicSyncRequestForm";
 import PublicArtistForm from "./pages/PublicArtistForm";
 

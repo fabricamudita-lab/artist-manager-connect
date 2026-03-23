@@ -5700,6 +5700,9 @@ export type Database = {
           label: string | null
           project_id: string | null
           release_date: string | null
+          share_enabled: boolean | null
+          share_expires_at: string | null
+          share_token: string | null
           spotify_id: string | null
           spotify_url: string | null
           status: string
@@ -5720,6 +5723,9 @@ export type Database = {
           label?: string | null
           project_id?: string | null
           release_date?: string | null
+          share_enabled?: boolean | null
+          share_expires_at?: string | null
+          share_token?: string | null
           spotify_id?: string | null
           spotify_url?: string | null
           status?: string
@@ -5740,6 +5746,9 @@ export type Database = {
           label?: string | null
           project_id?: string | null
           release_date?: string | null
+          share_enabled?: boolean | null
+          share_expires_at?: string | null
+          share_token?: string | null
           spotify_id?: string | null
           spotify_url?: string | null
           status?: string
