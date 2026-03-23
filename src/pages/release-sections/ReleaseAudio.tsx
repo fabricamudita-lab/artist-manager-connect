@@ -59,14 +59,17 @@ export default function ReleaseAudio() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(`/releases/${id}`)}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <p className="text-sm text-muted-foreground">{release?.title}</p>
-          <h1 className="text-2xl font-bold">Audio</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate(`/releases/${id}`)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <p className="text-sm text-muted-foreground">{release?.title}</p>
+            <h1 className="text-2xl font-bold">Audio</h1>
+          </div>
         </div>
+        <ShareLinkButton releaseId={id!} release={release} />
       </div>
 
       <Card>
