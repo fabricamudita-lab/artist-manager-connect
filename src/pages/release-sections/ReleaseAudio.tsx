@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import * as tus from 'tus-js-client';
-import { ArrowLeft, Music, Play, Pause, Upload, Trash2, ChevronDown, FileAudio, FileText, Copy, Check, User, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Music, Play, Pause, Upload, Trash2, ChevronDown, FileAudio, FileText, Copy, Check, User, AlertTriangle, Share2, Link2, LinkOff } from 'lucide-react';
 import { compressAudioToMp3, needsConversion, formatFileSize } from '@/utils/audioConverter';
 import { AudioWaveformPlayer } from '@/components/releases/AudioWaveformPlayer';
 import { Button } from '@/components/ui/button';
