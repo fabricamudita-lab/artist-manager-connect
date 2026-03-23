@@ -664,20 +664,33 @@ function TrackCreditsDialog({ track }: { track: Track }) {
                   </div>
                   <ScrollArea className="h-[400px]">
                     <div className="space-y-2">
-                      {credits.map((credit) => (
-                        <div
-                          key={credit.id}
-                          className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
-                        >
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="h-5 w-5 text-primary" />
+                      {(() => {
+                        const grouped = credits.reduce<Record<string, { name: string; roles: string[] }>>((acc, credit) => {
+                          const key = credit.contact_id || credit.name;
+                          if (!acc[key]) {
+                            acc[key] = { name: credit.name, roles: [] };
+                          }
+                          if (credit.role && !acc[key].roles.includes(credit.role)) {
+                            acc[key].roles.push(credit.role);
+                          }
+                          return acc;
+                        }, {});
+
+                        return Object.entries(grouped).map(([key, { name, roles }]) => (
+                          <div
+                            key={key}
+                            className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
+                          >
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <User className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium">{name}</p>
+                              <p className="text-sm text-muted-foreground">{roles.join(' y ')}</p>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <p className="font-medium">{credit.name}</p>
-                            <p className="text-sm text-muted-foreground">{credit.role}</p>
-                          </div>
-                        </div>
-                      ))}
+                        ));
+                      })()}
                     </div>
                   </ScrollArea>
                 </div>
