@@ -410,6 +410,8 @@ const App = () => (
               <Route path="/shared/project/:token" element={<SharedProject />} />
               {/* Public Shared File Route */}
               <Route path="/shared/:token" element={<SharedFile />} />
+              {/* Public Shared Release Playback */}
+              <Route path="/shared/release/:token" element={<SharedRelease />} />
               {/* Public Contract Signature Route */}
               <Route path="/sign/:token" element={<SignContractMulti />} />
               {/* Public Sync Request Form */}
