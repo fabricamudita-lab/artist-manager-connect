@@ -1,25 +1,35 @@
 
 
-## Independent Scroll for Left and Right Panels
+## Agrupar créditos del mismo intérprete en una sola fila
 
-### Problem
-When scrolling the left panel (asset grid) to find files, the right detail panel also moves because both share the page scroll. The user wants each panel to scroll independently so the detail panel stays visible while browsing assets.
+Cuando la misma persona aparece varias veces dentro de una categoría (ej: Vicente López como Guitarra y como Coros en "Intérprete"), se consolidarán visualmente en una sola fila mostrando todos los roles juntos.
 
-### Changes
+### Resultado visual esperado
 
-**File: `src/pages/release-sections/ReleaseImagenVideo.tsx`**
+```text
+Vicente López ✓
+  Guitarra y Coros   [Intérprete]         ✓  🗑
+```
 
-The outer container `<div className="flex h-full">` already sets full height. Changes needed:
+En lugar de dos filas separadas para la misma persona.
 
-1. Make the left panel (`flex-1`) a scroll container with `overflow-y-auto` and remove any overflow from the outer wrapper if needed. It already has `overflow-auto`, so this should work.
-2. Ensure the outer `flex` container does NOT scroll itself — add `overflow-hidden` to it so only the children scroll independently.
+### Enfoque técnico
 
-The right panel (`AssetDetailPanel`) already has its own `ScrollArea` with `flex-1` and `h-full`. It just needs the parent to constrain its height.
+**Archivo**: `src/pages/release-sections/ReleaseCreditos.tsx`
 
-**File: `src/components/dam/AssetDetailPanel.tsx`**
+1. **Agrupar créditos por nombre dentro de cada categoría**: En el `useMemo` de `creditsByCategory`, tras agrupar por categoría, crear un segundo paso que agrupe los créditos con el mismo `name` (o `contact_id` si existe) dentro de cada categoría.
 
-The panel root is `<div className="w-[420px] border-l bg-background flex flex-col h-full">` — this is correct. The `ScrollArea` inside handles its own scrolling. No changes needed here, as long as the parent constrains height (which `h-full` on the flex layout should do).
+2. **Renderizar fila consolidada**: En la vista normal (no edición), cuando un nombre tiene múltiples roles en la misma categoría, mostrar los roles concatenados con "y" (ej: "Guitarra y Coros") en lugar de una fila por cada uno.
 
-**Summary of edits:**
-- `ReleaseImagenVideo.tsx` line 202: Add `overflow-hidden` to the outer flex container to prevent page-level scroll, ensuring both panels scroll independently within their own boundaries.
+3. **Mantener funcionalidad individual**: Cada crédito subyacente sigue siendo independiente en la base de datos. La agrupación es puramente visual. Al hacer clic para editar o eliminar, se mostrará un desplegable o se expandirán las filas individuales para operar sobre cada crédito por separado.
+
+4. **Drag & drop**: Se mantiene el drag & drop a nivel de grupo (mueve todos los créditos del mismo nombre juntos).
+
+### Cambios concretos
+
+- Crear un tipo `GroupedCredit` con `name`, `credits: TrackCredit[]`, `roles: string[]`
+- Función `groupCreditsByName(credits)` que agrupa por `contact_id` (si existe) o `name`
+- Modificar el renderizado en cada categoría para usar grupos en lugar de créditos individuales
+- En la fila consolidada, mostrar roles con `roles.join(' y ')` y badges/acciones del primer crédito del grupo
+- Al eliminar un grupo con múltiples créditos, preguntar si eliminar todos o mostrar las opciones individuales
 
