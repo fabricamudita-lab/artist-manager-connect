@@ -153,6 +153,30 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
 
   const canEdit = currentProfile?.active_role === 'management';
 
+  const handleDeleteArtist = async () => {
+    if (!artistId) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('artists')
+        .delete()
+        .eq('id', artistId);
+
+      if (error) throw error;
+
+      toast({ title: "Artista eliminado", description: "El perfil del artista y todos sus datos asociados han sido eliminados." });
+      setShowDeleteConfirm(false);
+      onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: ['artists'] });
+      queryClient.invalidateQueries({ queryKey: ['management-artists'] });
+      navigate('/mi-management');
+    } catch (error) {
+      console.error('Error deleting artist:', error);
+      toast({ title: "Error", description: "No se pudo eliminar el artista.", variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
