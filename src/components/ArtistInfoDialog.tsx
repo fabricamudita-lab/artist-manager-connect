@@ -79,10 +79,13 @@ interface ArtistInfoDialogProps {
 
 export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDialogProps) {
   const { profile: currentProfile } = useAuth();
+  const navigate = useNavigate();
   const [artistData, setArtistData] = useState<ArtistData | null>(null);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState<FormData>(emptyForm());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Avatar upload states
   const [cropFile, setCropFile] = useState<File | null>(null);
