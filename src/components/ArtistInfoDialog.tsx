@@ -626,7 +626,34 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
               <Button variant="outline" onClick={() => setEditing(false)}>Cancelar</Button>
             </div>
           )}
+
+          {/* Zona de peligro - Eliminar artista */}
+          {canEdit && !editing && (
+            <div className="border-t border-destructive/20 pt-4 mt-4">
+              <Button
+                variant="outline"
+                className="w-full text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={deleting}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Eliminar artista
+              </Button>
+            </div>
+          )}
         </div>
+
+        <ConfirmationDialog
+          open={showDeleteConfirm}
+          onOpenChange={setShowDeleteConfirm}
+          title="¿Eliminar artista?"
+          description={`Se eliminará permanentemente "${artistData?.stage_name || artistData?.name}" y todos sus datos asociados (bookings, proyectos, releases, archivos, etc.). Esta acción no se puede deshacer.`}
+          confirmText="Eliminar artista"
+          cancelText="Cancelar"
+          variant="destructive"
+          icon="delete"
+          onConfirm={handleDeleteArtist}
+        />
       </DialogContent>
     </Dialog>
   );
