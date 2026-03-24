@@ -225,6 +225,7 @@ function TrackAudioCard({ track }: { track: Track }) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [playingVersionId, setPlayingVersionId] = useState<string | null>(null);
   const currentVersion = versions.find((v) => v.is_current_version) || versions[0];
+  const latestVersion = versions[0] || null;
 
   const uploadVersion = useMutation({
     mutationFn: async ({ file, name }: { file: File; name: string }) => {
@@ -422,13 +423,13 @@ function TrackAudioCard({ track }: { track: Track }) {
               className="h-8 w-8"
               onClick={(e) => {
                 e.stopPropagation();
-                if (currentVersion) {
-                  togglePlay(currentVersion.id);
+                if (latestVersion) {
+                  togglePlay(latestVersion.id);
                 }
               }}
-              disabled={!currentVersion}
+              disabled={!latestVersion}
             >
-              {playingVersionId === currentVersion?.id ? (
+              {playingVersionId === latestVersion?.id ? (
                 <Pause className="h-4 w-4" />
               ) : (
                 <Play className="h-4 w-4" />
