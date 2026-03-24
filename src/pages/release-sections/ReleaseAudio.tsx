@@ -225,6 +225,7 @@ function TrackAudioCard({ track }: { track: Track }) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [playingVersionId, setPlayingVersionId] = useState<string | null>(null);
   const currentVersion = versions.find((v) => v.is_current_version) || versions[0];
+  const latestVersion = versions[0] || null;
 
   const uploadVersion = useMutation({
     mutationFn: async ({ file, name }: { file: File; name: string }) => {
