@@ -423,13 +423,13 @@ function TrackAudioCard({ track }: { track: Track }) {
               className="h-8 w-8"
               onClick={(e) => {
                 e.stopPropagation();
-                if (currentVersion) {
-                  togglePlay(currentVersion.id);
+                if (latestVersion) {
+                  togglePlay(latestVersion.id);
                 }
               }}
-              disabled={!currentVersion}
+              disabled={!latestVersion}
             >
-              {playingVersionId === currentVersion?.id ? (
+              {playingVersionId === latestVersion?.id ? (
                 <Pause className="h-4 w-4" />
               ) : (
                 <Play className="h-4 w-4" />
