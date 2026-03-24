@@ -12,8 +12,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
-import { User, Music, Globe, Edit, Save, X, Share2, Instagram, Loader2, Camera, Phone, MapPin, Mail, Shirt, Heart, Landmark, StickyNote, Receipt, ChevronDown, AlertTriangle } from 'lucide-react';
+import { User, Music, Globe, Edit, Save, X, Share2, Instagram, Loader2, Camera, Phone, MapPin, Mail, Shirt, Heart, Landmark, StickyNote, Receipt, ChevronDown, AlertTriangle, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { ImageCropperDialog } from '@/components/ui/image-cropper-dialog';
 import { GenreCombobox } from '@/components/GenreCombobox';
 import { cn } from '@/lib/utils';
@@ -77,10 +79,13 @@ interface ArtistInfoDialogProps {
 
 export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDialogProps) {
   const { profile: currentProfile } = useAuth();
+  const navigate = useNavigate();
   const [artistData, setArtistData] = useState<ArtistData | null>(null);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState<FormData>(emptyForm());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Avatar upload states
   const [cropFile, setCropFile] = useState<File | null>(null);
@@ -148,6 +153,30 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
 
   const canEdit = currentProfile?.active_role === 'management';
 
+  const handleDeleteArtist = async () => {
+    if (!artistId) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('artists')
+        .delete()
+        .eq('id', artistId);
+
+      if (error) throw error;
+
+      toast({ title: "Artista eliminado", description: "El perfil del artista y todos sus datos asociados han sido eliminados." });
+      setShowDeleteConfirm(false);
+      onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: ['artists'] });
+      queryClient.invalidateQueries({ queryKey: ['management-artists'] });
+      navigate('/mi-management');
+    } catch (error) {
+      console.error('Error deleting artist:', error);
+      toast({ title: "Error", description: "No se pudo eliminar el artista.", variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -597,7 +626,34 @@ export function ArtistInfoDialog({ artistId, open, onOpenChange }: ArtistInfoDia
               <Button variant="outline" onClick={() => setEditing(false)}>Cancelar</Button>
             </div>
           )}
+
+          {/* Zona de peligro - Eliminar artista */}
+          {canEdit && !editing && (
+            <div className="border-t border-destructive/20 pt-4 mt-4">
+              <Button
+                variant="outline"
+                className="w-full text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={deleting}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Eliminar artista
+              </Button>
+            </div>
+          )}
         </div>
+
+        <ConfirmationDialog
+          open={showDeleteConfirm}
+          onOpenChange={setShowDeleteConfirm}
+          title="¿Eliminar artista?"
+          description={`Se eliminará permanentemente "${artistData?.stage_name || artistData?.name}" y todos sus datos asociados (bookings, proyectos, releases, archivos, etc.). Esta acción no se puede deshacer.`}
+          confirmText="Eliminar artista"
+          cancelText="Cancelar"
+          variant="destructive"
+          icon="delete"
+          onConfirm={handleDeleteArtist}
+        />
       </DialogContent>
     </Dialog>
   );
