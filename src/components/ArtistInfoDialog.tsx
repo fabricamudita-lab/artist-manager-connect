@@ -12,8 +12,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
-import { User, Music, Globe, Edit, Save, X, Share2, Instagram, Loader2, Camera, Phone, MapPin, Mail, Shirt, Heart, Landmark, StickyNote, Receipt, ChevronDown, AlertTriangle } from 'lucide-react';
+import { User, Music, Globe, Edit, Save, X, Share2, Instagram, Loader2, Camera, Phone, MapPin, Mail, Shirt, Heart, Landmark, StickyNote, Receipt, ChevronDown, AlertTriangle, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { ImageCropperDialog } from '@/components/ui/image-cropper-dialog';
 import { GenreCombobox } from '@/components/GenreCombobox';
 import { cn } from '@/lib/utils';
