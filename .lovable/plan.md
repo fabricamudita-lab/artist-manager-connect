@@ -1,49 +1,55 @@
 
 
-## Mejorar la presentación del Label Copy en Solicitudes
+## Indicar Main Artist vs Featuring en Créditos y Autoría
 
-### Problema
-El resumen del Label Copy se guarda como texto plano en `observaciones` y se muestra como un bloque de texto corrido ilegible. Necesita estructura visual clara por canción con créditos organizados.
+### Contexto
+La tabla `release_artists` ya tiene una columna `role` (texto, default `'primary'`). Actualmente no se usa — todos los artistas se insertan sin especificar rol. El objetivo es permitir marcar qué artistas son "Main Artist" y cuáles son "Featuring" directamente desde la sección de Créditos y Autoría, información esencial para la distribución en plataformas.
 
-### Solución — 2 cambios
+### Cambios
 
-**1. Guardar el resumen como JSON estructurado** — `ReleaseCreditos.tsx`
+**1. Sección de artistas en ReleaseCreditos.tsx**
 
-En vez de guardar texto plano en `observaciones`, guardar un JSON en `descripcion_libre` (o en `observaciones` con un prefijo `JSON:`) que contenga la estructura:
+Añadir un bloque visual antes de las canciones que muestre los artistas vinculados al release con su rol (Main / Featuring). Cada artista tendrá un selector o toggle para cambiar entre `main` y `featuring`. Se podrán añadir artistas adicionales como featuring directamente desde aquí.
 
-```json
-{
-  "type": "label_copy",
-  "release": { "title": "...", "artist": "...", "type": "ep", "upc": "..." },
-  "tracks": [
-    {
-      "number": 1,
-      "title": "Amor constante...",
-      "isrc": "...",
-      "credits": [
-        { "role": "Letrista", "name": "Francisco de Quevedo" },
-        { "role": "Compositor", "name": "Alejandro Estruch" }
-      ]
-    }
-  ]
-}
+```text
+┌─────────────────────────────────────────────┐
+│  Artistas del Lanzamiento                   │
+│                                             │
+│  🎤 Leyre              [Main Artist ▾]      │
+│  🎤 Alejandro Estruch  [Featuring   ▾]      │
+│                                             │
+│  + Añadir artista                           │
+└─────────────────────────────────────────────┘
 ```
 
-Se guardará como string JSON en `observaciones` con un prefijo identificador (ej. `<!--LABEL_COPY_JSON-->`) para poder detectarlo y renderizarlo de forma especial.
+Al cambiar el rol, se actualiza `release_artists.role` con valor `'main'` o `'featuring'`.
 
-**2. Renderizar el Label Copy con formato visual** — `SolicitudDetailsDialog.tsx`
+**2. Actualizar inserciones de release_artists** — `useReleases.ts`
 
-En la sección de "Observaciones y Notas", detectar si `observaciones` contiene el prefijo JSON de Label Copy. Si es así, parsear el JSON y renderizar:
+En `useCreateRelease` y `useUpdateRelease`, cuando se insertan registros en `release_artists`, pasar el `role` correspondiente. El primer artista se marca como `main` por defecto, los demás como `main` también (el usuario puede cambiarlos a featuring después).
 
-- Header con título del release, artista, tipo y UPC
-- Lista de tracks como cards individuales con:
-  - Número + título + badge ISRC
-  - Créditos agrupados por rol en columnas o lista ordenada
-  - Cada rol con su badge de color
+**3. Mostrar el rol en ReleaseDetail.tsx**
 
-Si NO contiene el prefijo (solicitudes antiguas), mostrar el texto plano como hasta ahora (retrocompatibilidad).
+En la cabecera del release, diferenciar visualmente los artistas main de los featuring:
+- Main artists se muestran primero
+- Featuring artists se muestran precedidos de "feat." 
+- Ejemplo: `Leyre feat. Alejandro Estruch`
 
-### Archivos
-- `src/pages/release-sections/ReleaseCreditos.tsx` — cambiar generación del resumen a JSON
-- `src/components/SolicitudDetailsDialog.tsx` — añadir renderizado visual del Label Copy
+**4. Incluir en Label Copy**
+
+Actualizar la generación del Label Copy (PDF y solicitud de aprobación) para incluir la distinción Main Artist / Featuring en la cabecera del release.
+
+**5. Actualizar EditReleaseDialog.tsx**
+
+En el diálogo de edición, al gestionar artistas, preservar el `role` existente de cada artista al hacer sync (actualmente se borran y re-insertan sin role).
+
+### Archivos a modificar
+- `src/pages/release-sections/ReleaseCreditos.tsx` — nueva sección de artistas con selector de rol
+- `src/hooks/useReleases.ts` — preservar/gestionar `role` en release_artists
+- `src/pages/ReleaseDetail.tsx` — mostrar "feat." para featuring artists
+- `src/components/releases/EditReleaseDialog.tsx` — preservar roles al editar
+- `src/utils/exportLabelCopyPDF.ts` — incluir Main/Feat en export
+
+### Sin migración necesaria
+La columna `role` ya existe en `release_artists`. Solo necesitamos usarla con valores `'main'` y `'featuring'`.
 
