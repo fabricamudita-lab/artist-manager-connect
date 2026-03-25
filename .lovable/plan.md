@@ -1,31 +1,26 @@
 
 
-## Discrepancia en el conteo de equipo: 37 vs 1
+## Alerta de fecha pasada en lanzamientos no publicados
 
 ### Problema
-La ficha del artista (ArtistProfile) muestra "Equipo: 37" porque cuenta TODOS los contactos asignados a Leyre via `contact_artist_assignments`, sin filtrar por `is_team_member`. Incluye contactos de agenda, promotores, etc.
-
-La página de Equipos (/teams) sí filtra correctamente: solo muestra contactos con `field_config.is_team_member === true`.
+Cuando abres un lanzamiento cuya fecha ya pasó pero no tiene estado "Publicado", no hay ningún aviso. Debería preguntarte qué hacer.
 
 ### Solución
-Corregir la query en `ArtistProfile.tsx` (líneas 125-152) para que solo cuente contactos que sean miembros del equipo (`is_team_member: true`).
+Añadir un banner de alerta dentro del `EditReleaseDialog` (y opcionalmente en la vista del release) que aparece cuando `release_date < hoy` y `status !== 'released'`. El banner ofrece 3 acciones rápidas:
 
-### Cambio
+### Cambios
 
-**`src/pages/ArtistProfile.tsx`** — Filtrar teamMembers por `is_team_member`
+**`src/components/releases/EditReleaseDialog.tsx`**
+- Detectar al abrir el dialog si `releaseDate` es pasada y `status` no es `released`
+- Mostrar un `Alert` con fondo ámbar/warning entre el header y los campos:
+  - Texto: "La fecha de lanzamiento ya ha pasado y el estado no es 'Publicado'."
+  - 3 botones:
+    - **"Marcar como Publicado"** → cambia `status` a `released`
+    - **"Cambiar fecha"** → hace scroll/focus al campo de fecha
+    - **"Archivar"** → cambia `status` a `archived`
+- Cada botón actualiza el estado local del formulario (no guarda automáticamente), para que el usuario confirme con "Guardar"
+- El alert desaparece si el usuario cambia el estado manualmente a `released` o `archived`, o si cambia la fecha a una futura
 
-Después de obtener los contactos asignados al artista, filtrar solo los que tienen `field_config.is_team_member === true`:
-
-```typescript
-// Línea ~149, después de obtener data de contacts
-return (data || []).filter(c => {
-  const config = c.field_config as Record<string, any> | null;
-  return config?.is_team_member === true;
-}) as TeamMember[];
-```
-
-Además, incluir también a los workspace members (miembros con cuenta) en el conteo, ya que la página de Equipos los muestra. Actualmente el conteo solo mira contactos, no workspace members.
-
-### Resultado
-El número en la tarjeta "Equipo" coincidirá con lo que se ve en /teams al filtrar por ese artista.
+### Archivo
+- `src/components/releases/EditReleaseDialog.tsx` (editar)
 
