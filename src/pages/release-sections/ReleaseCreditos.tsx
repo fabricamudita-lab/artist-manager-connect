@@ -309,6 +309,8 @@ export default function ReleaseCreditos() {
                     key={track.id}
                     track={track}
                     releaseArtistId={release?.artist_id}
+                    releaseId={id!}
+                    allTracks={tracks}
                     onEdit={() => {
                       setSelectedTrack(track);
                       setIsEditTrackOpen(true);
