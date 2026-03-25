@@ -41,6 +41,7 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
     platform_tags: asset.platform_tags || [],
     delivery_date: asset.delivery_date || '',
     external_url: asset.external_url || '',
+    track_id: asset.track_id || '',
   });
   const [comments, setComments] = useState<AssetComment[]>([]);
   const [newComment, setNewComment] = useState('');
