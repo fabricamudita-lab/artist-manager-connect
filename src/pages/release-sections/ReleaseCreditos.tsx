@@ -350,6 +350,9 @@ export default function ReleaseCreditos() {
         </Dialog>
       </div>
 
+      {/* Artist Roles Section */}
+      <ReleaseArtistRoles releaseId={id!} releaseArtists={release?.release_artists || []} />
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle>Canciones y Autoría</CardTitle>

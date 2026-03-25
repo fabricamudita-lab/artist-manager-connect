@@ -244,7 +244,7 @@ export function useCreateRelease() {
       if (artistIds.length > 0) {
         const { error: raError } = await supabase
           .from('release_artists')
-          .insert(artistIds.map(aid => ({ release_id: data.id, artist_id: aid })));
+          .insert(artistIds.map(aid => ({ release_id: data.id, artist_id: aid, role: 'main' })));
         if (raError) console.error('Error inserting release_artists:', raError);
       }
 
