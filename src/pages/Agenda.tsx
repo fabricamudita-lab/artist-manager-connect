@@ -266,7 +266,13 @@ export default function Agenda() {
     }
 
     if (selectedCategory && selectedCategory !== 'all') {
-      filtered = filtered.filter(contact => contact.category === selectedCategory);
+      filtered = filtered.filter(contact => {
+        if (contact.category === selectedCategory) return true;
+        const teamCats: string[] = Array.isArray((contact.field_config as any)?.team_categories)
+          ? (contact.field_config as any).team_categories
+          : [];
+        return teamCats.includes(selectedCategory);
+      });
     }
 
     if (selectedCity && selectedCity !== 'all') {
