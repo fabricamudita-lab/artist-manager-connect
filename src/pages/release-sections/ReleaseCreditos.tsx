@@ -117,6 +117,78 @@ export default function ReleaseCreditos() {
     }
   };
 
+  const handleRequestApproval = async () => {
+    if (!tracks || tracks.length === 0 || !release) {
+      toast.error('No hay canciones para solicitar aprobación');
+      return;
+    }
+    setIsCreatingSolicitud(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No autenticado');
+
+      const trackIds = tracks.map((t) => t.id);
+      const { data: allCredits, error } = await supabase
+        .from('track_credits')
+        .select('*')
+        .in('track_id', trackIds);
+      if (error) throw error;
+
+      // Build summary text
+      const lines: string[] = [
+        `Label Copy para: "${release.title}"`,
+        `Artista: ${release.artist?.name || 'Sin artista'}`,
+        `Tipo: ${release.type}`,
+        release.upc ? `UPC: ${release.upc}` : '',
+        '',
+      ].filter(Boolean);
+
+      for (const track of tracks) {
+        const trackCredits = (allCredits || []).filter((c: any) => c.track_id === track.id);
+        lines.push(`${track.track_number}. ${track.title}${track.isrc ? ` (ISRC: ${track.isrc})` : ''}`);
+        if (trackCredits.length === 0) {
+          lines.push('   Sin créditos asignados');
+        } else {
+          for (const credit of trackCredits) {
+            const pct = credit.publishing_percentage != null ? ` (${credit.publishing_percentage}%)` : '';
+            lines.push(`   - ${getRoleLabel(credit.role)}: ${credit.name}${pct}`);
+          }
+        }
+        lines.push('');
+      }
+
+      const observaciones = lines.join('\n');
+
+      const { error: insertError } = await supabase
+        .from('solicitudes')
+        .insert({
+          tipo: 'licencia' as const,
+          nombre_solicitante: `Label Copy - ${release.title}`,
+          artist_id: release.artist_id,
+          project_id: release.project_id,
+          observaciones,
+          descripcion_libre: `Release ID: ${release.id}`,
+          estado: 'pendiente' as const,
+          created_by: user.id,
+        });
+
+      if (insertError) throw insertError;
+
+      toast.success('Solicitud de aprobación creada', {
+        description: 'La artista/equipo puede revisarla en Solicitudes',
+        action: {
+          label: 'Ver solicitudes',
+          onClick: () => navigate('/solicitudes'),
+        },
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al crear la solicitud');
+    } finally {
+      setIsCreatingSolicitud(false);
+    }
+  };
+
   useEffect(() => {
     if (alertId === 'credits-missing' && !loadingTracks) {
       setShowCreditsBanner(true);
