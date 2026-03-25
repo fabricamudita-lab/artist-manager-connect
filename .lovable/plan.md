@@ -1,47 +1,64 @@
 
 
-## Solicitud de aprobación de Label Copy desde Créditos
+## Deduplicar contactos y unificar etiquetas
 
-### Concepto
-Añadir un botón "Solicitar aprobación" junto al botón "Descargar Label Copy" en la sección de Créditos y Autoría. Al pulsarlo, se crea una solicitud de tipo `licencia` (o un nuevo tipo `label_copy`) vinculada al release y al artista, con un resumen auto-generado de los créditos actuales en las observaciones. La artista/equipo puede entonces revisarla y aprobarla/denegarla desde el módulo de solicitudes.
+### Problema
+Cuando se añaden créditos en lanzamientos, el sistema crea un contacto NUEVO por cada rol (ej. "Leyre" como Compositor, "Leyre" como Letrista, "Leyre" como Autor = 3 contactos separados). Además, la vista de Agenda solo muestra UNA categoría por tarjeta (`contact.category`), ignorando el array `team_categories` de `field_config`.
 
-### Cambios
+### Solución en 2 partes
 
-**1. `src/pages/release-sections/ReleaseCreditos.tsx`**
+---
 
-- Añadir botón "Solicitar aprobación" con icono `CheckCircle` o `UserCheck` junto al botón de descarga
-- Al pulsarlo:
-  1. Recopilar todos los créditos de todas las pistas (igual que `handleExportLabelCopy`)
-  2. Generar un texto resumen del label copy (artista, tracks, créditos por canción, splits)
-  3. Insertar una solicitud en la tabla `solicitudes` con:
-     - `tipo: 'licencia'` (reutilizando el tipo existente, ya que es aprobación de derechos/metadatos)
-     - `nombre_solicitante`: nombre del release (ej. "Label Copy - Álbum X")
-     - `artist_id`: el artista del release
-     - `observaciones`: resumen textual de los créditos
-     - `estado: 'pendiente'`
-     - `created_by`: usuario actual
-     - `project_id`: el `project_id` del release si existe
-     - `descripcion_libre`: enlace o referencia al release ID para contexto
-  4. Mostrar toast de confirmación con link a solicitudes
+**1. Evitar duplicados al crear créditos** — `src/pages/release-sections/ReleaseCreditos.tsx`
 
-- Deshabilitar el botón si no hay tracks o no hay créditos
+En la mutación `createCredit`, cuando no hay `contact_id` y se va a crear un contacto nuevo, primero buscar si ya existe un contacto con el mismo nombre (`name`) creado por el mismo usuario:
 
-**2. Generación del resumen de créditos** (dentro del mismo archivo o función helper)
-
-Formato del texto en `observaciones`:
 ```text
-Label Copy para: "Título del Álbum"
-Artista: Nombre
-
-1. Canción A
-   - Compositor: Nombre (50%)
-   - Autoría: Nombre (50%)
-   - Producción: Nombre
-
-2. Canción B
-   ...
+Si existe contacto con mismo nombre + created_by:
+  → Reutilizar ese contact_id
+  → Mergear la nueva team_category en su field_config.team_categories
+  → Añadir el role al campo role (si es diferente, concatenar con ", ")
+Si NO existe:
+  → Crear nuevo (comportamiento actual)
 ```
 
+Esto evita que se creen duplicados futuros.
+
+---
+
+**2. Mostrar todas las categorías en la tarjeta** — `src/pages/Agenda.tsx`
+
+En la vista de grid, actualmente se muestra un solo `Badge` con `contact.category`. Cambiar para que:
+
+- Se lean las `team_categories` de `field_config` (array)
+- Se muestren como múltiples badges en la tarjeta
+- Si no hay `team_categories`, se use `category` como fallback
+- Mostrar el `role` debajo del nombre (ya se hace), que puede tener múltiples roles separados por coma
+
+También ajustar el filtro de categoría para que busque tanto en `contact.category` como en `field_config.team_categories`.
+
+---
+
+**3. Script de limpieza de duplicados existentes** — one-time merge
+
+Crear una función en `ReleaseCreditos.tsx` o ejecutar lógica al cargar la agenda que detecte contactos duplicados (mismo `name`, mismo `created_by`) y los fusione:
+
+- Conservar el contacto más antiguo (menor `created_at`)
+- Unificar `team_categories` de todos los duplicados
+- Unificar `role` concatenando roles únicos
+- Reasignar `contact_artist_assignments` al contacto conservado
+- Reasignar `track_credits.contact_id` al contacto conservado
+- Eliminar los duplicados
+
+Esto se ejecutará como botón o automáticamente al detectar duplicados.
+
+### Archivos a modificar
+- `src/pages/release-sections/ReleaseCreditos.tsx` — dedup al crear créditos
+- `src/pages/Agenda.tsx` — mostrar múltiples categorías, filtro por team_categories
+- Nuevo: `src/lib/deduplicateContacts.ts` — función de merge de duplicados existentes
+
 ### Resultado
-El manager puede generar una solicitud de aprobación directamente desde créditos. La artista o equipo la revisa en el módulo de solicitudes y da el OK (aprueba) o solicita cambios (deniega con comentario). No requiere cambios en la base de datos — usa la tabla `solicitudes` existente.
+- Cada persona = 1 sola tarjeta con todas sus categorías (Compositor, Letrista, Banda, etc.)
+- Los créditos futuros reutilizan contactos existentes
+- Los duplicados actuales se fusionan automáticamente
 
