@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, Link2, FileDown, Loader2, Star, Disc3, Video, Sparkles, Captions, ArrowUpDown } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, Link2, FileDown, Loader2, Star, Disc3, Video, Sparkles, Captions, ArrowUpDown, CheckCircle } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
