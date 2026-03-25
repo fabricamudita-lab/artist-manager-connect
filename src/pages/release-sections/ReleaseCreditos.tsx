@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ReleaseArtistRoles } from '@/components/releases/ReleaseArtistRoles';
+import { CreditedArtistRoles } from '@/components/releases/CreditedArtistRoles';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, Link2, FileDown, Loader2, Star, Disc3, Video, Sparkles, Captions, ArrowUpDown, CheckCircle } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
@@ -83,6 +84,22 @@ export default function ReleaseCreditos() {
   const [isExportingLabelCopy, setIsExportingLabelCopy] = useState(false);
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [isCreatingSolicitud, setIsCreatingSolicitud] = useState(false);
+
+  // Fetch all credits for all tracks in this release (for distribution roles)
+  const { data: allReleaseCredits = [] } = useQuery({
+    queryKey: ['release-all-credits', id, tracks?.map(t => t.id)],
+    queryFn: async () => {
+      if (!tracks || tracks.length === 0) return [];
+      const trackIds = tracks.map(t => t.id);
+      const { data, error } = await supabase
+        .from('track_credits')
+        .select('*')
+        .in('track_id', trackIds);
+      if (error) throw error;
+      return data as TrackCredit[];
+    },
+    enabled: !!tracks && tracks.length > 0,
+  });
 
   const handleExportLabelCopy = async () => {
     if (!tracks || tracks.length === 0 || !release) {
@@ -448,7 +465,11 @@ export default function ReleaseCreditos() {
                 isLoading={updateTrack.isPending}
               />
               <div className="border-t pt-4">
-                <ReleaseArtistRoles releaseId={id!} releaseArtists={release?.release_artists || []} compact />
+                <CreditedArtistRoles
+                  releaseId={id!}
+                  allCredits={allReleaseCredits}
+                  releaseArtists={release?.release_artists || []}
+                />
               </div>
             </div>
           )}
