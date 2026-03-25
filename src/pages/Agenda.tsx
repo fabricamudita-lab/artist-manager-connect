@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Users, LayoutGrid, CreditCard, Mail, Phone, MapPin, Building, Edit2, MoreVertical, Settings, Tag, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
