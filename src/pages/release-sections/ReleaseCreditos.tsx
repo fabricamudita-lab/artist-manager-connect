@@ -591,6 +591,7 @@ function TrackCreditsItem({
     : null;
 
   return (
+    <>
     <AccordionItem value={track.id} data-no-credits={credits.length === 0 ? 'true' : undefined}>
       <AccordionTrigger className="hover:no-underline">
           <div className="flex items-center gap-3 flex-1">
