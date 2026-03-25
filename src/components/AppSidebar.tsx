@@ -1,6 +1,7 @@
 import RoleSelector from '@/components/RoleSelector';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useLinkedArtist } from '@/hooks/useLinkedArtist';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
