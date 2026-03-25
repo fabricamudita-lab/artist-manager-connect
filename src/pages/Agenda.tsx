@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Users, LayoutGrid, CreditCard, Mail, Phone, MapPin, Building, Edit2, MoreVertical, Settings, Tag, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ManageContactGroupsDialog } from '@/components/ManageContactGroupsDialog';
 import { CategoryManagerSheet } from '@/components/CategoryManagerSheet';
 import { TEAM_CATEGORIES, TeamCategoryOption, getTeamCategoryLabel, getTeamCategoryIcon } from '@/lib/teamCategories';
+import { deduplicateContacts } from '@/lib/deduplicateContacts';
 
 interface Contact {
   id: string;
@@ -155,6 +156,24 @@ export default function Agenda() {
     setCategoryOrderVersion(v => v + 1);
   };
 
+  const handleDeduplicateContacts = useCallback(async () => {
+    try {
+      const result = await deduplicateContacts();
+      if (result.deleted > 0) {
+        toast({
+          title: `${result.deleted} contactos duplicados fusionados`,
+          description: `Se consolidaron en ${result.merged} perfiles únicos`,
+        });
+        fetchContacts();
+      } else {
+        toast({ title: 'No se encontraron duplicados' });
+      }
+    } catch (error) {
+      console.error('Error deduplicating:', error);
+      toast({ title: 'Error al deduplicar', variant: 'destructive' });
+    }
+  }, []);
+
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
     contacts.forEach(c => {
@@ -266,7 +285,13 @@ export default function Agenda() {
     }
 
     if (selectedCategory && selectedCategory !== 'all') {
-      filtered = filtered.filter(contact => contact.category === selectedCategory);
+      filtered = filtered.filter(contact => {
+        if (contact.category === selectedCategory) return true;
+        const teamCats: string[] = Array.isArray((contact.field_config as any)?.team_categories)
+          ? (contact.field_config as any).team_categories
+          : [];
+        return teamCats.includes(selectedCategory);
+      });
     }
 
     if (selectedCity && selectedCity !== 'all') {
@@ -379,6 +404,10 @@ export default function Agenda() {
           <Button variant="outline" onClick={() => navigate('/teams')}>
             <Users className="w-4 h-4 mr-2" />
             Equipos
+          </Button>
+          <Button variant="outline" onClick={handleDeduplicateContacts}>
+            <Users className="w-4 h-4 mr-2" />
+            Deduplicar
           </Button>
           <Button variant="outline" onClick={() => setCategoryManagerOpen(true)}>
             <Settings className="w-4 h-4 mr-2" />
@@ -597,10 +626,22 @@ export default function Agenda() {
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-1">
-                        <Badge variant="secondary" className="text-xs">
-                          <CategoryIcon className="w-3 h-3 mr-1" />
-                          {categoryInfo.label}
-                        </Badge>
+                        {(() => {
+                          const teamCats: string[] = Array.isArray((contact.field_config as any)?.team_categories)
+                            ? (contact.field_config as any).team_categories
+                            : [];
+                          const catsToShow = teamCats.length > 0 ? teamCats : [contact.category];
+                          return catsToShow.map((cat) => {
+                            const info = getCategoryInfo(cat);
+                            const CatIcon = info.icon;
+                            return (
+                              <Badge key={cat} variant="secondary" className="text-xs">
+                                <CatIcon className="w-3 h-3 mr-1" />
+                                {info.label}
+                              </Badge>
+                            );
+                          });
+                        })()}
                         {contactTags.slice(0, 2).map((tag) => (
                           <Badge key={tag} variant="outline" className="text-xs">
                             #{tag}
