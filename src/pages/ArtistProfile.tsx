@@ -22,6 +22,7 @@ import { ContactProfileSheet } from '@/components/ContactProfileSheet';
 import { ArtistFormatsContent } from '@/components/ArtistFormatsDialog';
 import CreateReleaseDialog from '@/components/releases/CreateReleaseDialog';
 import { ArtistInfoDialog } from '@/components/ArtistInfoDialog';
+import InviteArtistDialog from '@/components/InviteArtistDialog';
 import { usePlatformEarnings, useSongs } from '@/hooks/useRoyalties';
 import { PieChart, Pie, Cell } from 'recharts';
 
@@ -388,10 +389,16 @@ export default function ArtistProfile() {
             )}
           </div>
         </div>
-        <Button variant="outline" onClick={() => setShowEditDialog(true)}>
-          <Edit className="h-4 w-4 mr-2" />
-          Editar
-        </Button>
+        <div className="flex items-center gap-2">
+          <InviteArtistDialog 
+            artistId={artist.id} 
+            artistName={artist.stage_name || artist.name} 
+          />
+          <Button variant="outline" onClick={() => setShowEditDialog(true)}>
+            <Edit className="h-4 w-4 mr-2" />
+            Editar
+          </Button>
+        </div>
       </div>
 
       {/* Description card — hidden when bio is shown in header (always) */}
