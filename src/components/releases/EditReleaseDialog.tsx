@@ -51,8 +51,9 @@ export default function EditReleaseDialog({
   const [releaseDate, setReleaseDate] = useState<Date | undefined>();
   const [description, setDescription] = useState('');
   const [artistIds, setArtistIds] = useState<string[]>([]);
+  const dateButtonRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
+  const isPastDue = releaseDate && isPast(startOfDay(releaseDate)) && status !== 'released' && status !== 'archived';
     if (release) {
       setTitle(release.title);
       setType(release.type);
