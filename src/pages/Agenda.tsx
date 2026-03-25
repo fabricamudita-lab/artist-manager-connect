@@ -19,6 +19,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ManageContactGroupsDialog } from '@/components/ManageContactGroupsDialog';
 import { CategoryManagerSheet } from '@/components/CategoryManagerSheet';
 import { TEAM_CATEGORIES, TeamCategoryOption, getTeamCategoryLabel, getTeamCategoryIcon } from '@/lib/teamCategories';
+import { deduplicateContacts } from '@/lib/deduplicateContacts';
 
 interface Contact {
   id: string;
