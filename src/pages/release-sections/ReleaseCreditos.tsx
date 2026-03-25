@@ -85,6 +85,22 @@ export default function ReleaseCreditos() {
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [isCreatingSolicitud, setIsCreatingSolicitud] = useState(false);
 
+  // Fetch all credits for all tracks in this release (for distribution roles)
+  const { data: allReleaseCredits = [] } = useQuery({
+    queryKey: ['release-all-credits', id, tracks?.map(t => t.id)],
+    queryFn: async () => {
+      if (!tracks || tracks.length === 0) return [];
+      const trackIds = tracks.map(t => t.id);
+      const { data, error } = await supabase
+        .from('track_credits')
+        .select('*')
+        .in('track_id', trackIds);
+      if (error) throw error;
+      return data as TrackCredit[];
+    },
+    enabled: !!tracks && tracks.length > 0,
+  });
+
   const handleExportLabelCopy = async () => {
     if (!tracks || tracks.length === 0 || !release) {
       toast.error('No hay canciones para exportar');
