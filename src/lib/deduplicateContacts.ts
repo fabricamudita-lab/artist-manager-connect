@@ -137,5 +137,41 @@ export async function deduplicateContacts(): Promise<{ merged: number; deleted: 
     deleted += dupIds.length;
   }
 
+  // Step 2: Fix all contacts that have artist assignments but aren't marked as team members
+  const { data: allContacts } = await supabase
+    .from('contacts')
+    .select('id, field_config, category, role')
+    .eq('created_by', user.id);
+
+  if (allContacts) {
+    const { data: allAssignments } = await supabase
+      .from('contact_artist_assignments')
+      .select('contact_id')
+      .in('contact_id', allContacts.map(c => c.id));
+
+    const assignedContactIds = new Set((allAssignments || []).map(a => a.contact_id));
+
+    for (const contact of allContacts) {
+      if (!assignedContactIds.has(contact.id)) continue;
+      const config = (contact.field_config as Record<string, any>) || {};
+      if (config.is_team_member === true) continue;
+
+      // Mark as team member, add category to team_categories if missing
+      const currentCats: string[] = Array.isArray(config.team_categories) ? config.team_categories : [];
+      const catsToSet = currentCats.length > 0 ? currentCats : (contact.category ? [contact.category] : ['artistico']);
+
+      await supabase
+        .from('contacts')
+        .update({
+          field_config: {
+            ...config,
+            is_team_member: true,
+            team_categories: catsToSet,
+          },
+        })
+        .eq('id', contact.id);
+    }
+  }
+
   return { merged, deleted };
 }
