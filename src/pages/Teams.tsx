@@ -1079,7 +1079,7 @@ export default function Teams() {
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">Equipos</h1>
           <Badge variant="secondary" className="text-xs">
-            {allTeamByCategory.reduce((sum, cat) => sum + cat.total, 0)}
+            {allMembersFlattened.length}
           </Badge>
         </div>
         <div className="flex items-center gap-2">
@@ -1129,7 +1129,7 @@ export default function Teams() {
             categories={categoryPillsData}
             selectedCategory={selectedCategoryFilter}
             onCategoryChange={setSelectedCategoryFilter}
-            allCount={allTeamByCategory.reduce((sum, cat) => sum + cat.total, 0)}
+            allCount={allMembersFlattened.length}
             onManageCategories={() => setCategoryManagerOpen(true)}
           />
         )}
