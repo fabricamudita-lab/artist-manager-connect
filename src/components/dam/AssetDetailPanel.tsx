@@ -351,6 +351,12 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
                 {asset.external_url && (
                   <div className="flex justify-between"><span className="text-muted-foreground">URL externa</span><a href={asset.external_url} target="_blank" rel="noreferrer" className="text-primary text-xs flex items-center gap-1"><ExternalLink className="h-3 w-3" /> Abrir</a></div>
                 )}
+                {asset.track_id && tracks && (() => {
+                  const track = tracks.find(t => t.id === asset.track_id);
+                  return track ? (
+                    <div className="flex justify-between"><span className="text-muted-foreground">Track</span><span className="flex items-center gap-1"><Music className="h-3 w-3" />{track.track_number}. {track.title}</span></div>
+                  ) : null;
+                })()}
               </div>
             )}
           </div>
