@@ -441,11 +441,16 @@ export default function ReleaseCreditos() {
             <DialogTitle>Editar Canción</DialogTitle>
           </DialogHeader>
           {selectedTrack && (
-            <EditTrackForm
-              track={selectedTrack}
-              onSubmit={(data) => updateTrack.mutate({ id: selectedTrack.id, ...data })}
-              isLoading={updateTrack.isPending}
-            />
+            <div className="space-y-6">
+              <EditTrackForm
+                track={selectedTrack}
+                onSubmit={(data) => updateTrack.mutate({ id: selectedTrack.id, ...data })}
+                isLoading={updateTrack.isPending}
+              />
+              <div className="border-t pt-4">
+                <ReleaseArtistRoles releaseId={id!} releaseArtists={release?.release_artists || []} compact />
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>
