@@ -1,32 +1,31 @@
 
 
-## Modo Preview del Portal del Artista
+## Discrepancia en el conteo de equipo: 37 vs 1
 
-### Concepto
-Añadir un botón "Previsualizar portal" en la ficha del artista que simula temporalmente la vista del artista sin crear cuentas ni modificar roles. Se renderiza el `CollaboratorDashboard` en un dialog/modal con los datos reales del artista.
+### Problema
+La ficha del artista (ArtistProfile) muestra "Equipo: 37" porque cuenta TODOS los contactos asignados a Leyre via `contact_artist_assignments`, sin filtrar por `is_team_member`. Incluye contactos de agenda, promotores, etc.
 
-### Cambios
+La página de Equipos (/teams) sí filtra correctamente: solo muestra contactos con `field_config.is_team_member === true`.
 
-**1. `src/pages/ArtistProfile.tsx` — Botón "Previsualizar portal"**
-- Añadir un botón junto al de "Invitar Artista" en la cabecera
-- Al hacer clic, abre un dialog a pantalla completa (o casi completa) que muestra el portal del artista
+### Solución
+Corregir la query en `ArtistProfile.tsx` (líneas 125-152) para que solo cuente contactos que sean miembros del equipo (`is_team_member: true`).
 
-**2. Nuevo componente `src/components/ArtistPortalPreview.tsx`**
-- Dialog de pantalla completa que renderiza:
-  - La cabecera del artista (avatar, nombre, "Tu portal de artista")
-  - Las stats cards (shows próximos, lanzamientos, finanzas) con datos reales del artista
-  - Los accesos directos (Mi Perfil, Mis Lanzamientos, Calendario, Mi Drive) — en modo preview estos no navegan, solo se muestran
-  - La sidebar simplificada como preview lateral o como mockup visual
-- Los datos se obtienen directamente con el `artistId` (sin necesitar binding), ya que tú como manager ya tienes acceso a esos datos
-- Se muestra un banner superior indicando "Vista previa — Así verá el artista su portal"
+### Cambio
 
-**3. Detalle visual**
-- El dialog usa el mismo layout que `CollaboratorDashboard` en su rama `linkedArtist`
-- Reutiliza los mismos componentes (Cards, Avatar, etc.)
-- Banner superior con fondo amarillo/ámbar: "Estás previsualizando el portal de [nombre]. El artista verá esta vista al iniciar sesión."
-- Las cards de navegación son clickeables para navegar a las secciones reales (ya tienes acceso como manager)
+**`src/pages/ArtistProfile.tsx`** — Filtrar teamMembers por `is_team_member`
 
-### Archivos
-- `src/components/ArtistPortalPreview.tsx` (nuevo)
-- `src/pages/ArtistProfile.tsx` (añadir botón)
+Después de obtener los contactos asignados al artista, filtrar solo los que tienen `field_config.is_team_member === true`:
+
+```typescript
+// Línea ~149, después de obtener data de contacts
+return (data || []).filter(c => {
+  const config = c.field_config as Record<string, any> | null;
+  return config?.is_team_member === true;
+}) as TeamMember[];
+```
+
+Además, incluir también a los workspace members (miembros con cuenta) en el conteo, ya que la página de Equipos los muestra. Actualmente el conteo solo mira contactos, no workspace members.
+
+### Resultado
+El número en la tarjeta "Equipo" coincidirá con lo que se ve en /teams al filtrar por ese artista.
 
