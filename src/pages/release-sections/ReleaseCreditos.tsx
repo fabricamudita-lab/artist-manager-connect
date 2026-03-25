@@ -458,7 +458,7 @@ function TrackCreditsItem({
         }
       }
 
-      // Always link contact to artist (idempotent upsert)
+      // Always link contact to artist (idempotent upsert) + ensure is_team_member
       if (contactId && releaseArtistId) {
         await supabase
           .from('contact_artist_assignments')
@@ -469,6 +469,41 @@ function TrackCreditsItem({
           .then(({ error }) => {
             if (error) console.error('Error linking contact to artist:', error);
           });
+
+        // Ensure contact is marked as team member with correct category
+        if (data.contact_id) {
+          // Existing contact — merge team categories
+          const cat5 = getRoleCategory5(data.role);
+          const categoryMap: Record<string, string> = {
+            compositor: 'compositor',
+            autoria: 'letrista',
+            produccion: 'produccion',
+            interprete: 'banda',
+            contribuidor: 'artistico',
+          };
+          const teamCat = categoryMap[cat5 || ''] || 'artistico';
+
+          const { data: existing } = await supabase
+            .from('contacts')
+            .select('field_config')
+            .eq('id', contactId)
+            .single();
+
+          const currentConfig = (existing?.field_config as Record<string, any>) || {};
+          const currentCats: string[] = Array.isArray(currentConfig.team_categories) ? currentConfig.team_categories : [];
+          const mergedCats = currentCats.includes(teamCat) ? currentCats : [...currentCats, teamCat];
+
+          await supabase
+            .from('contacts')
+            .update({
+              field_config: {
+                ...currentConfig,
+                is_team_member: true,
+                team_categories: mergedCats,
+              },
+            })
+            .eq('id', contactId);
+        }
       }
 
       const { error } = await supabase.from('track_credits').insert({
