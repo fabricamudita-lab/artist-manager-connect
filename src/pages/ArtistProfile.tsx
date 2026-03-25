@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { 
   ArrowLeft, Music, Users, Calendar, FolderOpen, 
-  Edit, Plus, MapPin, DollarSign, Mic, FileText, Eye, 
+  Edit, Plus, MapPin, DollarSign, Mic, FileText, Eye, LogIn, 
   Disc3, ClipboardList, TrendingUp, Settings2, Wallet,
   ExternalLink, Instagram, Globe, ChevronDown
 } from 'lucide-react';
