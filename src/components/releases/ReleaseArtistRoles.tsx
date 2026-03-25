@@ -23,7 +23,7 @@ interface ReleaseArtistRolesProps {
   compact?: boolean;
 }
 
-export function ReleaseArtistRoles({ releaseId, releaseArtists }: ReleaseArtistRolesProps) {
+export function ReleaseArtistRoles({ releaseId, releaseArtists, compact = false }: ReleaseArtistRolesProps) {
   const queryClient = useQueryClient();
   const [isAdding, setIsAdding] = useState(false);
   const [newArtistIds, setNewArtistIds] = useState<string[]>([]);
