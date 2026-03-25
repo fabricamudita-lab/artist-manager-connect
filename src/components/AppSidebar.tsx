@@ -299,6 +299,43 @@ export function AppSidebar() {
           </Button>
         </div>
 
+        {/* Impersonation Banner */}
+        {isImpersonating && !isCollapsed && (
+          <div className="mx-2 mt-2 p-3 rounded-lg bg-warning/15 border border-warning/30">
+            <p className="text-xs font-medium text-foreground mb-2">
+              Viendo como: {linkedArtist?.stage_name || linkedArtist?.name}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-7 text-xs"
+              onClick={() => {
+                stopImpersonation();
+                navigate(`/artistas/${linkedArtist?.id}`);
+              }}
+            >
+              <LogOut className="w-3 h-3 mr-1" />
+              Volver a Management
+            </Button>
+          </div>
+        )}
+        {isImpersonating && isCollapsed && (
+          <div className="mx-2 mt-2 flex justify-center">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 border-warning/30 bg-warning/15"
+              onClick={() => {
+                stopImpersonation();
+                navigate(`/artistas/${linkedArtist?.id}`);
+              }}
+              title="Volver a Management"
+            >
+              <LogOut className="w-3 h-3" />
+            </Button>
+          </div>
+        )}
+
         {/* Navigation */}
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {navigationGroups.map((group, index) => renderGroup(group, index))}
