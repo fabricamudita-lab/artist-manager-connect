@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, Link2, FileDown, Loader2, Star, Disc3, Video, Sparkles, Captions, ArrowUpDown } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Music, Pencil, Trash2, FileText, UserPlus, Copy, Check, AlertTriangle, GripVertical, Link2, FileDown, Loader2, Star, Disc3, Video, Sparkles, Captions, ArrowUpDown, CheckCircle } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -81,6 +81,7 @@ export default function ReleaseCreditos() {
   const [showCreditsBanner, setShowCreditsBanner] = useState(false);
   const [isExportingLabelCopy, setIsExportingLabelCopy] = useState(false);
   const [isReorderMode, setIsReorderMode] = useState(false);
+  const [isCreatingSolicitud, setIsCreatingSolicitud] = useState(false);
 
   const handleExportLabelCopy = async () => {
     if (!tracks || tracks.length === 0 || !release) {
@@ -113,6 +114,78 @@ export default function ReleaseCreditos() {
       toast.error('Error al generar el Label Copy');
     } finally {
       setIsExportingLabelCopy(false);
+    }
+  };
+
+  const handleRequestApproval = async () => {
+    if (!tracks || tracks.length === 0 || !release) {
+      toast.error('No hay canciones para solicitar aprobación');
+      return;
+    }
+    setIsCreatingSolicitud(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No autenticado');
+
+      const trackIds = tracks.map((t) => t.id);
+      const { data: allCredits, error } = await supabase
+        .from('track_credits')
+        .select('*')
+        .in('track_id', trackIds);
+      if (error) throw error;
+
+      // Build summary text
+      const lines: string[] = [
+        `Label Copy para: "${release.title}"`,
+        `Artista: ${release.artist?.name || 'Sin artista'}`,
+        `Tipo: ${release.type}`,
+        release.upc ? `UPC: ${release.upc}` : '',
+        '',
+      ].filter(Boolean);
+
+      for (const track of tracks) {
+        const trackCredits = (allCredits || []).filter((c: any) => c.track_id === track.id);
+        lines.push(`${track.track_number}. ${track.title}${track.isrc ? ` (ISRC: ${track.isrc})` : ''}`);
+        if (trackCredits.length === 0) {
+          lines.push('   Sin créditos asignados');
+        } else {
+          for (const credit of trackCredits) {
+            const pct = credit.publishing_percentage != null ? ` (${credit.publishing_percentage}%)` : '';
+            lines.push(`   - ${getRoleLabel(credit.role)}: ${credit.name}${pct}`);
+          }
+        }
+        lines.push('');
+      }
+
+      const observaciones = lines.join('\n');
+
+      const { error: insertError } = await supabase
+        .from('solicitudes')
+        .insert({
+          tipo: 'licencia' as const,
+          nombre_solicitante: `Label Copy - ${release.title}`,
+          artist_id: release.artist_id,
+          project_id: release.project_id,
+          observaciones,
+          descripcion_libre: `Release ID: ${release.id}`,
+          estado: 'pendiente' as const,
+          created_by: user.id,
+        });
+
+      if (insertError) throw insertError;
+
+      toast.success('Solicitud de aprobación creada', {
+        description: 'La artista/equipo puede revisarla en Solicitudes',
+        action: {
+          label: 'Ver solicitudes',
+          onClick: () => navigate('/solicitudes'),
+        },
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al crear la solicitud');
+    } finally {
+      setIsCreatingSolicitud(false);
     }
   };
 
@@ -232,6 +305,18 @@ export default function ReleaseCreditos() {
           <p className="text-sm text-muted-foreground">{release?.title}</p>
           <h1 className="text-2xl font-bold">Créditos y Autoría</h1>
         </div>
+        <Button
+          variant="outline"
+          onClick={handleRequestApproval}
+          disabled={isCreatingSolicitud || !tracks || tracks.length === 0}
+        >
+          {isCreatingSolicitud ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <CheckCircle className="mr-2 h-4 w-4" />
+          )}
+          Solicitar aprobación
+        </Button>
         <Button
           variant="outline"
           onClick={handleExportLabelCopy}
