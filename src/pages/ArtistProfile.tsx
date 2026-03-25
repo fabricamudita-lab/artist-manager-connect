@@ -390,6 +390,10 @@ export default function ArtistProfile() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowPortalPreview(true)}>
+            <Eye className="h-4 w-4 mr-2" />
+            Previsualizar portal
+          </Button>
           <InviteArtistDialog 
             artistId={artist.id} 
             artistName={artist.stage_name || artist.name} 
