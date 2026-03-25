@@ -54,6 +54,8 @@ export default function EditReleaseDialog({
   const dateButtonRef = useRef<HTMLButtonElement>(null);
 
   const isPastDue = releaseDate && isPast(startOfDay(releaseDate)) && status !== 'released' && status !== 'archived';
+
+  useEffect(() => {
     if (release) {
       setTitle(release.title);
       setType(release.type);
