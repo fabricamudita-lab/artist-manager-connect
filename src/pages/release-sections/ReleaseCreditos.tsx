@@ -465,7 +465,11 @@ export default function ReleaseCreditos() {
                 isLoading={updateTrack.isPending}
               />
               <div className="border-t pt-4">
-                <ReleaseArtistRoles releaseId={id!} releaseArtists={release?.release_artists || []} compact />
+                <CreditedArtistRoles
+                  releaseId={id!}
+                  allCredits={allReleaseCredits}
+                  releaseArtists={release?.release_artists || []}
+                />
               </div>
             </div>
           )}
