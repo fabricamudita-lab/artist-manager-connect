@@ -1013,7 +1013,7 @@ function SortableCreditRow({
           placeholder="Nombre"
         />
         {hasContact && (
-          <Link2 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" title="Vinculado a contacto" />
+          <span title="Vinculado a contacto"><Link2 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" /></span>
         )}
         <GroupedRoleSelect value={editRole} onValueChange={setEditRole} triggerClassName="w-[140px] h-8" />
         <div className="flex items-center gap-1">
