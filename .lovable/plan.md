@@ -1,51 +1,60 @@
 
 
-## Editar nombre en créditos vinculados + actualización masiva en el release
+## Dar acceso a Leyre: Portal del Artista con edición completa
 
-### Problema
-Cuando un crédito está vinculado a un contacto (`contact_id`), el campo de nombre no es editable (línea 929-938 de `ReleaseCreditos.tsx`). El usuario necesita poder controlar el nombre legal que aparece en los documentos, independientemente del nombre del contacto.
+### Concepto
+Crear una cuenta de usuario para Leyre y vincularla a su perfil de artista. Cuando inicie sesión, verá un dashboard personalizado con acceso completo a su información: datos de artista, lanzamientos, calendario de shows y datos fiscales/financieros.
 
-### Cambios
+### Pasos
 
-**1. `src/pages/release-sections/ReleaseCreditos.tsx` — Hacer editable el nombre siempre**
+**1. Crear cuenta de usuario para Leyre**
+- Crear un usuario en Supabase Auth con el email de Leyre
+- Crear su perfil en la tabla `profiles` con `active_role: 'artist'`
+- Crear un `artist_role_binding` vinculando su `user_id` con su `artist_id` y rol `ARTIST_MANAGER` (para edición completa)
 
-En `SortableCreditRow` (líneas 926-938), eliminar la condición que bloquea la edición del nombre cuando hay `contact_id`. El input de nombre debe mostrarse siempre, tanto con contacto vinculado como sin él. También eliminar la condición `!hasContact` en `handleSave` (línea 914).
+**2. Vincular artista a perfil de usuario**
+- La tabla `artists` ya tiene un campo `profile_id`. Asignarle el `profile.id` de Leyre para que el sistema sepa que ella ES ese artista (no solo que tiene acceso)
 
-**2. `src/pages/release-sections/ReleaseCreditos.tsx` — Detección de duplicados y actualización masiva**
+**3. Adaptar el CollaboratorDashboard para artistas vinculados**
+- Cuando un usuario tiene `artist_role_bindings`, el `CollaboratorDashboard` ya muestra sus artistas asignados
+- Añadir accesos directos específicos al dashboard del artista:
+  - **"Mi Perfil de Artista"** → enlace a `/artistas/:id` (su ficha 360)
+  - **"Mis Lanzamientos"** → enlace a `/releases` filtrado por su artista
+  - **"Mis Shows"** → enlace a booking/calendario filtrado
+  - **"Mis Finanzas"** → enlace a finanzas filtrado
 
-Modificar la mutación `updateCredit` (líneas 480-493) para que, cuando el campo `name` cambie:
+**4. Adaptar la navegación lateral (AppSidebar)**
+- Para usuarios con `active_role !== 'management'`, mostrar menú simplificado:
+  - Dashboard
+  - Mi Perfil (→ su ficha de artista directamente)
+  - Mis Lanzamientos (→ discografía filtrada)
+  - Calendario (→ sus shows)
+  - Finanzas (→ sus datos fiscales/royalties)
+  - Solicitudes
+  - Chat
 
-1. Buscar en todas las pistas del release otros créditos con el mismo nombre antiguo:
-   ```sql
-   SELECT id FROM track_credits 
-   WHERE track_id IN (SELECT id FROM tracks WHERE release_id = :releaseId)
-   AND name = :oldName
-   AND id != :currentCreditId
-   ```
+**5. Adaptar permisos de edición en páginas existentes**
+- **ArtistProfile** (`/artistas/:id`): Si el usuario es el propio artista (su `profile_id` coincide) o tiene rol `ARTIST_MANAGER`, permitir edición completa de bio, redes, género, datos fiscales
+- **Releases/Discografía**: Filtrar automáticamente por `artist_id` del usuario vinculado; permitir ver y editar créditos, assets
+- **Booking/Calendario**: Filtrar por su `artist_id`; mostrar shows en modo lectura o edición según preferencia
+- **Finanzas**: Mostrar solo sus datos fiscales, IRPF, liquidaciones
 
-2. Si encuentra coincidencias, mostrar un diálogo de confirmación:
-   - "Se encontraron X créditos más con el nombre 'Joan Nitu' en este disco. ¿Quieres actualizarlos todos a 'Joan Nitu López'?"
-   - Botón "Actualizar todos" → actualiza todos los créditos coincidentes
-   - Botón "Solo este" → actualiza solo el crédito actual
-
-3. Para implementar el diálogo, añadir un estado `pendingBulkUpdate` con `{oldName, newName, matchingIds[], currentCreditId, fullData}` y un `AlertDialog` que se muestra cuando hay una actualización pendiente.
-
-**3. Componente de diálogo de confirmación**
-
-Añadir un `AlertDialog` dentro del componente `TrackAccordion` (o a nivel del componente principal) que se renderice cuando `pendingBulkUpdate` no sea null. Al confirmar "Actualizar todos", ejecutar un `Promise.all` de updates para todos los IDs coincidentes, e invalidar las queries de todos los tracks del release.
-
-### Flujo
-```text
-Editar crédito → Cambiar nombre → Guardar
-  → Query: ¿hay más créditos con el nombre anterior en este release?
-  → Sí → AlertDialog: "¿Actualizar los X créditos restantes?"
-       → "Actualizar todos" → batch update → invalidate queries
-       → "Solo este" → update individual → invalidate query
-  → No → update individual normal
-```
+**6. RLS: Asegurar acceso a nivel de base de datos**
+- Las políticas RLS existentes ya usan `artist_role_bindings` para controlar acceso
+- Verificar que las tablas clave (`artists`, `releases`, `tracks`, `booking_offers`, etc.) tienen políticas que permiten SELECT/UPDATE a usuarios con binding al artista
+- Añadir políticas faltantes si es necesario
 
 ### Detalle técnico
-- El `releaseId` ya está disponible via `useParams` en el componente padre
-- Los `tracks` del release ya se cargan con `useTracks(releaseId)`
-- La búsqueda de duplicados se hace client-side si ya tenemos los créditos cargados por track, o server-side con una query directa a Supabase
+- **Archivos principales a modificar**:
+  - `src/components/AppSidebar.tsx` — navegación condicional para artistas
+  - `src/components/dashboard/CollaboratorDashboard.tsx` — dashboard enriquecido para artistas vinculados
+  - `src/pages/ArtistProfile.tsx` — permisos de edición basados en binding
+  - Páginas de releases, booking, finanzas — filtrado por artista vinculado
+- **Migración SQL**: Verificar/añadir RLS policies para que artistas con binding puedan acceder y editar sus datos
+- **No se crean tablas nuevas**: Se reutiliza la infraestructura existente de `artist_role_bindings` + `profiles`
+
+### Flujo para el usuario (tú como manager)
+1. Desde "Mi Management" o la ficha del artista, habrá un botón "Invitar artista" que genera una invitación por email
+2. Leyre recibe el email, crea su contraseña, y accede a su portal personalizado
+3. Tú sigues viendo todo desde tu vista de management; ella ve solo su información
 
