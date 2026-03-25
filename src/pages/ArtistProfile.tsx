@@ -23,6 +23,7 @@ import { ArtistFormatsContent } from '@/components/ArtistFormatsDialog';
 import CreateReleaseDialog from '@/components/releases/CreateReleaseDialog';
 import { ArtistInfoDialog } from '@/components/ArtistInfoDialog';
 import InviteArtistDialog from '@/components/InviteArtistDialog';
+import ArtistPortalPreview from '@/components/ArtistPortalPreview';
 import { usePlatformEarnings, useSongs } from '@/hooks/useRoyalties';
 import { PieChart, Pie, Cell } from 'recharts';
 
