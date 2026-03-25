@@ -331,7 +331,7 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
                   <Select value={form.track_id} onValueChange={v => setForm(f => ({ ...f, track_id: v === '_none' ? '' : v }))}>
                     <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Sin asociar" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="_none">Sin asociar</SelectItem>
+                      <SelectItem value="_none">Álbum completo</SelectItem>
                       {(tracks || []).map(t => (
                         <SelectItem key={t.id} value={t.id}>
                           {t.track_number}. {t.title}
