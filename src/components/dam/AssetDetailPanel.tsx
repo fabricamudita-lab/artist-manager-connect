@@ -323,6 +323,20 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
                     ))}
                   </div>
                 </div>
+                <div>
+                  <Label className="text-xs flex items-center gap-1"><Music className="h-3 w-3" /> Track asociado</Label>
+                  <Select value={form.track_id} onValueChange={v => setForm(f => ({ ...f, track_id: v === '_none' ? '' : v }))}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Sin asociar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Sin asociar</SelectItem>
+                      {(tracks || []).map(t => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.track_number}. {t.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             ) : (
               <div className="space-y-2 text-sm">
