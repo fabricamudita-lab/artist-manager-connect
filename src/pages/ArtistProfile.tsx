@@ -146,7 +146,10 @@ export default function ArtistProfile() {
         .order('name');
       
       if (error) throw error;
-      return data as TeamMember[];
+      return (data || []).filter(c => {
+        const config = c.field_config as Record<string, any> | null;
+        return config?.is_team_member === true;
+      }) as TeamMember[];
     },
     enabled: !!id,
   });
