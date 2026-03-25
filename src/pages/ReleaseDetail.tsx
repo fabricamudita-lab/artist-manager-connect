@@ -257,31 +257,58 @@ export default function ReleaseDetail() {
                     </span>
                   </>
                 )}
-                {release.release_artists && release.release_artists.length > 0 ? (
-                  <>
-                    <span>•</span>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {release.release_artists.map((ra, idx) => (
-                        <span key={ra.artist_id} className="inline-flex items-center">
-                          {idx > 0 && <span className="mx-0.5 text-muted-foreground">,</span>}
-                          <Link 
-                            to={`/artistas/${ra.artist?.id || ra.artist_id}`}
-                            className="inline-flex items-center gap-1 hover:text-primary transition-colors"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Avatar className="h-5 w-5">
-                              <AvatarImage src={ra.artist?.avatar_url || undefined} />
-                              <AvatarFallback className="text-[10px]">
-                                {(ra.artist?.name || '?').charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium">{ra.artist?.name}</span>
-                          </Link>
-                        </span>
-                      ))}
-                    </div>
-                  </>
-                ) : release.artist ? (
+                {release.release_artists && release.release_artists.length > 0 ? (() => {
+                    const mainArtists = release.release_artists.filter(ra => ra.role !== 'featuring');
+                    const featArtists = release.release_artists.filter(ra => ra.role === 'featuring');
+                    return (
+                      <>
+                        <span>•</span>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {mainArtists.map((ra, idx) => (
+                            <span key={ra.artist_id} className="inline-flex items-center">
+                              {idx > 0 && <span className="mx-0.5 text-muted-foreground">,</span>}
+                              <Link 
+                                to={`/artistas/${ra.artist?.id || ra.artist_id}`}
+                                className="inline-flex items-center gap-1 hover:text-primary transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Avatar className="h-5 w-5">
+                                  <AvatarImage src={ra.artist?.avatar_url || undefined} />
+                                  <AvatarFallback className="text-[10px]">
+                                    {(ra.artist?.name || '?').charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="font-medium">{ra.artist?.name}</span>
+                              </Link>
+                            </span>
+                          ))}
+                          {featArtists.length > 0 && (
+                            <>
+                              <span className="text-muted-foreground italic mx-1">feat.</span>
+                              {featArtists.map((ra, idx) => (
+                                <span key={ra.artist_id} className="inline-flex items-center">
+                                  {idx > 0 && <span className="mx-0.5 text-muted-foreground">,</span>}
+                                  <Link 
+                                    to={`/artistas/${ra.artist?.id || ra.artist_id}`}
+                                    className="inline-flex items-center gap-1 hover:text-primary transition-colors"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Avatar className="h-5 w-5">
+                                      <AvatarImage src={ra.artist?.avatar_url || undefined} />
+                                      <AvatarFallback className="text-[10px]">
+                                        {(ra.artist?.name || '?').charAt(0).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="font-medium">{ra.artist?.name}</span>
+                                  </Link>
+                                </span>
+                              ))}
+                            </>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })() : release.artist ? (
                   <>
                     <span>•</span>
                     <Link 
