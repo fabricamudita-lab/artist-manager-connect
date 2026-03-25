@@ -15,6 +15,7 @@ interface LabelCopyRelease {
   label: string | null;
   upc: string | null;
   artist?: { name: string } | null;
+  release_artists?: { role: string; artist?: { name: string } | null }[];
 }
 
 interface LabelCopyTrack {
@@ -77,9 +78,17 @@ export function exportLabelCopyPDF(
 
   const typeLabel = release.type === 'single' ? 'Single' : release.type === 'ep' ? 'EP' : 'Álbum';
 
+  // Build artist display with main/featuring
+  let artistDisplay = release.artist?.name || '—';
+  if (release.release_artists && release.release_artists.length > 0) {
+    const mainNames = release.release_artists.filter(ra => ra.role !== 'featuring').map(ra => ra.artist?.name).filter(Boolean);
+    const featNames = release.release_artists.filter(ra => ra.role === 'featuring').map(ra => ra.artist?.name).filter(Boolean);
+    artistDisplay = mainNames.join(', ') + (featNames.length > 0 ? ' feat. ' + featNames.join(', ') : '');
+  }
+
   const headerFields: [string, string][] = [
     ['Título', release.title],
-    ['Artista', release.artist?.name || '—'],
+    ['Artista', artistDisplay],
     ['Tipo', typeLabel],
   ];
   if (release.label) headerFields.push(['Sello', release.label]);
