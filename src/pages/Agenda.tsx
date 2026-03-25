@@ -603,10 +603,22 @@ export default function Agenda() {
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-1">
-                        <Badge variant="secondary" className="text-xs">
-                          <CategoryIcon className="w-3 h-3 mr-1" />
-                          {categoryInfo.label}
-                        </Badge>
+                        {(() => {
+                          const teamCats: string[] = Array.isArray((contact.field_config as any)?.team_categories)
+                            ? (contact.field_config as any).team_categories
+                            : [];
+                          const catsToShow = teamCats.length > 0 ? teamCats : [contact.category];
+                          return catsToShow.map((cat) => {
+                            const info = getCategoryInfo(cat);
+                            const CatIcon = info.icon;
+                            return (
+                              <Badge key={cat} variant="secondary" className="text-xs">
+                                <CatIcon className="w-3 h-3 mr-1" />
+                                {info.label}
+                              </Badge>
+                            );
+                          });
+                        })()}
                         {contactTags.slice(0, 2).map((tag) => (
                           <Badge key={tag} variant="outline" className="text-xs">
                             #{tag}

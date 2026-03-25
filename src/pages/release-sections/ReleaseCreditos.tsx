@@ -504,7 +504,7 @@ function TrackCreditsItem({
     mutationFn: async (data: { name: string; role: string; contact_id?: string; publishing_percentage?: number; master_percentage?: number }) => {
       let contactId = data.contact_id;
 
-      // Auto-create contact if no existing profile was selected
+      // Auto-create or reuse contact if no existing profile was selected
       if (!contactId && data.name) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -518,27 +518,61 @@ function TrackCreditsItem({
           };
           const contactCategory = categoryMap[cat5 || ''] || 'otro';
           const roleLabel = getRoleLabel(data.role);
-
           const teamCategory = categoryMap[cat5 || ''] || 'artistico';
-          const { data: newContact, error: contactError } = await supabase
-            .from('contacts')
-            .insert({
-              name: data.name,
-              category: contactCategory,
-              role: roleLabel,
-              created_by: user.id,
-              field_config: {
-                is_team_member: true,
-                team_categories: [teamCategory],
-              },
-            })
-            .select('id')
-            .single();
 
-          if (contactError) {
-            console.error('Error creating contact:', contactError);
-          } else if (newContact) {
-            contactId = newContact.id;
+          // Check if a contact with the same name already exists for this user
+          const { data: existingContact } = await supabase
+            .from('contacts')
+            .select('id, role, field_config')
+            .eq('created_by', user.id)
+            .ilike('name', data.name)
+            .limit(1)
+            .maybeSingle();
+
+          if (existingContact) {
+            // Reuse existing contact — merge categories and roles
+            contactId = existingContact.id;
+            const currentConfig = (existingContact.field_config as Record<string, any>) || {};
+            const currentCats: string[] = Array.isArray(currentConfig.team_categories) ? currentConfig.team_categories : [];
+            const mergedCats = currentCats.includes(teamCategory) ? currentCats : [...currentCats, teamCategory];
+
+            // Merge roles
+            const existingRoles = (existingContact.role || '').split(',').map((r: string) => r.trim()).filter(Boolean);
+            const mergedRoles = existingRoles.includes(roleLabel) ? existingRoles : [...existingRoles, roleLabel];
+
+            await supabase
+              .from('contacts')
+              .update({
+                field_config: {
+                  ...currentConfig,
+                  is_team_member: true,
+                  team_categories: mergedCats,
+                },
+                role: mergedRoles.join(', '),
+              })
+              .eq('id', existingContact.id);
+          } else {
+            // Create new contact
+            const { data: newContact, error: contactError } = await supabase
+              .from('contacts')
+              .insert({
+                name: data.name,
+                category: contactCategory,
+                role: roleLabel,
+                created_by: user.id,
+                field_config: {
+                  is_team_member: true,
+                  team_categories: [teamCategory],
+                },
+              })
+              .select('id')
+              .single();
+
+            if (contactError) {
+              console.error('Error creating contact:', contactError);
+            } else if (newContact) {
+              contactId = newContact.id;
+            }
           }
         }
       }
