@@ -279,13 +279,24 @@ export function useUpdateRelease() {
 
       if (error) throw error;
 
-      // Sync release_artists if provided
+      // Sync release_artists if provided (preserve existing roles)
       if (artist_ids !== undefined) {
+        // Fetch existing roles before deleting
+        const { data: existingRAs } = await supabase
+          .from('release_artists')
+          .select('artist_id, role')
+          .eq('release_id', id);
+        const roleMap = new Map((existingRAs || []).map(ra => [ra.artist_id, ra.role]));
+
         await supabase.from('release_artists').delete().eq('release_id', id);
         if (artist_ids.length > 0) {
           await supabase
             .from('release_artists')
-            .insert(artist_ids.map(aid => ({ release_id: id, artist_id: aid })));
+            .insert(artist_ids.map(aid => ({
+              release_id: id,
+              artist_id: aid,
+              role: roleMap.get(aid) || 'main',
+            })));
         }
       }
 
