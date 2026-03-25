@@ -182,6 +182,7 @@ export default function EditReleaseDialog({
             <Popover>
               <PopoverTrigger asChild>
                 <Button
+                  ref={dateButtonRef}
                   variant="outline"
                   className={cn(
                     'w-full justify-start text-left font-normal',
