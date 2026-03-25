@@ -1,26 +1,40 @@
 
 
-## Alerta de fecha pasada en lanzamientos no publicados
+## Hacer que los créditos de lanzamientos aparezcan como equipo del artista
 
 ### Problema
-Cuando abres un lanzamiento cuya fecha ya pasó pero no tiene estado "Publicado", no hay ningún aviso. Debería preguntarte qué hacer.
+Cuando se añade un crédito en un lanzamiento (Compositor, Autoría, Producción, etc.), el contacto se crea y se vincula al artista via `contact_artist_assignments`, pero NO se marca como `is_team_member: true` en `field_config`. Por eso no aparecen en la página de Equipos.
 
 ### Solución
-Añadir un banner de alerta dentro del `EditReleaseDialog` (y opcionalmente en la vista del release) que aparece cuando `release_date < hoy` y `status !== 'released'`. El banner ofrece 3 acciones rápidas:
+Modificar `src/pages/release-sections/ReleaseCreditos.tsx` en la mutación `createCredit` para que al crear o vincular un contacto desde créditos, se actualice su `field_config` con `is_team_member: true` y la categoría de equipo correspondiente.
 
 ### Cambios
 
-**`src/components/releases/EditReleaseDialog.tsx`**
-- Detectar al abrir el dialog si `releaseDate` es pasada y `status` no es `released`
-- Mostrar un `Alert` con fondo ámbar/warning entre el header y los campos:
-  - Texto: "La fecha de lanzamiento ya ha pasado y el estado no es 'Publicado'."
-  - 3 botones:
-    - **"Marcar como Publicado"** → cambia `status` a `released`
-    - **"Cambiar fecha"** → hace scroll/focus al campo de fecha
-    - **"Archivar"** → cambia `status` a `archived`
-- Cada botón actualiza el estado local del formulario (no guarda automáticamente), para que el usuario confirme con "Guardar"
-- El alert desaparece si el usuario cambia el estado manualmente a `released` o `archived`, o si cambia la fecha a una futura
+**`src/pages/release-sections/ReleaseCreditos.tsx`**
 
-### Archivo
-- `src/components/releases/EditReleaseDialog.tsx` (editar)
+1. Al **crear un contacto nuevo** (línea ~437-441), incluir `field_config` con `is_team_member: true` y `team_categories` mapeadas desde el rol del crédito:
+
+| Categoría crédito | team_categories |
+|---|---|
+| compositor | `['compositor']` |
+| autoria | `['letrista']` |
+| produccion | `['produccion']` |
+| interprete | `['banda']` |
+| contribuidor | `['artistico']` |
+
+2. Al **vincular un contacto existente** (que ya tenía `contact_id`), hacer un update para asegurar que `is_team_member: true` y que la categoría de equipo correspondiente se añada a `team_categories` sin sobreescribir las existentes. Esto requiere leer el `field_config` actual, mergear las categorías, y actualizar.
+
+### Mapeo de categorías
+```text
+Crédito rol          →  team_categories value
+─────────────────────────────────────────────
+compositor           →  compositor
+autoria (letrista)   →  letrista  
+produccion           →  produccion / tecnico
+interprete           →  banda / interprete
+contribuidor         →  artistico
+```
+
+### Resultado
+Todos los nombres que aparecen en créditos de lanzamientos de Leyre aparecerán automáticamente en su equipo, etiquetados con la categoría correspondiente.
 
