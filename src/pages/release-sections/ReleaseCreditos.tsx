@@ -991,7 +991,7 @@ function SortableCreditRow({
   const handleSave = () => {
     const updates: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null }> = {};
     if (editRole !== credit.role) updates.role = editRole;
-    if (!hasContact && editName !== credit.name) updates.name = editName;
+    if (editName !== credit.name) updates.name = editName;
     const newPublishing = editPublishingPct === '' ? null : Number(editPublishingPct);
     const newMaster = editMasterPct === '' ? null : Number(editMasterPct);
     if (newPublishing !== credit.publishing_percentage) updates.publishing_percentage = newPublishing;
