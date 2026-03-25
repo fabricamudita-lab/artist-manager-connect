@@ -22,6 +22,7 @@ import { ContactProfileSheet } from '@/components/ContactProfileSheet';
 import { ArtistFormatsContent } from '@/components/ArtistFormatsDialog';
 import CreateReleaseDialog from '@/components/releases/CreateReleaseDialog';
 import { ArtistInfoDialog } from '@/components/ArtistInfoDialog';
+import InviteArtistDialog from '@/components/InviteArtistDialog';
 import { usePlatformEarnings, useSongs } from '@/hooks/useRoyalties';
 import { PieChart, Pie, Cell } from 'recharts';
 
