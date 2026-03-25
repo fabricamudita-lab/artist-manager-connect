@@ -396,11 +396,15 @@ function SortableTrackRow({ track }: { track: Track }) {
 function TrackCreditsItem({
   track,
   releaseArtistId,
+  releaseId,
+  allTracks,
   onEdit,
   onDelete,
 }: {
   track: Track;
   releaseArtistId?: string | null;
+  releaseId: string;
+  allTracks: Track[];
   onEdit: () => void;
   onDelete: () => void;
 }) {
