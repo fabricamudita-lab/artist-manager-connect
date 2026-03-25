@@ -1129,7 +1129,7 @@ export default function Teams() {
             categories={categoryPillsData}
             selectedCategory={selectedCategoryFilter}
             onCategoryChange={setSelectedCategoryFilter}
-            allCount={allTeamByCategory.reduce((sum, cat) => sum + cat.total, 0)}
+            allCount={allMembersFlattened.length}
             onManageCategories={() => setCategoryManagerOpen(true)}
           />
         )}
