@@ -121,6 +121,7 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
           platform_tags: form.platform_tags.length > 0 ? form.platform_tags : null,
           delivery_date: form.delivery_date || null,
           external_url: form.external_url || null,
+          track_id: form.track_id || null,
         } as any)
         .eq('id', asset.id);
       if (error) throw error;
