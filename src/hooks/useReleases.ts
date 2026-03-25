@@ -147,6 +147,7 @@ export interface ReleaseAsset {
   supplier_contact_id?: string | null;
   version_group?: string | null;
   sort_order?: number | null;
+  track_id?: string | null;
 }
 
 // Fetch all releases

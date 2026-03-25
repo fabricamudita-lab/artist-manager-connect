@@ -5445,6 +5445,7 @@ export type Database = {
           tags: string[] | null
           thumbnail_url: string | null
           title: string
+          track_id: string | null
           type: string
           uploaded_by: string | null
           version_group: string | null
@@ -5474,6 +5475,7 @@ export type Database = {
           tags?: string[] | null
           thumbnail_url?: string | null
           title: string
+          track_id?: string | null
           type: string
           uploaded_by?: string | null
           version_group?: string | null
@@ -5503,6 +5505,7 @@ export type Database = {
           tags?: string[] | null
           thumbnail_url?: string | null
           title?: string
+          track_id?: string | null
           type?: string
           uploaded_by?: string | null
           version_group?: string | null
@@ -5527,6 +5530,13 @@ export type Database = {
             columns: ["supplier_contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_assets_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
             referencedColumns: ["id"]
           },
         ]
