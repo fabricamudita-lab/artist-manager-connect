@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useTracks } from '@/hooks/useReleases';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 
-import { X, Download, Share2, Video, Image, ExternalLink, Send, Copy, Play } from 'lucide-react';
+import { X, Download, Share2, Video, Image, ExternalLink, Send, Copy, Play, Music } from 'lucide-react';
 import { getVideoThumbnail } from '@/lib/video-thumbnails';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -29,6 +30,7 @@ interface AssetDetailPanelProps {
 
 export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDetailPanelProps) {
   const { user } = useAuth();
+  const { data: tracks } = useTracks(asset.release_id);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     title: asset.title,
@@ -40,6 +42,7 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
     platform_tags: asset.platform_tags || [],
     delivery_date: asset.delivery_date || '',
     external_url: asset.external_url || '',
+    track_id: asset.track_id || '',
   });
   const [comments, setComments] = useState<AssetComment[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -58,6 +61,7 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
       platform_tags: asset.platform_tags || [],
       delivery_date: asset.delivery_date || '',
       external_url: asset.external_url || '',
+      track_id: asset.track_id || '',
     });
     setEditing(false);
     setDetectedDims(null);
@@ -117,6 +121,7 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
           platform_tags: form.platform_tags.length > 0 ? form.platform_tags : null,
           delivery_date: form.delivery_date || null,
           external_url: form.external_url || null,
+          track_id: form.track_id || null,
         } as any)
         .eq('id', asset.id);
       if (error) throw error;
@@ -318,6 +323,20 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
                     ))}
                   </div>
                 </div>
+                <div>
+                  <Label className="text-xs flex items-center gap-1"><Music className="h-3 w-3" /> Track asociado</Label>
+                  <Select value={form.track_id} onValueChange={v => setForm(f => ({ ...f, track_id: v === '_none' ? '' : v }))}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Sin asociar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Sin asociar</SelectItem>
+                      {(tracks || []).map(t => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.track_number}. {t.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             ) : (
               <div className="space-y-2 text-sm">
@@ -332,6 +351,12 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
                 {asset.external_url && (
                   <div className="flex justify-between"><span className="text-muted-foreground">URL externa</span><a href={asset.external_url} target="_blank" rel="noreferrer" className="text-primary text-xs flex items-center gap-1"><ExternalLink className="h-3 w-3" /> Abrir</a></div>
                 )}
+                {asset.track_id && tracks && (() => {
+                  const track = tracks.find(t => t.id === asset.track_id);
+                  return track ? (
+                    <div className="flex justify-between"><span className="text-muted-foreground">Track</span><span className="flex items-center gap-1"><Music className="h-3 w-3" />{track.track_number}. {track.title}</span></div>
+                  ) : null;
+                })()}
               </div>
             )}
           </div>

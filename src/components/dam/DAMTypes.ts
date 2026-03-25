@@ -27,6 +27,7 @@ export interface DAMAsset {
   supplier_contact_id: string | null;
   version_group: string | null;
   sort_order: number | null;
+  track_id: string | null;
 }
 
 export interface PhotoSession {
