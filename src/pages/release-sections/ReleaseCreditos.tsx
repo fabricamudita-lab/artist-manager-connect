@@ -693,6 +693,27 @@ function TrackCreditsItem({
         </div>
       </AccordionContent>
     </AccordionItem>
+
+      {/* Bulk name update dialog */}
+      <AlertDialog open={!!pendingBulkUpdate} onOpenChange={(open) => { if (!open) setPendingBulkUpdate(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Actualizar nombre en otros créditos</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se encontraron {pendingBulkUpdate?.matchingIds.length} créditos más con el nombre "{pendingBulkUpdate?.oldName}" en este disco. ¿Quieres actualizarlos todos a "{pendingBulkUpdate?.newName}"?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => handleBulkUpdateConfirm(false)}>
+              Solo este
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleBulkUpdateConfirm(true)}>
+              Actualizar todos ({(pendingBulkUpdate?.matchingIds.length ?? 0) + 1})
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
