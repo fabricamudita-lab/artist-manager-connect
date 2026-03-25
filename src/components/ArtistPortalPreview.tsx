@@ -67,9 +67,9 @@ export default function ArtistPortalPreview({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
         {/* Preview Banner */}
-        <div className="bg-amber-500/15 border-b border-amber-500/30 px-6 py-3 flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <p className="text-sm text-amber-800 dark:text-amber-300">
+        <div className="bg-warning/15 border-b border-warning/30 px-6 py-3 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <p className="text-sm text-warning-foreground">
             <strong>Vista previa</strong> — Así verá <strong>{displayName}</strong> su portal al iniciar sesión.
           </p>
         </div>
