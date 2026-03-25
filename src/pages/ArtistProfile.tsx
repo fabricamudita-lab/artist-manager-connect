@@ -394,9 +394,23 @@ export default function ArtistProfile() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowPortalPreview(true)}>
-            <Eye className="h-4 w-4 mr-2" />
-            Previsualizar portal
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => {
+              if (!artist) return;
+              startImpersonation({
+                id: artist.id,
+                name: artist.name,
+                stage_name: artist.stage_name,
+                avatar_url: artist.avatar_url,
+                role: 'ARTIST_MANAGER',
+              });
+              navigate('/');
+            }}
+          >
+            <LogIn className="h-4 w-4 mr-2" />
+            Entrar como artista
           </Button>
           <InviteArtistDialog 
             artistId={artist.id} 
