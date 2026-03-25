@@ -1,55 +1,26 @@
 
 
-## Indicar Main Artist vs Featuring en Créditos y Autoría
+## Mover Main Artist / Featuring al diálogo "Editar Canción"
 
-### Contexto
-La tabla `release_artists` ya tiene una columna `role` (texto, default `'primary'`). Actualmente no se usa — todos los artistas se insertan sin especificar rol. El objetivo es permitir marcar qué artistas son "Main Artist" y cuáles son "Featuring" directamente desde la sección de Créditos y Autoría, información esencial para la distribución en plataformas.
+### Problema
+El componente de roles de artista (`ReleaseArtistRoles`) existe en la página de Créditos pero aparece como una card separada entre los botones superiores y la lista de canciones. Es fácil pasarlo por alto. El usuario espera encontrarlo dentro del diálogo de edición de canción o en un lugar más visible.
 
-### Cambios
+### Solución
 
-**1. Sección de artistas en ReleaseCreditos.tsx**
+**Integrar la sección de artistas directamente en el diálogo "Editar Canción"**, debajo del campo de Letra. Esto permite al usuario gestionar los roles (Main Artist / Featuring) en el mismo flujo de edición de cada canción.
 
-Añadir un bloque visual antes de las canciones que muestre los artistas vinculados al release con su rol (Main / Featuring). Cada artista tendrá un selector o toggle para cambiar entre `main` y `featuring`. Se podrán añadir artistas adicionales como featuring directamente desde aquí.
+Además, **mover la card `ReleaseArtistRoles` a una posición más prominente** en la página general — justo debajo del título de la sección, antes de las canciones, con un diseño más llamativo (fondo destacado o border accent).
 
-```text
-┌─────────────────────────────────────────────┐
-│  Artistas del Lanzamiento                   │
-│                                             │
-│  🎤 Leyre              [Main Artist ▾]      │
-│  🎤 Alejandro Estruch  [Featuring   ▾]      │
-│                                             │
-│  + Añadir artista                           │
-└─────────────────────────────────────────────┘
-```
+### Cambios concretos
 
-Al cambiar el rol, se actualiza `release_artists.role` con valor `'main'` o `'featuring'`.
+**1. `src/pages/release-sections/ReleaseCreditos.tsx`**
+- Dentro del diálogo "Editar Canción" (línea ~443), añadir una sección "Artistas del Lanzamiento" debajo del formulario de la canción, usando el componente `ReleaseArtistRoles` en formato compacto
+- Mantener también la card en la página principal pero con estilo más visible (border-primary/20, fondo accent)
 
-**2. Actualizar inserciones de release_artists** — `useReleases.ts`
+**2. `src/components/releases/ReleaseArtistRoles.tsx`**
+- Añadir prop `compact?: boolean` para renderizar una versión reducida sin Card wrapper, apta para embeberse en diálogos
+- En modo compacto: sin CardHeader, solo la lista de artistas con selectores y el botón de añadir
 
-En `useCreateRelease` y `useUpdateRelease`, cuando se insertan registros en `release_artists`, pasar el `role` correspondiente. El primer artista se marca como `main` por defecto, los demás como `main` también (el usuario puede cambiarlos a featuring después).
-
-**3. Mostrar el rol en ReleaseDetail.tsx**
-
-En la cabecera del release, diferenciar visualmente los artistas main de los featuring:
-- Main artists se muestran primero
-- Featuring artists se muestran precedidos de "feat." 
-- Ejemplo: `Leyre feat. Alejandro Estruch`
-
-**4. Incluir en Label Copy**
-
-Actualizar la generación del Label Copy (PDF y solicitud de aprobación) para incluir la distinción Main Artist / Featuring en la cabecera del release.
-
-**5. Actualizar EditReleaseDialog.tsx**
-
-En el diálogo de edición, al gestionar artistas, preservar el `role` existente de cada artista al hacer sync (actualmente se borran y re-insertan sin role).
-
-### Archivos a modificar
-- `src/pages/release-sections/ReleaseCreditos.tsx` — nueva sección de artistas con selector de rol
-- `src/hooks/useReleases.ts` — preservar/gestionar `role` en release_artists
-- `src/pages/ReleaseDetail.tsx` — mostrar "feat." para featuring artists
-- `src/components/releases/EditReleaseDialog.tsx` — preservar roles al editar
-- `src/utils/exportLabelCopyPDF.ts` — incluir Main/Feat en export
-
-### Sin migración necesaria
-La columna `role` ya existe en `release_artists`. Solo necesitamos usarla con valores `'main'` y `'featuring'`.
+### Resultado
+El usuario verá los roles de artista tanto al abrir "Editar Canción" como en la vista general de créditos, sin posibilidad de perdérselo.
 
