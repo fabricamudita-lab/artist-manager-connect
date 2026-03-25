@@ -307,6 +307,18 @@ export default function ReleaseCreditos() {
         </div>
         <Button
           variant="outline"
+          onClick={handleRequestApproval}
+          disabled={isCreatingSolicitud || !tracks || tracks.length === 0}
+        >
+          {isCreatingSolicitud ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <CheckCircle className="mr-2 h-4 w-4" />
+          )}
+          Solicitar aprobación
+        </Button>
+        <Button
+          variant="outline"
           onClick={handleExportLabelCopy}
           disabled={isExportingLabelCopy || !tracks || tracks.length === 0}
         >
