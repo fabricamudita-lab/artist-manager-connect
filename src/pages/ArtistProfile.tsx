@@ -101,6 +101,7 @@ const DONUT_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--se
 export default function ArtistProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { startImpersonation } = useLinkedArtist();
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [showCreateReleaseDialog, setShowCreateReleaseDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
