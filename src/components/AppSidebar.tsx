@@ -32,6 +32,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
 import { useState } from 'react';
 import { useActionCenter } from '@/hooks/useActionCenter';
