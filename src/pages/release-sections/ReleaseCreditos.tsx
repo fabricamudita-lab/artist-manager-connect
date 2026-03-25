@@ -81,6 +81,7 @@ export default function ReleaseCreditos() {
   const [showCreditsBanner, setShowCreditsBanner] = useState(false);
   const [isExportingLabelCopy, setIsExportingLabelCopy] = useState(false);
   const [isReorderMode, setIsReorderMode] = useState(false);
+  const [isCreatingSolicitud, setIsCreatingSolicitud] = useState(false);
 
   const handleExportLabelCopy = async () => {
     if (!tracks || tracks.length === 0 || !release) {
