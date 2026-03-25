@@ -94,6 +94,37 @@ export default function EditReleaseDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {isPastDue && (
+            <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/30">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 dark:text-amber-200">
+                <p className="mb-2 font-medium">La fecha de lanzamiento ya ha pasado y el estado no es "Publicado".</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setStatus('released')}
+                    className="text-xs font-medium px-2.5 py-1 rounded-md bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-300 transition-colors"
+                  >
+                    Marcar como Publicado
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => dateButtonRef.current?.click()}
+                    className="text-xs font-medium px-2.5 py-1 rounded-md bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 transition-colors"
+                  >
+                    Cambiar fecha
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatus('archived')}
+                    className="text-xs font-medium px-2.5 py-1 rounded-md bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                  >
+                    Archivar
+                  </button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="space-y-2">
             <Label htmlFor="title">Título *</Label>
             <Input
