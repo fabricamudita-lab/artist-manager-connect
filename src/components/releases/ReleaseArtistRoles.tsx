@@ -20,6 +20,7 @@ import { ArtistSelector } from '@/components/ArtistSelector';
 interface ReleaseArtistRolesProps {
   releaseId: string;
   releaseArtists: ReleaseArtist[];
+  compact?: boolean;
 }
 
 export function ReleaseArtistRoles({ releaseId, releaseArtists }: ReleaseArtistRolesProps) {
