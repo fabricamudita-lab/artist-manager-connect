@@ -931,23 +931,83 @@ const updateSolicitudToPending = async (comment?: string) => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {(solicitud.observaciones || solicitud.descripcion_libre) && (
+              {(solicitud.observaciones || solicitud.descripcion_libre) && (
                   <div>
                     <p className="text-sm font-medium text-muted-foreground mb-3">Resumen</p>
-                    <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-                      {solicitud.observaciones && (
-                        <div className="mb-3">
-                          <p className="text-sm font-medium text-blue-900 mb-1">Comentarios de la solicitante:</p>
-                          <p className="text-sm text-blue-800">{solicitud.observaciones}</p>
-                        </div>
-                      )}
-                      {solicitud.descripcion_libre && (
-                        <div>
-                          <p className="text-sm font-medium text-blue-900 mb-1">Descripción:</p>
-                          <p className="text-sm text-blue-800 whitespace-pre-wrap">{processedDescripcionLibre}</p>
-                        </div>
-                      )}
-                    </div>
+                    {solicitud.observaciones?.startsWith('<!--LABEL_COPY_JSON-->') ? (() => {
+                      try {
+                        const jsonStr = solicitud.observaciones.replace('<!--LABEL_COPY_JSON-->', '');
+                        const data = JSON.parse(jsonStr);
+                        return (
+                          <div className="space-y-4">
+                            {/* Release Header */}
+                            <div className="bg-muted/50 border border-border rounded-lg p-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-lg font-semibold text-foreground">{data.release?.title}</h3>
+                                <span className="text-xs font-medium px-2 py-1 rounded-full bg-primary/10 text-primary uppercase">{data.release?.type}</span>
+                              </div>
+                              <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
+                                <span>Artista: <strong className="text-foreground">{data.release?.artist}</strong></span>
+                                {data.release?.upc && <span>UPC: <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{data.release.upc}</code></span>}
+                              </div>
+                            </div>
+
+                            {/* Tracks */}
+                            <div className="space-y-3">
+                              {(data.tracks || []).map((track: any, idx: number) => (
+                                <div key={idx} className="border border-border rounded-lg overflow-hidden">
+                                  <div className="flex items-center gap-3 px-4 py-2.5 bg-muted/30 border-b border-border">
+                                    <span className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary text-sm font-bold">{track.number}</span>
+                                    <span className="font-medium text-foreground flex-1">{track.title}</span>
+                                    {track.isrc && (
+                                      <code className="text-[11px] bg-accent/10 text-accent-foreground px-2 py-0.5 rounded font-mono">ISRC: {track.isrc}</code>
+                                    )}
+                                  </div>
+                                  <div className="px-4 py-3">
+                                    {track.credits?.length > 0 ? (
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                        {track.credits.map((credit: any, cIdx: number) => (
+                                          <div key={cIdx} className="flex items-center gap-2 text-sm">
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-secondary text-secondary-foreground min-w-[90px] justify-center">{credit.role}</span>
+                                            <span className="text-foreground">{credit.name}</span>
+                                            {credit.percentage != null && (
+                                              <span className="text-muted-foreground text-xs">({credit.percentage}%)</span>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="text-sm text-muted-foreground italic">Sin créditos asignados</p>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      } catch {
+                        return (
+                          <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                            <p className="text-sm text-blue-800 whitespace-pre-wrap">{solicitud.observaciones}</p>
+                          </div>
+                        );
+                      }
+                    })() : (
+                      <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                        {solicitud.observaciones && (
+                          <div className="mb-3">
+                            <p className="text-sm font-medium text-blue-900 mb-1">Comentarios de la solicitante:</p>
+                            <p className="text-sm text-blue-800 whitespace-pre-wrap">{solicitud.observaciones}</p>
+                          </div>
+                        )}
+                        {solicitud.descripcion_libre && (
+                          <div>
+                            <p className="text-sm font-medium text-blue-900 mb-1">Descripción:</p>
+                            <p className="text-sm text-blue-800 whitespace-pre-wrap">{processedDescripcionLibre}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
                 
