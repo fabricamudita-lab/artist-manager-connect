@@ -30,6 +30,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useUpdateRelease, Release } from '@/hooks/useReleases';
 import { ArtistSelector } from '@/components/ArtistSelector';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface EditReleaseDialogProps {
   open: boolean;
