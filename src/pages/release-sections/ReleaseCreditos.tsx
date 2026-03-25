@@ -434,9 +434,19 @@ function TrackCreditsItem({
           const contactCategory = categoryMap[cat5 || ''] || 'otro';
           const roleLabel = getRoleLabel(data.role);
 
+          const teamCategory = categoryMap[cat5 || ''] || 'artistico';
           const { data: newContact, error: contactError } = await supabase
             .from('contacts')
-            .insert({ name: data.name, category: contactCategory, role: roleLabel, created_by: user.id })
+            .insert({
+              name: data.name,
+              category: contactCategory,
+              role: roleLabel,
+              created_by: user.id,
+              field_config: {
+                is_team_member: true,
+                team_categories: [teamCategory],
+              },
+            })
             .select('id')
             .single();
 
@@ -444,7 +454,6 @@ function TrackCreditsItem({
             console.error('Error creating contact:', contactError);
           } else if (newContact) {
             contactId = newContact.id;
-
           }
         }
       }
