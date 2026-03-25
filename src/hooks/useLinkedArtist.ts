@@ -26,7 +26,7 @@ export function useLinkedArtist() {
       if (!bindings || bindings.length === 0) return null;
 
       // Find binding with highest privilege (MANAGER > OBSERVER)
-      const best = bindings.find(b => b.role === 'MANAGER') || bindings[0];
+      const best = bindings.find(b => b.role === 'ARTIST_MANAGER') || bindings[0];
 
       const { data: artist } = await supabase
         .from('artists')
