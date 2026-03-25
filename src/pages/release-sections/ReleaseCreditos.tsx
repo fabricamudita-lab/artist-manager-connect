@@ -309,6 +309,8 @@ export default function ReleaseCreditos() {
                     key={track.id}
                     track={track}
                     releaseArtistId={release?.artist_id}
+                    releaseId={id!}
+                    allTracks={tracks}
                     onEdit={() => {
                       setSelectedTrack(track);
                       setIsEditTrackOpen(true);
@@ -396,11 +398,15 @@ function SortableTrackRow({ track }: { track: Track }) {
 function TrackCreditsItem({
   track,
   releaseArtistId,
+  releaseId,
+  allTracks,
   onEdit,
   onDelete,
 }: {
   track: Track;
   releaseArtistId?: string | null;
+  releaseId: string;
+  allTracks: Track[];
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -477,7 +483,15 @@ function TrackCreditsItem({
     },
   });
 
-  const updateCredit = useMutation({
+  const [pendingBulkUpdate, setPendingBulkUpdate] = useState<{
+    oldName: string;
+    newName: string;
+    matchingIds: string[];
+    creditId: string;
+    data: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null }>;
+  } | null>(null);
+
+  const updateCreditDirect = useMutation({
     mutationFn: async ({ creditId, data }: { creditId: string; data: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null }> }) => {
       const { error } = await supabase.from('track_credits').update(data).eq('id', creditId);
       if (error) throw error;
@@ -491,6 +505,72 @@ function TrackCreditsItem({
       toast.error('Error al actualizar');
     },
   });
+
+  const handleUpdateCredit = async ({ creditId, data }: { creditId: string; data: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null }> }) => {
+    // Check if name changed
+    const credit = credits.find(c => c.id === creditId);
+    if (data.name && credit && data.name !== credit.name && releaseId) {
+      // Search for other credits with the same old name in this release
+      const trackIds = allTracks.map(t => t.id);
+      if (trackIds.length > 0) {
+        const { data: matchingCredits } = await supabase
+          .from('track_credits')
+          .select('id')
+          .in('track_id', trackIds)
+          .eq('name', credit.name)
+          .neq('id', creditId);
+
+        if (matchingCredits && matchingCredits.length > 0) {
+          setPendingBulkUpdate({
+            oldName: credit.name,
+            newName: data.name,
+            matchingIds: matchingCredits.map(c => c.id),
+            creditId,
+            data,
+          });
+          return;
+        }
+      }
+    }
+    updateCreditDirect.mutate({ creditId, data });
+  };
+
+  const handleBulkUpdateConfirm = async (updateAll: boolean) => {
+    if (!pendingBulkUpdate) return;
+    const { creditId, data, matchingIds } = pendingBulkUpdate;
+
+    try {
+      // Update the current credit
+      const { error } = await supabase.from('track_credits').update(data).eq('id', creditId);
+      if (error) throw error;
+
+      if (updateAll) {
+        // Update all matching credits' name
+        const { error: bulkError } = await supabase
+          .from('track_credits')
+          .update({ name: data.name })
+          .in('id', matchingIds);
+        if (bulkError) throw bulkError;
+        toast.success(`${matchingIds.length + 1} créditos actualizados`);
+      } else {
+        toast.success('Crédito actualizado');
+      }
+
+      // Invalidate all track credits in this release
+      allTracks.forEach(t => {
+        queryClient.invalidateQueries({ queryKey: ['track-credits', t.id] });
+      });
+      setEditingCreditId(null);
+    } catch {
+      toast.error('Error al actualizar');
+    }
+    setPendingBulkUpdate(null);
+  };
+
+  const updateCredit = {
+    mutate: handleUpdateCredit,
+    isPending: updateCreditDirect.isPending,
+  };
 
   const deleteCredit = useMutation({
     mutationFn: async (creditId: string) => {
@@ -511,6 +591,7 @@ function TrackCreditsItem({
     : null;
 
   return (
+    <>
     <AccordionItem value={track.id} data-no-credits={credits.length === 0 ? 'true' : undefined}>
       <AccordionTrigger className="hover:no-underline">
           <div className="flex items-center gap-3 flex-1">
@@ -613,6 +694,27 @@ function TrackCreditsItem({
         </div>
       </AccordionContent>
     </AccordionItem>
+
+      {/* Bulk name update dialog */}
+      <AlertDialog open={!!pendingBulkUpdate} onOpenChange={(open) => { if (!open) setPendingBulkUpdate(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Actualizar nombre en otros créditos</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se encontraron {pendingBulkUpdate?.matchingIds.length} créditos más con el nombre "{pendingBulkUpdate?.oldName}" en este disco. ¿Quieres actualizarlos todos a "{pendingBulkUpdate?.newName}"?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => handleBulkUpdateConfirm(false)}>
+              Solo este
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleBulkUpdateConfirm(true)}>
+              Actualizar todos ({(pendingBulkUpdate?.matchingIds.length ?? 0) + 1})
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -911,7 +1013,7 @@ function SortableCreditRow({
   const handleSave = () => {
     const updates: Partial<{ role: string; name: string; publishing_percentage: number | null; master_percentage: number | null }> = {};
     if (editRole !== credit.role) updates.role = editRole;
-    if (!hasContact && editName !== credit.name) updates.name = editName;
+    if (editName !== credit.name) updates.name = editName;
     const newPublishing = editPublishingPct === '' ? null : Number(editPublishingPct);
     const newMaster = editMasterPct === '' ? null : Number(editMasterPct);
     if (newPublishing !== credit.publishing_percentage) updates.publishing_percentage = newPublishing;
@@ -926,16 +1028,14 @@ function SortableCreditRow({
   if (isEditing) {
     return (
       <div ref={setNodeRef} style={style} className="flex items-center gap-2 p-2 bg-background rounded border flex-wrap">
-        {!hasContact && (
-          <Input
-            value={editName}
-            onChange={(e) => setEditName(e.target.value)}
-            className="flex-1 h-8 min-w-[120px]"
-            placeholder="Nombre"
-          />
-        )}
+        <Input
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+          className="flex-1 h-8 min-w-[120px]"
+          placeholder="Nombre"
+        />
         {hasContact && (
-          <span className="font-medium text-sm flex-1">{credit.name}</span>
+          <span title="Vinculado a contacto"><Link2 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" /></span>
         )}
         <GroupedRoleSelect value={editRole} onValueChange={setEditRole} triggerClassName="w-[140px] h-8" />
         <div className="flex items-center gap-1">
