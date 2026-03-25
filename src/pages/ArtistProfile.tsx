@@ -105,7 +105,7 @@ export default function ArtistProfile() {
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [showCreateReleaseDialog, setShowCreateReleaseDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showPortalPreview, setShowPortalPreview] = useState(false);
+  
 
   // Fetch artist
   const { data: artist, isLoading: loadingArtist } = useQuery({
