@@ -125,11 +125,14 @@ export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDeta
         } as any)
         .eq('id', asset.id);
       if (error) throw error;
-      // Auto-sync cover to release
+      // Auto-sync cover to release — only for Cover Álbum, never for Cover Single
+      const subTypeChangedToCover = form.sub_type === 'Cover Álbum' && asset.sub_type !== 'Cover Álbum';
+      const statusChangedToReady = ['listo', 'publicado'].includes(form.status) && !['listo', 'publicado'].includes(asset.status || '');
       if (
         asset.section === 'artwork' &&
-        ['Cover Álbum', 'Cover Single'].includes(form.sub_type) &&
+        form.sub_type === 'Cover Álbum' &&
         ['listo', 'publicado'].includes(form.status) &&
+        (subTypeChangedToCover || statusChangedToReady) &&
         asset.file_url &&
         (asset as any).release_id
       ) {
