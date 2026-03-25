@@ -136,13 +136,21 @@ export default function ReleaseCreditos() {
       if (error) throw error;
 
       // Build structured JSON for label copy
+      const mainArtists = (release.release_artists || []).filter(ra => ra.role !== 'featuring');
+      const featArtists = (release.release_artists || []).filter(ra => ra.role === 'featuring');
+      const artistDisplay = [
+        ...mainArtists.map(ra => ra.artist?.name).filter(Boolean),
+      ].join(', ') + (featArtists.length > 0 ? ' feat. ' + featArtists.map(ra => ra.artist?.name).filter(Boolean).join(', ') : '');
+
       const labelCopyData = {
         type: 'label_copy',
         release: {
           title: release.title,
-          artist: release.artist?.name || 'Sin artista',
+          artist: artistDisplay || release.artist?.name || 'Sin artista',
           type: release.type,
           upc: release.upc || null,
+          mainArtists: mainArtists.map(ra => ra.artist?.name).filter(Boolean),
+          featArtists: featArtists.map(ra => ra.artist?.name).filter(Boolean),
         },
         tracks: tracks.map((track) => {
           const trackCredits = (allCredits || []).filter((c: any) => c.track_id === track.id);

@@ -15,6 +15,7 @@ interface LabelCopyRelease {
   label: string | null;
   upc: string | null;
   artist?: { name: string } | null;
+  release_artists?: { role: string; artist?: { name: string } | null }[];
 }
 
 interface LabelCopyTrack {
