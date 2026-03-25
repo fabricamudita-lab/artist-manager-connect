@@ -2,17 +2,25 @@ import { useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Users } from 'lucide-react';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Check, ChevronsUpDown, Users, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { TrackCredit, ReleaseArtist } from '@/hooks/useReleases';
-import { getRoleLabel, getCategoryMeta, getRoleCategory5 } from '@/lib/creditRoles';
 import { useAuth } from '@/hooks/useAuth';
 
 interface CreditedArtistRolesProps {
@@ -23,8 +31,7 @@ interface CreditedArtistRolesProps {
 
 interface CreditedPerson {
   name: string;
-  roles: string[];
-  artistId: string | null; // from track_credits.artist_id if linked
+  artistId: string | null;
   contactId: string | null;
 }
 
@@ -32,6 +39,8 @@ export function CreditedArtistRoles({ releaseId, allCredits, releaseArtists }: C
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
+  const [openMain, setOpenMain] = useState(false);
+  const [openFeat, setOpenFeat] = useState(false);
 
   // Deduplicate credited people by name
   const creditedPeople = useMemo(() => {
@@ -41,27 +50,19 @@ export function CreditedArtistRoles({ releaseId, allCredits, releaseArtists }: C
       if (!map.has(key)) {
         map.set(key, {
           name: credit.name.trim(),
-          roles: [credit.role],
           artistId: credit.artist_id,
           contactId: credit.contact_id,
         });
       } else {
         const existing = map.get(key)!;
-        if (!existing.roles.includes(credit.role)) {
-          existing.roles.push(credit.role);
-        }
-        if (!existing.artistId && credit.artist_id) {
-          existing.artistId = credit.artist_id;
-        }
-        if (!existing.contactId && credit.contact_id) {
-          existing.contactId = credit.contact_id;
-        }
+        if (!existing.artistId && credit.artist_id) existing.artistId = credit.artist_id;
+        if (!existing.contactId && credit.contact_id) existing.contactId = credit.contact_id;
       }
     }
     return Array.from(map.values());
   }, [allCredits]);
 
-  // Map: artistName (lowercase) -> release_artist role
+  // Map release_artists by name
   const releaseArtistMap = useMemo(() => {
     const map = new Map<string, { role: string; artistId: string }>();
     for (const ra of releaseArtists) {
@@ -75,51 +76,37 @@ export function CreditedArtistRoles({ releaseId, allCredits, releaseArtists }: C
     return map;
   }, [releaseArtists]);
 
-  const getCurrentRole = (person: CreditedPerson): string => {
-    const match = releaseArtistMap.get(person.name.toLowerCase());
-    return match?.role || 'none';
-  };
+  const mainArtists = creditedPeople.filter(p => releaseArtistMap.get(p.name.toLowerCase())?.role === 'main');
+  const featArtists = creditedPeople.filter(p => releaseArtistMap.get(p.name.toLowerCase())?.role === 'featuring');
+  const mainNames = new Set(mainArtists.map(p => p.name.toLowerCase()));
+  const featNames = new Set(featArtists.map(p => p.name.toLowerCase()));
+
+  const availableForMain = creditedPeople.filter(p => !mainNames.has(p.name.toLowerCase()) && !featNames.has(p.name.toLowerCase()));
+  const availableForFeat = creditedPeople.filter(p => !mainNames.has(p.name.toLowerCase()) && !featNames.has(p.name.toLowerCase()));
 
   const handleRoleChange = async (person: CreditedPerson, newRole: string) => {
     setLoading(person.name);
     try {
       let artistId = person.artistId;
-
-      // Also check if there's already a release_artist for this person
       const existingRA = releaseArtistMap.get(person.name.toLowerCase());
-      if (existingRA) {
-        artistId = existingRA.artistId;
-      }
+      if (existingRA) artistId = existingRA.artistId;
 
       if (newRole === 'none') {
-        // Remove from release_artists
         if (artistId) {
-          await supabase
-            .from('release_artists')
-            .delete()
-            .eq('release_id', releaseId)
-            .eq('artist_id', artistId);
+          await supabase.from('release_artists').delete().eq('release_id', releaseId).eq('artist_id', artistId);
         }
       } else {
-        // Need an artist_id - create collaborator if needed
         if (!artistId) {
-          // Look up existing artist by name
           const { data: existingArtist } = await supabase
-            .from('artists')
-            .select('id')
-            .ilike('name', person.name.trim())
-            .limit(1)
-            .single();
+            .from('artists').select('id').ilike('name', person.name.trim()).limit(1).single();
 
           if (existingArtist) {
             artistId = existingArtist.id;
           } else {
-            // Get workspace_id from the release's artist
             const { data: releaseData } = await supabase
               .from('releases')
               .select('artist_id, artists!releases_artist_id_fkey(workspace_id)')
-              .eq('id', releaseId)
-              .single();
+              .eq('id', releaseId).single();
 
             const workspaceId = (releaseData?.artists as any)?.workspace_id;
             if (!workspaceId || !user?.id) {
@@ -129,27 +116,17 @@ export function CreditedArtistRoles({ releaseId, allCredits, releaseArtists }: C
 
             const { data: newArtist, error: createError } = await supabase
               .from('artists')
-              .insert({
-                name: person.name.trim(),
-                artist_type: 'collaborator',
-                workspace_id: workspaceId,
-                created_by: user.id,
-              })
-              .select('id')
-              .single();
+              .insert({ name: person.name.trim(), artist_type: 'collaborator', workspace_id: workspaceId, created_by: user.id })
+              .select('id').single();
 
             if (createError) throw createError;
             artistId = newArtist.id;
           }
         }
 
-        // Upsert into release_artists
         const { error } = await supabase
           .from('release_artists')
-          .upsert(
-            { release_id: releaseId, artist_id: artistId, role: newRole },
-            { onConflict: 'release_id,artist_id' }
-          );
+          .upsert({ release_id: releaseId, artist_id: artistId, role: newRole }, { onConflict: 'release_id,artist_id' });
         if (error) throw error;
       }
 
@@ -163,9 +140,6 @@ export function CreditedArtistRoles({ releaseId, allCredits, releaseArtists }: C
     }
   };
 
-  const mainArtists = creditedPeople.filter(p => getCurrentRole(p) === 'main');
-  const featArtists = creditedPeople.filter(p => getCurrentRole(p) === 'featuring');
-
   if (creditedPeople.length === 0) {
     return (
       <div className="text-sm text-muted-foreground py-2">
@@ -174,67 +148,90 @@ export function CreditedArtistRoles({ releaseId, allCredits, releaseArtists }: C
     );
   }
 
+  const renderCombobox = (
+    label: string,
+    selected: CreditedPerson[],
+    available: CreditedPerson[],
+    role: 'main' | 'featuring',
+    open: boolean,
+    setOpen: (v: boolean) => void,
+  ) => (
+    <div className="space-y-2">
+      <Label className="text-xs font-medium">{label}</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between h-8 text-xs">
+            <span className="truncate text-muted-foreground">
+              {selected.length > 0 ? `${selected.length} seleccionado(s)` : 'Buscar en créditos...'}
+            </span>
+            <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Buscar..." className="h-8 text-xs" />
+            <CommandEmpty className="text-xs py-3">No se encontraron nombres.</CommandEmpty>
+            <CommandList className="max-h-[200px]">
+              <CommandGroup>
+                {[...selected, ...available].map((person) => {
+                  const isSelected = selected.some(s => s.name.toLowerCase() === person.name.toLowerCase());
+                  return (
+                    <CommandItem
+                      key={person.name}
+                      value={person.name}
+                      onSelect={() => {
+                        if (isSelected) {
+                          handleRoleChange(person, 'none');
+                        } else {
+                          handleRoleChange(person, role);
+                        }
+                      }}
+                      className="text-xs cursor-pointer"
+                    >
+                      <Check className={cn("mr-2 h-3 w-3", isSelected ? "opacity-100" : "opacity-0")} />
+                      {person.name}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selected.map((person) => (
+            <Badge key={person.name} variant="secondary" className="text-xs gap-1 pr-1">
+              {person.name}
+              <button
+                type="button"
+                onClick={() => handleRoleChange(person, 'none')}
+                className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                disabled={loading === person.name}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Users className="h-4 w-4 text-muted-foreground" />
         <p className="text-sm font-medium">Artistas para Distribución</p>
       </div>
 
-      <div className="space-y-1.5">
-        {creditedPeople.map((person) => {
-          const currentRole = getCurrentRole(person);
-          return (
-            <div
-              key={person.name}
-              className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-            >
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <span className="font-medium text-sm truncate">{person.name}</span>
-                <div className="flex gap-1 flex-wrap">
-                  {person.roles.slice(0, 3).map((role) => {
-                    const cat = getRoleCategory5(role);
-                    const meta = cat ? getCategoryMeta(cat) : null;
-                    return (
-                      <Badge
-                        key={role}
-                        variant="outline"
-                        className={`text-[10px] px-1.5 py-0 ${meta ? `${meta.textClass} ${meta.borderClass}` : ''}`}
-                      >
-                        {getRoleLabel(role)}
-                      </Badge>
-                    );
-                  })}
-                  {person.roles.length > 3 && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                      +{person.roles.length - 3}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              <Select
-                value={currentRole}
-                onValueChange={(v) => handleRoleChange(person, v)}
-                disabled={loading === person.name}
-              >
-                <SelectTrigger className="w-[120px] h-7 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— Sin asignar</SelectItem>
-                  <SelectItem value="main">Main Artist</SelectItem>
-                  <SelectItem value="featuring">Featuring</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          );
-        })}
-      </div>
+      {renderCombobox('Main Artist', mainArtists, availableForMain, 'main', openMain, setOpenMain)}
+      {renderCombobox('Featuring', featArtists, availableForFeat, 'featuring', openFeat, setOpenFeat)}
 
       {(mainArtists.length > 0 || featArtists.length > 0) && (
         <div className="pt-2 border-t">
           <p className="text-xs text-muted-foreground">
-            <span className="font-medium">Vista de distribución: </span>
+            <span className="font-medium">Vista: </span>
             {mainArtists.map(p => p.name).join(', ') || '—'}
             {featArtists.length > 0 && (
               <span className="italic"> feat. {featArtists.map(p => p.name).join(', ')}</span>
