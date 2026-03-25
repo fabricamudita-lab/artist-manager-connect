@@ -1006,16 +1006,14 @@ function SortableCreditRow({
   if (isEditing) {
     return (
       <div ref={setNodeRef} style={style} className="flex items-center gap-2 p-2 bg-background rounded border flex-wrap">
-        {!hasContact && (
-          <Input
-            value={editName}
-            onChange={(e) => setEditName(e.target.value)}
-            className="flex-1 h-8 min-w-[120px]"
-            placeholder="Nombre"
-          />
-        )}
+        <Input
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+          className="flex-1 h-8 min-w-[120px]"
+          placeholder="Nombre"
+        />
         {hasContact && (
-          <span className="font-medium text-sm flex-1">{credit.name}</span>
+          <Link2 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" title="Vinculado a contacto" />
         )}
         <GroupedRoleSelect value={editRole} onValueChange={setEditRole} triggerClassName="w-[140px] h-8" />
         <div className="flex items-center gap-1">
