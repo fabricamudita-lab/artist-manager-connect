@@ -166,12 +166,13 @@ const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | nu
 
 export function AppSidebar() {
   const { profile, user, signOut } = useAuth();
+  const { linkedArtist } = useLinkedArtist();
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const currentPath = location.pathname;
 
   const isManagement = profile?.active_role === 'management';
-  const navigationGroups = getNavigationGroups(isManagement);
+  const navigationGroups = getNavigationGroups(isManagement, linkedArtist?.id);
 
   // Badge counts — no extra queries, uses data already fetched
   const { items: actionItems } = useActionCenter({ status: ['pending', 'in_review'] });
