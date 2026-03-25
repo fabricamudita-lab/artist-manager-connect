@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ReleaseArtistRoles } from '@/components/releases/ReleaseArtistRoles';
 import { CreditedArtistRoles } from '@/components/releases/CreditedArtistRoles';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -376,8 +375,6 @@ export default function ReleaseCreditos() {
         </Dialog>
       </div>
 
-      {/* Artist Roles Section */}
-      <ReleaseArtistRoles releaseId={id!} releaseArtists={release?.release_artists || []} />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
