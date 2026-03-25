@@ -76,8 +76,21 @@ export function CreditedArtistRoles({ releaseId, allCredits, releaseArtists }: C
     return map;
   }, [releaseArtists]);
 
-  const mainArtists = creditedPeople.filter(p => releaseArtistMap.get(p.name.toLowerCase())?.role === 'main');
-  const featArtists = creditedPeople.filter(p => releaseArtistMap.get(p.name.toLowerCase())?.role === 'featuring');
+  // Sort main artists: preserve order from releaseArtists (primary artist first)
+  const releaseArtistOrder = useMemo(() => {
+    const order = new Map<string, number>();
+    releaseArtists.forEach((ra, idx) => {
+      if (ra.artist?.name) order.set(ra.artist.name.trim().toLowerCase(), idx);
+    });
+    return order;
+  }, [releaseArtists]);
+
+  const mainArtists = creditedPeople
+    .filter(p => releaseArtistMap.get(p.name.toLowerCase())?.role === 'main')
+    .sort((a, b) => (releaseArtistOrder.get(a.name.toLowerCase()) ?? 999) - (releaseArtistOrder.get(b.name.toLowerCase()) ?? 999));
+  const featArtists = creditedPeople
+    .filter(p => releaseArtistMap.get(p.name.toLowerCase())?.role === 'featuring')
+    .sort((a, b) => (releaseArtistOrder.get(a.name.toLowerCase()) ?? 999) - (releaseArtistOrder.get(b.name.toLowerCase()) ?? 999));
   const mainNames = new Set(mainArtists.map(p => p.name.toLowerCase()));
   const featNames = new Set(featArtists.map(p => p.name.toLowerCase()));
 
