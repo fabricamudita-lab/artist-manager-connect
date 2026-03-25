@@ -134,30 +134,31 @@ export default function ReleaseCreditos() {
         .in('track_id', trackIds);
       if (error) throw error;
 
-      // Build summary text
-      const lines: string[] = [
-        `Label Copy para: "${release.title}"`,
-        `Artista: ${release.artist?.name || 'Sin artista'}`,
-        `Tipo: ${release.type}`,
-        release.upc ? `UPC: ${release.upc}` : '',
-        '',
-      ].filter(Boolean);
+      // Build structured JSON for label copy
+      const labelCopyData = {
+        type: 'label_copy',
+        release: {
+          title: release.title,
+          artist: release.artist?.name || 'Sin artista',
+          type: release.type,
+          upc: release.upc || null,
+        },
+        tracks: tracks.map((track) => {
+          const trackCredits = (allCredits || []).filter((c: any) => c.track_id === track.id);
+          return {
+            number: track.track_number,
+            title: track.title,
+            isrc: track.isrc || null,
+            credits: trackCredits.map((c: any) => ({
+              role: getRoleLabel(c.role),
+              name: c.name,
+              percentage: c.publishing_percentage,
+            })),
+          };
+        }),
+      };
 
-      for (const track of tracks) {
-        const trackCredits = (allCredits || []).filter((c: any) => c.track_id === track.id);
-        lines.push(`${track.track_number}. ${track.title}${track.isrc ? ` (ISRC: ${track.isrc})` : ''}`);
-        if (trackCredits.length === 0) {
-          lines.push('   Sin créditos asignados');
-        } else {
-          for (const credit of trackCredits) {
-            const pct = credit.publishing_percentage != null ? ` (${credit.publishing_percentage}%)` : '';
-            lines.push(`   - ${getRoleLabel(credit.role)}: ${credit.name}${pct}`);
-          }
-        }
-        lines.push('');
-      }
-
-      const observaciones = lines.join('\n');
+      const observaciones = `<!--LABEL_COPY_JSON-->${JSON.stringify(labelCopyData)}`;
 
       const { error: insertError } = await supabase
         .from('solicitudes')
