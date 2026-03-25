@@ -820,6 +820,17 @@ export default function ArtistProfile() {
           onOpenChange={setShowEditDialog}
         />
       )}
+
+      {artist && (
+        <ArtistPortalPreview
+          artistId={artist.id}
+          artistName={artist.name}
+          artistStageName={artist.stage_name}
+          artistAvatarUrl={artist.avatar_url}
+          open={showPortalPreview}
+          onOpenChange={setShowPortalPreview}
+        />
+      )}
     </div>
   );
 }
