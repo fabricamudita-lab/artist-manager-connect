@@ -156,6 +156,24 @@ export default function Agenda() {
     setCategoryOrderVersion(v => v + 1);
   };
 
+  const handleDeduplicateContacts = useCallback(async () => {
+    try {
+      const result = await deduplicateContacts();
+      if (result.deleted > 0) {
+        toast({
+          title: `${result.deleted} contactos duplicados fusionados`,
+          description: `Se consolidaron en ${result.merged} perfiles únicos`,
+        });
+        fetchContacts();
+      } else {
+        toast({ title: 'No se encontraron duplicados' });
+      }
+    } catch (error) {
+      console.error('Error deduplicating:', error);
+      toast({ title: 'Error al deduplicar', variant: 'destructive' });
+    }
+  }, []);
+
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
     contacts.forEach(c => {
