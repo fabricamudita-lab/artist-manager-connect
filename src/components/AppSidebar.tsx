@@ -54,7 +54,48 @@ interface NavGroup {
 
 // ─── NAVIGATION GROUPS ────────────────────────────────────────────────────────
 
-const getNavigationGroups = (isManagement: boolean): NavGroup[] => {
+const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | null): NavGroup[] => {
+  // Simplified nav for artist users
+  if (!isManagement && linkedArtistId) {
+    return [
+      {
+        label: null,
+        items: [
+          { title: "Dashboard", url: "/dashboard", icon: Home },
+        ],
+      },
+      {
+        label: "Mi Carrera",
+        items: [
+          { title: "Mi Perfil", url: `/artistas/${linkedArtistId}`, icon: User },
+          { title: "Mis Lanzamientos", url: "/releases", icon: Disc3 },
+          { title: "Mis Shows", url: "/booking", icon: Mic },
+          { title: "Calendario", url: "/calendar", icon: Calendar },
+        ],
+      },
+      {
+        label: "Dinero",
+        items: [
+          { title: "Finanzas", url: "/finanzas", icon: Wallet },
+        ],
+      },
+      {
+        label: "Archivos",
+        items: [
+          { title: "Drive", url: "/drive", icon: HardDrive },
+          { title: "Documentos", url: "/documents", icon: FileText },
+        ],
+      },
+      {
+        label: "Comunicación",
+        items: [
+          { title: "Solicitudes", url: "/solicitudes", icon: Bell, badge: 'pending' as const },
+          { title: "Chat", url: "/chat", icon: MessageCircle },
+        ],
+      },
+    ];
+  }
+
   const groups: NavGroup[] = [
     {
       label: null,
