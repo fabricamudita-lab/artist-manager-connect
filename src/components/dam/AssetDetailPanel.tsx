@@ -30,6 +30,7 @@ interface AssetDetailPanelProps {
 
 export default function AssetDetailPanel({ asset, onClose, onUpdate }: AssetDetailPanelProps) {
   const { user } = useAuth();
+  const { data: tracks } = useTracks(asset.release_id);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     title: asset.title,
