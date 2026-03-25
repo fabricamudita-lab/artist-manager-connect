@@ -166,13 +166,14 @@ const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | nu
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
 
 export function AppSidebar() {
-  const { profile, user, signOut } = useAuth();
-  const { linkedArtist } = useLinkedArtist();
+  const { profile, user, signOut, switchRole } = useAuth();
+  const { linkedArtist, isImpersonating, stopImpersonation } = useLinkedArtist();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const currentPath = location.pathname;
 
-  const isManagement = profile?.active_role === 'management';
+  const isManagement = profile?.active_role === 'management' && !isImpersonating;
   const navigationGroups = getNavigationGroups(isManagement, linkedArtist?.id);
 
   // Badge counts — no extra queries, uses data already fetched
