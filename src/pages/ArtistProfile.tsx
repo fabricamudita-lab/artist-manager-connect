@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useLinkedArtist } from '@/hooks/useLinkedArtist';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { 
   ArrowLeft, Music, Users, Calendar, FolderOpen, 
-  Edit, Plus, MapPin, DollarSign, Mic, FileText, Eye, 
+  Edit, Plus, MapPin, DollarSign, Mic, FileText, Eye, LogIn, 
   Disc3, ClipboardList, TrendingUp, Settings2, Wallet,
   ExternalLink, Instagram, Globe, ChevronDown
 } from 'lucide-react';
@@ -23,7 +24,7 @@ import { ArtistFormatsContent } from '@/components/ArtistFormatsDialog';
 import CreateReleaseDialog from '@/components/releases/CreateReleaseDialog';
 import { ArtistInfoDialog } from '@/components/ArtistInfoDialog';
 import InviteArtistDialog from '@/components/InviteArtistDialog';
-import ArtistPortalPreview from '@/components/ArtistPortalPreview';
+
 import { usePlatformEarnings, useSongs } from '@/hooks/useRoyalties';
 import { PieChart, Pie, Cell } from 'recharts';
 
@@ -100,10 +101,11 @@ const DONUT_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--se
 export default function ArtistProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { startImpersonation } = useLinkedArtist();
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [showCreateReleaseDialog, setShowCreateReleaseDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showPortalPreview, setShowPortalPreview] = useState(false);
+  
 
   // Fetch artist
   const { data: artist, isLoading: loadingArtist } = useQuery({
@@ -392,9 +394,23 @@ export default function ArtistProfile() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowPortalPreview(true)}>
-            <Eye className="h-4 w-4 mr-2" />
-            Previsualizar portal
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => {
+              if (!artist) return;
+              startImpersonation({
+                id: artist.id,
+                name: artist.name,
+                stage_name: artist.stage_name,
+                avatar_url: artist.avatar_url,
+                role: 'ARTIST_MANAGER',
+              });
+              navigate('/');
+            }}
+          >
+            <LogIn className="h-4 w-4 mr-2" />
+            Entrar como artista
           </Button>
           <InviteArtistDialog 
             artistId={artist.id} 
@@ -821,16 +837,6 @@ export default function ArtistProfile() {
         />
       )}
 
-      {artist && (
-        <ArtistPortalPreview
-          artistId={artist.id}
-          artistName={artist.name}
-          artistStageName={artist.stage_name}
-          artistAvatarUrl={artist.avatar_url}
-          open={showPortalPreview}
-          onOpenChange={setShowPortalPreview}
-        />
-      )}
     </div>
   );
 }

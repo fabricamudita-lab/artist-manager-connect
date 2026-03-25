@@ -6,10 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import TestUserSetup from '@/components/TestUserSetup';
 import { Loader2, Crown, Music } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useLinkedArtist } from '@/hooks/useLinkedArtist';
 
 export default function Dashboard() {
   usePageTitle('Dashboard');
   const { profile, loading } = useAuth();
+  const { isImpersonating } = useLinkedArtist();
   const [showTestSetup, setShowTestSetup] = useState(false);
 
   // Show test setup if URL contains setup parameter
@@ -32,7 +34,7 @@ export default function Dashboard() {
     );
   }
 
-  const isOwner = profile?.active_role === 'management';
+  const isOwner = profile?.active_role === 'management' && !isImpersonating;
 
   return (
     <div className="p-6">

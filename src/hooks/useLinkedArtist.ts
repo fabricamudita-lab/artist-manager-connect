@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -10,8 +11,28 @@ export interface LinkedArtist {
   role: string;
 }
 
+const IMPERSONATE_KEY = 'impersonate_artist';
+
+function getImpersonatedArtist(): LinkedArtist | null {
+  try {
+    const raw = sessionStorage.getItem(IMPERSONATE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function useLinkedArtist() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [impersonated, setImpersonated] = useState<LinkedArtist | null>(getImpersonatedArtist);
+
+  // Listen for storage changes (in case multiple components need sync)
+  useEffect(() => {
+    const handler = () => setImpersonated(getImpersonatedArtist());
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, []);
 
   const { data: linkedArtist, isLoading } = useQuery({
     queryKey: ['linked-artist', user?.id],
@@ -25,7 +46,6 @@ export function useLinkedArtist() {
 
       if (!bindings || bindings.length === 0) return null;
 
-      // Find binding with highest privilege (MANAGER > OBSERVER)
       const best = bindings.find(b => b.role === 'ARTIST_MANAGER') || bindings[0];
 
       const { data: artist } = await supabase
@@ -35,12 +55,30 @@ export function useLinkedArtist() {
         .single();
 
       if (!artist) return null;
-
       return { ...artist, role: best.role };
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
   });
 
-  return { linkedArtist: linkedArtist ?? null, isLoading };
+  const startImpersonation = useCallback((artist: LinkedArtist) => {
+    sessionStorage.setItem(IMPERSONATE_KEY, JSON.stringify(artist));
+    setImpersonated(artist);
+  }, []);
+
+  const stopImpersonation = useCallback(() => {
+    sessionStorage.removeItem(IMPERSONATE_KEY);
+    setImpersonated(null);
+  }, []);
+
+  const isImpersonating = impersonated !== null;
+  const effectiveArtist = impersonated ?? linkedArtist ?? null;
+
+  return {
+    linkedArtist: effectiveArtist,
+    isLoading: !impersonated && isLoading,
+    isImpersonating,
+    startImpersonation,
+    stopImpersonation,
+  };
 }
