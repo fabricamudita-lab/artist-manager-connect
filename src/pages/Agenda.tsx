@@ -405,6 +405,10 @@ export default function Agenda() {
             <Users className="w-4 h-4 mr-2" />
             Equipos
           </Button>
+          <Button variant="outline" onClick={handleDeduplicateContacts}>
+            <Users className="w-4 h-4 mr-2" />
+            Deduplicar
+          </Button>
           <Button variant="outline" onClick={() => setCategoryManagerOpen(true)}>
             <Settings className="w-4 h-4 mr-2" />
             Editar Categorías
