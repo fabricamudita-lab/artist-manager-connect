@@ -462,10 +462,10 @@ export default function ReleaseCreditos() {
                 isLoading={updateTrack.isPending}
               />
               <div className="border-t pt-4">
-                <CreditedArtistRoles
+              <CreditedArtistRoles
+                  trackId={selectedTrack.id}
                   releaseId={id!}
-                  allCredits={allReleaseCredits}
-                  releaseArtists={release?.release_artists || []}
+                  trackCredits={allReleaseCredits.filter(c => c.track_id === selectedTrack.id)}
                 />
               </div>
             </div>
