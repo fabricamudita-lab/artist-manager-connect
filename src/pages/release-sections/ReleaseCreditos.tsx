@@ -108,21 +108,27 @@ export default function ReleaseCreditos() {
     setIsExportingLabelCopy(true);
     try {
       const trackIds = tracks.map((t) => t.id);
-      const { data: allCredits, error } = await supabase
-        .from('track_credits')
-        .select('*')
-        .in('track_id', trackIds);
-      if (error) throw error;
+      const [creditsResult, trackArtistsResult] = await Promise.all([
+        supabase.from('track_credits').select('*').in('track_id', trackIds),
+        supabase.from('track_artists').select('*, artist:artists(name)').in('track_id', trackIds).order('sort_order'),
+      ]);
+      if (creditsResult.error) throw creditsResult.error;
+      if (trackArtistsResult.error) throw trackArtistsResult.error;
 
       exportLabelCopyPDF(
         release,
         tracks,
-        (allCredits || []).map((c: any) => ({
+        (creditsResult.data || []).map((c: any) => ({
           track_id: c.track_id,
           name: c.name,
           role: c.role,
           publishing_percentage: c.publishing_percentage,
           master_percentage: c.master_percentage,
+        })),
+        (trackArtistsResult.data || []).map((ta: any) => ({
+          track_id: ta.track_id,
+          role: ta.role,
+          artist_name: ta.artist?.name || '',
         })),
       );
       toast.success('Label Copy descargado');
@@ -462,10 +468,10 @@ export default function ReleaseCreditos() {
                 isLoading={updateTrack.isPending}
               />
               <div className="border-t pt-4">
-                <CreditedArtistRoles
+              <CreditedArtistRoles
+                  trackId={selectedTrack.id}
                   releaseId={id!}
-                  allCredits={allReleaseCredits}
-                  releaseArtists={release?.release_artists || []}
+                  trackCredits={allReleaseCredits.filter(c => c.track_id === selectedTrack.id)}
                 />
               </div>
             </div>

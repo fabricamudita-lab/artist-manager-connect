@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,13 +20,13 @@ import {
 import { Check, ChevronsUpDown, Users, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { TrackCredit, ReleaseArtist } from '@/hooks/useReleases';
+import { TrackCredit } from '@/hooks/useReleases';
 import { useAuth } from '@/hooks/useAuth';
 
 interface CreditedArtistRolesProps {
+  trackId: string;
   releaseId: string;
-  allCredits: TrackCredit[];
-  releaseArtists: ReleaseArtist[];
+  trackCredits: TrackCredit[];
 }
 
 interface CreditedPerson {
@@ -35,17 +35,41 @@ interface CreditedPerson {
   contactId: string | null;
 }
 
-export function CreditedArtistRoles({ releaseId, allCredits, releaseArtists }: CreditedArtistRolesProps) {
+interface TrackArtistRow {
+  id: string;
+  track_id: string;
+  artist_id: string;
+  role: string;
+  sort_order: number;
+  artist?: { name: string } | null;
+}
+
+export function CreditedArtistRoles({ trackId, releaseId, trackCredits }: CreditedArtistRolesProps) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
   const [openMain, setOpenMain] = useState(false);
   const [openFeat, setOpenFeat] = useState(false);
 
+  // Fetch track_artists for this track
+  const { data: trackArtists = [] } = useQuery({
+    queryKey: ['track-artists', trackId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('track_artists')
+        .select('*, artist:artists(name)')
+        .eq('track_id', trackId)
+        .order('sort_order');
+      if (error) throw error;
+      return (data || []) as unknown as TrackArtistRow[];
+    },
+    enabled: !!trackId,
+  });
+
   // Deduplicate credited people by name
   const creditedPeople = useMemo(() => {
     const map = new Map<string, CreditedPerson>();
-    for (const credit of allCredits) {
+    for (const credit of trackCredits) {
       const key = credit.name.trim().toLowerCase();
       if (!map.has(key)) {
         map.set(key, {
@@ -60,37 +84,39 @@ export function CreditedArtistRoles({ releaseId, allCredits, releaseArtists }: C
       }
     }
     return Array.from(map.values());
-  }, [allCredits]);
+  }, [trackCredits]);
 
-  // Map release_artists by name
-  const releaseArtistMap = useMemo(() => {
+  // Map track_artists by name
+  const trackArtistMap = useMemo(() => {
     const map = new Map<string, { role: string; artistId: string }>();
-    for (const ra of releaseArtists) {
-      if (ra.artist?.name) {
-        map.set(ra.artist.name.trim().toLowerCase(), {
-          role: ra.role === 'featuring' ? 'featuring' : 'main',
-          artistId: ra.artist_id,
+    for (const ta of trackArtists) {
+      const name = (ta.artist as any)?.name;
+      if (name) {
+        map.set(name.trim().toLowerCase(), {
+          role: ta.role === 'featuring' ? 'featuring' : 'main',
+          artistId: ta.artist_id,
         });
       }
     }
     return map;
-  }, [releaseArtists]);
+  }, [trackArtists]);
 
-  // Sort main artists: preserve order from releaseArtists (primary artist first)
-  const releaseArtistOrder = useMemo(() => {
+  // Sort by sort_order from track_artists
+  const trackArtistOrder = useMemo(() => {
     const order = new Map<string, number>();
-    releaseArtists.forEach((ra, idx) => {
-      if (ra.artist?.name) order.set(ra.artist.name.trim().toLowerCase(), idx);
+    trackArtists.forEach((ta, idx) => {
+      const name = (ta.artist as any)?.name;
+      if (name) order.set(name.trim().toLowerCase(), idx);
     });
     return order;
-  }, [releaseArtists]);
+  }, [trackArtists]);
 
   const mainArtists = creditedPeople
-    .filter(p => releaseArtistMap.get(p.name.toLowerCase())?.role === 'main')
-    .sort((a, b) => (releaseArtistOrder.get(a.name.toLowerCase()) ?? 999) - (releaseArtistOrder.get(b.name.toLowerCase()) ?? 999));
+    .filter(p => trackArtistMap.get(p.name.toLowerCase())?.role === 'main')
+    .sort((a, b) => (trackArtistOrder.get(a.name.toLowerCase()) ?? 999) - (trackArtistOrder.get(b.name.toLowerCase()) ?? 999));
   const featArtists = creditedPeople
-    .filter(p => releaseArtistMap.get(p.name.toLowerCase())?.role === 'featuring')
-    .sort((a, b) => (releaseArtistOrder.get(a.name.toLowerCase()) ?? 999) - (releaseArtistOrder.get(b.name.toLowerCase()) ?? 999));
+    .filter(p => trackArtistMap.get(p.name.toLowerCase())?.role === 'featuring')
+    .sort((a, b) => (trackArtistOrder.get(a.name.toLowerCase()) ?? 999) - (trackArtistOrder.get(b.name.toLowerCase()) ?? 999));
   const mainNames = new Set(mainArtists.map(p => p.name.toLowerCase()));
   const featNames = new Set(featArtists.map(p => p.name.toLowerCase()));
 
@@ -101,12 +127,12 @@ export function CreditedArtistRoles({ releaseId, allCredits, releaseArtists }: C
     setLoading(person.name);
     try {
       let artistId = person.artistId;
-      const existingRA = releaseArtistMap.get(person.name.toLowerCase());
-      if (existingRA) artistId = existingRA.artistId;
+      const existingTA = trackArtistMap.get(person.name.toLowerCase());
+      if (existingTA) artistId = existingTA.artistId;
 
       if (newRole === 'none') {
         if (artistId) {
-          await supabase.from('release_artists').delete().eq('release_id', releaseId).eq('artist_id', artistId);
+          await supabase.from('track_artists').delete().eq('track_id', trackId).eq('artist_id', artistId);
         }
       } else {
         if (!artistId) {
@@ -137,14 +163,20 @@ export function CreditedArtistRoles({ releaseId, allCredits, releaseArtists }: C
           }
         }
 
+        const maxSort = trackArtists
+          .filter(ta => ta.role === newRole)
+          .reduce((max, ta) => Math.max(max, ta.sort_order), -1);
+
         const { error } = await supabase
-          .from('release_artists')
-          .upsert({ release_id: releaseId, artist_id: artistId, role: newRole }, { onConflict: 'release_id,artist_id' });
+          .from('track_artists')
+          .upsert(
+            { track_id: trackId, artist_id: artistId!, role: newRole, sort_order: maxSort + 1 },
+            { onConflict: 'track_id,artist_id' }
+          );
         if (error) throw error;
       }
 
-      queryClient.invalidateQueries({ queryKey: ['release', releaseId] });
-      queryClient.invalidateQueries({ queryKey: ['release-artists', releaseId] });
+      queryClient.invalidateQueries({ queryKey: ['track-artists', trackId] });
     } catch (e) {
       console.error(e);
       toast.error('Error al actualizar rol de distribución');

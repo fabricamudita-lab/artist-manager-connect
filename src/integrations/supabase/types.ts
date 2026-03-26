@@ -6959,6 +6959,48 @@ export type Database = {
           },
         ]
       }
+      track_artists: {
+        Row: {
+          artist_id: string
+          created_at: string | null
+          id: string
+          role: string
+          sort_order: number
+          track_id: string
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string | null
+          id?: string
+          role?: string
+          sort_order?: number
+          track_id: string
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string | null
+          id?: string
+          role?: string
+          sort_order?: number
+          track_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "track_artists_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "track_artists_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       track_credits: {
         Row: {
           artist_id: string | null

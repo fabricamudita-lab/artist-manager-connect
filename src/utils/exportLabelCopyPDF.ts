@@ -34,6 +34,12 @@ interface LabelCopyCredit {
   master_percentage: number | null;
 }
 
+interface LabelCopyTrackArtist {
+  track_id: string;
+  role: string;
+  artist_name: string;
+}
+
 const PAGE_WIDTH = 210; // A4 mm
 const MARGIN_LEFT = 20;
 const MARGIN_RIGHT = 20;
@@ -57,10 +63,31 @@ function drawSeparator(doc: jsPDF, y: number): number {
   return y + 6;
 }
 
+function buildArtistDisplay(
+  trackArtists: LabelCopyTrackArtist[],
+  trackId: string,
+  fallbackRelease: LabelCopyRelease,
+): string {
+  const ta = trackArtists.filter(a => a.track_id === trackId);
+  if (ta.length > 0) {
+    const mainNames = ta.filter(a => a.role !== 'featuring').map(a => a.artist_name).filter(Boolean);
+    const featNames = ta.filter(a => a.role === 'featuring').map(a => a.artist_name).filter(Boolean);
+    return mainNames.join(', ') + (featNames.length > 0 ? ' feat. ' + featNames.join(', ') : '');
+  }
+  // Fallback to release-level artists
+  if (fallbackRelease.release_artists && fallbackRelease.release_artists.length > 0) {
+    const mainNames = fallbackRelease.release_artists.filter(ra => ra.role !== 'featuring').map(ra => ra.artist?.name).filter(Boolean);
+    const featNames = fallbackRelease.release_artists.filter(ra => ra.role === 'featuring').map(ra => ra.artist?.name).filter(Boolean);
+    return mainNames.join(', ') + (featNames.length > 0 ? ' feat. ' + featNames.join(', ') : '');
+  }
+  return fallbackRelease.artist?.name || '—';
+}
+
 export function exportLabelCopyPDF(
   release: LabelCopyRelease,
   tracks: LabelCopyTrack[],
   credits: LabelCopyCredit[],
+  trackArtists: LabelCopyTrackArtist[] = [],
 ) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   let y = 20;
@@ -78,7 +105,7 @@ export function exportLabelCopyPDF(
 
   const typeLabel = release.type === 'single' ? 'Single' : release.type === 'ep' ? 'EP' : 'Álbum';
 
-  // Build artist display with main/featuring
+  // Build artist display from release level
   let artistDisplay = release.artist?.name || '—';
   if (release.release_artists && release.release_artists.length > 0) {
     const mainNames = release.release_artists.filter(ra => ra.role !== 'featuring').map(ra => ra.artist?.name).filter(Boolean);
@@ -129,6 +156,15 @@ export function exportLabelCopyPDF(
     doc.setFont('helvetica', 'bold');
     doc.text(`${track.track_number}. ${track.title}`, MARGIN_LEFT, y);
     y += 7;
+
+    // Track artist (per-track)
+    const trackArtistDisplay = buildArtistDisplay(trackArtists, track.id, release);
+    if (trackArtistDisplay && trackArtistDisplay !== artistDisplay) {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Artista: ${trackArtistDisplay}`, MARGIN_LEFT + 5, y);
+      y += 6;
+    }
 
     // ISRC
     if (track.isrc) {
