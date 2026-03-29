@@ -1120,7 +1120,7 @@ export default function ProjectDetail() {
 
   const refreshBudgets = async () => {
     try {
-      const { data, error } = await supabase.from('budgets').select('id, name, event_date, show_status, type, city, country, venue, budget_status, internal_notes, created_at, artist_id, event_time, fee, profiles:artist_id(full_name)').eq('project_id', id).order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('budgets').select('id, name, event_date, show_status, type, city, country, venue, budget_status, internal_notes, created_at, artist_id, event_time, fee, artist:artist_id(name, stage_name)').eq('project_id', id).order('created_at', { ascending: false });
       if (!error) setBudgets(data || []);
     } catch (e) {
       console.error('Error refreshing budgets', e);
