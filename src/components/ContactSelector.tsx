@@ -170,7 +170,7 @@ export function ContactSelector({ value, onValueChange, artistId, placeholder = 
                       <span className="font-medium">{contact.name}</span>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         {contact.role && <Badge variant="outline" className="text-xs">{contact.role}</Badge>}
-                        {contact.profiles?.full_name && <span>• {contact.profiles.full_name}</span>}
+                        {contact.artist && <span>• {contact.artist.stage_name || contact.artist.name}</span>}
                       </div>
                     </div>
                   </div>
