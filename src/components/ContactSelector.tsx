@@ -224,9 +224,9 @@ export function ContactSelector({ value, onValueChange, artistId, placeholder = 
                   {selectedContact.role && (
                     <Badge variant="secondary" className="text-xs">{selectedContact.role}</Badge>
                   )}
-                  {selectedContact.profiles?.full_name && (
+                  {selectedContact.artist && (
                     <Badge variant="outline" className="text-xs">
-                      Artista: {selectedContact.profiles.full_name}
+                      Artista: {selectedContact.artist.stage_name || selectedContact.artist.name}
                     </Badge>
                   )}
                 </div>
