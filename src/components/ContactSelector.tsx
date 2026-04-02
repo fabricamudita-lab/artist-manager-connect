@@ -19,8 +19,9 @@ interface Contact {
   company?: string;
   role?: string;
   artist_id?: string;
-  profiles?: {
-    full_name: string;
+  artist?: {
+    name: string;
+    stage_name: string | null;
   } | null;
 }
 
