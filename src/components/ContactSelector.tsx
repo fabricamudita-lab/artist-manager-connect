@@ -19,8 +19,9 @@ interface Contact {
   company?: string;
   role?: string;
   artist_id?: string;
-  profiles?: {
-    full_name: string;
+  artist?: {
+    name: string;
+    stage_name: string | null;
   } | null;
 }
 
@@ -58,7 +59,7 @@ export function ContactSelector({ value, onValueChange, artistId, placeholder = 
         .from('contacts')
         .select(`
           *,
-          profiles:artist_id(full_name)
+          artist:artist_id(name, stage_name)
         `)
         .order('name', { ascending: true });
 
@@ -123,7 +124,7 @@ export function ContactSelector({ value, onValueChange, artistId, placeholder = 
       // Add to local list and select it
       const newContactWithProfile = {
         ...data,
-        profiles: artistId ? contacts.find(c => c.artist_id === artistId)?.profiles || null : null
+        artist: artistId ? contacts.find(c => c.artist_id === artistId)?.artist || null : null
       };
       
       setContacts(prev => [newContactWithProfile as any, ...prev]);
@@ -169,7 +170,7 @@ export function ContactSelector({ value, onValueChange, artistId, placeholder = 
                       <span className="font-medium">{contact.name}</span>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         {contact.role && <Badge variant="outline" className="text-xs">{contact.role}</Badge>}
-                        {contact.profiles?.full_name && <span>• {contact.profiles.full_name}</span>}
+                        {contact.artist && <span>• {contact.artist.stage_name || contact.artist.name}</span>}
                       </div>
                     </div>
                   </div>
@@ -223,9 +224,9 @@ export function ContactSelector({ value, onValueChange, artistId, placeholder = 
                   {selectedContact.role && (
                     <Badge variant="secondary" className="text-xs">{selectedContact.role}</Badge>
                   )}
-                  {selectedContact.profiles?.full_name && (
+                  {selectedContact.artist && (
                     <Badge variant="outline" className="text-xs">
-                      Artista: {selectedContact.profiles.full_name}
+                      Artista: {selectedContact.artist.stage_name || selectedContact.artist.name}
                     </Badge>
                   )}
                 </div>
