@@ -15,7 +15,7 @@ import Booking from "./pages/Booking";
 import Sincronizaciones from "./pages/Sincronizaciones";
 import BookingDetail from "./pages/BookingDetail";
 import Royalties from "./pages/Royalties";
-import Finanzas from "./pages/Finanzas";
+
 import FinanzasHub from "./pages/FinanzasHub";
 import Analytics from "./pages/Analytics";
 import Documents from "./pages/Documents";
