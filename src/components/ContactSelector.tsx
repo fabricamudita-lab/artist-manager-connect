@@ -59,7 +59,7 @@ export function ContactSelector({ value, onValueChange, artistId, placeholder = 
         .from('contacts')
         .select(`
           *,
-          profiles:artist_id(full_name)
+          artist:artist_id(name, stage_name)
         `)
         .order('name', { ascending: true });
 
