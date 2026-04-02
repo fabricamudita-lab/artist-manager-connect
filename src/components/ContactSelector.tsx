@@ -124,7 +124,7 @@ export function ContactSelector({ value, onValueChange, artistId, placeholder = 
       // Add to local list and select it
       const newContactWithProfile = {
         ...data,
-        profiles: artistId ? contacts.find(c => c.artist_id === artistId)?.profiles || null : null
+        artist: artistId ? contacts.find(c => c.artist_id === artistId)?.artist || null : null
       };
       
       setContacts(prev => [newContactWithProfile as any, ...prev]);
