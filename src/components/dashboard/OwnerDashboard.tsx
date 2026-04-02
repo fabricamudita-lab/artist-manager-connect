@@ -136,109 +136,59 @@ export function OwnerDashboard() {
       const sevenDaysFromNow = new Date();
       sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
 
-      // ---- Existing queries ----
-
-      // Fetch artists count
-      const { count: artistsCount } = await supabase
-        .from('artists')
-        .select('*', { count: 'exact', head: true });
-
-      // Fetch budgets count
-      const { count: budgetsCount } = await supabase
-        .from('budgets')
-        .select('*', { count: 'exact', head: true });
-
-      // Fetch EPKs count
-      const { count: epksCount } = await supabase
-        .from('epks')
-        .select('*', { count: 'exact', head: true });
-
-      // Fetch upcoming events
-      const { data: eventsData, count: eventsCount } = await supabase
-        .from('events')
-        .select('id, title, start_date, location, event_type', { count: 'exact' })
-        .gte('start_date', now.toISOString())
-        .lte('start_date', thirtyDaysFromNow.toISOString())
-        .order('start_date', { ascending: true })
-        .limit(5);
-
-      // Fetch pending solicitudes
-      const { data: solicitudesData, count: solicitudesCount } = await supabase
-        .from('solicitudes')
-        .select('id, nombre_solicitante, tipo, estado, fecha_creacion', { count: 'exact' })
-        .eq('estado', 'pendiente')
-        .order('fecha_creacion', { ascending: false })
-        .limit(5);
-
-      // Fetch contacts count
-      const { count: contactsCount } = await supabase
-        .from('contacts')
-        .select('*', { count: 'exact', head: true });
-
-      // Calculate total revenue from all bookings
-      const { data: bookingsData } = await supabase
-        .from('booking_offers')
-        .select('fee')
-        .eq('estado', 'confirmado');
+      // ---- Parallel batch 1: all independent count/data queries ----
+      const [
+        { count: artistsCount },
+        { count: budgetsCount },
+        { count: epksCount },
+        { data: eventsData, count: eventsCount },
+        { data: solicitudesData, count: solicitudesCount },
+        { count: contactsCount },
+        { data: bookingsData },
+        { count: syncCount },
+        { count: prevArtistsCount },
+        { data: prevBookingsData },
+        { count: artistsBefore60 },
+        { data: oldBookingsData },
+        { count: prevEventsCount },
+        { count: prevSolicitudesCount },
+      ] = await Promise.all([
+        supabase.from('artists').select('*', { count: 'exact', head: true }),
+        supabase.from('budgets').select('*', { count: 'exact', head: true }),
+        supabase.from('epks').select('*', { count: 'exact', head: true }),
+        supabase.from('events')
+          .select('id, title, start_date, location, event_type', { count: 'exact' })
+          .gte('start_date', now.toISOString())
+          .lte('start_date', thirtyDaysFromNow.toISOString())
+          .order('start_date', { ascending: true })
+          .limit(5),
+        supabase.from('solicitudes')
+          .select('id, nombre_solicitante, tipo, estado, fecha_creacion', { count: 'exact' })
+          .eq('estado', 'pendiente')
+          .order('fecha_creacion', { ascending: false })
+          .limit(5),
+        supabase.from('contacts').select('*', { count: 'exact', head: true }),
+        supabase.from('booking_offers').select('fee').eq('estado', 'confirmado'),
+        supabase.from('sync_offers').select('*', { count: 'exact', head: true }).not('phase', 'eq', 'facturado'),
+        supabase.from('artists').select('*', { count: 'exact', head: true }).lt('created_at', thirtyDaysAgo.toISOString()),
+        supabase.from('booking_offers').select('fee').eq('estado', 'confirmado').lt('created_at', thirtyDaysAgo.toISOString()),
+        supabase.from('artists').select('*', { count: 'exact', head: true }).lt('created_at', sixtyDaysAgo.toISOString()),
+        supabase.from('booking_offers').select('fee').eq('estado', 'confirmado').lt('created_at', sixtyDaysAgo.toISOString()),
+        supabase.from('events').select('*', { count: 'exact', head: true })
+          .gte('start_date', new Date(thirtyDaysAgo.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString())
+          .lte('start_date', thirtyDaysAgo.toISOString()),
+        supabase.from('solicitudes').select('*', { count: 'exact', head: true })
+          .eq('estado', 'pendiente')
+          .lt('fecha_creacion', thirtyDaysAgo.toISOString()),
+      ]);
 
       const totalRevenue = bookingsData?.reduce((sum, b) => sum + (b.fee || 0), 0) || 0;
-
-      // Fetch sync offers count (active ones, not yet invoiced)
-      const { count: syncCount } = await supabase
-        .from('sync_offers')
-        .select('*', { count: 'exact', head: true })
-        .not('phase', 'eq', 'facturado');
-
-      // ---- Trend queries (previous 30 days) ----
-
-      // Artists created before 30 days ago
-      const { count: prevArtistsCount } = await supabase
-        .from('artists')
-        .select('*', { count: 'exact', head: true })
-        .lt('created_at', thirtyDaysAgo.toISOString());
-
-      // Revenue from bookings confirmed before 30 days ago
-      const { data: prevBookingsData } = await supabase
-        .from('booking_offers')
-        .select('fee')
-        .eq('estado', 'confirmado')
-        .lt('created_at', thirtyDaysAgo.toISOString());
       const prevRevenue = prevBookingsData?.reduce((sum, b) => sum + (b.fee || 0), 0) || 0;
-
-      // New artists in last 30 days vs previous 30 days
-      const newArtistsNow = (artistsCount || 0) - (prevArtistsCount || 0);
-      const { count: artistsBefore60 } = await supabase
-        .from('artists')
-        .select('*', { count: 'exact', head: true })
-        .lt('created_at', sixtyDaysAgo.toISOString());
-      const newArtistsPrev = (prevArtistsCount || 0) - (artistsBefore60 || 0);
-
-      // Revenue this period vs last
-      const revenueNow = totalRevenue - prevRevenue;
-      const { data: oldBookingsData } = await supabase
-        .from('booking_offers')
-        .select('fee')
-        .eq('estado', 'confirmado')
-        .lt('created_at', sixtyDaysAgo.toISOString());
       const oldRevenue = oldBookingsData?.reduce((sum, b) => sum + (b.fee || 0), 0) || 0;
+      const newArtistsNow = (artistsCount || 0) - (prevArtistsCount || 0);
+      const newArtistsPrev = (prevArtistsCount || 0) - (artistsBefore60 || 0);
+      const revenueNow = totalRevenue - prevRevenue;
       const revenuePrev = prevRevenue - oldRevenue;
-
-      // Events previous period
-      const prevPeriodStart = new Date(thirtyDaysAgo);
-      const prevPeriodEnd = new Date(now);
-      prevPeriodStart.setDate(prevPeriodStart.getDate() - 30);
-      const { count: prevEventsCount } = await supabase
-        .from('events')
-        .select('*', { count: 'exact', head: true })
-        .gte('start_date', prevPeriodStart.toISOString())
-        .lte('start_date', thirtyDaysAgo.toISOString());
-
-      // Solicitudes pending previous period
-      const { count: prevSolicitudesCount } = await supabase
-        .from('solicitudes')
-        .select('*', { count: 'exact', head: true })
-        .eq('estado', 'pendiente')
-        .lt('fecha_creacion', thirtyDaysAgo.toISOString());
 
       // ---- Attention items ----
       const items: AttentionItem[] = [];
