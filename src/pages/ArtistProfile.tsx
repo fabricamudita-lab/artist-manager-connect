@@ -731,7 +731,7 @@ export default function ArtistProfile() {
         <TabsContent value="projects" className="space-y-4">
           <div className="flex justify-between items-center">
             <p className="text-muted-foreground">Proyectos del artista</p>
-            <Button variant="outline" onClick={() => navigate('/projects')}>
+            <Button variant="outline" onClick={() => navigate('/proyectos')}>
               Ver todos
             </Button>
           </div>

@@ -216,13 +216,14 @@ const App = () => (
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
-              <Route path="/contacts" element={
+              <Route path="/mi-perfil" element={
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Contacts />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
+              <Route path="/contacts" element={<Navigate to="/mi-perfil" replace />} />
               <Route path="/agenda" element={
                 <ProtectedRoute>
                   <DashboardLayout>

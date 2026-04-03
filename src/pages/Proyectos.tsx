@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import DashboardLayout from '@/components/DashboardLayout';
+import CreateProjectDialog from '@/components/CreateProjectDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ export default function Proyectos() {
   const [filterArtist, setFilterArtist] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   useEffect(() => {
     document.title = "Proyectos | MOODITA";
@@ -173,7 +175,7 @@ export default function Proyectos() {
                 Gestiona todos tus proyectos en un solo lugar
               </p>
             </div>
-            <Button onClick={() => navigate('/projects')}>
+            <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Nuevo Proyecto
             </Button>
@@ -252,7 +254,7 @@ export default function Proyectos() {
                 ? 'No se encontraron proyectos con esos filtros'
                 : 'Crea un proyecto para organizar tu trabajo'}
             </p>
-            <Button onClick={() => navigate('/projects')}>
+            <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Crear Proyecto
             </Button>
@@ -337,6 +339,12 @@ export default function Proyectos() {
           </div>
         )}
       </div>
+      <CreateProjectDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onSuccess={() => {}}
+        onCreated={(id) => navigate(`/projects/${id}`)}
+      />
     </DashboardLayout>
   );
 }
