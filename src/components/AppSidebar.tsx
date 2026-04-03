@@ -225,7 +225,12 @@ export function AppSidebar() {
         {!isCollapsed && (
           <>
             <span className="font-medium flex-1">{item.title}</span>
-            {count > 0 && (
+            {item.comingSoon && (
+              <span className="ml-auto text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                Pronto
+              </span>
+            )}
+            {!item.comingSoon && count > 0 && (
               <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
                 {count > 99 ? '99+' : count}
               </span>
