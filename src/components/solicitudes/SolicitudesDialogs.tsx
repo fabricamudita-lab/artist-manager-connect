@@ -166,7 +166,7 @@ export function SolicitudesDialogs({
         }}
       />
 
-      <SolicitudesExport open={showExportDialog} onOpenChange={setShowExportDialog} solicitudes={solicitudes} />
+      <SolicitudesExport open={showExportDialog} onOpenChange={setShowExportDialog} solicitudes={solicitudes as any} />
 
       <ResponseTemplates
         open={showResponseTemplates}
