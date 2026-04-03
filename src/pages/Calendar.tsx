@@ -372,17 +372,8 @@ export default function Calendar() {
             fetchEvents();
           }} />
       ))}
-
       {editingEvent && (
         <EditEventDialog event={editingEvent} onUpdated={() => { setEditingEvent(null); fetchEvents(); }} />
-      )}
-
-      {selectedBookingOffer && (
-        <BookingCalendarPopover
-          booking={selectedBookingOffer}
-          open={!!selectedBookingOffer}
-          onOpenChange={(open) => { if (!open) setSelectedBookingOffer(null); }}
-        />
       )}
     </div>
   );
