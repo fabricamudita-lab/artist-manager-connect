@@ -114,9 +114,9 @@ export default function Documents() {
   const fetchArtists = async () => {
     try {
       const { data: artistsData } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('full_name', { ascending: true });
+        .from('artists')
+        .select('id, name, stage_name')
+        .order('name', { ascending: true });
       setArtists(artistsData || []);
     } catch (error) {
       console.error('Error fetching artists:', error);
