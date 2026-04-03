@@ -342,6 +342,7 @@ export default function Proyectos() {
       <CreateProjectDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
+        onSuccess={() => {}}
         onCreated={(id) => navigate(`/projects/${id}`)}
       />
     </DashboardLayout>
