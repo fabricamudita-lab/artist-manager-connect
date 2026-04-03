@@ -109,7 +109,7 @@ export function SolicitudesDialogs({
       <CreateSolicitudFromTemplateDialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog} onSuccess={onRefresh} />
 
       {selectedSolicitud && (
-        <EditSolicitudDialog solicitud={selectedSolicitud} open={showEditDialog} onOpenChange={setShowEditDialog} onSolicitudUpdated={onRefresh} />
+        <EditSolicitudDialog solicitud={selectedSolicitud as any} open={showEditDialog} onOpenChange={setShowEditDialog} onSolicitudUpdated={onRefresh} />
       )}
 
       <SolicitudDetailsDialog solicitudId={selectedSolicitudForDetails?.id || null} open={showDetailsDialog} onOpenChange={setShowDetailsDialog} onUpdate={onRefresh} />
