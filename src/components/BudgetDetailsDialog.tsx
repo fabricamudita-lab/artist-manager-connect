@@ -1804,7 +1804,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const saveItemEdits = async () => {
     if (!editingItem || !editingItemValues) return;
-    });
 
     try {
       // Exclude relational fields that don't exist in the table
