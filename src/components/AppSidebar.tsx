@@ -44,6 +44,7 @@ interface NavItem {
   url: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: 'pending' | 'booking';
+  comingSoon?: boolean;
 }
 
 interface NavGroup {
