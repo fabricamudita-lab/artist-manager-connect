@@ -76,21 +76,15 @@ export function AddToCalendarDialog({ request, open, onOpenChange, onEventCreate
   const fetchArtists = async () => {
     try {
       const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .contains('roles', ['artist']);
+        .from('artists')
+        .select('id, name, stage_name')
+        .order('name', { ascending: true });
 
-      // Filter out any profiles without valid data and ensure no empty values
       const validArtists = (data || []).filter(artist => 
-        artist && 
-        artist.id && 
-        artist.id.trim() !== '' && 
-        artist.full_name && 
-        artist.full_name.trim() !== ''
+        artist && artist.id && artist.name
       );
       
       setArtists(validArtists);
-      console.log('Artists fetched:', validArtists);
     } catch (error) {
       console.error('Error fetching artists:', error);
     }
