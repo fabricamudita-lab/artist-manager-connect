@@ -360,10 +360,8 @@ export default function EPKBuilder() {
                     audios={audios}
                     documents={documents}
                     onDownloadStart={() => {
-                      console.log('Press kit download started');
                     }}
                     onDownloadComplete={() => {
-                      console.log('Press kit download completed');
                     }}
                   />
                 </CardContent>

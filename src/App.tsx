@@ -65,7 +65,16 @@ import ArtistProfile from "./pages/ArtistProfile";
 import Correo from "./pages/Correo";
 import Automatizaciones from "./pages/Automatizaciones";
 import Modelo111 from "./pages/Modelo111";
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;

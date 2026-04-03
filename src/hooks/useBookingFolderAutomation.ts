@@ -123,9 +123,6 @@ export const useBookingFolderAutomation = () => {
           uploaded_by: user.id,
           booking_id: booking.id,
         });
-
-      console.log(`📁 [FOLDER AUTOMATION] Created folder "${folderName}" for booking ${booking.id}`);
-
       return { 
         success: true, 
         subfolderId: mainFolder.id, 
@@ -150,7 +147,6 @@ export const useBookingFolderAutomation = () => {
     // Only trigger when status changes TO confirmed
     if (newStatus === 'confirmado' && oldStatus !== 'confirmado') {
       if (!newBooking.artist_id) {
-        console.log('📁 [FOLDER AUTOMATION] Skipped: No artist_id on booking');
         return;
       }
 

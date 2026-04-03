@@ -44,16 +44,12 @@ export function useBookingFolders() {
   const createEventFolder = useCallback(async (offer: BookingOffer): Promise<{ success: boolean; folderPath?: string; error?: string }> => {
     if (!offer.id || !offer.fecha || !offer.ciudad || !offer.festival_ciclo) {
       const error = `Missing required fields for folder creation - ID: ${offer.id}, Fecha: ${offer.fecha}, Ciudad: ${offer.ciudad}, Festival: ${offer.festival_ciclo}`;
-      console.log('🗂️ [FOLDER] ERROR:', error);
       return { success: false, error };
     }
 
     setLoading(true);
     const folderName = generateFolderName(offer);
     const folderPath = `events/${folderName}/`;
-    
-    console.log(`🗂️ [FOLDER] CREATING - ID: ${offer.id}, Path: ${folderPath}`);
-    
     try {
       // Create metadata object
       const metadata: FolderMetadata = {
@@ -80,8 +76,6 @@ export function useBookingFolders() {
 
       if (mainError) {
         const errorMsg = mainError.message;
-        console.log(`🗂️ [FOLDER] ERROR - ID: ${offer.id}, Path: ${folderPath}, Error: ${errorMsg}`);
-        
         // Check for permission/storage errors
         if (errorMsg.includes('permission') || errorMsg.includes('Permission') || 
             errorMsg.includes('access') || errorMsg.includes('Access') ||
@@ -108,15 +102,11 @@ export function useBookingFolders() {
           });
 
         if (error) {
-          console.log(`🗂️ [FOLDER] WARNING - Subfolder failed - ID: ${offer.id}, Subfolder: ${subfolder}, Error: ${error.message}`);
         }
       }
-
-      console.log(`🗂️ [FOLDER] OK - ID: ${offer.id}, Path: ${folderPath}`);
       return { success: true, folderPath };
     } catch (error: any) {
       const errorMsg = error?.message || 'Unknown error';
-      console.log(`🗂️ [FOLDER] ERROR - ID: ${offer.id}, Path: ${folderPath}, Error: ${errorMsg}`);
       return { success: false, error: errorMsg };
     } finally {
       setLoading(false);
@@ -225,14 +215,10 @@ export function useBookingFolders() {
     const newFolderName = generateFolderName(newOffer);
     const oldFolderPath = `events/${oldFolderName}/`;
     const newFolderPath = `events/${newFolderName}/`;
-    
-    console.log(`🗂️ [RENAME] STARTING - ID: ${newOffer.id}, From: ${oldFolderPath}, To: ${newFolderPath}`);
-    
     try {
       if (oldFolderName === newFolderName) {
         // Just update metadata if folder name is the same
         await updateFolderMetadata(newOffer);
-        console.log(`🗂️ [RENAME] METADATA_ONLY - ID: ${newOffer.id}, Path: ${newFolderPath}`);
         return { success: false, error: 'Solo se actualizó metadata' };
       }
 
@@ -264,7 +250,6 @@ export function useBookingFolders() {
             });
           }
         } catch (error) {
-          console.log(`🗂️ [RENAME] WARNING - Error listing files in subfolder ${subfolder}:`, error);
         }
       }
 
@@ -277,7 +262,6 @@ export function useBookingFolders() {
             .download(path);
 
           if (downloadError) {
-            console.log(`🗂️ [RENAME] WARNING - Download failed for ${path}:`, downloadError.message);
             continue;
           }
 
@@ -290,10 +274,8 @@ export function useBookingFolders() {
             });
 
           if (uploadError) {
-            console.log(`🗂️ [RENAME] WARNING - Upload failed for ${newPath}:`, uploadError.message);
           }
         } catch (error) {
-          console.log(`🗂️ [RENAME] WARNING - File copy failed ${path}:`, error);
         }
       }
 
@@ -311,10 +293,8 @@ export function useBookingFolders() {
             .eq('id', newOffer.id);
 
           if (updateError) {
-            console.log(`🗂️ [RENAME] WARNING - Contract link update failed:`, updateError.message);
           }
         } catch (error) {
-          console.log(`🗂️ [RENAME] WARNING - Contract link update error:`, error);
         }
       }
 
@@ -326,15 +306,10 @@ export function useBookingFolders() {
             .remove([path]);
 
           if (deleteError) {
-            console.log(`🗂️ [RENAME] WARNING - Delete failed for ${path}:`, deleteError.message);
           }
         } catch (error) {
-          console.log(`🗂️ [RENAME] WARNING - Delete error for ${path}:`, error);
         }
       }
-
-      console.log(`🗂️ [RENAME] OK - ID: ${newOffer.id}, From: ${oldFolderPath}, To: ${newFolderPath}`);
-      
       toast({
         title: "Carpeta renombrada",
         description: "La carpeta del evento se ha actualizado con los nuevos datos.",
@@ -343,8 +318,6 @@ export function useBookingFolders() {
       return { success: true };
     } catch (error: any) {
       const errorMsg = error?.message || 'Unknown error';
-      console.log(`🗂️ [RENAME] ERROR - ID: ${newOffer.id}, From: ${oldFolderPath}, To: ${newFolderPath}, Error: ${errorMsg}`);
-      
       toast({
         title: "Error",
         description: "No se pudo renombrar la carpeta del evento.",
@@ -430,19 +403,12 @@ export function useBookingFolders() {
       const validOffers = (offers || []).filter(offer => 
         offer.fecha && offer.ciudad && offer.festival_ciclo
       );
-
-      console.log(`Processing ${validOffers.length} valid offers for backfill`);
-
       for (const offer of validOffers) {
         try {
           // Double-check required fields before creating
           if (!offer.fecha || !offer.ciudad || !offer.festival_ciclo) {
-            console.log(`Skipping offer ${offer.id}: missing required fields`);
             continue;
           }
-
-          console.log(`Creating folder for offer ${offer.id}: ${offer.festival_ciclo} in ${offer.ciudad}`);
-          
           // Create folder for this offer
           const folderUrl = await createEventFolder(offer);
           
@@ -459,7 +425,6 @@ export function useBookingFolders() {
               console.error('Error updating folder URL:', updateError);
             } else {
               created++;
-              console.log(`Successfully created folder for offer ${offer.id}`);
             }
           }
         } catch (error) {

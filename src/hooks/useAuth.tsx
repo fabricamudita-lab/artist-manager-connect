@@ -33,26 +33,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-
-  console.log('AuthProvider - Current state:', { user: user?.email, profile: profile?.full_name, loading });
-
   // Separate function to fetch user profile
   const fetchUserProfile = async (session: Session) => {
     try {
-      console.log('Fetching profile for user:', session.user.id);
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', session.user.id)
         .maybeSingle();
-      
-      console.log('Profile data:', profileData, 'Error:', error);
-      
       if (error) {
         console.error('Profile fetch error:', error);
         setProfile(null);
       } else if (!profileData) {
-        console.log('No profile found, creating one...');
         const userRoles = session.user.user_metadata?.roles || ['artist'];
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
@@ -70,7 +62,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('Failed to create profile:', createError);
           setProfile(null);
         } else {
-          console.log('Created new profile:', newProfile);
           setProfile(newProfile);
         }
       } else {
@@ -85,15 +76,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    console.log('Auth hook - Setting up auth state listener');
     let mounted = true;
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (!mounted) return;
-        
-        console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -112,10 +100,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     // Get initial session
-    console.log('Auth hook - Getting initial session');
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
-      console.log('Initial session:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       if (!session) {

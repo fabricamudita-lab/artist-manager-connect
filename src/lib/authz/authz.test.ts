@@ -183,19 +183,12 @@ export const authzTestCases: TestCase[] = [
  * Usage: await runAuthzTests()
  */
 export async function runAuthzTests() {
-  console.log('Running authorization truth table tests...');
-  
   for (const testCase of authzTestCases) {
     try {
       // Note: In a real test environment, you would mock the database calls
       // For now, this serves as documentation of expected behavior
-      console.log(`Test: ${testCase.name}`);
-      console.log(`Expected: ${testCase.expected}`);
-      console.log('---');
     } catch (error) {
       console.error(`Test failed: ${testCase.name}`, error);
     }
   }
-  
-  console.log('Test documentation complete. Integrate with your preferred testing framework.');
 }

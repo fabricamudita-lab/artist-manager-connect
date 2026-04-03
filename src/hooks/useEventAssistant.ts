@@ -362,14 +362,6 @@ export function useEventAssistant(booking: BookingData | null): EventAssistantDa
     // Log notification if enabled
     if (notificationsEnabled && result.length > 0) {
       result.forEach(alert => {
-        console.log(JSON.stringify({
-          event: booking.festival_ciclo || booking.venue || 'Evento',
-          event_id: booking.id,
-          alert_type: alert.id,
-          severity: alert.severity,
-          timestamp: new Date().toISOString(),
-          action_url: window.location.href,
-        }));
       });
     }
 

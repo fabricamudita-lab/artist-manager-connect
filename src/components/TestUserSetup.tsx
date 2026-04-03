@@ -14,8 +14,6 @@ const TestUserSetup: React.FC<TestUserSetupProps> = ({ onComplete }) => {
   const setupTestUsers = async () => {
     setLoading(true);
     try {
-      console.log('🚀 Setting up test users for E2E tests...');
-      
       const { data, error } = await supabase.functions.invoke('setup-test-users', {
         body: null,
         headers: {
@@ -32,8 +30,6 @@ const TestUserSetup: React.FC<TestUserSetupProps> = ({ onComplete }) => {
           title: "✅ Test Users Created",
           description: `Successfully set up ${data.users.length} test users for E2E testing`,
         });
-        
-        console.log('✅ Test users setup completed:', data.users);
         onComplete();
       } else {
         throw new Error(data.error || 'Failed to setup test users');
@@ -54,8 +50,6 @@ const TestUserSetup: React.FC<TestUserSetupProps> = ({ onComplete }) => {
   const cleanupTestUsers = async () => {
     setLoading(true);
     try {
-      console.log('🧹 Cleaning up test users...');
-      
       const { data, error } = await supabase.functions.invoke('setup-test-users', {
         body: { action: 'cleanup' },
         headers: {
@@ -72,8 +66,6 @@ const TestUserSetup: React.FC<TestUserSetupProps> = ({ onComplete }) => {
           title: "✅ Test Users Cleaned",
           description: `Successfully cleaned up ${data.results.length} test users`,
         });
-        
-        console.log('✅ Test users cleanup completed:', data.results);
       } else {
         throw new Error(data.error || 'Failed to cleanup test users');
       }

@@ -7,12 +7,8 @@ import { Bell, Check, CheckCheck } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 
 export default function NotificationBell() {
-  console.log('NotificationBell component rendering...');
   const [open, setOpen] = useState(false);
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
-
-  console.log('NotificationBell - Notifications:', notifications.length, 'Unread:', unreadCount);
-
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'request': return '📝';

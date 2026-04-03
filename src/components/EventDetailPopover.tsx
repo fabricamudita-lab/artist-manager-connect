@@ -53,16 +53,8 @@ export function EventDetailPopover({
     initialPosition: position,
     onPositionChange,
   });
-
-  console.log('EventDetailPopover rendering with event:', event);
-  
   // Early return DESPUÉS de todos los hooks
   if (!event || !open) return null;
-
-  console.log('Event start_date:', event.start_date);
-  console.log('Event end_date:', event.end_date);
-  console.log('Position:', currentPosition);
-
   const eventTypeLabels = {
     'concierto': 'Concierto',
     'entrevista': 'Entrevista', 
@@ -142,7 +134,6 @@ export function EventDetailPopover({
             className="h-8 w-8 p-0 hover:bg-muted"
             onClick={() => {
               // Simular envío de email
-              console.log('Enviando email sobre el evento:', event.title);
               alert(`Enviando email sobre: ${event.title}`);
             }}
           >
@@ -154,7 +145,6 @@ export function EventDetailPopover({
             className="h-8 w-8 p-0 hover:bg-muted"
             onClick={() => {
               // Mostrar menú de opciones
-              console.log('Mostrando más opciones para:', event.title);
               alert('Más opciones disponibles próximamente');
             }}
           >

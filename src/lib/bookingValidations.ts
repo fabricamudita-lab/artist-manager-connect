@@ -37,8 +37,6 @@ export async function validateBookingOffer(
   isNew: boolean = false,
   hasContract?: boolean
 ): Promise<ValidationResult> {
-  console.log('Validating booking offer:', offer);
-  
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
 
@@ -110,13 +108,9 @@ export async function validateBookingOffer(
 
   // 5. Required fields by status
   const estado = offer.estado?.toLowerCase();
-  
-  console.log('Checking required fields for estado:', estado, 'contacto:', offer.contacto);
-  
   // Only require contacto for propuesta (not for interés)
   if (estado === 'propuesta') {
     if (!offer.contacto?.trim()) {
-      console.log('Adding contacto error for estado:', estado);
       errors.push({
         field: 'contacto',
         message: 'El contacto es obligatorio para propuestas',

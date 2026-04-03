@@ -100,8 +100,6 @@ export function useBookingCalendarSync() {
         .from('booking_offers')
         .update({ event_id: data.id })
         .eq('id', booking.id);
-
-      console.log('Event created from booking:', data);
       return data;
     } catch (error) {
       console.error('Error creating event from booking:', error);
@@ -169,8 +167,6 @@ export function useBookingCalendarSync() {
         .single();
 
       if (error) throw error;
-
-      console.log('Event updated from booking:', data);
       return data;
     } catch (error) {
       console.error('Error updating event from booking:', error);
@@ -186,8 +182,6 @@ export function useBookingCalendarSync() {
         .eq('id', eventId);
 
       if (error) throw error;
-
-      console.log('Event deleted from booking:', eventId);
       return true;
     } catch (error) {
       console.error('Error deleting event from booking:', error);

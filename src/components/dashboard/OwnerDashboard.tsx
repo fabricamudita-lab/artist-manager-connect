@@ -190,16 +190,18 @@ export function OwnerDashboard() {
       const revenueNow = totalRevenue - prevRevenue;
       const revenuePrev = prevRevenue - oldRevenue;
 
-      // ---- Attention items ----
+      // ---- Attention items (parallelized) ----
       const items: AttentionItem[] = [];
 
-      // 1. Solicitudes pendientes > 48h
-      const { data: oldSolicitudes } = await supabase
-        .from('solicitudes')
-        .select('id, nombre_solicitante')
-        .eq('estado', 'pendiente')
-        .lt('fecha_creacion', fortyEightHoursAgo.toISOString())
-        .limit(5);
+      const [
+        { data: oldSolicitudes },
+        { data: confirmedBookings },
+        { data: nearEvents },
+      ] = await Promise.all([
+        supabase.from('solicitudes').select('id, nombre_solicitante').eq('estado', 'pendiente').lt('fecha_creacion', fortyEightHoursAgo.toISOString()).limit(5),
+        supabase.from('booking_offers').select('id, festival_ciclo, ciudad, venue').eq('estado', 'confirmado').limit(50),
+        supabase.from('events').select('id, title').gte('start_date', now.toISOString()).lte('start_date', sevenDaysFromNow.toISOString()).limit(20),
+      ]);
 
       oldSolicitudes?.forEach(s => {
         items.push({
@@ -214,13 +216,6 @@ export function OwnerDashboard() {
           ]
         });
       });
-
-      // 2. Bookings confirmados sin contrato
-      const { data: confirmedBookings } = await supabase
-        .from('booking_offers')
-        .select('id, festival_ciclo, ciudad, venue')
-        .eq('estado', 'confirmado')
-        .limit(50);
 
       if (confirmedBookings && confirmedBookings.length > 0) {
         const bookingIds = confirmedBookings.map(b => b.id);
@@ -250,16 +245,7 @@ export function OwnerDashboard() {
           });
       }
 
-      // 3. Eventos próximos 7 días sin roadmap
-      const { data: nearEvents } = await supabase
-        .from('events')
-        .select('id, title')
-        .gte('start_date', now.toISOString())
-        .lte('start_date', sevenDaysFromNow.toISOString())
-        .limit(20);
-
       if (nearEvents && nearEvents.length > 0) {
-        // Check which have roadmaps via booking_offers -> tour_roadmap_bookings
         const { data: eventsWithBookings } = await supabase
           .from('booking_offers')
           .select('event_id')
