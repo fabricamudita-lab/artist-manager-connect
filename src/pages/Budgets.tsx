@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Search, Calculator, Trash2, FileText, Eye, Pencil, Check, X, AlertTriangle, GitMerge } from 'lucide-react';
+import { DuplicateResolverDialog, getEstadoReal } from '@/components/finanzas/DuplicateResolverDialog';
 import { BudgetSummaryCards } from '@/components/finanzas/BudgetSummaryCards';
 import { CapitalByArtistPanel } from '@/components/finanzas/CapitalByArtistPanel';
 import { CashflowPanel } from '@/components/finanzas/CashflowPanel';
@@ -86,19 +87,8 @@ function getBudgetType(type?: string) {
   return BUDGET_TYPES[type] ?? BUDGET_TYPES.otros;
 }
 
-function getEstadoReal(budget: Budget): string {
-  const meta = budget.metadata as any;
-  if (meta?.estado) return meta.estado;
-  if (budget.show_status) return budget.show_status;
-  if (
-    budget.budget_status &&
-    budget.budget_status !== 'nacional' &&
-    budget.budget_status !== 'internacional'
-  ) {
-    return budget.budget_status;
-  }
-  return 'borrador';
-}
+// getEstadoReal imported from DuplicateResolverDialog module
+
 
 function getEstadoBadgeVariant(
   estado: string
