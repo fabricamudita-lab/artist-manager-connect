@@ -45,7 +45,7 @@ interface ArtistProfileDialogProps {
 }
 
 export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProfileDialogProps) {
-  const [artist, setArtist] = useState<Profile | null>(null);
+  const [artist, setArtist] = useState<ArtistData | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -60,15 +60,14 @@ export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProf
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
+        .from('artists')
+        .select('id, name, stage_name, email, phone, address, avatar_url, description, genre, notes, instagram_url, spotify_url, tiktok_url')
         .eq('id', artistId)
         .single();
 
       if (error) throw error;
       setArtist(data);
     } catch (error) {
-      console.error('Error fetching artist profile:', error);
       toast({
         title: "Error",
         description: "No se pudo cargar el perfil del artista.",
