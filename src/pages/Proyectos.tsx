@@ -41,6 +41,7 @@ export default function Proyectos() {
   const [filterArtist, setFilterArtist] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   useEffect(() => {
     document.title = "Proyectos | MOODITA";
