@@ -22,18 +22,20 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
-interface Profile {
+interface ArtistData {
   id: string;
-  full_name: string;
-  email: string;
+  name: string;
+  stage_name: string | null;
+  email: string | null;
   phone: string | null;
   address: string | null;
   avatar_url: string | null;
-  roles: string[];
-  active_role: string;
-  emergency_contact: string | null;
-  team_contacts: string | null;
-  internal_notes: string | null;
+  description: string | null;
+  genre: string | null;
+  notes: string | null;
+  instagram_url: string | null;
+  spotify_url: string | null;
+  tiktok_url: string | null;
 }
 
 interface ArtistProfileDialogProps {
