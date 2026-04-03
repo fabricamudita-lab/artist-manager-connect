@@ -367,5 +367,23 @@ export default function Calendar() {
         <EventDetailPopover key={popup.id} event={popup.event} open={true} onOpenChange={() => closePopup(popup.id)}
           position={popup.position} zIndex={popup.zIndex} onBringToFront={() => bringPopupToFront(popup.id)}
           onPositionChange={(newPos) => updatePopupPosition(popup.id, newPos)} artistName="David Solans" createdBy="Fabrica Mudita"
-          onEdit={event => setEditingEvent(event)} onDelete={eventId => {
+          onEdit={event => setEditingEvent(event)} onDelete={async (eventId) => {
+            await supabase.from('events').delete().eq('id', eventId);
+            fetchEvents();
+          }} />
+      ))}
+
+      {editingEvent && (
+        <EditEventDialog event={editingEvent} onUpdated={() => { setEditingEvent(null); fetchEvents(); }} />
+      )}
+
+      {selectedBookingOffer && (
+        <BookingCalendarPopover
+          booking={selectedBookingOffer}
+          open={!!selectedBookingOffer}
+          onOpenChange={(open) => { if (!open) setSelectedBookingOffer(null); }}
+        />
+      )}
+    </div>
+  );
 }
