@@ -44,6 +44,14 @@ import {
   MoreHorizontal,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
