@@ -2591,7 +2591,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const updateSelectedItemsBillingStatus = async (billingStatus: string) => {
     if (selectedItems.size === 0) return;
-    });
 
     try {
       // Update items in batch
