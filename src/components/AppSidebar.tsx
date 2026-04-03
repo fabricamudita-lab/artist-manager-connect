@@ -142,7 +142,7 @@ const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | nu
       label: "Comunicación",
       items: [
         { title: "Solicitudes", url: "/solicitudes", icon: Bell, badge: 'pending' as const },
-        { title: "Correo", url: "/correo", icon: Mail },
+        { title: "Correo", url: "/correo", icon: Mail, comingSoon: true },
         { title: "Chat", url: "/chat", icon: MessageCircle },
       ],
     },
