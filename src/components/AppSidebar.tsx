@@ -154,7 +154,7 @@ const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | nu
         { title: "Contactos", url: "/agenda", icon: Users },
         { title: "EPKs", url: "/epks", icon: FileImage },
         { title: "Calendario", url: "/calendar", icon: Calendar },
-        { title: "Mi Perfil", url: "/contacts", icon: User },
+        { title: "Mi Perfil", url: "/mi-perfil", icon: User },
         { title: "Ajustes", url: "/settings", icon: Settings },
       ],
     },
