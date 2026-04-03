@@ -620,7 +620,7 @@ export default function Documents() {
                   <SelectContent>
                     {artists.map((artist) => (
                       <SelectItem key={artist.id} value={artist.id}>
-                        {artist.full_name}
+                        {artist.stage_name || artist.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
