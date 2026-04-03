@@ -16,8 +16,8 @@ import { es } from 'date-fns/locale';
 
 interface Artist {
   id: string;
-  full_name: string;
-  email: string;
+  name: string;
+  stage_name: string | null;
 }
 
 interface Request {
@@ -76,21 +76,15 @@ export function AddToCalendarDialog({ request, open, onOpenChange, onEventCreate
   const fetchArtists = async () => {
     try {
       const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .contains('roles', ['artist']);
+        .from('artists')
+        .select('id, name, stage_name')
+        .order('name', { ascending: true });
 
-      // Filter out any profiles without valid data and ensure no empty values
       const validArtists = (data || []).filter(artist => 
-        artist && 
-        artist.id && 
-        artist.id.trim() !== '' && 
-        artist.full_name && 
-        artist.full_name.trim() !== ''
+        artist && artist.id && artist.name
       );
       
       setArtists(validArtists);
-      console.log('Artists fetched:', validArtists);
     } catch (error) {
       console.error('Error fetching artists:', error);
     }
@@ -179,9 +173,9 @@ export function AddToCalendarDialog({ request, open, onOpenChange, onEventCreate
                 <SelectValue placeholder="Selecciona un artista" />
               </SelectTrigger>
               <SelectContent>
-                {artists.filter(artist => artist.id && artist.full_name).map((artist) => (
+              {artists.filter(artist => artist.id && artist.name).map((artist) => (
                   <SelectItem key={artist.id} value={artist.id}>
-                    {artist.full_name}
+                    {artist.stage_name || artist.name}
                   </SelectItem>
                 ))}
               </SelectContent>

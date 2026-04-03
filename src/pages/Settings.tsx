@@ -1,9 +1,24 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Settings as SettingsIcon, Bell, Shield, Palette, Globe } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Bell, Shield, Palette, Globe } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+
+function ProximamenteSwitch() {
+  return (
+    <div className="flex items-center gap-2">
+      <Switch
+        disabled
+        onCheckedChange={() =>
+          toast({ title: 'Próximamente', description: 'Esta función estará disponible pronto.' })
+        }
+      />
+      <Badge variant="outline" className="text-xs">Próximamente</Badge>
+    </div>
+  );
+}
 
 export default function Settings() {
   return (
@@ -35,7 +50,7 @@ export default function Settings() {
                   Recibe actualizaciones importantes por correo
                 </p>
               </div>
-              <Switch />
+              <ProximamenteSwitch />
             </div>
             <Separator />
             <div className="flex items-center justify-between">
@@ -45,7 +60,7 @@ export default function Settings() {
                   Recibe alertas en tiempo real
                 </p>
               </div>
-              <Switch />
+              <ProximamenteSwitch />
             </div>
           </CardContent>
         </Card>
@@ -69,7 +84,7 @@ export default function Settings() {
                   Permite que otros usuarios vean tu perfil
                 </p>
               </div>
-              <Switch />
+              <ProximamenteSwitch />
             </div>
             <Separator />
             <div className="flex items-center justify-between">
@@ -79,7 +94,7 @@ export default function Settings() {
                   Añade una capa extra de seguridad
                 </p>
               </div>
-              <Switch />
+              <ProximamenteSwitch />
             </div>
           </CardContent>
         </Card>
@@ -103,7 +118,7 @@ export default function Settings() {
                   Cambia entre tema claro y oscuro
                 </p>
               </div>
-              <Switch />
+              <ProximamenteSwitch />
             </div>
           </CardContent>
         </Card>

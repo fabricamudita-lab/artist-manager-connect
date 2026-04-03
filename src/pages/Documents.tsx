@@ -52,8 +52,8 @@ interface Document {
 
 interface Artist {
   id: string;
-  full_name: string;
-  email: string;
+  name: string;
+  stage_name: string | null;
 }
 
 const CATEGORIES = [
@@ -114,9 +114,9 @@ export default function Documents() {
   const fetchArtists = async () => {
     try {
       const { data: artistsData } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('full_name', { ascending: true });
+        .from('artists')
+        .select('id, name, stage_name')
+        .order('name', { ascending: true });
       setArtists(artistsData || []);
     } catch (error) {
       console.error('Error fetching artists:', error);
@@ -465,7 +465,7 @@ export default function Documents() {
                             {document.title}
                           </CardTitle>
                           <CardDescription className="mt-1">
-                            {artists.find(a => a.id === document.artist_id)?.full_name || 'Artista'}
+{(() => { const a = artists.find(a => a.id === document.artist_id); return a?.stage_name || a?.name || 'Artista'; })()}
                           </CardDescription>
                         </div>
                       </div>
@@ -527,7 +527,7 @@ export default function Documents() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{document.title}</p>
                         <p className="text-sm text-muted-foreground">
-                          {artists.find(a => a.id === document.artist_id)?.full_name || 'Artista'} • 
+                          {(() => { const a = artists.find(a => a.id === document.artist_id); return a?.stage_name || a?.name || 'Artista'; })()} • 
                           {formatFileSize(document.file_size)} • 
                           {format(new Date(document.created_at), 'dd/MM/yyyy')}
                         </p>
@@ -620,7 +620,7 @@ export default function Documents() {
                   <SelectContent>
                     {artists.map((artist) => (
                       <SelectItem key={artist.id} value={artist.id}>
-                        {artist.full_name}
+                        {artist.stage_name || artist.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
