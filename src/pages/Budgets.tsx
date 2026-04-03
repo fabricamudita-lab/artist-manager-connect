@@ -87,19 +87,8 @@ function getBudgetType(type?: string) {
   return BUDGET_TYPES[type] ?? BUDGET_TYPES.otros;
 }
 
-function getEstadoReal(budget: Budget): string {
-  const meta = budget.metadata as any;
-  if (meta?.estado) return meta.estado;
-  if (budget.show_status) return budget.show_status;
-  if (
-    budget.budget_status &&
-    budget.budget_status !== 'nacional' &&
-    budget.budget_status !== 'internacional'
-  ) {
-    return budget.budget_status;
-  }
-  return 'borrador';
-}
+// getEstadoReal imported from DuplicateResolverDialog module
+
 
 function getEstadoBadgeVariant(
   estado: string
