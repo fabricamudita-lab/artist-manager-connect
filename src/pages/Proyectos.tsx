@@ -175,15 +175,10 @@ export default function Proyectos() {
                 Gestiona todos tus proyectos en un solo lugar
               </p>
             </div>
-            <CreateProjectDialog
-              trigger={
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nuevo Proyecto
-                </Button>
-              }
-              onCreated={(id) => navigate(`/projects/${id}`)}
-            />
+            <Button onClick={() => setShowCreateDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo Proyecto
+            </Button>
           </div>
 
           {/* Filters */}
