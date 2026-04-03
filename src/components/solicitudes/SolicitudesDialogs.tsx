@@ -19,6 +19,10 @@ interface Solicitud {
   id: string;
   tipo: string;
   nombre_solicitante: string;
+  estado: 'pendiente' | 'aprobada' | 'denegada';
+  fecha_creacion: string;
+  fecha_actualizacion: string;
+  created_by: string;
   artist_id?: string;
   ciudad?: string;
   medio?: string;
