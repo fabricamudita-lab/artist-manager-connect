@@ -52,8 +52,8 @@ interface Document {
 
 interface Artist {
   id: string;
-  full_name: string;
-  email: string;
+  name: string;
+  stage_name: string | null;
 }
 
 const CATEGORIES = [
