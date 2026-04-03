@@ -1,73 +1,108 @@
 
 
-## Fase 3 — Refactorización de archivos grandes
+## Ciclo de Mejora Profunda — MOODITA
 
-Cuatro archivos de 1000-1800 líneas que se pueden dividir en sub-componentes sin cambiar funcionalidad visible. El objetivo es mantener cada archivo por debajo de ~400 líneas.
-
----
-
-### 1. Solicitudes.tsx (1846 líneas → ~300 + 4 componentes)
-
-**Extraer:**
-
-| Nuevo archivo | Contenido | Líneas aprox. |
-|---|---|---|
-| `components/solicitudes/SolicitudesHeader.tsx` | Header con contadores, botones de exportar/plantillas/crear, badges de estado | ~120 |
-| `components/solicitudes/SolicitudesFiltersBar.tsx` | Barra de búsqueda, selects de filtro (estado, tipo, artista), toggle de vista | ~80 |
-| `components/solicitudes/SolicitudCard.tsx` | `renderSolicitudCard` (líneas 963-1178) — la card individual con acciones | ~220 |
-| `components/solicitudes/SolicitudesDialogs.tsx` | Todos los dialogs instanciados al final del JSX (create, edit, details, delete, status, encounter, project, availability) | ~100 |
-
-**`Solicitudes.tsx` queda con:** Estado, hooks, fetch, lógica de filtrado, y el layout principal que compone los sub-componentes. ~300 líneas.
+Tras auditar las 47 páginas, 150+ componentes y 55 hooks del proyecto, he identificado los problemas organizados en 5 fases de ejecución.
 
 ---
 
-### 2. Booking.tsx (1161 líneas → ~250 + 3 componentes)
+### FASE 1 — Bugs silenciosos y datos incorrectos
 
-**Extraer:**
+**1.1 ArtistProfileDialog.tsx consulta `profiles` en vez de `artists`**
+Hace `from('profiles').select('*').eq('id', artistId)` — pero `artistId` referencia la tabla `artists`, no `profiles`. Siempre devuelve vacío.
+- Fix: Cambiar a `from('artists')`.
 
-| Nuevo archivo | Contenido |
-|---|---|
-| `components/booking/BookingHeader.tsx` | Header con título, botones sync/export/backfill/template |
-| `components/booking/BookingAlerts.tsx` | Banners de alerta (contratos, realizados, vencidos) |
-| `components/booking/BookingTableView.tsx` | La vista tabla con renderizado de filas, columnas, acciones inline |
+**1.2 Chat.tsx carga TODOS los perfiles sin filtro**
+`from('profiles').select('*')` sin `.limit()` ni filtro. Con muchos usuarios, trae datos innecesarios y es lento.
+- Fix: Filtrar por workspace o usar paginación.
 
-**`Booking.tsx` queda con:** Estado, queries, lógica de filtros, tabs (tabla/kanban), y composición.
+**1.3 EPKs.tsx — 927 líneas sin modularizar**
+Archivo monolítico con tabla, grid, dialogs y lógica de exportación.
+- Fix: Extraer sub-componentes como en Fase 3 anterior.
 
----
-
-### 3. Calendar.tsx (1148 líneas → ~200 + 2 componentes)
-
-Ya tiene `CalendarHeader`, `CalendarToolbar` y `CreateEventDialogV2` extraídos.
-
-**Extraer:**
-
-| Nuevo archivo | Contenido |
-|---|---|
-| `components/calendar/WeekView.tsx` | Vista semanal con grid de horas, drag-to-select, renderizado de eventos |
-| `components/calendar/MonthView.tsx` | Vista mensual con grid de días y eventos |
-
-**`Calendar.tsx` queda con:** Estado, fetch de eventos, lógica de filtros, switch de vistas (week/month/quarter/year).
+**1.4 Agenda.tsx — 745 líneas sin modularizar**
+Similar problema de mantenibilidad.
 
 ---
 
-### 4. Teams.tsx (1691 líneas → ~300 + 3 componentes)
+### FASE 2 — Limpieza de console.log y dead code
 
-**Extraer:**
+**2.1 Eliminar ~600+ console.log de producción**
+Encontrados en 30+ archivos (hooks, pages, components). Exponen datos sensibles (user IDs, profile data, session info) y ensucian la consola.
+- Fix: Eliminar todos excepto `console.error` legítimos. Reemplazar logs de debug con condicionales `if (import.meta.env.DEV)` solo donde sea realmente necesario.
 
-| Nuevo archivo | Contenido |
-|---|---|
-| `components/teams/TeamsHeader.tsx` | Header + botones (seleccionar, perfil, invitar) |
-| `components/teams/TeamsFilters.tsx` | TeamDropdown, CategoryDropdown, search, view toggle |
-| `components/teams/TeamsDialogs.tsx` | Todos los dialogs del final (invite, add contact, edit contact, create/edit team, managers, profile sheet, dashboard, artist info) |
+**2.2 Eliminar archivos de mock de email**
+`src/lib/emailMockData.ts` y `src/components/email/` (EmailSidebar, EmailList, EmailDetail) ya no se usan desde que Correo.tsx muestra un empty state.
+- Fix: Borrar archivos muertos.
 
-**`Teams.tsx` queda con:** Estado, fetch, lógica de filtrado/agrupación, y composición de vistas (grid/list/free).
+**2.3 Lanzamientos.tsx — 918 líneas**
+La ruta `/lanzamientos` redirige a `/releases`. Si `Lanzamientos.tsx` ya no se usa en ninguna ruta activa, es dead code.
+- Fix: Verificar y eliminar si corresponde.
 
 ---
 
-### Enfoque de implementación
+### FASE 3 — Rendimiento y consultas
 
-- Cada extracción es un **move puro**: cortar JSX + props necesarias al nuevo componente, sin cambiar lógica
-- Los callbacks se pasan como props (ej: `onCreateClick`, `onFilterChange`)
-- Los tipos/interfaces compartidos se mantienen en el archivo padre o se mueven a un `types.ts` local si hay más de 2 componentes que los usan
-- Se implementa archivo por archivo para poder verificar que nada se rompe entre pasos
+**3.1 OwnerDashboard — segunda ronda de queries secuencial**
+Después del `Promise.all` principal (14 queries paralelas), hay 3 queries secuenciales más para attention items (oldSolicitudes, confirmedBookings, nearEvents). Estas podrían paralelizarse.
+- Fix: Mover al `Promise.all` existente o crear un segundo `Promise.all`.
+
+**3.2 Contacts.tsx (Mi Perfil) — no usa React Query**
+Usa `useState` + `useEffect` manual para fetch de perfil. No hay cache, no hay stale-while-revalidate, no hay optimistic updates.
+- Fix: Migrar a `useQuery` para consistencia con el resto de la app.
+
+**3.3 Chat.tsx — no usa React Query**
+616 líneas con gestión manual de estado. Cada acción hace fetch completo sin cache.
+- Fix: Migrar las queries principales a React Query.
+
+**3.4 Solicitudes.tsx — triple fetch en useEffect([]) sin dependencias**
+`fetchSolicitudes(); fetchArtistsAndContacts(); updateExistingSolicitudesNames()` todo en un solo `useEffect`. `updateExistingSolicitudesNames` hace escrituras en la DB en cada carga de página.
+- Fix: Separar el update a un proceso one-time o condicionado, no en cada render.
+
+---
+
+### FASE 4 — Refactorización de archivos grandes restantes
+
+Archivos que superan 600 líneas y no fueron tocados en la Fase 3 anterior:
+
+| Archivo | Líneas | Acción |
+|---------|--------|--------|
+| ProjectDetail.tsx | 3505 | Extraer tabs a componentes: Overview, Tasks, Files, Budget, Approvals |
+| ReleaseCronograma.tsx | 2684 | Extraer secciones: TimelineView, MilestoneList, WorkflowBuilder |
+| ReleaseCreditos.tsx | 1544 | Extraer: TrackList, CreditEditor, LabelCopyGenerator |
+| Budgets.tsx | 1370 | Extraer: BudgetOverview, BudgetItemsTable, BudgetCharts |
+| Carpetas.tsx | 1359 | Extraer: FolderTree, FileGrid, UploadArea |
+| EPKs.tsx | 927 | Extraer: EPKTable, EPKGrid, EPKDialogs |
+| Contacts.tsx | 911 | Extraer: ProfileForm, DocumentUpload, ProfileDisplay |
+| BookingDetail.tsx | 869 | Ya modular parcialmente, extraer tabs restantes |
+
+Priorizaré ProjectDetail (3505 líneas) y ReleaseCronograma (2684 líneas) por ser los más críticos.
+
+---
+
+### FASE 5 — Mejoras UX/UI
+
+**5.1 QueryClient sin configuración de staleTime**
+El `queryClient` se crea con defaults (staleTime: 0), lo que causa re-fetches innecesarios en cada navegación.
+- Fix: Configurar `staleTime: 5 * 60 * 1000` (5 min) como default.
+
+**5.2 Sidebar — "Correo" y "Chat" no funcionales**
+Correo muestra "Próximamente" y Chat requiere auth real. Considerar agrupar o marcar visualmente.
+- Fix: Añadir badge "Próximamente" al item de Correo en sidebar.
+
+**5.3 Loading states inconsistentes**
+Algunos usan `Skeleton`, otros `Loader2 animate-spin`, otros nada.
+- Fix: Estandarizar usando Skeleton para layouts y Loader2 para acciones.
+
+---
+
+### Plan de ejecución (orden)
+
+1. **Fase 1** — Fixes de bugs silenciosos (ArtistProfileDialog, Chat profiles query)
+2. **Fase 2** — Limpieza de console.log (30+ archivos) + dead code (email mock, Lanzamientos)
+3. **Fase 3** — Performance (QueryClient staleTime, Promise.all en OwnerDashboard, migrar a React Query)
+4. **Fase 4** — Refactorización de los archivos más grandes (ProjectDetail, ReleaseCronograma, etc.)
+5. **Fase 5** — Polish UX (sidebar badges, loading states consistentes)
+
+Empezaré por la Fase 1 y continuaré secuencialmente. Al final entregaré un changelog completo.
 
