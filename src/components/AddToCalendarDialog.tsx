@@ -173,9 +173,9 @@ export function AddToCalendarDialog({ request, open, onOpenChange, onEventCreate
                 <SelectValue placeholder="Selecciona un artista" />
               </SelectTrigger>
               <SelectContent>
-                {artists.filter(artist => artist.id && artist.full_name).map((artist) => (
+              {artists.filter(artist => artist.id && artist.name).map((artist) => (
                   <SelectItem key={artist.id} value={artist.id}>
-                    {artist.full_name}
+                    {artist.stage_name || artist.name}
                   </SelectItem>
                 ))}
               </SelectContent>

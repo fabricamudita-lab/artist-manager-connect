@@ -465,7 +465,7 @@ export default function Documents() {
                             {document.title}
                           </CardTitle>
                           <CardDescription className="mt-1">
-                            {artists.find(a => a.id === document.artist_id)?.full_name || 'Artista'}
+{(() => { const a = artists.find(a => a.id === document.artist_id); return a?.stage_name || a?.name || 'Artista'; })()}
                           </CardDescription>
                         </div>
                       </div>
