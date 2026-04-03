@@ -41,11 +41,14 @@ export function useAuthz({ projectId, artistId, workspaceId }: UseAuthzProps = {
       if (!user || authLoading) return;
 
       try {
+        console.log('useAuthz - Checking permissions for user:', user.id, 'project:', projectId);
         const results = await Promise.all([
           projectId ? canViewProject(user.id, projectId) : Promise.resolve(false),
           projectId ? canEditProject(user.id, projectId) : Promise.resolve(false),
           // Add more permission checks as needed
         ]);
+        console.log('useAuthz - Permission results:', results);
+
         // Determine role-based permissions
         const isOwnerOrManager = results[1]; // Edit permission indicates management access
         

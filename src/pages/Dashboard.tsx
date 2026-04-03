@@ -21,6 +21,10 @@ export default function Dashboard() {
       setShowTestSetup(true);
     }
   }, []);
+
+  console.log('Dashboard - Profile:', profile, 'Loading:', loading);
+  console.log('Dashboard - Profile active role:', profile?.active_role);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">

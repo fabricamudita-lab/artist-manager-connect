@@ -181,6 +181,7 @@ export const useResponsiveTesting = () => {
     // Simulate user agent if provided
     if (preset.userAgent) {
       // Note: Changing user agent requires browser dev tools or extension
+      console.log(`Simulating User Agent: ${preset.userAgent}`);
     }
   };
 

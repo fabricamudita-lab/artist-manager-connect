@@ -373,6 +373,9 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
           descripcion_libre: formData.descripcion_libre || null,
         }),
       };
+
+      console.log('Creating solicitud with data:', solicitudData);
+
       const { data, error } = await supabase
         .from('solicitudes')
         .insert(solicitudData)
@@ -382,6 +385,9 @@ export function CreateSolicitudDialog({ open, onOpenChange, onSolicitudCreated, 
         console.error('Supabase error:', error);
         throw error;
       }
+
+      console.log('Solicitud created successfully:', data);
+
       toast({
         title: "Solicitud creada",
         description: "La solicitud se ha creado correctamente.",

@@ -44,7 +44,6 @@ interface NavItem {
   url: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: 'pending' | 'booking';
-  comingSoon?: boolean;
 }
 
 interface NavGroup {
@@ -84,7 +83,7 @@ const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | nu
       {
         label: "Archivos",
         items: [
-          { title: "Drive", url: "/carpetas", icon: HardDrive },
+          { title: "Drive", url: "/drive", icon: HardDrive },
           { title: "Documentos", url: "/documents", icon: FileText },
         ],
       },
@@ -134,7 +133,7 @@ const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | nu
     {
       label: "Archivos",
       items: [
-        { title: "Drive", url: "/carpetas", icon: HardDrive },
+        { title: "Drive", url: "/drive", icon: HardDrive },
         { title: "Documentos", url: "/documents", icon: FileText },
       ],
     },
@@ -142,7 +141,7 @@ const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | nu
       label: "Comunicación",
       items: [
         { title: "Solicitudes", url: "/solicitudes", icon: Bell, badge: 'pending' as const },
-        { title: "Correo", url: "/correo", icon: Mail, comingSoon: true },
+        { title: "Correo", url: "/correo", icon: Mail },
         { title: "Chat", url: "/chat", icon: MessageCircle },
       ],
     },
@@ -155,7 +154,7 @@ const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | nu
         { title: "Contactos", url: "/agenda", icon: Users },
         { title: "EPKs", url: "/epks", icon: FileImage },
         { title: "Calendario", url: "/calendar", icon: Calendar },
-        { title: "Mi Perfil", url: "/mi-perfil", icon: User },
+        { title: "Mi Perfil", url: "/contacts", icon: User },
         { title: "Ajustes", url: "/settings", icon: Settings },
       ],
     },
@@ -225,12 +224,7 @@ export function AppSidebar() {
         {!isCollapsed && (
           <>
             <span className="font-medium flex-1">{item.title}</span>
-            {item.comingSoon && (
-              <span className="ml-auto text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                Pronto
-              </span>
-            )}
-            {!item.comingSoon && count > 0 && (
+            {count > 0 && (
               <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
                 {count > 99 ? '99+' : count}
               </span>

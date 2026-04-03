@@ -82,18 +82,23 @@ export default function Chat() {
 
   const fetchAllContacts = async () => {
     try {
-      // Filter by role in query instead of loading all profiles
-      const targetRole = profile?.active_role === 'management' ? 'artist' : 'management';
-      const { data: filteredProfiles, error } = await supabase
+      const { data: allProfiles, error } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar_url, email, roles, active_role, phone')
-        .contains('roles', [targetRole])
-        .limit(200);
+        .select('*');
 
       if (error) throw error;
-      setAllContacts(filteredProfiles || []);
+      
+      let filteredContacts = [];
+      
+      if (profile?.active_role === 'management') {
+        filteredContacts = allProfiles?.filter(p => p.roles.includes('artist')) || [];
+      } else if (profile?.active_role === 'artist') {
+        filteredContacts = allProfiles?.filter(p => p.roles.includes('management')) || [];
+      }
+
+      setAllContacts(filteredContacts);
     } catch (error) {
-      // silently fail - contacts list is non-critical
+      console.error('Error fetching contacts:', error);
     }
   };
 

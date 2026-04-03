@@ -101,6 +101,9 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
   const { profile } = useAuth();
   const { toast } = useToast();
   const { isConnected: googleConnected, createEvent: createGoogleEvent } = useGoogleCalendar();
+
+  console.log('CreateEventDialog - Rendering, profile:', profile);
+
   // Update open state when shouldOpen changes
   useEffect(() => {
     if (shouldOpen !== undefined) {
@@ -152,6 +155,7 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
   // Update form when prefilledData changes
   useEffect(() => {
     if (prefilledData) {
+      console.log('Updating form with prefilledData:', prefilledData);
       form.reset({
         artist_ids: profile?.id ? [profile.id] : [],
         title: prefilledData.title || '',
@@ -181,6 +185,10 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
     setIsSubmitting(true);
     
     try {
+      console.log('=== CREATING EVENT ===');
+      console.log('Profile:', profile);
+      console.log('Form data:', data);
+      
       // Combine date and time for start and end
       const startDateTime = new Date(data.start_date);
       const [startHours, startMinutes] = data.start_time.split(':').map(Number);
@@ -203,6 +211,9 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
         artist_id: profile.id, // Use the correct profile.id
         created_by: profile.id  // Use the correct profile.id
       };
+
+      console.log('Event payload:', eventPayload);
+
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .insert(eventPayload)
@@ -218,6 +229,9 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
         });
         return;
       }
+
+      console.log('Event created successfully:', eventData);
+
       // Create entries in event_artists for all selected artists
       const eventArtistEntries = data.artist_ids.map(artistId => ({
         event_id: eventData.id,
@@ -238,6 +252,9 @@ export function CreateEventDialog({ onEventCreated, shouldOpen, onOpenChange, pr
         });
         return;
       }
+
+      console.log('Event and artist associations created successfully');
+      
       // Sync with Google Calendar if requested and connected
       if (data.syncWithGoogle && googleConnected) {
         const googleEvent = {

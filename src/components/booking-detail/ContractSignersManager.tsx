@@ -87,6 +87,7 @@ export function ContractSignersManager({ documentId, onSignersChange }: Contract
           filter: `document_id=eq.${documentId}`,
         },
         (payload) => {
+          console.log('Signer update received:', payload);
           fetchSigners();
           onSignersChange?.();
         }

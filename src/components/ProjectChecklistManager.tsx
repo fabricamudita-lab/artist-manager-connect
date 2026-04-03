@@ -237,16 +237,24 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   };
 
   const checkForUnblockedTasks = async () => {
+    console.log('Checking for unblocked tasks...');
     const tasksToUpdate: ChecklistItem[] = [];
     
     items.forEach(item => {
+      console.log(`Checking item: ${item.title}, status: ${item.status}`);
       if (item.status === 'BLOCKED') {
         const { blockingTasks, otherContent } = extractBlockingInfo(item.description);
+        console.log(`Blocking tasks for "${item.title}":`, blockingTasks);
+        
         // Check if all blocking tasks are now completed or cancelled
         const stillBlockedTasks = blockingTasks.filter(taskTitle => {
           const blockingTask = items.find(t => t.title === taskTitle);
+          console.log(`Found blocking task "${taskTitle}":`, blockingTask?.status);
           return blockingTask && blockingTask.status !== 'COMPLETED' && blockingTask.status !== 'CANCELLED';
         });
+        
+        console.log(`Still blocked tasks for "${item.title}":`, stillBlockedTasks);
+        
         if (stillBlockedTasks.length === 0 && blockingTasks.length > 0) {
           // Task is no longer blocked, add notification
           let newDescription = otherContent;
@@ -254,6 +262,8 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
             newDescription += ' | ';
           }
           newDescription += "Las dependencias se han completado! 🎉";
+          
+          console.log(`Task "${item.title}" will be unblocked`);
           tasksToUpdate.push({
             ...item,
             description: newDescription,
@@ -262,8 +272,12 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         }
       }
     });
+    
+    console.log('Tasks to unblock:', tasksToUpdate.length);
+    
     // Update unblocked tasks
     for (const task of tasksToUpdate) {
+      console.log(`Updating task "${task.title}" to PENDING`);
       const { error } = await supabase
         .from('project_checklist_items')
         .update({ 
@@ -287,16 +301,24 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   };
 
   const checkForUnblockedTasksWithItems = async (currentItems: ChecklistItem[]) => {
+    console.log('Checking for unblocked tasks with fresh items...');
     const tasksToUpdate: ChecklistItem[] = [];
     
     currentItems.forEach(item => {
+      console.log(`Checking item: ${item.title}, status: ${item.status}`);
       if (item.status === 'BLOCKED') {
         const { blockingTasks, otherContent } = extractBlockingInfo(item.description);
+        console.log(`Blocking tasks for "${item.title}":`, blockingTasks);
+        
         // Check if all blocking tasks are now completed or cancelled
         const stillBlockedTasks = blockingTasks.filter(taskTitle => {
           const blockingTask = currentItems.find(t => t.title === taskTitle);
+          console.log(`Found blocking task "${taskTitle}":`, blockingTask?.status);
           return blockingTask && blockingTask.status !== 'COMPLETED' && blockingTask.status !== 'CANCELLED';
         });
+        
+        console.log(`Still blocked tasks for "${item.title}":`, stillBlockedTasks);
+        
         if (stillBlockedTasks.length === 0 && blockingTasks.length > 0) {
           // Task is no longer blocked, add notification
           let newDescription = otherContent;
@@ -304,6 +326,8 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
             newDescription += ' | ';
           }
           newDescription += "Las dependencias se han completado! 🎉";
+          
+          console.log(`Task "${item.title}" will be unblocked`);
           tasksToUpdate.push({
             ...item,
             description: newDescription,
@@ -312,8 +336,12 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         }
       }
     });
+    
+    console.log('Tasks to unblock:', tasksToUpdate.length);
+    
     // Update unblocked tasks
     for (const task of tasksToUpdate) {
+      console.log(`Updating task "${task.title}" to PENDING`);
       const { error } = await supabase
         .from('project_checklist_items')
         .update({ 
@@ -406,7 +434,17 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
   };
 
   const updateTaskStatus = async (item: ChecklistItem, newStatus: TaskStatus) => {
+    console.log('updateTaskStatus called with:', { itemId: item.id, newStatus, itemTitle: item.title });
+    
     try {
+      console.log('Updating task status:', {
+        itemId: item.id,
+        newStatus,
+        selectedItems: Array.from(selectedItems),
+        isSelected: selectedItems.has(item.id),
+        selectedCount: selectedItems.size
+      });
+
       const user = await supabase.auth.getUser();
       const updates: any = { status: newStatus };
       
@@ -429,8 +467,11 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
       // If this item is selected and there are multiple selected items, show confirmation dialog
       if (selectedItems.has(item.id) && selectedItems.size > 1) {
+        console.log('Updating multiple selected items:', Array.from(selectedItems));
+        
         // For BLOCKED status with multiple items, handle special blocking dialog
         if (newStatus === 'BLOCKED') {
+          console.log('Setting blocking dialog for BLOCKED status with multiple items');
           setBlockingDialog({
             item,
             blockingTasks: [],
@@ -441,6 +482,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
 
         // For IN_REVIEW status with multiple items, handle special review dialog
         if (newStatus === 'IN_REVIEW') {
+          console.log('Setting review dialog for IN_REVIEW status with multiple items');
           setReviewDialog({
             item,
             reason: ''
@@ -456,8 +498,11 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         });
         return; // Exit here, the actual update will happen in the confirmation dialog
       } else {
+        console.log('Updating single item');
+        
         // For single items with special statuses, show dialogs
         if (newStatus === 'BLOCKED') {
+          console.log('Setting blocking dialog for BLOCKED status');
           setBlockingDialog({
             item,
             blockingTasks: [],
@@ -467,6 +512,7 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
         }
 
         if (newStatus === 'IN_REVIEW') {
+          console.log('Setting review dialog for IN_REVIEW status');
           setReviewDialog({
             item,
             reason: ''
@@ -526,6 +572,9 @@ export function ProjectChecklistManager({ projectId, canEdit }: ProjectChecklist
       const itemsToUpdate = selectedItems.has(blockingDialog.item.id) && selectedItems.size > 1 
         ? Array.from(selectedItems) 
         : [blockingDialog.item.id];
+
+      console.log('Blocking items:', itemsToUpdate, 'Selected items:', Array.from(selectedItems));
+
       // For bulk blocking, we need to update each item individually to handle descriptions properly
       if (itemsToUpdate.length > 1) {
         // Get all items to update their descriptions individually

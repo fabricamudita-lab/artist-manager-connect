@@ -1,108 +1,88 @@
 
 
-## Ciclo de Mejora Profunda — MOODITA
+## Auditoría completa de MOODITA — Bugs, inconsistencias y mejoras
 
-Tras auditar las 47 páginas, 150+ componentes y 55 hooks del proyecto, he identificado los problemas organizados en 5 fases de ejecución.
-
----
-
-### FASE 1 — Bugs silenciosos y datos incorrectos
-
-**1.1 ArtistProfileDialog.tsx consulta `profiles` en vez de `artists`**
-Hace `from('profiles').select('*').eq('id', artistId)` — pero `artistId` referencia la tabla `artists`, no `profiles`. Siempre devuelve vacío.
-- Fix: Cambiar a `from('artists')`.
-
-**1.2 Chat.tsx carga TODOS los perfiles sin filtro**
-`from('profiles').select('*')` sin `.limit()` ni filtro. Con muchos usuarios, trae datos innecesarios y es lento.
-- Fix: Filtrar por workspace o usar paginación.
-
-**1.3 EPKs.tsx — 927 líneas sin modularizar**
-Archivo monolítico con tabla, grid, dialogs y lógica de exportación.
-- Fix: Extraer sub-componentes como en Fase 3 anterior.
-
-**1.4 Agenda.tsx — 745 líneas sin modularizar**
-Similar problema de mantenibilidad.
+Tras revisar las 14+ secciones del sidebar en profundidad, he encontrado problemas en 3 categorías: bugs activos que rompen funcionalidad, inconsistencias estructurales, y mejoras de UX/calidad.
 
 ---
 
-### FASE 2 — Limpieza de console.log y dead code
+### BUGS ACTIVOS
 
-**2.1 Eliminar ~600+ console.log de producción**
-Encontrados en 30+ archivos (hooks, pages, components). Exponen datos sensibles (user IDs, profile data, session info) y ensucian la consola.
-- Fix: Eliminar todos excepto `console.error` legítimos. Reemplazar logs de debug con condicionales `if (import.meta.env.DEV)` solo donde sea realmente necesario.
+**B1. Documents.tsx — Tabla equivocada para artistas**
+La página de Documentos hace `from('profiles').select('*')` para poblar el selector de artistas, pero `documents.artist_id` probablemente debería referenciar la tabla `artists`, no `profiles`. Además, el tipo `Artist` usa `full_name` y `email` como si fuera un perfil, no un artista.
+- **Fix**: Cambiar la query a `from('artists').select('id, name, stage_name')` y adaptar el tipo y las referencias a `a.stage_name || a.name`.
 
-**2.2 Eliminar archivos de mock de email**
-`src/lib/emailMockData.ts` y `src/components/email/` (EmailSidebar, EmailList, EmailDetail) ya no se usan desde que Correo.tsx muestra un empty state.
-- Fix: Borrar archivos muertos.
+**B2. AddToCalendarDialog.tsx — Misma confusión profiles/artists**
+Hace `from('profiles').select('*').contains('roles', ['artist'])` para listar artistas. Usa `full_name` como display. Si el calendario espera `artist_id` referenciando `artists`, la query está mal.
+- **Fix**: Cambiar a `from('artists')` o validar que `artist_id` en `events` referencia `profiles`.
 
-**2.3 Lanzamientos.tsx — 918 líneas**
-La ruta `/lanzamientos` redirige a `/releases`. Si `Lanzamientos.tsx` ya no se usa en ninguna ruta activa, es dead code.
-- Fix: Verificar y eliminar si corresponde.
+**B3. Correo.tsx — Datos mock, no conectado**
+La página de Correo usa `mockEmails` y `mockAccounts` importados de `emailMockData`. No hay integración real. El usuario ve un buzón falso con datos inventados.
+- **Fix**: Mostrar un estado vacío claro ("Correo no configurado — Conecta tu cuenta de email") en vez de datos falsos que confunden.
 
----
+**B4. Settings.tsx — Todos los switches son decorativos**
+Ningún `Switch` tiene `checked`, `onCheckedChange`, ni estado. Los toggles no hacen nada — son puramente visuales.
+- **Fix**: O conectarlos a preferencias reales en la DB, o mostrar un placeholder honesto ("Próximamente").
 
-### FASE 3 — Rendimiento y consultas
-
-**3.1 OwnerDashboard — segunda ronda de queries secuencial**
-Después del `Promise.all` principal (14 queries paralelas), hay 3 queries secuenciales más para attention items (oldSolicitudes, confirmedBookings, nearEvents). Estas podrían paralelizarse.
-- Fix: Mover al `Promise.all` existente o crear un segundo `Promise.all`.
-
-**3.2 Contacts.tsx (Mi Perfil) — no usa React Query**
-Usa `useState` + `useEffect` manual para fetch de perfil. No hay cache, no hay stale-while-revalidate, no hay optimistic updates.
-- Fix: Migrar a `useQuery` para consistencia con el resto de la app.
-
-**3.3 Chat.tsx — no usa React Query**
-616 líneas con gestión manual de estado. Cada acción hace fetch completo sin cache.
-- Fix: Migrar las queries principales a React Query.
-
-**3.4 Solicitudes.tsx — triple fetch en useEffect([]) sin dependencias**
-`fetchSolicitudes(); fetchArtistsAndContacts(); updateExistingSolicitudesNames()` todo en un solo `useEffect`. `updateExistingSolicitudesNames` hace escrituras en la DB en cada carga de página.
-- Fix: Separar el update a un proceso one-time o condicionado, no en cada render.
+**B5. Proyectos.tsx — DashboardLayout duplicado**
+`Proyectos.tsx` ya envuelve su contenido en `<DashboardLayout>` internamente (línea 165), pero en `App.tsx` NO tiene `<DashboardLayout>` wrapper. Sin embargo, `Drive.tsx` redirige a `/carpetas` que tampoco tiene `DashboardLayout` en App.tsx. Ambas páginas (`/proyectos`, `/carpetas`, `/drive`) se renderizan sin sidebar.
+- **Fix**: Alinear — o quitar `DashboardLayout` de dentro del componente y añadirlo en `App.tsx`, o dejarlo dentro. Lo importante es la consistencia. Actualmente `/proyectos` tiene sidebar (lo pone internamente) pero `/drive` redirige a `/carpetas` que SÍ tiene sidebar internamente.
 
 ---
 
-### FASE 4 — Refactorización de archivos grandes restantes
+### INCONSISTENCIAS ESTRUCTURALES
 
-Archivos que superan 600 líneas y no fueron tocados en la Fase 3 anterior:
+**E1. Sidebar "Mi Perfil" apunta a `/contacts`**
+En el sidebar de management, "Mi Perfil" tiene `url: "/contacts"`. La página `/contacts` (`Contacts.tsx`) es efectivamente la página de perfil del usuario (muestra `ProfileTab` con datos personales, documentos de identidad, etc.). El nombre de la ruta `/contacts` es confuso, pero la funcionalidad es correcta.
+- **Fix**: Renombrar la ruta a `/mi-perfil` para claridad, o al menos validar que el label y la ruta coincidan.
 
-| Archivo | Líneas | Acción |
-|---------|--------|--------|
-| ProjectDetail.tsx | 3505 | Extraer tabs a componentes: Overview, Tasks, Files, Budget, Approvals |
-| ReleaseCronograma.tsx | 2684 | Extraer secciones: TimelineView, MilestoneList, WorkflowBuilder |
-| ReleaseCreditos.tsx | 1544 | Extraer: TrackList, CreditEditor, LabelCopyGenerator |
-| Budgets.tsx | 1370 | Extraer: BudgetOverview, BudgetItemsTable, BudgetCharts |
-| Carpetas.tsx | 1359 | Extraer: FolderTree, FileGrid, UploadArea |
-| EPKs.tsx | 927 | Extraer: EPKTable, EPKGrid, EPKDialogs |
-| Contacts.tsx | 911 | Extraer: ProfileForm, DocumentUpload, ProfileDisplay |
-| BookingDetail.tsx | 869 | Ya modular parcialmente, extraer tabs restantes |
+**E2. Dos páginas de proyectos: `/projects` y `/proyectos`**
+`/projects` renderiza `Projects.tsx` y `/proyectos` renderiza `Proyectos.tsx`. El botón "Nuevo Proyecto" en Proyectos navega a `/projects`. Son dos páginas distintas para el mismo concepto.
+- **Fix**: Consolidar en una sola. Parece que `Proyectos.tsx` es la vista de lista principal y `Projects.tsx` es un flujo de creación.
 
-Priorizaré ProjectDetail (3505 líneas) y ReleaseCronograma (2684 líneas) por ser los más críticos.
+**E3. `/drive` redirige a `/carpetas`, pero el sidebar dice "Drive"**
+El sidebar tiene `url: "/drive"`, que redirige a `/carpetas`. La página real es `Carpetas.tsx`. Funciona, pero añade una redirección innecesaria.
+- **Fix**: Cambiar el sidebar a `url: "/carpetas"` directamente, o consolidar.
 
 ---
 
-### FASE 5 — Mejoras UX/UI
+### MEJORAS DE CALIDAD / UX
 
-**5.1 QueryClient sin configuración de staleTime**
-El `queryClient` se crea con defaults (staleTime: 0), lo que causa re-fetches innecesarios en cada navegación.
-- Fix: Configurar `staleTime: 5 * 60 * 1000` (5 min) como default.
+**M1. Solicitudes.tsx — 1846 líneas en un solo archivo**
+Es el archivo más grande de la app. Difícil de mantener y lento para cargar/editar.
+- **Fix**: Extraer en sub-componentes (SolicitudesHeader, SolicitudesTable, SolicitudesFilters, etc.).
 
-**5.2 Sidebar — "Correo" y "Chat" no funcionales**
-Correo muestra "Próximamente" y Chat requiere auth real. Considerar agrupar o marcar visualmente.
-- Fix: Añadir badge "Próximamente" al item de Correo en sidebar.
+**M2. Booking.tsx — 1161 líneas**
+Misma situación. La lógica de filtros, tabla, kanban, templates y validaciones está todo en un archivo.
+- **Fix**: Refactorizar a componentes más pequeños.
 
-**5.3 Loading states inconsistentes**
-Algunos usan `Skeleton`, otros `Loader2 animate-spin`, otros nada.
-- Fix: Estandarizar usando Skeleton para layouts y Loader2 para acciones.
+**M3. Calendar.tsx — 1148 líneas**
+Calendario con múltiples vistas (semana, mes, trimestre, año) todo inline.
+- **Fix**: Extraer vistas de calendario a componentes separados.
+
+**M4. Teams.tsx — 1691 líneas**
+Gestión de equipos con múltiples vistas, dialogs y lógica compleja en un solo archivo.
+
+**M5. Contacts (Mi Perfil) — 911 líneas con lógica duplicada**
+`DocumentUploadCard` y `DocumentDisplayCard` tienen lógica casi idéntica de signed URLs.
 
 ---
 
-### Plan de ejecución (orden)
+### PLAN DE IMPLEMENTACIÓN (por prioridad)
 
-1. **Fase 1** — Fixes de bugs silenciosos (ArtistProfileDialog, Chat profiles query)
-2. **Fase 2** — Limpieza de console.log (30+ archivos) + dead code (email mock, Lanzamientos)
-3. **Fase 3** — Performance (QueryClient staleTime, Promise.all en OwnerDashboard, migrar a React Query)
-4. **Fase 4** — Refactorización de los archivos más grandes (ProjectDetail, ReleaseCronograma, etc.)
-5. **Fase 5** — Polish UX (sidebar badges, loading states consistentes)
+**Fase 1 — Bugs activos (impacto inmediato)**
+1. Corregir `Documents.tsx`: cambiar query de `profiles` a `artists` y adaptar tipos
+2. Corregir `AddToCalendarDialog.tsx`: mismo fix
+3. Reemplazar datos mock en `Correo.tsx` por un estado vacío honesto
+4. Hacer que `Settings.tsx` muestre "Próximamente" en los switches no funcionales
 
-Empezaré por la Fase 1 y continuaré secuencialmente. Al final entregaré un changelog completo.
+**Fase 2 — Inconsistencias de navegación**
+5. Cambiar sidebar: "Mi Perfil" → url `/mi-perfil`, crear redirect de `/contacts` a `/mi-perfil`
+6. Cambiar sidebar: "Drive" → url `/carpetas` directamente (eliminar redirección)
+7. Consolidar botón "Nuevo Proyecto" en Proyectos para no navegar a otra página
+
+**Fase 3 — Calidad de código (no cambia funcionalidad visible)**
+8. Extraer sub-componentes de `Solicitudes.tsx`, `Booking.tsx`, `Calendar.tsx` y `Teams.tsx`
+
+Propongo empezar por la **Fase 1** (4 fixes concretos) que son los que impactan directamente la experiencia del usuario. Las fases 2 y 3 se pueden abordar después.
 

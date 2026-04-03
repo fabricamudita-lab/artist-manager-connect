@@ -82,6 +82,7 @@ export const EPKForm: React.FC<EPKFormProps> = ({
 
   const handleFileUpload = (file: File, type: 'image' | 'video' | 'audio' | 'document') => {
     // This would typically upload to Supabase Storage
+    console.log('Uploading file:', file, 'Type:', type);
     // For now, just show a placeholder
   };
 
@@ -250,6 +251,7 @@ export const EPKForm: React.FC<EPKFormProps> = ({
           if (data) {
             try {
               const item = JSON.parse(data);
+              console.log('Dropped library item:', item);
               // This would need to be handled by parent component
             } catch (error) {
               console.error('Error parsing dropped data:', error);

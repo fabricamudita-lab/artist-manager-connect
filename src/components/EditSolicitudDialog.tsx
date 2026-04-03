@@ -291,6 +291,9 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
         .eq('id', solicitud.id);
 
       if (error) throw error;
+
+      console.log('Previous estado:', previousEstado, 'New estado:', newEstado);
+
       toast({
         title: "Solicitud actualizada",
         description: newEstado === 'aprobada' && previousEstado !== 'aprobada' 
@@ -302,6 +305,7 @@ export function EditSolicitudDialog({ solicitud, open, onOpenChange, onSolicitud
 
       // 🎉 ¡Confetti cuando se aprueba una solicitud!
       if (previousEstado !== 'aprobada' && newEstado === 'aprobada') {
+        console.log('🎉 Firing confetti celebration!');
         setTimeout(() => {
           fireCelebration();
           // Cerrar el diálogo después del confeti

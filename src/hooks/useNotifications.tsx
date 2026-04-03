@@ -19,6 +19,7 @@ export function useNotifications() {
   const { profile } = useAuth();
 
   useEffect(() => {
+    console.log('Notifications hook - Profile:', profile);
     if (!profile) return;
 
     // Fetch existing notifications (simulated for now)
@@ -38,6 +39,7 @@ export function useNotifications() {
           filter: `artist_id=eq.${profile.id}`,
         },
         (payload) => {
+          console.log('New notification received:', payload);
           toast({
             title: "Nueva solicitud recibida",
             description: `Tienes una nueva solicitud: ${payload.new.title}`,
@@ -53,6 +55,7 @@ export function useNotifications() {
   }, [profile]);
 
   const fetchNotifications = async () => {
+    console.log('Fetching notifications...');
     try {
       const { data } = await supabase
         .from('notifications')

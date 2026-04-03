@@ -297,7 +297,7 @@ export function CreateBookingWizard({
         pais: generalData.pais,
         lugar: generalData.lugar,
         fecha: generalData.fecha,
-        hora: generalData.hora || null,
+        hora: generalData.hora,
         capacidad: generalData.capacidad ? parseInt(generalData.capacidad) : null,
         
         // Buyer

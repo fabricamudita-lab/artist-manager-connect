@@ -60,6 +60,7 @@ export function BookingCard({ offer, onDuplicate, isDragging }: BookingCardProps
 
   const handleGeneratePDF = () => {
     // TODO: Implement PDF generation
+    console.log('Generate PDF for offer:', offer.id);
   };
 
   const offerNumber = generateOfferNumber(offer);

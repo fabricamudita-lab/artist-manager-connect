@@ -7,9 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { format, isSameDay, addMonths, subMonths, addWeeks, subWeeks, startOfMonth, endOfMonth } from 'date-fns';
+import { format, isSameDay, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, addDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Clock, MapPin, Folder, ExternalLink } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, X, Plus, Folder, ExternalLink } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { YearlyCalendar } from '@/components/YearlyCalendar';
 import { EditEventDialog } from '@/components/EditEventDialog';
@@ -22,10 +22,6 @@ import { useToast } from '@/hooks/use-toast';
 import { CalendarHeader } from '@/components/calendar/CalendarHeader';
 import { CalendarToolbar } from '@/components/calendar/CalendarToolbar';
 import { CreateEventDialogV2 } from '@/components/calendar/CreateEventDialogV2';
-import { WeekView } from '@/components/calendar/WeekView';
-import { MonthView } from '@/components/calendar/MonthView';
-import React from 'react';
-
 interface Event {
   id: string;
   title: string;
@@ -37,10 +33,12 @@ interface Event {
   artist_id: string;
   project_id?: string | null;
 }
-
 export default function Calendar() {
   usePageTitle('Calendario');
-  const { profile, loading } = useAuth();
+  const {
+    profile,
+    loading
+  } = useAuth();
   const location = useLocation();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [viewMode, setViewMode] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
@@ -51,28 +49,46 @@ export default function Calendar() {
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   const [projects, setProjects] = useState<any[]>([]);
-  const [teamMembers, setTeamMembers] = useState<{ id: string; full_name: string; type?: 'workspace' | 'contact' }[]>([]);
+  const [teamMembers, setTeamMembers] = useState<{
+    id: string;
+    full_name: string;
+    type?: 'workspace' | 'contact';
+  }[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isImporting, setIsImporting] = useState(false);
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const [shouldOpenCreateDialog, setShouldOpenCreateDialog] = useState(false);
   const [prefilledData, setPrefilledData] = useState<any>(null);
   const [bookingOffers, setBookingOffers] = useState<any[]>([]);
-  const { getRemindersForBooking } = useBookingReminders(bookingOffers);
+  const {
+    getRemindersForBooking
+  } = useBookingReminders(bookingOffers);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [showMyCalendar, setShowMyCalendar] = useState(true);
   const [showAllEvents, setShowAllEvents] = useState(false);
 
   // Time selection states
   const [isSelecting, setIsSelecting] = useState(false);
-  const [selectionStart, setSelectionStart] = useState<{ day: Date; hour: number } | null>(null);
-  const [selectionEnd, setSelectionEnd] = useState<{ day: Date; hour: number } | null>(null);
+  const [selectionStart, setSelectionStart] = useState<{
+    day: Date;
+    hour: number;
+  } | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<{
+    day: Date;
+    hour: number;
+  } | null>(null);
   const [hasActiveSelection, setHasActiveSelection] = useState(false);
 
-  // Event detail popup states
+  // Event detail popup states - ahora múltiples popups
   interface OpenEventPopup {
     id: string;
     event: Event;
-    position: { x: number; y: number };
+    position: {
+      x: number;
+      y: number;
+    };
     zIndex: number;
   }
   const [openEventPopups, setOpenEventPopups] = useState<OpenEventPopup[]>([]);
@@ -80,85 +96,210 @@ export default function Calendar() {
   const [savedPopupPositions, setSavedPopupPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [selectedBookingOffer, setSelectedBookingOffer] = useState<any | null>(null);
-
-  useEffect(() => { if (profile) setSelectedArtists([profile.id]); }, [profile]);
-  
   useEffect(() => {
+    if (profile) {
+      setSelectedArtists([profile.id]);
+    }
+  }, [profile]);
+  useEffect(() => {
+    // Check if we should create an event from solicitud
     if (location.state?.createEvent) {
       setPrefilledData(location.state.createEvent);
       setShouldOpenCreateDialog(true);
+      // Clear the state
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
-
   useEffect(() => {
     if (profile && selectedArtists.length > 0) {
-      fetchEvents(); fetchBookingOffers(); fetchProjects(); fetchTeamMembers();
+      fetchEvents();
+      fetchBookingOffers();
+      fetchProjects();
+      fetchTeamMembers();
     }
   }, [profile, selectedArtists, selectedProjects, selectedDepartment, showMyCalendar, showAllEvents]);
 
-  // Global mouseup listener for time selection
+  // Scroll to 9 AM when week view is rendered
   useEffect(() => {
-    const handleGlobalMouseUp = () => { if (isSelecting) handleTimeSlotMouseUp(); };
+    if (viewMode === 'week' && scrollAreaRef.current) {
+      // Scroll to 9 AM (hour 9 = index 9, each hour is 48px tall)
+      scrollAreaRef.current.scrollTop = 9 * 48;
+    }
+  }, [viewMode, currentDate]);
+
+  // Add global mouseup listener for time selection
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isSelecting) {
+        handleTimeSlotMouseUp();
+      }
+    };
     document.addEventListener('mouseup', handleGlobalMouseUp);
-    return () => document.removeEventListener('mouseup', handleGlobalMouseUp);
+    return () => {
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
   }, [isSelecting, selectionStart, selectionEnd]);
 
-  useEffect(() => { clearSelection(); }, [viewMode, currentDate]);
-
+  // Clear selection when view mode or current date changes
+  useEffect(() => {
+    clearSelection();
+  }, [viewMode, currentDate]);
   const fetchEvents = async () => {
     try {
       if (profile?.active_role === 'management') {
-        const { data, error } = await supabase.from('events').select('*').or(`created_by.eq.${profile.id},artist_id.in.(${selectedArtists.join(',')})`);
-        if (error) { console.error('Error fetching events:', error); } else {
+        const {
+          data,
+          error
+        } = await supabase.from('events').select('*').or(`created_by.eq.${profile.id},artist_id.in.(${selectedArtists.join(',')})`);
+        if (error) {
+          console.error('Error fetching events:', error);
+        } else {
           let filteredEvents = data || [];
-          if (showAllEvents) { setEvents(filteredEvents); return; }
+
+          // Si "Ver todo" está activo, mostrar todos los eventos sin filtros
+          if (showAllEvents) {
+            setEvents(filteredEvents);
+            return;
+          }
+
+          // Aplicar filtros solo cuando "Ver todo" está desactivado
+          // Filtrar por artistas seleccionados
           filteredEvents = filteredEvents.filter(event => selectedArtists.includes(event.artist_id) || event.created_by === profile.id);
-          if (showMyCalendar) filteredEvents = filteredEvents.filter((event: any) => event.created_by === profile.id || event.artist_id === profile.id);
+
+          // Filtrar por "Mi Calendario" si está activado
+          if (showMyCalendar) {
+            filteredEvents = filteredEvents.filter((event: any) => event.created_by === profile.id || event.artist_id === profile.id);
+          }
+
+          // Filtrar por proyectos - nota: events no tiene project_id, este filtro no aplica
+          if (selectedProjects.length > 0) {
+            // La tabla events no tiene project_id, este filtro se desactiva
+            // filteredEvents = filteredEvents.filter((event: any) => event.project_id && selectedProjects.includes(event.project_id));
+          }
           setEvents(filteredEvents);
         }
       } else {
         const artistFilter = selectedArtists.length > 0 ? selectedArtists : [profile.id];
-        const { data, error } = await supabase.from('events').select('*').in('artist_id', artistFilter).order('start_date', { ascending: true });
-        if (error) { console.error('Error fetching events:', error); } else {
+        const {
+          data,
+          error
+        } = await supabase.from('events').select('*').in('artist_id', artistFilter).order('start_date', {
+          ascending: true
+        });
+        if (error) {
+          console.error('Error fetching events:', error);
+        } else {
           let filteredEvents = data || [];
-          if (showAllEvents) { setEvents(filteredEvents); return; }
-          if (showMyCalendar) filteredEvents = filteredEvents.filter((event: any) => event.created_by === profile.id || event.artist_id === profile.id);
+
+          // Si "Ver todo" está activo, mostrar todos los eventos sin filtros
+          if (showAllEvents) {
+            setEvents(filteredEvents);
+            return;
+          }
+
+          // Aplicar filtros solo cuando "Ver todo" está desactivado
+          // Filtrar por "Mi Calendario" si está activado
+          if (showMyCalendar) {
+            filteredEvents = filteredEvents.filter((event: any) => event.created_by === profile.id || event.artist_id === profile.id);
+          }
+
+          // Filtrar por proyectos - nota: events no tiene project_id, este filtro no aplica
+          // if (selectedProjects.length > 0) {
+          //   filteredEvents = filteredEvents.filter((event: any) => event.project_id && selectedProjects.includes(event.project_id));
+          // }
           setEvents(filteredEvents);
         }
       }
-    } catch (error) { console.error('Error fetching events:', error); } finally { setEventsLoading(false); }
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    } finally {
+      setEventsLoading(false);
+    }
   };
-
   const fetchProjects = async () => {
-    const { data } = await supabase.from('projects').select('id, name, artist_id').order('name', { ascending: true });
-    setProjects(data || []);
+    try {
+      const {
+        data,
+        error
+      } = await supabase.from('projects').select('id, name, artist_id').order('name', {
+        ascending: true
+      });
+      if (error) {
+        console.error('Error fetching projects:', error);
+      } else {
+        setProjects(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    }
   };
-
   const fetchTeamMembers = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: profileData } = await supabase.from('profiles').select('workspace_id').eq('user_id', user.id).single();
+
+      // Get user's workspace
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('workspace_id')
+        .eq('user_id', user.id)
+        .single();
+
       const allMembers: { id: string; full_name: string; type?: 'workspace' | 'contact' }[] = [];
+
+      // Fetch workspace members
       if (profileData?.workspace_id) {
-        const { data: memberships } = await supabase.from('workspace_memberships').select('user_id').eq('workspace_id', profileData.workspace_id);
+        const { data: memberships } = await supabase
+          .from('workspace_memberships')
+          .select('user_id')
+          .eq('workspace_id', profileData.workspace_id);
+
         if (memberships && memberships.length > 0) {
           const userIds = memberships.map(m => m.user_id);
-          const { data: profiles } = await supabase.from('profiles').select('user_id, full_name, stage_name').in('user_id', userIds);
-          profiles?.forEach(p => allMembers.push({ id: p.user_id, full_name: p.stage_name || p.full_name || 'Sin nombre', type: 'workspace' }));
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('user_id, full_name, stage_name')
+            .in('user_id', userIds);
+
+          if (profiles) {
+            profiles.forEach(p => {
+              allMembers.push({
+                id: p.user_id,
+                full_name: p.stage_name || p.full_name || 'Sin nombre',
+                type: 'workspace'
+              });
+            });
+          }
         }
       }
-      const { data: contacts } = await supabase.from('contacts').select('id, name, stage_name, field_config').eq('created_by', user.id);
-      contacts?.forEach(c => {
-        const config = c.field_config as Record<string, any> | null;
-        if (config?.is_team_member) allMembers.push({ id: c.id, full_name: c.stage_name || c.name, type: 'contact' });
-      });
-      setTeamMembers(allMembers);
-    } catch (error) { console.error('Error fetching team members:', error); }
-  };
 
-  const handleImportCsvClick = () => { document.getElementById('csv-upload')?.click(); };
+      // Fetch team contacts
+      const { data: contacts } = await supabase
+        .from('contacts')
+        .select('id, name, stage_name, field_config')
+        .eq('created_by', user.id);
+
+      if (contacts) {
+        contacts.forEach(c => {
+          const config = c.field_config as Record<string, any> | null;
+          if (config?.is_team_member) {
+            allMembers.push({
+              id: c.id,
+              full_name: c.stage_name || c.name,
+              type: 'contact'
+            });
+          }
+        });
+      }
+
+      setTeamMembers(allMembers);
+    } catch (error) {
+      console.error('Error fetching team members:', error);
+    }
+  };
+  const handleImportCsvClick = () => {
+    document.getElementById('csv-upload')?.click();
+  };
   const handleImportCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -166,215 +307,842 @@ export default function Calendar() {
     try {
       const csvContent = await file.text();
       const result = await importCsvEvents(csvContent);
-      toast({ title: "Eventos importados", description: `Se importaron ${result.eventCount} eventos desde el CSV` });
-      fetchEvents(); fetchBookingOffers();
-    } catch { toast({ title: "Error", description: "No se pudieron importar los eventos del CSV", variant: "destructive" }); }
-    finally { setIsImporting(false); event.target.value = ''; }
+      toast({
+        title: "Eventos importados",
+        description: `Se importaron ${result.eventCount} eventos desde el CSV`
+      });
+      fetchEvents();
+      fetchBookingOffers();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudieron importar los eventos del CSV",
+        variant: "destructive"
+      });
+    } finally {
+      setIsImporting(false);
+      event.target.value = '';
+    }
   };
-
   const handleNavigate = (direction: 'prev' | 'next') => {
-    if (viewMode === 'week') navigateWeek(direction);
-    else if (viewMode === 'month' || viewMode === 'quarter') navigateMonth(direction);
-    else navigateYear(direction);
+    if (viewMode === 'week') navigateWeek(direction);else if (viewMode === 'month' || viewMode === 'quarter') navigateMonth(direction);else navigateYear(direction);
   };
-
   const fetchBookingOffers = async () => {
-    const { data } = await supabase.from('booking_offers')
-      .select(`id, fecha, estado, contratos, link_venta, ciudad, lugar, venue, festival_ciclo, event_id, formato, duracion, folder_url, artist_id, artists!booking_offers_artist_id_fkey(name, stage_name)`)
-      .in('estado', ['confirmado', 'pendiente', 'negociacion', 'interes', 'oferta']);
-    setBookingOffers(data || []);
+    try {
+      const { data, error } = await supabase
+        .from('booking_offers')
+        .select(`
+          id, fecha, estado, contratos, link_venta, ciudad, lugar, venue, 
+          festival_ciclo, event_id, formato, duracion, folder_url,
+          artist_id, artists!booking_offers_artist_id_fkey(name, stage_name)
+        `)
+        .in('estado', ['confirmado', 'pendiente', 'negociacion', 'interes', 'oferta']);
+      
+      if (error) {
+        console.error('Error fetching booking offers:', error);
+      } else {
+        setBookingOffers(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching booking offers:', error);
+    }
   };
-
-  const getEventsForDate = (date: Date) => events.filter(event => isSameDay(new Date(event.start_date), date));
-  const getBookingOffersForDate = (date: Date) => bookingOffers.filter((offer: any) => offer.fecha && isSameDay(new Date(offer.fecha), date));
+  const getEventsForDate = (date: Date) => {
+    return events.filter(event => isSameDay(new Date(event.start_date), date));
+  };
+  
+  const getBookingOffersForDate = (date: Date) => {
+    return bookingOffers.filter(offer => {
+      if (!offer.fecha) return false;
+      return isSameDay(new Date(offer.fecha), date);
+    });
+  };
+  
   const formatBookingTitle = (offer: any) => {
     const eventName = offer.festival_ciclo || offer.venue || offer.lugar || 'Evento';
     const city = offer.ciudad || '';
     return `🎤 ${eventName}${city ? ` - ${city}` : ''}`;
   };
+  
+  const getEventsForWeek = (startDate: Date) => {
+    const weekStart = startOfWeek(startDate, {
+      weekStartsOn: 1
+    });
+    const weekEnd = endOfWeek(startDate, {
+      weekStartsOn: 1
+    });
+    return events.filter(event => {
+      const eventDate = new Date(event.start_date);
+      return eventDate >= weekStart && eventDate <= weekEnd;
+    });
+  };
   const getEventsForMonth = (date: Date) => {
     const monthStart = startOfMonth(date);
     const monthEnd = endOfMonth(date);
-    return events.filter(event => { const d = new Date(event.start_date); return d >= monthStart && d <= monthEnd; });
+    return events.filter(event => {
+      const eventDate = new Date(event.start_date);
+      return eventDate >= monthStart && eventDate <= monthEnd;
+    });
+  };
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    const newDate = direction === 'prev' ? subWeeks(currentDate, 1) : addWeeks(currentDate, 1);
+    setCurrentDate(newDate);
+    setSelectedDate(newDate);
+  };
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    const newDate = direction === 'prev' ? subMonths(currentDate, 1) : addMonths(currentDate, 1);
+    setCurrentDate(newDate);
+    setSelectedDate(newDate);
+  };
+  const navigateYear = (direction: 'prev' | 'next') => {
+    const newDate = new Date(currentDate);
+    newDate.setFullYear(newDate.getFullYear() + (direction === 'prev' ? -1 : 1));
+    setCurrentDate(newDate);
+  };
+  const getWeekDays = () => {
+    const weekStart = startOfWeek(currentDate, {
+      weekStartsOn: 1
+    });
+    return eachDayOfInterval({
+      start: weekStart,
+      end: endOfWeek(weekStart, {
+        weekStartsOn: 1
+      })
+    });
+  };
+  const getMonthWeeks = (date: Date = currentDate) => {
+    const monthStart = startOfMonth(date);
+    const monthEnd = endOfMonth(date);
+    const calendarStart = startOfWeek(monthStart, {
+      weekStartsOn: 1
+    });
+    const calendarEnd = endOfWeek(monthEnd, {
+      weekStartsOn: 1
+    });
+    const days = eachDayOfInterval({
+      start: calendarStart,
+      end: calendarEnd
+    });
+    const weeks = [];
+    for (let i = 0; i < days.length; i += 7) {
+      weeks.push(days.slice(i, i + 7));
+    }
+    return weeks;
+  };
+  const currentEvents = viewMode === 'week' ? getEventsForWeek(currentDate) : viewMode === 'month' ? getEventsForMonth(currentDate) : events;
+  const isAllDayEvent = (event: Event) => {
+    const startDate = new Date(event.start_date);
+    const endDate = new Date(event.end_date);
+    const startTime = startDate.getHours() * 60 + startDate.getMinutes();
+    const endTime = endDate.getHours() * 60 + endDate.getMinutes();
+
+    // Consider it all-day if it starts at 00:00 and ends at 23:59 or spans multiple days
+    return startTime === 0 && endTime === 1439 || startDate.toDateString() !== endDate.toDateString();
+  };
+  const getAllDayEventsForDate = (date: Date) => {
+    return getEventsForDate(date).filter(isAllDayEvent);
+  };
+  const getTimedEventsForDate = (date: Date) => {
+    return getEventsForDate(date).filter(event => !isAllDayEvent(event));
   };
 
-  const navigateWeek = (d: 'prev' | 'next') => { const n = d === 'prev' ? subWeeks(currentDate, 1) : addWeeks(currentDate, 1); setCurrentDate(n); setSelectedDate(n); };
-  const navigateMonth = (d: 'prev' | 'next') => { const n = d === 'prev' ? subMonths(currentDate, 1) : addMonths(currentDate, 1); setCurrentDate(n); setSelectedDate(n); };
-  const navigateYear = (d: 'prev' | 'next') => { const n = new Date(currentDate); n.setFullYear(n.getFullYear() + (d === 'prev' ? -1 : 1)); setCurrentDate(n); };
-
   // Time selection handlers
-  const handleTimeSlotMouseDown = (day: Date, hour: number) => { setIsSelecting(true); setSelectionStart({ day, hour }); setSelectionEnd({ day, hour }); };
-  const handleTimeSlotMouseEnter = (day: Date, hour: number) => { if (isSelecting && selectionStart && isSameDay(day, selectionStart.day)) setSelectionEnd({ day, hour }); };
-  const handleTimeSlotMouseUp = () => { if (isSelecting && selectionStart && selectionEnd) setHasActiveSelection(true); setIsSelecting(false); };
+  const handleTimeSlotMouseDown = (day: Date, hour: number) => {
+    setIsSelecting(true);
+    setSelectionStart({
+      day,
+      hour
+    });
+    setSelectionEnd({
+      day,
+      hour
+    });
+  };
+  const handleTimeSlotMouseEnter = (day: Date, hour: number) => {
+    if (isSelecting && selectionStart && isSameDay(day, selectionStart.day)) {
+      setSelectionEnd({
+        day,
+        hour
+      });
+    }
+  };
+  const handleTimeSlotMouseUp = () => {
+    if (isSelecting && selectionStart && selectionEnd) {
+      setHasActiveSelection(true);
+    }
+    setIsSelecting(false);
+  };
   const createEventFromSelection = () => {
     if (selectionStart && selectionEnd) {
       const startHour = Math.min(selectionStart.hour, selectionEnd.hour);
-      const endHour = Math.max(selectionStart.hour, selectionEnd.hour) + 1;
-      const startDate = new Date(selectionStart.day); startDate.setHours(startHour, 0, 0, 0);
-      const endDate = new Date(selectionStart.day); endDate.setHours(endHour, 0, 0, 0);
-      setPrefilledData({ start_date: startDate.toISOString(), end_date: endDate.toISOString(), event_type: 'reunion' });
-      setShouldOpenCreateDialog(true); clearSelection();
+      const endHour = Math.max(selectionStart.hour, selectionEnd.hour) + 1; // Add 1 to include the end hour
+
+      const startDate = new Date(selectionStart.day);
+      startDate.setHours(startHour, 0, 0, 0);
+      const endDate = new Date(selectionStart.day);
+      endDate.setHours(endHour, 0, 0, 0);
+      setPrefilledData({
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
+        event_type: 'reunion'
+      });
+      setShouldOpenCreateDialog(true);
+      clearSelection();
     }
   };
-  const clearSelection = () => { setHasActiveSelection(false); setIsSelecting(false); setSelectionStart(null); setSelectionEnd(null); };
-
-  // Event popup handlers
+  const clearSelection = () => {
+    setHasActiveSelection(false);
+    setIsSelecting(false);
+    setSelectionStart(null);
+    setSelectionEnd(null);
+  };
+  const isTimeSlotSelected = (day: Date, hour: number) => {
+    if (!selectionStart || !selectionEnd) return false;
+    if (!isSameDay(day, selectionStart.day)) return false;
+    const minHour = Math.min(selectionStart.hour, selectionEnd.hour);
+    const maxHour = Math.max(selectionStart.hour, selectionEnd.hour);
+    return hour >= minHour && hour <= maxHour;
+  };
+  const getSelectionTimeRange = () => {
+    if (!selectionStart || !selectionEnd) return '';
+    const startHour = Math.min(selectionStart.hour, selectionEnd.hour);
+    const endHour = Math.max(selectionStart.hour, selectionEnd.hour) + 1;
+    return `${startHour.toString().padStart(2, '0')}:00 - ${endHour.toString().padStart(2, '0')}:00`;
+  };
   const handleEventClick = (event: Event, mouseEvent: React.MouseEvent) => {
+    console.log('Event clicked:', event);
+    console.log('Event start_date:', event.start_date);
+    console.log('Event end_date:', event.end_date);
+    console.log('Opening popup for event');
+
+    // Verificar si el evento ya está abierto
     const existingPopup = openEventPopups.find(popup => popup.event.id === event.id);
     if (existingPopup) {
-      setSavedPopupPositions(prev => ({ ...prev, [event.id]: existingPopup.position }));
+      // Guardar la posición actual antes de cerrar
+      setSavedPopupPositions(prev => ({
+        ...prev,
+        [event.id]: existingPopup.position
+      }));
+      // Si ya está abierto, cerrarlo (toggle)
       setOpenEventPopups(prev => prev.filter(popup => popup.id !== existingPopup.id));
       return;
     }
+
+    // Usar la posición guardada si existe, si no usar la posición del clic
     const rect = (mouseEvent.target as HTMLElement).getBoundingClientRect();
     const savedPosition = savedPopupPositions[event.id];
     const newZIndex = highestZIndex + 1;
     setHighestZIndex(newZIndex);
-    setOpenEventPopups(prev => [...prev, {
-      id: `popup-${event.id}-${Date.now()}`, event,
-      position: savedPosition || { x: rect.right + 10, y: rect.top },
-      zIndex: newZIndex,
-    }]);
+    const newPopup: OpenEventPopup = {
+      id: `popup-${event.id}-${Date.now()}`,
+      event,
+      position: savedPosition || {
+        x: rect.right + 10,
+        y: rect.top
+      },
+      zIndex: newZIndex
+    };
+    setOpenEventPopups(prev => [...prev, newPopup]);
+    console.log('Popup added for event:', event.title);
   };
-  const bringPopupToFront = (popupId: string) => { const z = highestZIndex + 1; setHighestZIndex(z); setOpenEventPopups(prev => prev.map(p => p.id === popupId ? { ...p, zIndex: z } : p)); };
+  const bringPopupToFront = (popupId: string) => {
+    const newZIndex = highestZIndex + 1;
+    setHighestZIndex(newZIndex);
+    setOpenEventPopups(prev => prev.map(popup => popup.id === popupId ? {
+      ...popup,
+      zIndex: newZIndex
+    } : popup));
+  };
   const closePopup = (popupId: string) => {
     const popup = openEventPopups.find(p => p.id === popupId);
-    if (popup) setSavedPopupPositions(prev => ({ ...prev, [popup.event.id]: popup.position }));
+    if (popup) {
+      setSavedPopupPositions(prev => ({
+        ...prev,
+        [popup.event.id]: popup.position
+      }));
+    }
     setOpenEventPopups(prev => prev.filter(p => p.id !== popupId));
   };
-  const updatePopupPosition = (popupId: string, newPosition: { x: number; y: number }) => {
-    setOpenEventPopups(prev => prev.map(popup => popup.id === popupId ? { ...popup, position: newPosition } : popup));
-  };
 
-  const renderYearView = () => (
-    <div className="card-moodita hover-lift">
-      <CardContent className="p-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={() => navigateYear('prev')} size="sm">← {currentDate.getFullYear() - 1}</Button>
-            <Button variant="outline" onClick={() => navigateYear('next')} size="sm">{currentDate.getFullYear() + 1} →</Button>
-          </div>
-          <div className="flex gap-2 items-center">
-            <Button variant={viewMode === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('week')}>Semana</Button>
-            <Button variant={viewMode === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('month')}>Mes</Button>
-            <Button variant="default" size="sm" onClick={() => setViewMode('year')}>Año</Button>
-            <div className="h-6 w-px bg-border mx-1" />
-            <CalendarExportDialog events={events} />
+  const updatePopupPosition = (popupId: string, newPosition: { x: number; y: number }) => {
+    setOpenEventPopups(prev => prev.map(popup => 
+      popup.id === popupId ? { ...popup, position: newPosition } : popup
+    ));
+  };
+  const renderWeekView = () => {
+    const weekDays = getWeekDays();
+    const timeSlots = Array.from({
+      length: 24
+    }, (_, i) => i); // Show all 24 hours (0-23)
+
+    return <div className="calendar-week-view bg-background rounded-xl border shadow-soft overflow-hidden">
+        {/* Header with navigation */}
+        <div className="bg-muted/30 p-4 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h2 className="text-xl font-semibold">
+                {format(currentDate, 'MMMM yyyy', {
+                locale: es
+              })}
+              </h2>
+              <div className="flex gap-1">
+                <Button variant="outline" size="sm" onClick={() => navigateWeek('prev')} className="h-8 w-8 p-0">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => navigateWeek('next')} className="h-8 w-8 p-0">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="flex gap-2 items-center">
+              <Button variant={viewMode === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('week')}>
+                Semana
+              </Button>
+              <Button variant={viewMode === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('month')}>
+                Mes
+              </Button>
+              <Button variant={viewMode === 'year' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('year')}>
+                Año
+              </Button>
+              <div className="h-6 w-px bg-border mx-1" />
+              <CalendarExportDialog events={events} />
+            </div>
           </div>
         </div>
-        <YearlyCalendar year={currentDate.getFullYear()} events={events} onDateSelect={date => setSelectedDate(date)} onEventClick={handleEventClick} selectedDate={selectedDate} />
-      </CardContent>
-    </div>
-  );
 
-  if (loading) return <div className="p-6"><div className="text-center">Cargando calendario...</div></div>;
-  if (!profile) return <div className="p-6"><div className="text-center">Error: No se pudo cargar el perfil</div></div>;
+        {/* Week header */}
+        <div className="grid grid-cols-8 border-b bg-muted/20">
+          <div className="p-3 text-xs font-medium text-muted-foreground">GMT+02</div>
+          {weekDays.map((day, index) => <div key={index} className={`p-3 text-center border-l cursor-pointer hover:bg-muted/30 transition-colors ${selectedDate && isSameDay(day, selectedDate) ? 'bg-primary/10' : ''}`} onClick={() => setSelectedDate(day)}>
+              <div className="text-xs font-medium text-muted-foreground mb-1">
+                {format(day, 'EEE', {
+              locale: es
+            }).toUpperCase()}
+              </div>
+              <div className={`text-2xl font-bold ${isSameDay(day, new Date()) ? 'bg-primary text-primary-foreground rounded-full w-10 h-10 flex items-center justify-center mx-auto' : selectedDate && isSameDay(day, selectedDate) ? 'text-primary' : 'text-foreground'}`}>
+                {format(day, 'd')}
+              </div>
+            </div>)}
+        </div>
 
-  return (
-    <div className="container-moodita py-4 space-y-4 min-h-screen flex flex-col">
+        {/* All-day events section */}
+        <div className="grid grid-cols-8 border-b bg-muted/5">
+          <div className="p-3 text-xs font-medium text-muted-foreground bg-muted/10">Todo el día</div>
+          {weekDays.map((day, dayIndex) => {
+          const allDayEvents = getAllDayEventsForDate(day);
+          return <div key={dayIndex} className="border-l min-h-16 p-2 space-y-1">
+                {allDayEvents.map((event, eventIndex) => <div key={event.id} className={`text-xs px-2 py-1 rounded truncate font-medium relative ${event.event_type === 'concierto' ? 'bg-blue-100 text-blue-800 border border-blue-200' : event.event_type === 'entrevista' ? 'bg-green-100 text-green-800 border border-green-200' : event.event_type === 'reunion' ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="truncate">{event.title}</span>
+                      {(() => {
+                  const bookingOffer = bookingOffers.find(offer => offer.event_id === event.id);
+                  if (bookingOffer) {
+                    const reminders = getRemindersForBooking(bookingOffer.id);
+                    return reminders.length > 0 ? <div className="ml-1 flex-shrink-0">
+                              <ReminderBadge reminders={reminders} variant="compact" />
+                            </div> : null;
+                  }
+                  return null;
+                })()}
+                    </div>
+                  </div>)}
+              </div>;
+        })}
+        </div>
+
+        {/* Calendar grid with scroll area and initial position at 9 AM */}
+        <div className="h-96 overflow-y-auto" ref={scrollAreaRef}>
+          <div className="grid grid-cols-8">
+            {/* Time column */}
+            <div className="bg-muted/10">
+              {timeSlots.map(hour => <div key={hour} className="h-12 border-b border-r border-muted/30 p-2 text-xs text-muted-foreground">
+                  {hour.toString().padStart(2, '0')}:00
+                </div>)}
+            </div>
+
+            {/* Day columns */}
+            {weekDays.map((day, dayIndex) => <div key={dayIndex} className="border-r border-muted/30">
+                {timeSlots.map(hour => {
+              const dayEvents = getTimedEventsForDate(day).filter(event => {
+                const eventHour = new Date(event.start_date).getHours();
+                return eventHour === hour;
+              });
+              const isFirstSelectedHour = selectionStart && selectionEnd && isSameDay(day, selectionStart.day) && hour === Math.min(selectionStart.hour, selectionEnd.hour);
+              const selectedHoursCount = selectionStart && selectionEnd && isSameDay(day, selectionStart.day) ? Math.abs(selectionEnd.hour - selectionStart.hour) + 1 : 0;
+              return <div key={hour} className={`h-12 border-b border-muted/20 p-1 relative cursor-pointer hover:bg-muted/10 transition-colors select-none`} onMouseDown={e => {
+                e.preventDefault();
+                handleTimeSlotMouseDown(day, hour);
+              }} onMouseEnter={() => handleTimeSlotMouseEnter(day, hour)}>
+                      {/* Single continuous selection overlay - only render on first selected hour */}
+                      {isFirstSelectedHour && <div className="absolute inset-x-1 bg-primary/90 border-2 border-primary rounded-lg flex items-center justify-center z-5 shadow-sm" style={{
+                  top: '4px',
+                  height: `${selectedHoursCount * 48 - 8}px` // 48px per hour minus padding
+                }}>
+                          <span className="text-primary-foreground text-sm font-medium select-none">
+                            (Sin título)
+                          </span>
+                        </div>}
+                      
+                      {dayEvents.map((event, eventIndex) => <div key={event.id} className={`absolute inset-1 border rounded text-xs p-2 overflow-hidden hover:opacity-80 transition-all cursor-pointer z-10 ${event.event_type === 'concierto' ? 'bg-blue-100 border-blue-300 text-blue-800' : event.event_type === 'entrevista' ? 'bg-green-100 border-green-300 text-green-800' : event.event_type === 'reunion' ? 'bg-purple-100 border-purple-300 text-purple-800' : 'bg-gray-100 border-gray-300 text-gray-800'}`} style={{
+                  zIndex: eventIndex + 10,
+                  marginTop: `${eventIndex * 2}px`
+                }} onMouseDown={e => e.stopPropagation()} onClick={e => {
+                  e.stopPropagation();
+                  console.log('Event card clicked, calling handleEventClick');
+                  handleEventClick(event, e);
+                }}>
+                          <div className="flex flex-col h-full">
+                            <div className="font-bold text-xs uppercase tracking-wide leading-tight mb-1">
+                              {event.title}
+                            </div>
+                            <div className="text-xs opacity-80 leading-tight mb-1">
+                              {format(new Date(event.start_date), 'HH:mm')} - {format(new Date(event.end_date), 'HH:mm')}
+                            </div>
+                            {event.location && <div className="text-xs opacity-70 leading-tight truncate">
+                                {event.location}
+                              </div>}
+                            {(() => {
+                      const bookingOffer = bookingOffers.find(offer => offer.event_id === event.id);
+                      if (bookingOffer) {
+                        const reminders = getRemindersForBooking(bookingOffer.id);
+                        return reminders.length > 0 ? <div className="mt-auto pt-1">
+                                    <ReminderBadge reminders={reminders} variant="compact" />
+                                  </div> : null;
+                      }
+                      return null;
+                    })()}
+                          </div>
+                        </div>)}
+                    </div>;
+            })}
+              </div>)}
+          </div>
+        </div>
+
+        {/* Floating Create Event Button - Google Calendar Style */}
+        {hasActiveSelection && selectionStart && selectionEnd && <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background border border-border/50 shadow-2xl rounded-xl p-4 z-20 animate-scale-in">
+            <div className="flex items-center gap-4">
+              <div className="text-sm">
+                <div className="font-semibold text-foreground mb-1">
+                  {format(selectionStart.day, 'dd MMM yyyy', {
+                locale: es
+              })}
+                </div>
+                <div className="text-muted-foreground text-xs">
+                  {getSelectionTimeRange()}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={clearSelection} className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/80">
+                  <X className="h-4 w-4" />
+                </Button>
+                <Button size="sm" onClick={createEventFromSelection} className="h-8 px-4 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
+                  <Plus className="h-3 w-3 mr-1.5" />
+                  Crear evento
+                </Button>
+              </div>
+            </div>
+          </div>}
+      </div>;
+  };
+  const renderMonthView = () => {
+    const currentMonthWeeks = getMonthWeeks(currentDate);
+    const nextMonth = addMonths(currentDate, 1);
+    const nextMonthWeeks = getMonthWeeks(nextMonth);
+    const renderSingleMonth = (monthDate: Date, monthWeeks: any[]) => <div className="flex-1 min-w-0">
+        {/* Month header */}
+        <div className="bg-muted/20 p-3 border-b text-center">
+          <h3 className="text-lg font-semibold capitalize">
+            {format(monthDate, 'MMMM yyyy', {
+            locale: es
+          })}
+          </h3>
+        </div>
+
+        {/* Days of week header */}
+        <div className="grid grid-cols-7 border-b bg-muted/10">
+          {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(day => <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground border-r last:border-r-0">
+              {day}
+            </div>)}
+        </div>
+
+        {/* Calendar grid */}
+        <div className="grid grid-cols-7">
+          {monthWeeks.map((week, weekIndex) => week.map((day: Date, dayIndex: number) => {
+          const dayEvents = getEventsForDate(day);
+          const dayBookings = getBookingOffersForDate(day);
+          const isCurrentMonth = isSameMonth(day, monthDate);
+          const isToday = isSameDay(day, new Date());
+          const allItems = [
+            ...dayEvents.map(e => ({ type: 'event' as const, data: e })),
+            ...dayBookings.map(b => ({ type: 'booking' as const, data: b }))
+          ];
+          return <div key={`${weekIndex}-${dayIndex}`} className={`min-h-20 border-r border-b border-muted/30 p-1.5 cursor-pointer hover:bg-muted/10 transition-colors ${!isCurrentMonth ? 'bg-muted/5 text-muted-foreground' : ''}`} onClick={() => setSelectedDate(day)}>
+                <div className={`text-xs font-medium mb-1 ${isToday ? 'bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  {format(day, 'd')}
+                </div>
+                <div className="space-y-0.5">
+                  {allItems.slice(0, 2).map((item, idx) => {
+                    if (item.type === 'event') {
+                      const event = item.data as Event;
+                      return (
+                        <div 
+                          key={event.id} 
+                          className="text-[10px] bg-primary/10 text-primary px-1 py-0.5 rounded truncate cursor-pointer hover:bg-primary/20" 
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleEventClick(event, e);
+                          }}
+                        >
+                          {event.title}
+                        </div>
+                      );
+                    } else {
+                      const booking = item.data;
+                      return (
+                        <div 
+                          key={booking.id} 
+                          className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-1 py-0.5 rounded truncate cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/50" 
+                          onClick={e => {
+                            e.stopPropagation();
+                            setSelectedBookingOffer(booking);
+                          }}
+                        >
+                          {formatBookingTitle(booking)}
+                        </div>
+                      );
+                    }
+                  })}
+                  {allItems.length > 2 && <div className="text-[10px] text-muted-foreground">
+                      +{allItems.length - 2}
+                    </div>}
+                </div>
+              </div>;
+        }))}
+        </div>
+      </div>;
+    return <div className="calendar-month-view bg-background rounded-xl border shadow-soft overflow-hidden">
+        {/* Header with navigation */}
+        <div className="bg-muted/30 p-4 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h2 className="text-xl font-semibold">
+                {format(currentDate, 'MMMM', {
+                locale: es
+              })} - {format(nextMonth, 'MMMM yyyy', {
+                locale: es
+              })}
+              </h2>
+              
+            </div>
+            <div className="flex gap-2 items-center">
+              <Button variant={viewMode === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('week')}>
+                Semana
+              </Button>
+              <Button variant={viewMode === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('month')}>
+                Mes
+              </Button>
+              <Button variant={viewMode === 'year' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('year')}>
+                Año
+              </Button>
+              <div className="h-6 w-px bg-border mx-1" />
+              <CalendarExportDialog events={events} />
+            </div>
+          </div>
+        </div>
+
+        {/* Two month grid */}
+        <div className="flex divide-x">
+          {renderSingleMonth(currentDate, currentMonthWeeks)}
+          {renderSingleMonth(nextMonth, nextMonthWeeks)}
+        </div>
+      </div>;
+  };
+  const renderYearView = () => {
+    return <div className="card-moodita hover-lift">
+        <CardContent className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <Button variant="outline" onClick={() => navigateYear('prev')} size="sm">
+                ← {currentDate.getFullYear() - 1}
+              </Button>
+              <Button variant="outline" onClick={() => navigateYear('next')} size="sm">
+                {currentDate.getFullYear() + 1} →
+              </Button>
+            </div>
+            <div className="flex gap-2 items-center">
+              <Button variant={viewMode === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('week')}>
+                Semana
+              </Button>
+              <Button variant={viewMode === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('month')}>
+                Mes
+              </Button>
+              <Button variant="default" size="sm" onClick={() => setViewMode('year')}>
+                Año
+              </Button>
+              <div className="h-6 w-px bg-border mx-1" />
+              <CalendarExportDialog events={events} />
+            </div>
+          </div>
+          
+          <YearlyCalendar year={currentDate.getFullYear()} events={events} onDateSelect={date => {
+          setSelectedDate(date);
+        }} onEventClick={handleEventClick} selectedDate={selectedDate} />
+        </CardContent>
+      </div>;
+  };
+  if (loading) {
+    return <div className="p-6">
+        <div className="text-center">Cargando calendario...</div>
+      </div>;
+  }
+  if (!profile) {
+    return <div className="p-6">
+        <div className="text-center">Error: No se pudo cargar el perfil</div>
+      </div>;
+  }
+  return <div className="container-moodita py-4 space-y-4 min-h-screen flex flex-col">
+      {/* Compact Header */}
       <CalendarHeader onCreateEvent={() => setShouldOpenCreateDialog(true)} onImportCsv={handleImportCsvClick} onSyncGoogle={() => {}} isImporting={isImporting} />
       <input id="csv-upload" type="file" accept=".csv" onChange={handleImportCsv} className="hidden" />
 
-      <CalendarToolbar viewMode={viewMode} setViewMode={setViewMode} currentDate={currentDate} onNavigate={handleNavigate}
-        onGoToToday={() => setCurrentDate(new Date())} showMyCalendar={showMyCalendar} setShowMyCalendar={setShowMyCalendar}
-        selectedArtists={selectedArtists} setSelectedArtists={setSelectedArtists} selectedProjects={selectedProjects}
-        setSelectedProjects={setSelectedProjects} selectedTeam={selectedTeam} setSelectedTeam={setSelectedTeam}
-        selectedDepartment={selectedDepartment} setSelectedDepartment={setSelectedDepartment} projects={projects} teamMembers={teamMembers} />
+      {/* Unified Toolbar */}
+      <CalendarToolbar viewMode={viewMode} setViewMode={setViewMode} currentDate={currentDate} onNavigate={handleNavigate} onGoToToday={() => setCurrentDate(new Date())} showMyCalendar={showMyCalendar} setShowMyCalendar={setShowMyCalendar} selectedArtists={selectedArtists} setSelectedArtists={setSelectedArtists} selectedProjects={selectedProjects} setSelectedProjects={setSelectedProjects} selectedTeam={selectedTeam} setSelectedTeam={setSelectedTeam} selectedDepartment={selectedDepartment} setSelectedDepartment={setSelectedDepartment} projects={projects} teamMembers={teamMembers} />
 
-      <CreateEventDialogV2 open={shouldOpenCreateDialog} onOpenChange={open => { setShouldOpenCreateDialog(open); if (!open) { setPrefilledData(null); clearSelection(); } }}
-        onEventCreated={fetchEvents} prefilledData={prefilledData} />
+      {/* Create Event Dialog V2 */}
+      <CreateEventDialogV2 open={shouldOpenCreateDialog} onOpenChange={open => {
+      setShouldOpenCreateDialog(open);
+      if (!open) {
+        setPrefilledData(null);
+        clearSelection();
+      }
+    }} onEventCreated={fetchEvents} prefilledData={prefilledData} />
 
+      {/* Calendar Views */}
       <div className="flex-1">
-        {viewMode === 'year' ? renderYearView() :
-         viewMode === 'week' ? (
-          <WeekView currentDate={currentDate} selectedDate={selectedDate} events={events} bookingOffers={bookingOffers}
-            viewMode={viewMode} setViewMode={setViewMode} onNavigateWeek={navigateWeek} onSelectDate={d => setSelectedDate(d)}
-            onEventClick={handleEventClick} getRemindersForBooking={getRemindersForBooking}
-            isSelecting={isSelecting} selectionStart={selectionStart} selectionEnd={selectionEnd}
-            hasActiveSelection={hasActiveSelection} onTimeSlotMouseDown={handleTimeSlotMouseDown}
-            onTimeSlotMouseEnter={handleTimeSlotMouseEnter} onCreateEventFromSelection={createEventFromSelection}
-            onClearSelection={clearSelection} />
-         ) : (
-          <MonthView currentDate={currentDate} selectedDate={selectedDate} events={events} bookingOffers={bookingOffers}
-            viewMode={viewMode} setViewMode={setViewMode} onSelectDate={d => setSelectedDate(d)}
-            onEventClick={handleEventClick} onBookingOfferClick={setSelectedBookingOffer}
-            formatBookingTitle={formatBookingTitle} />
-         )}
+        {viewMode === 'year' ? renderYearView() : viewMode === 'week' ? renderWeekView() : renderMonthView()}
       </div>
 
-      {/* Event Details for selected date */}
-      {selectedDate && (
-        <Card className="card-moodita">
+      {/* Event Details */}
+      {selectedDate && <Card className="card-moodita">
           <CardHeader>
-            <CardTitle>Eventos para {format(selectedDate, 'PPPP', { locale: es })}</CardTitle>
-            <CardDescription>{getEventsForDate(selectedDate).length + getBookingOffersForDate(selectedDate).length} evento(s) programado(s)</CardDescription>
+            <CardTitle>
+              Eventos para {format(selectedDate, 'PPPP', {
+            locale: es
+          })}
+            </CardTitle>
+            <CardDescription>
+              {getEventsForDate(selectedDate).length + getBookingOffersForDate(selectedDate).length} evento(s) programado(s)
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Booking Offers for this date */}
             {getBookingOffersForDate(selectedDate).map(booking => (
               <div key={booking.id} className="card-interactive p-4 space-y-2 hover-glow border-l-4 border-l-amber-500">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center"><span className="text-white text-sm">🎤</span></div>
+                    <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
+                      <span className="text-white text-sm">🎤</span>
+                    </div>
                     <div>
                       <h3 className="font-semibold">{formatBookingTitle(booking)}</h3>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        {(booking.lugar || booking.venue) && <div className="flex items-center gap-1"><MapPin className="h-3 w-3" />{booking.lugar || booking.venue}</div>}
-                        {booking.duracion && <div className="flex items-center gap-1"><Clock className="h-3 w-3" />{booking.duracion}</div>}
+                        {(booking.lugar || booking.venue) && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {booking.lugar || booking.venue}
+                          </div>
+                        )}
+                        {booking.duracion && (
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {booking.duracion}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={booking.estado === 'confirmado' ? 'default' : 'secondary'}>{booking.estado}</Badge>
+                    <Badge variant={booking.estado === 'confirmado' ? 'default' : 'secondary'}>
+                      {booking.estado}
+                    </Badge>
                     {booking.formato && <Badge variant="outline">{booking.formato}</Badge>}
                   </div>
                 </div>
                 <div className="flex items-center gap-4 pt-2">
-                  {booking.folder_url && <Link to={booking.folder_url} className="text-sm text-primary hover:underline flex items-center gap-1"><Folder className="h-3 w-3" />Ver carpeta</Link>}
-                  <Link to={`/booking/${booking.id}`} className="text-sm text-primary hover:underline flex items-center gap-1"><ExternalLink className="h-3 w-3" />Ver booking</Link>
+                  {booking.folder_url && (
+                    <Link to={booking.folder_url} className="text-sm text-primary hover:underline flex items-center gap-1">
+                      <Folder className="h-3 w-3" />
+                      Ver carpeta
+                    </Link>
+                  )}
+                  <Link to={`/booking/${booking.id}`} className="text-sm text-primary hover:underline flex items-center gap-1">
+                    <ExternalLink className="h-3 w-3" />
+                    Ver booking
+                  </Link>
                 </div>
               </div>
             ))}
-            {getEventsForDate(selectedDate).map(event => (
-              <div key={event.id} className="card-interactive p-4 space-y-2 hover-glow">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center"><CalendarIcon className="h-4 w-4 text-white" /></div>
-                    <div>
-                      <h3 className="font-semibold">{event.title}</h3>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1"><Clock className="h-3 w-3" />{format(new Date(event.start_date), 'HH:mm')} - {format(new Date(event.end_date), 'HH:mm')}</div>
-                        {event.location && <div className="flex items-center gap-1"><MapPin className="h-3 w-3" />{event.location}</div>}
+            
+            {/* Regular Events */}
+            {getEventsForDate(selectedDate).map(event => <div key={event.id} className="card-interactive p-4 space-y-2 hover-glow">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
+                        <CalendarIcon className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">{event.title}</h3>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {format(new Date(event.start_date), 'HH:mm')} - 
+                            {format(new Date(event.end_date), 'HH:mm')}
+                          </div>
+                          {event.location && <div className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              {event.location}
+                            </div>}
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{event.event_type}</Badge>
+                      {(() => {
+                const bookingOffer = bookingOffers.find(offer => offer.event_id === event.id);
+                if (bookingOffer) {
+                  const reminders = getRemindersForBooking(bookingOffer.id);
+                  return reminders.length > 0 ? <ReminderBadge reminders={reminders} /> : null;
+                }
+                return null;
+              })()}
+                      <EditEventDialog event={event} onUpdated={fetchEvents} />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{event.event_type}</Badge>
-                    {(() => { const bo = bookingOffers.find((o: any) => o.event_id === event.id); if (bo) { const r = getRemindersForBooking(bo.id); return r.length > 0 ? <ReminderBadge reminders={r} /> : null; } return null; })()}
-                    <EditEventDialog event={event} onUpdated={fetchEvents} />
-                  </div>
-                </div>
-                {event.description && <p className="text-sm text-muted-foreground bg-muted/30 p-2 rounded">{event.description}</p>}
-              </div>
-            ))}
+                  {event.description && <p className="text-sm text-muted-foreground bg-muted/30 p-2 rounded">
+                      {event.description}
+                    </p>}
+                </div>)}
+            
             {getEventsForDate(selectedDate).length === 0 && getBookingOffersForDate(selectedDate).length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">No hay eventos programados para esta fecha</div>
+              <div className="text-center py-8 text-muted-foreground">
+                No hay eventos programados para esta fecha
+              </div>
             )}
           </CardContent>
-        </Card>
-      )}
+        </Card>}
 
-      {openEventPopups.map(popup => (
-        <EventDetailPopover key={popup.id} event={popup.event} open={true} onOpenChange={() => closePopup(popup.id)}
-          position={popup.position} zIndex={popup.zIndex} onBringToFront={() => bringPopupToFront(popup.id)}
-          onPositionChange={(newPos) => updatePopupPosition(popup.id, newPos)} artistName="David Solans" createdBy="Fabrica Mudita"
-          onEdit={event => setEditingEvent(event)} onDelete={async (eventId) => {
-            await supabase.from('events').delete().eq('id', eventId);
-            fetchEvents();
-          }} />
-      ))}
-      {editingEvent && (
-        <EditEventDialog event={editingEvent} onUpdated={() => { setEditingEvent(null); fetchEvents(); }} />
-      )}
-    </div>
-  );
+      {/* Event Detail Popovers - Múltiples */}
+      {openEventPopups.map(popup => <EventDetailPopover key={popup.id} event={popup.event} open={true} onOpenChange={() => closePopup(popup.id)} position={popup.position} zIndex={popup.zIndex} onBringToFront={() => bringPopupToFront(popup.id)} onPositionChange={(newPos) => updatePopupPosition(popup.id, newPos)} artistName="David Solans" createdBy="Fabrica Mudita" onEdit={event => {
+      setEditingEvent(event);
+    }} onDelete={eventId => {
+      console.log('Delete event:', eventId);
+      closePopup(popup.id);
+    }} />)}
+
+      {/* Edit Event Dialog Controlled */}
+      <EditEventDialogControlled event={editingEvent} open={!!editingEvent} onOpenChange={open => {
+      if (!open) setEditingEvent(null);
+    }} onUpdated={fetchEvents} />
+
+      {/* Booking Offer Detail Dialog */}
+      <Dialog open={!!selectedBookingOffer} onOpenChange={(open) => {
+        if (!open) setSelectedBookingOffer(null);
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              🎤 {selectedBookingOffer?.festival_ciclo || selectedBookingOffer?.venue || selectedBookingOffer?.lugar || 'Evento'}
+              {selectedBookingOffer?.ciudad && ` - ${selectedBookingOffer.ciudad}`}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedBookingOffer && (
+            <div className="space-y-4">
+              {/* Fecha */}
+              <div className="flex items-center gap-3 text-sm">
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">Fecha:</span>
+                <span>{format(new Date(selectedBookingOffer.fecha), 'PPPP', { locale: es })}</span>
+              </div>
+              
+              {/* Lugar */}
+              {(selectedBookingOffer.lugar || selectedBookingOffer.venue || selectedBookingOffer.ciudad) && (
+                <div className="flex items-center gap-3 text-sm">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">Lugar:</span>
+                  <span>
+                    {[selectedBookingOffer.lugar || selectedBookingOffer.venue, selectedBookingOffer.ciudad].filter(Boolean).join(', ')}
+                  </span>
+                </div>
+              )}
+              
+              {/* Status */}
+              <div className="flex items-center gap-3 text-sm">
+                <span className="font-medium">Status:</span>
+                <Badge variant={
+                  selectedBookingOffer.estado === 'confirmado' ? 'default' : 
+                  selectedBookingOffer.estado === 'pendiente' ? 'secondary' : 
+                  'outline'
+                }>
+                  {selectedBookingOffer.estado}
+                </Badge>
+              </div>
+              
+              {/* Formato */}
+              {selectedBookingOffer.formato && (
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="font-medium">Formato:</span>
+                  <span>{selectedBookingOffer.formato}</span>
+                </div>
+              )}
+              
+              {/* Duración */}
+              {selectedBookingOffer.duracion && (
+                <div className="flex items-center gap-3 text-sm">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">Duración:</span>
+                  <span>{selectedBookingOffer.duracion}</span>
+                </div>
+              )}
+              
+              {/* Artista */}
+              {selectedBookingOffer.artists && (
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="font-medium">Artista:</span>
+                  <span>{selectedBookingOffer.artists.stage_name || selectedBookingOffer.artists.name}</span>
+                </div>
+              )}
+              
+              {/* Enlace a carpeta */}
+              {selectedBookingOffer.folder_url && (
+                <div className="pt-4 border-t">
+                  <Link 
+                    to={selectedBookingOffer.folder_url}
+                    className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                    onClick={() => setSelectedBookingOffer(null)}
+                  >
+                    <Folder className="h-4 w-4" />
+                    Ver carpeta del evento
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                </div>
+              )}
+              
+              {/* Enlace al booking */}
+              <div className="pt-2">
+                <Link 
+                  to={`/booking/${selectedBookingOffer.id}`}
+                  className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                  onClick={() => setSelectedBookingOffer(null)}
+                >
+                  Ver detalles completos del booking
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>;
 }

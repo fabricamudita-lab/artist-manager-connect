@@ -71,6 +71,7 @@ export function CompactBookingCard({
   };
 
   const handleGeneratePDF = () => {
+    console.log('Generate PDF for offer:', offer.id);
   };
 
   const handleNavigateToDetail = () => {

@@ -91,6 +91,7 @@ export function EditBookingOfferDialog({
   const validateForm = async (data: Record<string, any>) => {
     try {
       const result = await validateBookingOffer(data);
+      console.log('Validation result:', result);
       setValidationResult(result);
     } catch (error) {
       console.error('Error validating form:', error);
@@ -384,6 +385,9 @@ export function EditBookingOfferDialog({
               type="submit" 
               disabled={loading || (validationResult?.errors && validationResult.errors.length > 0)}
               onClick={() => {
+                console.log('Button clicked - disabled?', loading || (validationResult?.errors && validationResult.errors.length > 0));
+                console.log('Loading:', loading, 'Errors:', validationResult?.errors?.length);
+                console.log('Validation result:', validationResult);
               }}
             >
               {loading ? 'Actualizando...' : 'Actualizar Oferta'}

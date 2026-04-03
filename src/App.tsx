@@ -65,16 +65,7 @@ import ArtistProfile from "./pages/ArtistProfile";
 import Correo from "./pages/Correo";
 import Automatizaciones from "./pages/Automatizaciones";
 import Modelo111 from "./pages/Modelo111";
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
-});
+const queryClient = new QueryClient();
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
@@ -225,14 +216,13 @@ const App = () => (
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
-              <Route path="/mi-perfil" element={
+              <Route path="/contacts" element={
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Contacts />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
-              <Route path="/contacts" element={<Navigate to="/mi-perfil" replace />} />
               <Route path="/agenda" element={
                 <ProtectedRoute>
                   <DashboardLayout>

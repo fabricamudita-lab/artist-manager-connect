@@ -22,20 +22,18 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
-interface ArtistData {
+interface Profile {
   id: string;
-  name: string;
-  stage_name: string | null;
-  email: string | null;
+  full_name: string;
+  email: string;
   phone: string | null;
   address: string | null;
   avatar_url: string | null;
-  description: string | null;
-  genre: string | null;
-  notes: string | null;
-  instagram_url: string | null;
-  spotify_url: string | null;
-  tiktok_url: string | null;
+  roles: string[];
+  active_role: string;
+  emergency_contact: string | null;
+  team_contacts: string | null;
+  internal_notes: string | null;
 }
 
 interface ArtistProfileDialogProps {
@@ -45,7 +43,7 @@ interface ArtistProfileDialogProps {
 }
 
 export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProfileDialogProps) {
-  const [artist, setArtist] = useState<ArtistData | null>(null);
+  const [artist, setArtist] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -60,14 +58,15 @@ export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProf
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('artists')
-        .select('id, name, stage_name, email, phone, address, avatar_url, description, genre, notes, instagram_url, spotify_url, tiktok_url')
+        .from('profiles')
+        .select('*')
         .eq('id', artistId)
         .single();
 
       if (error) throw error;
       setArtist(data);
     } catch (error) {
+      console.error('Error fetching artist profile:', error);
       toast({
         title: "Error",
         description: "No se pudo cargar el perfil del artista.",
@@ -77,8 +76,6 @@ export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProf
       setLoading(false);
     }
   };
-
-  const displayName = artist?.stage_name || artist?.name || 'Artista';
 
   const startWhatsAppChat = () => {
     if (!artist?.phone) {
@@ -91,7 +88,7 @@ export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProf
     }
     
     const phone = artist.phone.replace(/[^\d+]/g, '');
-    const message = encodeURIComponent(`Hola ${displayName}, te escribo desde la plataforma MOODITA.`);
+    const message = encodeURIComponent(`Hola ${artist.full_name}, te escribo desde la plataforma MOODITA.`);
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
   };
 
@@ -99,7 +96,7 @@ export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProf
     if (!artist?.email) return;
     
     const subject = encodeURIComponent('Comunicación desde MOODITA');
-    const body = encodeURIComponent(`Hola ${displayName},\n\nTe escribo desde nuestra plataforma de gestión artística MOODITA.\n\nSaludos cordiales.`);
+    const body = encodeURIComponent(`Hola ${artist.full_name},\n\nTe escribo desde nuestra plataforma de gestión artística MOODITA.\n\nSaludos cordiales.`);
     window.open(`mailto:${artist.email}?subject=${subject}&body=${body}`, '_blank');
   };
 
@@ -153,12 +150,10 @@ export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProf
                 
                 <div className="flex-1 space-y-4">
                   <div>
-                    <h3 className="text-2xl font-playfair font-bold">{displayName}</h3>
-                    {artist.genre && (
-                      <Badge variant="outline" className="mt-2">
-                        {artist.genre}
-                      </Badge>
-                    )}
+                    <h3 className="text-2xl font-playfair font-bold">{artist.full_name}</h3>
+                    <Badge variant="outline" className="mt-2">
+                      {artist.active_role === 'artist' ? 'Artista' : 'Management'}
+                    </Badge>
                   </div>
                   
                   <div className="flex flex-wrap gap-3">
@@ -237,23 +232,38 @@ export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProf
               </CardContent>
             </Card>
 
-            {/* Descripción */}
-            {artist.description && (
+            {/* Contacto de Emergencia */}
+            {artist.emergency_contact && (
               <Card className="card-professional">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
-                    Descripción
+                    <AlertTriangle className="h-5 w-5 text-warning" />
+                    Contacto de Emergencia
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm whitespace-pre-wrap">{artist.description}</p>
+                  <p className="text-sm">{artist.emergency_contact}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Equipo/Contactos */}
+            {artist.team_contacts && (
+              <Card className="card-professional">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    Equipo y Contactos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <pre className="text-sm whitespace-pre-wrap">{artist.team_contacts}</pre>
                 </CardContent>
               </Card>
             )}
 
             {/* Notas Internas */}
-            {artist.notes && (
+            {artist.internal_notes && (
               <Card className="card-professional">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -262,7 +272,7 @@ export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProf
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <pre className="text-sm whitespace-pre-wrap text-muted-foreground">{artist.notes}</pre>
+                  <pre className="text-sm whitespace-pre-wrap text-muted-foreground">{artist.internal_notes}</pre>
                 </CardContent>
               </Card>
             )}

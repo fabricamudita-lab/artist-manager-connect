@@ -18,6 +18,8 @@ export function useAutoRealizado() {
     const run = async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
+        console.log('[auto-realizado] today:', today);
+
         const { data: pastEvents, error: fetchError } = await supabase
           .from('booking_offers')
           .select('id, festival_ciclo, fecha, phase, estado')
@@ -25,6 +27,8 @@ export function useAutoRealizado() {
           .lt('fecha', today);
 
         if (fetchError) throw fetchError;
+
+        console.log('[auto-realizado] found events:', pastEvents);
         hasRun.current = true;
 
         if (!pastEvents || pastEvents.length === 0) return;
@@ -37,6 +41,8 @@ export function useAutoRealizado() {
           .in('id', ids);
 
         if (updateError) throw updateError;
+
+        console.log('[auto-realizado] updated ids:', ids);
         toast({
           title: 'Eventos actualizados',
           description: `${ids.length} evento(s) movido(s) a Realizado`,

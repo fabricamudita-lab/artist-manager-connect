@@ -51,10 +51,14 @@ export function ArtistSelector({
 
   const fetchArtists = async () => {
     try {
+      console.log('Fetching artists from management...');
       const { data, error } = await supabase
         .from('artists')
         .select('id, name, stage_name')
         .order('name', { ascending: true });
+      
+      console.log('Artists fetched:', data, 'Error:', error);
+      
       if (error) throw error;
       
       setArtists(data || []);
