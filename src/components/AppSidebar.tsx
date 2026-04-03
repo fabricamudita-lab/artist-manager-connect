@@ -83,7 +83,7 @@ const getNavigationGroups = (isManagement: boolean, linkedArtistId?: string | nu
       {
         label: "Archivos",
         items: [
-          { title: "Drive", url: "/drive", icon: HardDrive },
+          { title: "Drive", url: "/carpetas", icon: HardDrive },
           { title: "Documentos", url: "/documents", icon: FileText },
         ],
       },
