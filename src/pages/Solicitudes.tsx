@@ -95,7 +95,7 @@ export default function Solicitudes() {
     onExport: () => setShowExportDialog(true),
   });
 
-  useEffect(() => { fetchSolicitudes(); fetchArtistsAndContacts(); updateExistingSolicitudesNames(); }, []);
+  useEffect(() => { fetchSolicitudes(); fetchArtistsAndContacts(); }, []);
   useEffect(() => { if (artistIdFromUrl) setFilterArtist(artistIdFromUrl); }, [artistIdFromUrl]);
   useEffect(() => { filterSolicitudes(); }, [solicitudes, searchTerm, profileSearchTerm, filterStatus, filterType, filterArtist]);
 
