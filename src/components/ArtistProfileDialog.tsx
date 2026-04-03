@@ -237,38 +237,23 @@ export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProf
               </CardContent>
             </Card>
 
-            {/* Contacto de Emergencia */}
-            {artist.emergency_contact && (
+            {/* Descripción */}
+            {artist.description && (
               <Card className="card-professional">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-warning" />
-                    Contacto de Emergencia
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    Descripción
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm">{artist.emergency_contact}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Equipo/Contactos */}
-            {artist.team_contacts && (
-              <Card className="card-professional">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    Equipo y Contactos
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <pre className="text-sm whitespace-pre-wrap">{artist.team_contacts}</pre>
+                  <p className="text-sm whitespace-pre-wrap">{artist.description}</p>
                 </CardContent>
               </Card>
             )}
 
             {/* Notas Internas */}
-            {artist.internal_notes && (
+            {artist.notes && (
               <Card className="card-professional">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -277,7 +262,7 @@ export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProf
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <pre className="text-sm whitespace-pre-wrap text-muted-foreground">{artist.internal_notes}</pre>
+                  <pre className="text-sm whitespace-pre-wrap text-muted-foreground">{artist.notes}</pre>
                 </CardContent>
               </Card>
             )}
