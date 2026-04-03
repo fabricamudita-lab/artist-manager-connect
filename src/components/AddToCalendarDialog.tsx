@@ -16,8 +16,8 @@ import { es } from 'date-fns/locale';
 
 interface Artist {
   id: string;
-  full_name: string;
-  email: string;
+  name: string;
+  stage_name: string | null;
 }
 
 interface Request {
