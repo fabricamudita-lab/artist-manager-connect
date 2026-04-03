@@ -85,6 +85,10 @@ import { ProjectQuestionsTab } from "@/components/project-detail/ProjectQuestion
 import { ProjectLinkedReleases } from "@/components/project-detail/ProjectLinkedReleases";
 import { ProjectLinkedBudgets } from "@/components/project-detail/ProjectLinkedBudgets";
 import { ProjectLinkedBookings } from "@/components/project-detail/ProjectLinkedBookings";
+import { ProjectDetailTaskPanel } from "@/components/project-detail/ProjectDetailTaskPanel";
+import { ProjectDetailOverviewTab } from "@/components/project-detail/ProjectDetailOverviewTab";
+import { ProjectDetailFinanzasTab } from "@/components/project-detail/ProjectDetailFinanzasTab";
+import { ProjectDetailCronogramaTab } from "@/components/project-detail/ProjectDetailCronogramaTab";
 interface Project {
   id: string;
   name: string;
