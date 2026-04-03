@@ -487,7 +487,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             filter: `budget_id=eq.${budget.id}`
           },
           (payload) => {
-            console.log('Real-time budget items change:', payload);
             // Refresh items to update charts and tables
             fetchBudgetItems();
           }
@@ -500,7 +499,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
             table: 'budget_categories'
           },
           (payload) => {
-            console.log('Real-time budget categories change:', payload);
             // Refresh categories to update order and data
             fetchBudgetCategories();
           }
@@ -543,7 +541,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       const isInternational = budget.budget_status === 'internacional';
       
       // Auto-load the crew
-      console.log('🎵 Auto-loading crew from format:', budget.formato);
       await loadCrewFromFormat(bookingProduct.id, isInternational);
     };
     
@@ -644,7 +641,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const fetchBudgetCategories = async () => {
     try {
-      console.log('Fetching budget categories for user:', user?.id);
       const { data, error } = await supabase
         .from('budget_categories')
         .select('*')
@@ -788,7 +784,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const fetchBudgetItems = async () => {
     try {
-      console.log('Fetching budget items for budget:', budget.id);
       const { data, error } = await supabase
         .from('budget_items')
         .select(`
@@ -805,7 +800,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         irpf_percentage: item.irpf_percentage ?? 15,
         billing_status: mapDbToFrontend(item.billing_status || 'pendiente')
       }));
-      console.log('✅ Items fetched:', itemsWithDefaults.length, itemsWithDefaults);
       setItems(itemsWithDefaults);
     } catch (error) {
       console.error('Error fetching budget items:', error);
@@ -868,30 +862,23 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   };
 
   const getCategoryItems = (categoryId: string) => {
-    console.log('🔍 Getting items for category:', categoryId);
-    
     if (!items || items.length === 0) {
-      console.log('⚠️ No items found in state');
       return [];
     }
     
     const filteredItems = items.filter(item => {
       // Primera prioridad: category_id exacto
       if (item.category_id === categoryId) {
-        console.log('✅ Item matched by category_id:', item.name);
         return true;
       }
       
       // Para elementos sin categoría, mostrar en la primera categoría
       if (!item.category_id && budgetCategories.length > 0 && categoryId === budgetCategories[0]?.id) {
-        console.log('⚡ Item without category assigned to first category:', item.name);
         return true;
       }
       
       return false;
     });
-    
-    console.log('📋 Filtered items for category', categoryId, ':', filteredItems.length);
     // Always return sorted by sort_order so drag reorder is visible
     return filteredItems.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   };
@@ -1061,8 +1048,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const createTestData = async () => {
     try {
-      console.log('🧪 Creating test data for budget:', budget.id);
-      
       // Esperar a que las categorías estén cargadas
       if (budgetCategories.length === 0) {
         await createDefaultCategories();
@@ -1809,23 +1794,16 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   };
 
   const startEditingItem = (item: BudgetItem) => {
-    console.log('🔧 Starting edit for item:', item.name, 'billing_status:', item.billing_status);
     setEditingItem(item.id);
     // Ensure all values are properly set with current item data
     setEditingItemValues({
       ...item,
       billing_status: item.billing_status || 'pendiente'
     });
-    console.log('✅ Edit values set:', { billing_status: item.billing_status || 'pendiente' });
   };
 
   const saveItemEdits = async () => {
     if (!editingItem || !editingItemValues) return;
-
-    console.log('💾 Saving item edits:', {
-      editingItem,
-      editingItemValues,
-      originalValues: items.find(item => item.id === editingItem)
     });
 
     try {
@@ -1841,17 +1819,11 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                         editingItemValues.billing_status === 'cancelado' ? 'cancelado' :
                         'pendiente') as 'pendiente' | 'pagado' | 'facturado' | 'cancelado' | 'factura_solicitada'
       };
-      
-      console.log('📝 Update data to send:', updateData);
-      
       const { data, error } = await supabase
         .from('budget_items')
         .update(updateData)
         .eq('id', editingItem)
         .select();
-
-      console.log('🔄 Supabase update response:', { data, error });
-
       if (error) {
         console.error('❌ Supabase error details:', error);
         throw error;
@@ -2555,32 +2527,15 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const moveSelectedItems = async (targetCategoryId: string) => {
     if (selectedItems.size === 0) return;
-
-    console.log('🔄 moveSelectedItems called with:', {
-      targetCategoryId,
-      selectedItems: Array.from(selectedItems),
-      budgetCategories: budgetCategories.map(c => ({ id: c.id, name: c.name }))
-    });
-
     try {
       // Update items in batch
       const updates = Array.from(selectedItems).map(async (itemId) => {
         const currentItem = items.find(item => item.id === itemId);
         if (!currentItem) {
-          console.log('❌ Item not found:', itemId);
           return null;
         }
 
         const targetCategory = budgetCategories.find(c => c.id === targetCategoryId);
-        console.log('📝 Updating item:', {
-          itemId,
-          currentItem: currentItem.name,
-          targetCategoryId,
-          targetCategoryName: targetCategory?.name,
-          currentCategoryId: currentItem.category_id,
-          currentCategory: currentItem.category
-        });
-
         const { data, error } = await supabase
           .from('budget_items')
           .update({ 
@@ -2594,14 +2549,10 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           console.error('❌ Error updating item:', itemId, error);
           return { success: false, error, itemId };
         }
-
-        console.log('✅ Successfully updated item:', itemId, data);
         return { success: true, data, itemId };
       });
 
       const results = await Promise.all(updates.filter(Boolean));
-      console.log('✅ All update results:', results);
-
       // Check if there were any errors
       const errors = results.filter(r => r && !r.success);
       if (errors.length > 0) {
@@ -2641,10 +2592,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const updateSelectedItemsBillingStatus = async (billingStatus: string) => {
     if (selectedItems.size === 0) return;
-
-    console.log('🔄 updateSelectedItemsBillingStatus called with:', {
-      billingStatus,
-      selectedItems: Array.from(selectedItems)
     });
 
     try {

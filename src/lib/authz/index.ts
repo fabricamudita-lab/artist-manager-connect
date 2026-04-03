@@ -170,9 +170,6 @@ export async function can(
   resourceRef: ResourceRef
 ): Promise<boolean> {
   const userScopes = await resolveUserScopes(userId);
-  console.log('authz.can - userId:', userId, 'action:', action, 'resource:', resourceRef);
-  console.log('authz.can - userScopes:', userScopes);
-  
   // Algorithm based on resourceRef.type
   switch (resourceRef.type) {
     case 'PROJECT': {

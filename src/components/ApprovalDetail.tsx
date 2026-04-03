@@ -120,7 +120,6 @@ export function ApprovalDetail() {
           filter: `approval_id=eq.${id}`
         },
         (payload) => {
-          console.log('New comment:', payload);
           loadComments();
         }
       )
@@ -133,7 +132,6 @@ export function ApprovalDetail() {
           filter: `approval_id=eq.${id}`
         },
         (payload) => {
-          console.log('New event:', payload);
           loadEvents();
           loadApproval(); // Refresh approval status
         }

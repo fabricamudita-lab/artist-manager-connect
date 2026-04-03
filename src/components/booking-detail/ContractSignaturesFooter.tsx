@@ -35,7 +35,6 @@ export function ContractSignaturesFooter({ documentId, showInPdf = false }: Cont
           filter: `document_id=eq.${documentId}`,
         },
         () => {
-          console.log('Signature update received - refreshing footer');
           fetchSigners();
         }
       )

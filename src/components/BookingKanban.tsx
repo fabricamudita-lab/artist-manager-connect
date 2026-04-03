@@ -227,7 +227,6 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
           table: 'booking_offers'
         },
         (payload) => {
-          console.log('Real-time update received:', payload);
           // Refetch all offers when any change happens
           fetchOffers();
         }

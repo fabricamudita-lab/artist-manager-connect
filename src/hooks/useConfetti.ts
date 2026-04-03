@@ -37,8 +37,6 @@ export const useConfetti = () => {
   };
 
   const fireCelebration = () => {
-    console.log('🎊 Firing celebration confetti!');
-    
     // Un disparo más intenso para aprobaciones
     confetti({
       particleCount: 100,

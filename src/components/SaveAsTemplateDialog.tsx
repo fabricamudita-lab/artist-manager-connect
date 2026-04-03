@@ -40,8 +40,6 @@ export function SaveTemplateDialog({
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    console.log('Saving template...', { name, description, checklistItems });
-    
     if (!name.trim()) {
       toast({
         title: "Error",

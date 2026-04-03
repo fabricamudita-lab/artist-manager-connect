@@ -367,35 +367,5 @@ export default function Calendar() {
         <EventDetailPopover key={popup.id} event={popup.event} open={true} onOpenChange={() => closePopup(popup.id)}
           position={popup.position} zIndex={popup.zIndex} onBringToFront={() => bringPopupToFront(popup.id)}
           onPositionChange={(newPos) => updatePopupPosition(popup.id, newPos)} artistName="David Solans" createdBy="Fabrica Mudita"
-          onEdit={event => setEditingEvent(event)} onDelete={eventId => { console.log('Delete event:', eventId); closePopup(popup.id); }} />
-      ))}
-
-      <EditEventDialogControlled event={editingEvent} open={!!editingEvent} onOpenChange={open => { if (!open) setEditingEvent(null); }} onUpdated={fetchEvents} />
-
-      <Dialog open={!!selectedBookingOffer} onOpenChange={(open) => { if (!open) setSelectedBookingOffer(null); }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              🎤 {selectedBookingOffer?.festival_ciclo || selectedBookingOffer?.venue || selectedBookingOffer?.lugar || 'Evento'}
-              {selectedBookingOffer?.ciudad && ` - ${selectedBookingOffer.ciudad}`}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedBookingOffer && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 text-sm"><CalendarIcon className="h-4 w-4 text-muted-foreground" /><span className="font-medium">Fecha:</span><span>{format(new Date(selectedBookingOffer.fecha), 'PPPP', { locale: es })}</span></div>
-              {(selectedBookingOffer.lugar || selectedBookingOffer.venue || selectedBookingOffer.ciudad) && (
-                <div className="flex items-center gap-3 text-sm"><MapPin className="h-4 w-4 text-muted-foreground" /><span className="font-medium">Lugar:</span><span>{[selectedBookingOffer.lugar || selectedBookingOffer.venue, selectedBookingOffer.ciudad].filter(Boolean).join(', ')}</span></div>
-              )}
-              <div className="flex items-center gap-3 text-sm"><span className="font-medium">Status:</span><Badge variant={selectedBookingOffer.estado === 'confirmado' ? 'default' : selectedBookingOffer.estado === 'pendiente' ? 'secondary' : 'outline'}>{selectedBookingOffer.estado}</Badge></div>
-              {selectedBookingOffer.formato && <div className="flex items-center gap-3 text-sm"><span className="font-medium">Formato:</span><span>{selectedBookingOffer.formato}</span></div>}
-              {selectedBookingOffer.duracion && <div className="flex items-center gap-3 text-sm"><Clock className="h-4 w-4 text-muted-foreground" /><span className="font-medium">Duración:</span><span>{selectedBookingOffer.duracion}</span></div>}
-              {selectedBookingOffer.artists && <div className="flex items-center gap-3 text-sm"><span className="font-medium">Artista:</span><span>{selectedBookingOffer.artists.stage_name || selectedBookingOffer.artists.name}</span></div>}
-              {selectedBookingOffer.folder_url && <div className="pt-4 border-t"><Link to={selectedBookingOffer.folder_url} className="inline-flex items-center gap-2 text-sm text-primary hover:underline" onClick={() => setSelectedBookingOffer(null)}><Folder className="h-4 w-4" />Ver carpeta del evento<ExternalLink className="h-3 w-3" /></Link></div>}
-              <div className="pt-2"><Link to={`/booking/${selectedBookingOffer.id}`} className="inline-flex items-center gap-2 text-sm text-primary hover:underline" onClick={() => setSelectedBookingOffer(null)}>Ver detalles completos del booking<ExternalLink className="h-3 w-3" /></Link></div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+          onEdit={event => setEditingEvent(event)} onDelete={eventId => {
 }

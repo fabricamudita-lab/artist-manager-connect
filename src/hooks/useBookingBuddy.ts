@@ -74,11 +74,6 @@ export function useBookingBuddy(offers: any[]) {
         .in('booking_id', offerIds);
       
       const ids = new Set((data || []).map(d => d.booking_id));
-      console.log('[BookingBuddy] Contract detection via booking_documents table:', {
-        totalOffers: offerIds.length,
-        bookingsWithContracts: ids.size,
-        ids: Array.from(ids),
-      });
       setBookingsWithContracts(ids);
     };
 

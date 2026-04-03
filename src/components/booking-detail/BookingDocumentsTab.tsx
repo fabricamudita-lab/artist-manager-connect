@@ -130,7 +130,6 @@ export function BookingDocumentsTab({ booking, artistName, onUpdate }: BookingDo
           filter: `booking_id=eq.${booking.id}`,
         },
         (payload) => {
-          console.log('Real-time update received:', payload);
           // Refresh documents when any change happens
           fetchDocuments();
         }
