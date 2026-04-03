@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef, Fragment } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { format, addDays, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -14,13 +14,9 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
-  useSortable,
   arrayMove,
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { 
-  ChevronDown, 
-  ChevronRight,
   Plus, 
   Trash2,
   Music,
@@ -36,86 +32,35 @@ import {
   Undo2,
   Sparkles,
   CheckCircle2,
-  Circle,
-  ListTodo,
-  Calendar as CalendarIcon,
-  Bell,
-  StickyNote,
-  MessageCircle,
-  CheckCheck,
-  Send,
-  AtSign,
   EyeOff,
   Eye,
   X,
-  GripVertical,
   Cloud,
   Loader2,
   Maximize2,
   Minimize2,
   FileDown,
-  Lock,
   AlertTriangle,
   MoreHorizontal,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import AnchorDependencyDialog from '@/components/lanzamientos/AnchorDependencyDialog';
 import AnchoredStatusDialog from '@/components/lanzamientos/AnchoredStatusDialog';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import MultiAnchorSelector from '@/components/lanzamientos/MultiAnchorSelector';
-import TaskDatePopover from '@/components/lanzamientos/TaskDatePopover';
 import { ResponsibleSelector, type ResponsibleRef } from '@/components/releases/ResponsibleSelector';
 import CronogramaSetupWizard from '@/components/releases/CronogramaSetupWizard';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -133,6 +78,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import GanttChart from '@/components/lanzamientos/GanttChart';
 import { useRelease, useTracks, useReleaseMilestones, type ReleaseMilestone } from '@/hooks/useReleases';
 import { exportCronogramaPDF } from '@/utils/exportCronogramaPDF';
@@ -140,69 +86,22 @@ import { exportCronogramaGanttPDF } from '@/utils/exportCronogramaGanttPDF';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import MultiAnchorSelector from '@/components/lanzamientos/MultiAnchorSelector';
 import { 
   generateTimelineFromConfig, 
   groupTasksByWorkflow,
   type ReleaseConfig,
   type GeneratedTask 
 } from '@/lib/releaseTimelineTemplates';
-
-type TaskStatus = 'pendiente' | 'en_proceso' | 'completado' | 'retrasado';
-
-type SubtaskType = 'full' | 'checkbox' | 'note' | 'comment';
-
-interface CommentMessage {
-  id: string;
-  authorId: string;
-  authorName: string;
-  content: string;
-  createdAt: Date;
-}
-
-interface Subtask {
-  id: string;
-  name: string;
-  type: SubtaskType;
-  // Full subtask fields
-  responsible?: string;
-  responsible_ref?: ResponsibleRef | null;
-  startDate?: Date | null;
-  estimatedDays?: number;
-  // Checkbox fields
-  dueDate?: Date | null;
-  reminderDays?: number[] | null; // Days before due date to remind (supports multiple)
-  status?: TaskStatus;
-  anchoredTo?: string[]; // Support multiple anchors like main tasks
-  completed?: boolean;
-  // Note fields (directed to a specific person)
-  content?: string;
-  directedTo?: ResponsibleRef | null;
-  // Comment thread fields
-  thread?: CommentMessage[];
-  resolved?: boolean;
-}
-
-interface ReleaseTask {
-  id: string;
-  name: string;
-  responsible: string;
-  responsible_ref?: ResponsibleRef | null;
-  startDate: Date | null;
-  estimatedDays: number;
-  status: TaskStatus;
-  anchoredTo?: string[];
-  customStartDate?: boolean;
-  subtasks?: Subtask[];
-  expanded?: boolean;
-}
-
-interface WorkflowSection {
-  id: string;
-  name: string;
-  icon: React.ElementType;
-  color: string;
-  tasks: ReleaseTask[];
-}
+import {
+  SortableWorkflowCard,
+  type TaskStatus,
+  type SubtaskType,
+  type CommentMessage,
+  type Subtask,
+  type ReleaseTask,
+  type WorkflowSection,
+} from '@/components/cronograma/SortableWorkflowCard';
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string; color: string }[] = [
   { value: 'pendiente', label: 'Pendiente', color: 'bg-muted text-muted-foreground' },
@@ -230,42 +129,6 @@ const EMPTY_WORKFLOWS: WorkflowSection[] = Object.entries(WORKFLOW_METADATA).map
 }));
 
 type ViewMode = 'list' | 'gantt';
-
-// --- Sortable Subtask Row ---
-function SortableSubtaskRow({ id, children }: { id: string; children: (dragHandle: React.ReactNode) => React.ReactNode }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 10 : undefined,
-  };
-
-  const dragHandle = (
-    <button
-      {...attributes}
-      {...listeners}
-      className="opacity-0 group-hover/subtask-drag:opacity-100 cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-muted shrink-0"
-      aria-label="Arrastrar subtarea"
-    >
-      <GripVertical className="w-3 h-3 text-muted-foreground" />
-    </button>
-  );
-
-  return (
-    <TableRow ref={setNodeRef} style={style} className="group/subtask-drag border-0">
-      {children(dragHandle)}
-    </TableRow>
-  );
-}
 
 // --- Sortable Workflow Card Component ---
 interface SortableWorkflowCardProps {
