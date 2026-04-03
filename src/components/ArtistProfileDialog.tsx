@@ -78,6 +78,8 @@ export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProf
     }
   };
 
+  const displayName = artist?.stage_name || artist?.name || 'Artista';
+
   const startWhatsAppChat = () => {
     if (!artist?.phone) {
       toast({
@@ -89,7 +91,7 @@ export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProf
     }
     
     const phone = artist.phone.replace(/[^\d+]/g, '');
-    const message = encodeURIComponent(`Hola ${artist.full_name}, te escribo desde la plataforma MOODITA.`);
+    const message = encodeURIComponent(`Hola ${displayName}, te escribo desde la plataforma MOODITA.`);
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
   };
 
@@ -97,7 +99,7 @@ export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProf
     if (!artist?.email) return;
     
     const subject = encodeURIComponent('Comunicación desde MOODITA');
-    const body = encodeURIComponent(`Hola ${artist.full_name},\n\nTe escribo desde nuestra plataforma de gestión artística MOODITA.\n\nSaludos cordiales.`);
+    const body = encodeURIComponent(`Hola ${displayName},\n\nTe escribo desde nuestra plataforma de gestión artística MOODITA.\n\nSaludos cordiales.`);
     window.open(`mailto:${artist.email}?subject=${subject}&body=${body}`, '_blank');
   };
 
