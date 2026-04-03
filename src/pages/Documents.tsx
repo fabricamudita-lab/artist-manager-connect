@@ -527,7 +527,7 @@ export default function Documents() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{document.title}</p>
                         <p className="text-sm text-muted-foreground">
-                          {artists.find(a => a.id === document.artist_id)?.full_name || 'Artista'} • 
+                          {(() => { const a = artists.find(a => a.id === document.artist_id); return a?.stage_name || a?.name || 'Artista'; })()} • 
                           {formatFileSize(document.file_size)} • 
                           {format(new Date(document.created_at), 'dd/MM/yyyy')}
                         </p>
