@@ -153,10 +153,12 @@ export function ArtistProfileDialog({ open, onOpenChange, artistId }: ArtistProf
                 
                 <div className="flex-1 space-y-4">
                   <div>
-                    <h3 className="text-2xl font-playfair font-bold">{artist.full_name}</h3>
-                    <Badge variant="outline" className="mt-2">
-                      {artist.active_role === 'artist' ? 'Artista' : 'Management'}
-                    </Badge>
+                    <h3 className="text-2xl font-playfair font-bold">{displayName}</h3>
+                    {artist.genre && (
+                      <Badge variant="outline" className="mt-2">
+                        {artist.genre}
+                      </Badge>
+                    )}
                   </div>
                   
                   <div className="flex flex-wrap gap-3">
