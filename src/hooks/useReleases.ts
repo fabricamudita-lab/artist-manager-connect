@@ -504,6 +504,32 @@ export function useUploadReleaseAsset() {
   });
 }
 
+// Update release asset metadata
+export function useUpdateReleaseAsset() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, release_id, ...updates }: { id: string; release_id: string; title?: string; category?: string; description?: string }) => {
+      const { data, error } = await supabase
+        .from('release_assets')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { ...data, release_id };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['release-assets', data.release_id] });
+      toast.success('Documento actualizado');
+    },
+    onError: () => {
+      toast.error('Error al actualizar');
+    },
+  });
+}
+
 // Delete release asset
 export function useDeleteReleaseAsset() {
   const queryClient = useQueryClient();
