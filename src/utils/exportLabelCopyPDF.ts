@@ -24,6 +24,11 @@ interface LabelCopyTrack {
   track_number: number;
   isrc: string | null;
   lyrics: string | null;
+  explicit: boolean | null;
+  c_copyright_holder: string | null;
+  c_copyright_year: number | null;
+  p_copyright_holder: string | null;
+  p_production_year: number | null;
 }
 
 interface LabelCopyCredit {
