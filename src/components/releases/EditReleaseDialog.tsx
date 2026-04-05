@@ -288,22 +288,30 @@ export default function EditReleaseDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="genre">Género Principal</Label>
-              <Input
-                id="genre"
-                value={genre}
-                onChange={(e) => setGenre(e.target.value)}
-                placeholder="Ej. Pop"
-              />
+              <Label>Género Principal</Label>
+              <Select value={genre} onValueChange={setGenre}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona género" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[280px]">
+                  {DITTO_GENRES.map((g) => (
+                    <SelectItem key={g} value={g}>{g}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="secondaryGenre">Género Secundario</Label>
-              <Input
-                id="secondaryGenre"
-                value={secondaryGenre}
-                onChange={(e) => setSecondaryGenre(e.target.value)}
-                placeholder="Ej. Indie Pop"
-              />
+              <Label>Género Secundario</Label>
+              <Select value={secondaryGenre} onValueChange={setSecondaryGenre}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona género" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[280px]">
+                  {DITTO_GENRES.map((g) => (
+                    <SelectItem key={g} value={g}>{g}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
