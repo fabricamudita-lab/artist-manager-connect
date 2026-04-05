@@ -406,8 +406,8 @@ export function EditBookingDialog({
                 <Label>Capacidad</Label>
                 <Input
                   type="number"
-                  value={formData.capacidad || ''}
-                  onChange={(e) => updateField('capacidad', parseInt(e.target.value) || null)}
+                  value={formData.capacidad ?? ''}
+                  onChange={(e) => { const v = parseInt(e.target.value); updateField('capacidad', isNaN(v) ? null : v); }}
                 />
               </div>
             </div>
