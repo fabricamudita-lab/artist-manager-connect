@@ -1,59 +1,58 @@
 
 
-## Alinear créditos y datos de track con formato de distribuidora
+## Completar metadatos de lanzamiento a nivel de release (formato distribuidora)
 
-### Contexto
+### Problema
 
-Los créditos en MOODITA ya cubren los roles que pide la distribuidora, pero faltan 3 cosas:
+La distribuidora pide metadatos a nivel de release que actualmente faltan o no se pueden editar:
 
-1. **Campos de track faltantes**: La distribuidora pide `© Copyright Holder`, `Copyright Year`, `℗ Copyright Holder`, `Production Year` y `Explicit Lyrics` por cada canción. La tabla `tracks` ya tiene `explicit` pero NO tiene los campos de copyright/production year. El formulario "Editar Canción" solo muestra título, ISRC y letra.
+**Campos que existen en DB pero NO en el formulario de edición:**
+- `copyright` (existe en `releases`)
+- `genre` (existe en `releases`)
+- `label` (existe en `releases`)
+- `upc` (existe en `releases`)
 
-2. **Mapeo de categorías**: Las categorías internas (compositor, autoría, producción, intérprete, contribuidor) necesitan un mapeo claro al formato distribuidor (Composer, Songwriter, Production/Engineer, Performer). Los roles disponibles ya coinciden — solo falta documentar/exportar el mapeo.
+**Campos que NO existen en DB ni en el formulario:**
+- `secondary_genre`
+- `language`
+- `production_year`
 
-3. **Roles que faltan en autoría**: La distribuidora ofrece "Author" y "Lyricist" como roles de Songwriter. Actualmente tenemos `autor` y `letrista` que ya mapean. No falta ningún rol.
+**El Label Copy PDF** ya muestra Label, UPC, Tipo y Fecha, pero falta: Copyright, Genre, Secondary Genre, Language, Production Year.
 
 ---
 
-### Cambios necesarios
+### Cambios
 
-**1. Migración DB: añadir campos de copyright y production year a `tracks`**
+**1. Migración DB: añadir 3 columnas a `releases`**
 
 ```sql
-ALTER TABLE tracks
-  ADD COLUMN c_copyright_holder text,
-  ADD COLUMN c_copyright_year smallint,
-  ADD COLUMN p_copyright_holder text,
-  ADD COLUMN p_production_year smallint;
+ALTER TABLE releases
+  ADD COLUMN IF NOT EXISTS secondary_genre text,
+  ADD COLUMN IF NOT EXISTS language text,
+  ADD COLUMN IF NOT EXISTS production_year smallint;
 ```
 
-Los campos `explicit` ya existe en la tabla.
+**2. Actualizar `Release` interface en `useReleases.ts`**
 
-**2. Ampliar `EditTrackForm` en `ReleaseCreditos.tsx`**
+Añadir `secondary_genre`, `language`, `production_year` al tipo `Release`, y incluirlos en el `useUpdateRelease` mutation.
 
-Añadir al formulario de edición de canción:
-- Toggle "¿Contiene letras explícitas?" (usa campo `explicit` existente)
-- Sección "Copyright" con 4 campos:
-  - `© Copyright Holder` (text input)
-  - `Copyright Year` (select, rango 2000-2030)
-  - `℗ Copyright Holder` (text input)  
-  - `Production Year` (select, rango 2000-2030)
+**3. Ampliar `EditReleaseDialog.tsx`**
 
-Actualizar la firma de `onSubmit` para incluir estos nuevos campos y el mutation `updateTrack`.
+Añadir los campos que faltan al formulario de edición (actualmente solo tiene título, tipo, estado, artistas, fecha, descripción):
 
-**3. Añadir mapeo de exportación distribuidor a `creditRoles.ts`**
+- **Label** (text input)
+- **UPC** (text input)
+- **Copyright** (text input, ej. "© 2026 Leyre Estruch")
+- **Primary Genre** (text input)
+- **Secondary Genre** (text input)
+- **Language** (select: Spanish, English, Catalan, etc.)
+- **Production Year** (select: 2000-2030)
 
-Añadir un diccionario `DISTRIBUTOR_CATEGORY_MAP` que traduzca las categorías internas al formato de distribuidora:
-- `compositor` → `Composer`
-- `autoria` → `Songwriter`
-- `produccion` → `Production/Engineer`
-- `interprete` → `Performer`
-- `contribuidor` → `Contributor`
-
-Y un mapeo de roles internos a labels de distribuidor (ej. `autor` → `Author`, `letrista` → `Lyricist`, `ingeniero_mezcla` → `Mixing Engineer`, etc.).
+Organizado en secciones lógicas: Info básica (título, tipo, estado, artistas, fecha) + Distribución (label, UPC, copyright, géneros, idioma, año producción) + Descripción.
 
 **4. Actualizar Label Copy PDF (`exportLabelCopyPDF.ts`)**
 
-Incluir en la exportación por track los nuevos campos de copyright y el flag de explicit lyrics.
+Añadir al header del PDF: Copyright, Primary Genre, Secondary Genre, Language, Production Year — tomados del release.
 
 ---
 
@@ -61,8 +60,8 @@ Incluir en la exportación por track los nuevos campos de copyright y el flag de
 
 | Archivo | Cambio |
 |---|---|
-| Nueva migración SQL | Añadir 4 columnas a `tracks` |
-| `src/pages/release-sections/ReleaseCreditos.tsx` | Ampliar `EditTrackForm` con explicit + copyright fields |
-| `src/lib/creditRoles.ts` | Añadir `DISTRIBUTOR_CATEGORY_MAP` y `getDistributorRoleLabel()` |
-| `src/utils/exportLabelCopyPDF.ts` | Incluir copyright y explicit en exportación |
+| Nueva migración SQL | 3 columnas nuevas en `releases` |
+| `src/hooks/useReleases.ts` | Ampliar `Release` interface + update mutation |
+| `src/components/releases/EditReleaseDialog.tsx` | Añadir 7 campos de distribución |
+| `src/utils/exportLabelCopyPDF.ts` | Incluir nuevos campos en header del PDF |
 
