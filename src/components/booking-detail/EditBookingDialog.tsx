@@ -679,8 +679,8 @@ export function EditBookingDialog({
                 <Label>Comisión (€)</Label>
                 <Input
                   type="number"
-                  value={formData.comision_euros || ''}
-                  onChange={(e) => updateField('comision_euros', parseFloat(e.target.value) || null)}
+                  value={formData.comision_euros ?? ''}
+                  onChange={(e) => { const v = parseFloat(e.target.value); updateField('comision_euros', isNaN(v) ? null : v); }}
                 />
               </div>
             </div>
