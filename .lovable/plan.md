@@ -1,67 +1,35 @@
 
 
-## Completar metadatos de lanzamiento a nivel de release (formato distribuidora)
+## Hacer funcional la sección EPF (Electronic Press Folder)
 
 ### Problema
 
-La distribuidora pide metadatos a nivel de release que actualmente faltan o no se pueden editar:
-
-**Campos que existen en DB pero NO en el formulario de edición:**
-- `copyright` (existe en `releases`)
-- `genre` (existe en `releases`)
-- `label` (existe en `releases`)
-- `upc` (existe en `releases`)
-
-**Campos que NO existen en DB ni en el formulario:**
-- `secondary_genre`
-- `language`
-- `production_year`
-
-**El Label Copy PDF** ya muestra Label, UPC, Tipo y Fecha, pero falta: Copyright, Genre, Secondary Genre, Language, Production Year.
-
----
+Los botones "Subir Documento" no tienen `onClick` — son puramente decorativos. No hay lógica de upload, edición, filtrado ni eliminación real.
 
 ### Cambios
 
-**1. Migración DB: añadir 3 columnas a `releases`**
+**1. Ampliar `useUploadReleaseAsset` en `useReleases.ts`**
 
-```sql
-ALTER TABLE releases
-  ADD COLUMN IF NOT EXISTS secondary_genre text,
-  ADD COLUMN IF NOT EXISTS language text,
-  ADD COLUMN IF NOT EXISTS production_year smallint;
-```
+- Cambiar el tipo del parámetro `type` de `'image' | 'video'` a `'image' | 'video' | 'document'` para permitir subir documentos.
+- Añadir campo opcional `category` al insert para categorizar documentos (nota de prensa, bio, rider, etc.).
 
-**2. Actualizar `Release` interface en `useReleases.ts`**
+**2. Reescribir `ReleaseEPF.tsx` con funcionalidad completa**
 
-Añadir `secondary_genre`, `language`, `production_year` al tipo `Release`, y incluirlos en el `useUpdateRelease` mutation.
+- **Upload**: Input file oculto que se activa al hacer clic en "Subir Documento". Sube el archivo usando `useUploadReleaseAsset` con `type: 'document'`.
+- **Edición**: Dialog para editar título, categoría y descripción de cada documento (update directo a `release_assets`).
+- **Eliminación**: Usar `useDeleteReleaseAsset` existente con confirmación.
+- **Visualización/Descarga**: Los botones de Eye y Download ya están pero sin handlers — conectarlos a `window.open()` y `<a download>`.
+- **Filtros**: Barra de filtros con:
+  - Búsqueda por texto (filtra por título)
+  - Filtro por categoría (select: Nota de prensa, Bio, Rider, Hoja técnica, Otro)
+  - Ordenación por fecha (más reciente / más antiguo) y por nombre (A-Z / Z-A)
 
-**3. Ampliar `EditReleaseDialog.tsx`**
-
-Añadir los campos que faltan al formulario de edición (actualmente solo tiene título, tipo, estado, artistas, fecha, descripción):
-
-- **Label** (text input)
-- **UPC** (text input)
-- **Copyright** (text input, ej. "© 2026 Leyre Estruch")
-- **Primary Genre** (text input)
-- **Secondary Genre** (text input)
-- **Language** (select: Spanish, English, Catalan, etc.)
-- **Production Year** (select: 2000-2030)
-
-Organizado en secciones lógicas: Info básica (título, tipo, estado, artistas, fecha) + Distribución (label, UPC, copyright, géneros, idioma, año producción) + Descripción.
-
-**4. Actualizar Label Copy PDF (`exportLabelCopyPDF.ts`)**
-
-Añadir al header del PDF: Copyright, Primary Genre, Secondary Genre, Language, Production Year — tomados del release.
-
----
-
-### Archivos afectados
+**3. Archivos afectados**
 
 | Archivo | Cambio |
 |---|---|
-| Nueva migración SQL | 3 columnas nuevas en `releases` |
-| `src/hooks/useReleases.ts` | Ampliar `Release` interface + update mutation |
-| `src/components/releases/EditReleaseDialog.tsx` | Añadir 7 campos de distribución |
-| `src/utils/exportLabelCopyPDF.ts` | Incluir nuevos campos en header del PDF |
+| `src/hooks/useReleases.ts` | Ampliar tipo en `useUploadReleaseAsset` + añadir mutation `useUpdateReleaseAsset` |
+| `src/pages/release-sections/ReleaseEPF.tsx` | Reescribir con upload funcional, edición, eliminación y filtros |
+
+No requiere migración DB — la tabla `release_assets` ya soporta `type: 'document'`, `category`, `tags` y `description`.
 
