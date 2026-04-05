@@ -461,7 +461,7 @@ export function useUploadReleaseAsset() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ file, releaseId, type, title }: { file: File; releaseId: string; type: 'image' | 'video'; title: string }) => {
+    mutationFn: async ({ file, releaseId, type, title, category }: { file: File; releaseId: string; type: 'image' | 'video' | 'document'; title: string; category?: string }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
       const ext = file.name.split('.').pop();
