@@ -660,8 +660,8 @@ export function EditBookingDialog({
                 <Label>Gastos Estimados (€)</Label>
                 <Input
                   type="number"
-                  value={formData.gastos_estimados || ''}
-                  onChange={(e) => updateField('gastos_estimados', parseFloat(e.target.value) || null)}
+                  value={formData.gastos_estimados ?? ''}
+                  onChange={(e) => { const v = parseFloat(e.target.value); updateField('gastos_estimados', isNaN(v) ? null : v); }}
                 />
               </div>
             </div>
