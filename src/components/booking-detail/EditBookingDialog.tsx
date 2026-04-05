@@ -652,8 +652,8 @@ export function EditBookingDialog({
                 <Label>PVP Entradas (€)</Label>
                 <Input
                   type="number"
-                  value={formData.pvp || ''}
-                  onChange={(e) => updateField('pvp', parseFloat(e.target.value) || null)}
+                  value={formData.pvp ?? ''}
+                  onChange={(e) => { const v = parseFloat(e.target.value); updateField('pvp', isNaN(v) ? null : v); }}
                 />
               </div>
               <div className="space-y-2">
