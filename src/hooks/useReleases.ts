@@ -486,6 +486,7 @@ export function useUploadReleaseAsset() {
           file_url: urlData.publicUrl,
           file_bucket: fileName,
           uploaded_by: user.id,
+          category: category || null,
         })
         .select()
         .single();
