@@ -73,6 +73,11 @@ export interface Track {
   is_single: boolean;
   is_focus_track: boolean;
   video_type: string | null;
+  explicit: boolean | null;
+  c_copyright_holder: string | null;
+  c_copyright_year: number | null;
+  p_copyright_holder: string | null;
+  p_production_year: number | null;
   created_at: string;
   updated_at: string;
 }

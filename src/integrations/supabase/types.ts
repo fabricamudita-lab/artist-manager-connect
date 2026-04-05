@@ -7225,6 +7225,8 @@ export type Database = {
       }
       tracks: {
         Row: {
+          c_copyright_holder: string | null
+          c_copyright_year: number | null
           created_at: string
           duration: number | null
           explicit: boolean | null
@@ -7234,6 +7236,8 @@ export type Database = {
           isrc: string | null
           lyrics: string | null
           notes: string | null
+          p_copyright_holder: string | null
+          p_production_year: number | null
           popularity: number | null
           preview_url: string | null
           release_id: string
@@ -7245,6 +7249,8 @@ export type Database = {
           video_type: string | null
         }
         Insert: {
+          c_copyright_holder?: string | null
+          c_copyright_year?: number | null
           created_at?: string
           duration?: number | null
           explicit?: boolean | null
@@ -7254,6 +7260,8 @@ export type Database = {
           isrc?: string | null
           lyrics?: string | null
           notes?: string | null
+          p_copyright_holder?: string | null
+          p_production_year?: number | null
           popularity?: number | null
           preview_url?: string | null
           release_id: string
@@ -7265,6 +7273,8 @@ export type Database = {
           video_type?: string | null
         }
         Update: {
+          c_copyright_holder?: string | null
+          c_copyright_year?: number | null
           created_at?: string
           duration?: number | null
           explicit?: boolean | null
@@ -7274,6 +7284,8 @@ export type Database = {
           isrc?: string | null
           lyrics?: string | null
           notes?: string | null
+          p_copyright_holder?: string | null
+          p_production_year?: number | null
           popularity?: number | null
           preview_url?: string | null
           release_id?: string
