@@ -517,6 +517,10 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
   const [showCapitalPanel, setShowCapitalPanel] = useState(false);
   const [showCashflowPanel, setShowCashflowPanel] = useState(false);
 
+  // Double-confirmation delete state
+  const [deleteStep1Id, setDeleteStep1Id] = useState<string | null>(null);
+  const [deleteStep2Id, setDeleteStep2Id] = useState<string | null>(null);
+
   const { showGlobalSearch, setShowGlobalSearch } = useGlobalSearch();
 
   // Sync external artistId prop
