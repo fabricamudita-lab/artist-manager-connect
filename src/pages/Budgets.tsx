@@ -1383,6 +1383,41 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
         )}
 
         <GlobalSearchDialog open={showGlobalSearch} onOpenChange={setShowGlobalSearch} />
+
+        {/* Double-confirmation delete: Step 1 */}
+        <ConfirmationDialog
+          open={!!deleteStep1Id}
+          onOpenChange={(open) => { if (!open) setDeleteStep1Id(null); }}
+          title="¿Eliminar presupuesto?"
+          description="Se eliminará este presupuesto y todos sus datos asociados (ítems, versiones, adjuntos)."
+          confirmText="Sí, eliminar"
+          cancelText="Cancelar"
+          variant="warning"
+          icon="delete"
+          onConfirm={() => {
+            setDeleteStep2Id(deleteStep1Id);
+            setDeleteStep1Id(null);
+          }}
+        />
+
+        {/* Double-confirmation delete: Step 2 */}
+        <ConfirmationDialog
+          open={!!deleteStep2Id}
+          onOpenChange={(open) => { if (!open) setDeleteStep2Id(null); }}
+          title="¿Estás completamente seguro?"
+          description="Esta acción es irreversible. El presupuesto y toda su información se borrarán permanentemente."
+          confirmText="Eliminar definitivamente"
+          cancelText="Volver"
+          variant="destructive"
+          icon="warning"
+          onConfirm={() => {
+            if (deleteStep2Id) {
+              handleDeleteBudget(deleteStep2Id);
+              setEditingRowId(null);
+            }
+            setDeleteStep2Id(null);
+          }}
+        />
       </div>
     </div>
   );
