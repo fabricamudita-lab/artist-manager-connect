@@ -1223,6 +1223,21 @@ export default function Budgets({ embedded = false, artistId }: { embedded?: boo
                                     </TooltipTrigger>
                                     <TooltipContent>Cancelar</TooltipContent>
                                   </Tooltip>
+                                  <PermissionWrapper requiredPermission="manage">
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => setDeleteStep1Id(budget.id)}
+                                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Eliminar</TooltipContent>
+                                    </Tooltip>
+                                  </PermissionWrapper>
                                 </>
                               ) : (
                                 <>
