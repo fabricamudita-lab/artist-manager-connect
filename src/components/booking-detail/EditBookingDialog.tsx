@@ -406,8 +406,8 @@ export function EditBookingDialog({
                 <Label>Capacidad</Label>
                 <Input
                   type="number"
-                  value={formData.capacidad || ''}
-                  onChange={(e) => updateField('capacidad', parseInt(e.target.value) || null)}
+                  value={formData.capacidad ?? ''}
+                  onChange={(e) => { const v = parseInt(e.target.value); updateField('capacidad', isNaN(v) ? null : v); }}
                 />
               </div>
             </div>
@@ -644,24 +644,24 @@ export function EditBookingDialog({
                 <Label>Oferta / Fee (€)</Label>
                 <Input
                   type="number"
-                  value={formData.fee || ''}
-                  onChange={(e) => updateField('fee', parseFloat(e.target.value) || null)}
+                  value={formData.fee ?? ''}
+                  onChange={(e) => { const v = parseFloat(e.target.value); updateField('fee', isNaN(v) ? null : v); }}
                 />
               </div>
               <div className="space-y-2">
                 <Label>PVP Entradas (€)</Label>
                 <Input
                   type="number"
-                  value={formData.pvp || ''}
-                  onChange={(e) => updateField('pvp', parseFloat(e.target.value) || null)}
+                  value={formData.pvp ?? ''}
+                  onChange={(e) => { const v = parseFloat(e.target.value); updateField('pvp', isNaN(v) ? null : v); }}
                 />
               </div>
               <div className="space-y-2">
                 <Label>Gastos Estimados (€)</Label>
                 <Input
                   type="number"
-                  value={formData.gastos_estimados || ''}
-                  onChange={(e) => updateField('gastos_estimados', parseFloat(e.target.value) || null)}
+                  value={formData.gastos_estimados ?? ''}
+                  onChange={(e) => { const v = parseFloat(e.target.value); updateField('gastos_estimados', isNaN(v) ? null : v); }}
                 />
               </div>
             </div>
@@ -671,16 +671,16 @@ export function EditBookingDialog({
                 <Label>Comisión (%)</Label>
                 <Input
                   type="number"
-                  value={formData.comision_porcentaje || ''}
-                  onChange={(e) => updateField('comision_porcentaje', parseFloat(e.target.value) || null)}
+                  value={formData.comision_porcentaje ?? ''}
+                  onChange={(e) => { const v = parseFloat(e.target.value); updateField('comision_porcentaje', isNaN(v) ? null : v); }}
                 />
               </div>
               <div className="space-y-2">
                 <Label>Comisión (€)</Label>
                 <Input
                   type="number"
-                  value={formData.comision_euros || ''}
-                  onChange={(e) => updateField('comision_euros', parseFloat(e.target.value) || null)}
+                  value={formData.comision_euros ?? ''}
+                  onChange={(e) => { const v = parseFloat(e.target.value); updateField('comision_euros', isNaN(v) ? null : v); }}
                 />
               </div>
             </div>
