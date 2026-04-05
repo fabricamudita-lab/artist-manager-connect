@@ -644,8 +644,8 @@ export function EditBookingDialog({
                 <Label>Oferta / Fee (€)</Label>
                 <Input
                   type="number"
-                  value={formData.fee || ''}
-                  onChange={(e) => updateField('fee', parseFloat(e.target.value) || null)}
+                  value={formData.fee ?? ''}
+                  onChange={(e) => { const v = parseFloat(e.target.value); updateField('fee', isNaN(v) ? null : v); }}
                 />
               </div>
               <div className="space-y-2">
