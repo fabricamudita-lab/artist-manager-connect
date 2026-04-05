@@ -14,6 +14,11 @@ interface LabelCopyRelease {
   release_date: string | null;
   label: string | null;
   upc: string | null;
+  copyright: string | null;
+  genre: string | null;
+  secondary_genre: string | null;
+  language: string | null;
+  production_year: number | null;
   artist?: { name: string } | null;
   release_artists?: { role: string; artist?: { name: string } | null }[];
 }
