@@ -33,6 +33,10 @@ export interface Release {
   label: string | null;
   upc: string | null;
   genre: string | null;
+  copyright: string | null;
+  secondary_genre: string | null;
+  language: string | null;
+  production_year: number | null;
   artist?: {
     id: string;
     name: string;
