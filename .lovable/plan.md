@@ -1,23 +1,29 @@
 
 
-## Añadir botón Eliminar en modo edición con doble confirmación
+## Fix: Permitir comisión al 0% en Editar Booking
 
-### Qué cambia
+### Problema
 
-Cuando un presupuesto está en modo edición inline (la fila verde con los campos editables), actualmente solo se muestran los botones **Guardar** (✓) y **Cancelar** (✗). Se añadirá un botón **Eliminar** (🗑) que requiere doble confirmación antes de borrar.
+En `EditBookingDialog.tsx` (línea 674-675), el código usa `|| ''` y `|| null` que tratan el valor `0` como falsy:
 
-### Cómo funciona la doble confirmación
+```js
+value={formData.comision_porcentaje || ''}  // 0 se muestra como vacío
+onChange={(e) => updateField('comision_porcentaje', parseFloat(e.target.value) || null)}  // 0 se guarda como null
+```
 
-1. El usuario pulsa el icono de papelera → aparece un primer diálogo: *"¿Eliminar presupuesto?"*
-2. Al confirmar, aparece un segundo diálogo más severo: *"¿Estás completamente seguro? Esta acción es irreversible."*
-3. Solo al confirmar el segundo diálogo se ejecuta `handleDeleteBudget`
+### Solución
 
-### Cambios técnicos
+**Archivo: `src/components/booking-detail/EditBookingDialog.tsx`**
 
-**Archivo: `src/pages/Budgets.tsx`**
+1. Cambiar el `value` para que respete el `0`:
+   - `value={formData.comision_porcentaje ?? ''}` (usa nullish coalescing)
 
-- En el bloque de acciones del modo edición (líneas ~1196-1221), añadir un tercer botón de Trash2 envuelto en `PermissionWrapper` con `requiredPermission="manage"`
-- Usar el componente `ConfirmationDialog` existente (ya en el proyecto) para el primer paso, y un segundo `ConfirmationDialog` con variant `destructive` para el segundo paso
-- Gestionar con dos estados: `deleteStep1Id` y `deleteStep2Id`
-- Al confirmar step 1 → abrir step 2. Al confirmar step 2 → ejecutar `handleDeleteBudget(id)` y limpiar estados
+2. Cambiar el `onChange` para que acepte `0`:
+   - `parseFloat(e.target.value)` → si es `NaN`, guardar `null`; si es `0`, guardar `0`
+
+3. Aplicar el mismo fix al campo `comision_euros` (líneas 682-683) que tiene el mismo bug.
+
+4. Revisar y aplicar el mismo patrón a cualquier otro campo numérico en el mismo formulario que use `|| ''` o `|| null` (fee, pvp, gastos_estimados) para consistencia.
+
+Un solo archivo, cambio de operador en 4-6 campos numéricos.
 
