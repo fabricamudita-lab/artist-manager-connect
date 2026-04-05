@@ -5708,8 +5708,11 @@ export type Database = {
           genre: string | null
           id: string
           label: string | null
+          language: string | null
+          production_year: number | null
           project_id: string | null
           release_date: string | null
+          secondary_genre: string | null
           share_enabled: boolean | null
           share_expires_at: string | null
           share_token: string | null
@@ -5731,8 +5734,11 @@ export type Database = {
           genre?: string | null
           id?: string
           label?: string | null
+          language?: string | null
+          production_year?: number | null
           project_id?: string | null
           release_date?: string | null
+          secondary_genre?: string | null
           share_enabled?: boolean | null
           share_expires_at?: string | null
           share_token?: string | null
@@ -5754,8 +5760,11 @@ export type Database = {
           genre?: string | null
           id?: string
           label?: string | null
+          language?: string | null
+          production_year?: number | null
           project_id?: string | null
           release_date?: string | null
+          secondary_genre?: string | null
           share_enabled?: boolean | null
           share_expires_at?: string | null
           share_token?: string | null

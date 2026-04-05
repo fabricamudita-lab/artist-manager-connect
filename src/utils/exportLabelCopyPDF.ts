@@ -14,6 +14,11 @@ interface LabelCopyRelease {
   release_date: string | null;
   label: string | null;
   upc: string | null;
+  copyright: string | null;
+  genre: string | null;
+  secondary_genre: string | null;
+  language: string | null;
+  production_year: number | null;
   artist?: { name: string } | null;
   release_artists?: { role: string; artist?: { name: string } | null }[];
 }
@@ -125,6 +130,11 @@ export function exportLabelCopyPDF(
   ];
   if (release.label) headerFields.push(['Sello', release.label]);
   if (release.upc) headerFields.push(['UPC', release.upc]);
+  if (release.copyright) headerFields.push(['Copyright', release.copyright]);
+  if (release.genre) headerFields.push(['Género', release.genre]);
+  if (release.secondary_genre) headerFields.push(['Género Secundario', release.secondary_genre]);
+  if (release.language) headerFields.push(['Idioma', release.language]);
+  if (release.production_year) headerFields.push(['Año de Producción', String(release.production_year)]);
   if (release.release_date) {
     headerFields.push([
       'Fecha de lanzamiento',

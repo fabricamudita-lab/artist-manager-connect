@@ -31,12 +31,30 @@ import { cn } from '@/lib/utils';
 import { useUpdateRelease, Release } from '@/hooks/useReleases';
 import { ArtistSelector } from '@/components/ArtistSelector';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
 
 interface EditReleaseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   release: Release | null;
 }
+
+const LANGUAGE_OPTIONS = [
+  { value: 'es', label: 'Español' },
+  { value: 'en', label: 'English' },
+  { value: 'ca', label: 'Català' },
+  { value: 'pt', label: 'Português' },
+  { value: 'fr', label: 'Français' },
+  { value: 'de', label: 'Deutsch' },
+  { value: 'it', label: 'Italiano' },
+  { value: 'ja', label: '日本語' },
+  { value: 'ko', label: '한국어' },
+  { value: 'zh', label: '中文' },
+  { value: 'instrumental', label: 'Instrumental' },
+];
+
+const currentYear = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: currentYear - 1999 }, (_, i) => currentYear + 1 - i);
 
 export default function EditReleaseDialog({
   open,
@@ -53,6 +71,15 @@ export default function EditReleaseDialog({
   const [artistIds, setArtistIds] = useState<string[]>([]);
   const dateButtonRef = useRef<HTMLButtonElement>(null);
 
+  // Distribution fields
+  const [label, setLabel] = useState('');
+  const [upc, setUpc] = useState('');
+  const [copyright, setCopyright] = useState('');
+  const [genre, setGenre] = useState('');
+  const [secondaryGenre, setSecondaryGenre] = useState('');
+  const [language, setLanguage] = useState('');
+  const [productionYear, setProductionYear] = useState('');
+
   const isPastDue = releaseDate && isPast(startOfDay(releaseDate)) && status !== 'released' && status !== 'archived';
 
   useEffect(() => {
@@ -62,9 +89,17 @@ export default function EditReleaseDialog({
       setStatus(release.status);
       setReleaseDate(release.release_date ? new Date(release.release_date) : undefined);
       setDescription(release.description || '');
-      // Load artists from release_artists if available, fallback to artist_id
       const raIds = release.release_artists?.map(ra => ra.artist_id) || [];
       setArtistIds(raIds.length > 0 ? raIds : (release.artist_id ? [release.artist_id] : []));
+
+      // Distribution fields
+      setLabel(release.label || '');
+      setUpc(release.upc || '');
+      setCopyright(release.copyright || '');
+      setGenre(release.genre || '');
+      setSecondaryGenre(release.secondary_genre || '');
+      setLanguage(release.language || '');
+      setProductionYear(release.production_year ? String(release.production_year) : '');
     }
   }, [release]);
 
@@ -80,6 +115,13 @@ export default function EditReleaseDialog({
       description: description.trim() || null,
       artist_id: artistIds[0] || null,
       artist_ids: artistIds,
+      label: label.trim() || null,
+      upc: upc.trim() || null,
+      copyright: copyright.trim() || null,
+      genre: genre.trim() || null,
+      secondary_genre: secondaryGenre.trim() || null,
+      language: language || null,
+      production_year: productionYear ? parseInt(productionYear) : null,
     });
 
     onOpenChange(false);
@@ -87,7 +129,7 @@ export default function EditReleaseDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar Lanzamiento</DialogTitle>
           <DialogDescription>
@@ -127,6 +169,8 @@ export default function EditReleaseDialog({
               </AlertDescription>
             </Alert>
           )}
+
+          {/* ── Info básica ── */}
           <div className="space-y-2">
             <Label htmlFor="title">Título *</Label>
             <Input
@@ -206,6 +250,94 @@ export default function EditReleaseDialog({
               </PopoverContent>
             </Popover>
           </div>
+
+          {/* ── Distribución ── */}
+          <Separator />
+          <p className="text-sm font-semibold text-muted-foreground">Distribución</p>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="label">Sello (Label)</Label>
+              <Input
+                id="label"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="Ej. MOODITA Records"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="upc">UPC</Label>
+              <Input
+                id="upc"
+                value={upc}
+                onChange={(e) => setUpc(e.target.value)}
+                placeholder="Código UPC / EAN"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="copyright">Copyright</Label>
+            <Input
+              id="copyright"
+              value={copyright}
+              onChange={(e) => setCopyright(e.target.value)}
+              placeholder="Ej. © 2026 Leyre Estruch"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="genre">Género Principal</Label>
+              <Input
+                id="genre"
+                value={genre}
+                onChange={(e) => setGenre(e.target.value)}
+                placeholder="Ej. Pop"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="secondaryGenre">Género Secundario</Label>
+              <Input
+                id="secondaryGenre"
+                value={secondaryGenre}
+                onChange={(e) => setSecondaryGenre(e.target.value)}
+                placeholder="Ej. Indie Pop"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Idioma</Label>
+              <Select value={language} onValueChange={setLanguage}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona idioma" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LANGUAGE_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Año de Producción</Label>
+              <Select value={productionYear} onValueChange={setProductionYear}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona año" />
+                </SelectTrigger>
+                <SelectContent>
+                  {YEAR_OPTIONS.map(yr => (
+                    <SelectItem key={yr} value={String(yr)}>{yr}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* ── Descripción ── */}
+          <Separator />
 
           <div className="space-y-2">
             <Label htmlFor="description">Descripción</Label>
