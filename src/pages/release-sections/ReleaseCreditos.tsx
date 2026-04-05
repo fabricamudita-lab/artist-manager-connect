@@ -296,16 +296,16 @@ export default function ReleaseCreditos() {
     },
   });
 
+  const reorderSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor),
+  );
+
   if (loadingRelease) {
     return <Skeleton className="h-64 w-full" />;
   }
 
   const nextTrackNumber = tracks ? Math.max(0, ...tracks.map((t) => t.track_number)) + 1 : 1;
-
-  const reorderSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor),
-  );
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
