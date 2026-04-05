@@ -263,9 +263,9 @@ export default function ReleaseCreditos() {
 
   // Update track mutation
   const updateTrack = useMutation({
-    mutationFn: async (data: { id: string; title?: string; lyrics?: string; isrc?: string }) => {
+    mutationFn: async (data: { id: string; title?: string; lyrics?: string; isrc?: string; explicit?: boolean; c_copyright_holder?: string | null; c_copyright_year?: number | null; p_copyright_holder?: string | null; p_production_year?: number | null }) => {
       const { id: trackId, ...updates } = data;
-      const { error } = await supabase.from('tracks').update(updates).eq('id', trackId);
+      const { error } = await supabase.from('tracks').update(updates as any).eq('id', trackId);
       if (error) throw error;
     },
     onSuccess: () => {
