@@ -39,6 +39,17 @@ interface EditReleaseDialogProps {
   release: Release | null;
 }
 
+const DITTO_GENRES = [
+  'African Dancehall','African Reggae','Afrikaans','Afro House','Afro Soul','Afro-Beat','Afro-folk','Afro-fusion','Afro-Pop','Afrobeats',
+  'Alte','Alternative','Alternative Rock','Amapiano','Axé','Baladas y Boleros','Big Band','Blues','Bossa Nova','Brazilian',
+  "Children's",'Chinese','Christian','Comedy','Contemporary Latin','Country','Easy Listening','Educational','Egyptian Pop','Electronic',
+  'Enka','Experimental','Fitness & Workout','Folk','Forró','French Pop','Frevo','Funk Brasileiro / Baile Funk',
+  'German Folk','German Pop','Gospel','Hip-Hop/Rap','Holiday','Inspirational','Instrumental','J-Pop','Jazz','K-Pop',
+  'Karaoke','Kayokyoku','Latin Jazz','Levant','Levant Pop','Maghreb Pop','Maghreb Rai','Matriz Africana','Metal','MPB',
+  'Nativista','New Age','Original Pilipino Music','Pagode','Pop','Pop Latino','Punjabi','Punk','R&B','Raices',
+  'Reggae','Regional Mexicano','Rock','Samba','Sertanejo','Singer/Songwriter','Soul','Soundtrack','Spoken Word','Trot','Vocal/Nostalgia',
+];
+
 const LANGUAGE_OPTIONS = [
   { value: 'es', label: 'Español' },
   { value: 'en', label: 'English' },
