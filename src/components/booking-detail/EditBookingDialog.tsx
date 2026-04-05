@@ -671,8 +671,8 @@ export function EditBookingDialog({
                 <Label>Comisión (%)</Label>
                 <Input
                   type="number"
-                  value={formData.comision_porcentaje || ''}
-                  onChange={(e) => updateField('comision_porcentaje', parseFloat(e.target.value) || null)}
+                  value={formData.comision_porcentaje ?? ''}
+                  onChange={(e) => { const v = parseFloat(e.target.value); updateField('comision_porcentaje', isNaN(v) ? null : v); }}
                 />
               </div>
               <div className="space-y-2">
