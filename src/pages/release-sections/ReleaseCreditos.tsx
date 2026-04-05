@@ -1482,12 +1482,20 @@ function EditTrackForm({
   isLoading,
 }: {
   track: Track;
-  onSubmit: (data: { title?: string; lyrics?: string; isrc?: string }) => void;
+  onSubmit: (data: { title?: string; lyrics?: string; isrc?: string; explicit?: boolean; c_copyright_holder?: string | null; c_copyright_year?: number | null; p_copyright_holder?: string | null; p_production_year?: number | null }) => void;
   isLoading: boolean;
 }) {
   const [title, setTitle] = useState(track.title);
   const [lyrics, setLyrics] = useState(track.lyrics || '');
   const [isrc, setIsrc] = useState(track.isrc || '');
+  const [explicit, setExplicit] = useState(track.explicit ?? false);
+  const [cCopyrightHolder, setCCopyrightHolder] = useState(track.c_copyright_holder || '');
+  const [cCopyrightYear, setCCopyrightYear] = useState<number | ''>(track.c_copyright_year ?? '');
+  const [pCopyrightHolder, setPCopyrightHolder] = useState(track.p_copyright_holder || '');
+  const [pProductionYear, setPProductionYear] = useState<number | ''>(track.p_production_year ?? '');
+
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: currentYear - 1999 }, (_, i) => currentYear - i);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1495,6 +1503,11 @@ function EditTrackForm({
       title: title.trim(),
       lyrics: lyrics.trim() || undefined,
       isrc: isrc.trim() || undefined,
+      explicit,
+      c_copyright_holder: cCopyrightHolder.trim() || null,
+      c_copyright_year: cCopyrightYear === '' ? null : cCopyrightYear,
+      p_copyright_holder: pCopyrightHolder.trim() || null,
+      p_production_year: pProductionYear === '' ? null : pProductionYear,
     });
   };
 
@@ -1521,6 +1534,69 @@ function EditTrackForm({
         />
       </div>
 
+      {/* Explicit lyrics toggle */}
+      <div className="flex items-center justify-between rounded-md border px-3 py-2">
+        <Label htmlFor="edit_explicit" className="text-sm cursor-pointer">¿Contiene letras explícitas?</Label>
+        <Switch
+          id="edit_explicit"
+          checked={explicit}
+          onCheckedChange={setExplicit}
+        />
+      </div>
+
+      {/* Copyright section */}
+      <div className="space-y-3 rounded-md border p-3">
+        <p className="text-sm font-medium text-muted-foreground">Copyright & Producción</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="edit_c_holder" className="text-xs">© Copyright Holder</Label>
+            <Input
+              id="edit_c_holder"
+              value={cCopyrightHolder}
+              onChange={(e) => setCCopyrightHolder(e.target.value)}
+              placeholder="Titular del copyright"
+              className="h-8 text-sm"
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit_c_year" className="text-xs">Copyright Year</Label>
+            <Select value={cCopyrightYear === '' ? '' : String(cCopyrightYear)} onValueChange={(v) => setCCopyrightYear(v ? Number(v) : '')}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Año" />
+              </SelectTrigger>
+              <SelectContent>
+                {yearOptions.map(y => (
+                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="edit_p_holder" className="text-xs">℗ Copyright Holder</Label>
+            <Input
+              id="edit_p_holder"
+              value={pCopyrightHolder}
+              onChange={(e) => setPCopyrightHolder(e.target.value)}
+              placeholder="Titular del fonograma"
+              className="h-8 text-sm"
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit_p_year" className="text-xs">Production Year</Label>
+            <Select value={pProductionYear === '' ? '' : String(pProductionYear)} onValueChange={(v) => setPProductionYear(v ? Number(v) : '')}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Año" />
+              </SelectTrigger>
+              <SelectContent>
+                {yearOptions.map(y => (
+                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
       <div>
         <Label htmlFor="edit_lyrics">Letra</Label>
         <Textarea
@@ -1528,7 +1604,7 @@ function EditTrackForm({
           value={lyrics}
           onChange={(e) => setLyrics(e.target.value)}
           placeholder="Escribe la letra de la canción..."
-          rows={8}
+          rows={6}
         />
       </div>
 

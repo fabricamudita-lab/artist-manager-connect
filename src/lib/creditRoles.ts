@@ -295,3 +295,58 @@ export function getRolesByType(type: 'publishing' | 'master' | CreditCategory) {
   // Single category filter
   return ROLES_BY_CATEGORY.filter(g => g.category.id === type);
 }
+
+// ─── Distributor Category Mapping ────────────────────────────
+// Maps internal categories to distributor format (Ditto, DistroKid, etc.)
+export const DISTRIBUTOR_CATEGORY_MAP: Record<CreditCategory, string> = {
+  compositor: 'Composer',
+  autoria: 'Songwriter',
+  produccion: 'Production/Engineer',
+  interprete: 'Performer',
+  contribuidor: 'Contributor',
+};
+
+// Maps internal role values to distributor-standard English labels
+const DISTRIBUTOR_ROLE_MAP: Record<string, string> = {
+  compositor: 'Composer',
+  autor: 'Author',
+  letrista: 'Lyricist',
+  'co-autor': 'Co-Author',
+  arreglista: 'Arranger',
+  director_orquesta: 'Orchestra Conductor',
+  libretista: 'Librettist',
+  editorial: 'Publisher',
+  productor: 'Producer',
+  productor_asistente: 'Assistant Producer',
+  productor_ejecutivo: 'Executive Producer',
+  coproductor: 'Co-Producer',
+  ingeniero_mezcla: 'Mixing Engineer',
+  masterizador: 'Mastering Engineer',
+  ingeniero_sonido: 'Sound Engineer',
+  ingeniero_grabacion: 'Recording Engineer',
+  director_musical: 'Musical Director',
+  programador: 'Programmer',
+  mezclador: 'Mixer',
+  voz_principal: 'Lead Vocals',
+  vocalista: 'Vocalist',
+  interprete: 'Performer',
+  featured: 'Featured Artist',
+  coros: 'Background Vocals',
+  remixer: 'Remixer',
+  dj: 'DJ',
+};
+
+/**
+ * Get the distributor-standard English label for a role
+ */
+export function getDistributorRoleLabel(roleValue: string): string {
+  return DISTRIBUTOR_ROLE_MAP[roleValue.toLowerCase()] || getRoleLabel(roleValue);
+}
+
+/**
+ * Get the distributor category name for a role
+ */
+export function getDistributorCategory(roleValue: string): string {
+  const cat = getRoleCategory5(roleValue);
+  return cat ? DISTRIBUTOR_CATEGORY_MAP[cat] : 'Contributor';
+}
