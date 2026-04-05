@@ -179,7 +179,32 @@ export function exportLabelCopyPDF(
       y += 6;
     }
 
-    // Credits for this track
+    // Explicit flag
+    if (track.explicit) {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('🅴 Contiene letras explícitas', MARGIN_LEFT + 5, y);
+      y += 6;
+    }
+
+    // Copyright info
+    const copyrightLines: string[] = [];
+    if (track.c_copyright_holder) {
+      copyrightLines.push(`© ${track.c_copyright_year || ''} ${track.c_copyright_holder}`.trim());
+    }
+    if (track.p_copyright_holder) {
+      copyrightLines.push(`℗ ${track.p_production_year || ''} ${track.p_copyright_holder}`.trim());
+    }
+    if (copyrightLines.length > 0) {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      for (const line of copyrightLines) {
+        y = addPageIfNeeded(doc, y, 6);
+        doc.text(line, MARGIN_LEFT + 5, y);
+        y += 5;
+      }
+      y += 1;
+    }
     const trackCredits = credits.filter((c) => c.track_id === track.id);
 
     if (trackCredits.length > 0) {
