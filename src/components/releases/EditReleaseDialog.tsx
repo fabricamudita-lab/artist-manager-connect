@@ -39,6 +39,17 @@ interface EditReleaseDialogProps {
   release: Release | null;
 }
 
+const DITTO_GENRES = [
+  'African Dancehall','African Reggae','Afrikaans','Afro House','Afro Soul','Afro-Beat','Afro-folk','Afro-fusion','Afro-Pop','Afrobeats',
+  'Alte','Alternative','Alternative Rock','Amapiano','Axé','Baladas y Boleros','Big Band','Blues','Bossa Nova','Brazilian',
+  "Children's",'Chinese','Christian','Comedy','Contemporary Latin','Country','Easy Listening','Educational','Egyptian Pop','Electronic',
+  'Enka','Experimental','Fitness & Workout','Folk','Forró','French Pop','Frevo','Funk Brasileiro / Baile Funk',
+  'German Folk','German Pop','Gospel','Hip-Hop/Rap','Holiday','Inspirational','Instrumental','J-Pop','Jazz','K-Pop',
+  'Karaoke','Kayokyoku','Latin Jazz','Levant','Levant Pop','Maghreb Pop','Maghreb Rai','Matriz Africana','Metal','MPB',
+  'Nativista','New Age','Original Pilipino Music','Pagode','Pop','Pop Latino','Punjabi','Punk','R&B','Raices',
+  'Reggae','Regional Mexicano','Rock','Samba','Sertanejo','Singer/Songwriter','Soul','Soundtrack','Spoken Word','Trot','Vocal/Nostalgia',
+];
+
 const LANGUAGE_OPTIONS = [
   { value: 'es', label: 'Español' },
   { value: 'en', label: 'English' },
@@ -288,22 +299,30 @@ export default function EditReleaseDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="genre">Género Principal</Label>
-              <Input
-                id="genre"
-                value={genre}
-                onChange={(e) => setGenre(e.target.value)}
-                placeholder="Ej. Pop"
-              />
+              <Label>Género Principal</Label>
+              <Select value={genre} onValueChange={setGenre}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona género" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[280px]">
+                  {DITTO_GENRES.map((g) => (
+                    <SelectItem key={g} value={g}>{g}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="secondaryGenre">Género Secundario</Label>
-              <Input
-                id="secondaryGenre"
-                value={secondaryGenre}
-                onChange={(e) => setSecondaryGenre(e.target.value)}
-                placeholder="Ej. Indie Pop"
-              />
+              <Label>Género Secundario</Label>
+              <Select value={secondaryGenre} onValueChange={setSecondaryGenre}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona género" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[280px]">
+                  {DITTO_GENRES.map((g) => (
+                    <SelectItem key={g} value={g}>{g}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
