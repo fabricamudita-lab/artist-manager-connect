@@ -1014,6 +1014,7 @@ export function EditBookingDialog({
       </AlertDialogContent>
     </AlertDialog>
 
+    <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
