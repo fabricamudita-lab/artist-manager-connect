@@ -1,9 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DollarSign, ArrowRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
 
 const TYPE_LABELS: Record<string, string> = {
   concierto: 'Concierto',
@@ -18,7 +19,8 @@ interface Props {
 }
 
 export function ProjectLinkedBudgets({ projectId }: Props) {
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [selectedBudget, setSelectedBudget] = useState<any>(null);
 
   const { data: budgets } = useQuery({
     queryKey: ['project-budgets-linked', projectId],
@@ -49,11 +51,7 @@ export function ProjectLinkedBudgets({ projectId }: Props) {
           <Card
             key={budget.id}
             className="group cursor-pointer p-3 hover:ring-2 hover:ring-primary/50 transition-all"
-            onClick={() => {
-              // Budget detail is opened via dialog, not a route — for now just scroll/signal
-              // Navigate to finanzas with budget context
-              navigate(`/finanzas`);
-            }}
+            onClick={() => setSelectedBudget(budget)}
           >
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-md bg-gradient-to-br from-green-500/20 to-green-500/5 flex items-center justify-center shrink-0">
@@ -84,6 +82,14 @@ export function ProjectLinkedBudgets({ projectId }: Props) {
           </Card>
         ))}
       </div>
+      {selectedBudget && (
+        <BudgetDetailsDialog
+          open={!!selectedBudget}
+          onOpenChange={(open) => { if (!open) setSelectedBudget(null); }}
+          budget={selectedBudget}
+          onUpdate={() => queryClient.invalidateQueries({ queryKey: ['project-budgets-linked', projectId] })}
+        />
+      )}
     </div>
   );
 }
