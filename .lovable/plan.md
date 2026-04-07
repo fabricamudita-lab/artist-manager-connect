@@ -1,27 +1,31 @@
 
 
-## Hacer que la sección de presupuestos respete el modo de vista (filas/grid)
+## Duplicar presupuesto al duplicar evento de booking
 
 ### Problema
 
-`DriveBudgetsSection` siempre muestra los presupuestos como tarjetas en grid, ignorando el toggle grid/list de Carpetas.
+Hay dos caminos de duplicación y ambos fallan en duplicar presupuestos correctamente:
+
+1. **`BookingDetail.tsx` → `handleDuplicate`**: Hace un simple INSERT del booking sin tocar presupuestos en absoluto.
+2. **`duplicate_booking_deep` (RPC)**: Busca presupuestos por fuzzy match (artist_id + fecha + nombre/venue/city), pero **no busca por `booking_offer_id`** (el vínculo directo). Además, los presupuestos duplicados **no reciben el `booking_offer_id` del nuevo booking**, así que quedan sin vincular.
 
 ### Cambios
 
-**1. `DriveBudgetsSection.tsx` — Aceptar prop `viewMode`**
+**1. Migración SQL — Corregir `duplicate_booking_deep`**
 
-- Añadir prop `viewMode: 'grid' | 'list'` con default `'grid'`
-- En modo `grid`: mantener el layout actual de tarjetas
-- En modo `list`: renderizar como tabla/filas dentro de un `Card` con `divide-y`, mostrando icono + nombre + tipo + estado + fee en una sola fila horizontal (consistente con cómo se muestran los archivos en modo lista)
+Actualizar la función para:
+- Buscar presupuestos también por `booking_offer_id = p_booking_id` (vínculo directo), no solo por fuzzy match
+- Asignar `booking_offer_id = v_new_booking_id` en los presupuestos duplicados para que queden vinculados al nuevo booking
+- Quitar el prefijo "COPIA - " del nombre (el usuario quiere que sea idéntico)
 
-**2. `Carpetas.tsx` — Pasar `viewMode` al componente**
+**2. `BookingDetail.tsx` — Usar `duplicate_booking_deep` en vez de insert manual**
 
-- Cambiar la línea 952: `<DriveBudgetsSection artistId={selectedArtist.id} viewMode={viewMode} />`
+Reemplazar `handleDuplicate` para que llame a `supabase.rpc('duplicate_booking_deep', { p_booking_id, p_user_id })`. Esto unifica los dos caminos y asegura que siempre se dupliquen presupuestos, roadmaps, documentos, gastos e itinerario.
 
 ### Archivos afectados
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/drive/DriveBudgetsSection.tsx` | Añadir prop `viewMode` y renderizado condicional lista/grid |
-| `src/pages/Carpetas.tsx` | Pasar `viewMode` como prop |
+| Nueva migración SQL | Actualizar `duplicate_booking_deep` para buscar por `booking_offer_id` y vincular presupuestos al nuevo booking |
+| `src/pages/BookingDetail.tsx` | Reemplazar insert manual por `supabase.rpc('duplicate_booking_deep')` |
 
