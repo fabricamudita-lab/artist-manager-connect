@@ -153,6 +153,9 @@ export function EditBookingDialog({
   const [artistFormats, setArtistFormats] = useState<string[]>([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showPastDateWarning, setShowPastDateWarning] = useState(false);
+  const [showFeeWarning, setShowFeeWarning] = useState(false);
+  const [linkedBudgetCount, setLinkedBudgetCount] = useState(0);
+  const [pendingSavePhase, setPendingSavePhase] = useState<string | null | undefined>(undefined);
   const { syncBookingFolder } = useBookingFolderAutomation();
 
   useEffect(() => {
