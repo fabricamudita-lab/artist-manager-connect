@@ -68,6 +68,7 @@ import { useArtistSubfolders, DEFAULT_SUBFOLDERS } from '@/hooks/useArtistSubfol
 import { FileExplorer } from '@/components/drive/FileExplorer';
 import { ConciertosView } from '@/components/drive/ConciertosView';
 import { usePublicFileSharing } from '@/hooks/usePublicFileSharing';
+import { DriveBudgetsSection } from '@/components/drive/DriveBudgetsSection';
 import {
   Dialog,
   DialogContent,
