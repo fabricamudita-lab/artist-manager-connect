@@ -309,6 +309,19 @@ export function EditBookingDialog({
 
       if (error) throw error;
 
+      // Sync fee to linked budgets if it changed
+      if (formData.fee !== booking.fee) {
+        const { error: budgetError } = await supabase
+          .from('budgets')
+          .update({ fee: formData.fee })
+          .eq('booking_offer_id', booking.id);
+        
+        if (budgetError) {
+          console.error('Error syncing fee to budgets:', budgetError);
+          toast.error('Booking guardado, pero hubo un error al sincronizar el caché del presupuesto');
+        }
+      }
+
       // Trigger folder automation if status changed to confirmado
       if (data) {
         await syncBookingFolder(booking as any, data);
