@@ -210,29 +210,21 @@ export default function BookingDetail() {
     if (!booking) return;
     setIsDuplicating(true);
     try {
-      const {
-        id,
-        created_at,
-        ...bookingData
-      } = booking;
-      const duplicatedBooking = {
-        ...bookingData,
-        phase: 'interes',
-        created_by: bookingData.created_by || 'unknown'
-      };
-      const {
-        data,
-        error
-      } = await supabase.from('booking_offers').insert([duplicatedBooking]).select().single();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
+      const { data, error } = await supabase.rpc('duplicate_booking_deep', {
+        p_booking_id: booking.id,
+        p_user_id: user.id
+      });
       if (error) throw error;
       toast({
         title: "Evento duplicado",
-        description: "El evento se ha duplicado correctamente. Redirigiendo..."
+        description: "El evento se ha duplicado correctamente con presupuestos, roadmaps y documentos. Redirigiendo..."
       });
 
-      // Navigate to the new duplicated booking
-      if (data?.id) {
-        navigate(`/booking/${data.id}`);
+      if (data) {
+        navigate(`/booking/${data}`);
       }
     } catch (error) {
       console.error('Error duplicating booking:', error);
