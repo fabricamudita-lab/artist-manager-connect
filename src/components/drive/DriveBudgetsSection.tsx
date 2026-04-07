@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { DollarSign, ArrowRight } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { DollarSign, ArrowRight } from 'lucide-react';
 import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
+
+interface Props {
+  artistId: string;
+}
 
 const TYPE_LABELS: Record<string, string> = {
   concierto: 'Concierto',
@@ -14,27 +18,22 @@ const TYPE_LABELS: Record<string, string> = {
   otros: 'Otros',
 };
 
-interface Props {
-  projectId: string;
-}
-
-export function ProjectLinkedBudgets({ projectId }: Props) {
+export function DriveBudgetsSection({ artistId }: Props) {
   const queryClient = useQueryClient();
   const [selectedBudget, setSelectedBudget] = useState<any>(null);
 
   const { data: budgets } = useQuery({
-    queryKey: ['project-budgets-linked', projectId],
+    queryKey: ['drive-budgets', artistId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('budgets')
-        .select('id, name, type, fee, show_status, budget_status')
-        .eq('project_id', projectId)
+        .select('id, name, type, fee, show_status, budget_status, city, venue, event_date, event_time, country, internal_notes, created_at, artist_id, expense_budget, formato')
+        .eq('artist_id', artistId)
         .order('created_at', { ascending: false });
-
       if (error) throw error;
       return data || [];
     },
-    enabled: !!projectId,
+    enabled: !!artistId,
   });
 
   if (!budgets || budgets.length === 0) return null;
@@ -42,8 +41,8 @@ export function ProjectLinkedBudgets({ projectId }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <DollarSign className="w-4 h-4 text-green-500" />
-        <h3 className="text-sm font-semibold">Presupuestos vinculados</h3>
+        <DollarSign className="w-4 h-4 text-primary" />
+        <h3 className="text-sm font-semibold">Presupuestos</h3>
         <Badge variant="secondary" className="text-[10px]">{budgets.length}</Badge>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -54,8 +53,8 @@ export function ProjectLinkedBudgets({ projectId }: Props) {
             onClick={() => setSelectedBudget(budget)}
           >
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-md bg-gradient-to-br from-green-500/20 to-green-500/5 flex items-center justify-center shrink-0">
-                <DollarSign className="w-5 h-5 text-green-500/70" />
+              <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                <DollarSign className="w-5 h-5 text-primary/70" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
@@ -82,12 +81,13 @@ export function ProjectLinkedBudgets({ projectId }: Props) {
           </Card>
         ))}
       </div>
+
       {selectedBudget && (
         <BudgetDetailsDialog
           open={!!selectedBudget}
           onOpenChange={(open) => { if (!open) setSelectedBudget(null); }}
           budget={selectedBudget}
-          onUpdate={() => queryClient.invalidateQueries({ queryKey: ['project-budgets-linked', projectId] })}
+          onUpdate={() => queryClient.invalidateQueries({ queryKey: ['drive-budgets', artistId] })}
         />
       )}
     </div>

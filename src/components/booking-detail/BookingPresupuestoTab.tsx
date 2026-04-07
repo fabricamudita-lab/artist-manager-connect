@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +10,7 @@ import {
   CreditCard, AlertTriangle, CheckCircle2, Link as LinkIcon 
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -50,9 +50,9 @@ export function BookingPresupuestoTab({
   eventCity, eventVenue, fee, formato
 }: BookingPresupuestoTabProps) {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
+  const [selectedBudgetForDialog, setSelectedBudgetForDialog] = useState<any>(null);
 
   // Fetch budgets linked to this booking (directly or via project)
   const { data, isLoading } = useQuery({
@@ -281,7 +281,7 @@ export function BookingPresupuestoTab({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate(`/finanzas?budgetId=${budget.id}`)}
+                onClick={() => setSelectedBudgetForDialog(budget)}
               >
                 <ExternalLink className="h-4 w-4 mr-1" />
                 Abrir presupuesto completo
@@ -391,6 +391,15 @@ export function BookingPresupuestoTab({
             {createBudget.isPending ? 'Creando...' : 'Nuevo presupuesto'}
           </Button>
         </div>
+      )}
+
+      {selectedBudgetForDialog && (
+        <BudgetDetailsDialog
+          open={!!selectedBudgetForDialog}
+          onOpenChange={(open) => { if (!open) setSelectedBudgetForDialog(null); }}
+          budget={selectedBudgetForDialog}
+          onUpdate={() => queryClient.invalidateQueries({ queryKey: ['booking-budgets', bookingId, projectId] })}
+        />
       )}
     </div>
   );
