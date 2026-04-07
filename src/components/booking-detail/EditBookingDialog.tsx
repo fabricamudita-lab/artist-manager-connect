@@ -223,8 +223,27 @@ export function EditBookingDialog({
     await saveBooking(formData.phase);
   };
 
+  const proceedAfterFeeWarning = async () => {
+    setShowFeeWarning(false);
+    const phaseChangedToConfirmado = formData.phase === 'confirmado' && booking.phase !== 'confirmado';
+    if (phaseChangedToConfirmado) {
+      setShowConfirmDialog(true);
+      return;
+    }
+    await saveBooking(pendingSavePhase);
+  };
+
   const proceedAfterPastDateWarning = async () => {
     setShowPastDateWarning(false);
+
+    // Check fee warning after past date warning
+    const feeChanged = formData.fee !== booking.fee;
+    if (feeChanged && linkedBudgetCount > 0) {
+      setPendingSavePhase(formData.phase);
+      setShowFeeWarning(true);
+      return;
+    }
+
     const phaseChangedToConfirmado = formData.phase === 'confirmado' && booking.phase !== 'confirmado';
     if (phaseChangedToConfirmado) {
       setShowConfirmDialog(true);
