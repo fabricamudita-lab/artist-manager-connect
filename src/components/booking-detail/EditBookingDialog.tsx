@@ -991,7 +991,29 @@ export function EditBookingDialog({
       </AlertDialogContent>
     </AlertDialog>
 
-    <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+    <AlertDialog open={showFeeWarning} onOpenChange={setShowFeeWarning}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-warning" />
+            Cambio de fee detectado
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-left">
+            El fee ha cambiado de €{(booking.fee ?? 0).toLocaleString()} a €{(formData.fee ?? 0).toLocaleString()}. 
+            Esto actualizará el Caché en {linkedBudgetCount} presupuesto{linkedBudgetCount > 1 ? 's' : ''} vinculado{linkedBudgetCount > 1 ? 's' : ''}. ¿Deseas continuar?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => setShowFeeWarning(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={proceedAfterFeeWarning} disabled={loading}>
+            Actualizar fee y presupuestos
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
