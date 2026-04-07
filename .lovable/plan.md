@@ -1,57 +1,27 @@
 
 
-## Unificar el sistema de presupuestos en todos los puntos de acceso
+## Hacer que la sección de presupuestos respete el modo de vista (filas/grid)
 
-### Problema actual
+### Problema
 
-El mismo presupuesto se muestra de formas distintas según desde dónde se acceda:
-
-- **Drive** ("Presupuestos y Facturas"): solo cuenta archivos subidos, no muestra los presupuestos reales de la tabla `budgets`
-- **Booking detail** (pestaña Presupuesto): muestra KPIs y desglose resumido, pero "Abrir presupuesto completo" redirige a `/finanzas` sin contexto
-- **Project detail** (pestaña Presupuestos): lista simple con botón "Ver" que abre `BudgetDetailsDialog`
-- **ProjectLinkedBudgets** (sidebar del proyecto): al hacer clic redirige a `/finanzas` sin abrir nada concreto
-- **Finanzas**: tabla completa con `BudgetDetailsDialog`
-
-### Solución: `BudgetDetailsDialog` como punto de acceso universal
-
-El componente `BudgetDetailsDialog` ya existe y es completo. La estrategia es usarlo consistentemente en todos los puntos de acceso, eliminando las redirecciones ciegas a `/finanzas`.
+`DriveBudgetsSection` siempre muestra los presupuestos como tarjetas en grid, ignorando el toggle grid/list de Carpetas.
 
 ### Cambios
 
-**1. `ProjectLinkedBudgets.tsx` — Abrir dialog en vez de navegar a /finanzas**
+**1. `DriveBudgetsSection.tsx` — Aceptar prop `viewMode`**
 
-- Importar `BudgetDetailsDialog`
-- Añadir estado `selectedBudget` para controlar qué presupuesto se muestra
-- Al hacer clic en una tarjeta, `setSelectedBudget(budget)` en vez de `navigate('/finanzas')`
-- Renderizar `BudgetDetailsDialog` con el presupuesto seleccionado
+- Añadir prop `viewMode: 'grid' | 'list'` con default `'grid'`
+- En modo `grid`: mantener el layout actual de tarjetas
+- En modo `list`: renderizar como tabla/filas dentro de un `Card` con `divide-y`, mostrando icono + nombre + tipo + estado + fee en una sola fila horizontal (consistente con cómo se muestran los archivos en modo lista)
 
-**2. `BookingPresupuestoTab.tsx` — Abrir dialog en vez de navegar a /finanzas**
+**2. `Carpetas.tsx` — Pasar `viewMode` al componente**
 
-- Importar `BudgetDetailsDialog`
-- Añadir estado `selectedBudgetForDialog`
-- Cambiar el botón "Abrir presupuesto completo" para abrir el dialog
-- Mantener los KPIs como resumen rápido, con el dialog para edición completa
-
-**3. `ProjectDetail.tsx` (pestaña Presupuestos) — Ya usa `BudgetDetailsDialog`**
-
-- Verificar que `setSelectedBudget(budget)` pasa el budget completo (actualmente parece funcionar)
-- Sin cambios necesarios si ya abre el dialog correctamente
-
-**4. Drive / Carpetas — Mostrar presupuestos reales en la categoría "Presupuestos y Facturas"**
-
-- En `Carpetas.tsx`, cuando `selectedCategory === 'economia'`, además de los archivos subidos, consultar `budgets` filtrados por `artist_id`
-- Mostrar una sección superior con tarjetas de presupuestos reales (similar a como se muestran en el proyecto), cada una abriendo `BudgetDetailsDialog`
-- Debajo, los archivos normales de la categoría (facturas, liquidaciones subidas manualmente)
+- Cambiar la línea 952: `<DriveBudgetsSection artistId={selectedArtist.id} viewMode={viewMode} />`
 
 ### Archivos afectados
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/project-detail/ProjectLinkedBudgets.tsx` | Abrir `BudgetDetailsDialog` en vez de navegar |
-| `src/components/booking-detail/BookingPresupuestoTab.tsx` | Abrir `BudgetDetailsDialog` en vez de navegar |
-| `src/pages/Carpetas.tsx` | Añadir sección de presupuestos reales en categoría "economia" |
-
-### Resultado
-
-Da igual desde donde accedas (Drive, Booking, Proyecto, Finanzas): al hacer clic en un presupuesto siempre se abre el mismo `BudgetDetailsDialog` con la información completa y editable.
+| `src/components/drive/DriveBudgetsSection.tsx` | Añadir prop `viewMode` y renderizado condicional lista/grid |
+| `src/pages/Carpetas.tsx` | Pasar `viewMode` como prop |
 
