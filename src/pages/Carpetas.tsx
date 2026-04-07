@@ -949,7 +949,7 @@ export default function Carpetas() {
 
         {/* Budgets section for economia category */}
         {selectedCategory === 'economia' && selectedArtist && !currentFolderId && (
-          <DriveBudgetsSection artistId={selectedArtist.id} />
+          <DriveBudgetsSection artistId={selectedArtist.id} viewMode={viewMode} />
         )}
 
         {/* Files */}

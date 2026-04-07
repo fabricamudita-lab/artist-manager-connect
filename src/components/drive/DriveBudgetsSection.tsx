@@ -8,6 +8,7 @@ import BudgetDetailsDialog from '@/components/BudgetDetailsDialog';
 
 interface Props {
   artistId: string;
+  viewMode?: 'grid' | 'list';
 }
 
 const TYPE_LABELS: Record<string, string> = {
