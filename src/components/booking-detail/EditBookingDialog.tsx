@@ -198,6 +198,22 @@ export function EditBookingDialog({
       return;
     }
 
+    // Check if fee changed and there are linked budgets
+    const feeChanged = formData.fee !== booking.fee;
+    if (feeChanged) {
+      const { count } = await supabase
+        .from('budgets')
+        .select('id', { count: 'exact', head: true })
+        .eq('booking_offer_id', booking.id);
+      
+      if (count && count > 0) {
+        setLinkedBudgetCount(count);
+        setPendingSavePhase(formData.phase);
+        setShowFeeWarning(true);
+        return;
+      }
+    }
+
     // If phase changed to confirmado and it wasn't already confirmado, show confirmation dialog
     const phaseChangedToConfirmado = formData.phase === 'confirmado' && booking.phase !== 'confirmado';
     if (phaseChangedToConfirmado) {
