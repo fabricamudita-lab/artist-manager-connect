@@ -153,6 +153,9 @@ export function EditBookingDialog({
   const [artistFormats, setArtistFormats] = useState<string[]>([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showPastDateWarning, setShowPastDateWarning] = useState(false);
+  const [showFeeWarning, setShowFeeWarning] = useState(false);
+  const [linkedBudgetCount, setLinkedBudgetCount] = useState(0);
+  const [pendingSavePhase, setPendingSavePhase] = useState<string | null | undefined>(undefined);
   const { syncBookingFolder } = useBookingFolderAutomation();
 
   useEffect(() => {
@@ -195,6 +198,22 @@ export function EditBookingDialog({
       return;
     }
 
+    // Check if fee changed and there are linked budgets
+    const feeChanged = formData.fee !== booking.fee;
+    if (feeChanged) {
+      const { count } = await supabase
+        .from('budgets')
+        .select('id', { count: 'exact', head: true })
+        .eq('booking_offer_id', booking.id);
+      
+      if (count && count > 0) {
+        setLinkedBudgetCount(count);
+        setPendingSavePhase(formData.phase);
+        setShowFeeWarning(true);
+        return;
+      }
+    }
+
     // If phase changed to confirmado and it wasn't already confirmado, show confirmation dialog
     const phaseChangedToConfirmado = formData.phase === 'confirmado' && booking.phase !== 'confirmado';
     if (phaseChangedToConfirmado) {
@@ -204,8 +223,27 @@ export function EditBookingDialog({
     await saveBooking(formData.phase);
   };
 
+  const proceedAfterFeeWarning = async () => {
+    setShowFeeWarning(false);
+    const phaseChangedToConfirmado = formData.phase === 'confirmado' && booking.phase !== 'confirmado';
+    if (phaseChangedToConfirmado) {
+      setShowConfirmDialog(true);
+      return;
+    }
+    await saveBooking(pendingSavePhase);
+  };
+
   const proceedAfterPastDateWarning = async () => {
     setShowPastDateWarning(false);
+
+    // Check fee warning after past date warning
+    const feeChanged = formData.fee !== booking.fee;
+    if (feeChanged && linkedBudgetCount > 0) {
+      setPendingSavePhase(formData.phase);
+      setShowFeeWarning(true);
+      return;
+    }
+
     const phaseChangedToConfirmado = formData.phase === 'confirmado' && booking.phase !== 'confirmado';
     if (phaseChangedToConfirmado) {
       setShowConfirmDialog(true);
@@ -289,6 +327,19 @@ export function EditBookingDialog({
         .single();
 
       if (error) throw error;
+
+      // Sync fee to linked budgets if it changed
+      if (formData.fee !== booking.fee) {
+        const { error: budgetError } = await supabase
+          .from('budgets')
+          .update({ fee: formData.fee })
+          .eq('booking_offer_id', booking.id);
+        
+        if (budgetError) {
+          console.error('Error syncing fee to budgets:', budgetError);
+          toast.error('Booking guardado, pero hubo un error al sincronizar el caché del presupuesto');
+        }
+      }
 
       // Trigger folder automation if status changed to confirmado
       if (data) {
@@ -935,6 +986,29 @@ export function EditBookingDialog({
           </Button>
           <Button onClick={proceedAfterPastDateWarning} disabled={loading}>
             Aceptar y guardar
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={showFeeWarning} onOpenChange={setShowFeeWarning}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-warning" />
+            Cambio de fee detectado
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-left">
+            El fee ha cambiado de €{(booking.fee ?? 0).toLocaleString()} a €{(formData.fee ?? 0).toLocaleString()}. 
+            Esto actualizará el Caché en {linkedBudgetCount} presupuesto{linkedBudgetCount > 1 ? 's' : ''} vinculado{linkedBudgetCount > 1 ? 's' : ''}. ¿Deseas continuar?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => setShowFeeWarning(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={proceedAfterFeeWarning} disabled={loading}>
+            Actualizar fee y presupuestos
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
