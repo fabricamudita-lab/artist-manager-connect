@@ -61,7 +61,7 @@ export function BookingPresupuestoTab({
       // 1. Direct link via booking_offer_id
       const { data: directBudgets } = await supabase
         .from('budgets')
-        .select('id, name, fee, expense_budget, budget_status, booking_offer_id, project_id')
+        .select('id, name, type, fee, expense_budget, budget_status, booking_offer_id, project_id, city, country, venue, show_status, internal_notes, created_at, artist_id, event_date, event_time, formato')
         .eq('booking_offer_id', bookingId);
 
       // 2. Project-linked budgets (if project exists)
@@ -69,7 +69,7 @@ export function BookingPresupuestoTab({
       if (projectId) {
         const { data: pBudgets } = await supabase
           .from('budgets')
-          .select('id, name, fee, expense_budget, budget_status, booking_offer_id, project_id')
+          .select('id, name, type, fee, expense_budget, budget_status, booking_offer_id, project_id, city, country, venue, show_status, internal_notes, created_at, artist_id, event_date, event_time, formato')
           .eq('project_id', projectId)
           .eq('type', 'concierto');
         projectBudgets = pBudgets || [];
@@ -86,7 +86,7 @@ export function BookingPresupuestoTab({
         if (orConditions) {
           const { data: fBudgets } = await supabase
             .from('budgets')
-            .select('id, name, fee, expense_budget, budget_status, booking_offer_id, project_id')
+            .select('id, name, type, fee, expense_budget, budget_status, booking_offer_id, project_id, city, country, venue, show_status, internal_notes, created_at, artist_id, event_date, event_time, formato')
             .eq('artist_id', artistId)
             .or(orConditions);
           fuzzyBudgets = fBudgets || [];
