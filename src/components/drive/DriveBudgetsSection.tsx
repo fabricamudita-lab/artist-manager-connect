@@ -19,7 +19,7 @@ const TYPE_LABELS: Record<string, string> = {
   otros: 'Otros',
 };
 
-export function DriveBudgetsSection({ artistId }: Props) {
+export function DriveBudgetsSection({ artistId, viewMode = 'grid' }: Props) {
   const queryClient = useQueryClient();
   const [selectedBudget, setSelectedBudget] = useState<any>(null);
 
