@@ -1,40 +1,57 @@
 
 
-## Corregir exportación PDF de presupuestos: desglose por categorías
+## Incluir los 3 gráficos en el PDF descargado del presupuesto
 
-### Problema
-El PDF exportado muestra el 96.5% de los ítems como "Sin categoría" porque la función `downloadPDF` usa `item.category` (campo de texto legacy) en lugar de `item.budget_categories?.name` (la relación real usada en la UI). Además, el usuario quiere reorganizar el orden de las secciones.
+### Enfoque
+Usar `html2canvas` (ya instalado) para capturar cada gráfico directamente del DOM y embeber las imágenes en el PDF. Esto garantiza que los gráficos del PDF sean idénticos a los de la UI.
 
-### Causa raíz
-En `BudgetDetailsDialog.tsx`, línea 2214:
-```
-const cat = item.category || 'Sin categoría';
-```
-Debería ser:
-```
-const cat = item.budget_categories?.name || item.category || 'Sin categoría';
-```
-Este mismo error aparece en las líneas 2214, 2267-2268 (desglose por categorías) y en el export Excel (~línea 2392, 2411).
+### Cambios en `src/components/BudgetDetailsDialog.tsx`
 
-### Cambios
+1. **Hacer `downloadPDF` asíncrono** (`async`), ya que `html2canvas` es asíncrono.
 
-**Archivo: `src/components/BudgetDetailsDialog.tsx`**
+2. **Añadir refs a los contenedores de los gráficos** en la sección "overview":
+   - Un `ref` para el contenedor del gráfico de categorías (donut/barras/cascada).
+   - Un `ref` para la tabla resumen por categorías.
 
-1. **Función `downloadPDF`** (~líneas 2112-2339):
-   - Corregir la resolución de categoría en todas las agrupaciones para usar `item.budget_categories?.name || item.category || 'Sin categoría'`.
-   - Reorganizar secciones del PDF:
-     1. Titulo + info evento (ya existe)
-     2. Resumen financiero (ya existe)
-     3. **Resumen por categoría** (tabla con: Categoría, N elementos, Confirmado/Provisional, Total Neto, %)
-     4. **Desglose completo por categoría** (cada categoría con sus ítems detallados)
-   - Usar `budgetCategories` (ya disponible en el estado) para ordenar las categorías según su `sort_order` real en vez de `getCategorySortPriority`.
-   - Incluir el total general al final de la tabla de detalle.
+3. **Antes de generar el PDF, renderizar temporalmente los 3 gráficos**:
+   - Crear un contenedor oculto (`position: absolute, left: -9999px`) con los 3 gráficos renderizados simultáneamente (donut, barras, cascada).
+   - Usar `html2canvas` para capturar cada uno como imagen PNG.
+   - Alternativa más simple: capturar el gráfico actual visible en el DOM y solo incluir ese. Pero el usuario quiere los 3.
 
-2. **Función `downloadExcel`** (~líneas 2341-2450):
-   - Misma corrección de resolución de categoría: usar `budget_categories?.name` como prioridad.
+4. **Estrategia de renderizado para los 3 gráficos**:
+   - Temporalmente cambiar `chartViewMode` para renderizar cada vista, capturar con `html2canvas`, y restaurar.
+   - **Mejor alternativa**: Dibujar versiones simplificadas directamente con jsPDF:
+     - **Donut**: Dibujar un donut con `doc.circle()` y segmentos coloreados (complejo).
+     - **Barras**: Dibujar rectángulos horizontales con `doc.rect()` y `doc.setFillColor()`.
+     - **Cascada**: Dibujar barras verticales apiladas.
 
-### Resultado esperado
-- El PDF exportado refleja las mismas categorías que se ven en la UI (Músicos, Producción, Dietas, etc.).
-- El orden es: Resumen financiero → Resumen por categoría → Desglose completo.
-- El Excel también muestra las categorías correctas.
+   La opción más fiable y limpia: **dibujar los gráficos con primitivas de jsPDF**, usando los mismos datos que ya calcula `getCategoryBarData()`.
+
+### Gráficos a incluir en el PDF (después del resumen financiero, antes de la tabla de categorías)
+
+**1. Gráfico de barras horizontales** (más representativo en PDF):
+- Para cada categoría con gastos > 0: rectángulo proporcional con segmentos de color (verde=pagado, gris=comprometido, ámbar=provisional).
+- Nombre de categoría a la izquierda, importe y % a la derecha.
+- Leyenda debajo.
+
+**2. Gráfico de cascada simplificado**:
+- Barra verde "Capital" a la izquierda.
+- Barras rojas por categoría (de mayor a menor).
+- Barra verde/roja "Disponible" al final.
+- Etiquetas con importes encima de cada barra.
+
+**3. Donut simplificado**:
+- Dibujar arcos de círculo con `doc.setFillColor` + path commands, o usar un enfoque más simple: mostrar el donut como una tabla visual con colores (cuadrados de color + nombre + % + importe).
+
+### Enfoque final recomendado
+Dado que dibujar un donut real con jsPDF es complejo y propenso a errores, la propuesta es:
+
+1. **Barras horizontales**: Dibujar con `doc.rect()` - sencillo y muy informativo.
+2. **Cascada**: Dibujar con `doc.rect()` barras verticales - sencillo.
+3. **Donut**: Representar como tabla visual con cuadrados de color (como leyenda extendida) ya que el resumen por categoría con % ya existe como tabla.
+
+Los 3 gráficos se insertan en una nueva página entre el resumen financiero y la tabla de categorías.
+
+### Archivo afectado
+- `src/components/BudgetDetailsDialog.tsx` (función `downloadPDF`)
 
