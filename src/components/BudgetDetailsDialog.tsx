@@ -2204,9 +2204,224 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.line(margin, yPos, pageWidth - margin, yPos);
     yPos += 8;
     
+    // ==========================================
+    // GRÁFICOS VISUALES
+    // ==========================================
+    const chartColors = [
+      '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
+      '#f97316', '#06b6d4', '#84cc16', '#ec4899', '#6366f1'
+    ];
+    const barData = getCategoryBarData();
+    const chartDataRaw = getGroupedChartData();
+    const grandChartTotal = chartDataRaw.reduce((s, d) => s + d.value, 0);
+    
+    // Helper: hex to RGB
+    const hexToRgb = (hex: string) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return [r, g, b] as [number, number, number];
+    };
+
+    // --- GRÁFICO 1: BARRAS HORIZONTALES ---
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Distribución por Categoría', margin, yPos);
+    yPos += 6;
+    
+    const maxBarTotal = Math.max(...barData.map(c => c.total), 1);
+    const barAreaWidth = pageWidth - margin * 2 - 50; // leave space for labels
+    const barH = 5;
+    const barGap = 7;
+    
+    barData.forEach((cat, idx) => {
+      // Check page break
+      if (yPos + barGap > 270) { doc.addPage(); yPos = 15; }
+      
+      // Category name
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60);
+      const catLabel = cat.name.length > 18 ? cat.name.substring(0, 18) + '…' : cat.name;
+      doc.text(catLabel, margin, yPos + barH - 1);
+      
+      const barX = margin + 42;
+      const fullW = (cat.total / maxBarTotal) * (barAreaWidth - 10);
+      
+      // Paid segment (green)
+      if (cat.paid > 0) {
+        const w = (cat.paid / cat.total) * fullW;
+        doc.setFillColor(34, 197, 94);
+        doc.rect(barX, yPos, w, barH, 'F');
+      }
+      // Confirmed segment (gray)
+      if (cat.confirmed > 0) {
+        const x = barX + (cat.paid / cat.total) * fullW;
+        const w = (cat.confirmed / cat.total) * fullW;
+        doc.setFillColor(156, 163, 175);
+        doc.rect(x, yPos, w, barH, 'F');
+      }
+      // Provisional segment (amber)
+      if (cat.provisional > 0) {
+        const x = barX + ((cat.paid + cat.confirmed) / cat.total) * fullW;
+        const w = (cat.provisional / cat.total) * fullW;
+        doc.setFillColor(251, 191, 36);
+        doc.rect(x, yPos, w, barH, 'F');
+      }
+      
+      // Amount label
+      doc.setFontSize(7);
+      doc.setTextColor(80);
+      doc.text(`${cat.total.toLocaleString('es-ES')} €`, barX + fullW + 2, yPos + barH - 1);
+      
+      yPos += barGap;
+    });
+    
+    // Legend
+    yPos += 2;
+    doc.setFontSize(6);
+    doc.setTextColor(100);
+    const legendItems = [
+      { label: 'Pagado', color: [34, 197, 94] as [number, number, number] },
+      { label: 'Comprometido', color: [156, 163, 175] as [number, number, number] },
+      { label: 'Provisional', color: [251, 191, 36] as [number, number, number] },
+    ];
+    let legendX = margin;
+    legendItems.forEach(li => {
+      doc.setFillColor(...li.color);
+      doc.rect(legendX, yPos - 2, 3, 3, 'F');
+      doc.text(li.label, legendX + 4, yPos);
+      legendX += doc.getTextWidth(li.label) + 8;
+    });
+    yPos += 8;
+    
+    // --- GRÁFICO 2: DONUT (representado como leyenda visual con cuadrados de color) ---
+    if (yPos > 230) { doc.addPage(); yPos = 15; }
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    doc.text('Distribución de Gastos', margin, yPos);
+    yPos += 6;
+    
+    // Draw a mini visual: colored squares with category name, amount, percentage
+    chartDataRaw.forEach((d, idx) => {
+      if (yPos > 270) { doc.addPage(); yPos = 15; }
+      const pct = grandChartTotal > 0 ? ((d.value / grandChartTotal) * 100).toFixed(1) : '0.0';
+      const rgb = hexToRgb(d.color);
+      
+      // Color square
+      doc.setFillColor(...rgb);
+      doc.rect(margin, yPos - 3, 4, 4, 'F');
+      
+      // Name
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(40);
+      doc.text(d.name, margin + 6, yPos);
+      
+      // Amount and percentage
+      doc.setTextColor(100);
+      doc.text(`€${d.value.toLocaleString('es-ES', { minimumFractionDigits: 2 })}  (${pct}%)`, margin + 55, yPos);
+      
+      // Simple proportional bar
+      const barW = 60;
+      const filledW = grandChartTotal > 0 ? (d.value / grandChartTotal) * barW : 0;
+      doc.setFillColor(230, 230, 230);
+      doc.rect(margin + 110, yPos - 3, barW, 3.5, 'F');
+      doc.setFillColor(...rgb);
+      doc.rect(margin + 110, yPos - 3, filledW, 3.5, 'F');
+      
+      yPos += 6;
+    });
+    
+    // Total
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    doc.text(`Total: €${grandChartTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`, margin + 6, yPos);
+    yPos += 10;
+    
+    // --- GRÁFICO 3: CASCADA (WATERFALL) ---
+    if (yPos > 180) { doc.addPage(); yPos = 15; }
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    doc.text('Cascada de Capital', margin, yPos);
+    yPos += 8;
+    
+    const capital = budgetAmount;
+    let running = capital;
+    const wfData: { name: string; value: number; runningAfter: number; isPositive: boolean }[] = [];
+    wfData.push({ name: 'Capital', value: capital, runningAfter: capital, isPositive: true });
+    barData.forEach(cat => {
+      running -= cat.total;
+      wfData.push({ name: cat.name, value: cat.total, runningAfter: running, isPositive: false });
+    });
+    const available = running;
+    wfData.push({ name: 'Disponible', value: Math.abs(available), runningAfter: available, isPositive: available >= 0 });
+    
+    const wfMaxVal = Math.max(capital, ...wfData.map(d => Math.abs(d.runningAfter)));
+    const wfChartW = pageWidth - margin * 2;
+    const wfChartH = 50;
+    const wfBarW = Math.min(18, (wfChartW - 10) / wfData.length - 2);
+    const wfBaseY = yPos + wfChartH;
+    
+    // Draw baseline
+    doc.setDrawColor(180);
+    doc.setLineWidth(0.3);
+    doc.line(margin, wfBaseY, margin + wfChartW, wfBaseY);
+    
+    wfData.forEach((d, idx) => {
+      const x = margin + 5 + idx * ((wfChartW - 10) / wfData.length);
+      
+      let barTop: number, barHeight: number;
+      if (idx === 0 || idx === wfData.length - 1) {
+        // Capital or Disponible: bar from baseline up
+        barHeight = wfMaxVal > 0 ? (d.value / wfMaxVal) * (wfChartH - 10) : 0;
+        barTop = wfBaseY - barHeight;
+        doc.setFillColor(d.isPositive ? 34 : 239, d.isPositive ? 197 : 68, d.isPositive ? 94 : 68);
+      } else {
+        // Expense: bar hanging from running position
+        const topOfBar = wfMaxVal > 0 ? wfBaseY - ((d.runningAfter + d.value) / wfMaxVal) * (wfChartH - 10) : wfBaseY;
+        barHeight = wfMaxVal > 0 ? (d.value / wfMaxVal) * (wfChartH - 10) : 0;
+        barTop = topOfBar;
+        doc.setFillColor(239, 68, 68);
+      }
+      
+      if (barHeight > 0.5) {
+        doc.rect(x, barTop, wfBarW, barHeight, 'F');
+      }
+      
+      // Value label above bar
+      doc.setFontSize(5.5);
+      doc.setTextColor(60);
+      const valLabel = `€${d.value.toLocaleString('es-ES')}`;
+      doc.text(valLabel, x + wfBarW / 2, barTop - 1.5, { align: 'center' });
+      
+      // Name label below baseline
+      doc.setFontSize(5);
+      doc.setTextColor(100);
+      const nameLabel = d.name.length > 10 ? d.name.substring(0, 10) + '…' : d.name;
+      doc.text(nameLabel, x + wfBarW / 2, wfBaseY + 4, { align: 'center' });
+    });
+    
+    yPos = wfBaseY + 12;
+    
+    // ==========================================
+    // FIN GRÁFICOS
+    // ==========================================
+    
+    // Línea separadora
+    doc.setDrawColor(200);
+    doc.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 8;
+    
     // Desglose por categorías
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
     doc.text('DESGLOSE POR CATEGORÍAS', margin, yPos);
     yPos += 8;
     
