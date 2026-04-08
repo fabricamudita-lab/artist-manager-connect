@@ -2211,16 +2211,29 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     yPos += 8;
     
     const categoryTotals = items.reduce((acc, item) => {
-      const cat = item.category || 'Sin categoría';
-      if (!acc[cat]) acc[cat] = { neto: 0, count: 0 };
-      acc[cat].neto += item.unit_price * item.quantity;
+      const cat = item.budget_categories?.name || item.category || 'Sin categoría';
+      if (!acc[cat]) acc[cat] = { neto: 0, count: 0, confirmed: 0, provisional: 0 };
+      const itemNeto = item.unit_price * item.quantity;
+      acc[cat].neto += itemNeto;
       acc[cat].count += 1;
+      if (item.is_provisional) {
+        acc[cat].provisional += itemNeto;
+      } else {
+        acc[cat].confirmed += itemNeto;
+      }
       return acc;
-    }, {} as Record<string, { neto: number; count: number }>);
+    }, {} as Record<string, { neto: number; count: number; confirmed: number; provisional: number }>);
     
-    // Ordenar categorías para la tabla
+    // Ordenar categorías usando sort_order de budgetCategories
+    const categoryOrder = budgetCategories.reduce((acc, bc, idx) => {
+      acc[bc.name] = bc.sort_order ?? idx;
+      return acc;
+    }, {} as Record<string, number>);
+    
     const sortedCategoryEntries = Object.entries(categoryTotals).sort((a, b) => {
-      return getCategorySortPriority(a[0]) - getCategorySortPriority(b[0]);
+      const orderA = categoryOrder[a[0]] ?? 999;
+      const orderB = categoryOrder[b[0]] ?? 999;
+      return orderA - orderB;
     });
     
     const totalNeto = sortedCategoryEntries.reduce((sum, [_, data]) => sum + data.neto, 0);
@@ -2229,13 +2242,16 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       const percentage = totalNeto > 0 ? ((data.neto / totalNeto) * 100).toFixed(1) : '0';
       return [
         cat,
+        String(data.count),
+        `${data.confirmed.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`,
+        `${data.provisional.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`,
         `${data.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`,
         `${percentage}%`
       ];
     });
     
     autoTable(doc, {
-      head: [['Categoría', 'Total Neto', '%']],
+      head: [['Categoría', 'Elem.', 'Confirmado', 'Provisional', 'Total Neto', '%']],
       body: categoryData,
       startY: yPos,
       styles: { fontSize: 9 },
@@ -2265,14 +2281,16 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     // Agrupar items por categoría, ordenados según prioridad
     const itemsByCategory: Record<string, typeof items> = {};
     items.forEach(item => {
-      const cat = item.category || 'Sin categoría';
+      const cat = item.budget_categories?.name || item.category || 'Sin categoría';
       if (!itemsByCategory[cat]) itemsByCategory[cat] = [];
       itemsByCategory[cat].push(item);
     });
     
-    // Ordenar categorías según prioridad
+    // Ordenar categorías usando sort_order de budgetCategories
     const sortedCategoryNames = Object.keys(itemsByCategory).sort((a, b) => {
-      return getCategorySortPriority(a) - getCategorySortPriority(b);
+      const orderA = categoryOrder[a] ?? 999;
+      const orderB = categoryOrder[b] ?? 999;
+      return orderA - orderB;
     });
     
     // Construir tableData con filas de categoría intercaladas
@@ -2389,15 +2407,15 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     csvContent += "DESGLOSE POR CATEGORÍAS\n";
     csvContent += "Categoría,Elementos,Total Neto\n";
     
-    const categoryTotals = items.reduce((acc, item) => {
-      const cat = item.category || 'Sin categoría';
+    const categoryTotalsExcel = items.reduce((acc, item) => {
+      const cat = item.budget_categories?.name || item.category || 'Sin categoría';
       if (!acc[cat]) acc[cat] = { neto: 0, count: 0 };
       acc[cat].neto += item.unit_price * item.quantity;
       acc[cat].count += 1;
       return acc;
     }, {} as Record<string, { neto: number; count: number }>);
     
-    Object.entries(categoryTotals).forEach(([cat, data]) => {
+    Object.entries(categoryTotalsExcel).forEach(([cat, data]) => {
       csvContent += `"${cat}",${data.count},"${data.neto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €"\n`;
     });
     csvContent += "\n";
@@ -2409,14 +2427,21 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     // Agrupar items por categoría
     const itemsByCategoryExcel: Record<string, typeof items> = {};
     items.forEach(item => {
-      const cat = item.category || 'Sin categoría';
+      const cat = item.budget_categories?.name || item.category || 'Sin categoría';
       if (!itemsByCategoryExcel[cat]) itemsByCategoryExcel[cat] = [];
       itemsByCategoryExcel[cat].push(item);
     });
     
-    // Ordenar categorías según prioridad
+    // Ordenar categorías usando sort_order de budgetCategories
+    const categoryOrderExcel = budgetCategories.reduce((acc, bc, idx) => {
+      acc[bc.name] = bc.sort_order ?? idx;
+      return acc;
+    }, {} as Record<string, number>);
+    
     const sortedCategoryNamesExcel = Object.keys(itemsByCategoryExcel).sort((a, b) => {
-      return getCategorySortPriority(a) - getCategorySortPriority(b);
+      const orderA = categoryOrderExcel[a] ?? 999;
+      const orderB = categoryOrderExcel[b] ?? 999;
+      return orderA - orderB;
     });
     
     sortedCategoryNamesExcel.forEach(categoryName => {
