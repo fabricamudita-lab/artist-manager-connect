@@ -2430,34 +2430,59 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     const available = running;
     wfData.push({ name: 'Disponible', value: Math.abs(available), runningAfter: available, isPositive: available >= 0 });
     
-    const wfMaxVal = Math.max(capital, ...wfData.map(d => Math.abs(d.runningAfter)));
+    const minRunning = Math.min(0, ...wfData.map(d => d.runningAfter));
+    const maxVal = capital;
+    const range = maxVal - minRunning || 1; // avoid division by zero
     const wfChartW = pageWidth - margin * 2;
-    const wfChartH = 50;
+    const hasNegative = minRunning < 0;
+    const wfChartH = hasNegative ? 65 : 50;
     const wfBarW = Math.min(18, (wfChartW - 10) / wfData.length - 2);
-    const wfBaseY = yPos + wfChartH;
     
-    // Draw baseline
+    // yForValue maps a numeric value to a Y coordinate in the chart
+    const wfTopY = yPos;
+    const yForValue = (v: number) => wfTopY + ((maxVal - v) / range) * wfChartH;
+    const zeroY = yForValue(0);
+    
+    // Draw baseline at y=0
     doc.setDrawColor(180);
     doc.setLineWidth(0.3);
-    doc.line(margin, wfBaseY, margin + wfChartW, wfBaseY);
+    doc.line(margin, zeroY, margin + wfChartW, zeroY);
+    
+    // If negative, draw a light dashed line at zeroY and label
+    if (hasNegative) {
+      doc.setFontSize(5);
+      doc.setTextColor(150);
+      doc.text('0', margin - 3, zeroY + 1.5, { align: 'right' });
+    }
     
     wfData.forEach((d, idx) => {
       const x = margin + 5 + idx * ((wfChartW - 10) / wfData.length);
       
-      let barTop: number, barHeight: number;
-      if (idx === 0 || idx === wfData.length - 1) {
-        // Capital or Disponible: bar from baseline up
-        barHeight = wfMaxVal > 0 ? (d.value / wfMaxVal) * (wfChartH - 10) : 0;
-        barTop = wfBaseY - barHeight;
-        doc.setFillColor(d.isPositive ? 34 : 239, d.isPositive ? 197 : 68, d.isPositive ? 94 : 68);
+      let barTop: number, barBottom: number;
+      if (idx === 0) {
+        // Capital: bar from 0 up to capital
+        barTop = yForValue(d.value);
+        barBottom = zeroY;
+        doc.setFillColor(34, 197, 94);
+      } else if (idx === wfData.length - 1) {
+        // Disponible: from 0 to available (can go negative)
+        if (d.isPositive) {
+          barTop = yForValue(d.runningAfter);
+          barBottom = zeroY;
+          doc.setFillColor(34, 197, 94);
+        } else {
+          barTop = zeroY;
+          barBottom = yForValue(d.runningAfter);
+          doc.setFillColor(239, 68, 68);
+        }
       } else {
-        // Expense: bar hanging from running position
-        const topOfBar = wfMaxVal > 0 ? wfBaseY - ((d.runningAfter + d.value) / wfMaxVal) * (wfChartH - 10) : wfBaseY;
-        barHeight = wfMaxVal > 0 ? (d.value / wfMaxVal) * (wfChartH - 10) : 0;
-        barTop = topOfBar;
+        // Expense: bar hanging from runningBefore down to runningAfter
+        barTop = yForValue(d.runningAfter + d.value);
+        barBottom = yForValue(d.runningAfter);
         doc.setFillColor(239, 68, 68);
       }
       
+      const barHeight = barBottom - barTop;
       if (barHeight > 0.5) {
         doc.rect(x, barTop, wfBarW, barHeight, 'F');
       }
@@ -2468,14 +2493,15 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       const valLabel = `€${d.value.toLocaleString('es-ES')}`;
       doc.text(valLabel, x + wfBarW / 2, barTop - 1.5, { align: 'center' });
       
-      // Name label below baseline
+      // Name label below chart area
       doc.setFontSize(5);
       doc.setTextColor(100);
       const nameLabel = d.name.length > 10 ? d.name.substring(0, 10) + '…' : d.name;
-      doc.text(nameLabel, x + wfBarW / 2, wfBaseY + 4, { align: 'center' });
+      const labelY = wfTopY + wfChartH + 4;
+      doc.text(nameLabel, x + wfBarW / 2, labelY, { align: 'center' });
     });
     
-    yPos = wfBaseY + 12;
+    yPos = wfTopY + wfChartH + 12;
     
     // ==========================================
     // FIN GRÁFICOS
@@ -4879,7 +4905,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                             waterfallData.push({ name: 'Capital', base: 0, value: capital, fill: '#22c55e', label: `€${capital.toLocaleString('es-ES')}` });
                             barData.forEach(cat => {
                               running -= cat.total;
-                              waterfallData.push({ name: cat.name, base: Math.max(running, 0), value: cat.total, fill: '#ef4444', label: `€${cat.total.toLocaleString('es-ES')}` });
+                              waterfallData.push({ name: cat.name, base: running, value: cat.total, fill: '#ef4444', label: `€${cat.total.toLocaleString('es-ES')}` });
                             });
                             const available = capital - barData.reduce((s, c) => s + c.total, 0);
                             waterfallData.push({
