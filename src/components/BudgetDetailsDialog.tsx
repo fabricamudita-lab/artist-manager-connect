@@ -2240,7 +2240,19 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         0: { fontStyle: 'bold', cellWidth: 50 },
         1: { halign: 'right', cellWidth: 50 }
       },
-      margin: { left: margin }
+      margin: { left: margin },
+      didParseCell: (data: any) => {
+        const rowLabel = data.row.raw?.[0];
+        if (rowLabel === 'Beneficio' && beneficio < 0) {
+          data.cell.styles.textColor = [220, 38, 38];
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fontSize = 11;
+        }
+        if (rowLabel === 'Margen' && margen < 0) {
+          data.cell.styles.textColor = [220, 38, 38];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
     });
     
     yPos = (doc as any).lastAutoTable.finalY + 3;
