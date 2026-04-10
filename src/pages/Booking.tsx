@@ -118,7 +118,7 @@ export default function Booking() {
   const [filters, setFilters] = useState<BookingFiltersState>({
     searchTerm: '',
     artistFilter: artistIdFromUrl || 'all',
-    phaseFilter: 'all',
+    phaseFilter: [],
     countryFilter: 'all',
     promoterFilter: 'all',
     dateFrom: undefined,
