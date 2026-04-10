@@ -39,11 +39,17 @@ interface PagoDialogProps {
     liquidacion_estado?: string;
     liquidacion_referencia?: string;
     cobro_estado?: string;
+    cobro_fecha?: string;
+    cobro_importe?: number;
+    cobro_metodo?: string;
+    cobro_referencia?: string;
+    cobro_notas?: string;
   };
+  editMode?: boolean;
   onSuccess?: () => void;
 }
 
-export function PagoDialog({ open, onOpenChange, booking, onSuccess }: PagoDialogProps) {
+export function PagoDialog({ open, onOpenChange, booking, editMode, onSuccess }: PagoDialogProps) {
   const { user } = useAuth();
   const eventName = booking.festival_ciclo || booking.venue || booking.ciudad || 'Evento';
   const totalFee = booking.fee || 0;
@@ -55,14 +61,15 @@ export function PagoDialog({ open, onOpenChange, booking, onSuccess }: PagoDialo
 
   // Determine initial mode based on existing data
   const hasExistingPartial = booking.anticipo_estado === 'cobrado' || booking.cobro_estado === 'anticipo_cobrado';
-  const [mode, setMode] = useState<'unico' | 'fraccionado'>(hasExistingPartial ? 'fraccionado' : 'unico');
+  const isExistingUnico = booking.cobro_estado === 'cobrado_completo' && booking.anticipo_estado === 'no_aplica';
+  const [mode, setMode] = useState<'unico' | 'fraccionado'>(hasExistingPartial ? 'fraccionado' : isExistingUnico ? 'unico' : 'unico');
 
-  // === Pago Único state ===
-  const [cobroFecha, setCobroFecha] = useState(new Date().toISOString().split('T')[0]);
-  const [importeRecibido, setImporteRecibido] = useState(totalFee);
-  const [metodo, setMetodo] = useState('transferencia');
-  const [referencia, setReferencia] = useState('');
-  const [notas, setNotas] = useState('');
+  // === Pago Único state (prefill in edit mode) ===
+  const [cobroFecha, setCobroFecha] = useState(editMode && booking.cobro_fecha ? booking.cobro_fecha : new Date().toISOString().split('T')[0]);
+  const [importeRecibido, setImporteRecibido] = useState(editMode && booking.cobro_importe ? booking.cobro_importe : totalFee);
+  const [metodo, setMetodo] = useState(editMode && booking.cobro_metodo ? booking.cobro_metodo : 'transferencia');
+  const [referencia, setReferencia] = useState(editMode && booking.cobro_referencia ? booking.cobro_referencia : '');
+  const [notas, setNotas] = useState(editMode && booking.cobro_notas ? booking.cobro_notas : '');
 
   // === Fraccionado state ===
   const [anticipoPct, setAnticipoPct] = useState(booking.anticipo_porcentaje ?? 50);
@@ -210,26 +217,40 @@ export function PagoDialog({ open, onOpenChange, booking, onSuccess }: PagoDialo
 
       if (bookingError) throw bookingError;
 
-      const { error: cobroError } = await supabase
-        .from('cobros')
-        .insert({
-          type: 'booking',
-          concept: `Cobro concierto: ${eventName}`,
-          amount_gross: importeRecibido,
-          irpf_pct: irpfPct,
-          
-          received_date: cobroFecha,
-          status: 'cobrado',
-          artist_id: booking.artist_id || null,
-          project_id: booking.project_id || null,
-          booking_id: booking.id,
-          notes: notas || null,
-          created_by: user.id,
-        });
+      if (editMode) {
+        // Update existing cobro records linked to this booking
+        await supabase
+          .from('cobros')
+          .update({
+            concept: `Cobro concierto: ${eventName}`,
+            amount_gross: importeRecibido,
+            irpf_pct: irpfPct,
+            received_date: cobroFecha,
+            notes: notas || null,
+          })
+          .eq('booking_id', booking.id)
+          .eq('type', 'booking');
+      } else {
+        const { error: cobroError } = await supabase
+          .from('cobros')
+          .insert({
+            type: 'booking',
+            concept: `Cobro concierto: ${eventName}`,
+            amount_gross: importeRecibido,
+            irpf_pct: irpfPct,
+            received_date: cobroFecha,
+            status: 'cobrado',
+            artist_id: booking.artist_id || null,
+            project_id: booking.project_id || null,
+            booking_id: booking.id,
+            notes: notas || null,
+            created_by: user.id,
+          });
 
-      if (cobroError) throw cobroError;
+        if (cobroError) throw cobroError;
+      }
 
-      toast({ title: '✓ Cobro registrado', description: `${eventName} movido a Facturado` });
+      toast({ title: editMode ? '✓ Cobro actualizado' : '✓ Cobro registrado', description: `${eventName} ${editMode ? 'actualizado' : 'movido a Facturado'}` });
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
@@ -350,7 +371,7 @@ export function PagoDialog({ open, onOpenChange, booking, onSuccess }: PagoDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Registrar cobro — {eventName}</DialogTitle>
+          <DialogTitle>{editMode ? 'Editar cobro' : 'Registrar cobro'} — {eventName}</DialogTitle>
           <DialogDescription>
             Fee total: {fmt(totalFee)}
           </DialogDescription>
@@ -558,7 +579,7 @@ export function PagoDialog({ open, onOpenChange, booking, onSuccess }: PagoDialo
             onClick={mode === 'unico' ? handleSubmitUnico : handleSubmitFraccionado}
             disabled={saving}
           >
-            {saving ? 'Guardando...' : mode === 'unico' ? 'Registrar cobro' : 'Guardar pagos'}
+            {saving ? 'Guardando...' : editMode ? 'Guardar cambios' : mode === 'unico' ? 'Registrar cobro' : 'Guardar pagos'}
           </Button>
         </DialogFooter>
       </DialogContent>

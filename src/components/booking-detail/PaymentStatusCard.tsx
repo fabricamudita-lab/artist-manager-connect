@@ -4,11 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { PagoDialog } from '@/components/PagoDialog';
-import { Check, Clock, AlertTriangle, Banknote, Lock, Music } from 'lucide-react';
+import { Check, Clock, AlertTriangle, Banknote, Lock, Music, Pencil, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import { getIrpfForArtist, type ArtistFiscalProfile } from '@/utils/irpf';
 
 interface PaymentStatusCardProps {
@@ -87,9 +89,76 @@ function StatusBadge({ estado, fechaEsperada, locked }: { estado?: string; fecha
 export const PaymentStatusCard = forwardRef<HTMLDivElement, PaymentStatusCardProps>(
   ({ booking, highlighted, onUpdate }, ref) => {
     const [showPago, setShowPago] = useState(false);
+    const [pagoEditMode, setPagoEditMode] = useState(false);
+    const [showRevertDialog, setShowRevertDialog] = useState<'unico' | 'anticipo' | 'liquidacion' | null>(null);
+    const [reverting, setReverting] = useState(false);
     const [artistFiscal, setArtistFiscal] = useState<ArtistFiscalProfile | null>(null);
     const fee = booking.fee || 0;
     const cobroEstado = booking.cobro_estado;
+
+    const openEditDialog = () => {
+      setPagoEditMode(true);
+      setShowPago(true);
+    };
+
+    const handleRevert = async (type: 'unico' | 'anticipo' | 'liquidacion') => {
+      setReverting(true);
+      try {
+        if (type === 'unico') {
+          await supabase
+            .from('booking_offers')
+            .update({
+              cobro_estado: 'pendiente',
+              cobro_fecha: null,
+              cobro_importe: null,
+              cobro_metodo: null,
+              cobro_referencia: null,
+              cobro_notas: null,
+              anticipo_estado: null,
+              liquidacion_estado: null,
+              phase: 'confirmado',
+              estado: 'confirmado',
+              estado_facturacion: null,
+            } as any)
+            .eq('id', booking.id);
+          // Delete cobro records
+          await supabase.from('cobros').delete().eq('booking_id', booking.id).eq('type', 'booking');
+        } else if (type === 'anticipo') {
+          await supabase
+            .from('booking_offers')
+            .update({
+              anticipo_estado: 'pendiente',
+              anticipo_fecha_cobro: null,
+              anticipo_referencia: null,
+              cobro_estado: 'pendiente',
+            } as any)
+            .eq('id', booking.id);
+          await supabase.from('cobros').delete().eq('booking_id', booking.id).eq('type', 'booking').ilike('notes', '%anticipo%');
+        } else if (type === 'liquidacion') {
+          await supabase
+            .from('booking_offers')
+            .update({
+              liquidacion_estado: 'pendiente',
+              liquidacion_fecha_cobro: null,
+              liquidacion_referencia: null,
+              cobro_estado: booking.anticipo_estado === 'cobrado' ? 'anticipo_cobrado' : 'pendiente',
+              phase: 'confirmado',
+              estado: 'confirmado',
+              estado_facturacion: null,
+            } as any)
+            .eq('id', booking.id);
+          await supabase.from('cobros').delete().eq('booking_id', booking.id).eq('type', 'booking').ilike('notes', '%liquidaci%');
+        }
+        toast({ title: '✓ Estado revertido', description: 'El pago ha sido marcado como pendiente.' });
+        setShowRevertDialog(null);
+        onUpdate();
+      } catch (error) {
+        console.error('Error reverting:', error);
+        toast({ title: 'Error', description: 'No se pudo revertir el estado.', variant: 'destructive' });
+      } finally {
+        setReverting(false);
+      }
+    };
 
     // Fetch artist fiscal profile for IRPF
     useEffect(() => {
@@ -148,7 +217,15 @@ export const PaymentStatusCard = forwardRef<HTMLDivElement, PaymentStatusCardPro
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Pago único</span>
-                  <StatusBadge estado="cobrado" />
+                  <div className="flex items-center gap-1.5">
+                    <StatusBadge estado="cobrado" />
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={openEditDialog}>
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => setShowRevertDialog('unico')}>
+                      <RotateCcw className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
@@ -191,10 +268,22 @@ export const PaymentStatusCard = forwardRef<HTMLDivElement, PaymentStatusCardPro
                         <span className="text-sm font-semibold">
                           Anticipo ({booking.anticipo_porcentaje || 50}%) — Antes del evento
                         </span>
-                        <StatusBadge
-                          estado={booking.anticipo_estado}
-                          fechaEsperada={booking.anticipo_fecha_esperada}
-                        />
+                        <div className="flex items-center gap-1">
+                          <StatusBadge
+                            estado={booking.anticipo_estado}
+                            fechaEsperada={booking.anticipo_fecha_esperada}
+                          />
+                          {booking.anticipo_estado === 'cobrado' && (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={openEditDialog}>
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => setShowRevertDialog('anticipo')}>
+                                <RotateCcw className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
@@ -263,11 +352,23 @@ export const PaymentStatusCard = forwardRef<HTMLDivElement, PaymentStatusCardPro
                         <span className="text-sm font-semibold">
                           Liquidación — Tras el evento
                         </span>
-                        <StatusBadge
-                          estado={booking.liquidacion_estado}
-                          fechaEsperada={booking.liquidacion_fecha_esperada}
-                          locked={liquidacionLocked}
-                        />
+                        <div className="flex items-center gap-1">
+                          <StatusBadge
+                            estado={booking.liquidacion_estado}
+                            fechaEsperada={booking.liquidacion_fecha_esperada}
+                            locked={liquidacionLocked}
+                          />
+                          {booking.liquidacion_estado === 'cobrado' && (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={openEditDialog}>
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => setShowRevertDialog('liquidacion')}>
+                                <RotateCcw className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
@@ -366,13 +467,50 @@ export const PaymentStatusCard = forwardRef<HTMLDivElement, PaymentStatusCardPro
 
         <PagoDialog
           open={showPago}
-          onOpenChange={setShowPago}
+          onOpenChange={(open) => {
+            setShowPago(open);
+            if (!open) setPagoEditMode(false);
+          }}
           booking={booking}
+          editMode={pagoEditMode}
           onSuccess={() => {
             setShowPago(false);
+            setPagoEditMode(false);
             onUpdate();
           }}
         />
+
+        <AlertDialog open={!!showRevertDialog} onOpenChange={(open) => !open && setShowRevertDialog(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                Revertir a pendiente
+              </AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2 text-sm">
+                <p>Esto marcará el cobro como <strong>no recibido</strong>.</p>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li>Se actualizará el estado en la pestaña Finanzas &gt; Cobros.</li>
+                  <li>Se eliminarán los registros de cobro asociados.</li>
+                  <li>Si hay retenciones IRPF registradas en un trimestre fiscal ya presentado, podrían verse afectadas.</li>
+                  {showRevertDialog === 'anticipo' && (
+                    <li>La liquidación volverá a estado bloqueado (en espera del anticipo).</li>
+                  )}
+                </ul>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={reverting}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => showRevertDialog && handleRevert(showRevertDialog)}
+                disabled={reverting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {reverting ? 'Revirtiendo...' : 'Confirmar reversión'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </>
     );
   }
