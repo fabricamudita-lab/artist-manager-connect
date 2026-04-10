@@ -1,46 +1,53 @@
 
 
-## Sincronizar fecha del presupuesto con el booking vinculado
+## Añadir edición y eliminación de cobros con avisos de seguridad
 
 ### Problema
-El presupuesto "CurtCircuit" muestra fecha 19 de febrero, pero el booking vinculado tiene fecha 27 de marzo. El presupuesto se creó con una fecha anterior y, aunque existe lógica de sincronización al editar el booking, esa sincronización no se ejecutó retroactivamente para presupuestos creados antes de implementarla.
+No hay forma de editar ni eliminar cobros en la lista. Si hay un error de nombre, duplicado, o doble contabilización, no se puede corregir.
 
-### Causa raíz
-- La sincronización booking → budget solo ocurre al **editar** el booking (en `EditBookingDialog`).
-- Si el presupuesto se creó antes de que existiera la sincronización, o si la fecha del booking se modificó por otra vía, el `event_date` del presupuesto queda desactualizado.
+### Diseño
 
-### Solución (3 partes)
+**Dos tipos de cobros con comportamiento diferente:**
 
-**1. Sincronización al abrir el presupuesto desde booking** (`BookingPresupuestoTab.tsx`)
-- Tras cargar los presupuestos vinculados (`booking_offer_id = bookingId`), comparar `budget.event_date` con la fecha real del booking (prop `eventDate`).
-- Si difieren, actualizar automáticamente el `event_date` (y otros campos clave: `fee`, `city`, `venue`) en los presupuestos vinculados. Esto es silencioso porque el booking es la fuente de verdad.
+1. **Cobros manuales** (tabla `cobros`): se pueden editar y eliminar libremente.
+2. **Cobros de booking** (derivados de `booking_offers`): editar abre el PagoDialog existente; eliminar NO se permite desde aquí (se gestiona desde el booking). Se mostrará un mensaje indicándolo.
 
-**2. Sincronización al abrir `BudgetDetailsDialog` desde cualquier sitio**
-- Si el presupuesto tiene `booking_offer_id`, hacer un fetch rápido del booking para verificar que `event_date`, `fee`, etc. están sincronizados. Si no, actualizar el presupuesto automáticamente.
+### Cambios en `CobrosTab.tsx`
 
-**3. Fix de datos existentes** (inmediato)
-- Actualizar en la query de `BookingPresupuestoTab` los presupuestos cuyo `event_date` difiere del booking.
+**1. Botones de acción por fila**
+- Añadir iconos `Pencil` y `Trash2` en cada fila (visibles en hover o siempre, junto al badge de estado).
+- Para cobros de booking: el botón editar abre PagoDialog; el botón eliminar muestra un toast informativo ("Este cobro está vinculado a un booking. Gestiona desde el detalle del booking.").
 
-### Detalle técnico
+**2. Editar cobro manual**
+- Nuevo estado `editCobro` que abre el mismo diálogo de "Añadir Cobro" pero prellenado con los datos del cobro seleccionado.
+- Reutilizar el formulario existente (formType, formConcept, etc.) cargando los valores del cobro.
+- Nueva mutación `updateMutation` que hace `supabase.from('cobros').update(...)`.
 
-En `BookingPresupuestoTab.tsx`, después de obtener los presupuestos vinculados:
-```typescript
-// Auto-sync date/fields from booking to linked budgets
-if (eventDate) {
-  const outOfSync = combined.filter(
-    b => b.booking_offer_id === bookingId && b.event_date !== eventDate
-  );
-  if (outOfSync.length > 0) {
-    await supabase
-      .from('budgets')
-      .update({ event_date: eventDate, city: eventCity, venue: eventVenue, fee: fee })
-      .in('id', outOfSync.map(b => b.id));
-  }
-}
+**3. Eliminar cobro manual**
+- Nuevo estado `deleteCobro` con el id y concepto del cobro a eliminar.
+- `ConfirmationDialog` con aviso: "¿Eliminar el cobro '{concepto}'? Esta acción no se puede deshacer."
+- Mutación `deleteMutation` que hace `supabase.from('cobros').delete().eq('id', id)`.
+
+**4. Eliminar cobro de booking — aviso**
+- Al pulsar eliminar en un cobro tipo booking, mostrar toast: "Este cobro proviene de un booking. Para eliminarlo, gestiona el booking directamente."
+
+### Flujo visual
+
+```text
+[Fila cobro] ... [€3245] [Cobrado] [✏️] [🗑️]
+                                      │      │
+                        ┌─────────────┘      └──────────────┐
+                        │                                    │
+                 Si manual:                           Si manual:
+                 Abre form edición                    ConfirmationDialog
+                 (mismo dialog, prellenado)           "¿Eliminar cobro X?"
+                                                      
+                 Si booking:                          Si booking:
+                 Abre PagoDialog                      Toast informativo
 ```
 
 ### Resultado
-- Los presupuestos vinculados a un booking siempre reflejan la fecha real del evento.
-- La sincronización es automática y silenciosa (el booking es la fuente de verdad).
-- No se requiere intervención manual del usuario.
+- Los cobros manuales se pueden editar (nombre, importe, IRPF, fechas, estado) y eliminar con confirmación.
+- Los cobros de booking se editan vía PagoDialog y no se pueden eliminar desde Finanzas.
+- El usuario siempre sabe si una acción afecta datos vinculados.
 
