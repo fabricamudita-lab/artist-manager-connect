@@ -2298,52 +2298,117 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     });
     yPos += 8;
     
-    // --- GRÁFICO 2: DONUT (representado como leyenda visual con cuadrados de color) ---
-    if (yPos > 230) { doc.addPage(); yPos = 15; }
+    // --- GRÁFICO 2: DONUT CIRCULAR ---
+    if (yPos > 180) { doc.addPage(); yPos = 15; }
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0);
     doc.text('Distribución de Gastos', margin, yPos);
-    yPos += 6;
+    yPos += 8;
     
-    // Draw a mini visual: colored squares with category name, amount, percentage
-    chartDataRaw.forEach((d, idx) => {
-      if (yPos > 270) { doc.addPage(); yPos = 15; }
+    // Draw actual donut chart using arc segments
+    const donutCenterX = margin + 30;
+    const donutCenterY = yPos + 30;
+    const donutOuterR = 25;
+    const donutInnerR = 14;
+    const segments = 72; // segments per full circle for smoothness
+    
+    let startAngle = -Math.PI / 2; // start from top
+    
+    chartDataRaw.forEach((d) => {
+      if (grandChartTotal <= 0) return;
+      const sliceAngle = (d.value / grandChartTotal) * 2 * Math.PI;
+      const endAngle = startAngle + sliceAngle;
+      const rgb = hexToRgb(d.color);
+      
+      // Draw filled arc as a polygon (outer arc + inner arc reversed)
+      const points: number[][] = [];
+      const steps = Math.max(Math.ceil((sliceAngle / (2 * Math.PI)) * segments), 2);
+      
+      // Outer arc
+      for (let i = 0; i <= steps; i++) {
+        const a = startAngle + (sliceAngle * i) / steps;
+        points.push([donutCenterX + Math.cos(a) * donutOuterR, donutCenterY + Math.sin(a) * donutOuterR]);
+      }
+      // Inner arc (reversed)
+      for (let i = steps; i >= 0; i--) {
+        const a = startAngle + (sliceAngle * i) / steps;
+        points.push([donutCenterX + Math.cos(a) * donutInnerR, donutCenterY + Math.sin(a) * donutInnerR]);
+      }
+      
+      // Draw polygon
+      doc.setFillColor(...rgb);
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(0.5);
+      
+      // Use lines to draw the polygon
+      if (points.length > 2) {
+        const pathLines: number[][] = [];
+        points.forEach((p, i) => {
+          if (i === 0) {
+            pathLines.push(p);
+          } else {
+            pathLines.push(p);
+          }
+        });
+        
+        // Draw as filled shape using triangle fan approach
+        for (let i = 1; i < points.length - 1; i++) {
+          doc.triangle(
+            points[0][0], points[0][1],
+            points[i][0], points[i][1],
+            points[i + 1][0], points[i + 1][1],
+            'F'
+          );
+        }
+      }
+      
+      startAngle = endAngle;
+    });
+    
+    // Draw white center circle for donut hole
+    doc.setFillColor(255, 255, 255);
+    doc.circle(donutCenterX, donutCenterY, donutInnerR - 0.3, 'F');
+    
+    // Total in center
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(60);
+    doc.text(`€${grandChartTotal.toLocaleString('es-ES', { minimumFractionDigits: 0 })}`, donutCenterX, donutCenterY + 1, { align: 'center' });
+    
+    // Legend to the right of the donut
+    const legendStartX = margin + 65;
+    let legendY = yPos + 5;
+    
+    chartDataRaw.forEach((d) => {
       const pct = grandChartTotal > 0 ? ((d.value / grandChartTotal) * 100).toFixed(1) : '0.0';
       const rgb = hexToRgb(d.color);
       
       // Color square
       doc.setFillColor(...rgb);
-      doc.rect(margin, yPos - 3, 4, 4, 'F');
+      doc.rect(legendStartX, legendY - 3, 4, 4, 'F');
       
       // Name
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(40);
-      doc.text(d.name, margin + 6, yPos);
+      doc.text(d.name, legendStartX + 6, legendY);
       
       // Amount and percentage
       doc.setTextColor(100);
-      doc.text(`€${d.value.toLocaleString('es-ES', { minimumFractionDigits: 2 })}  (${pct}%)`, margin + 55, yPos);
+      doc.text(`€${d.value.toLocaleString('es-ES', { minimumFractionDigits: 2 })}  (${pct}%)`, legendStartX + 55, legendY);
       
-      // Simple proportional bar
-      const barW = 60;
-      const filledW = grandChartTotal > 0 ? (d.value / grandChartTotal) * barW : 0;
-      doc.setFillColor(230, 230, 230);
-      doc.rect(margin + 110, yPos - 3, barW, 3.5, 'F');
-      doc.setFillColor(...rgb);
-      doc.rect(margin + 110, yPos - 3, filledW, 3.5, 'F');
-      
-      yPos += 6;
+      legendY += 6;
     });
     
-    // Total
+    // Total below legend
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0);
-    doc.text(`Total: €${grandChartTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`, margin + 6, yPos);
-    yPos += 10;
+    doc.text(`Total: €${grandChartTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`, legendStartX + 6, legendY + 2);
+    
+    yPos = Math.max(donutCenterY + donutOuterR + 8, legendY + 8);
     
     // --- GRÁFICO 3: CASCADA (WATERFALL) ---
     if (yPos > 180) { doc.addPage(); yPos = 15; }
