@@ -1880,6 +1880,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const deleteItem = async (itemId: string) => {
     try {
+      // Delete related irpf_retentions first to avoid FK constraint
+      await supabase.from('irpf_retentions').delete().eq('budget_item_id', itemId);
+
       const { error } = await supabase
         .from('budget_items')
         .delete()
@@ -3033,6 +3036,9 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
     try {
       const idsToDelete = Array.from(selectedItems);
+
+      // Delete related irpf_retentions first to avoid FK constraint
+      await supabase.from('irpf_retentions').delete().in('budget_item_id', idsToDelete);
 
       const { error } = await supabase
         .from('budget_items')
