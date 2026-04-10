@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, CalendarDays, CalendarClock, HelpCircle } from 'lucide-react';
+import { ContactLinker } from './ContactLinker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
