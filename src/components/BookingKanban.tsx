@@ -186,7 +186,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
   const [filters, setFilters] = useState<BookingFiltersState>({
     searchTerm: '',
     artistFilter: artistIdFromUrl || 'all',
-    phaseFilter: 'all',
+    phaseFilter: [],
     countryFilter: 'all',
     promoterFilter: 'all',
     dateFrom: undefined,
@@ -347,8 +347,8 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
     }
 
     // Phase filter
-    if (filters.phaseFilter !== 'all') {
-      filtered = filtered.filter(offer => offer.phase === filters.phaseFilter);
+    if (filters.phaseFilter.length > 0) {
+      filtered = filtered.filter(offer => offer.phase != null && filters.phaseFilter.includes(offer.phase));
     }
 
     // Country filter
@@ -397,7 +397,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
     setFilters({
       searchTerm: '',
       artistFilter: 'all',
-      phaseFilter: 'all',
+      phaseFilter: [],
       countryFilter: 'all',
       promoterFilter: 'all',
       dateFrom: undefined,
@@ -696,7 +696,7 @@ export function BookingKanban({ templateFields }: BookingKanbanProps) {
         offer_number: generateOfferNumber(offer)
       }));
 
-      const filterSuffix = filters.phaseFilter !== 'all' || filters.countryFilter !== 'all' || filters.promoterFilter !== 'all' || filters.searchTerm 
+      const filterSuffix = filters.phaseFilter.length > 0 || filters.countryFilter !== 'all' || filters.promoterFilter !== 'all' || filters.searchTerm 
         ? '_filtrado' 
         : '';
       

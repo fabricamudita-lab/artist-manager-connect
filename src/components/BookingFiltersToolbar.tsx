@@ -26,7 +26,7 @@ interface Phase {
 export interface BookingFiltersState {
   searchTerm: string;
   artistFilter: string;
-  phaseFilter: string;
+  phaseFilter: string[];
   countryFilter: string;
   promoterFilter: string;
   dateFrom: Date | undefined;
@@ -80,7 +80,7 @@ export function BookingFiltersToolbar({
   const hasActiveFilters = 
     filters.searchTerm || 
     filters.artistFilter !== 'all' || 
-    filters.phaseFilter !== 'all' || 
+    filters.phaseFilter.length > 0 || 
     filters.countryFilter !== 'all' || 
     filters.promoterFilter !== 'all' || 
     filters.dateFrom || 
@@ -91,7 +91,7 @@ export function BookingFiltersToolbar({
   const activeFilterCount = [
     filters.searchTerm,
     filters.artistFilter !== 'all',
-    filters.phaseFilter !== 'all',
+    filters.phaseFilter.length > 0,
     filters.countryFilter !== 'all',
     filters.promoterFilter !== 'all',
     filters.dateFrom,
@@ -136,20 +136,54 @@ export function BookingFiltersToolbar({
             </SelectContent>
           </Select>
 
-          {/* Phase Filter */}
-          <Select value={filters.phaseFilter} onValueChange={(value) => onFiltersChange({ phaseFilter: value })}>
-            <SelectTrigger className="w-32 h-9">
-              <SelectValue placeholder="Fase" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {phases.map(phase => (
-                <SelectItem key={phase.id} value={phase.id}>
-                  {phase.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Phase Filter (multi-select) */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={`h-9 min-w-[8rem] justify-between ${filters.phaseFilter.length > 0 ? 'border-primary bg-primary/5' : ''}`}>
+                <span className="truncate text-left">
+                  {filters.phaseFilter.length === 0
+                    ? 'Fase'
+                    : filters.phaseFilter.length === 1
+                      ? phases.find(p => p.id === filters.phaseFilter[0])?.label || 'Fase'
+                      : `${filters.phaseFilter.length} fases`}
+                </span>
+                {filters.phaseFilter.length > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 h-5 min-w-5 p-0 flex items-center justify-center text-xs bg-primary text-primary-foreground">
+                    {filters.phaseFilter.length}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-2" align="start">
+              <div className="space-y-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-xs text-muted-foreground h-7"
+                  onClick={() => onFiltersChange({ phaseFilter: [] })}
+                >
+                  Todas
+                </Button>
+                {phases.map(phase => {
+                  const isSelected = filters.phaseFilter.includes(phase.id);
+                  return (
+                    <label key={phase.id} className="flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-accent cursor-pointer text-sm">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={(checked) => {
+                          const next = checked
+                            ? [...filters.phaseFilter, phase.id]
+                            : filters.phaseFilter.filter(id => id !== phase.id);
+                          onFiltersChange({ phaseFilter: next });
+                        }}
+                      />
+                      {phase.label}
+                    </label>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
 
           {/* More Filters Popover */}
           <Popover open={showAdvancedFilters} onOpenChange={setShowAdvancedFilters}>

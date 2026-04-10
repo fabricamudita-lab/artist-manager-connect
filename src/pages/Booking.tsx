@@ -118,7 +118,7 @@ export default function Booking() {
   const [filters, setFilters] = useState<BookingFiltersState>({
     searchTerm: '',
     artistFilter: artistIdFromUrl || 'all',
-    phaseFilter: 'all',
+    phaseFilter: [],
     countryFilter: 'all',
     promoterFilter: 'all',
     dateFrom: undefined,
@@ -220,7 +220,7 @@ export default function Booking() {
       );
     }
     if (filters.artistFilter !== 'all') filtered = filtered.filter(o => o.artist_id === filters.artistFilter);
-    if (filters.phaseFilter !== 'all') filtered = filtered.filter(o => o.phase === filters.phaseFilter);
+    if (filters.phaseFilter.length > 0) filtered = filtered.filter(o => o.phase != null && filters.phaseFilter.includes(o.phase));
     if (filters.countryFilter !== 'all') filtered = filtered.filter(o => o.pais === filters.countryFilter);
     if (filters.promoterFilter !== 'all') filtered = filtered.filter(o => o.promotor === filters.promoterFilter);
     if (filters.dateFrom) filtered = filtered.filter(o => o.fecha && new Date(o.fecha) >= filters.dateFrom!);
@@ -235,7 +235,7 @@ export default function Booking() {
   };
 
   const clearAllFilters = () => setFilters({
-    searchTerm: '', artistFilter: 'all', phaseFilter: 'all', countryFilter: 'all',
+    searchTerm: '', artistFilter: 'all', phaseFilter: [], countryFilter: 'all',
     promoterFilter: 'all', dateFrom: undefined, dateTo: undefined, showInternational: 'all', showCityzen: 'all',
   });
 
