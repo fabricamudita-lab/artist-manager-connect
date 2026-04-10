@@ -304,8 +304,21 @@ export function CashflowView({ artistId }: CashflowViewProps) {
                           {item.artistName && (
                             <span className="text-xs text-muted-foreground">{item.artistName}</span>
                           )}
-                          {item.contactName && (
+                          {item.contactName ? (
                             <span className="text-xs text-muted-foreground/70">→ {item.contactName}</span>
+                          ) : (
+                            <ContactLinker
+                              itemId={item.id}
+                              artistId={item.artistId}
+                              artistName={item.artistName}
+                              onLinked={(contactId, contactName) => {
+                                setItems(prev =>
+                                  prev.map(i =>
+                                    i.id === item.id ? { ...i, contactName } : i
+                                  )
+                                );
+                              }}
+                            />
                           )}
                         </div>
                         <div className="flex items-center gap-1.5">
