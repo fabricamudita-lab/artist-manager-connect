@@ -328,16 +328,27 @@ export function EditBookingDialog({
 
       if (error) throw error;
 
-      // Sync fee to linked budgets if it changed
-      if (formData.fee !== booking.fee) {
+      // Sync relevant fields to linked budgets if they changed
+      const budgetSync: Record<string, any> = {};
+      if (formData.fee !== booking.fee) budgetSync.fee = formData.fee;
+      if (formData.fecha !== booking.fecha) budgetSync.event_date = formData.fecha;
+      if (formData.hora !== booking.hora) budgetSync.event_time = formData.hora;
+      if (formData.ciudad !== booking.ciudad) budgetSync.city = formData.ciudad;
+      if (formData.pais !== booking.pais) budgetSync.country = formData.pais;
+      if ((formData.venue || formData.lugar) !== (booking.venue || booking.lugar)) 
+        budgetSync.venue = formData.venue || formData.lugar;
+      if (formData.festival_ciclo !== booking.festival_ciclo) budgetSync.festival_ciclo = formData.festival_ciclo;
+      if (formData.formato !== booking.formato) budgetSync.formato = formData.formato;
+
+      if (Object.keys(budgetSync).length > 0) {
         const { error: budgetError } = await supabase
           .from('budgets')
-          .update({ fee: formData.fee })
+          .update(budgetSync)
           .eq('booking_offer_id', booking.id);
         
         if (budgetError) {
-          console.error('Error syncing fee to budgets:', budgetError);
-          toast.error('Booking guardado, pero hubo un error al sincronizar el caché del presupuesto');
+          console.error('Error syncing to budgets:', budgetError);
+          toast.error('Booking guardado, pero error al sincronizar presupuesto');
         }
       }
 
