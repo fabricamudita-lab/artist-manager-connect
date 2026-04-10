@@ -61,14 +61,15 @@ export function PagoDialog({ open, onOpenChange, booking, editMode, onSuccess }:
 
   // Determine initial mode based on existing data
   const hasExistingPartial = booking.anticipo_estado === 'cobrado' || booking.cobro_estado === 'anticipo_cobrado';
-  const [mode, setMode] = useState<'unico' | 'fraccionado'>(hasExistingPartial ? 'fraccionado' : 'unico');
+  const isExistingUnico = booking.cobro_estado === 'cobrado_completo' && booking.anticipo_estado === 'no_aplica';
+  const [mode, setMode] = useState<'unico' | 'fraccionado'>(hasExistingPartial ? 'fraccionado' : isExistingUnico ? 'unico' : 'unico');
 
-  // === Pago Único state ===
-  const [cobroFecha, setCobroFecha] = useState(new Date().toISOString().split('T')[0]);
-  const [importeRecibido, setImporteRecibido] = useState(totalFee);
-  const [metodo, setMetodo] = useState('transferencia');
-  const [referencia, setReferencia] = useState('');
-  const [notas, setNotas] = useState('');
+  // === Pago Único state (prefill in edit mode) ===
+  const [cobroFecha, setCobroFecha] = useState(editMode && booking.cobro_fecha ? booking.cobro_fecha : new Date().toISOString().split('T')[0]);
+  const [importeRecibido, setImporteRecibido] = useState(editMode && booking.cobro_importe ? booking.cobro_importe : totalFee);
+  const [metodo, setMetodo] = useState(editMode && booking.cobro_metodo ? booking.cobro_metodo : 'transferencia');
+  const [referencia, setReferencia] = useState(editMode && booking.cobro_referencia ? booking.cobro_referencia : '');
+  const [notas, setNotas] = useState(editMode && booking.cobro_notas ? booking.cobro_notas : '');
 
   // === Fraccionado state ===
   const [anticipoPct, setAnticipoPct] = useState(booking.anticipo_porcentaje ?? 50);
