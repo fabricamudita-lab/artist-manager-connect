@@ -1,53 +1,77 @@
 
 
-## Editar Estado de Pagos en Booking
+## Optimizar estructura del PDF de Presupuesto
 
-### Problema
-Una vez registrado un cobro (pago unico o fraccionado), no se puede corregir si fue un error. La tarjeta "Estado de Pagos" es de solo lectura.
+### Resumen
+Reestructurar la función `downloadPDF` en `BudgetDetailsDialog.tsx` (líneas 2166-2717) siguiendo las directrices del usuario para mejorar legibilidad y flujo lógico.
 
-### Solución
-Añadir un botón "Editar" en la tarjeta de Estado de Pagos que reabra el PagoDialog en modo edición, permitiendo modificar importe, fecha, referencia, o revertir el estado a "pendiente".
+### Cambios en el orden y contenido
 
-### Peligros y protecciones
+**Nuevo flujo del PDF:**
 
-1. **Cobros reflejados en Finanzas (CobrosTab)**: Si se modifica un cobro, la pestaña Cobros de Finanzas se actualiza automáticamente porque lee directamente de `booking_offers`. Sin riesgo de desincronización.
-
-2. **Retenciones IRPF ya contabilizadas (Modelo 111)**: Si el cobro pertenece a un trimestre fiscal ya presentado/bloqueado, el cambio podría alterar las cifras fiscales. Se mostrará un aviso antes de permitir la edición.
-
-3. **Liquidaciones dependientes del anticipo**: Si se revierte un anticipo a "pendiente", la liquidación debe volver a estado bloqueado. Se gestionará automáticamente.
-
-4. **Cobros vinculados a tabla `cobros`**: El PagoDialog ya escribe en `cobros` al registrar. Al editar, se actualizarán esos registros correspondientes.
-
-### Cambios
-
-**`PaymentStatusCard.tsx`**
-- Añadir botón `Pencil` (editar) junto al título o en cada sección de pago cobrado.
-- Al pulsar, abrir PagoDialog con los datos actuales precargados.
-- Añadir botón "Revertir a pendiente" con `AlertDialog` de confirmación que explique las consecuencias (afecta Finanzas, posible impacto fiscal).
-
-**`PagoDialog.tsx`**
-- Aceptar nueva prop `editMode?: boolean` para precargar campos con datos existentes del booking en vez de defaults.
-- En modo edición, permitir guardar cambios sobre los mismos campos (update en lugar de crear nuevo registro).
-- Antes de guardar, verificar si hay retenciones IRPF en trimestres bloqueados vinculadas a este booking; si las hay, mostrar aviso.
-
-**Flujo visual**
 ```text
-[Estado de Pagos]
-  Pago único         ✓ Cobrado    [✏️ Editar]
-  €2500              10/04/2026
+PÁGINA 1
+─────────────────────────────
+1. CABECERA
+   - Título del presupuesto
+   - Fecha, Lugar (datos del evento)
 
-  Click ✏️ → PagoDialog (modo edición, campos prellenados)
-  
-  [Revertir a pendiente] → AlertDialog:
-    "⚠️ Esto marcará el cobro como no recibido.
-     - Se actualizará el estado en Finanzas.
-     - Si hay retenciones IRPF registradas en un trimestre
-       presentado, podrían verse afectadas."
-    [Cancelar] [Confirmar]
+2. RESUMEN FINANCIERO
+   - Tabla actual (Caché, Gastos, IVA, IRPF, etc.)
+   - Beneficio negativo resaltado en ROJO
+     y con fuente más grande (12pt bold)
+   - Margen negativo también en rojo
+
+3. DESGLOSE POR CATEGORÍAS
+   - Tabla con Categoría, Elem., Confirmado,
+     Provisional, Total Neto, %
+─────────────────────────────
+PÁGINA 2 (o continuación)
+─────────────────────────────
+4. DETALLE DE ELEMENTOS
+   - Tabla técnica agrupada por categoría
+   - Agrupar músicos iguales: si hay N items
+     con mismo unit_price y categoría "Músicos",
+     mostrar "Músicos (xN)" como una sola fila
+     con quantity=N (solo en PDF, no en datos)
+
+5. ANEXO VISUAL: Gráfico Circular
+   - Solo el Donut de Distribución de Gastos
+   - Aclarar en subtítulo: "Importes con IVA"
+     o "Importes Netos" según lo que se calcule
+   - Colores con mayor contraste entre sí
+     (evitar tonos similares)
+─────────────────────────────
 ```
 
-### Resultado
-- Se pueden corregir errores de importe, fecha, referencia o revertir cobros.
-- El usuario siempre ve avisos claros sobre las consecuencias antes de confirmar cambios destructivos.
-- Los datos en Finanzas se mantienen sincronizados automáticamente.
+### Cambios técnicos en `BudgetDetailsDialog.tsx` → `downloadPDF()`
+
+**1. Eliminar gráfico de Barras Horizontales** (líneas ~2280-2350)
+- Borrar toda la sección "GRÁFICO 1: BARRAS HORIZONTALES" y su leyenda.
+
+**2. Eliminar gráfico Cascada/Waterfall** (líneas ~2464-2555)
+- Borrar toda la sección "GRÁFICO 3: CASCADA".
+
+**3. Mover el Donut al final** (líneas ~2352-2462)
+- Reubicar después de la tabla de detalle de elementos.
+- Añadir subtítulo aclaratorio indicando si los importes incluyen IVA.
+
+**4. Resaltar Beneficio negativo**
+- En la tabla de resumen financiero (~línea 2230), detectar si `beneficio < 0`.
+- Si es negativo, aplicar color rojo (`textColor: [220, 38, 38]`) y `fontStyle: 'bold'` a la fila de Beneficio y Margen usando `didParseCell` callback de autoTable.
+
+**5. Mejorar colores del Donut**
+- Reemplazar la paleta `chartColors` por colores con mayor separación visual:
+  ```
+  '#2563eb' (azul), '#dc2626' (rojo), '#16a34a' (verde),
+  '#d97706' (ámbar), '#7c3aed' (violeta), '#0891b2' (cyan),
+  '#c026d3' (magenta), '#65a30d' (lima)
+  ```
+
+**6. Agrupación de músicos en detalle**
+- Antes de generar `tableData`, agrupar items de la misma categoría con el mismo `unit_price` y nombre similar, sumando cantidades.
+- Solo agrupar si hay 3+ items similares para evitar perder detalle relevante.
+
+### Archivos modificados
+- `src/components/BudgetDetailsDialog.tsx` (función `downloadPDF`, líneas 2166-2717)
 
