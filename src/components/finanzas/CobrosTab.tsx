@@ -465,28 +465,49 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
                 <Badge variant={statusCfg.variant} className="text-[10px] flex-shrink-0">
                   {statusCfg.label}
                 </Badge>
-                {cobro.status !== 'cobrado' && (
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {cobro.status !== 'cobrado' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => openMarkCobrado(cobro)}
+                    >
+                      <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                      Cobrado
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
-                    size="sm"
-                    className="text-xs flex-shrink-0"
-                    onClick={() => openMarkCobrado(cobro)}
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    onClick={() => handleEditCobro(cobro)}
                   >
-                    <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                    Cobrado
+                    <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleDeleteCobro(cobro)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Add Cobro Dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+      {/* Add/Edit Cobro Dialog */}
+      <Dialog open={addOpen} onOpenChange={(open) => {
+        if (!open) { setEditCobro(null); resetForm(); }
+        setAddOpen(open);
+      }}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle>Añadir Cobro</DialogTitle>
+            <DialogTitle>{editCobro ? 'Editar Cobro' : 'Añadir Cobro'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
