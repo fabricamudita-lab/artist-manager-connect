@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { PagoDialog } from '@/components/PagoDialog';
-import { Plus, CheckCircle, DollarSign, Clock, AlertTriangle, CalendarClock } from 'lucide-react';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { Plus, CheckCircle, DollarSign, Clock, AlertTriangle, CalendarClock, Pencil, Trash2 } from 'lucide-react';
 import { addDays, format } from 'date-fns';
 import { toast } from 'sonner';
 
