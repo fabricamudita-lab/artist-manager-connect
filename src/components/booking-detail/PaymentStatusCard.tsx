@@ -89,9 +89,76 @@ function StatusBadge({ estado, fechaEsperada, locked }: { estado?: string; fecha
 export const PaymentStatusCard = forwardRef<HTMLDivElement, PaymentStatusCardProps>(
   ({ booking, highlighted, onUpdate }, ref) => {
     const [showPago, setShowPago] = useState(false);
+    const [pagoEditMode, setPagoEditMode] = useState(false);
+    const [showRevertDialog, setShowRevertDialog] = useState<'unico' | 'anticipo' | 'liquidacion' | null>(null);
+    const [reverting, setReverting] = useState(false);
     const [artistFiscal, setArtistFiscal] = useState<ArtistFiscalProfile | null>(null);
     const fee = booking.fee || 0;
     const cobroEstado = booking.cobro_estado;
+
+    const openEditDialog = () => {
+      setPagoEditMode(true);
+      setShowPago(true);
+    };
+
+    const handleRevert = async (type: 'unico' | 'anticipo' | 'liquidacion') => {
+      setReverting(true);
+      try {
+        if (type === 'unico') {
+          await supabase
+            .from('booking_offers')
+            .update({
+              cobro_estado: 'pendiente',
+              cobro_fecha: null,
+              cobro_importe: null,
+              cobro_metodo: null,
+              cobro_referencia: null,
+              cobro_notas: null,
+              anticipo_estado: null,
+              liquidacion_estado: null,
+              phase: 'confirmado',
+              estado: 'confirmado',
+              estado_facturacion: null,
+            } as any)
+            .eq('id', booking.id);
+          // Delete cobro records
+          await supabase.from('cobros').delete().eq('booking_id', booking.id).eq('type', 'booking');
+        } else if (type === 'anticipo') {
+          await supabase
+            .from('booking_offers')
+            .update({
+              anticipo_estado: 'pendiente',
+              anticipo_fecha_cobro: null,
+              anticipo_referencia: null,
+              cobro_estado: 'pendiente',
+            } as any)
+            .eq('id', booking.id);
+          await supabase.from('cobros').delete().eq('booking_id', booking.id).eq('type', 'booking').ilike('notes', '%anticipo%');
+        } else if (type === 'liquidacion') {
+          await supabase
+            .from('booking_offers')
+            .update({
+              liquidacion_estado: 'pendiente',
+              liquidacion_fecha_cobro: null,
+              liquidacion_referencia: null,
+              cobro_estado: booking.anticipo_estado === 'cobrado' ? 'anticipo_cobrado' : 'pendiente',
+              phase: 'confirmado',
+              estado: 'confirmado',
+              estado_facturacion: null,
+            } as any)
+            .eq('id', booking.id);
+          await supabase.from('cobros').delete().eq('booking_id', booking.id).eq('type', 'booking').ilike('notes', '%liquidaci%');
+        }
+        toast({ title: '✓ Estado revertido', description: 'El pago ha sido marcado como pendiente.' });
+        setShowRevertDialog(null);
+        onUpdate();
+      } catch (error) {
+        console.error('Error reverting:', error);
+        toast({ title: 'Error', description: 'No se pudo revertir el estado.', variant: 'destructive' });
+      } finally {
+        setReverting(false);
+      }
+    };
 
     // Fetch artist fiscal profile for IRPF
     useEffect(() => {
