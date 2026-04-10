@@ -24,6 +24,7 @@ interface CashflowItem {
   name: string;
   budgetId: string;
   budgetName: string;
+  artistId: string;
   artistName: string;
   category: string;
   contactName: string | null;
