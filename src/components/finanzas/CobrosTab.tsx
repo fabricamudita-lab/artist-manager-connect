@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { PagoDialog } from '@/components/PagoDialog';
-import { Plus, CheckCircle, DollarSign, Clock, AlertTriangle, CalendarClock } from 'lucide-react';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { Plus, CheckCircle, DollarSign, Clock, AlertTriangle, CalendarClock, Pencil, Trash2 } from 'lucide-react';
 import { addDays, format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -62,6 +63,8 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
   const queryClient = useQueryClient();
   const [sourceFilter, setSourceFilter] = useState('todos');
   const [addOpen, setAddOpen] = useState(false);
+  const [editCobro, setEditCobro] = useState<CobroRow | null>(null);
+  const [deleteCobro, setDeleteCobro] = useState<{ id: string; concept: string } | null>(null);
   const [markCobroId, setMarkCobroId] = useState<string | null>(null);
   const [markDate, setMarkDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [markAmount, setMarkAmount] = useState('');
@@ -197,6 +200,50 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
     onError: () => toast.error('Error al añadir cobro'),
   });
 
+  // Update cobro mutation
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!editCobro) return;
+      const gross = parseFloat(formGross) || 0;
+      const irpf = parseFloat(formIrpf) || 0;
+      const { error } = await supabase.from('cobros').update({
+        type: formType,
+        concept: formConcept,
+        artist_id: formArtist || null,
+        amount_gross: gross,
+        irpf_pct: irpf,
+        amount_net: gross - (gross * irpf / 100),
+        expected_date: formExpectedDate || null,
+        received_date: formReceivedDate || null,
+        status: formStatus,
+        notes: formNotes || null,
+      }).eq('id', editCobro.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cobros'] });
+      setEditCobro(null);
+      setAddOpen(false);
+      resetForm();
+      toast.success('Cobro actualizado');
+    },
+    onError: () => toast.error('Error al actualizar cobro'),
+  });
+
+  // Delete cobro mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('cobros').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cobros'] });
+      setDeleteCobro(null);
+      toast.success('Cobro eliminado');
+    },
+    onError: () => toast.error('Error al eliminar cobro'),
+  });
+
   // Mark as cobrado mutation (only for non-booking cobros)
   const markMutation = useMutation({
     mutationFn: async () => {
@@ -226,6 +273,46 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
     setFormReceivedDate('');
     setFormStatus('pendiente');
     setFormNotes('');
+  };
+
+  const handleEditCobro = (cobro: CobroRow) => {
+    if (cobro.id.startsWith('booking-') && cobro._raw) {
+      // For booking cobros, open PagoDialog
+      const raw = cobro._raw;
+      setPagoBooking({
+        id: raw.id, festival_ciclo: raw.festival_ciclo, venue: raw.venue, ciudad: raw.ciudad,
+        fee: raw.fee, artist_id: raw.artist_id, project_id: raw.project_id,
+        comision_porcentaje: raw.comision_porcentaje, fecha: raw.fecha,
+        anticipo_porcentaje: raw.anticipo_porcentaje, anticipo_importe: raw.anticipo_importe,
+        anticipo_estado: raw.anticipo_estado, anticipo_fecha_esperada: raw.anticipo_fecha_esperada,
+        anticipo_fecha_cobro: raw.anticipo_fecha_cobro, anticipo_referencia: raw.anticipo_referencia,
+        liquidacion_importe: raw.liquidacion_importe, liquidacion_estado: raw.liquidacion_estado,
+        liquidacion_fecha_esperada: raw.liquidacion_fecha_esperada,
+        liquidacion_fecha_cobro: raw.liquidacion_fecha_cobro,
+        liquidacion_referencia: raw.liquidacion_referencia, cobro_estado: raw.cobro_estado,
+      });
+      return;
+    }
+    // For manual cobros, open form pre-filled
+    setEditCobro(cobro);
+    setFormType(cobro.type);
+    setFormConcept(cobro.concept);
+    setFormArtist(cobro.artist_id || '');
+    setFormGross(String(cobro.amount_gross));
+    setFormIrpf(String(cobro.irpf_pct));
+    setFormExpectedDate(cobro.expected_date || '');
+    setFormReceivedDate(cobro.received_date || '');
+    setFormStatus(cobro.status);
+    setFormNotes(cobro.notes || '');
+    setAddOpen(true);
+  };
+
+  const handleDeleteCobro = (cobro: CobroRow) => {
+    if (cobro.id.startsWith('booking-')) {
+      toast.info('Este cobro proviene de un booking. Para eliminarlo, gestiona el booking directamente.');
+      return;
+    }
+    setDeleteCobro({ id: cobro.id, concept: cobro.concept });
   };
 
   const openMarkCobrado = (cobro: CobroRow) => {
@@ -378,28 +465,49 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
                 <Badge variant={statusCfg.variant} className="text-[10px] flex-shrink-0">
                   {statusCfg.label}
                 </Badge>
-                {cobro.status !== 'cobrado' && (
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {cobro.status !== 'cobrado' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => openMarkCobrado(cobro)}
+                    >
+                      <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                      Cobrado
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
-                    size="sm"
-                    className="text-xs flex-shrink-0"
-                    onClick={() => openMarkCobrado(cobro)}
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    onClick={() => handleEditCobro(cobro)}
                   >
-                    <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                    Cobrado
+                    <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleDeleteCobro(cobro)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Add Cobro Dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+      {/* Add/Edit Cobro Dialog */}
+      <Dialog open={addOpen} onOpenChange={(open) => {
+        if (!open) { setEditCobro(null); resetForm(); }
+        setAddOpen(open);
+      }}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle>Añadir Cobro</DialogTitle>
+            <DialogTitle>{editCobro ? 'Editar Cobro' : 'Añadir Cobro'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -467,9 +575,12 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancelar</Button>
-            <Button onClick={() => addMutation.mutate()} disabled={!formConcept || !formGross || addMutation.isPending}>
-              {addMutation.isPending ? 'Guardando...' : 'Guardar'}
+            <Button variant="outline" onClick={() => { setAddOpen(false); setEditCobro(null); resetForm(); }}>Cancelar</Button>
+            <Button
+              onClick={() => editCobro ? updateMutation.mutate() : addMutation.mutate()}
+              disabled={!formConcept || !formGross || addMutation.isPending || updateMutation.isPending}
+            >
+              {(addMutation.isPending || updateMutation.isPending) ? 'Guardando...' : editCobro ? 'Actualizar' : 'Guardar'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -517,6 +628,21 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
           }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={!!deleteCobro}
+        onOpenChange={(open) => { if (!open) setDeleteCobro(null); }}
+        title="Eliminar cobro"
+        description={`¿Eliminar el cobro "${deleteCobro?.concept}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="destructive"
+        icon="delete"
+        onConfirm={() => {
+          if (deleteCobro) deleteMutation.mutate(deleteCobro.id);
+        }}
+      />
     </div>
   );
 }
