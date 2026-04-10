@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -103,6 +104,7 @@ interface Budget {
   created_at: string;
   artist_id: string;
   parent_folder_id?: string;
+  booking_offer_id?: string;
   event_date: string;
   event_time: string;
   fee: number;
@@ -298,6 +300,7 @@ const mapFrontendToDb = (frontendStatus: string): 'pendiente' | 'pagado' | 'fact
 
 export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpdate, onDelete }: BudgetDetailsDialogProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [items, setItems] = useState<BudgetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<string | null>(null);
@@ -3021,7 +3024,20 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <DialogTitle className="text-xl font-bold text-white">{budgetData.name}</DialogTitle>
+                    <DialogTitle className="text-xl font-bold text-white">
+                      {(() => {
+                        const linkedBookingId = budgetData.booking_offer_id || bookingContext?.bookingId;
+                        return linkedBookingId ? (
+                          <span
+                            className="cursor-pointer hover:underline inline-flex items-center gap-1.5"
+                            onClick={() => navigate(`/booking/${linkedBookingId}`)}
+                          >
+                            {budgetData.name}
+                            <ExternalLink className="h-4 w-4 text-gray-400" />
+                          </span>
+                        ) : budgetData.name;
+                      })()}
+                    </DialogTitle>
                     {budgetData.parent_folder_id && budgetData.projects && (
                       <Button
                         variant="ghost"
