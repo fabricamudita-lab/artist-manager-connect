@@ -371,7 +371,7 @@ export function PagoDialog({ open, onOpenChange, booking, editMode, onSuccess }:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Registrar cobro — {eventName}</DialogTitle>
+          <DialogTitle>{editMode ? 'Editar cobro' : 'Registrar cobro'} — {eventName}</DialogTitle>
           <DialogDescription>
             Fee total: {fmt(totalFee)}
           </DialogDescription>
@@ -579,7 +579,7 @@ export function PagoDialog({ open, onOpenChange, booking, editMode, onSuccess }:
             onClick={mode === 'unico' ? handleSubmitUnico : handleSubmitFraccionado}
             disabled={saving}
           >
-            {saving ? 'Guardando...' : mode === 'unico' ? 'Registrar cobro' : 'Guardar pagos'}
+            {saving ? 'Guardando...' : editMode ? 'Guardar cambios' : mode === 'unico' ? 'Registrar cobro' : 'Guardar pagos'}
           </Button>
         </DialogFooter>
       </DialogContent>
