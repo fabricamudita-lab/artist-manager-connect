@@ -978,16 +978,16 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   // Funciones para el gráfico y resumen
   const getCategoryChartData = () => {
     const colors = [
-      '#3b82f6', // blue
-      '#ef4444', // red  
-      '#10b981', // emerald
-      '#f59e0b', // amber
-      '#8b5cf6', // violet
-      '#f97316', // orange
-      '#06b6d4', // cyan
-      '#84cc16', // lime
-      '#ec4899', // pink
-      '#6366f1'  // indigo
+      '#2563eb', // blue
+      '#dc2626', // red  
+      '#16a34a', // green
+      '#d97706', // amber
+      '#7c3aed', // violet
+      '#0891b2', // cyan
+      '#c026d3', // magenta
+      '#65a30d', // lime
+      '#e11d48', // rose
+      '#0d9488'  // teal
     ];
     
     // Sort categories with priority: Artista first, Músicos second, Comisiones last
@@ -2240,7 +2240,19 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         0: { fontStyle: 'bold', cellWidth: 50 },
         1: { halign: 'right', cellWidth: 50 }
       },
-      margin: { left: margin }
+      margin: { left: margin },
+      didParseCell: (data: any) => {
+        const rowLabel = data.row.raw?.[0];
+        if (rowLabel === 'Beneficio' && beneficio < 0) {
+          data.cell.styles.textColor = [220, 38, 38];
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fontSize = 11;
+        }
+        if (rowLabel === 'Margen' && margen < 0) {
+          data.cell.styles.textColor = [220, 38, 38];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
     });
     
     yPos = (doc as any).lastAutoTable.finalY + 3;
@@ -2252,311 +2264,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.text('*Total a facturar a fecha de emisión del documento', margin, yPos);
     doc.setTextColor(0);
     yPos += 8;
-    
-    // Línea separadora
-    doc.setDrawColor(200);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 8;
-    
-    // ==========================================
-    // GRÁFICOS VISUALES
-    // ==========================================
-    const chartColors = [
-      '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
-      '#f97316', '#06b6d4', '#84cc16', '#ec4899', '#6366f1'
-    ];
-    const barData = getCategoryBarData();
-    const chartDataRaw = getGroupedChartData();
-    const grandChartTotal = chartDataRaw.reduce((s, d) => s + d.value, 0);
-    
-    // Helper: hex to RGB
-    const hexToRgb = (hex: string) => {
-      const r = parseInt(hex.slice(1, 3), 16);
-      const g = parseInt(hex.slice(3, 5), 16);
-      const b = parseInt(hex.slice(5, 7), 16);
-      return [r, g, b] as [number, number, number];
-    };
-
-    // --- GRÁFICO 1: BARRAS HORIZONTALES ---
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Distribución por Categoría', margin, yPos);
-    yPos += 6;
-    
-    const maxBarTotal = Math.max(...barData.map(c => c.total), 1);
-    const barAreaWidth = pageWidth - margin * 2 - 50; // leave space for labels
-    const barH = 5;
-    const barGap = 7;
-    
-    barData.forEach((cat, idx) => {
-      // Check page break
-      if (yPos + barGap > 270) { doc.addPage(); yPos = 15; }
-      
-      // Category name
-      doc.setFontSize(7);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(60);
-      const catLabel = cat.name.length > 18 ? cat.name.substring(0, 18) + '…' : cat.name;
-      doc.text(catLabel, margin, yPos + barH - 1);
-      
-      const barX = margin + 42;
-      const fullW = (cat.total / maxBarTotal) * (barAreaWidth - 10);
-      
-      // Paid segment (green)
-      if (cat.paid > 0) {
-        const w = (cat.paid / cat.total) * fullW;
-        doc.setFillColor(34, 197, 94);
-        doc.rect(barX, yPos, w, barH, 'F');
-      }
-      // Confirmed segment (gray)
-      if (cat.confirmed > 0) {
-        const x = barX + (cat.paid / cat.total) * fullW;
-        const w = (cat.confirmed / cat.total) * fullW;
-        doc.setFillColor(156, 163, 175);
-        doc.rect(x, yPos, w, barH, 'F');
-      }
-      // Provisional segment (amber)
-      if (cat.provisional > 0) {
-        const x = barX + ((cat.paid + cat.confirmed) / cat.total) * fullW;
-        const w = (cat.provisional / cat.total) * fullW;
-        doc.setFillColor(251, 191, 36);
-        doc.rect(x, yPos, w, barH, 'F');
-      }
-      
-      // Amount label
-      doc.setFontSize(7);
-      doc.setTextColor(80);
-      doc.text(`${cat.total.toLocaleString('es-ES')} €`, barX + fullW + 2, yPos + barH - 1);
-      
-      yPos += barGap;
-    });
-    
-    // Legend
-    yPos += 2;
-    doc.setFontSize(6);
-    doc.setTextColor(100);
-    const legendItems = [
-      { label: 'Pagado', color: [34, 197, 94] as [number, number, number] },
-      { label: 'Comprometido', color: [156, 163, 175] as [number, number, number] },
-      { label: 'Provisional', color: [251, 191, 36] as [number, number, number] },
-    ];
-    let legendX = margin;
-    legendItems.forEach(li => {
-      doc.setFillColor(...li.color);
-      doc.rect(legendX, yPos - 2, 3, 3, 'F');
-      doc.text(li.label, legendX + 4, yPos);
-      legendX += doc.getTextWidth(li.label) + 8;
-    });
-    yPos += 8;
-    
-    // --- GRÁFICO 2: DONUT CIRCULAR ---
-    if (yPos > 180) { doc.addPage(); yPos = 15; }
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0);
-    doc.text('Distribución de Gastos', margin, yPos);
-    yPos += 8;
-    
-    // Draw actual donut chart using arc segments
-    const donutCenterX = margin + 30;
-    const donutCenterY = yPos + 30;
-    const donutOuterR = 25;
-    const donutInnerR = 14;
-    const segments = 72; // segments per full circle for smoothness
-    
-    let startAngle = -Math.PI / 2; // start from top
-    
-    chartDataRaw.forEach((d) => {
-      if (grandChartTotal <= 0) return;
-      const sliceAngle = (d.value / grandChartTotal) * 2 * Math.PI;
-      const endAngle = startAngle + sliceAngle;
-      const rgb = hexToRgb(d.color);
-      
-      // Draw filled arc as a polygon (outer arc + inner arc reversed)
-      const points: number[][] = [];
-      const steps = Math.max(Math.ceil((sliceAngle / (2 * Math.PI)) * segments), 2);
-      
-      // Outer arc
-      for (let i = 0; i <= steps; i++) {
-        const a = startAngle + (sliceAngle * i) / steps;
-        points.push([donutCenterX + Math.cos(a) * donutOuterR, donutCenterY + Math.sin(a) * donutOuterR]);
-      }
-      // Inner arc (reversed)
-      for (let i = steps; i >= 0; i--) {
-        const a = startAngle + (sliceAngle * i) / steps;
-        points.push([donutCenterX + Math.cos(a) * donutInnerR, donutCenterY + Math.sin(a) * donutInnerR]);
-      }
-      
-      // Draw polygon
-      doc.setFillColor(...rgb);
-      doc.setDrawColor(255, 255, 255);
-      doc.setLineWidth(0.5);
-      
-      // Use lines to draw the polygon
-      if (points.length > 2) {
-        const pathLines: number[][] = [];
-        points.forEach((p, i) => {
-          if (i === 0) {
-            pathLines.push(p);
-          } else {
-            pathLines.push(p);
-          }
-        });
-        
-        // Draw as filled shape using triangle fan approach
-        for (let i = 1; i < points.length - 1; i++) {
-          doc.triangle(
-            points[0][0], points[0][1],
-            points[i][0], points[i][1],
-            points[i + 1][0], points[i + 1][1],
-            'F'
-          );
-        }
-      }
-      
-      startAngle = endAngle;
-    });
-    
-    // Draw white center circle for donut hole
-    doc.setFillColor(255, 255, 255);
-    doc.circle(donutCenterX, donutCenterY, donutInnerR - 0.3, 'F');
-    
-    // Total in center
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(60);
-    doc.text(`€${grandChartTotal.toLocaleString('es-ES', { minimumFractionDigits: 0 })}`, donutCenterX, donutCenterY + 1, { align: 'center' });
-    
-    // Legend to the right of the donut
-    const legendStartX = margin + 65;
-    let legendY = yPos + 5;
-    
-    chartDataRaw.forEach((d) => {
-      const pct = grandChartTotal > 0 ? ((d.value / grandChartTotal) * 100).toFixed(1) : '0.0';
-      const rgb = hexToRgb(d.color);
-      
-      // Color square
-      doc.setFillColor(...rgb);
-      doc.rect(legendStartX, legendY - 3, 4, 4, 'F');
-      
-      // Name
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(40);
-      doc.text(d.name, legendStartX + 6, legendY);
-      
-      // Amount and percentage
-      doc.setTextColor(100);
-      doc.text(`€${d.value.toLocaleString('es-ES', { minimumFractionDigits: 2 })}  (${pct}%)`, legendStartX + 55, legendY);
-      
-      legendY += 6;
-    });
-    
-    // Total below legend
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0);
-    doc.text(`Total: €${grandChartTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`, legendStartX + 6, legendY + 2);
-    
-    yPos = Math.max(donutCenterY + donutOuterR + 8, legendY + 8);
-    
-    // --- GRÁFICO 3: CASCADA (WATERFALL) ---
-    if (yPos > 180) { doc.addPage(); yPos = 15; }
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0);
-    doc.text('Cascada de Capital', margin, yPos);
-    yPos += 8;
-    
-    const capital = budgetAmount;
-    let running = capital;
-    const wfData: { name: string; value: number; runningAfter: number; isPositive: boolean }[] = [];
-    wfData.push({ name: 'Capital', value: capital, runningAfter: capital, isPositive: true });
-    barData.forEach(cat => {
-      running -= cat.total;
-      wfData.push({ name: cat.name, value: cat.total, runningAfter: running, isPositive: false });
-    });
-    const available = running;
-    wfData.push({ name: 'Disponible', value: Math.abs(available), runningAfter: available, isPositive: available >= 0 });
-    
-    const minRunning = Math.min(0, ...wfData.map(d => d.runningAfter));
-    const maxVal = capital;
-    const range = maxVal - minRunning || 1; // avoid division by zero
-    const wfChartW = pageWidth - margin * 2;
-    const hasNegative = minRunning < 0;
-    const wfChartH = hasNegative ? 65 : 50;
-    const wfBarW = Math.min(18, (wfChartW - 10) / wfData.length - 2);
-    
-    // yForValue maps a numeric value to a Y coordinate in the chart
-    const wfTopY = yPos;
-    const yForValue = (v: number) => wfTopY + ((maxVal - v) / range) * wfChartH;
-    const zeroY = yForValue(0);
-    
-    // Draw baseline at y=0
-    doc.setDrawColor(180);
-    doc.setLineWidth(0.3);
-    doc.line(margin, zeroY, margin + wfChartW, zeroY);
-    
-    // If negative, draw a light dashed line at zeroY and label
-    if (hasNegative) {
-      doc.setFontSize(5);
-      doc.setTextColor(150);
-      doc.text('0', margin - 3, zeroY + 1.5, { align: 'right' });
-    }
-    
-    wfData.forEach((d, idx) => {
-      const x = margin + 5 + idx * ((wfChartW - 10) / wfData.length);
-      
-      let barTop: number, barBottom: number;
-      if (idx === 0) {
-        // Capital: bar from 0 up to capital
-        barTop = yForValue(d.value);
-        barBottom = zeroY;
-        doc.setFillColor(34, 197, 94);
-      } else if (idx === wfData.length - 1) {
-        // Disponible: from 0 to available (can go negative)
-        if (d.isPositive) {
-          barTop = yForValue(d.runningAfter);
-          barBottom = zeroY;
-          doc.setFillColor(34, 197, 94);
-        } else {
-          barTop = zeroY;
-          barBottom = yForValue(d.runningAfter);
-          doc.setFillColor(239, 68, 68);
-        }
-      } else {
-        // Expense: bar hanging from runningBefore down to runningAfter
-        barTop = yForValue(d.runningAfter + d.value);
-        barBottom = yForValue(d.runningAfter);
-        doc.setFillColor(239, 68, 68);
-      }
-      
-      const barHeight = barBottom - barTop;
-      if (barHeight > 0.5) {
-        doc.rect(x, barTop, wfBarW, barHeight, 'F');
-      }
-      
-      // Value label above bar
-      doc.setFontSize(5.5);
-      doc.setTextColor(60);
-      const valLabel = `€${d.value.toLocaleString('es-ES')}`;
-      doc.text(valLabel, x + wfBarW / 2, barTop - 1.5, { align: 'center' });
-      
-      // Name label below chart area
-      doc.setFontSize(5);
-      doc.setTextColor(100);
-      const nameLabel = d.name.length > 10 ? d.name.substring(0, 10) + '…' : d.name;
-      const labelY = wfTopY + wfChartH + 4;
-      doc.text(nameLabel, x + wfBarW / 2, labelY, { align: 'center' });
-    });
-    
-    yPos = wfTopY + wfChartH + 12;
-    
-    // ==========================================
-    // FIN GRÁFICOS
-    // ==========================================
     
     // Línea separadora
     doc.setDrawColor(200);
@@ -2584,7 +2291,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       return acc;
     }, {} as Record<string, { neto: number; count: number; confirmed: number; provisional: number }>);
     
-    // Ordenar categorías usando sort_order de budgetCategories
     const categoryOrder = budgetCategories.reduce((acc, bc, idx) => {
       acc[bc.name] = bc.sort_order ?? idx;
       return acc;
@@ -2621,7 +2327,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     
     yPos = (doc as any).lastAutoTable.finalY + 10;
     
-    // Nueva página si no hay espacio
     if (yPos > 220) {
       doc.addPage();
       yPos = 15;
@@ -2638,7 +2343,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     doc.text('DETALLE DE ELEMENTOS', margin, yPos);
     yPos += 8;
     
-    // Agrupar items por categoría, ordenados según prioridad
+    // Agrupar items por categoría
     const itemsByCategory: Record<string, typeof items> = {};
     items.forEach(item => {
       const cat = item.budget_categories?.name || item.category || 'Sin categoría';
@@ -2646,21 +2351,20 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       itemsByCategory[cat].push(item);
     });
     
-    // Ordenar categorías usando sort_order de budgetCategories
     const sortedCategoryNames = Object.keys(itemsByCategory).sort((a, b) => {
       const orderA = categoryOrder[a] ?? 999;
       const orderB = categoryOrder[b] ?? 999;
       return orderA - orderB;
     });
     
-    // Construir tableData con filas de categoría intercaladas
+    // Construir tableData con agrupación de items similares
     const tableData: (string | { content: string; colSpan: number; styles: any })[][] = [];
     
     sortedCategoryNames.forEach(categoryName => {
       const categoryItems = itemsByCategory[categoryName];
       const categoryTotal = categoryItems.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
       
-      // Fila de categoría (header de grupo) - solo nombre y total
+      // Fila de categoría (header de grupo)
       tableData.push([
         { 
           content: `${categoryName} | ${categoryTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`, 
@@ -2669,27 +2373,61 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         }
       ]);
       
-      // Filas de items de esta categoría
+      // Agrupar items similares (mismo nombre base y unit_price) si hay 3+ repetidos
+      const groupKey = (item: typeof categoryItems[0]) => `${item.unit_price}`;
+      const grouped: Record<string, typeof categoryItems> = {};
       categoryItems.forEach(item => {
-        // Construir nombre con indicador de % del fee si aplica
-        let conceptoName = item.name;
-        if (item.is_commission_percentage && item.commission_percentage) {
-          conceptoName += ` (${item.commission_percentage}% del fee)`;
+        const key = groupKey(item);
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(item);
+      });
+      
+      Object.values(grouped).forEach(group => {
+        if (group.length >= 3) {
+          // Agrupar: usar nombre del primero + "(xN)"
+          const first = group[0];
+          const totalQty = group.reduce((s, i) => s + i.quantity, 0);
+          const groupTotal = group.reduce((s, i) => s + calculateTotal(i), 0);
+          
+          let conceptoName = `${first.name} (x${group.length})`;
+          if (first.is_commission_percentage && first.commission_percentage) {
+            conceptoName += ` (${first.commission_percentage}% del fee)`;
+          }
+          
+          tableData.push([
+            conceptoName,
+            '-',
+            totalQty.toString(),
+            `${first.unit_price.toFixed(2)} €`,
+            `${first.iva_percentage}%`,
+            `${first.irpf_percentage ?? 15}%`,
+            `${groupTotal.toFixed(2)} €`,
+            group.every(i => i.billing_status === 'pagada') ? 'Pagada' :
+              group.every(i => i.billing_status === 'factura_recibida') ? 'Facturado' : 'Varios'
+          ]);
+        } else {
+          // Sin agrupar
+          group.forEach(item => {
+            let conceptoName = item.name;
+            if (item.is_commission_percentage && item.commission_percentage) {
+              conceptoName += ` (${item.commission_percentage}% del fee)`;
+            }
+            
+            tableData.push([
+              conceptoName,
+              item.contacts?.name || '-',
+              item.quantity.toString(),
+              `${item.unit_price.toFixed(2)} €`,
+              `${item.iva_percentage}%`,
+              `${item.irpf_percentage ?? 15}%`,
+              `${calculateTotal(item).toFixed(2)} €`,
+              item.billing_status === 'factura_recibida' ? 'Facturado' : 
+                item.billing_status === 'pendiente' ? 'Pendiente' : 
+                item.billing_status === 'factura_solicitada' ? 'Solicitada' :
+                item.billing_status === 'pagada' ? 'Pagada' : item.billing_status
+            ]);
+          });
         }
-        
-        tableData.push([
-          conceptoName,
-          item.contacts?.name || '-',
-          item.quantity.toString(),
-          `${item.unit_price.toFixed(2)} €`,
-          `${item.iva_percentage}%`,
-          `${item.irpf_percentage ?? 15}%`,
-          `${calculateTotal(item).toFixed(2)} €`,
-          item.billing_status === 'factura_recibida' ? 'Facturado' : 
-            item.billing_status === 'pendiente' ? 'Pendiente' : 
-            item.billing_status === 'factura_solicitada' ? 'Solicitada' :
-            item.billing_status === 'pagada' ? 'Pagada' : item.billing_status
-        ]);
       });
     });
     
@@ -2702,8 +2440,119 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
       margin: { left: margin }
     });
     
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+    
+    // ==========================================
+    // ANEXO VISUAL: Gráfico Circular (Donut)
+    // ==========================================
+    const chartDataRaw = getGroupedChartData();
+    const grandChartTotal = chartDataRaw.reduce((s, d) => s + d.value, 0);
+    
+    const hexToRgb = (hex: string) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return [r, g, b] as [number, number, number];
+    };
+    
+    // New page for chart annex
+    doc.addPage();
+    yPos = 15;
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    doc.text('ANEXO: Distribución de Gastos', margin, yPos);
+    yPos += 3;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100);
+    doc.text('Importes netos (sin IVA ni IRPF)', margin, yPos + 4);
+    doc.setTextColor(0);
+    yPos += 12;
+    
+    // Draw donut chart
+    const donutCenterX = margin + 30;
+    const donutCenterY = yPos + 30;
+    const donutOuterR = 25;
+    const donutInnerR = 14;
+    const segments = 72;
+    
+    let startAngle = -Math.PI / 2;
+    
+    chartDataRaw.forEach((d) => {
+      if (grandChartTotal <= 0) return;
+      const sliceAngle = (d.value / grandChartTotal) * 2 * Math.PI;
+      const endAngle = startAngle + sliceAngle;
+      const rgb = hexToRgb(d.color);
+      
+      const points: number[][] = [];
+      const steps = Math.max(Math.ceil((sliceAngle / (2 * Math.PI)) * segments), 2);
+      
+      for (let i = 0; i <= steps; i++) {
+        const a = startAngle + (sliceAngle * i) / steps;
+        points.push([donutCenterX + Math.cos(a) * donutOuterR, donutCenterY + Math.sin(a) * donutOuterR]);
+      }
+      for (let i = steps; i >= 0; i--) {
+        const a = startAngle + (sliceAngle * i) / steps;
+        points.push([donutCenterX + Math.cos(a) * donutInnerR, donutCenterY + Math.sin(a) * donutInnerR]);
+      }
+      
+      doc.setFillColor(...rgb);
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(0.5);
+      
+      if (points.length > 2) {
+        for (let i = 1; i < points.length - 1; i++) {
+          doc.triangle(
+            points[0][0], points[0][1],
+            points[i][0], points[i][1],
+            points[i + 1][0], points[i + 1][1],
+            'F'
+          );
+        }
+      }
+      
+      startAngle = endAngle;
+    });
+    
+    doc.setFillColor(255, 255, 255);
+    doc.circle(donutCenterX, donutCenterY, donutInnerR - 0.3, 'F');
+    
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(60);
+    doc.text(`€${grandChartTotal.toLocaleString('es-ES', { minimumFractionDigits: 0 })}`, donutCenterX, donutCenterY + 1, { align: 'center' });
+    
+    // Legend
+    const legendStartX = margin + 65;
+    let legendY = yPos + 5;
+    
+    chartDataRaw.forEach((d) => {
+      const pct = grandChartTotal > 0 ? ((d.value / grandChartTotal) * 100).toFixed(1) : '0.0';
+      const rgb = hexToRgb(d.color);
+      
+      doc.setFillColor(...rgb);
+      doc.rect(legendStartX, legendY - 3, 4, 4, 'F');
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(40);
+      doc.text(d.name, legendStartX + 6, legendY);
+      
+      doc.setTextColor(100);
+      doc.text(`€${d.value.toLocaleString('es-ES', { minimumFractionDigits: 2 })}  (${pct}%)`, legendStartX + 55, legendY);
+      
+      legendY += 6;
+    });
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    doc.text(`Total: €${grandChartTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`, legendStartX + 6, legendY + 2);
+    
     // Pie de página con fecha de generación
-    const finalY = (doc as any).lastAutoTable.finalY + 15;
+    const finalY = Math.max(donutCenterY + donutOuterR + 15, legendY + 15);
     doc.setFontSize(8);
     doc.setTextColor(128);
     doc.text(`Generado el ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, margin, finalY);
