@@ -217,26 +217,40 @@ export function PagoDialog({ open, onOpenChange, booking, editMode, onSuccess }:
 
       if (bookingError) throw bookingError;
 
-      const { error: cobroError } = await supabase
-        .from('cobros')
-        .insert({
-          type: 'booking',
-          concept: `Cobro concierto: ${eventName}`,
-          amount_gross: importeRecibido,
-          irpf_pct: irpfPct,
-          
-          received_date: cobroFecha,
-          status: 'cobrado',
-          artist_id: booking.artist_id || null,
-          project_id: booking.project_id || null,
-          booking_id: booking.id,
-          notes: notas || null,
-          created_by: user.id,
-        });
+      if (editMode) {
+        // Update existing cobro records linked to this booking
+        await supabase
+          .from('cobros')
+          .update({
+            concept: `Cobro concierto: ${eventName}`,
+            amount_gross: importeRecibido,
+            irpf_pct: irpfPct,
+            received_date: cobroFecha,
+            notes: notas || null,
+          })
+          .eq('booking_id', booking.id)
+          .eq('type', 'booking');
+      } else {
+        const { error: cobroError } = await supabase
+          .from('cobros')
+          .insert({
+            type: 'booking',
+            concept: `Cobro concierto: ${eventName}`,
+            amount_gross: importeRecibido,
+            irpf_pct: irpfPct,
+            received_date: cobroFecha,
+            status: 'cobrado',
+            artist_id: booking.artist_id || null,
+            project_id: booking.project_id || null,
+            booking_id: booking.id,
+            notes: notas || null,
+            created_by: user.id,
+          });
 
-      if (cobroError) throw cobroError;
+        if (cobroError) throw cobroError;
+      }
 
-      toast({ title: '✓ Cobro registrado', description: `${eventName} movido a Facturado` });
+      toast({ title: editMode ? '✓ Cobro actualizado' : '✓ Cobro registrado', description: `${eventName} ${editMode ? 'actualizado' : 'movido a Facturado'}` });
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
