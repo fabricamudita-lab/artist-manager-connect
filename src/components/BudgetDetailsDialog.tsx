@@ -978,16 +978,16 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   // Funciones para el gráfico y resumen
   const getCategoryChartData = () => {
     const colors = [
-      '#3b82f6', // blue
-      '#ef4444', // red  
-      '#10b981', // emerald
-      '#f59e0b', // amber
-      '#8b5cf6', // violet
-      '#f97316', // orange
-      '#06b6d4', // cyan
-      '#84cc16', // lime
-      '#ec4899', // pink
-      '#6366f1'  // indigo
+      '#2563eb', // blue
+      '#dc2626', // red  
+      '#16a34a', // green
+      '#d97706', // amber
+      '#7c3aed', // violet
+      '#0891b2', // cyan
+      '#c026d3', // magenta
+      '#65a30d', // lime
+      '#e11d48', // rose
+      '#0d9488'  // teal
     ];
     
     // Sort categories with priority: Artista first, Músicos second, Comisiones last
