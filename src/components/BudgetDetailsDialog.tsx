@@ -5460,5 +5460,64 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         </DialogContent>
       </Dialog>
     </Dialog>
+
+      {/* Confirmation dialog for deleting item with retentions */}
+      <AlertDialog open={!!pendingDeleteItem} onOpenChange={(open) => !open && setPendingDeleteItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retenciones asociadas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Este elemento tiene <strong>{pendingDeleteItem?.retentionCount} retención(es) de IRPF</strong> registradas. 
+              Al eliminarlo, también se eliminarán las retenciones asociadas de forma permanente.
+              <br />
+              <span className="text-destructive font-medium mt-1 block">Esta acción no se puede deshacer.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (pendingDeleteItem) {
+                  await executeDeleteItem(pendingDeleteItem.id);
+                  setPendingDeleteItem(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar con retenciones
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmation dialog for bulk deleting items with retentions */}
+      <AlertDialog open={!!pendingDeleteBulk} onOpenChange={(open) => !open && setPendingDeleteBulk(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retenciones asociadas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Los elementos seleccionados tienen <strong>{pendingDeleteBulk?.retentionCount} retención(es) de IRPF</strong> registradas. 
+              Al eliminarlos, también se eliminarán las retenciones asociadas de forma permanente.
+              <br />
+              <span className="text-destructive font-medium mt-1 block">Esta acción no se puede deshacer.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (pendingDeleteBulk) {
+                  await executeDeleteBulk(pendingDeleteBulk.ids);
+                  setPendingDeleteBulk(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar con retenciones
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Dialog>
   );
 }
