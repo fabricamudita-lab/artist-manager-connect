@@ -50,6 +50,7 @@ interface CobroRow {
   booking_id: string | null;
   artists?: { name: string; stage_name?: string | null } | null;
   projects?: { name: string } | null;
+  _raw?: any;
 }
 
 interface CobrosTabProps {
@@ -93,13 +94,13 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
     },
   });
 
-  // Fetch booking-based income (for merged view)
+  // Fetch booking-based income (for merged view) — includes all payment fields for PagoDialog
   const { data: bookingCobros = [] } = useQuery({
     queryKey: ['cobros-bookings', artistId],
     queryFn: async () => {
       let q = supabase
         .from('booking_offers')
-        .select('id, fee, estado, estado_facturacion, fecha, festival_ciclo, ciudad, venue, artist_id, project_id, artists!booking_offers_artist_id_fkey(name, stage_name)')
+        .select('id, fee, estado, estado_facturacion, fecha, festival_ciclo, ciudad, venue, artist_id, project_id, comision_porcentaje, anticipo_porcentaje, anticipo_importe, anticipo_estado, anticipo_fecha_esperada, anticipo_fecha_cobro, anticipo_referencia, liquidacion_importe, liquidacion_estado, liquidacion_fecha_esperada, liquidacion_fecha_cobro, liquidacion_referencia, cobro_estado, cobro_fecha, cobro_importe, cobro_referencia, artists!booking_offers_artist_id_fkey(name, stage_name)')
         .not('fee', 'is', null)
         .gt('fee', 0);
       if (artistId !== 'all') q = q.eq('artist_id', artistId);
@@ -113,13 +114,18 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
         amount_net: b.fee || 0,
         expected_date: b.fecha,
         received_date: b.estado_facturacion === 'cobrado' ? b.fecha : null,
-        status: b.estado_facturacion === 'cobrado' ? 'cobrado' : b.estado_facturacion === 'parcial' ? 'parcial' : (b.fecha && new Date(b.fecha) < addDays(new Date(), -7) ? 'vencido' : 'pendiente'),
+        status: b.cobro_estado === 'cobrado_completo' ? 'cobrado'
+          : b.estado_facturacion === 'cobrado' ? 'cobrado'
+          : b.anticipo_estado === 'cobrado' ? 'parcial'
+          : b.estado_facturacion === 'parcial' ? 'parcial'
+          : (b.fecha && new Date(b.fecha) < addDays(new Date(), -7) ? 'vencido' : 'pendiente'),
         notes: null,
         artist_id: b.artist_id,
         project_id: b.project_id,
         booking_id: b.id,
         artists: b.artists as any,
         projects: null,
+        _raw: b,
       })) as CobroRow[];
     },
   });
@@ -191,29 +197,19 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
     onError: () => toast.error('Error al añadir cobro'),
   });
 
-  // Mark as cobrado mutation
+  // Mark as cobrado mutation (only for non-booking cobros)
   const markMutation = useMutation({
     mutationFn: async () => {
       if (!markCobroId) return;
-      // If it's a booking-derived cobro, create a new cobros entry
-      if (markCobroId.startsWith('booking-')) {
-        const bookingId = markCobroId.replace('booking-', '');
-        const booking = bookingCobros.find(b => b.booking_id === bookingId);
-        if (!booking) return;
-        // Update booking_offers estado_facturacion
-        await supabase.from('booking_offers').update({ estado_facturacion: 'cobrado' }).eq('id', bookingId);
-      } else {
-        await supabase.from('cobros').update({
-          status: 'cobrado',
-          received_date: markDate,
-          amount_gross: parseFloat(markAmount) || undefined,
-          notes: markNotes || undefined,
-        }).eq('id', markCobroId);
-      }
+      await supabase.from('cobros').update({
+        status: 'cobrado',
+        received_date: markDate,
+        amount_gross: parseFloat(markAmount) || undefined,
+        notes: markNotes || undefined,
+      }).eq('id', markCobroId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cobros'] });
-      queryClient.invalidateQueries({ queryKey: ['cobros-bookings'] });
       setMarkCobroId(null);
       toast.success('Marcado como cobrado');
     },
@@ -233,6 +229,35 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
   };
 
   const openMarkCobrado = (cobro: CobroRow) => {
+    // For booking-derived cobros, open PagoDialog with full booking data
+    if (cobro.id.startsWith('booking-') && cobro._raw) {
+      const raw = cobro._raw;
+      setPagoBooking({
+        id: raw.id,
+        festival_ciclo: raw.festival_ciclo,
+        venue: raw.venue,
+        ciudad: raw.ciudad,
+        fee: raw.fee,
+        artist_id: raw.artist_id,
+        project_id: raw.project_id,
+        comision_porcentaje: raw.comision_porcentaje,
+        fecha: raw.fecha,
+        anticipo_porcentaje: raw.anticipo_porcentaje,
+        anticipo_importe: raw.anticipo_importe,
+        anticipo_estado: raw.anticipo_estado,
+        anticipo_fecha_esperada: raw.anticipo_fecha_esperada,
+        anticipo_fecha_cobro: raw.anticipo_fecha_cobro,
+        anticipo_referencia: raw.anticipo_referencia,
+        liquidacion_importe: raw.liquidacion_importe,
+        liquidacion_estado: raw.liquidacion_estado,
+        liquidacion_fecha_esperada: raw.liquidacion_fecha_esperada,
+        liquidacion_fecha_cobro: raw.liquidacion_fecha_cobro,
+        liquidacion_referencia: raw.liquidacion_referencia,
+        cobro_estado: raw.cobro_estado,
+      });
+      return;
+    }
+    // For non-booking cobros, use simple mark dialog
     setMarkCobroId(cobro.id);
     setMarkDate(format(new Date(), 'yyyy-MM-dd'));
     setMarkAmount(String(cobro.amount_gross));
@@ -450,7 +475,7 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Mark as Cobrado Dialog */}
+      {/* Mark as Cobrado Dialog — only for non-booking cobros */}
       <Dialog open={!!markCobroId} onOpenChange={open => !open && setMarkCobroId(null)}>
         <DialogContent className="sm:max-w-[360px]">
           <DialogHeader>
@@ -478,6 +503,20 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* PagoDialog for booking cobros — same dialog as in Booking detail */}
+      {pagoBooking && (
+        <PagoDialog
+          open={!!pagoBooking}
+          onOpenChange={(open) => { if (!open) setPagoBooking(null); }}
+          booking={pagoBooking}
+          onSuccess={() => {
+            setPagoBooking(null);
+            queryClient.invalidateQueries({ queryKey: ['cobros'] });
+            queryClient.invalidateQueries({ queryKey: ['cobros-bookings'] });
+          }}
+        />
+      )}
     </div>
   );
 }
