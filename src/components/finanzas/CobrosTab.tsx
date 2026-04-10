@@ -63,6 +63,8 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
   const queryClient = useQueryClient();
   const [sourceFilter, setSourceFilter] = useState('todos');
   const [addOpen, setAddOpen] = useState(false);
+  const [editCobro, setEditCobro] = useState<CobroRow | null>(null);
+  const [deleteCobro, setDeleteCobro] = useState<{ id: string; concept: string } | null>(null);
   const [markCobroId, setMarkCobroId] = useState<string | null>(null);
   const [markDate, setMarkDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [markAmount, setMarkAmount] = useState('');
