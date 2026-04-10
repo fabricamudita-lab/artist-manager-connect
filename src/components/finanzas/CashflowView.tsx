@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, CalendarDays, CalendarClock, HelpCircle } from 'lucide-react';
+import { ContactLinker } from './ContactLinker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ interface CashflowItem {
   name: string;
   budgetId: string;
   budgetName: string;
+  artistId: string;
   artistName: string;
   category: string;
   contactName: string | null;
@@ -123,11 +125,12 @@ export function CashflowView({ artistId }: CashflowViewProps) {
         const base = (item.unit_price ?? 0) * (item.quantity || 1);
         const iva = base * ((item.iva_percentage ?? 0) / 100);
         const irpf = base * ((item.irpf_percentage ?? 0) / 100);
-        return {
+          return {
           id: item.id,
           name: item.name,
           budgetId: item.budget_id,
           budgetName: budget?.name || '',
+          artistId: budget?.artist_id || '',
           artistName: (budget?.artists as any)?.stage_name || (budget?.artists as any)?.name || '',
           category: item.category || '',
           contactName: (item.contacts as any)?.name || null,
@@ -301,8 +304,21 @@ export function CashflowView({ artistId }: CashflowViewProps) {
                           {item.artistName && (
                             <span className="text-xs text-muted-foreground">{item.artistName}</span>
                           )}
-                          {item.contactName && (
+                          {item.contactName ? (
                             <span className="text-xs text-muted-foreground/70">→ {item.contactName}</span>
+                          ) : (
+                            <ContactLinker
+                              itemId={item.id}
+                              artistId={item.artistId}
+                              artistName={item.artistName}
+                              onLinked={(contactId, contactName) => {
+                                setItems(prev =>
+                                  prev.map(i =>
+                                    i.id === item.id ? { ...i, contactName } : i
+                                  )
+                                );
+                              }}
+                            />
                           )}
                         </div>
                         <div className="flex items-center gap-1.5">
