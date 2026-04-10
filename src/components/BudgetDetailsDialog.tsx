@@ -1882,7 +1882,30 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const deleteItem = async (itemId: string) => {
     try {
-      // Delete related irpf_retentions first to avoid FK constraint
+      // Check for related retentions first
+      const { data: retentions } = await supabase
+        .from('irpf_retentions')
+        .select('id')
+        .eq('budget_item_id', itemId);
+
+      if (retentions && retentions.length > 0) {
+        setPendingDeleteItem({ id: itemId, retentionCount: retentions.length });
+        return; // Wait for user confirmation
+      }
+
+      await executeDeleteItem(itemId);
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el elemento",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const executeDeleteItem = async (itemId: string) => {
+    try {
       await supabase.from('irpf_retentions').delete().eq('budget_item_id', itemId);
 
       const { error } = await supabase
