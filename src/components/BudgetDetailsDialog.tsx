@@ -320,6 +320,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   
   // Element movement states
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [pendingDeleteItem, setPendingDeleteItem] = useState<{ id: string; retentionCount: number } | null>(null);
+  const [pendingDeleteBulk, setPendingDeleteBulk] = useState<{ ids: string[]; retentionCount: number } | null>(null);
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
   const [mainTab, setMainTab] = useState('items');
 
@@ -1880,7 +1882,30 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
   const deleteItem = async (itemId: string) => {
     try {
-      // Delete related irpf_retentions first to avoid FK constraint
+      // Check for related retentions first
+      const { data: retentions } = await supabase
+        .from('irpf_retentions')
+        .select('id')
+        .eq('budget_item_id', itemId);
+
+      if (retentions && retentions.length > 0) {
+        setPendingDeleteItem({ id: itemId, retentionCount: retentions.length });
+        return; // Wait for user confirmation
+      }
+
+      await executeDeleteItem(itemId);
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el elemento",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const executeDeleteItem = async (itemId: string) => {
+    try {
       await supabase.from('irpf_retentions').delete().eq('budget_item_id', itemId);
 
       const { error } = await supabase
@@ -3037,7 +3062,30 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     try {
       const idsToDelete = Array.from(selectedItems);
 
-      // Delete related irpf_retentions first to avoid FK constraint
+      // Check for related retentions first
+      const { data: retentions } = await supabase
+        .from('irpf_retentions')
+        .select('id')
+        .in('budget_item_id', idsToDelete);
+
+      if (retentions && retentions.length > 0) {
+        setPendingDeleteBulk({ ids: idsToDelete, retentionCount: retentions.length });
+        return; // Wait for user confirmation
+      }
+
+      await executeDeleteBulk(idsToDelete);
+    } catch (error) {
+      console.error('Error deleting items:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron eliminar los elementos',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const executeDeleteBulk = async (idsToDelete: string[]) => {
+    try {
       await supabase.from('irpf_retentions').delete().in('budget_item_id', idsToDelete);
 
       const { error } = await supabase
@@ -3047,8 +3095,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
       if (error) throw error;
 
-      // Update local state
-      setItems((prev) => prev.filter((item) => !selectedItems.has(item.id)));
+      setItems((prev) => prev.filter((item) => !idsToDelete.includes(item.id)));
       setSelectedItems(new Set());
 
       toast({
@@ -3109,6 +3156,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={`${isFullscreen ? 'max-w-screen w-screen max-h-screen h-screen' : 'max-w-[95vw] w-full max-h-[95vh] h-full'} p-0 bg-black text-white border-gray-800`}>
         <div className="flex flex-col h-full overflow-y-auto bg-black">
@@ -5413,5 +5461,64 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
         </DialogContent>
       </Dialog>
     </Dialog>
+
+      {/* Confirmation dialog for deleting item with retentions */}
+      <AlertDialog open={!!pendingDeleteItem} onOpenChange={(open) => !open && setPendingDeleteItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retenciones asociadas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Este elemento tiene <strong>{pendingDeleteItem?.retentionCount} retención(es) de IRPF</strong> registradas. 
+              Al eliminarlo, también se eliminarán las retenciones asociadas de forma permanente.
+              <br />
+              <span className="text-destructive font-medium mt-1 block">Esta acción no se puede deshacer.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (pendingDeleteItem) {
+                  await executeDeleteItem(pendingDeleteItem.id);
+                  setPendingDeleteItem(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar con retenciones
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmation dialog for bulk deleting items with retentions */}
+      <AlertDialog open={!!pendingDeleteBulk} onOpenChange={(open) => !open && setPendingDeleteBulk(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retenciones asociadas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Los elementos seleccionados tienen <strong>{pendingDeleteBulk?.retentionCount} retención(es) de IRPF</strong> registradas. 
+              Al eliminarlos, también se eliminarán las retenciones asociadas de forma permanente.
+              <br />
+              <span className="text-destructive font-medium mt-1 block">Esta acción no se puede deshacer.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (pendingDeleteBulk) {
+                  await executeDeleteBulk(pendingDeleteBulk.ids);
+                  setPendingDeleteBulk(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar con retenciones
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
