@@ -103,6 +103,34 @@ export function BookingPresupuestoTab({
         }
       }
 
+      // Auto-sync booking fields → linked budgets (booking is source of truth)
+      if (combined.length > 0) {
+        const syncFields: Record<string, any> = {};
+        if (eventDate) syncFields.event_date = eventDate;
+        if (eventCity) syncFields.city = eventCity;
+        if (eventVenue) syncFields.venue = eventVenue;
+        if (fee != null) syncFields.fee = fee;
+
+        if (Object.keys(syncFields).length > 0) {
+          const outOfSync = combined.filter(
+            b => b.booking_offer_id === bookingId && (
+              (eventDate && b.event_date !== eventDate) ||
+              (eventCity && b.city !== eventCity) ||
+              (eventVenue && b.venue !== eventVenue) ||
+              (fee != null && b.fee !== fee)
+            )
+          );
+          if (outOfSync.length > 0) {
+            await supabase
+              .from('budgets')
+              .update(syncFields)
+              .in('id', outOfSync.map(b => b.id));
+            // Patch local data so UI is correct immediately
+            outOfSync.forEach(b => Object.assign(b, syncFields));
+          }
+        }
+      }
+
       if (combined.length === 0) return { linked: [] as BudgetSummary[], unlinked: [] as BudgetSummary[] };
 
       // Fetch items for all budgets
