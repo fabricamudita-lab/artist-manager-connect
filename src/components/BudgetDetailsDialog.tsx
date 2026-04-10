@@ -3062,7 +3062,30 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     try {
       const idsToDelete = Array.from(selectedItems);
 
-      // Delete related irpf_retentions first to avoid FK constraint
+      // Check for related retentions first
+      const { data: retentions } = await supabase
+        .from('irpf_retentions')
+        .select('id')
+        .in('budget_item_id', idsToDelete);
+
+      if (retentions && retentions.length > 0) {
+        setPendingDeleteBulk({ ids: idsToDelete, retentionCount: retentions.length });
+        return; // Wait for user confirmation
+      }
+
+      await executeDeleteBulk(idsToDelete);
+    } catch (error) {
+      console.error('Error deleting items:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron eliminar los elementos',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const executeDeleteBulk = async (idsToDelete: string[]) => {
+    try {
       await supabase.from('irpf_retentions').delete().in('budget_item_id', idsToDelete);
 
       const { error } = await supabase
@@ -3072,8 +3095,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
 
       if (error) throw error;
 
-      // Update local state
-      setItems((prev) => prev.filter((item) => !selectedItems.has(item.id)));
+      setItems((prev) => prev.filter((item) => !idsToDelete.includes(item.id)));
       setSelectedItems(new Set());
 
       toast({
