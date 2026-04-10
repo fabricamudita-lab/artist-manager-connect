@@ -65,6 +65,7 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
   const [markDate, setMarkDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [markAmount, setMarkAmount] = useState('');
   const [markNotes, setMarkNotes] = useState('');
+  const [pagoBooking, setPagoBooking] = useState<any>(null);
 
   // Form state
   const [formType, setFormType] = useState('otro');
