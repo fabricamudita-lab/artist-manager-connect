@@ -1,51 +1,36 @@
 
 
-## Corregir gráfico de cascada (Waterfall) en PDF para presupuestos negativos
+## Unificar cobros de Booking en Finanzas con PagoDialog
 
 ### Problema
-Cuando los gastos superan el capital (presupuesto negativo), el gráfico de cascada en el PDF se rompe visualmente:
-- Las barras de gasto se dibujan **por debajo de la línea base** porque `runningAfter` se vuelve negativo
-- Las etiquetas de valor se solapan con las barras
-- No hay zona visual para valores negativos — la línea base está fija en el fondo del gráfico
-- El texto del siguiente bloque ("DESGLOSE POR CATEGORÍAS") se solapa con el gráfico
+Existen dos flujos separados para registrar cobros de booking:
+1. **PagoDialog** (Booking detail/Kanban): Formulario completo con IRPF, anticipo+liquidación, método de cobro, referencia. Escribe en `booking_offers` + `cobros`.
+2. **CobrosTab "Marcar como Cobrado"** (Finanzas > Cobros): Diálogo simple con solo fecha, importe y notas. Solo actualiza `estado_facturacion` en `booking_offers`, sin IRPF ni split.
 
-### Causa raíz
-En `BudgetDetailsDialog.tsx` (líneas 2444-2476), el cálculo del PDF waterfall asume que `running` siempre es positivo:
-```typescript
-const topOfBar = wfBaseY - ((d.runningAfter + d.value) / wfMaxVal) * (wfChartH - 10);
-```
-Cuando `runningAfter` es negativo, `topOfBar` se sitúa **debajo** de `wfBaseY`, las barras se dibujan fuera del área del gráfico y colisionan con el texto.
+El usuario quiere que al marcar un cobro de booking en Finanzas se use el mismo formulario PagoDialog.
 
-### Solución
+### Cambios
 
-**Archivo: `src/components/BudgetDetailsDialog.tsx`** (líneas ~2413-2478)
+**Archivo: `src/components/finanzas/CobrosTab.tsx`**
 
-1. **Calcular el rango completo** del eje Y incluyendo valores negativos: `minVal` (mínimo de 0 y el running más bajo) y `maxVal` (capital).
-2. **Reubicar la línea base (y=0)** proporcionalmente dentro del área del gráfico, dejando espacio arriba para positivos y abajo para negativos.
-3. **Dibujar barras correctamente**: las de gasto "cuelgan" desde su posición running, y si cruzan la línea base, se extienden hacia abajo naturalmente.
-4. **Posicionar etiquetas** siempre por encima de cada barra con margen suficiente.
-5. **Aumentar `wfChartH`** cuando hay valores negativos para dar más espacio visual.
-6. **Ajustar `yPos`** después del gráfico para evitar solapamiento con el contenido siguiente.
+1. Importar `PagoDialog` en lugar del diálogo simple actual.
+2. Cambiar el estado `markCobroId` por un estado que almacene el objeto booking completo necesario para PagoDialog (fetched desde `booking_offers` con todos los campos de pago: `anticipo_*`, `liquidacion_*`, `cobro_*`, etc.).
+3. Cuando el usuario pulsa "Cobrado" en un cobro de tipo booking:
+   - Buscar el booking original en `bookingCobros` (ya tenemos `booking_id`).
+   - Hacer un fetch rápido de los campos de pago del booking (`anticipo_porcentaje`, `anticipo_estado`, etc.) ya que la query actual no los incluye.
+   - Abrir `PagoDialog` con esos datos.
+4. Para cobros **no-booking** (royalties, subvenciones, etc.), mantener el diálogo simple actual de "Marcar como Cobrado".
+5. Eliminar el diálogo simple de "Marcar como Cobrado" para bookings (se reemplaza por PagoDialog).
+6. En `onSuccess` del PagoDialog, invalidar las queries de `cobros` y `cobros-bookings`.
 
-Lógica clave:
-```typescript
-const minRunning = Math.min(0, ...wfData.map(d => d.runningAfter));
-const maxVal = capital;
-const range = maxVal - minRunning; // rango total del eje
+### Detalle técnico
 
-// Posición Y del valor 0 (línea base) proporcional al rango
-const zeroY = yPos + (maxVal / range) * wfChartH;
-
-// Cada barra se posiciona según su valor real en el eje
-const yForValue = (v) => yPos + ((maxVal - v) / range) * wfChartH;
-```
-
-### También afecta al gráfico in-app (Recharts)
-El gráfico interactivo (líneas 4874-4930) tiene un problema similar con `base: Math.max(running, 0)` — trunca las bases negativas. Se corregirá para que las bases negativas se muestren correctamente, ya que Recharts ya soporta el dominio negativo en el YAxis (línea 4906).
+- Ampliar la query de `cobros-bookings` para incluir los campos de pago: `anticipo_porcentaje, anticipo_importe, anticipo_estado, anticipo_fecha_esperada, anticipo_fecha_cobro, anticipo_referencia, liquidacion_importe, liquidacion_estado, liquidacion_fecha_esperada, liquidacion_fecha_cobro, liquidacion_referencia, cobro_estado, cobro_fecha, cobro_importe, comision_porcentaje`.
+- Nuevo estado: `pagoBooking` (el booking completo para PagoDialog) en lugar de `markCobroId` para bookings.
+- El diálogo simple se conserva solo para cobros manuales (no-booking).
 
 ### Resultado
-- Capital €2500 con gastos €2790: la cascada mostrará barras descendiendo hasta €-290 por debajo de la línea base
-- "Disponible" se mostrará en rojo extendiéndose bajo la línea base
-- Etiquetas nunca solapan barras ni texto posterior
-- El bloque "DESGLOSE" comienza con margen adecuado
+- Al pulsar "Cobrado" en un cobro de booking en Finanzas, se abre el mismo PagoDialog con las mismas opciones (pago único / anticipo+liquidación, IRPF, método, etc.).
+- Los cobros no vinculados a booking mantienen su flujo simple.
+- Un solo formulario, una sola fuente de verdad.
 
