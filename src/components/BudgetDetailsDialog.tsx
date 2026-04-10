@@ -320,6 +320,8 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   
   // Element movement states
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [pendingDeleteItem, setPendingDeleteItem] = useState<{ id: string; retentionCount: number } | null>(null);
+  const [pendingDeleteBulk, setPendingDeleteBulk] = useState<{ ids: string[]; retentionCount: number } | null>(null);
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
   const [mainTab, setMainTab] = useState('items');
 
