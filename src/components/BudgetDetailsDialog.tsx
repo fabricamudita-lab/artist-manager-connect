@@ -3156,6 +3156,7 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={`${isFullscreen ? 'max-w-screen w-screen max-h-screen h-screen' : 'max-w-[95vw] w-full max-h-[95vh] h-full'} p-0 bg-black text-white border-gray-800`}>
         <div className="flex flex-col h-full overflow-y-auto bg-black">
