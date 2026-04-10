@@ -628,6 +628,21 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
           }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={!!deleteCobro}
+        onOpenChange={(open) => { if (!open) setDeleteCobro(null); }}
+        title="Eliminar cobro"
+        description={`¿Eliminar el cobro "${deleteCobro?.concept}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="destructive"
+        icon="delete"
+        onConfirm={() => {
+          if (deleteCobro) deleteMutation.mutate(deleteCobro.id);
+        }}
+      />
     </div>
   );
 }
