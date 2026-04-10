@@ -459,6 +459,29 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     }
   }, [open, budget?.artist_id]);
 
+  // Auto-sync from linked booking when dialog opens
+  useEffect(() => {
+    if (!open || !budget?.booking_offer_id) return;
+    (async () => {
+      const { data: booking } = await supabase
+        .from('booking_offers')
+        .select('fecha, ciudad, venue, fee')
+        .eq('id', budget.booking_offer_id)
+        .maybeSingle();
+      if (!booking) return;
+      const updates: Record<string, any> = {};
+      if (booking.fecha && booking.fecha !== budget.event_date) updates.event_date = booking.fecha;
+      if (booking.ciudad && booking.ciudad !== budget.city) updates.city = booking.ciudad;
+      if (booking.venue && booking.venue !== budget.venue) updates.venue = booking.venue;
+      if (booking.fee != null && booking.fee !== budget.fee) updates.fee = booking.fee;
+      if (Object.keys(updates).length > 0) {
+        await supabase.from('budgets').update(updates).eq('id', budget.id);
+        setBudgetData(prev => ({ ...prev, ...updates }));
+        if (updates.fee != null) setBudgetAmount(updates.fee);
+      }
+    })();
+  }, [open, budget?.id, budget?.booking_offer_id]);
+
   useEffect(() => {
     if (open && budget) {
       setBudgetData(budget);
