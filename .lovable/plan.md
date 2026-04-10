@@ -1,23 +1,52 @@
 
 
-## Hacer clic en el nombre del presupuesto para ir al evento de booking
+## Sincronizar fecha y datos del evento del booking con los presupuestos vinculados
 
-### Contexto
-El nombre del presupuesto (ej. "Presupuesto - CurtCircuit") se muestra en el header del diálogo pero no es clicable. El usuario quiere que al hacer clic navegue al evento de booking vinculado.
+### Problema
+Cuando se edita un booking (fecha, ciudad, venue, etc.) en `EditBookingDialog`, solo se sincroniza el **fee** con los presupuestos vinculados (líneas 331-342). La fecha (`event_date`), ciudad, venue, hora y otros campos del evento no se actualizan en los presupuestos, causando que las fechas no coincidan.
 
-### Enfoque
-El componente ya resuelve el `bookingContext` (con `bookingId`) a través de la carpeta de storage. Además, la tabla `budgets` tiene un campo `booking_offer_id` directo que es más fiable. Usaremos ambas fuentes:
+### Causa raíz
+En `src/components/booking-detail/EditBookingDialog.tsx`, líneas 331-342:
+```typescript
+// Solo sincroniza el fee
+if (formData.fee !== booking.fee) {
+  await supabase.from('budgets').update({ fee: formData.fee })
+    .eq('booking_offer_id', booking.id);
+}
+```
+Faltan los demás campos: `event_date`, `event_time`, `city`, `country`, `venue`, `festival_ciclo`, `formato`.
 
-1. **Añadir `booking_offer_id` a la interfaz `Budget`** (línea ~93) como campo opcional.
-2. **Determinar el booking ID** usando `budget.booking_offer_id` (directo) o `bookingContext?.bookingId` (fallback por storage).
-3. **Hacer el nombre clicable** (línea ~3024): Si hay un booking vinculado, envolver `budgetData.name` en un enlace con `onClick={() => navigate(/booking/${bookingId})` con estilo hover y un icono `ExternalLink`.
+### Solución
+**Archivo: `src/components/booking-detail/EditBookingDialog.tsx`** (líneas ~331-342)
 
-### Cambios en `src/components/BudgetDetailsDialog.tsx`
+Ampliar la sincronización para incluir todos los campos relevantes del evento cuando cambien:
 
-- Línea ~93: Añadir `booking_offer_id?: string` a la interfaz `Budget`.
-- Línea ~3024: Convertir el `DialogTitle` con el nombre en un elemento clicable condicionalmente, solo cuando exista `booking_offer_id` o `bookingContext?.bookingId`.
-- Importar `useNavigate` de react-router-dom.
+```typescript
+// After saving booking, sync relevant fields to linked budgets
+const budgetSync: Record<string, any> = {};
+if (formData.fee !== booking.fee) budgetSync.fee = formData.fee;
+if (formData.fecha !== booking.fecha) budgetSync.event_date = formData.fecha;
+if (formData.hora !== booking.hora) budgetSync.event_time = formData.hora;
+if (formData.ciudad !== booking.ciudad) budgetSync.city = formData.ciudad;
+if (formData.pais !== booking.pais) budgetSync.country = formData.pais;
+if ((formData.venue || formData.lugar) !== (booking.venue || booking.lugar)) 
+  budgetSync.venue = formData.venue || formData.lugar;
+if (formData.festival_ciclo !== booking.festival_ciclo) budgetSync.festival_ciclo = formData.festival_ciclo;
+if (formData.formato !== booking.formato) budgetSync.formato = formData.formato;
+
+if (Object.keys(budgetSync).length > 0) {
+  const { error: budgetError } = await supabase
+    .from('budgets')
+    .update(budgetSync)
+    .eq('booking_offer_id', booking.id);
+  
+  if (budgetError) {
+    console.error('Error syncing to budgets:', budgetError);
+    toast.error('Booking guardado, pero error al sincronizar presupuesto');
+  }
+}
+```
 
 ### Resultado
-Al hacer clic en "Presupuesto - CurtCircuit", el usuario navegará a `/booking/{id}` del evento vinculado. Si no hay booking vinculado, el nombre se muestra como texto normal sin interacción.
+Cuando se edite la fecha (u otro campo del evento) en un booking, los presupuestos vinculados se actualizarán automáticamente para mantener la coherencia.
 
