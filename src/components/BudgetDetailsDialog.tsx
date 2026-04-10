@@ -300,6 +300,7 @@ const mapFrontendToDb = (frontendStatus: string): 'pendiente' | 'pagado' | 'fact
 
 export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpdate, onDelete }: BudgetDetailsDialogProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [items, setItems] = useState<BudgetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<string | null>(null);
