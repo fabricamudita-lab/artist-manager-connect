@@ -39,11 +39,17 @@ interface PagoDialogProps {
     liquidacion_estado?: string;
     liquidacion_referencia?: string;
     cobro_estado?: string;
+    cobro_fecha?: string;
+    cobro_importe?: number;
+    cobro_metodo?: string;
+    cobro_referencia?: string;
+    cobro_notas?: string;
   };
+  editMode?: boolean;
   onSuccess?: () => void;
 }
 
-export function PagoDialog({ open, onOpenChange, booking, onSuccess }: PagoDialogProps) {
+export function PagoDialog({ open, onOpenChange, booking, editMode, onSuccess }: PagoDialogProps) {
   const { user } = useAuth();
   const eventName = booking.festival_ciclo || booking.venue || booking.ciudad || 'Evento';
   const totalFee = booking.fee || 0;
