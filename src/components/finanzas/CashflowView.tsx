@@ -125,11 +125,12 @@ export function CashflowView({ artistId }: CashflowViewProps) {
         const base = (item.unit_price ?? 0) * (item.quantity || 1);
         const iva = base * ((item.iva_percentage ?? 0) / 100);
         const irpf = base * ((item.irpf_percentage ?? 0) / 100);
-        return {
+          return {
           id: item.id,
           name: item.name,
           budgetId: item.budget_id,
           budgetName: budget?.name || '',
+          artistId: budget?.artist_id || '',
           artistName: (budget?.artists as any)?.stage_name || (budget?.artists as any)?.name || '',
           category: item.category || '',
           contactName: (item.contacts as any)?.name || null,
