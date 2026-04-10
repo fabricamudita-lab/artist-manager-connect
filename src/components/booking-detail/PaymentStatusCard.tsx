@@ -268,10 +268,22 @@ export const PaymentStatusCard = forwardRef<HTMLDivElement, PaymentStatusCardPro
                         <span className="text-sm font-semibold">
                           Anticipo ({booking.anticipo_porcentaje || 50}%) — Antes del evento
                         </span>
-                        <StatusBadge
-                          estado={booking.anticipo_estado}
-                          fechaEsperada={booking.anticipo_fecha_esperada}
-                        />
+                        <div className="flex items-center gap-1">
+                          <StatusBadge
+                            estado={booking.anticipo_estado}
+                            fechaEsperada={booking.anticipo_fecha_esperada}
+                          />
+                          {booking.anticipo_estado === 'cobrado' && (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={openEditDialog}>
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => setShowRevertDialog('anticipo')}>
+                                <RotateCcw className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
