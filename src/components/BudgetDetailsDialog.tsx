@@ -2445,10 +2445,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
     // ==========================================
     // ANEXO VISUAL: Gráfico Circular (Donut)
     // ==========================================
-    const chartColors = [
-      '#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed',
-      '#0891b2', '#c026d3', '#65a30d', '#e11d48', '#0d9488'
-    ];
     const chartDataRaw = getGroupedChartData();
     const grandChartTotal = chartDataRaw.reduce((s, d) => s + d.value, 0);
     
