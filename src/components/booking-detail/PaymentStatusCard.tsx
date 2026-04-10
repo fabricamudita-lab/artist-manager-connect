@@ -467,13 +467,50 @@ export const PaymentStatusCard = forwardRef<HTMLDivElement, PaymentStatusCardPro
 
         <PagoDialog
           open={showPago}
-          onOpenChange={setShowPago}
+          onOpenChange={(open) => {
+            setShowPago(open);
+            if (!open) setPagoEditMode(false);
+          }}
           booking={booking}
+          editMode={pagoEditMode}
           onSuccess={() => {
             setShowPago(false);
+            setPagoEditMode(false);
             onUpdate();
           }}
         />
+
+        <AlertDialog open={!!showRevertDialog} onOpenChange={(open) => !open && setShowRevertDialog(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                Revertir a pendiente
+              </AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2 text-sm">
+                <p>Esto marcará el cobro como <strong>no recibido</strong>.</p>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li>Se actualizará el estado en la pestaña Finanzas &gt; Cobros.</li>
+                  <li>Se eliminarán los registros de cobro asociados.</li>
+                  <li>Si hay retenciones IRPF registradas en un trimestre fiscal ya presentado, podrían verse afectadas.</li>
+                  {showRevertDialog === 'anticipo' && (
+                    <li>La liquidación volverá a estado bloqueado (en espera del anticipo).</li>
+                  )}
+                </ul>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={reverting}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => showRevertDialog && handleRevert(showRevertDialog)}
+                disabled={reverting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {reverting ? 'Revirtiendo...' : 'Confirmar reversión'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </>
     );
   }
