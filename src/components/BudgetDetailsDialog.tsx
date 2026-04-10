@@ -5518,6 +5518,6 @@ export default function BudgetDetailsDialog({ open, onOpenChange, budget, onUpda
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Dialog>
+    </>
   );
 }
