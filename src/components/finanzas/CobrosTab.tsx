@@ -575,9 +575,12 @@ export function CobrosTab({ artistId }: CobrosTabProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancelar</Button>
-            <Button onClick={() => addMutation.mutate()} disabled={!formConcept || !formGross || addMutation.isPending}>
-              {addMutation.isPending ? 'Guardando...' : 'Guardar'}
+            <Button variant="outline" onClick={() => { setAddOpen(false); setEditCobro(null); resetForm(); }}>Cancelar</Button>
+            <Button
+              onClick={() => editCobro ? updateMutation.mutate() : addMutation.mutate()}
+              disabled={!formConcept || !formGross || addMutation.isPending || updateMutation.isPending}
+            >
+              {(addMutation.isPending || updateMutation.isPending) ? 'Guardando...' : editCobro ? 'Actualizar' : 'Guardar'}
             </Button>
           </DialogFooter>
         </DialogContent>
